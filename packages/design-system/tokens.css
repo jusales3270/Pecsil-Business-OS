@@ -1,0 +1,25 @@
+:root {
+  --pecsil-blue-700: #1f55d5;
+  --pecsil-blue-600: #2864ed;
+  --pecsil-blue-500: #3b82f6;
+  --pecsil-blue-100: #dbeafe;
+  --pecsil-blue-50: #eff6ff;
+  --pecsil-slate-950: #111827;
+  --pecsil-slate-700: #374151;
+  --pecsil-slate-600: #4b5563;
+  --pecsil-slate-500: #6b7280;
+  --pecsil-slate-300: #d1d5db;
+  --pecsil-slate-200: #e5e7eb;
+  --pecsil-slate-100: #f3f4f6;
+  --pecsil-white: #ffffff;
+  --pecsil-green: #10b981;
+  --pecsil-orange: #f59e0b;
+  --pecsil-red: #f43f5e;
+  --pecsil-purple: #a855f7;
+  --pecsil-teal: #14b8a6;
+  --pecsil-radius-sm: 10px;
+  --pecsil-radius-md: 14px;
+  --pecsil-radius-lg: 18px;
+  --pecsil-shadow-sm: 0 2px 7px rgba(17, 24, 39, 0.06);
+  --pecsil-shadow-button: 0 5px 12px rgba(40, 100, 237, 0.22);
+}

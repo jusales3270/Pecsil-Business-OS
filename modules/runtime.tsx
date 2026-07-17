@@ -1,0 +1,23 @@
+"use client";
+
+import { createElement, type ComponentType } from "react";
+import { FinanceModule } from "../app/components/finance-module";
+import type { ModuleAccessContext } from "./access";
+// module-generator:imports
+
+export type ModuleRuntimeProps = {
+  notify: (message: string) => void;
+  onEvent: (message: string, module?: string) => void;
+  onExit: () => void;
+  access: ModuleAccessContext;
+};
+
+const moduleComponents: Record<string, ComponentType<ModuleRuntimeProps>> = {
+  financeiro: FinanceModule,
+  // module-generator:entries
+};
+
+export function renderModuleComponent(moduleId: string, props: ModuleRuntimeProps) {
+  const component = moduleComponents[moduleId];
+  return component ? createElement(component, props) : null;
+}
