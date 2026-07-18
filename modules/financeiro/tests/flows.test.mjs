@@ -23,3 +23,11 @@ test("financeiro: cria, aprova, liquida, recebe e concilia em modo demonstrativo
   assert.match(source, /Receber/);
   assert.match(source, /Conciliar agora/);
 });
+
+test("financeiro: homologação cobre critérios, alçadas, evidências e decisão final", () => {
+  assert.match(source, /Critérios funcionais/);
+  assert.match(source, /Matriz proposta de aprovação/);
+  assert.match(source, /Evidências da homologação/);
+  assert.match(source, /Homologar versão/);
+  assert.match(source, /Supabase, RLS e arquivos não bloqueiam o aceite funcional/);
+});
