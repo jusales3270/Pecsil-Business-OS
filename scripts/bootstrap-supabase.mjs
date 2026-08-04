@@ -54,11 +54,11 @@ const profile = await one(
 
 const moduleSeeds = [
   { code: "rh", name: "Recursos Humanos", version: "1.0.0", route: "/modules/rh", entry_permission: "rh.view", status: "integrated", menu_order: 10 },
-  { code: "compras", name: "Compras", version: "0.0.0", route: "/modules/compras", entry_permission: "compras.view", status: "planned", menu_order: 20 },
-  { code: "producao", name: "Produção", version: "0.0.0", route: "/modules/producao", entry_permission: "producao.view", status: "planned", menu_order: 30 },
-  { code: "estoque", name: "Estoque", version: "0.0.0", route: "/modules/estoque", entry_permission: "estoque.view", status: "planned", menu_order: 40 },
-  { code: "qualidade", name: "Qualidade", version: "0.0.0", route: "/modules/qualidade", entry_permission: "qualidade.view", status: "planned", menu_order: 50 },
-  { code: "financeiro", name: "Financeiro", version: "0.0.0", route: "/modules/financeiro", entry_permission: "financeiro.view", status: "future", menu_order: 60 },
+  { code: "financeiro", name: "Financeiro", version: "1.3.0", route: "/modules/financeiro", entry_permission: "financeiro.view", status: "integrated", menu_order: 20 },
+  { code: "compras", name: "Compras", version: "0.0.0", route: "/modules/compras", entry_permission: "compras.view", status: "planned", menu_order: 30 },
+  { code: "producao", name: "Produção", version: "0.0.0", route: "/modules/producao", entry_permission: "producao.view", status: "planned", menu_order: 40 },
+  { code: "estoque", name: "Estoque", version: "0.0.0", route: "/modules/estoque", entry_permission: "estoque.view", status: "planned", menu_order: 50 },
+  { code: "qualidade", name: "Qualidade", version: "0.0.0", route: "/modules/qualidade", entry_permission: "qualidade.view", status: "planned", menu_order: 60 },
 ];
 
 const { error: moduleError } = await supabase
@@ -72,10 +72,10 @@ const { error: organizationModuleError } = await supabase
     moduleSeeds.map((module) => ({
       organization_id: organization.id,
       module_code: module.code,
-      enabled: module.code === "rh",
-      menu_enabled: module.code === "rh",
-      enabled_at: module.code === "rh" ? new Date().toISOString() : null,
-      enabled_by: module.code === "rh" ? profile.id : null,
+      enabled: ["rh", "financeiro"].includes(module.code),
+      menu_enabled: ["rh", "financeiro"].includes(module.code),
+      enabled_at: ["rh", "financeiro"].includes(module.code) ? new Date().toISOString() : null,
+      enabled_by: ["rh", "financeiro"].includes(module.code) ? profile.id : null,
     })),
     { onConflict: "organization_id,module_code" },
   );
@@ -158,17 +158,18 @@ const modules = [
   "core.audit",
   "platform.modules",
   "rh",
+  "financeiro",
 ];
 const actions = ["view", "create", "edit", "approve", "export", "admin"];
+const permissionSeeds = modules.flatMap((module_code) =>
+  actions.map((action) => ({ role_id:ownerRole.id, module_code, action, granted:true })),
+);
+permissionSeeds.push(
+  { role_id:ownerRole.id, module_code:"financeiro", action:"settle", granted:true },
+  { role_id:ownerRole.id, module_code:"financeiro", action:"reconcile", granted:true },
+);
 const { error: permissionError } = await supabase.from("role_permissions").upsert(
-  modules.flatMap((module_code) =>
-    actions.map((action) => ({
-      role_id: ownerRole.id,
-      module_code,
-      action,
-      granted: true,
-    })),
-  ),
+  permissionSeeds,
   { onConflict: "role_id,module_code,action" },
 );
 if (permissionError) fail(permissionError.message);
