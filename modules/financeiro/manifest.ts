@@ -9,7 +9,7 @@ export const financeModuleManifest = defineModule({
   description: "Contas a pagar e receber, caixa, bancos, conciliação e resultado.",
   desc: "Contas a pagar e receber, caixa, bancos, conciliação e resultado.",
   route: "/modules/financeiro",
-  version: "1.0.0",
+  version: "1.3.0",
   icon: "chart",
   color: "red",
   status: "Integrado",
@@ -23,5 +23,5 @@ export const financeModuleManifest = defineModule({
     scopes: ["company", "unit", "department"],
   },
   sharedServices: ["identity", "organization", "documents", "notifications", "audit", "search"],
-  auditEvents: ["financeiro.payable.create", "financeiro.payable.approve", "financeiro.payable.settle", "financeiro.receivable.create", "financeiro.receivable.settle", "financeiro.bank.reconcile", "financeiro.report.export", "financeiro.module.homologate"],
+  auditEvents: ["financeiro.payable.create", "financeiro.payable.approve", "financeiro.payable.settle", "financeiro.payable.partial_settle", "financeiro.settlement.reverse", "financeiro.receivable.create", "financeiro.receivable.settle", "financeiro.bank.import", "financeiro.bank.reconcile", "financeiro.approval.decide", "financeiro.report.export", "financeiro.tax_report.review", "financeiro.module.homologate"],
 });
