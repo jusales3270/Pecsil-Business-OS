@@ -16,6 +16,10 @@ const requiredTables = [
   "organizations", "units", "departments", "teams", "positions", "profiles", "employees",
   "roles", "role_permissions", "access_scopes", "user_roles", "documents", "notifications",
   "audit_logs", "modules", "organization_modules",
+  "finance_chart_accounts", "finance_cost_centers", "finance_bank_accounts",
+  "finance_titles", "finance_installments", "finance_approval_rules",
+  "finance_approval_requests", "finance_settlements", "finance_bank_entries",
+  "finance_reconciliations",
 ];
 
 for (const table of requiredTables) {
@@ -23,7 +27,7 @@ for (const table of requiredTables) {
   if (!sql.includes(`alter table public.${table} enable row level security`)) errors.push(`RLS não declarado: public.${table}`);
 }
 
-for (const requiredFunction of ["current_profile_id", "current_organization_id", "has_permission", "can_access_entity", "can_access_module"]) {
+for (const requiredFunction of ["current_profile_id", "current_organization_id", "has_permission", "can_access_entity", "can_access_module", "finance_validate_settlement", "finance_refresh_installment", "audit_finance_mutation"]) {
   if (!sql.includes(`function public.${requiredFunction}`)) errors.push(`Função de segurança ausente: ${requiredFunction}`);
 }
 
