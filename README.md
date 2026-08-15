@@ -3,6 +3,41 @@
 Plataforma empresarial modular da Pecsil. A Fundação v1 reúne identidade,
 organização, permissões, busca, documentos, notificações e auditoria.
 
+> **Comece por [`docs/BLUEPRINT-PECSIL-BUSINESS-OS.md`](docs/BLUEPRINT-PECSIL-BUSINESS-OS.md)**
+> — direção do produto, estado real dos módulos, roadmap por fases e regras de
+> engenharia. É o documento de referência para qualquer trabalho neste repositório.
+>
+> Para trabalho de interface, leia também
+> **[`docs/DESIGN-SYSTEM-PECSIL.md`](docs/DESIGN-SYSTEM-PECSIL.md)** — tokens,
+> tema claro/escuro, primitivas e o padrão que todo módulo novo deve seguir.
+
+## Ambiente local com Supabase
+
+O desenvolvimento roda contra um Supabase local, em Docker. Não é preciso o
+servidor da empresa nem executar SQL manualmente.
+
+```bash
+supabase start          # sobe o stack (portas 54331-54337)
+supabase db reset       # recria o banco e aplica todas as migrations
+npm run dev             # aplicação em http://localhost:5173
+```
+
+Studio local: http://127.0.0.1:54333
+
+As credenciais ficam em `.env.local` (fora do Git). As chaves do ambiente local
+são as demo padrão do CLI — públicas, idênticas em qualquer instalação.
+
+Para provisionar a organização e o proprietário:
+
+```bash
+# 1. criar o usuário no Auth (o bootstrap não cria conta nem define senha)
+# 2. preencher INITIAL_OWNER_EMAIL e INITIAL_OWNER_NAME no .env.local
+npm run supabase:bootstrap
+```
+
+Sem sessão autenticada a aplicação cai em modo demonstrativo — isso é
+proposital, não é falha. Faça login para ver os dados reais.
+
 ## Persistência Supabase
 
 - Migração principal: `supabase/migrations/202607140001_foundation.sql`

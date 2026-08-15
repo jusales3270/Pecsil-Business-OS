@@ -17,7 +17,11 @@
     "supabase:validate": "node scripts/validate-supabase-package.mjs",
     "supabase:bootstrap": "node scripts/bootstrap-supabase.mjs",
     "module:create": "node scripts/create-module.mjs",
-    "modules:validate": "node scripts/validate-module-contracts.mjs"
+    "modules:validate": "node scripts/validate-module-contracts.mjs",
+    "visual:check": "node scripts/visual-check.mjs",
+    "visual:audit": "node scripts/visual-audit.mjs",
+    "check:perimeter": "node scripts/check-perimeter.mjs",
+    "keys:rotate": "node infra/rotate-jwt-keys.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

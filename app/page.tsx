@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button, Card, Status } from "../packages/design-system";
+import { Button, Callout, Card, Kpi, KpiGrid, Status, ThemeToggle } from "../packages/design-system";
 import type { FoundationSummary, OrganizationData, Person } from "../lib/data/foundation";
 import { useFoundationData } from "../lib/data/use-foundation-data";
 import { canAccessModule, demoPersonaOrder, demoPersonas, getCatalogModules, getModuleById, getVisibleModules, hasPermission, moduleRegistry, renderModuleComponent, type DemoPersonaId, type ModuleAccessContext, type ModuleManifest } from "../modules";
@@ -29,6 +29,22 @@ const nav: { label: View; icon: string }[] = [
   { label: "Documentos", icon: "file" }, { label: "Notificações", icon: "bell" },
   { label: "Auditoria", icon: "shield" }, { label: "Banco e Autenticação", icon: "database" }, { label: "Configurações", icon: "settings" },
 ];
+
+/** Título e subtítulo que o cabeçalho exibe para cada área. Sempre presente:
+ *  uma tela sem título contextual obriga o usuário a se localizar sozinho. */
+const headerCopy: Record<View, [string, string]> = {
+  "Visão Geral": ["Visão geral", "Estado do ecossistema, módulos e indicadores autorizados"],
+  "Módulos": ["Módulos", "Catálogo de domínios e estado de cada um"],
+  "Pessoas e Acessos": ["Pessoas e acessos", "Cadastro mestre de colaboradores, contas e perfis"],
+  "Estrutura": ["Estrutura empresarial", "Empresa, unidades, departamentos, equipes e cargos"],
+  "Permissões e Segurança": ["Permissões e segurança", "Papéis, escopos, ações e isolamento de dados"],
+  "Busca Corporativa": ["Busca corporativa", "Pessoas, estruturas, documentos e eventos autorizados"],
+  "Documentos": ["Documentos", "Arquivos versionados, classificados e rastreáveis"],
+  "Notificações": ["Notificações", "Alertas e pendências consolidados dos módulos"],
+  "Auditoria": ["Auditoria", "Rastreabilidade imutável de acessos e operações críticas"],
+  "Banco e Autenticação": ["Banco e autenticação", "Fundação PostgreSQL, RLS e provisionamento"],
+  "Configurações": ["Configurações", "Parâmetros centrais herdados por todos os módulos"],
+};
 
 const viewPermissions: Partial<Record<View, string>> = {
   "Pessoas e Acessos": "core.people.view",
@@ -97,10 +113,13 @@ function Overview({ setView, summary, onOpenModule, access, catalogModules, visi
         : [["modules",String(visibleModules.length),"Módulo ativo","Visível conforme credenciais","blue"],["users",String(summary.employees),"Colaboradores mapeados","Cadastro mestre inicial","green"],["shield",String(summary.roles),"Perfis de acesso","Modelo definido","purple"],["bell","4","Serviços centrais","Base da Fundação","orange"]];
   return <>
     <div className="page-head"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div><Button onClick={() => setView("Módulos")}><Icon name="modules"/> Explorar módulos</Button></div>
-    <div className="scope-banner"><span><Icon name="lock"/></span><div><b>Escopo aplicado: {access.scopeLabel}</b><small>Interface simulada com as mesmas regras do futuro acesso autenticado.</small></div><Status tone="info">{access.role}</Status></div>
-    <div className="stats-grid">
-      {metricItems.map(([icon,value,label,meta,color]) => <Card className={`stat-card ${color}`} key={label}><span className="stat-icon"><Icon name={icon}/></span><span><strong>{value}</strong><b>{label}</b><small>{meta}</small></span></Card>)}
-    </div>
+    <Callout variant="info" title={`Escopo aplicado: ${access.scopeLabel}`}>
+      Interface simulada com as mesmas regras do futuro acesso autenticado. Perfil ativo: <strong>{access.role}</strong>.
+      Os números desta tela são demonstrativos até a conexão com o Supabase.
+    </Callout>
+    <KpiGrid>
+      {metricItems.map(([,value,label,meta,color]) => <Kpi key={label} label={label} caption={meta} value={value} tone={(color==="orange"?"amber":color) as "blue"|"green"|"amber"|"purple"}/>)}
+    </KpiGrid>
     <div className="overview-grid">
       <Card className="executive-card"><div className="card-head"><div><p className="eyebrow">ECOSSISTEMA</p><h2>Mapa da plataforma</h2></div><Status tone="info">Fundação v1</Status></div><div className="system-map"><div className="core"><span><Icon name="grid"/></span><b>Núcleo Pecsil</b><small>Identidade · Acessos · Dados · Auditoria</small></div><div className="connector"/><div className="module-row">{catalogModules.slice(0,5).map(m=><button key={m.name} className={`map-module ${m.color}`} onClick={()=>m.enabled?onOpenModule(m.id):setView("Módulos")}><Icon name={m.icon}/><span>{m.short}</span></button>)}</div><div className="intelligence"><span>J</span><div><b>Jarvis Business</b><small>Inteligência transversal — preparado para fase futura</small></div><Status>Planejado</Status></div></div></Card>
       <Card className="foundation-card"><div className="card-head"><div><p className="eyebrow">ETAPA 4</p><h2>Fundação do sistema</h2></div><span className="progress-value">100%</span></div><div className="big-progress stage-four"><i/></div><ul className="check-list"><li className="done"><span>✓</span><div><b>Shell e Design System</b><small>Experiência Pecsil consolidada</small></div></li><li className="done"><span>✓</span><div><b>Identidade e organização</b><small>Cadastros mestres estruturados</small></div></li><li className="done"><span>✓</span><div><b>Permissões e RLS</b><small>Matriz e políticas preparadas</small></div></li><li className="done"><span>✓</span><div><b>Serviços centrais</b><small>Busca, documentos, alertas e auditoria</small></div></li><li><span>5</span><div><b>Persistência real</b><small>Próximo marco</small></div></li></ul></Card>
@@ -117,8 +136,10 @@ function ModuleCatalog({ onOpenModule, modules, access }: { onOpenModule: (modul
 const organizationTabs = ["Visão geral","Unidades","Departamentos","Equipes","Cargos"] as const;
 type OrgTab = typeof organizationTabs[number];
 
+const metricTones = ["blue","green","purple","amber"] as const;
+
 function MetricCards({ items }: { items:[string,string,string][] }) {
-  return <div className="identity-metrics">{items.map(([value,label,meta])=><Card key={label}><strong>{value}</strong><span>{label}</span><small>{meta}</small></Card>)}</div>;
+  return <KpiGrid>{items.map(([value,label,meta],index)=><Kpi key={label} label={label} caption={meta} value={value} tone={metricTones[index%metricTones.length]}/>)}</KpiGrid>;
 }
 
 function OrganizationView({ notify, organizationData, summary, organizationName }: { notify:(message:string)=>void; organizationData: OrganizationData; summary: FoundationSummary; organizationName: string }) {
@@ -326,15 +347,59 @@ export default function Home() {
   const visibleModules=useMemo(()=>getVisibleModules(access,moduleRegistry),[access]);
   const foundationNav=useMemo(()=>nav.slice(2).filter(item=>!viewPermissions[item.label]||hasPermission(access,viewPermissions[item.label]!)),[access]);
   const notify=(message:string)=>{setToast(message);setTimeout(()=>setToast(""),2600)};
-  const recordOperationalEvent=(message:string,module="Recursos Humanos")=>{const lower=message.toLowerCase();const sensitive=lower.includes("aprov")||lower.includes("reprov")||lower.includes("conforme")||lower.includes("situação alterada");const monitored=lower.includes("export")||lower.includes("documento")||lower.includes("cadastro");const title=message.split(":")[0].replace(/\.$/,"");setOperationalEvents(current=>[{id:Date.now(),title,message,actor:access.name,module,time:"Agora",tone:sensitive?"attention":"info",risk:sensitive?"Sensível":monitored?"Monitorado":"Normal",icon:sensitive?"shield":lower.includes("export")?"download":"bell"},...current].slice(0,20));};
+  const recordOperationalEvent=(message:string,module="Recursos Humanos")=>{const lower=message.toLowerCase();const sensitive=lower.includes("aprov")||lower.includes("reprov")||lower.includes("conforme")||lower.includes("situação alterada");const monitored=lower.includes("export")||lower.includes("documento")||lower.includes("cadastro");const title=message.split(":")[0].replace(/\.$/,"");setOperationalEvents(current=>[{id:Date.now(),title,message,actor:access.name,module,time:"Agora",tone:(sensitive?"attention":"info") as OperationalEvent["tone"],risk:(sensitive?"Sensível":monitored?"Monitorado":"Normal") as OperationalEvent["risk"],icon:sensitive?"shield":lower.includes("export")?"download":"bell"},...current].slice(0,20));};
   const change=(v:View)=>{const permission=viewPermissions[v];if(permission&&!hasPermission(access,permission)){setDeniedTarget(v);setActiveModuleId(null);setMobile(false);return}setDeniedTarget(null);setActiveModuleId(null);setView(v);setMobile(false)};
   const openModule=(moduleId:string)=>{const manifest=getModuleById(moduleId);if(!manifest||!canAccessModule(access,manifest)){setDeniedTarget(manifest?.name??"Módulo");setActiveModuleId(null);setMobile(false);return}setDeniedTarget(null);setActiveModuleId(moduleId);setMobile(false)};
   const openSearch=()=>change("Busca Corporativa");
   const switchPersona=(next:DemoPersonaId)=>{const person=demoPersonas[next];setPersonaId(next);setPersonaMenu(false);setDeniedTarget(null);setActiveModuleId(null);setView("Visão Geral");setMobile(false);notify(`Perfil alterado para ${person.role} · ${person.scopeLabel}.`)};
-  return <div className={sidebarCollapsed?"app-shell sidebar-collapsed":"app-shell"}>
-    <aside className={mobile?"sidebar open":"sidebar"}><div className="brand"><img src="/pecsil-logo.png" alt="Pecsil — Molds for Glass"/><div><b>BUSINESS OS</b><small>Ecossistema empresarial</small></div><button className="sidebar-collapse" onClick={()=>setSidebarCollapsed(value=>!value)} aria-label={sidebarCollapsed?"Expandir menu lateral":"Recolher menu lateral"} aria-pressed={sidebarCollapsed} title={sidebarCollapsed?"Expandir menu lateral":"Recolher menu lateral"}><Icon name={sidebarCollapsed?"panel-open":"panel-close"} size={17}/></button><button className="close-menu" onClick={()=>setMobile(false)} aria-label="Fechar menu"><Icon name="close"/></button></div><nav><p>PLATAFORMA</p>{nav.slice(0,2).map(n=><button key={n.label} title={n.label} aria-label={n.label} className={!activeModuleId&&!deniedTarget&&view===n.label?"active":""} onClick={()=>change(n.label)}><Icon name={n.icon}/><span>{n.label}</span></button>)}{visibleModules.length>0&&<><p>MÓDULOS</p>{visibleModules.map(module=><button key={module.id} title={module.name} aria-label={module.name} className={activeModuleId===module.id?"active":""} onClick={()=>openModule(module.id)}><Icon name={module.icon}/><span>{module.name}</span><Status tone="success">Ativo</Status></button>)}</>} {foundationNav.length>0&&<><p>FUNDAÇÃO</p>{foundationNav.map(n=><button key={n.label} title={n.label} aria-label={n.label} className={!activeModuleId&&!deniedTarget&&view===n.label?"active":""} onClick={()=>change(n.label)}><Icon name={n.icon}/><span>{n.label}</span>{n.label==="Notificações"&&<i>{3+operationalEvents.length}</i>}</button>)}</>}</nav><div className="foundation-status complete" title={`Escopo protegido · ${access.scopeLabel}`}><span><i/></span><div><b>Escopo protegido</b><small>{access.scopeLabel}</small></div><strong>RLS</strong></div><div className="persona-switcher"><button className="user-card" onClick={()=>setPersonaMenu(value=>!value)} aria-expanded={personaMenu} aria-label={`Perfil: ${access.name}, ${access.role}`} title={`${access.name} · ${access.role}`}><span className="avatar">{access.initials}</span><span><b>{access.name}</b><small>{access.role}</small></span><span>⌄</span></button>{personaMenu&&<div className="persona-menu"><p>SIMULAR ACESSO</p>{demoPersonaOrder.map(id=>{const person=demoPersonas[id];return <button key={id} className={id===personaId?"active":""} onClick={()=>switchPersona(id)}><span>{person.initials}</span><span><b>{person.role}</b><small>{person.scopeLabel}</small></span>{id===personaId&&<i>✓</i>}</button>})}</div>}</div></aside>
+  const activeModule=activeModuleId?getModuleById(activeModuleId):undefined;
+  const [headerTitle,headerSubtitle]=deniedTarget
+    ? ["Acesso controlado","Este recurso não faz parte do seu perfil"]
+    : activeModule
+      ? [activeModule.name,activeModule.desc]
+      : headerCopy[view];
+  return <div className={sidebarCollapsed?"app-shell collapsed":"app-shell"}>
+    <aside className={mobile?"sidebar open":"sidebar"}>
+      <div className="brand">
+        <img src="/pecsil-logo.png" alt="Pecsil — Molds for Glass"/>
+        <b>Business OS</b>
+        <button className="close-menu" onClick={()=>setMobile(false)} aria-label="Fechar menu"><Icon name="close"/></button>
+      </div>
+      <nav>
+        <p>Plataforma</p>
+        {nav.slice(0,2).map(n=><button key={n.label} title={n.label} aria-label={n.label} className={!activeModuleId&&!deniedTarget&&view===n.label?"active":""} onClick={()=>change(n.label)}><Icon name={n.icon}/><span>{n.label}</span></button>)}
+        {visibleModules.length>0&&<><p>Módulos</p>
+          {visibleModules.map(module=><button key={module.id} title={module.name} aria-label={module.name} className={activeModuleId===module.id?"active":""} onClick={()=>openModule(module.id)}><Icon name={module.icon}/><span>{module.name}</span></button>)}
+        </>}
+        {foundationNav.length>0&&<><p>Fundação</p>
+          {foundationNav.map(n=><button key={n.label} title={n.label} aria-label={n.label} className={!activeModuleId&&!deniedTarget&&view===n.label?"active":""} onClick={()=>change(n.label)}><Icon name={n.icon}/><span>{n.label}</span>{n.label==="Notificações"&&<i>{3+operationalEvents.length}</i>}</button>)}
+        </>}
+      </nav>
+      <div className="foundation-status complete" title={`Escopo protegido · ${access.scopeLabel}`}>
+        <span><i/></span>
+        <div><b>Escopo protegido</b><small>{access.scopeLabel}</small></div>
+      </div>
+      <button className="sidebar-collapse" onClick={()=>setSidebarCollapsed(value=>!value)} aria-pressed={sidebarCollapsed} title={sidebarCollapsed?"Expandir menu lateral":"Recolher menu lateral"}>
+        <Icon name={sidebarCollapsed?"panel-open":"panel-close"} size={18}/><span>Recolher</span>
+      </button>
+    </aside>
     {mobile&&<button className="scrim" onClick={()=>setMobile(false)} aria-label="Fechar menu"/>}
-    <main className="main"><header><button className="menu-button" onClick={()=>setMobile(true)}><Icon name="menu"/></button><div className="header-title"><span className="live-dot"/><b>{loading?"Sincronizando dados":snapshot.source==="supabase"?"Supabase conectado":`Simulação · ${access.role}`}</b></div><form className="search" onSubmit={e=>{e.preventDefault();openSearch()}}><Icon name="search"/><input value={globalQuery} onChange={e=>setGlobalQuery(e.target.value)} placeholder="Buscar no ecossistema..."/><button type="submit" aria-label="Buscar"><Icon name="arrow" size={16}/></button></form>{hasPermission(access,"core.notifications.view")&&<button className="header-icon" aria-label="Notificações" onClick={()=>change("Notificações")}><Icon name="bell"/><i/></button>}<span className="avatar top">{access.initials}</span></header>
+    <main className="main">
+      <header>
+        <button className="menu-button" onClick={()=>setMobile(true)} aria-label="Abrir menu"><Icon name="menu"/></button>
+        <div className="header-title"><h1>{headerTitle}</h1><p>{headerSubtitle}</p></div>
+        <Status tone={loading?"neutral":snapshot.source==="supabase"?"success":"attention"}>{loading?"Sincronizando":snapshot.source==="supabase"?"Supabase":"Demonstrativo"}</Status>
+        <form className="search" onSubmit={e=>{e.preventDefault();openSearch()}}><Icon name="search" size={16}/><input value={globalQuery} onChange={e=>setGlobalQuery(e.target.value)} placeholder="Pessoa, documento, módulo..."/></form>
+        <ThemeToggle/>
+        {hasPermission(access,"core.notifications.view")&&<button className="header-icon" aria-label="Notificações" onClick={()=>change("Notificações")}><Icon name="bell" size={18}/><i/></button>}
+        <div className="persona-switcher">
+          <button className="user-card" onClick={()=>setPersonaMenu(value=>!value)} aria-expanded={personaMenu} aria-label={`Perfil: ${access.name}, ${access.role}`} title={`${access.name} · ${access.role}`}>
+            <span className="avatar top">{access.initials}</span>
+            <span><b>{access.name}</b><small>{access.role}</small></span>
+          </button>
+          {personaMenu&&<div className="persona-menu"><p>Simular acesso</p>{demoPersonaOrder.map(id=>{const person=demoPersonas[id];return <button key={id} className={id===personaId?"active":""} onClick={()=>switchPersona(id)}><span>{person.initials}</span><span><b>{person.role}</b><small>{person.scopeLabel}</small></span>{id===personaId&&<i>✓</i>}</button>})}</div>}
+        </div>
+      </header>
       <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);setView("Visão Geral")}}/>:activeModuleId==="rh"?<HrModule people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={()=>change("Módulos")} access={access}/>:activeModuleId?renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:()=>change("Módulos"),access}):view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change}/>:view==="Documentos"?<DocumentsView notify={notify}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source}/>:<AdminView view={view}/>}</div>
     </main>{toast&&<div className="toast"><span>✓</span>{toast}</div>}
   </div>;

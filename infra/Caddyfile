@@ -1,0 +1,64 @@
+# ============================================================================
+# Pecsil Business OS — Reverse proxy do Supabase
+#
+# Instalar em /etc/caddy/Caddyfile no servidor interno da Pecsil.
+#
+# O Caddy emite e renova o certificado Let's Encrypt sozinho. Os pré-requisitos
+# já estão atendidos: supabase.pecsil.com.br resolve para o IP público da
+# empresa e as portas 80/443 precisam chegar até esta máquina.
+#
+# Depois de instalar:
+#   sudo caddy validate --config /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+# ============================================================================
+
+supabase.pecsil.com.br {
+
+	# --- Segurança de transporte --------------------------------------------
+	header {
+		# Força HTTPS por um ano, incluindo subdomínios.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Não anuncia a versão do servidor.
+		-Server
+	}
+
+	# --- Gateway do Supabase (Kong) -----------------------------------------
+	# O Kong continua escutando em 8000, mas apenas em 127.0.0.1 depois que o
+	# harden-supabase.sh rodar. Só este proxy fala com ele.
+	reverse_proxy 127.0.0.1:8000 {
+		header_up Host {upstream_hostport}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Real-IP {remote_host}
+
+		# Realtime usa WebSocket; sem isso as assinaturas caem.
+		transport http {
+			read_timeout 300s
+			write_timeout 300s
+		}
+	}
+
+	# --- Registro -------------------------------------------------------------
+	log {
+		output file /var/log/caddy/supabase.log {
+			roll_size 50MiB
+			roll_keep 10
+		}
+		format json
+	}
+}
+
+# ============================================================================
+# O Studio NÃO é publicado.
+#
+# A porta 3000 já está fechada para a internet e deve continuar assim. Para
+# administrar, use um túnel SSH a partir de uma estação autorizada:
+#
+#   ssh -L 3000:127.0.0.1:3000 usuario@servidor-interno
+#
+# e acesse http://localhost:3000 no navegador da estação.
+# Publicar o Studio é publicar um console com poder de service_role.
+# ============================================================================

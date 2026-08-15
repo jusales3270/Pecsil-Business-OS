@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import type { FoundationSummary, Person } from "../../lib/data/foundation";
 import { hasPermission, type ModuleAccessContext } from "../../modules";
-import { Button, Card, Status } from "../../packages/design-system";
+import { Button, Card, Kpi, KpiGrid, Segmented, Status } from "../../packages/design-system";
+import { useRhData } from "../../lib/data/use-rh-data";
+import type { RhAbsence, RhBenefitPlan, RhEmployeeOption, RhSnapshot, RhSstRecord } from "../../lib/data/rh";
 
 const sections = [
   ["Painel", "grid"],
@@ -97,6 +99,7 @@ type BenefitPlan = {
 type SstStatus = "Vencido" | "A vencer" | "Programado" | "Conforme" | "Em análise";
 type SstRecord = {
   id: number;
+  sourceId?: string;
   employee: string;
   initials: string;
   department: string;
@@ -148,6 +151,7 @@ const initialSstRecords: SstRecord[] = [
 type BenefitRequestStatus = "Pendente" | "Em análise" | "Aprovada" | "Reprovada";
 type BenefitRequest = {
   id: number;
+  sourceId?: string;
   employee: string;
   initials: string;
   department: string;
@@ -185,6 +189,7 @@ const initialJourneyRecords: JourneyRecord[] = [
 type AbsenceStatus = "Pendente" | "Em análise" | "Aprovada" | "Reprovada" | "Registrado";
 type AbsenceRecord = {
   id: number;
+  sourceId?: string;
   employee: string;
   initials: string;
   type: "Férias" | "Banco de horas" | "Atestado médico" | "Licença";
@@ -255,6 +260,9 @@ export function HrModule({
 }) {
   const [section, setSection] = useState<HrSection>("Painel");
   const [query, setQuery] = useState("");
+  // Dados reais do RH (rh_*), com fallback demonstrativo automático quando não
+  // há sessão ou conexão — mesmo contrato do Financeiro.
+  const { snapshot: rh } = useRhData();
   const [employees, setEmployees] = useState<EmployeeRecord[]>(() => people.map(toEmployee));
   const [createRequested, setCreateRequested] = useState(0);
   const filteredPeople = useMemo(
@@ -267,58 +275,199 @@ export function HrModule({
   const canCreate = hasPermission(access, "rh.create");
   const track=(message:string)=>{notify(message);onEvent(message)};
 
-  return <div className="hr-module">
-    <div className="hr-module-bar">
-      <button className="hr-back" onClick={onExit}><HrIcon name="back"/> Ecossistema</button>
-      <span className="hr-module-mark"><HrIcon name="users"/><b>Recursos Humanos</b><small>Módulo RH</small></span>
-      <Status tone="success">Integrado à Fundação</Status>
+  return <div className="ds-module-body">
+    <div className="ds-module-bar">
+      <Button variant="secondary" compact onClick={onExit}><HrIcon name="back"/> Ecossistema</Button>
+      <Segmented options={accessibleSections.map(([label]) => label)} value={section} onChange={setSection} ariaLabel="Seções do módulo de Recursos Humanos"/>
+      <Status tone="info">{access.scopeLabel}</Status>
     </div>
 
-    <div className="hr-layout">
-      <aside className="hr-navigation" aria-label="Navegação do módulo de Recursos Humanos">
-        <p>GESTÃO DE PESSOAS</p>
-        {accessibleSections.map(([label, icon]) => <button key={label} className={section === label ? "active" : ""} onClick={() => setSection(label)}><HrIcon name={icon}/><span>{label}</span>{label === "Saúde e segurança" && <i>12</i>}</button>)}
-        <div className="hr-scope"><HrIcon name="lock"/><span><b>Escopo atual</b><small>{access.scopeLabel}</small></span></div>
-      </aside>
-
-      <div className="hr-workspace">
+    <div className="hr-workspace">
         {access.role === "Colaborador" ? <EmployeeSelfService section={section} notify={track}/> : <>
-          {section === "Painel" && <HrDashboard people={employees} summary={summary} setSection={setSection} notify={track} access={access} canCreate={canCreate} requestCreate={() => setCreateRequested(value => value + 1)}/>} 
+          {section === "Painel" && <HrDashboard people={employees} summary={summary} rh={rh} setSection={setSection} notify={track} access={access} canCreate={canCreate} requestCreate={() => setCreateRequested(value => value + 1)}/>}
           {section === "Colaboradores" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>} 
           {section === "Ponto e jornada" && <JourneySection notify={track} access={access}/>} 
-          {section === "Férias e ausências" && <AbsenceSection notify={track} access={access}/>} 
-          {section === "Benefícios" && <BenefitsSection summary={summary} notify={track} access={access}/>} 
-          {section === "Saúde e segurança" && <SafetySection notify={track} access={access}/>} 
+          {section === "Férias e ausências" && <AbsenceSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
+          {section === "Benefícios" && <BenefitsSection key={rh.loadedAt} summary={summary} notify={track} access={access} rh={rh}/>}
+          {section === "Saúde e segurança" && <SafetySection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Documentos" && <DocumentsSection notify={track} access={access}/>} 
           {section === "Relatórios" && <ReportsSection notify={track} access={access}/>} 
           {section === "Homologação" && <HomologationSection notify={track} access={access}/>} 
         </>}
-      </div>
     </div>
   </div>;
 }
 
 function EmployeeSelfService({ section, notify }: { section: HrSection; notify: (message: string) => void }) {
-  if (section === "Ponto e jornada") return <><SectionHead eyebrow="MEU RH · JORNADA" title="Meu ponto" description="Marcações, saldo e solicitações vinculadas somente ao seu cadastro." action="Solicitar ajuste" notify={notify}/><div className="hr-stats"><HrStat value="8h 47min" label="Jornada hoje" meta="4 marcações" icon="clock" tone="blue"/><HrStat value="+8h 12min" label="Banco de horas" meta="Saldo pessoal" icon="check" tone="green"/><HrStat value="0" label="Pendências" meta="Espelho regular" icon="shield" tone="purple"/><HrStat value="18 jul" label="Fechamento" meta="Conferência mensal" icon="calendar" tone="orange"/></div><Card className="journey-self-card"><div className="card-head"><div><p className="eyebrow">MARCAÇÕES DE HOJE</p><h2>Quarta-feira, 15 de julho</h2><p>Jornada administrativa · 08:00–17:48</p></div><Status tone="success">Regular</Status></div><div className="journey-punch-line">{[["Entrada","08:03"],["Início intervalo","12:01"],["Fim intervalo","13:00"],["Saída","17:49"]].map(([label,time],index)=><div key={label}><i>{index+1}</i><span><small>{label}</small><b>{time}</b></span></div>)}</div><div className="journey-self-summary"><span><small>Horas trabalhadas</small><b>8h 47min</b></span><span><small>Saldo do dia</small><b>-1min</b></span><button onClick={()=>notify("Espelho mensal pessoal aberto.")}>Ver espelho mensal <HrIcon name="arrow"/></button></div></Card></>;
-  if (section === "Saúde e segurança") return <><div className="page-head hr-page-head"><div><p className="eyebrow">MEU RH · SST</p><h1>Minha saúde e segurança</h1><p>Validades e obrigações ocupacionais limitadas ao seu próprio cadastro.</p></div></div><div className="hr-stats"><HrStat value="Válido" label="ASO periódico" meta="Até 14 set 2026" icon="heart" tone="green"/><HrStat value="2" label="Treinamentos" meta="Certificados vigentes" icon="shield" tone="blue"/><HrStat value="4" label="EPIs registrados" meta="Entregas confirmadas" icon="check" tone="purple"/><HrStat value="0" label="Pendências" meta="Situação regular" icon="alert" tone="green"/></div><Card className="sst-self-card"><div className="card-head"><div><p className="eyebrow">MEUS REGISTROS</p><h2>Obrigações ocupacionais</h2><p>Resultados clínicos não são exibidos nesta área.</p></div><Status tone="success">Acesso pessoal</Status></div>{[["ASO periódico","Válido até 14/09/2026","Conforme","heart"],["NR-12 · Segurança em máquinas","Válido até 29/07/2027","Conforme","shield"],["Integração de segurança","Concluído em 22/01/2024","Conforme","check"]].map(([title,meta,status,icon])=><button key={title} onClick={()=>notify(`${title}: comprovante pessoal aberto.`)}><span><HrIcon name={icon}/></span><span><b>{title}</b><small>{meta}</small></span><Status tone="success">{status}</Status><HrIcon name="arrow"/></button>)}</Card></>;
-  if (section === "Férias e ausências") return <><SectionHead eyebrow="MEU RH · FÉRIAS" title="Minhas férias e ausências" description="Solicitações e saldos vinculados somente ao seu cadastro." action="Nova solicitação" notify={notify}/><div className="hr-stats"><HrStat value="18 dias" label="Saldo disponível" meta="Período atual" icon="calendar" tone="blue"/><HrStat value="0" label="Em aprovação" meta="Nenhuma pendência" icon="clock" tone="green"/><HrStat value="04 nov" label="Próximo período" meta="Aquisitivo" icon="check" tone="purple"/><HrStat value="2" label="Ausências no ano" meta="Ambas justificadas" icon="heart" tone="orange"/></div><Card className="hr-table-card"><div className="card-head"><div><p className="eyebrow">MEU HISTÓRICO</p><h2>Movimentações pessoais</h2></div><Status tone="success">Privado</Status></div><div className="hr-simple-table">{[["Atestado médico","12 jul — 13 jul","Registrado"],["Férias","05 fev — 19 fev","Concluída"]].map(row=><button key={row[0]} onClick={()=>notify(`${row[0]}: detalhe pessoal aberto.`)}><span className="primary">{row[0]}</span><span>{row[1]}</span><Status tone="success">{row[2]}</Status><HrIcon name="arrow"/></button>)}</div></Card></>;
+  if (section === "Ponto e jornada") return <><SectionHead eyebrow="MEU RH · JORNADA" title="Meu ponto" description="Marcações, saldo e solicitações vinculadas somente ao seu cadastro." action="Solicitar ajuste" notify={notify}/><KpiGrid><HrStat value="8h 47min" label="Jornada hoje" meta="4 marcações" icon="clock" tone="blue"/><HrStat value="+8h 12min" label="Banco de horas" meta="Saldo pessoal" icon="check" tone="green"/><HrStat value="0" label="Pendências" meta="Espelho regular" icon="shield" tone="purple"/><HrStat value="18 jul" label="Fechamento" meta="Conferência mensal" icon="calendar" tone="orange"/></KpiGrid><Card className="journey-self-card"><div className="card-head"><div><p className="eyebrow">MARCAÇÕES DE HOJE</p><h2>Quarta-feira, 15 de julho</h2><p>Jornada administrativa · 08:00–17:48</p></div><Status tone="success">Regular</Status></div><div className="journey-punch-line">{[["Entrada","08:03"],["Início intervalo","12:01"],["Fim intervalo","13:00"],["Saída","17:49"]].map(([label,time],index)=><div key={label}><i>{index+1}</i><span><small>{label}</small><b>{time}</b></span></div>)}</div><div className="journey-self-summary"><span><small>Horas trabalhadas</small><b>8h 47min</b></span><span><small>Saldo do dia</small><b>-1min</b></span><button onClick={()=>notify("Espelho mensal pessoal aberto.")}>Ver espelho mensal <HrIcon name="arrow"/></button></div></Card></>;
+  if (section === "Saúde e segurança") return <><div className="page-head hr-page-head"><div><p className="eyebrow">MEU RH · SST</p><h1>Minha saúde e segurança</h1><p>Validades e obrigações ocupacionais limitadas ao seu próprio cadastro.</p></div></div><KpiGrid><HrStat value="Válido" label="ASO periódico" meta="Até 14 set 2026" icon="heart" tone="green"/><HrStat value="2" label="Treinamentos" meta="Certificados vigentes" icon="shield" tone="blue"/><HrStat value="4" label="EPIs registrados" meta="Entregas confirmadas" icon="check" tone="purple"/><HrStat value="0" label="Pendências" meta="Situação regular" icon="alert" tone="green"/></KpiGrid><Card className="sst-self-card"><div className="card-head"><div><p className="eyebrow">MEUS REGISTROS</p><h2>Obrigações ocupacionais</h2><p>Resultados clínicos não são exibidos nesta área.</p></div><Status tone="success">Acesso pessoal</Status></div>{[["ASO periódico","Válido até 14/09/2026","Conforme","heart"],["NR-12 · Segurança em máquinas","Válido até 29/07/2027","Conforme","shield"],["Integração de segurança","Concluído em 22/01/2024","Conforme","check"]].map(([title,meta,status,icon])=><button key={title} onClick={()=>notify(`${title}: comprovante pessoal aberto.`)}><span><HrIcon name={icon}/></span><span><b>{title}</b><small>{meta}</small></span><Status tone="success">{status}</Status><HrIcon name="arrow"/></button>)}</Card></>;
+  if (section === "Férias e ausências") return <><SectionHead eyebrow="MEU RH · FÉRIAS" title="Minhas férias e ausências" description="Solicitações e saldos vinculados somente ao seu cadastro." action="Nova solicitação" notify={notify}/><KpiGrid><HrStat value="18 dias" label="Saldo disponível" meta="Período atual" icon="calendar" tone="blue"/><HrStat value="0" label="Em aprovação" meta="Nenhuma pendência" icon="clock" tone="green"/><HrStat value="04 nov" label="Próximo período" meta="Aquisitivo" icon="check" tone="purple"/><HrStat value="2" label="Ausências no ano" meta="Ambas justificadas" icon="heart" tone="orange"/></KpiGrid><Card className="hr-table-card"><div className="card-head"><div><p className="eyebrow">MEU HISTÓRICO</p><h2>Movimentações pessoais</h2></div><Status tone="success">Privado</Status></div><div className="hr-simple-table">{[["Atestado médico","12 jul — 13 jul","Registrado"],["Férias","05 fev — 19 fev","Concluída"]].map(row=><button key={row[0]} onClick={()=>notify(`${row[0]}: detalhe pessoal aberto.`)}><span className="primary">{row[0]}</span><span>{row[1]}</span><Status tone="success">{row[2]}</Status><HrIcon name="arrow"/></button>)}</div></Card></>;
   if (section === "Benefícios") return <><SectionHead eyebrow="MEU RH · BENEFÍCIOS" title="Meus benefícios" description="Coberturas e adesões disponíveis no seu vínculo." action="Solicitar alteração" notify={notify}/><div className="hr-benefit-grid">{[["Vale-alimentação","Ativo","Crédito em 01 ago"],["Assistência médica","Ativo","Plano empresarial"],["Vale-transporte","Não aderido","Adesão opcional"],["Seguro de vida","Ativo","Cobertura vigente"]].map(([name,status,meta],index)=><Card key={name}><span className={`hr-benefit-icon benefit-${index}`}><HrIcon name={index===1?"heart":index===2?"bus":"shield"}/></span><Status tone={status==="Ativo"?"success":"neutral"}>{status}</Status><h2>{name}</h2><p>{meta}</p><button onClick={()=>notify(`${name}: detalhes pessoais abertos.`)}>Ver detalhes <HrIcon name="arrow"/></button></Card>)}</div></>;
   if (section === "Documentos") return <><SectionHead eyebrow="MEU RH · DOCUMENTOS" title="Meus documentos" description="Arquivos pessoais autorizados e protegidos pelo seu escopo." action="Enviar documento" notify={notify}/><div className="hr-document-grid">{[["Contrato de trabalho","Assinado","Válido"],["Documento de identidade","Atualizado","Válido"],["Comprovante de residência","Enviado em jun/26","Válido"],["Termo de benefícios","Assinatura pendente","Pendente"]].map(([name,meta,status])=><Card key={name}><span><HrIcon name="file"/></span><div><h2>{name}</h2><p>{meta}</p><small>{status}</small></div><button onClick={()=>notify(`${name}: visualização pessoal aberta.`)}><HrIcon name="arrow"/></button></Card>)}</div></>;
-  return <><div className="page-head hr-page-head"><div><p className="eyebrow">RECURSOS HUMANOS · AUTOSSERVIÇO</p><h1>Meu RH</h1><p>Informações e solicitações limitadas ao seu próprio cadastro.</p></div></div><div className="hr-stats"><HrStat value="18 dias" label="Saldo de férias" meta="Disponível" icon="calendar" tone="blue"/><HrStat value="8h" label="Banco de horas" meta="Saldo pessoal" icon="clock" tone="green"/><HrStat value="3" label="Benefícios ativos" meta="1 opção disponível" icon="heart" tone="purple"/><HrStat value="1" label="Documento pendente" meta="Assinatura necessária" icon="file" tone="orange"/></div><div className="hr-dashboard-grid"><Card className="hr-pending-card"><div className="card-head"><div><p className="eyebrow">MINHAS PENDÊNCIAS</p><h2>Ações pessoais</h2></div><Status tone="attention">1 pendência</Status></div><div className="hr-pending-list"><button onClick={()=>notify("Termo de benefícios aberto para assinatura.")}><span className="hr-list-icon"><HrIcon name="file"/></span><span><b>Assinar termo de benefícios</b><small>Prazo: 22 de julho</small></span><Status tone="attention">Documento</Status><HrIcon name="arrow"/></button></div></Card><Card className="hr-calendar-card"><div className="card-head"><div><p className="eyebrow">PRÓXIMOS EVENTOS</p><h2>Minha agenda</h2></div></div>{[["18","JUL","Fechamento do ponto","Conferir marcações"],["04","NOV","Novo período de férias","18 dias disponíveis"]].map(([day,month,title,meta])=><div key={title}><time><b>{day}</b><small>{month}</small></time><span><b>{title}</b><small>{meta}</small></span></div>)}</Card></div></>;
+  return <><div className="page-head hr-page-head"><div><p className="eyebrow">RECURSOS HUMANOS · AUTOSSERVIÇO</p><h1>Meu RH</h1><p>Informações e solicitações limitadas ao seu próprio cadastro.</p></div></div><KpiGrid><HrStat value="18 dias" label="Saldo de férias" meta="Disponível" icon="calendar" tone="blue"/><HrStat value="8h" label="Banco de horas" meta="Saldo pessoal" icon="clock" tone="green"/><HrStat value="3" label="Benefícios ativos" meta="1 opção disponível" icon="heart" tone="purple"/><HrStat value="1" label="Documento pendente" meta="Assinatura necessária" icon="file" tone="orange"/></KpiGrid><div className="hr-dashboard-grid"><Card className="hr-pending-card"><div className="card-head"><div><p className="eyebrow">MINHAS PENDÊNCIAS</p><h2>Ações pessoais</h2></div><Status tone="attention">1 pendência</Status></div><div className="hr-pending-list"><button onClick={()=>notify("Termo de benefícios aberto para assinatura.")}><span className="hr-list-icon"><HrIcon name="file"/></span><span><b>Assinar termo de benefícios</b><small>Prazo: 22 de julho</small></span><Status tone="attention">Documento</Status><HrIcon name="arrow"/></button></div></Card><Card className="hr-calendar-card"><div className="card-head"><div><p className="eyebrow">PRÓXIMOS EVENTOS</p><h2>Minha agenda</h2></div></div>{[["18","JUL","Fechamento do ponto","Conferir marcações"],["04","NOV","Novo período de férias","18 dias disponíveis"]].map(([day,month,title,meta])=><div key={title}><time><b>{day}</b><small>{month}</small></time><span><b>{title}</b><small>{meta}</small></span></div>)}</Card></div></>;
 }
 
-function HrDashboard({ people, summary, setSection, notify, access, canCreate, requestCreate }: { people: Person[]; summary: FoundationSummary; setSection: (section: HrSection) => void; notify: (message: string) => void; access: ModuleAccessContext; canCreate: boolean; requestCreate: () => void }) {
+type PendingItem = { key: string; title: string; meta: string; type: string; tone: "attention" | "danger" | "info"; icon: string; section: HrSection };
+
+const absenceTypeLabel: Record<RhAbsence["type"], string> = {
+  vacation: "Férias", time_bank: "Banco de horas", medical_certificate: "Atestado médico", leave: "Licença",
+};
+const sstCategoryLabel: Record<RhSstRecord["category"], string> = {
+  exam: "Exame", training: "Treinamento", ppe: "EPI", incident: "Ocorrência",
+};
+
+/** Deriva a lista de pendências do painel a partir do snapshot real: ausências
+ *  aguardando decisão e registros de SST vencidos ou próximos do vencimento. */
+function buildPendingItems(rh: RhSnapshot): PendingItem[] {
+  const items: PendingItem[] = [];
+  for (const absence of rh.absences) {
+    if (absence.status !== "pending" && absence.status !== "under_review") continue;
+    items.push({
+      key: `abs-${absence.id}`,
+      title: `${absenceTypeLabel[absence.type]} · ${absence.employeeName}`,
+      meta: `${absence.days} ${absence.days === 1 ? "dia" : "dias"}${absence.hasConflict ? " · conflito identificado" : ""}`,
+      type: "Férias e ausências",
+      tone: absence.hasConflict ? "danger" : "attention",
+      icon: "calendar",
+      section: "Férias e ausências",
+    });
+  }
+  for (const sst of rh.sstRecords) {
+    if (sst.status !== "overdue" && sst.status !== "due_soon") continue;
+    items.push({
+      key: `sst-${sst.id}`,
+      title: `${sstCategoryLabel[sst.category]} · ${sst.title}`,
+      meta: sst.dueDate ? `Vence em ${new Date(`${sst.dueDate}T12:00:00`).toLocaleDateString("pt-BR")}` : "Sem prazo definido",
+      type: "Saúde e segurança",
+      tone: sst.risk === "critical" || sst.status === "overdue" ? "danger" : "attention",
+      icon: "shield",
+      section: "Saúde e segurança",
+    });
+  }
+  return items.slice(0, 6);
+}
+
+// ---------------------------------------------------------------------------
+// Adaptadores: convertem os tipos reais (RhAbsence, RhSstRecord, RhBenefitPlan)
+// para os tipos que a UI já usa. Assim as seções, drawers e filtros existentes
+// funcionam sem reescrita — em modo real recebem dados do banco, em modo demo
+// mantêm os mocks ricos originais.
+// ---------------------------------------------------------------------------
+
+// Envia uma decisão do RH ao servidor. Retorna true se persistiu; false se o
+// backend está em modo demonstrativo (409) — a UI então mantém só o local.
+// Lança em 401/403 para o chamador tratar (sessão expirada, sem permissão).
+async function sendRhMutation(body: Record<string, string>): Promise<boolean> {
+  const response = await fetch("/api/rh", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (response.status === 409) return false; // modo demonstrativo
+  if (response.status === 401) { window.location.assign("/login"); throw new Error("UNAUTHENTICATED"); }
+  if (!response.ok) throw new Error("RH_MUTATION_DENIED");
+  return true;
+}
+
+const initialsOf = (name: string) =>
+  name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase() ?? "").join("") || "–";
+
+const absenceTypePt: Record<RhAbsence["type"], AbsenceRecord["type"]> = {
+  vacation: "Férias", time_bank: "Banco de horas", medical_certificate: "Atestado médico", leave: "Licença",
+};
+const absenceTypeEnum: Record<AbsenceRecord["type"], RhAbsence["type"]> = {
+  "Férias": "vacation", "Banco de horas": "time_bank", "Atestado médico": "medical_certificate", "Licença": "leave",
+};
+const absenceStatusPt: Record<RhAbsence["status"], AbsenceStatus> = {
+  pending: "Pendente", under_review: "Em análise", approved: "Aprovada", rejected: "Reprovada", registered: "Registrado",
+};
+
+function toAbsenceRecord(absence: RhAbsence, index: number): AbsenceRecord {
+  return {
+    id: index + 1,
+    sourceId: absence.id,
+    employee: absence.employeeName,
+    initials: initialsOf(absence.employeeName),
+    type: absenceTypePt[absence.type],
+    start: absence.startDate,
+    end: absence.endDate,
+    days: absence.days,
+    status: absenceStatusPt[absence.status],
+    unit: absence.unit ?? "—",
+    department: absence.department ?? "—",
+    requestedAt: absence.requestedAt,
+    reason: absence.reason ?? "—",
+    balance: 30,
+    conflict: absence.hasConflict ? "Conflito de planejamento identificado no período." : null,
+  };
+}
+
+const sstCategoryPt: Record<RhSstRecord["category"], SstRecord["category"]> = {
+  exam: "Exame", training: "Treinamento", ppe: "EPI", incident: "Ocorrência",
+};
+const sstStatusPt: Record<RhSstRecord["status"], SstStatus> = {
+  compliant: "Conforme", due_soon: "A vencer", overdue: "Vencido", scheduled: "Programado", under_review: "Em análise",
+};
+const sstRiskPt: Record<RhSstRecord["risk"], SstRecord["risk"]> = {
+  critical: "Crítico", attention: "Atenção", regular: "Regular",
+};
+
+function toSstUiRecord(record: RhSstRecord, index: number): SstRecord {
+  return {
+    id: index + 1,
+    sourceId: record.id,
+    employee: record.employeeName,
+    initials: initialsOf(record.employeeName),
+    department: record.department ?? "—",
+    unit: record.unit ?? "—",
+    category: sstCategoryPt[record.category],
+    title: record.title,
+    dueDate: record.dueDate ?? "",
+    status: sstStatusPt[record.status],
+    risk: sstRiskPt[record.risk],
+    document: record.note ?? "—",
+    note: record.note ?? "—",
+    sensitive: record.sensitive,
+  };
+}
+
+const benefitCategoryPt: Record<RhBenefitPlan["category"], BenefitPlan["category"]> = {
+  food: "Alimentação", health: "Saúde", mobility: "Mobilidade", protection: "Proteção",
+};
+const benefitIconOf: Record<RhBenefitPlan["category"], string> = {
+  food: "card", health: "heart", mobility: "clock", protection: "shield",
+};
+
+function toBenefitUiPlan(plan: RhBenefitPlan, index: number): BenefitPlan {
+  return {
+    id: index + 1,
+    name: plan.name,
+    category: benefitCategoryPt[plan.category],
+    icon: benefitIconOf[plan.category],
+    members: plan.members,
+    eligible: plan.eligible || 1,
+    monthlyCost: plan.monthlyCost,
+    employeeContribution: plan.employeeContribution ?? "—",
+    status: plan.status === "active" ? "Ativo" : "Em revisão",
+    rule: plan.eligibilityRule ?? "—",
+    provider: plan.provider ?? "—",
+  };
+}
+
+function HrDashboard({ people, summary, rh, setSection, notify, access, canCreate, requestCreate }: { people: Person[]; summary: FoundationSummary; rh: RhSnapshot; setSection: (section: HrSection) => void; notify: (message: string) => void; access: ModuleAccessContext; canCreate: boolean; requestCreate: () => void }) {
+  // Pendências reais: ausências aguardando decisão + SST vencido/a vencer.
+  const pending = buildPendingItems(rh);
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RECURSOS HUMANOS · {access.role.toUpperCase()}</p><h1>{access.role === "Colaborador" ? "Meu RH" : "Gestão de pessoas"}</h1><p>{access.role === "Colaborador" ? "Solicitações, benefícios e documentos limitados ao seu próprio cadastro." : `Indicadores e rotinas autorizados para ${access.scopeLabel.toLowerCase()}.`}</p></div>{canCreate&&<Button onClick={() => { requestCreate(); setSection("Colaboradores"); }}><HrIcon name="plus"/> Novo colaborador</Button>}</div>
-    <div className="hr-stats">
-      <HrStat value={String(summary.employees)} label="Colaboradores" meta={`${summary.activeEmployees} ativos`} icon="users" tone="blue"/>
-      <HrStat value="97,8%" label="Presença hoje" meta="5 ausências registradas" icon="clock" tone="green"/>
-      <HrStat value="18" label="Férias programadas" meta="Próximos 90 dias" icon="calendar" tone="purple"/>
-      <HrStat value="12" label="Alertas de SST" meta="Vencem em até 30 dias" icon="shield" tone="orange"/>
-    </div>
+    <KpiGrid>
+      <HrStat value={String(rh.summary.employees)} label="Colaboradores" meta={`${rh.summary.activeEmployees} ativos`} icon="users" tone="blue"/>
+      <HrStat value={String(rh.summary.pendingAbsences)} label="Ausências pendentes" meta="Aguardando decisão" icon="clock" tone="orange"/>
+      <HrStat value={String(rh.summary.scheduledVacationDays)} label="Férias programadas" meta="Dias no período" icon="calendar" tone="purple"/>
+      <HrStat value={String(rh.summary.sstAlerts)} label="Alertas de SST" meta="Vencidos ou a vencer" icon="shield" tone="red"/>
+    </KpiGrid>
     <div className="hr-dashboard-grid">
-      <Card className="hr-pending-card"><div className="card-head"><div><p className="eyebrow">CENTRAL DE PENDÊNCIAS</p><h2>Ações que exigem atenção</h2><p>Demandas consolidadas das rotinas de RH.</p></div><Status tone="attention">4 pendências</Status></div><div className="hr-pending-list">{pendingItems.map(item => <button key={item.title} onClick={() => notify(`${item.title}: fluxo preparado para a próxima etapa.`)}><span className="hr-list-icon"><HrIcon name={item.type === "SST" ? "shield" : item.type === "Férias" ? "calendar" : item.type === "Jornada" ? "clock" : "file"}/></span><span><b>{item.title}</b><small>{item.meta}</small></span><Status tone={item.tone}>{item.type}</Status><HrIcon name="arrow"/></button>)}</div></Card>
-      <Card className="hr-distribution"><p className="eyebrow">QUADRO ATIVO</p><h2>Distribuição por área</h2><div className="hr-bars">{[["Produção",96,39],["Manutenção",24,10],["Administrativo",22,9],["Qualidade",18,7],["Demais áreas",86,35]].map(([label,value,percentage]) => <div key={String(label)}><span><b>{label}</b><small>{value} pessoas</small></span><i><em style={{width:`${percentage}%`}}/></i><strong>{percentage}%</strong></div>)}</div><button onClick={() => setSection("Colaboradores")}>Ver quadro completo <HrIcon name="arrow"/></button></Card>
+      <Card className="hr-pending-card"><div className="card-head"><div><p className="eyebrow">CENTRAL DE PENDÊNCIAS</p><h2>Ações que exigem atenção</h2><p>Demandas consolidadas das rotinas de RH.</p></div><Status tone={pending.length ? "attention" : "success"}>{pending.length ? `${pending.length} ${pending.length === 1 ? "pendência" : "pendências"}` : "Sem pendências"}</Status></div><div className="hr-pending-list">{pending.length ? pending.map(item => <button key={item.key} onClick={() => { setSection(item.section); notify(`${item.title}: aberto para tratamento.`); }}><span className="hr-list-icon"><HrIcon name={item.icon}/></span><span><b>{item.title}</b><small>{item.meta}</small></span><Status tone={item.tone}>{item.type}</Status><HrIcon name="arrow"/></button>) : <div className="hr-empty"><HrIcon name="check" size={26}/><b>Nenhuma pendência</b><small>Ausências e SST em dia.</small></div>}</div></Card>
+      <Card className="hr-distribution"><p className="eyebrow">QUADRO ATIVO</p><h2>Distribuição por área</h2><div className="hr-bars">{rh.departmentShares.length ? rh.departmentShares.map(dept => <div key={dept.name}><span><b>{dept.name}</b><small>{dept.people} {dept.people === 1 ? "pessoa" : "pessoas"}</small></span><i><em style={{width:`${dept.percentage}%`}}/></i><strong>{dept.percentage}%</strong></div>) : <div className="hr-empty"><HrIcon name="users" size={26}/><b>Sem colaboradores</b><small>Cadastre para ver a distribuição.</small></div>}</div><button onClick={() => setSection("Colaboradores")}>Ver quadro completo <HrIcon name="arrow"/></button></Card>
     </div>
     <div className="hr-dashboard-grid secondary">
       <Card className="hr-recent-people"><div className="card-head"><div><p className="eyebrow">CADASTRO MESTRE</p><h2>Colaboradores recentes</h2></div><button onClick={() => setSection("Colaboradores")}>Ver todos <HrIcon name="arrow"/></button></div>{people.slice(0,4).map(person => <div key={person.email}><i>{person.initials}</i><span><b>{person.name}</b><small>{person.role} · {person.department}</small></span><Status tone={person.status === "Ativo" ? "success" : "attention"}>{person.status}</Status></div>)}</Card>
@@ -419,7 +568,7 @@ function EmployeeForm({ employee, nextRegistration, onClose, onSave }: { employe
   return <div className="employee-layer form-layer" onMouseDown={onClose}>
     <form className="employee-form" onSubmit={submit} onMouseDown={event => event.stopPropagation()}>
       <header><div><p className="eyebrow">RH · CADASTRO FUNCIONAL</p><h2>{isNew ? "Novo colaborador" : "Editar colaborador"}</h2><p>{isNew ? "Inclua os dados essenciais para iniciar o vínculo." : `Atualize a ficha de ${employee.name}.`}</p></div><button type="button" onClick={onClose} aria-label="Fechar formulário"><HrIcon name="close"/></button></header>
-      <div className="employee-stepper">{[[1,"Dados pessoais"],[2,"Vínculo"],[3,"Contato e acesso"]].map(([number,label]) => <span className={step >= number ? "active" : ""} key={label}><i>{step > number ? "✓" : number}</i><b>{label}</b></span>)}</div>
+      <div className="employee-stepper">{([[1,"Dados pessoais"],[2,"Vínculo"],[3,"Contato e acesso"]] as [number, string][]).map(([number,label]) => <span className={step >= number ? "active" : ""} key={label}><i>{step > number ? "✓" : number}</i><b>{label}</b></span>)}</div>
       <div className="employee-fields">
         {step === 1 && <><label className="field-wide"><span>Nome completo *</span><input autoFocus value={form.name} onChange={event => update("name",event.target.value)} placeholder="Nome civil do colaborador"/></label><label><span>CPF *</span><input value={form.cpf} onChange={event => update("cpf",event.target.value)} placeholder="000.000.000-00"/></label><label><span>Telefone *</span><input value={form.phone} onChange={event => update("phone",event.target.value)} placeholder="(00) 00000-0000"/></label></>}
         {step === 2 && <><label><span>Matrícula *</span><input value={form.registration} onChange={event => update("registration",event.target.value)}/></label><label><span>Data de admissão *</span><input type="date" value={form.admissionDate} onChange={event => update("admissionDate",event.target.value)}/></label><label><span>Unidade *</span><select value={form.unit} onChange={event => update("unit",event.target.value)}><option>Matriz Boituva</option><option>Unidade Industrial</option></select></label><label><span>Departamento *</span><select value={form.department} onChange={event => update("department",event.target.value)}><option>Recursos Humanos</option><option>Produção</option><option>Qualidade</option><option>Manutenção</option><option>Administrativo</option><option>Comercial</option><option>Diretoria</option></select></label><label className="field-wide"><span>Cargo *</span><input value={form.role} onChange={event => update("role",event.target.value)} placeholder="Ex.: Analista de Recursos Humanos"/></label><label><span>Tipo de contrato</span><select value={form.contractType} onChange={event => update("contractType",event.target.value)}><option>CLT</option><option>Temporário</option><option>Estágio</option><option>Aprendiz</option><option>Terceirizado</option><option>Sócio-administrador</option></select></label><label><span>Jornada</span><select value={form.schedule} onChange={event => update("schedule",event.target.value)}><option>Administrativo</option><option>Turno A</option><option>Turno B</option><option>Turno C</option><option>Executiva</option></select></label></>}
@@ -456,7 +605,7 @@ function JourneySection({ notify, access }: { notify: (message: string) => void;
   };
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · JORNADA</p><h1>Ponto e jornada</h1><p>Marcações, escalas, banco de horas e exceções em uma visão operacional.</p></div>{canAdjust&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Registrar ajuste</Button>}</div>
-    <div className="hr-stats"><HrStat value="243" label="Presentes hoje" meta="97,8% do quadro" icon="check" tone="green"/><HrStat value={String(pending)} label="Pendências" meta="Exigem conferência" icon="alert" tone="orange"/><HrStat value="186h" label="Horas extras" meta="Acumulado do mês" icon="clock" tone="blue"/><HrStat value="7" label="Saldos críticos" meta="Acima de 20 horas" icon="chart" tone="purple"/></div>
+    <KpiGrid><HrStat value="243" label="Presentes hoje" meta="97,8% do quadro" icon="check" tone="green"/><HrStat value={String(pending)} label="Pendências" meta="Exigem conferência" icon="alert" tone="orange"/><HrStat value="186h" label="Horas extras" meta="Acumulado do mês" icon="clock" tone="blue"/><HrStat value="7" label="Saldos críticos" meta="Acima de 20 horas" icon="chart" tone="purple"/></KpiGrid>
     <div className="journey-tabs" role="tablist">{(["Espelho diário","Banco de horas","Escalas","Regras"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Espelho diário"&&<i>{pending}</i>}</button>)}</div>
     {tab === "Espelho diário" && <Card className="journey-card"><div className="journey-toolbar"><div><p className="eyebrow">ESPELHO DIÁRIO</p><h2>Marcações de 15 de julho</h2><p>Dados demonstrativos · última consolidação às 08:02</p></div><div><label><span>Área</span><select value={department} onChange={event=>setDepartment(event.target.value)}><option>Todas as áreas</option><option>Produção</option><option>Qualidade</option><option>Manutenção</option><option>Administrativo</option><option>Recursos Humanos</option></select></label><label><span>Situação</span><select value={status} onChange={event=>setStatus(event.target.value)}><option>Todas as situações</option><option>Regular</option><option>Pendente</option><option>Em análise</option><option>Ajustado</option><option>Ausência</option></select></label></div></div><div className="journey-table"><div className="journey-table-head"><span>Colaborador</span><span>Jornada</span><span>Marcações</span><span>Saldo</span><span>Situação</span><span/></div>{visible.map(record=><button key={record.id} onClick={()=>setSelected(record)}><span className="journey-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department} · {record.unit}</small></span></span><span><b>{record.schedule.split(" · ")[0]}</b><small>{record.schedule.split(" · ")[1]}</small></span><span className="journey-punches">{record.punches.length?record.punches.map(punch=><i key={punch}>{punch}</i>):<small>Sem marcações</small>}</span><span className={record.balanceMinutes>0?"positive":record.balanceMinutes<0?"negative":""}><b>{formatBalance(record.balanceMinutes)}</b><small>{record.worked}</small></span><Status tone={journeyTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}</div></Card>}
     {tab === "Banco de horas" && <JourneyBank onSelect={record=>setSelected(record)} records={records}/>} 
@@ -496,8 +645,13 @@ function JourneyAdjustmentForm({nextId,onClose,onSave}:{nextId:number;onClose:()
 function formatBalance(minutes:number){if(minutes===0)return "0min";const sign=minutes>0?"+":"-";const absolute=Math.abs(minutes);return absolute>=60?`${sign}${Math.floor(absolute/60)}h ${String(absolute%60).padStart(2,"0")}min`:`${sign}${absolute}min`;}
 function journeyTone(status:JourneyStatus):"success"|"attention"|"info"|"neutral"{return status==="Regular"||status==="Ajustado"?"success":status==="Pendente"||status==="Ausência"?"attention":status==="Em análise"?"info":"neutral";}
 
-function AbsenceSection({ notify, access }: { notify: (message: string) => void; access: ModuleAccessContext }) {
-  const [records, setRecords] = useState(initialAbsences);
+function AbsenceSection({ notify, access, rh }: { notify: (message: string) => void; access: ModuleAccessContext; rh: RhSnapshot }) {
+  // Dados reais quando logado; mocks ricos em modo demonstrativo. O componente
+  // é remontado (key={rh.loadedAt}) quando o snapshot chega, então basta o
+  // inicializador do useState — sem efeito de sincronização.
+  const [records, setRecords] = useState<AbsenceRecord[]>(
+    rh.source === "supabase" ? rh.absences.map(toAbsenceRecord) : initialAbsences,
+  );
   const [selected, setSelected] = useState<AbsenceRecord | null>(null);
   const [creating, setCreating] = useState(false);
   const [tab, setTab] = useState<"Solicitações" | "Calendário" | "Políticas">("Solicitações");
@@ -508,30 +662,71 @@ function AbsenceSection({ notify, access }: { notify: (message: string) => void;
   const conflicts = records.filter(record => record.conflict && ["Pendente","Em análise","Aprovada"].includes(record.status)).length;
   const filtered = status === "Todos os status" ? records : records.filter(record => record.status === status);
 
-  const decide = (decision: "Aprovada" | "Reprovada") => {
+  const decide = async (decision: "Aprovada" | "Reprovada") => {
     if (!selected) return;
-    const updated = { ...selected, status: decision };
-    setRecords(current => current.map(record => record.id === selected.id ? updated : record));
+    const target = selected;
+    const updated = { ...target, status: decision };
+    // Atualização otimista: a UI responde na hora e reverte se o servidor recusar.
+    setRecords(current => current.map(record => record.id === target.id ? updated : record));
     setSelected(updated);
-    notify(`${selected.employee}: solicitação ${decision.toLowerCase()} e preparada para auditoria.`);
+    try {
+      const persisted = target.sourceId
+        ? await sendRhMutation({ entity:"absence", id:target.sourceId, decision: decision === "Aprovada" ? "approved" : "rejected" })
+        : false;
+      notify(persisted
+        ? `${target.employee}: solicitação ${decision.toLowerCase()} e registrada no banco.`
+        : `${target.employee}: solicitação ${decision.toLowerCase()} nos dados demonstrativos.`);
+    } catch {
+      // Reverte a decisão otimista quando o servidor recusa (sem permissão) ou falha.
+      setRecords(current => current.map(record => record.id === target.id ? target : record));
+      setSelected(target);
+      notify(`${target.employee}: não foi possível registrar a decisão. Verifique suas permissões.`);
+    }
   };
 
-  const createRequest = (request: AbsenceRecord) => {
+  const createRequest = async (request: AbsenceRecord, employeeId?: string) => {
     setRecords(current => [request, ...current]);
     setCreating(false);
     setSelected(request);
+    if (rh.source === "supabase" && employeeId) {
+      try {
+        const response = await fetch("/api/rh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeId,
+            absenceType: absenceTypeEnum[request.type],
+            startDate: request.start,
+            endDate: request.end,
+            days: request.days,
+            reason: request.reason,
+          }),
+        });
+        if (response.status === 401) { window.location.assign("/login"); return; }
+        if (!response.ok) throw new Error("RH_CREATE_DENIED");
+        const { id } = (await response.json()) as { id: string };
+        setRecords(current => current.map(record => record.id === request.id ? { ...record, sourceId: id } : record));
+        notify(`${request.employee}: nova solicitação registrada no banco.`);
+      } catch {
+        // Reverte a inserção otimista quando o servidor recusa ou falha.
+        setRecords(current => current.filter(record => record.id !== request.id));
+        setSelected(null);
+        notify(`${request.employee}: não foi possível registrar a solicitação. Verifique suas permissões.`);
+      }
+      return;
+    }
     notify(`${request.employee}: nova solicitação registrada nos dados demonstrativos.`);
   };
 
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · AUSÊNCIAS</p><h1>Férias e ausências</h1><p>Solicitações, saldos, aprovações e conflitos de equipe em uma única visão.</p></div>{canCreate && <Button onClick={() => setCreating(true)}><HrIcon name="plus"/> Nova solicitação</Button>}</div>
-    <div className="hr-stats absence-stats"><HrStat value="18" label="Férias programadas" meta="Próximos 90 dias" icon="calendar" tone="blue"/><HrStat value={String(pending)} label="Em aprovação" meta="Aguardando decisão" icon="clock" tone="orange"/><HrStat value="3" label="Afastamentos" meta="Ativos no período" icon="heart" tone="purple"/><HrStat value={String(conflicts)} label="Conflitos de equipe" meta={conflicts ? "Exigem avaliação" : "Planejamento saudável"} icon={conflicts ? "alert" : "check"} tone={conflicts ? "orange" : "green"}/></div>
+    <KpiGrid><HrStat value={String(rh.summary.scheduledVacationDays)} label="Férias programadas" meta="Dias no período" icon="calendar" tone="blue"/><HrStat value={String(pending)} label="Em aprovação" meta="Aguardando decisão" icon="clock" tone="orange"/><HrStat value={String(records.filter(r => r.type === "Atestado médico" || r.type === "Licença").length)} label="Afastamentos" meta="Atestados e licenças" icon="heart" tone="purple"/><HrStat value={String(conflicts)} label="Conflitos de equipe" meta={conflicts ? "Exigem avaliação" : "Planejamento saudável"} icon={conflicts ? "alert" : "check"} tone={conflicts ? "orange" : "green"}/></KpiGrid>
     <div className="absence-tabs" role="tablist">{(["Solicitações","Calendário","Políticas"] as const).map(item => <button role="tab" aria-selected={tab === item} className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}{item === "Solicitações" && <i>{pending}</i>}</button>)}</div>
     {tab === "Solicitações" && <Card className="absence-card"><div className="absence-toolbar"><div><p className="eyebrow">FLUXO DE APROVAÇÃO</p><h2>Solicitações recentes</h2></div><label><span>Status</span><select value={status} onChange={event => setStatus(event.target.value)} aria-label="Filtrar solicitações por status"><option>Todos os status</option><option>Pendente</option><option>Em análise</option><option>Aprovada</option><option>Registrado</option><option>Reprovada</option></select></label></div><div className="absence-table"><div className="absence-table-head"><span>Colaborador</span><span>Tipo e período</span><span>Duração</span><span>Situação</span><span/></div>{filtered.map(record => <button onClick={() => setSelected(record)} key={record.id}><span className="absence-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department} · {record.unit}</small></span></span><span><b>{record.type}</b><small>{formatPeriod(record.start,record.end)}</small></span><span><b>{record.days} {record.days === 1 ? "dia" : "dias"}</b>{record.conflict ? <small className="conflict-label">⚠ Conflito identificado</small> : <small>Sem conflito</small>}</span><Status tone={absenceTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!filtered.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhuma solicitação encontrada</b><small>Altere o filtro de situação.</small></div>}</div></Card>}
     {tab === "Calendário" && <AbsenceCalendar records={records} onSelect={setSelected}/>} 
     {tab === "Políticas" && <AbsencePolicies/>}
     {selected && <AbsenceDrawer record={selected} canApprove={canApprove} onClose={() => setSelected(null)} onDecision={decide}/>} 
-    {creating && <AbsenceForm nextId={Math.max(...records.map(record => record.id)) + 1} onClose={() => setCreating(false)} onSave={createRequest}/>} 
+    {creating && <AbsenceForm nextId={Math.max(0, ...records.map(record => record.id)) + 1} employees={rh.source === "supabase" ? rh.employees : []} onClose={() => setCreating(false)} onSave={createRequest}/>}
   </>;
 }
 
@@ -555,25 +750,43 @@ function AbsenceDrawer({ record, canApprove, onClose, onDecision }: { record: Ab
   return <div className="employee-layer" onMouseDown={onClose}><aside className="absence-drawer" onMouseDown={event => event.stopPropagation()} aria-label={`Solicitação de ${record.employee}`}><header><button onClick={onClose} aria-label="Fechar solicitação"><HrIcon name="close"/></button><span><HrIcon name={record.type === "Atestado médico" ? "heart" : "calendar"}/></span><div><p className="eyebrow">SOLICITAÇÃO #{String(record.id).padStart(4,"0")}</p><h2>{record.type}</h2><p>{record.employee} · {record.department}</p></div><Status tone={absenceTone(record.status)}>{record.status}</Status></header><div className="absence-drawer-content">{record.conflict && <div className="absence-conflict"><HrIcon name="alert"/><span><b>Conflito de planejamento</b><small>{record.conflict}</small></span></div>}<section className="absence-period"><div><small>Início</small><strong>{formatDate(record.start)}</strong></div><HrIcon name="arrow"/><div><small>Término</small><strong>{formatDate(record.end)}</strong></div><span><b>{record.days}</b><small>{record.days === 1 ? "dia" : "dias"}</small></span></section><section className="absence-balance"><div><span><b>Saldo antes da solicitação</b><small>Período aquisitivo atual</small></span><strong>{record.balance} dias</strong></div><i><em style={{width:`${Math.min(100,(record.balance/30)*100)}%`}}/></i><p>Saldo projetado após aprovação: <b>{Math.max(0,record.balance-record.days)} dias</b></p></section><DetailGroup title="Informações" rows={[["Colaborador",record.employee],["Unidade",record.unit],["Motivo ou observação",record.reason],["Solicitado em",record.requestedAt]]}/><section className="absence-workflow"><h3>Histórico da solicitação</h3><div><i>✓</i><span><b>Solicitação registrada</b><small>{record.requestedAt}</small></span></div><div><i>{actionable ? "2" : "✓"}</i><span><b>{actionable ? "Aguardando decisão" : `Solicitação ${record.status.toLowerCase()}`}</b><small>{actionable ? "Gestor e RH foram notificados" : "Movimentação registrada no histórico"}</small></span></div></section></div>{canApprove && actionable && <footer><button className="absence-reject" onClick={() => onDecision("Reprovada")}><HrIcon name="close"/> Reprovar</button><Button onClick={() => onDecision("Aprovada")}><HrIcon name="check"/> Aprovar solicitação</Button></footer>}</aside></div>;
 }
 
-function AbsenceForm({ nextId, onClose, onSave }: { nextId: number; onClose: () => void; onSave: (record: AbsenceRecord) => void }) {
-  const [employee,setEmployee] = useState("Mariana Costa");
+function AbsenceForm({ nextId, employees, onClose, onSave }: { nextId: number; employees: RhEmployeeOption[]; onClose: () => void; onSave: (record: AbsenceRecord, employeeId?: string) => void }) {
+  // Colaboradores reais quando logado; catálogo demonstrativo em modo demo.
+  const demoOptions: RhEmployeeOption[] = [
+    { id:"demo-emp-1", name:"Mariana Costa", department:"Recursos Humanos", unit:"Matriz Boituva" },
+    { id:"demo-emp-2", name:"Lucas Martins", department:"Produção", unit:"Unidade Industrial" },
+    { id:"demo-emp-3", name:"Ana Souza", department:"Administrativo", unit:"Matriz Boituva" },
+    { id:"demo-emp-4", name:"Ricardo Alves", department:"Produção", unit:"Unidade Industrial" },
+    { id:"demo-emp-5", name:"Camila Ferreira", department:"Qualidade", unit:"Unidade Industrial" },
+  ];
+  const options = employees.length ? employees : demoOptions;
+  const persists = employees.length > 0;
+  const [employeeId,setEmployeeId] = useState(options[0]?.id ?? "");
   const [type,setType] = useState<AbsenceRecord["type"]>("Férias");
   const [start,setStart] = useState("");
   const [end,setEnd] = useState("");
   const [reason,setReason] = useState("");
-  const employeeMap: Record<string,[string,string,string,number]> = { "Mariana Costa":["MC","Matriz Boituva","Recursos Humanos",30], "Lucas Martins":["LM","Unidade Industrial","Produção",22], "Ana Souza":["AS","Matriz Boituva","Administrativo",18], "Ricardo Alves":["RA","Unidade Industrial","Produção",15], "Camila Ferreira":["CF","Unidade Industrial","Qualidade",20] };
+  const chosen = options.find(option => option.id === employeeId) ?? options[0];
   const days = start && end ? Math.max(1,Math.round((new Date(`${end}T12:00:00`).getTime()-new Date(`${start}T12:00:00`).getTime())/86400000)+1) : 0;
-  const valid = Boolean(start && end && reason && days > 0 && end >= start);
-  const submit = (event: React.FormEvent) => { event.preventDefault(); if (!valid) return; const [initials,unit,department,balance] = employeeMap[employee]; onSave({ id:nextId, employee, initials, type, start, end, days, status:"Pendente", unit, department, requestedAt:"Hoje · agora", reason, balance, conflict:employee === "Lucas Martins" ? "Outro supervisor do Turno A possui ausência planejada no período." : null }); };
-  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="absence-form" onSubmit={submit} onMouseDown={event => event.stopPropagation()}><header><div><p className="eyebrow">RH · NOVA MOVIMENTAÇÃO</p><h2>Nova solicitação</h2><p>Registre férias, compensações, atestados ou licenças.</p></div><button type="button" onClick={onClose} aria-label="Fechar nova solicitação"><HrIcon name="close"/></button></header><div className="absence-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employee} onChange={event => setEmployee(event.target.value)}>{Object.keys(employeeMap).map(name => <option key={name}>{name}</option>)}</select></label><label><span>Tipo de movimentação *</span><select value={type} onChange={event => setType(event.target.value as AbsenceRecord["type"])}><option>Férias</option><option>Banco de horas</option><option>Atestado médico</option><option>Licença</option></select></label><label><span>Saldo disponível</span><div className="absence-readonly">{employeeMap[employee][3]} dias</div></label><label><span>Data inicial *</span><input type="date" value={start} onChange={event => setStart(event.target.value)}/></label><label><span>Data final *</span><input type="date" min={start} value={end} onChange={event => setEnd(event.target.value)}/></label><label className="field-wide"><span>Motivo ou observação *</span><textarea value={reason} onChange={event => setReason(event.target.value)} placeholder="Descreva a solicitação para o fluxo de aprovação..."/></label>{days > 0 && <div className="absence-preview field-wide"><HrIcon name="calendar"/><span><b>{days} {days === 1 ? "dia solicitado" : "dias solicitados"}</b><small>Saldo projetado: {Math.max(0,employeeMap[employee][3]-days)} dias</small></span>{employee === "Lucas Martins" && <Status tone="attention">Verificar conflito</Status>}</div>}</div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Enviar para aprovação <HrIcon name="arrow"/></Button></footer></form></div>;
+  const valid = Boolean(chosen && start && end && reason && days > 0 && end >= start);
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!valid || !chosen) return;
+    onSave({
+      id:nextId, employee:chosen.name, initials:initialsOf(chosen.name), type, start, end, days,
+      status:"Pendente", unit:chosen.unit ?? "—", department:chosen.department ?? "—",
+      requestedAt:"Hoje · agora", reason, balance:30, conflict:null,
+    }, persists ? chosen.id : undefined);
+  };
+  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="absence-form" onSubmit={submit} onMouseDown={event => event.stopPropagation()}><header><div><p className="eyebrow">RH · NOVA MOVIMENTAÇÃO</p><h2>Nova solicitação</h2><p>Registre férias, compensações, atestados ou licenças.</p></div><button type="button" onClick={onClose} aria-label="Fechar nova solicitação"><HrIcon name="close"/></button></header><div className="absence-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event => setEmployeeId(event.target.value)}>{options.map(option => <option key={option.id} value={option.id}>{option.name}{option.department ? ` · ${option.department}` : ""}</option>)}</select></label><label><span>Tipo de movimentação *</span><select value={type} onChange={event => setType(event.target.value as AbsenceRecord["type"])}><option>Férias</option><option>Banco de horas</option><option>Atestado médico</option><option>Licença</option></select></label><label><span>Unidade</span><div className="absence-readonly">{chosen?.unit ?? "—"}</div></label><label><span>Data inicial *</span><input type="date" value={start} onChange={event => setStart(event.target.value)}/></label><label><span>Data final *</span><input type="date" min={start} value={end} onChange={event => setEnd(event.target.value)}/></label><label className="field-wide"><span>Motivo ou observação *</span><textarea value={reason} onChange={event => setReason(event.target.value)} placeholder="Descreva a solicitação para o fluxo de aprovação..."/></label>{days > 0 && <div className="absence-preview field-wide"><HrIcon name="calendar"/><span><b>{days} {days === 1 ? "dia solicitado" : "dias solicitados"}</b><small>{persists ? "Será registrado no banco" : "Registro demonstrativo"}</small></span></div>}</div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Enviar para aprovação <HrIcon name="arrow"/></Button></footer></form></div>;
 }
 
-function formatDate(value: string) { return new Intl.DateTimeFormat("pt-BR",{timeZone:"UTC"}).format(new Date(`${value}T12:00:00Z`)); }
+function formatDate(value: string) { if (!value || !/^\d{4}-\d{2}-\d{2}/.test(value)) return value || "—"; const date = new Date(`${value}T12:00:00Z`); return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("pt-BR",{timeZone:"UTC"}).format(date); }
 function formatPeriod(start: string,end: string) { return start === end ? formatDate(start) : `${formatDate(start)} — ${formatDate(end)}`; }
 function absenceTone(status: AbsenceStatus): "success" | "attention" | "info" | "neutral" { return status === "Aprovada" || status === "Registrado" ? "success" : status === "Pendente" ? "attention" : status === "Em análise" ? "info" : "neutral"; }
 
-function BenefitsSection({ summary, notify, access }: { summary: FoundationSummary; notify: (message: string) => void; access: ModuleAccessContext }) {
-  const [plans] = useState(initialBenefitPlans);
+function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationSummary; notify: (message: string) => void; access: ModuleAccessContext; rh: RhSnapshot }) {
+  const [plans] = useState<BenefitPlan[]>(rh.source === "supabase" ? rh.benefitPlans.map(toBenefitUiPlan) : initialBenefitPlans);
   const [requests,setRequests] = useState(initialBenefitRequests);
   const [selectedPlan,setSelectedPlan] = useState<BenefitPlan|null>(null);
   const [selectedRequest,setSelectedRequest] = useState<BenefitRequest|null>(null);
@@ -595,7 +808,7 @@ function BenefitsSection({ summary, notify, access }: { summary: FoundationSumma
   const createRequest=(request:BenefitRequest)=>{setRequests(current=>[request,...current]);setCreating(false);setSelectedRequest(request);setTab("Solicitações");notify(`${request.employee}: solicitação de benefício registrada nos dados demonstrativos.`);};
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · BENEFÍCIOS</p><h1>Benefícios</h1><p>Planos, elegibilidade, adesões, custos estimados e solicitações em uma única visão.</p></div>{canManage&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Nova movimentação</Button>}</div>
-    <div className="hr-stats benefit-stats"><HrStat value="4" label="Benefícios ativos" meta="Catálogo corporativo" icon="heart" tone="blue"/><HrStat value={String(summary.activeEmployees)} label="Elegíveis" meta="Colaboradores ativos" icon="users" tone="green"/><HrStat value={String(pending)} label="Em aprovação" meta="Solicitações pendentes" icon="clock" tone="orange"/><HrStat value={`R$ ${Math.round(totalCost/1000)} mil`} label="Custo estimado" meta="Competência mensal" icon="chart" tone="purple"/></div>
+    <KpiGrid><HrStat value={String(plans.length)} label="Benefícios ativos" meta="Catálogo corporativo" icon="heart" tone="blue"/><HrStat value={String(rh.source === "supabase" ? rh.summary.activeEmployees : summary.activeEmployees)} label="Elegíveis" meta="Colaboradores ativos" icon="users" tone="green"/><HrStat value={String(pending)} label="Em aprovação" meta="Solicitações pendentes" icon="clock" tone="orange"/><HrStat value={totalCost >= 1000 ? `R$ ${Math.round(totalCost/1000)} mil` : `R$ ${totalCost}`} label="Custo estimado" meta="Competência mensal" icon="chart" tone="purple"/></KpiGrid>
     <div className="benefit-tabs" role="tablist">{(["Visão geral","Participantes","Solicitações","Políticas"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Solicitações"&&<i>{pending}</i>}</button>)}</div>
     {tab==="Visão geral"&&<div className="benefit-plan-grid">{plans.map(plan=><Card key={plan.id}><span className={`benefit-plan-icon category-${plan.id}`}><HrIcon name={plan.icon}/></span><Status tone={plan.status==="Ativo"?"success":"attention"}>{plan.status}</Status><p className="eyebrow">{plan.category.toUpperCase()}</p><h2>{plan.name}</h2><div className="benefit-coverage"><span><b>{plan.members}</b><small>participantes</small></span><span><b>{Math.round(plan.members/plan.eligible*100)}%</b><small>dos elegíveis</small></span></div><div className="benefit-progress"><i><em style={{width:`${plan.members/plan.eligible*100}%`}}/></i><small>{plan.eligible-plan.members} elegíveis ainda não aderiram</small></div><footer><span><small>Custo mensal estimado</small><b>{formatCurrency(plan.monthlyCost)}</b></span><button onClick={()=>setSelectedPlan(plan)}>Ver gestão <HrIcon name="arrow"/></button></footer></Card>)}</div>}
     {tab==="Participantes"&&<BenefitParticipants plans={plans} notify={notify}/>} 
@@ -623,8 +836,8 @@ function BenefitRequestForm({nextId,plans,onClose,onSave}:{nextId:number;plans:B
 function formatCurrency(value:number){return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0}).format(value)}
 function benefitRequestTone(status:BenefitRequestStatus):"success"|"attention"|"info"|"neutral"{return status==="Aprovada"?"success":status==="Pendente"?"attention":status==="Em análise"?"info":"neutral"}
 
-function SafetySection({ notify, access }: { notify: (message: string) => void; access: ModuleAccessContext }) {
-  const [records,setRecords]=useState(initialSstRecords);
+function SafetySection({ notify, access, rh }: { notify: (message: string) => void; access: ModuleAccessContext; rh: RhSnapshot }) {
+  const [records,setRecords]=useState<SstRecord[]>(rh.source === "supabase" ? rh.sstRecords.map(toSstUiRecord) : initialSstRecords);
   const [selected,setSelected]=useState<SstRecord|null>(null);
   const [creating,setCreating]=useState(false);
   const [tab,setTab]=useState<"Prioridades"|"Exames"|"Treinamentos"|"EPIs"|"Ocorrências">("Prioridades");
@@ -635,11 +848,23 @@ function SafetySection({ notify, access }: { notify: (message: string) => void; 
   const filtered=status==="Todos os status"?records:records.filter(record=>record.status===status);
   const categoryMap:Record<Exclude<typeof tab,"Prioridades">,SstRecord["category"]>={"Exames":"Exame","Treinamentos":"Treinamento","EPIs":"EPI","Ocorrências":"Ocorrência"};
   const categoryRecords=tab==="Prioridades"?filtered:filtered.filter(record=>record.category===categoryMap[tab]);
-  const conclude=()=>{if(!selected)return;const updated={...selected,status:"Conforme" as const,risk:"Regular" as const};setRecords(current=>current.map(record=>record.id===updated.id?updated:record));setSelected(updated);notify(`${selected.employee}: registro de SST marcado como conforme.`)};
+  const conclude=async()=>{
+    if(!selected)return;
+    const target=selected;
+    const updated={...target,status:"Conforme" as const,risk:"Regular" as const};
+    setRecords(current=>current.map(record=>record.id===target.id?updated:record));setSelected(updated);
+    try{
+      const persisted=target.sourceId?await sendRhMutation({entity:"sst",id:target.sourceId,action:"mark_compliant"}):false;
+      notify(persisted?`${target.employee}: registro de SST conforme, gravado no banco.`:`${target.employee}: registro de SST marcado como conforme (demonstrativo).`);
+    }catch{
+      setRecords(current=>current.map(record=>record.id===target.id?target:record));setSelected(target);
+      notify(`${target.employee}: não foi possível tratar o registro. Verifique suas permissões.`);
+    }
+  };
   const createRecord=(record:SstRecord)=>{setRecords(current=>[record,...current]);setCreating(false);setSelected(record);notify(`${record.employee}: registro de SST incluído nos dados demonstrativos.`)};
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · SST</p><h1>Saúde e segurança</h1><p>Exames, treinamentos, EPIs, ocorrências e obrigações organizados por risco e vencimento.</p></div>{canManage&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Novo registro</Button>}</div>
-    <div className="hr-stats sst-stats"><HrStat value="12" label="ASOs a vencer" meta="Próximos 30 dias" icon="heart" tone="orange"/><HrStat value="9" label="Treinamentos" meta="Programados" icon="shield" tone="blue"/><HrStat value={String(alerts)} label="Pendências críticas" meta="Exigem tratamento" icon="alert" tone="purple"/><HrStat value="96%" label="Conformidade" meta="Documentos válidos" icon="check" tone="green"/></div>
+    <KpiGrid><HrStat value={String(records.filter(r => r.category === "Exame" && (r.status === "A vencer" || r.status === "Vencido")).length)} label="Exames a vencer" meta="Vencidos ou na janela" icon="heart" tone="orange"/><HrStat value={String(records.filter(r => r.category === "Treinamento").length)} label="Treinamentos" meta="No período" icon="shield" tone="blue"/><HrStat value={String(records.filter(r => r.risk === "Crítico").length)} label="Pendências críticas" meta="Exigem tratamento" icon="alert" tone="red"/><HrStat value={records.length ? `${Math.round((records.filter(r => r.status === "Conforme").length / records.length) * 100)}%` : "—"} label="Conformidade" meta="Registros conformes" icon="check" tone="green"/></KpiGrid>
     <div className="sst-tabs" role="tablist">{(["Prioridades","Exames","Treinamentos","EPIs","Ocorrências"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Prioridades"&&<i>{alerts}</i>}</button>)}</div>
     {tab==="Prioridades"&&<div className="sst-overview"><SstRecordTable title="Prioridades de SST" eyebrow="VENCIMENTOS E PENDÊNCIAS" records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/><Card className="sst-health-card"><p className="eyebrow">CONFORMIDADE</p><h2>Saúde dos registros</h2><div className="sst-score"><strong>96%</strong><span><i style={{width:"96%"}}/></span></div><ul><li><i>✓</i><span><b>ASOs vinculados</b><small>236 de 246 colaboradores ativos</small></span></li><li><i>✓</i><span><b>Treinamentos controlados</b><small>Validades e certificados mapeados</small></span></li><li className="warning"><i>!</i><span><b>{alerts} pendências abertas</b><small>Tratamento por risco e vencimento</small></span></li></ul><div className="sst-risk-legend"><span><i className="critical"/> Crítico</span><span><i className="attention"/> Atenção</span><span><i className="regular"/> Regular</span></div></Card></div>}
     {tab!=="Prioridades"&&<SstRecordTable title={`Gestão de ${tab.toLowerCase()}`} eyebrow={`SST · ${tab.toUpperCase()}`} records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/>} 
@@ -756,8 +981,14 @@ function SectionHead({ eyebrow, title, description, action, notify }: { eyebrow:
   return <div className="page-head hr-page-head"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div><Button onClick={() => notify(`${action}: fluxo demonstrativo aberto.`)}><HrIcon name="plus"/> {action}</Button></div>;
 }
 
-function HrStat({ value, label, meta, icon, tone }: { value: string; label: string; meta: string; icon: string; tone: string }) {
-  return <Card className={`hr-stat ${tone}`}><span><HrIcon name={icon}/></span><div><strong>{value}</strong><b>{label}</b><small>{meta}</small></div></Card>;
+/** Indicador do RH. Delega ao KPI do Design System — sem ícone e sem barra
+ *  colorida: o número é o protagonista do cartão. */
+function HrStat({ value, label, meta, tone }: { value: string; label: string; meta: string; icon?: string; tone: string }) {
+  const map: Record<string, "blue" | "green" | "amber" | "red" | "purple" | "teal"> = {
+    blue: "blue", green: "green", orange: "amber", amber: "amber",
+    red: "red", purple: "purple", teal: "teal",
+  };
+  return <Kpi label={label} caption={meta} value={value} tone={map[tone] ?? "blue"}/>;
 }
 
 function HrIcon({ name, size = 20 }: { name: string; size?: number }) {

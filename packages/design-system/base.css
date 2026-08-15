@@ -1,0 +1,257 @@
+/* ============================================================================
+   Pecsil Business OS — Base
+   Reset, tipografia e comportamento padrão dos elementos nativos.
+   ============================================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  font-weight: var(--fw-regular);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--dur-base) var(--ease),
+    color var(--dur-base) var(--ease);
+}
+
+/* Durante a troca de tema, suprime transições para evitar cintilação. */
+:root.theme-switching *,
+:root.theme-switching *::before,
+:root.theme-switching *::after {
+  transition: none !important;
+}
+
+/* --- Títulos -------------------------------------------------------------- */
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+
+h1 { font-size: var(--fs-2xl); }
+h2 { font-size: var(--fs-xl); }
+h3 { font-size: var(--fs-lg); }
+h4 { font-size: var(--fs-md); }
+
+p {
+  margin: 0;
+  line-height: var(--lh-normal);
+}
+
+small {
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+}
+
+b,
+strong {
+  font-weight: var(--fw-semibold);
+}
+
+/* --- Rótulo micro: o padrão de seção do produto ---------------------------- */
+
+.eyebrow,
+.ds-label {
+  display: block;
+  margin: 0;
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* --- Números: sempre tabulares, para alinhar em coluna --------------------- */
+
+.ds-num,
+.ds-metric,
+.ds-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* --- Controles nativos ----------------------------------------------------- */
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+input,
+select,
+textarea {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+select {
+  appearance: none;
+  padding: 0 var(--sp-4) 0 var(--sp-3);
+  height: 38px;
+  font-size: var(--fs-sm);
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 15px) center, calc(100% - 10px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: var(--sp-7);
+}
+
+/* --- Foco visível e consistente em toda a plataforma ----------------------- */
+
+:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* --- Barras de rolagem discretas, coerentes com o tema --------------------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+  background-clip: content-box;
+}
+
+/* --- Diversos -------------------------------------------------------------- */
+
+/* Ícone inline sem width/height declarados escala até o tamanho do contêiner —
+   foi o que produziu lupas e sinais de "+" gigantes. Todo SVG tem tamanho
+   padrão; quem precisa de outro declara width/height no elemento. */
+/* Ícone nunca cresce nem encolhe dentro de um flex — como item de linha ele é
+   sempre tamanho fixo. Sem isso, uma distribuição de colunas estica a seta
+   até virar um traço atravessando a tela. */
+svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
+/* O atributo width="" perde para qualquer regra CSS, então o padrão só pode
+   ser aplicado a quem NÃO o declara — caso contrário gráficos e logos
+   dimensionados por atributo seriam esmagados para 20px. */
+svg:not([width]) {
+  width: 20px;
+}
+
+svg:not([height]) {
+  height: 20px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: var(--sp-5) 0;
+}
+
+dl,
+dd,
+dt,
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

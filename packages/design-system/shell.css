@@ -1,0 +1,731 @@
+/* ============================================================================
+   Pecsil Business OS — Shell
+   Barra lateral, cabeçalho e área de conteúdo. Estrutura fixa da plataforma:
+   todo módulo é renderizado dentro deste enquadramento, sem exceção.
+   ============================================================================ */
+
+.app-shell {
+  min-height: 100vh;
+  background: var(--bg-canvas);
+}
+
+/* ============================================================================
+   BARRA LATERAL
+   ============================================================================ */
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--shell-sidebar-w);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-subtle);
+  z-index: var(--z-sidebar);
+  transition: width var(--dur-base) var(--ease),
+    transform var(--dur-base) var(--ease);
+}
+
+/* --- Marca ---------------------------------------------------------------- */
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-6) var(--sp-5) var(--sp-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.brand img {
+  width: 84px;
+  height: 62px;
+  object-fit: contain;
+}
+
+.brand b {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: var(--lh-snug);
+}
+
+.brand small {
+  display: none;
+}
+
+.close-menu {
+  display: none;
+  position: absolute;
+  right: var(--sp-3);
+  top: var(--sp-3);
+  padding: var(--sp-2);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+
+.close-menu:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* --- Navegação ------------------------------------------------------------ */
+
+.sidebar nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-5) var(--sp-3);
+  overflow-y: auto;
+}
+
+/* Rótulo de grupo: OPERAÇÃO, ANÁLISE, GOVERNANÇA */
+.sidebar nav > p {
+  margin: var(--sp-5) var(--sp-3) var(--sp-2);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sidebar nav > p:first-child {
+  margin-top: 0;
+}
+
+.sidebar nav button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 42px;
+  padding: 0 var(--sp-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  text-align: left;
+  transition: background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.sidebar nav button > svg {
+  color: var(--text-muted);
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.sidebar nav button span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar nav button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sidebar nav button:hover > svg {
+  color: var(--text-secondary);
+}
+
+/* Item ativo: superfície elevada + anel de acento. Sem preenchimento sólido —
+   o preenchimento chapado é o que dava o aspecto de protótipo. */
+.sidebar nav button.active {
+  background: var(--bg-surface);
+  border-color: var(--edge-blue);
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebar nav button.active > svg {
+  color: var(--accent-blue);
+}
+
+/* Selo de estado no item de menu (ex.: PARCIAL) */
+.sidebar nav button > i {
+  font-style: normal;
+  flex-shrink: 0;
+  padding: 3px var(--sp-2);
+  border-radius: var(--radius-xs);
+  background: var(--tint-amber);
+  color: var(--accent-amber);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* --- Cartão de contexto no rodapé da lateral ------------------------------ */
+
+.foundation-status {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  margin: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.foundation-status > span {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+}
+
+.foundation-status > span i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  box-shadow: 0 0 0 4px var(--tint-blue);
+}
+
+.foundation-status div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.foundation-status b {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.foundation-status small {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.foundation-status strong {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--accent-blue);
+}
+
+.foundation-status.complete > span {
+  background: var(--tint-green);
+  color: var(--accent-green);
+}
+
+.foundation-status.complete > span i {
+  background: var(--accent-green);
+  box-shadow: 0 0 0 4px var(--tint-green);
+}
+
+.foundation-status.complete strong {
+  color: var(--accent-green);
+}
+
+/* --- Rodapé: recolher ------------------------------------------------------ */
+
+.sidebar-collapse {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: calc(100% - var(--sp-6));
+  min-height: 40px;
+  margin: 0 var(--sp-3) var(--sp-3);
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.sidebar-collapse:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* --- Estado recolhido ------------------------------------------------------ */
+
+.app-shell.collapsed .sidebar {
+  width: var(--shell-sidebar-w-collapsed);
+}
+
+.app-shell.collapsed .sidebar nav button span,
+.app-shell.collapsed .sidebar nav button > i,
+.app-shell.collapsed .sidebar nav > p,
+.app-shell.collapsed .brand b,
+.app-shell.collapsed .foundation-status div,
+.app-shell.collapsed .sidebar-collapse span {
+  display: none;
+}
+
+.app-shell.collapsed .sidebar nav button,
+.app-shell.collapsed .sidebar-collapse {
+  justify-content: center;
+  padding: 0;
+}
+
+.app-shell.collapsed .foundation-status {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: var(--sp-3);
+}
+
+.app-shell.collapsed .brand img {
+  width: 44px;
+  height: 34px;
+}
+
+.app-shell.collapsed .main {
+  margin-left: var(--shell-sidebar-w-collapsed);
+}
+
+/* ============================================================================
+   ÁREA PRINCIPAL
+   ============================================================================ */
+
+.main {
+  margin-left: var(--shell-sidebar-w);
+  min-height: 100vh;
+  transition: margin-left var(--dur-base) var(--ease);
+}
+
+/* --- Cabeçalho ------------------------------------------------------------- */
+
+.main header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: var(--shell-header-h);
+  padding: var(--sp-3) var(--sp-7);
+  background: var(--bg-canvas);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Título contextual da página, à esquerda do cabeçalho */
+.header-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.header-title h1 {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+
+.header-title p {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 0 3px var(--tint-green);
+}
+
+/* --- Busca no cabeçalho ---------------------------------------------------- */
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: min(300px, 30vw);
+  height: 38px;
+  padding: 0 var(--sp-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  transition: border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.search:focus-within {
+  border-color: var(--accent-blue);
+  box-shadow: var(--shadow-focus);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+}
+
+.search > button {
+  display: grid;
+  place-items: center;
+  padding: var(--sp-1);
+  border-radius: var(--radius-xs);
+  color: var(--accent-blue);
+}
+
+.search > button:hover {
+  background: var(--tint-blue);
+}
+
+/* --- Botões de ícone do cabeçalho ------------------------------------------ */
+
+.header-icon,
+.menu-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  transition: background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.header-icon:hover,
+.menu-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+/* Ponto de notificação */
+.header-icon i {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  border: 2px solid var(--bg-surface);
+}
+
+.menu-button {
+  display: none;
+}
+
+/* --- Bloco do usuário ------------------------------------------------------ */
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-left: var(--sp-4);
+  border-left: 1px solid var(--border-subtle);
+}
+
+.user-card > span:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: var(--lh-tight);
+}
+
+.user-card b {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
+.user-card small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--tint-blue);
+  border: 1px solid var(--edge-blue);
+  color: var(--accent-blue);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.02em;
+}
+
+.avatar.top {
+  width: 36px;
+  height: 36px;
+}
+
+/* --- Seletor de perfil (ancorado no cabeçalho) ----------------------------- */
+
+.persona-switcher {
+  position: relative;
+}
+
+.persona-switcher .user-card {
+  border-radius: var(--radius-md);
+  padding: var(--sp-1) var(--sp-2) var(--sp-1) var(--sp-1);
+  border-left: none;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.persona-switcher .user-card:hover {
+  background: var(--bg-hover);
+}
+
+.persona-switcher .user-card > span:nth-child(2) {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.persona-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--sp-2));
+  z-index: var(--z-overlay);
+  width: 280px;
+  padding: var(--sp-2);
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.persona-menu > p {
+  margin: var(--sp-2) var(--sp-3) var(--sp-2);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.persona-menu button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.persona-menu button:hover {
+  background: var(--bg-hover);
+}
+
+.persona-menu button.active {
+  background: var(--tint-blue);
+}
+
+.persona-menu button > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+}
+
+.persona-menu button > span:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: var(--lh-tight);
+}
+
+.persona-menu button b {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.persona-menu button small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.persona-menu button > i {
+  font-style: normal;
+  color: var(--accent-blue);
+  font-weight: var(--fw-bold);
+}
+
+/* --- Conteúdo -------------------------------------------------------------- */
+
+.content {
+  max-width: var(--shell-content-max);
+  margin: 0 auto;
+  padding: var(--sp-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+/* Cabeçalho de página dentro do conteúdo (quando não usa o do topo) */
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-6);
+}
+
+/* Nas telas da Fundação o cabeçalho do topo já diz o título e o subtítulo.
+   Repetir o mesmo texto logo abaixo é ruído — aqui a faixa vira só a linha de
+   ação. Dentro de um módulo o título NÃO é duplicado (o topo mostra o nome do
+   módulo e esta faixa mostra a seção), por isso a regra é restrita a
+   .content > .page-head. */
+.content > .page-head {
+  justify-content: flex-end;
+  min-height: 0;
+}
+
+.content > .page-head > div:first-child {
+  display: none;
+}
+
+.content > .page-head:empty {
+  display: none;
+}
+
+.page-head h1 {
+  font-size: var(--fs-2xl);
+  margin-bottom: var(--sp-2);
+}
+
+.page-head > div > p:last-child {
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+}
+
+.page-head .eyebrow {
+  color: var(--accent-blue);
+  margin-bottom: var(--sp-2);
+}
+
+/* ============================================================================
+   RESPONSIVO
+   ============================================================================ */
+
+@media (max-width: 1100px) {
+  .content {
+    padding: var(--sp-5);
+    gap: var(--sp-5);
+  }
+
+  .main header {
+    padding: var(--sp-3) var(--sp-5);
+  }
+}
+
+@media (max-width: 860px) {
+  .sidebar {
+    transform: translateX(-100%);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .main,
+  .app-shell.collapsed .main {
+    margin-left: 0;
+  }
+
+  .menu-button,
+  .close-menu {
+    display: grid;
+  }
+
+  .close-menu {
+    place-items: center;
+  }
+
+  .header-title p {
+    display: none;
+  }
+
+  .search {
+    width: auto;
+    flex: 1;
+  }
+
+  .user-card > span:nth-child(2) {
+    display: none;
+  }
+
+  .user-card {
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-sidebar) - 1);
+    background: var(--bg-overlay);
+    border: none;
+  }
+
+  .page-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (min-width: 861px) {
+  .scrim {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .content {
+    padding: var(--sp-4) var(--sp-3);
+  }
+
+  .main header {
+    padding: var(--sp-3);
+    gap: var(--sp-2);
+  }
+
+  .header-title h1 {
+    font-size: var(--fs-lg);
+  }
+}

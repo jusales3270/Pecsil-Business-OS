@@ -1,25 +1,325 @@
+/* ============================================================================
+   Pecsil Business OS — Design Tokens
+   ----------------------------------------------------------------------------
+   Fonte única de verdade para cor, tipografia, espaço, raio e elevação.
+   Nenhum componente deve usar cor literal. Sempre referenciar um token.
+
+   Temas: claro (padrão) e escuro. A troca é feita por [data-theme] no <html>.
+   A paleta cromática da Pecsil é conservada — o que muda entre os temas é a
+   luminosidade de cada matiz, para manter contraste legível nos dois fundos.
+   ============================================================================ */
+
 :root {
-  --pecsil-blue-700: #1f55d5;
-  --pecsil-blue-600: #2864ed;
-  --pecsil-blue-500: #3b82f6;
-  --pecsil-blue-100: #dbeafe;
-  --pecsil-blue-50: #eff6ff;
-  --pecsil-slate-950: #111827;
-  --pecsil-slate-700: #374151;
-  --pecsil-slate-600: #4b5563;
-  --pecsil-slate-500: #6b7280;
-  --pecsil-slate-300: #d1d5db;
-  --pecsil-slate-200: #e5e7eb;
-  --pecsil-slate-100: #f3f4f6;
-  --pecsil-white: #ffffff;
-  --pecsil-green: #10b981;
-  --pecsil-orange: #f59e0b;
-  --pecsil-red: #f43f5e;
-  --pecsil-purple: #a855f7;
-  --pecsil-teal: #14b8a6;
-  --pecsil-radius-sm: 10px;
-  --pecsil-radius-md: 14px;
-  --pecsil-radius-lg: 18px;
-  --pecsil-shadow-sm: 0 2px 7px rgba(17, 24, 39, 0.06);
-  --pecsil-shadow-button: 0 5px 12px rgba(40, 100, 237, 0.22);
+  /* --- Matizes da marca (referência canônica, não usar direto na UI) ------ */
+  --pecsil-hue-blue: #2864ed;
+  --pecsil-hue-green: #10b981;
+  --pecsil-hue-amber: #f59e0b;
+  --pecsil-hue-red: #f43f5e;
+  --pecsil-hue-purple: #a855f7;
+  --pecsil-hue-teal: #14b8a6;
+
+  /* --- Tipografia -------------------------------------------------------- */
+  --font-sans: var(--font-geist-sans), Inter, ui-sans-serif, system-ui,
+    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo,
+    "Cascadia Mono", monospace;
+
+  /* Escala tipográfica. Piso de 11px — nada menor é legível em produção. */
+  --fs-micro: 11px;   /* rótulos uppercase com tracking */
+  --fs-xs: 12px;      /* metadados, legendas */
+  --fs-sm: 13px;      /* texto secundário, células de tabela */
+  --fs-md: 14px;      /* corpo padrão */
+  --fs-lg: 16px;      /* destaque em lista, título de bloco */
+  --fs-xl: 20px;      /* título de painel */
+  --fs-2xl: 26px;     /* título de página */
+  --fs-metric-sm: 28px;
+  --fs-metric: 40px;  /* número de KPI */
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --lh-tight: 1.15;
+  --lh-snug: 1.35;
+  --lh-normal: 1.55;
+
+  --tracking-micro: 0.09em;  /* rótulos uppercase */
+  --tracking-tight: -0.02em; /* títulos grandes */
+
+  /* --- Espaço ------------------------------------------------------------ */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+
+  /* --- Raio -------------------------------------------------------------- */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* --- Métricas do shell ------------------------------------------------- */
+  --shell-sidebar-w: 268px;
+  --shell-sidebar-w-collapsed: 76px;
+  --shell-header-h: 76px;
+  --shell-content-max: 1640px;
+
+  /* --- Movimento --------------------------------------------------------- */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+
+  --z-sidebar: 30;
+  --z-header: 20;
+  --z-overlay: 60;
+  --z-toast: 70;
+}
+
+/* ============================================================================
+   TEMA CLARO — padrão
+   ============================================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* Superfícies, do fundo para a frente */
+  --bg-canvas: #f5f6f8;       /* fundo da aplicação */
+  --bg-sidebar: #f0f1f4;      /* barra lateral, levemente mais densa */
+  --bg-surface: #ffffff;      /* cartões e painéis */
+  --bg-surface-raised: #ffffff;
+  --bg-subtle: #f4f5f7;       /* faixas internas, cabeçalho de tabela */
+  --bg-hover: #eef0f4;
+  --bg-active: #e7eaf0;
+  --bg-inset: #f8f9fb;        /* poços, campos de leitura */
+  --bg-overlay: rgba(15, 23, 42, 0.32);
+
+  /* Bordas */
+  --border-subtle: #ebedf1;
+  --border: #e1e4ea;
+  --border-strong: #cdd2db;
+  --border-focus: var(--accent-blue);
+
+  /* Texto */
+  --text-primary: #14161a;
+  --text-secondary: #545b66;
+  --text-muted: #848c99;
+  --text-inverse: #ffffff;
+  --text-on-accent: #ffffff;
+
+  /* Acentos semânticos — matiz Pecsil escurecido para contraste em fundo claro */
+  --accent-blue: #2864ed;
+  --accent-green: #059669;
+  --accent-amber: #b45309;
+  --accent-red: #be123c;
+  --accent-purple: #7e22ce;
+  --accent-teal: #0f766e;
+  --accent-neutral: #6b7280;
+
+  /* Fundos tonais — versões lavadas para chips, banners e ícones */
+  --tint-blue: #eef4ff;
+  --tint-green: #e9f9f1;
+  --tint-amber: #fdf4e6;
+  --tint-red: #fdf0f2;
+  --tint-purple: #f7effe;
+  --tint-teal: #e8f7f5;
+  --tint-neutral: #f1f2f4;
+
+  /* Bordas tonais */
+  --edge-blue: #cfe0ff;
+  --edge-green: #bfe9d5;
+  --edge-amber: #f2ddb4;
+  --edge-red: #f6ccd5;
+  --edge-purple: #e4cdfa;
+  --edge-teal: #bfe6e1;
+
+  /* Série categórica para gráficos — ordem fixa, nunca reordenar */
+  --data-1: #2864ed;  /* P0 / primário */
+  --data-2: #e11d48;  /* P1 / crítico  */
+  --data-3: #94a3b8;  /* P2 / neutro   */
+  --data-4: #64748b;  /* P3 / neutro escuro */
+  --data-5: #059669;
+  --data-6: #b45309;
+  --data-7: #7e22ce;
+  --data-8: #0f766e;
+  --data-track: #e6e9ee; /* trilho atrás de barras e anéis */
+
+  /* Elevação */
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 4px 10px rgba(16, 24, 40, 0.06), 0 2px 4px rgba(16, 24, 40, 0.04);
+  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.1);
+  --shadow-focus: 0 0 0 3px rgba(40, 100, 237, 0.16);
+}
+
+/* ============================================================================
+   TEMA ESCURO
+   Aplicado quando o usuário escolhe explicitamente (data-theme="dark") ou
+   quando o sistema pede escuro e não há escolha explícita em contrário.
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg-canvas: #08090b;
+    --bg-sidebar: #0b0c0e;
+    --bg-surface: #121316;
+    --bg-surface-raised: #191a1e;
+    --bg-subtle: #16171a;
+    --bg-hover: #1c1d21;
+    --bg-active: #24252a;
+    --bg-inset: #0e0f11;
+    --bg-overlay: rgba(0, 0, 0, 0.62);
+
+    --border-subtle: #1d1e22;
+    --border: #26272c;
+    --border-strong: #35363c;
+
+    --text-primary: #f2f3f5;
+    --text-secondary: #a3a7b0;
+    --text-muted: #6d7178;
+    --text-inverse: #14161a;
+    --text-on-accent: #ffffff;
+
+    /* Mesma matiz Pecsil, luminosidade elevada para fundo escuro */
+    --accent-blue: #4d9bff;
+    --accent-green: #34d399;
+    --accent-amber: #fbbf24;
+    --accent-red: #ff6b7d;
+    --accent-purple: #c084fc;
+    --accent-teal: #2dd4bf;
+    --accent-neutral: #9ca3af;
+
+    --tint-blue: rgba(77, 155, 255, 0.12);
+    --tint-green: rgba(52, 211, 153, 0.12);
+    --tint-amber: rgba(251, 191, 36, 0.12);
+    --tint-red: rgba(255, 107, 125, 0.12);
+    --tint-purple: rgba(192, 132, 252, 0.12);
+    --tint-teal: rgba(45, 212, 191, 0.12);
+    --tint-neutral: rgba(156, 163, 175, 0.1);
+
+    --edge-blue: rgba(77, 155, 255, 0.3);
+    --edge-green: rgba(52, 211, 153, 0.3);
+    --edge-amber: rgba(251, 191, 36, 0.3);
+    --edge-red: rgba(255, 107, 125, 0.3);
+    --edge-purple: rgba(192, 132, 252, 0.3);
+    --edge-teal: rgba(45, 212, 191, 0.3);
+
+    --data-1: #4d9bff;
+    --data-2: #ff6b7d;
+    --data-3: #8b9099;
+    --data-4: #4e535b;
+    --data-5: #34d399;
+    --data-6: #fbbf24;
+    --data-7: #c084fc;
+    --data-8: #2dd4bf;
+    --data-track: #26272c;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+    --shadow-focus: 0 0 0 3px rgba(77, 155, 255, 0.28);
+  }
+}
+
+/* Escolha explícita do usuário vence a preferência do sistema, nos dois sentidos. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-canvas: #08090b;
+  --bg-sidebar: #0b0c0e;
+  --bg-surface: #121316;
+  --bg-surface-raised: #191a1e;
+  --bg-subtle: #16171a;
+  --bg-hover: #1c1d21;
+  --bg-active: #24252a;
+  --bg-inset: #0e0f11;
+  --bg-overlay: rgba(0, 0, 0, 0.62);
+
+  --border-subtle: #1d1e22;
+  --border: #26272c;
+  --border-strong: #35363c;
+
+  --text-primary: #f2f3f5;
+  --text-secondary: #a3a7b0;
+  --text-muted: #6d7178;
+  --text-inverse: #14161a;
+  --text-on-accent: #ffffff;
+
+  --accent-blue: #4d9bff;
+  --accent-green: #34d399;
+  --accent-amber: #fbbf24;
+  --accent-red: #ff6b7d;
+  --accent-purple: #c084fc;
+  --accent-teal: #2dd4bf;
+  --accent-neutral: #9ca3af;
+
+  --tint-blue: rgba(77, 155, 255, 0.12);
+  --tint-green: rgba(52, 211, 153, 0.12);
+  --tint-amber: rgba(251, 191, 36, 0.12);
+  --tint-red: rgba(255, 107, 125, 0.12);
+  --tint-purple: rgba(192, 132, 252, 0.12);
+  --tint-teal: rgba(45, 212, 191, 0.12);
+  --tint-neutral: rgba(156, 163, 175, 0.1);
+
+  --edge-blue: rgba(77, 155, 255, 0.3);
+  --edge-green: rgba(52, 211, 153, 0.3);
+  --edge-amber: rgba(251, 191, 36, 0.3);
+  --edge-red: rgba(255, 107, 125, 0.3);
+  --edge-purple: rgba(192, 132, 252, 0.3);
+  --edge-teal: rgba(45, 212, 191, 0.3);
+
+  --data-1: #4d9bff;
+  --data-2: #ff6b7d;
+  --data-3: #8b9099;
+  --data-4: #4e535b;
+  --data-5: #34d399;
+  --data-6: #fbbf24;
+  --data-7: #c084fc;
+  --data-8: #2dd4bf;
+  --data-track: #26272c;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --shadow-focus: 0 0 0 3px rgba(77, 155, 255, 0.28);
+}
+
+/* ============================================================================
+   Aliases de compatibilidade
+   As telas legadas referenciam --pecsil-*. Mapear para os tokens semânticos
+   mantém essas telas coerentes com o tema enquanto são convertidas.
+   Não usar em código novo.
+   ============================================================================ */
+
+:root {
+  --pecsil-blue-700: var(--accent-blue);
+  --pecsil-blue-600: var(--accent-blue);
+  --pecsil-blue-500: var(--accent-blue);
+  --pecsil-blue-100: var(--edge-blue);
+  --pecsil-blue-50: var(--tint-blue);
+  --pecsil-slate-950: var(--text-primary);
+  --pecsil-slate-700: var(--text-primary);
+  --pecsil-slate-600: var(--text-secondary);
+  --pecsil-slate-500: var(--text-muted);
+  --pecsil-slate-300: var(--border-strong);
+  --pecsil-slate-200: var(--border);
+  --pecsil-slate-100: var(--bg-subtle);
+  --pecsil-white: var(--bg-surface);
+  --pecsil-green: var(--accent-green);
+  --pecsil-orange: var(--accent-amber);
+  --pecsil-red: var(--accent-red);
+  --pecsil-purple: var(--accent-purple);
+  --pecsil-teal: var(--accent-teal);
+  --pecsil-radius-sm: var(--radius-sm);
+  --pecsil-radius-md: var(--radius-md);
+  --pecsil-radius-lg: var(--radius-lg);
+  --pecsil-shadow-sm: var(--shadow-sm);
+  --pecsil-shadow-button: var(--shadow-sm);
 }

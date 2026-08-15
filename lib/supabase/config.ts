@@ -5,6 +5,19 @@ export const SUPABASE_ENV_KEYS = {
   serviceRoleKey: "SUPABASE_SERVICE_ROLE_KEY",
 } as const;
 
+/**
+ * Lê uma variável tratando string vazia como ausente.
+ *
+ * O `.env.example` instrui a deixar em branco a chave que não se aplica —
+ * instalação self-hosted usa ANON_KEY e deixa PUBLISHABLE_KEY vazia. Com `??`
+ * a string vazia venceria o fallback (só null/undefined disparam `??`) e o
+ * navegador reportaria "Supabase não configurado" mesmo com tudo preenchido.
+ */
+function readEnv(name: string): string | undefined {
+  const value = process.env[name];
+  return value && value.trim() !== "" ? value : undefined;
+}
+
 export type SupabaseConfigStatus = {
   publicConnectionReady: boolean;
   serverAdministrationReady: boolean;
@@ -12,11 +25,10 @@ export type SupabaseConfigStatus = {
 };
 
 export function getSupabaseConfigStatus(): SupabaseConfigStatus {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = readEnv(SUPABASE_ENV_KEYS.url);
   const publishableKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    readEnv(SUPABASE_ENV_KEYS.publishableKey) ?? readEnv(SUPABASE_ENV_KEYS.anonKey);
+  const serviceRoleKey = readEnv(SUPABASE_ENV_KEYS.serviceRoleKey);
   const missingPublicKeys = [
     !url ? SUPABASE_ENV_KEYS.url : null,
     !publishableKey
@@ -40,9 +52,8 @@ export function requirePublicSupabaseConfig() {
   }
 
   return {
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    url: readEnv(SUPABASE_ENV_KEYS.url)!,
     publishableKey:
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      (readEnv(SUPABASE_ENV_KEYS.publishableKey) ?? readEnv(SUPABASE_ENV_KEYS.anonKey))!,
   };
 }

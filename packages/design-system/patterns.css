@@ -1,0 +1,2986 @@
+/* ============================================================================
+   Pecsil Business OS — Padrões de interface
+   ----------------------------------------------------------------------------
+   O vocabulário visual da plataforma. Todo módulo compõe suas telas com estes
+   padrões. Um módulo que precisa de algo que não existe aqui deve propor a
+   adição neste arquivo, não criar um estilo local.
+   ============================================================================ */
+
+/* ============================================================================
+   1. SUPERFÍCIE — o cartão é a unidade básica de composição
+   ============================================================================ */
+
+.ds-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.ds-card.interactive:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+/* ============================================================================
+   2. PAINEL — cartão com cabeçalho padronizado
+   ============================================================================ */
+
+.ds-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+  gap: var(--sp-5);
+  min-width: 0;
+}
+
+.ds-panel-head,
+.card-head,
+.security-card-head,
+.matrix-head,
+.finance-card-head,
+.homologation-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.ds-panel-head > div:first-child,
+.card-head > div:first-child {
+  min-width: 0;
+}
+
+.ds-panel-title,
+.ds-panel-head h2,
+.card-head h2,
+.matrix-head h2,
+.security-card-head h2 {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-tight);
+  margin: 0 0 var(--sp-1);
+}
+
+.ds-panel-subtitle,
+.ds-panel-head p,
+.card-head > div > p:last-child,
+.matrix-head p:not(.eyebrow) {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.ds-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+/* Rótulo de seção interna a um painel */
+.ds-section-label {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ============================================================================
+   3. KPI — o cartão de número, assinatura da plataforma
+   ============================================================================ */
+
+.ds-kpi-grid,
+.stats-grid,
+.identity-metrics,
+.admin-stats,
+.hr-stats,
+.finance-stats,
+.absence-stats,
+.benefit-stats,
+.doc-stats,
+.sst-stats,
+.report-stats,
+.homologation-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.ds-kpi {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-height: 118px;
+  padding: var(--sp-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.ds-kpi-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.ds-kpi-label {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: var(--lh-snug);
+}
+
+.ds-kpi-caption {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}
+
+/* Número + unidade compartilham a linha de base, alinhados à direita */
+.ds-kpi-value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin-left: auto;
+  align-self: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Valor de comprimento médio: mesma linha, corpo menor. */
+.ds-kpi.tight .ds-kpi-value strong {
+  font-size: var(--fs-metric-sm);
+}
+
+/* Valor longo (moeda por extenso): ocupa a própria linha, abaixo do texto.
+   Impede que o número empurre e atropele o rótulo. */
+.ds-kpi.stacked {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.ds-kpi.stacked .ds-kpi-value {
+  margin-left: 0;
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.ds-kpi.stacked .ds-kpi-value strong {
+  font-size: clamp(20px, 2.1vw, 28px);
+}
+
+.ds-kpi-value strong {
+  font-family: var(--font-mono);
+  font-size: var(--fs-metric);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.ds-kpi-value span {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* Tonalidade semântica do número */
+.ds-kpi.blue   .ds-kpi-value strong { color: var(--accent-blue); }
+.ds-kpi.green  .ds-kpi-value strong { color: var(--accent-green); }
+.ds-kpi.amber  .ds-kpi-value strong { color: var(--accent-amber); }
+.ds-kpi.red    .ds-kpi-value strong { color: var(--accent-red); }
+.ds-kpi.purple .ds-kpi-value strong { color: var(--accent-purple); }
+.ds-kpi.teal   .ds-kpi-value strong { color: var(--accent-teal); }
+
+/* --- Compatibilidade: cartões de métrica das telas legadas ---------------- */
+
+.stat-card,
+.identity-metrics .ds-card,
+.admin-stats .ds-card,
+.hr-stat,
+.finance-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 112px;
+  padding: var(--sp-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.stat-card::before {
+  display: none; /* a barra colorida à esquerda saiu do padrão */
+}
+
+.stat-card > span:last-child,
+.identity-metrics .ds-card,
+.admin-stats .ds-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.stat-card strong,
+.identity-metrics strong,
+.admin-stats strong,
+.hr-stat strong,
+.finance-stat strong {
+  font-family: var(--font-mono);
+  font-size: var(--fs-metric-sm);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.stat-card b,
+.identity-metrics span,
+.hr-stat b,
+.finance-stat b {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.stat-card small,
+.identity-metrics small,
+.admin-stats span,
+.hr-stat small,
+.finance-stat small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}
+
+.stat-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+}
+
+.stat-card.green .stat-icon  { background: var(--tint-green);  color: var(--accent-green); }
+.stat-card.amber .stat-icon,
+.stat-card.orange .stat-icon { background: var(--tint-amber);  color: var(--accent-amber); }
+.stat-card.red .stat-icon    { background: var(--tint-red);    color: var(--accent-red); }
+.stat-card.purple .stat-icon { background: var(--tint-purple); color: var(--accent-purple); }
+.stat-card.teal .stat-icon   { background: var(--tint-teal);   color: var(--accent-teal); }
+
+/* ============================================================================
+   4. CALLOUT — a explicação editorial que dá contexto ao número
+   ============================================================================ */
+
+.ds-callout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--edge-blue);
+  background: var(--tint-blue);
+}
+
+.ds-callout > svg {
+  color: var(--accent-blue);
+  margin-top: 2px;
+}
+
+.ds-callout-body b {
+  display: block;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--sp-2);
+}
+
+.ds-callout-body p {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  color: var(--text-secondary);
+  max-width: 92ch;
+}
+
+.ds-callout-body strong {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.ds-callout.amber  { border-color: var(--edge-amber);  background: var(--tint-amber); }
+.ds-callout.amber > svg  { color: var(--accent-amber); }
+.ds-callout.green  { border-color: var(--edge-green);  background: var(--tint-green); }
+.ds-callout.green > svg  { color: var(--accent-green); }
+.ds-callout.red    { border-color: var(--edge-red);    background: var(--tint-red); }
+.ds-callout.red > svg    { color: var(--accent-red); }
+.ds-callout.purple { border-color: var(--edge-purple); background: var(--tint-purple); }
+.ds-callout.purple > svg { color: var(--accent-purple); }
+.ds-callout.neutral { border-color: var(--border); background: var(--bg-subtle); }
+.ds-callout.neutral > svg { color: var(--text-muted); }
+
+/* Faixas contextuais legadas convergem para o callout */
+.scope-banner,
+.security-summary,
+.connection-banner,
+.matrix-note,
+.employee-callout,
+.journey-warning,
+.doc-warning,
+.sst-alert,
+.finance-segregation-note,
+.report-ai-note,
+.journey-audit-note,
+.benefit-security-note,
+.doc-security,
+.finance-detail-note,
+.employee-form-note,
+.absence-conflict {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--edge-blue);
+  background: var(--tint-blue);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.security-summary,
+.connection-banner { justify-content: space-between; }
+
+.matrix-note,
+.journey-warning,
+.doc-warning,
+.sst-alert,
+.absence-conflict {
+  border-color: var(--edge-amber);
+  background: var(--tint-amber);
+}
+
+.matrix-note > svg,
+.journey-warning > svg,
+.doc-warning > svg,
+.sst-alert > svg { color: var(--accent-amber); }
+
+.scope-banner > span:first-child,
+.security-pulse {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--accent-blue);
+}
+
+.security-pulse { color: var(--accent-green); }
+
+.scope-banner b,
+.security-summary b,
+.matrix-note b {
+  display: block;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.scope-banner small,
+.security-summary small,
+.matrix-note small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* ============================================================================
+   5. BOTÕES
+   ============================================================================ */
+
+.ds-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 38px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.ds-button.primary {
+  background: var(--accent-blue);
+  border: 1px solid var(--accent-blue);
+  color: var(--text-on-accent);
+}
+
+.ds-button.primary:hover {
+  filter: brightness(1.08);
+}
+
+.ds-button.secondary {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.ds-button.secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.ds-button.ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--accent-blue);
+}
+
+.ds-button.ghost:hover {
+  background: var(--tint-blue);
+}
+
+.ds-button.compact {
+  min-height: 32px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-xs);
+}
+
+.link-button,
+.notice-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  color: var(--accent-blue);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.link-button:hover,
+.notice-action:hover {
+  background: var(--tint-blue);
+}
+
+.filter-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 38px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.filter-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+/* ============================================================================
+   6. SELOS E CHIPS
+   ============================================================================ */
+
+.ds-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  width: max-content;
+  padding: 3px var(--sp-2);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  background: var(--tint-neutral);
+  color: var(--text-secondary);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.ds-status.success  { background: var(--tint-green);  border-color: var(--edge-green);  color: var(--accent-green); }
+.ds-status.attention{ background: var(--tint-amber);  border-color: var(--edge-amber);  color: var(--accent-amber); }
+.ds-status.danger   { background: var(--tint-red);    border-color: var(--edge-red);    color: var(--accent-red); }
+.ds-status.info     { background: var(--tint-blue);   border-color: var(--edge-blue);   color: var(--accent-blue); }
+.ds-status.purple   { background: var(--tint-purple); border-color: var(--edge-purple); color: var(--accent-purple); }
+
+/* Chip numérico à direita de uma linha de lista */
+.ds-chip-value {
+  display: grid;
+  place-items: center;
+  min-width: 46px;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ============================================================================
+   7. CONTROLE SEGMENTADO — troca de contexto sem sair da tela
+   ============================================================================ */
+
+.ds-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.ds-segmented button {
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.ds-segmented button:hover {
+  color: var(--text-primary);
+}
+
+.ds-segmented button.active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-sm);
+}
+
+.ds-segmented.compact button {
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-xs);
+}
+
+/* --- Abas legadas convergem para o segmentado ----------------------------- */
+
+.section-tabs,
+.hr-navigation,
+.finance-navigation,
+.absence-tabs,
+.benefit-tabs,
+.doc-tabs,
+.journey-tabs,
+.sst-tabs,
+.report-tabs,
+.employee-tabs,
+.finance-homologation-tabs,
+.notification-filter,
+.search-filter-row > div {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  margin: 0;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  width: max-content;
+  max-width: 100%;
+}
+
+.section-tabs button,
+.hr-navigation button,
+.finance-navigation button,
+.absence-tabs button,
+.benefit-tabs button,
+.doc-tabs button,
+.journey-tabs button,
+.sst-tabs button,
+.report-tabs button,
+.employee-tabs button,
+.finance-homologation-tabs button,
+.notification-filter button,
+.search-filter-row > div button {
+  padding: var(--sp-2) var(--sp-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+}
+
+.section-tabs button:hover,
+.hr-navigation button:hover,
+.finance-navigation button:hover,
+.notification-filter button:hover {
+  color: var(--text-primary);
+}
+
+.section-tabs button.active,
+.section-tabs button[aria-selected="true"],
+.hr-navigation button.active,
+.finance-navigation button.active,
+.absence-tabs button.active,
+.benefit-tabs button.active,
+.doc-tabs button.active,
+.journey-tabs button.active,
+.sst-tabs button.active,
+.report-tabs button.active,
+.employee-tabs button.active,
+.finance-homologation-tabs button.active,
+.notification-filter button.active,
+.search-filter-row > div button.active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-sm);
+}
+
+.section-tabs button::after {
+  display: none; /* o sublinhado saiu; o chip elevado marca o ativo */
+}
+
+/* --- Barra de módulo: saída, seções e escopo ------------------------------- */
+/* Módulo não tem sidebar própria. A navegação entre seções é horizontal, aqui.
+   Uma segunda barra lateral dentro do conteúdo compete com a navegação
+   principal e foi o que mais destoava entre as telas. */
+
+.ds-module-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+
+.ds-module-bar > .ds-button,
+.ds-module-bar > .ds-status {
+  flex-shrink: 0;
+}
+
+/* Com muitas seções o segmentado rola em vez de empurrar o escopo para baixo. */
+.ds-module-bar > .ds-segmented {
+  margin-right: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ds-module-bar > .ds-segmented::-webkit-scrollbar {
+  display: none;
+}
+
+/* Área de trabalho do módulo: fluxo vertical com o mesmo ritmo do conteúdo. */
+.finance-workspace,
+.hr-workspace,
+.ds-module-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+/* O módulo herda o título do cabeçalho; o head interno vira só a linha de ação. */
+.finance-page-head,
+.hr-page-head,
+.report-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-5);
+}
+
+.finance-page-head h1,
+.hr-page-head h1,
+.report-page-head h1 {
+  font-size: var(--fs-xl);
+  margin-bottom: var(--sp-1);
+}
+
+.finance-page-head p:last-child,
+.hr-page-head p:last-child,
+.report-page-head p:last-child {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/* ============================================================================
+   8. LISTAS E LINHAS
+   ============================================================================ */
+
+.ds-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-size: var(--fs-md);
+}
+
+.ds-row + .ds-row {
+  margin-top: var(--sp-2);
+}
+
+.ds-row-label {
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.ds-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-list > * + * {
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Ícone quadrado que precede um item de lista */
+.list-symbol,
+.module-icon,
+.profile-icon,
+.scope-icon,
+.result-icon,
+.audit-icon,
+.notice-icon,
+.role-mark,
+.hr-list-icon,
+.benefit-plan-icon,
+.hr-module-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  font-style: normal;
+}
+
+.module-icon.large { width: 48px; height: 48px; border-radius: var(--radius-lg); }
+
+.module-icon.teal,   .role-mark.manager  { background: var(--tint-teal);   color: var(--accent-teal); }
+.module-icon.orange, .role-mark.owner,
+.notice-icon.attention                    { background: var(--tint-amber);  color: var(--accent-amber); }
+.module-icon.purple, .role-mark.operator  { background: var(--tint-purple); color: var(--accent-purple); }
+.module-icon.green,  .notice-icon.success { background: var(--tint-green);  color: var(--accent-green); }
+.module-icon.red,    .role-mark.admin,
+.notice-icon.danger                       { background: var(--tint-red);    color: var(--accent-red); }
+.role-mark.employee                       { background: var(--tint-neutral);color: var(--text-secondary); }
+
+/* ============================================================================
+   9. TABELAS
+   ============================================================================ */
+
+.ds-table-head,
+.people-header,
+.document-header,
+.hr-table-header,
+.absence-table-head,
+.doc-table-head,
+.journey-table-head,
+.matrix-header {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.people-table > button,
+.document-table > button,
+.search-results > button,
+.audit-timeline > button,
+.data-list > button,
+.policy-list > button,
+.hr-people-table > button,
+.finance-table > button,
+.absence-table > button,
+.doc-table > button,
+.journey-table > button,
+.sst-record-table > button {
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  background: transparent;
+  text-align: left;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.people-table > button:hover,
+.document-table > button:hover,
+.search-results > button:hover,
+.audit-timeline > button:hover,
+.data-list > button:hover,
+.policy-list > button:hover,
+.hr-people-table > button:hover,
+.finance-table > button:hover {
+  background: var(--bg-hover);
+}
+
+.people-table > button b,
+.document-table > button > b,
+.search-results b,
+.audit-timeline b,
+.data-list b,
+.entity-grid b,
+.module-strip b,
+.role-list b {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.people-table > button small,
+.document-table > button > small,
+.search-results small,
+.audit-timeline small,
+.data-list small,
+.entity-grid small,
+.module-strip small,
+.role-list small,
+.person-cell small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.people-table > button > svg,
+.document-table > button > svg,
+.search-results > button > svg,
+.audit-timeline > button > svg,
+.data-list > button > svg,
+.entity-grid > button > svg,
+.module-strip > button > svg,
+.role-list > button > svg,
+.policy-list > button > svg {
+  color: var(--text-muted);
+}
+
+.person-cell > i,
+.employee-avatar,
+.document-name > i {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  font-style: normal;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+}
+
+.matrix-table,
+.policy-list,
+.finance-table-card,
+.hr-table-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.matrix-row {
+  border-top: 1px solid var(--border-subtle);
+  min-height: 52px;
+}
+
+.matrix-row:first-child { border-top: none; }
+.matrix-header { background: var(--bg-subtle); }
+
+.matrix-row > button.permission-on {
+  border: 1px solid var(--edge-blue);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  border-radius: var(--radius-sm);
+}
+
+.matrix-row > button.permission-off {
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================================================
+   10. GRÁFICOS
+   ============================================================================ */
+
+/* Anel com número ao centro */
+.ds-donut {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.ds-donut-center {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.ds-donut-center strong {
+  font-family: var(--font-mono);
+  font-size: var(--fs-metric);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.ds-donut-center span {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.ds-donut-track { stroke: var(--data-track); }
+
+/* Legenda: ponto + rótulo à esquerda, valor à direita */
+.ds-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.ds-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.ds-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ds-legend-item span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-legend-item b {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+/* Barra horizontal com trilho */
+.ds-bar {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) auto;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.ds-bar-track {
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--data-track);
+  overflow: hidden;
+}
+
+.ds-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--data-1);
+  transition: width var(--dur-base) var(--ease);
+}
+
+.ds-bar b {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-md);
+  color: var(--text-primary);
+}
+
+/* Colunas verticais com topo arredondado */
+.ds-columns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: end;
+  gap: var(--sp-3);
+  min-height: 190px;
+}
+
+.ds-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.ds-column-fill {
+  width: 100%;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: var(--data-1);
+  min-height: 4px;
+  transition: height var(--dur-base) var(--ease);
+}
+
+.ds-column-label {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Progresso linear */
+.big-progress,
+.mini-progress,
+.deployment-progress,
+.benefit-progress,
+.integrity-score > span,
+.finance-homologation-bar {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--data-track);
+  overflow: hidden;
+}
+
+.mini-progress { height: 4px; }
+
+.big-progress i,
+.mini-progress i,
+.integrity-score i,
+.finance-homologation-bar i {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent-blue);
+}
+
+.progress-value,
+.integrity-score strong,
+.health-score strong,
+.finance-homologation-score,
+.audit-score strong,
+.sst-score {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-metric-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--accent-blue);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* ============================================================================
+   11. GRADES DE CONTEÚDO
+   ============================================================================ */
+
+.ds-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-5); }
+.ds-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-5); }
+
+/* Assimétrica: painel principal + coluna lateral */
+.ds-grid-main,
+.overview-grid,
+.org-overview,
+.notification-layout,
+.audit-layout,
+.catalog-layout,
+.security-layout,
+.hr-dashboard-grid,
+.finance-dashboard-grid,
+.report-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.8fr);
+  gap: var(--sp-5);
+}
+
+.security-layout { grid-template-columns: 280px minmax(0, 1fr); }
+
+.profile-grid,
+.scope-grid,
+.document-category-grid,
+.doc-category-grid,
+.hr-benefit-grid,
+.benefit-plan-grid,
+.persistence-grid,
+.homologation-grid,
+.cost-grid,
+.bank-grid,
+.report-area-grid,
+.finance-indicator-grid,
+.metric-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.entity-grid,
+.module-strip,
+.session-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.module-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+/* Painéis com preenchimento padrão */
+.executive-card,
+.foundation-card,
+.module-preview,
+.data-card,
+.org-tree-card,
+.integrity-card,
+.entity-card,
+.people-card,
+.role-list,
+.permission-matrix,
+.rls-card,
+.session-policy,
+.access-health,
+.notification-feed,
+.notification-settings,
+.audit-timeline,
+.audit-health,
+.document-card,
+.detail-panel,
+.hr-table-card,
+.finance-table-card,
+.finance-evidence-panel,
+.finance-homologation-panel,
+.report-list-card,
+.report-trend-card,
+.report-area-card,
+.report-insight-card {
+  padding: var(--sp-6);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.detail-panel {
+  position: sticky;
+  top: calc(var(--shell-header-h) + var(--sp-5));
+  height: max-content;
+}
+
+/* Cartão selecionável do catálogo */
+.module-card,
+.entity-grid > button,
+.org-tree button,
+.role-list > button {
+  padding: var(--sp-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  text-align: left;
+  transition: border-color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+
+.module-card { min-height: 210px; display: flex; flex-direction: column; align-items: flex-start; }
+
+.module-card:hover,
+.module-card.selected,
+.entity-grid > button:hover,
+.entity-grid > button.selected,
+.role-list > button:hover,
+.role-list > button.active,
+.org-tree button:hover {
+  border-color: var(--edge-blue);
+  background: var(--tint-blue);
+}
+
+.module-card h2 { font-size: var(--fs-lg); margin: var(--sp-4) 0 var(--sp-2); }
+.module-card p {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  color: var(--text-muted);
+  min-height: 44px;
+}
+.module-card > small { font-size: var(--fs-xs); color: var(--text-muted); }
+
+.role-list > button { padding: var(--sp-3); border-color: transparent; }
+
+/* ============================================================================
+   12. FORMULÁRIOS E BUSCA EM LINHA
+   ============================================================================ */
+
+.inline-search,
+.doc-search,
+.benefit-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 38px;
+  min-width: 260px;
+  padding: 0 var(--sp-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+}
+
+.inline-search:focus-within {
+  border-color: var(--accent-blue);
+  box-shadow: var(--shadow-focus);
+}
+
+.inline-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+}
+
+.table-tools,
+.hr-tools,
+.finance-toolbar,
+.absence-toolbar,
+.doc-toolbar,
+.journey-toolbar,
+.benefit-request-toolbar,
+.sst-record-toolbar,
+.report-list-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.table-tools > div:first-child { margin-right: auto; }
+.table-tools h2 { font-size: var(--fs-lg); margin-bottom: var(--sp-1); }
+.table-tools p { font-size: var(--fs-sm); color: var(--text-muted); }
+
+.search-hero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border: 1px solid var(--edge-blue);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.search-hero > svg { color: var(--accent-blue); }
+
+.search-hero input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: var(--fs-xl);
+  color: var(--text-primary);
+}
+
+.search-hero > span {
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Definições rotuladas */
+dl > div,
+.detail-panel dl > div,
+.person-drawer dl > div,
+.session-policy > div {
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+dt,
+.detail-panel dt,
+.profile-grid dt,
+.scope-grid dt {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+dd,
+.detail-panel dd,
+.profile-grid dd,
+.scope-grid dd {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-md);
+  color: var(--text-primary);
+}
+
+/* ============================================================================
+   13. SOBREPOSIÇÕES — gaveta, toast, estado vazio
+   ============================================================================ */
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  justify-content: flex-end;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(2px);
+}
+
+.person-drawer,
+.employee-drawer,
+.absence-drawer,
+.benefit-drawer,
+.doc-drawer,
+.journey-drawer,
+.sst-drawer,
+.report-drawer,
+.finance-detail {
+  position: relative;
+  width: min(460px, 94vw);
+  height: 100%;
+  padding: var(--sp-7);
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+  overflow-y: auto;
+  animation: drawer-in var(--dur-base) var(--ease);
+}
+
+@keyframes drawer-in {
+  from { transform: translateX(24px); opacity: 0.5; }
+  to   { transform: none; opacity: 1; }
+}
+
+.drawer-close {
+  position: absolute;
+  right: var(--sp-4);
+  top: var(--sp-4);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+
+.drawer-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.drawer-avatar,
+.document-drawer-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--sp-4);
+  border-radius: var(--radius-lg);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+}
+
+.person-drawer h2 { font-size: var(--fs-xl); margin: var(--sp-1) 0 var(--sp-2); }
+.person-drawer > p:not(.eyebrow) {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--sp-3);
+}
+.person-drawer .ds-button { width: 100%; margin-top: var(--sp-2); }
+
+.toast {
+  position: fixed;
+  right: var(--sp-6);
+  bottom: var(--sp-6);
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--fs-sm);
+}
+
+.toast span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-xs);
+  background: var(--accent-blue);
+  color: var(--text-on-accent);
+  font-weight: var(--fw-bold);
+}
+
+.selection-bar {
+  position: fixed;
+  left: calc(var(--shell-sidebar-w) + var(--sp-7));
+  right: var(--sp-7);
+  bottom: var(--sp-5);
+  z-index: 18;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+
+.selection-bar > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+}
+
+.selection-bar b { font-size: var(--fs-md); }
+.selection-bar small { font-size: var(--fs-xs); color: var(--text-muted); }
+
+.empty-state,
+.hr-empty,
+.report-placeholder,
+.access-denied {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-8) var(--sp-5);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.empty-state > svg,
+.hr-empty > svg { color: var(--text-muted); opacity: 0.6; }
+.empty-state b { font-size: var(--fs-lg); color: var(--text-primary); }
+.empty-state small { font-size: var(--fs-sm); }
+
+/* ============================================================================
+   13.5 GRAMÁTICA UNIVERSAL DO MARKUP
+   ----------------------------------------------------------------------------
+   Todo o produto escreve rótulo e detalhe assim:
+
+       <span><b>Mariana Costa</b><small>Gerente de RH</small></span>
+
+   Sem regra, isso vira "Mariana CostaGerente de RH". Em vez de listar cada
+   nome de classe onde o padrão aparece — foi o que deixou 154 pontos colados —
+   a regra casa com a FORMA: qualquer elemento que contenha um título e um
+   detalhe empilha os dois. É o que torna uma tela nova correta por construção.
+   ============================================================================ */
+
+:where(span, div, li, td, p):has(> b):has(> small),
+:where(span, div, li, td):has(> strong):has(> small),
+:where(span, div, li, td):has(> b):has(> em),
+:where(span, div, li, td):has(> time):has(> small) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Detalhe é sempre secundário, em qualquer profundidade. */
+small {
+  color: var(--text-muted);
+}
+
+/* Título de linha: peso médio, nunca o negrito bruto do navegador. */
+:where(span, div, li, td) > b {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+/* Rótulo antes de um controle (ex.: "Status" + <select>) fica na horizontal. */
+:where(label, .report-context, .journey-toolbar, .absence-toolbar):has(> select) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Marcação de ponto e legendas: itens lado a lado, com respiro. */
+.journey-punches,
+.journey-punch-line,
+.sst-risk-legend,
+.report-legend,
+.calendar-legend,
+.absence-period,
+.finance-homologation-score {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.journey-punches > * {
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--bg-subtle);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+}
+
+.sst-risk-legend > *,
+.report-legend > *,
+.calendar-legend > * {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* Saldo positivo/negativo do ponto. */
+.positive,
+.negative {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+}
+
+.positive { color: var(--accent-green); }
+.negative { color: var(--accent-red); }
+
+/* ----------------------------------------------------------------------------
+   Avatar de iniciais em <i>.
+   Um <i> curto dentro de uma linha é sempre a marca de iniciais. Sem tamanho
+   fixo ele estica e vira uma faixa azul atravessando a linha inteira.
+   ---------------------------------------------------------------------------- */
+
+:where(button, div, li, section, span) > i:not([class]) {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  font-style: normal;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  overflow: hidden;
+}
+
+/* ----------------------------------------------------------------------------
+   Barra de progresso escrita como <span> (trilho) contendo <i> (preenchimento).
+   Sem esta regra o <i> herda o estilo de avatar e vira uma faixa azul larga.
+   ---------------------------------------------------------------------------- */
+
+.integrity-score,
+.deployment-progress,
+.sst-score,
+.health-score,
+.benefit-progress,
+.doc-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.integrity-score > span,
+.deployment-progress > span,
+.sst-score > span,
+.health-score > span,
+.benefit-progress > span {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--data-track);
+  overflow: hidden;
+}
+
+.integrity-score > span > i,
+.deployment-progress > span > i,
+.sst-score > span > i,
+.health-score > span > i,
+.benefit-progress > span > i {
+  display: block;
+  width: auto;
+  height: 100%;
+  flex: initial;
+  border-radius: var(--radius-pill);
+  background: var(--accent-blue);
+  overflow: visible;
+}
+
+/* Exceções: <i> usado como preenchimento de barra ou separador, não avatar. */
+.big-progress > i,
+.mini-progress > i,
+.integrity-score i,
+.deployment-progress i,
+.benefit-progress i,
+.finance-homologation-bar > i,
+.hr-bars i,
+.chart-columns i,
+.calendar-rows i,
+.benefit-coverage i,
+.absence-balance i,
+.sst-risk i,
+.cash-bars i,
+.department-summary > i,
+.rls-flow > i,
+.security-pipeline > i,
+.foundation-status i,
+.ds-bar-track > i {
+  display: block;
+  width: auto;
+  height: auto;
+  flex: initial;
+  border-radius: inherit;
+  background: none;
+  overflow: visible;
+}
+
+/* Ponto de notificação do cabeçalho: marcador sobre o ícone, não avatar.
+   Precisa de especificidade maior que a regra genérica de <i>, que empata e
+   venceria por ordem de importação. */
+.main header .header-icon > i {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  display: block;
+  width: 7px;
+  height: 7px;
+  flex: initial;
+  border-radius: 50%;
+  background: var(--accent-red);
+  border: 2px solid var(--bg-surface);
+  overflow: visible;
+}
+
+/* Ponto colorido de legenda e de severidade. */
+i.critical, i.attention, i.regular, i.danger, i.warning, i.success, i.info,
+.priority-dot, .policy-status i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+i.critical, i.danger  { background: var(--accent-red); }
+i.attention, i.warning { background: var(--accent-amber); }
+i.regular, i.success   { background: var(--accent-green); }
+i.info                 { background: var(--accent-blue); }
+
+/* ============================================================================
+   14. COMPOSIÇÃO ESTRUTURAL
+   ----------------------------------------------------------------------------
+   As telas ainda não convertidas repetem uma mesma gramática de markup:
+   <Card> contendo <button> ou <div> com um ícone, um par <b>/<small> e um
+   selo à direita. Estilizar essa gramática — em vez de cada nome de classe —
+   faz essas telas caírem no padrão sem precisar reescrever cada uma.
+   ============================================================================ */
+
+/* Cartão: preenchimento e ritmo vertical padrão. */
+.ds-card {
+  padding: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.ds-card > .ds-card,
+.ds-card .ds-kpi {
+  padding: var(--sp-4);
+}
+
+/* Linha de conteúdo dentro de um cartão: ícone · texto · selo · seta. */
+.ds-card > button,
+.ds-card > section,
+.ds-card > article,
+.ds-card > div > button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3) 0;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  background: none;
+  text-align: left;
+  color: inherit;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.ds-card > button:first-of-type,
+.ds-card > section:first-of-type,
+.ds-card > article:first-of-type {
+  border-top: none;
+}
+
+.ds-card > button:hover {
+  background: var(--bg-hover);
+}
+
+/* O par <b>/<small> é o rótulo e o detalhe de quase toda linha do produto. */
+.ds-card b,
+.ds-card > button > span > b {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.ds-card small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}
+
+/* Coluna de texto: empilha rótulo e detalhe e absorve o espaço livre. */
+.ds-card > button > span:not([class]),
+.ds-card > section > span:not([class]),
+.ds-card > div > button > span:not([class]) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Setas e ícones decorativos ficam discretos. */
+.ds-card > button > svg:last-child,
+.ds-card > div > button > svg:last-child {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Título de cartão sem cabeçalho estruturado. */
+.ds-card > h2 {
+  font-size: var(--fs-xl);
+  letter-spacing: var(--tracking-tight);
+}
+
+.ds-card > p:not([class]) {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/* Listas de definição dentro de cartões e gavetas. */
+.ds-card dl,
+.person-drawer dl {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ícone circular/quadrado genérico que abre uma linha. */
+.ds-card > button > span:first-child:not([class]),
+.ds-card > section > span:first-child:not([class]) {
+  flex: 0 0 auto;
+}
+
+/* Barras de progresso soltas dentro de cartões. */
+.ds-card > div > i,
+.ds-card > i {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent-blue);
+}
+
+/* Selos de contagem em abas (ex.: "Critérios 3"). */
+.ds-segmented button > span,
+.section-tabs button > span {
+  margin-left: var(--sp-2);
+  padding: 1px var(--sp-1);
+  border-radius: var(--radius-xs);
+  background: var(--tint-amber);
+  color: var(--accent-amber);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+}
+
+/* Formulários em camada (modais dos módulos). */
+.finance-layer,
+.form-layer,
+.hr-layer,
+.employee-layer,
+.finance-module .finance-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(2px);
+}
+
+.finance-layer > form,
+.form-layer > form,
+.finance-layer > .ds-card {
+  width: min(640px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  box-shadow: var(--shadow-lg);
+}
+
+.finance-layer form > header,
+.form-layer form > header,
+.finance-layer > .ds-card > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.finance-layer form > footer,
+.form-layer form > footer,
+.finance-layer > .ds-card > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+/* Campos de formulário em grade de duas colunas. */
+.finance-form-fields,
+.employee-fields,
+.absence-form-fields,
+.benefit-form-fields,
+.doc-form-fields,
+.journey-form-fields,
+.sst-form-fields,
+.report-form-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.finance-form-fields label,
+.employee-fields label,
+.absence-form-fields label,
+.benefit-form-fields label,
+.doc-form-fields label,
+.journey-form-fields label,
+.sst-form-fields label,
+.report-form-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.finance-form-fields input,
+.finance-form-fields select,
+.employee-fields input,
+.employee-fields select,
+label > input,
+label > select,
+label > textarea {
+  height: 38px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.field-wide {
+  grid-column: 1 / -1;
+}
+
+/* Tabelas em grade dos módulos: cabeçalho e linhas com o mesmo template. */
+.finance-table > .head,
+.finance-approval-table > div:first-child,
+.finance-account-table > div:first-child {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--bg-subtle);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.finance-table > .head,
+.finance-table > .row {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) 110px minmax(120px, 1fr) 130px 120px auto;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.finance-table.receivable > .head,
+.finance-table.receivable > .row {
+  grid-template-columns: minmax(180px, 2fr) 110px 130px 130px 120px auto;
+}
+
+.finance-table > .row {
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--fs-sm);
+}
+
+.finance-table > .row:hover {
+  background: var(--bg-hover);
+}
+
+.finance-table .title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  text-align: left;
+  min-width: 0;
+}
+
+.finance-table strong {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-medium);
+}
+
+.finance-table .actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+}
+
+.finance-table .actions > button:not(:last-child) {
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+.finance-table .actions > button:not(:last-child):hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.finance-approval-table > div,
+.finance-approval-table > section,
+.finance-account-table > div,
+.finance-account-table > section {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-sm);
+}
+
+.finance-approval-table > section,
+.finance-account-table > section {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.finance-approval-table,
+.finance-account-table {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* Listas de linhas com grade própria (pessoas, documentos, auditoria). */
+.people-header,
+.people-table > button,
+.document-header,
+.document-table > button,
+.hr-table-header,
+.hr-people-table > button {
+  display: grid;
+  align-items: center;
+  gap: var(--sp-3);
+  grid-template-columns: minmax(180px, 1.6fr) minmax(140px, 1fr) 120px 110px auto;
+}
+
+.person-cell,
+.hr-person,
+.document-name,
+.doc-person,
+.employee-history > * > .person-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.person-cell > span,
+.hr-person > span,
+.document-name > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.search-results > button,
+.audit-timeline > button,
+.data-list > button,
+.policy-list > button,
+.entity-grid > button,
+.module-strip > button,
+.role-list > button,
+.notice-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.search-results > button > span:nth-child(2),
+.audit-timeline > button > span:nth-child(2),
+.data-list > button > span:nth-child(2),
+.policy-list > button > span:nth-child(2),
+.entity-grid > button > span:nth-child(2),
+.module-strip > button > span:nth-child(2),
+.role-list > button > span:nth-child(2),
+.notice-main > span:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Blocos de conteúdo com fluxo vertical. */
+.system-map,
+.hr-distribution,
+.report-list,
+.finance-homologation-list,
+.deployment-checklist,
+.check-list,
+.entity-foundation-list,
+.notification-feed,
+.hr-pending-list,
+.hr-recent-people,
+.homologation-checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/* Mapa da plataforma na visão geral. */
+.core {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  margin: 0 auto;
+  width: min(420px, 100%);
+  border: 1px solid var(--edge-blue);
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+}
+
+.core > span {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-blue);
+  color: var(--text-on-accent);
+}
+
+.connector {
+  width: 1px;
+  height: 22px;
+  margin: 0 auto;
+  background: var(--border-strong);
+}
+
+.module-row {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.map-module {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  width: 66px;
+  height: 62px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  color: var(--accent-blue);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+}
+
+.map-module:hover {
+  border-color: var(--edge-blue);
+  background: var(--tint-blue);
+}
+
+.map-module.teal { color: var(--accent-teal); }
+.map-module.orange { color: var(--accent-amber); }
+.map-module.purple { color: var(--accent-purple); }
+.map-module.green { color: var(--accent-green); }
+
+.intelligence {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-top: var(--sp-4);
+  border-top: 1px dashed var(--border);
+}
+
+.intelligence > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-active);
+  color: var(--text-primary);
+  font-weight: var(--fw-bold);
+}
+
+.intelligence div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Árvore organizacional. */
+.org-tree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.org-tree button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 220px;
+}
+
+.tree-line {
+  width: 1px;
+  height: 22px;
+  background: var(--border-strong);
+}
+
+.unit-nodes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: var(--sp-4);
+  width: 100%;
+}
+
+.department-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-5);
+  margin-top: var(--sp-5);
+  padding: var(--sp-4);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.department-summary span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.department-summary b {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xl);
+  font-variant-numeric: tabular-nums;
+}
+
+.department-summary i {
+  width: 1px;
+  height: 26px;
+  background: var(--border);
+}
+
+/* Fluxos horizontais (RLS, pipeline de segurança). */
+.rls-flow,
+.security-pipeline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.rls-flow > span,
+.security-pipeline > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 110px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.rls-flow > i,
+.security-pipeline > i {
+  color: var(--text-muted);
+  font-style: normal;
+}
+
+/* Matriz de permissões. */
+.matrix-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.5fr) repeat(5, minmax(64px, 0.7fr));
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-4);
+}
+
+.matrix-row > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.matrix-row > span:first-child i {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+}
+
+.matrix-header > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+}
+
+.matrix-header > span:first-child {
+  justify-content: flex-start;
+}
+
+.matrix-row > button {
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+}
+
+/* Barras de distribuição.
+   Markup recorrente: <div><span>rótulo+meta</span><i><em/></i><strong>valor</strong></div>
+   O <i> é o trilho e o <em> é o preenchimento. */
+.hr-bars,
+.chart-columns,
+.calendar-rows,
+.benefit-coverage,
+.absence-balance,
+.sst-risk,
+.report-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.hr-bars > div,
+.chart-columns > div,
+.calendar-rows > div,
+.benefit-coverage > div,
+.absence-balance > div,
+.sst-risk > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(80px, 1.6fr) auto;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.hr-bars > div > span:first-child,
+.chart-columns > div > span:first-child,
+.benefit-coverage > div > span:first-child,
+.absence-balance > div > span:first-child,
+.sst-risk > div > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hr-bars i,
+.chart-columns i,
+.calendar-rows i,
+.benefit-coverage i,
+.absence-balance i,
+.sst-risk i {
+  display: block;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--data-track);
+  overflow: hidden;
+}
+
+.hr-bars em,
+.chart-columns em,
+.calendar-rows em,
+.benefit-coverage em,
+.absence-balance em,
+.sst-risk em {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent-blue);
+}
+
+.hr-bars strong,
+.chart-columns strong,
+.calendar-rows strong,
+.benefit-coverage strong,
+.absence-balance strong,
+.sst-risk strong {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  text-align: right;
+  min-width: 48px;
+}
+
+/* Gráfico de colunas do fluxo de caixa: um par de barras por mês, lado a lado. */
+.cash-bars {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: 200px;
+}
+
+.cash-bars > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1;
+}
+
+.cash-bars > div > div {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 140px;
+}
+
+.cash-bars i {
+  display: block;
+  width: 14px;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+}
+
+.cash-bars i.in { background: var(--data-5); }
+.cash-bars i.out { background: var(--data-6); }
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.legend > span::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: var(--sp-2);
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.legend > .in::before { background: var(--data-5); }
+.legend > .out::before { background: var(--data-6); }
+
+/* Anel do painel financeiro. */
+.finance-donut {
+  display: grid;
+  place-items: center;
+  min-height: 150px;
+}
+
+.finance-donut b {
+  font-family: var(--font-mono);
+  font-size: var(--fs-metric-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.finance-donut span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* Resumo de relatório. */
+.report-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.report-summary > span {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.report-summary b {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Faixa de decisão final da homologação. */
+.finance-homologation-release,
+.homologation-release {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-subtle);
+}
+
+.finance-homologation-release.released {
+  border-color: var(--edge-green);
+  background: var(--tint-green);
+}
+
+.finance-homologation-release > div,
+.homologation-release > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.finance-homologation-release > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--tint-green);
+  color: var(--accent-green);
+}
+
+/* Resumo da homologação em quatro blocos. */
+.finance-homologation-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.finance-homologation-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+/* Itens da lista de critérios. */
+.finance-homologation-list > section {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 2fr) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.finance-homologation-list > section > button:first-child {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-muted);
+}
+
+.finance-homologation-list > section > button.checked {
+  border-color: var(--edge-green);
+  background: var(--tint-green);
+  color: var(--accent-green);
+}
+
+.finance-homologation-list > section > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.finance-homologation-list .review {
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+/* Grade de indicadores homologáveis. */
+.finance-indicator-grid > article {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.finance-indicator-grid > article > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+}
+
+.finance-indicator-grid > article > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.finance-indicator-grid em {
+  grid-column: 2 / -1;
+  font-style: normal;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* Itens de lista com marcador + texto.
+   Markup recorrente: <li><span>✓</span><div><b>título</b><small>detalhe</small></div></li> */
+.ds-card ul > li,
+.check-list > li,
+.access-health li,
+.audit-health li,
+.deployment-checklist li,
+.homologation-checks li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--fs-sm);
+}
+
+.ds-card ul > li:first-child,
+.check-list > li:first-child,
+.access-health li:first-child,
+.audit-health li:first-child,
+.deployment-checklist li:first-child {
+  border-top: none;
+}
+
+/* Marcador: círculo com o número da etapa ou o visto de concluído. */
+.ds-card ul > li > span:first-child,
+.check-list > li > span:first-child,
+.access-health li > span:first-child,
+.audit-health li > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--bg-active);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+}
+
+.ds-card ul > li.done > span:first-child,
+.check-list > li.done > span:first-child {
+  background: var(--tint-green);
+  color: var(--accent-green);
+}
+
+.ds-card ul > li.warning > span:first-child,
+.check-list > li.warning > span:first-child {
+  background: var(--tint-amber);
+  color: var(--accent-amber);
+}
+
+/* Bloco de texto do item: título e detalhe empilhados. */
+.ds-card ul > li > div,
+.check-list > li > div,
+.deployment-checklist li > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ----------------------------------------------------------------------------
+   Cabeçalho e linhas de tabela sem template declarado.
+
+   Muitas telas usam <div class="*-table-head"><span>…</span>…</div> seguido de
+   linhas com a mesma quantidade de colunas. Sem grade, os rótulos colam uns nos
+   outros ("COLABORADORTIPO E PERÍODODURAÇÃO"). A distribuição em flex funciona
+   para qualquer número de colunas: a primeira é mais larga, as demais iguais.
+   ---------------------------------------------------------------------------- */
+
+.absence-table-head,
+.absence-table > button,
+.doc-table-head,
+.doc-table > button,
+.journey-table-head,
+.journey-table > button,
+.sst-record-head,
+.sst-record-table > button,
+.benefit-request-table > button,
+.homologation-access-table > *,
+.report-list-head,
+.report-list > button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.absence-table-head > *:not(i):not(svg):not(.ds-status),
+.absence-table > button > *:not(i):not(svg):not(.ds-status),
+.doc-table-head > *:not(i):not(svg):not(.ds-status),
+.doc-table > button > *:not(i):not(svg):not(.ds-status),
+.journey-table-head > *:not(i):not(svg):not(.ds-status),
+.journey-table > button > *:not(i):not(svg):not(.ds-status),
+.sst-record-head > *:not(i):not(svg):not(.ds-status),
+.sst-record-table > button > *:not(i):not(svg):not(.ds-status),
+.benefit-request-table > button > *:not(i):not(svg):not(.ds-status),
+.report-list > button > *:not(i):not(svg):not(.ds-status) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Primeira coluna (a pessoa ou o documento) recebe o dobro do espaço. */
+.absence-table-head > *:first-child,
+.absence-table > button > *:first-child,
+.doc-table-head > *:first-child,
+.doc-table > button > *:first-child,
+.journey-table-head > *:first-child,
+.journey-table > button > *:first-child,
+.sst-record-table > button > *:first-child,
+.report-list > button > *:first-child {
+  flex: 2 1 0;
+}
+
+/* Selos e setas não esticam. */
+.absence-table > button > .ds-status,
+.doc-table > button > .ds-status,
+.journey-table > button > .ds-status,
+.sst-record-table > button > .ds-status,
+.report-list > button > .ds-status,
+.absence-table > button > svg,
+.doc-table > button > svg,
+.journey-table > button > svg,
+.report-list > button > svg {
+  flex: 0 0 auto;
+}
+
+/* ----------------------------------------------------------------------------
+   Avatar de iniciais.
+   O <i>/<span> que carrega as iniciais precisa de tamanho fixo — sem isso ele
+   estica como uma faixa colorida ao longo da linha inteira.
+   ---------------------------------------------------------------------------- */
+
+.hr-person > i,
+.doc-person > i,
+.absence-person > i,
+.journey-person > i,
+.sst-person > i,
+.benefit-request-person > i,
+.employee-avatar,
+.person-cell > i {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  font-style: normal;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+}
+
+/* Nome + cargo ao lado do avatar, empilhados e sem colar. */
+.hr-person,
+.doc-person,
+.absence-person,
+.journey-person,
+.sst-person,
+.benefit-request-person {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.hr-person > span,
+.doc-person > span,
+.absence-person > span,
+.journey-person > span,
+.sst-person > span,
+.benefit-request-person > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* ----------------------------------------------------------------------------
+   Barras de ferramenta com busca: o campo cresce, o filtro não.
+   ---------------------------------------------------------------------------- */
+
+.finance-toolbar > label,
+.hr-tools > label,
+.absence-toolbar > label,
+.doc-toolbar > label,
+.journey-toolbar > label,
+.sst-record-toolbar > label,
+.benefit-request-toolbar > label,
+.report-list-toolbar > label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1 1 260px;
+  min-width: 0;
+  height: 38px;
+  padding: 0 var(--sp-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+}
+
+.finance-toolbar > label:focus-within,
+.hr-tools > label:focus-within,
+.absence-toolbar > label:focus-within,
+.doc-toolbar > label:focus-within {
+  border-color: var(--accent-blue);
+  box-shadow: var(--shadow-focus);
+}
+
+.finance-toolbar > label > input,
+.hr-tools > label > input,
+.absence-toolbar > label > input,
+.doc-toolbar > label > input,
+.journey-toolbar > label > input,
+.sst-record-toolbar > label > input,
+.report-list-toolbar > label > input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+}
+
+/* Rótulo solto antes de um select numa barra de ferramentas. */
+.report-list-toolbar > span,
+.absence-toolbar > span,
+.journey-toolbar > span {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------------------------
+   Botão: o ícone acompanha o texto sem esticar e o rótulo não é cortado.
+   ---------------------------------------------------------------------------- */
+
+.ds-button {
+  flex-shrink: 0;
+}
+
+.ds-button > svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   15. RESPONSIVO
+   ============================================================================ */
+
+@media (max-width: 1280px) {
+  .ds-kpi-grid, .stats-grid, .identity-metrics, .admin-stats,
+  .hr-stats, .finance-stats, .absence-stats, .benefit-stats,
+  .doc-stats, .sst-stats, .report-stats, .homologation-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ds-grid-main, .overview-grid, .org-overview, .notification-layout,
+  .audit-layout, .catalog-layout, .security-layout, .hr-dashboard-grid,
+  .finance-dashboard-grid, .report-dashboard-grid,
+  .ds-grid-3, .catalog-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .catalog-grid, .profile-grid, .scope-grid, .document-category-grid,
+  .doc-category-grid, .hr-benefit-grid, .benefit-plan-grid,
+  .persistence-grid, .homologation-grid, .cost-grid, .bank-grid,
+  .report-area-grid, .finance-indicator-grid, .metric-catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .module-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .detail-panel { position: static; }
+  .selection-bar { left: var(--sp-5); right: var(--sp-5); }
+}
+
+@media (max-width: 720px) {
+  .ds-kpi-grid, .stats-grid, .identity-metrics, .admin-stats,
+  .hr-stats, .finance-stats, .absence-stats, .benefit-stats,
+  .doc-stats, .sst-stats, .report-stats, .homologation-stats,
+  .ds-grid-2, .catalog-grid, .profile-grid, .scope-grid,
+  .document-category-grid, .doc-category-grid, .hr-benefit-grid,
+  .benefit-plan-grid, .persistence-grid, .homologation-grid,
+  .cost-grid, .bank-grid, .report-area-grid, .finance-indicator-grid,
+  .metric-catalog-grid, .entity-grid, .module-strip, .session-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ds-panel { padding: var(--sp-4); }
+
+  .executive-card, .foundation-card, .module-preview, .data-card,
+  .org-tree-card, .integrity-card, .entity-card, .people-card,
+  .role-list, .permission-matrix, .rls-card, .session-policy,
+  .access-health, .notification-feed, .audit-timeline, .audit-health,
+  .document-card, .detail-panel, .hr-table-card, .finance-table-card {
+    padding: var(--sp-4);
+  }
+
+  .ds-kpi { min-height: 96px; padding: var(--sp-4); }
+  .ds-kpi-value strong { font-size: var(--fs-metric-sm); }
+
+  .inline-search, .doc-search, .benefit-search { min-width: 0; flex: 1; }
+
+  .person-drawer, .employee-drawer, .absence-drawer, .benefit-drawer,
+  .doc-drawer, .journey-drawer, .sst-drawer, .report-drawer,
+  .finance-detail { padding: var(--sp-5); }
+
+  .toast { left: var(--sp-4); right: var(--sp-4); bottom: var(--sp-4); }
+
+  .ds-bar { grid-template-columns: minmax(0, 1fr) auto; }
+  .ds-bar-track { grid-column: 1 / -1; }
+}

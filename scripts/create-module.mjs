@@ -87,7 +87,53 @@ function buildFiles(values) {
   return {
     "manifest.ts": `import { defineModule } from "../types";\nimport { ${constant}_PERMISSIONS } from "./permissions";\n\nexport const ${symbol}ModuleManifest = defineModule({\n  id: "${code}",\n  code: "${code}",\n  name: "${escapeString(name)}",\n  short: "${short}",\n  description: "${escapeString(description)}",\n  desc: "${escapeString(description)}",\n  route: "${route}",\n  version: "0.1.0",\n  icon: "${icon}",\n  color: "${color}",\n  status: "Planejado",\n  tone: "neutral",\n  progress: 0,\n  enabled: false,\n  menu: { enabled: false, order: 100 },\n  access: {\n    entryPermission: ${constant}_PERMISSIONS.view,\n    permissions: Object.values(${constant}_PERMISSIONS),\n    scopes: ["company", "unit", "department", "team"],\n  },\n  sharedServices: ["identity", "organization", "documents", "notifications", "audit", "search"],\n  auditEvents: ["${code}.record.view", "${code}.record.update", "${code}.report.export"],\n});\n`,
     "permissions.ts": `export const ${constant}_PERMISSIONS = {\n  view: "${code}.view",\n  create: "${code}.create",\n  edit: "${code}.edit",\n  approve: "${code}.approve",\n  export: "${code}.export",\n  admin: "${code}.admin",\n} as const;\n\nexport type ${symbol}Permission = (typeof ${constant}_PERMISSIONS)[keyof typeof ${constant}_PERMISSIONS];\n`,
-    [`components/${code}-module.tsx`]: `"use client";\n\nimport { Button, Card, Status } from "../../../packages/design-system";\nimport type { ModuleRuntimeProps } from "../../runtime";\n\nexport function ${symbol}Module({ notify, onExit }: ModuleRuntimeProps) {\n  return <div>\n    <div className="page-head"><div><p className="eyebrow">MÓDULO ${short}</p><h1>${escapeString(name)}</h1><p>${escapeString(description)}</p></div><Button variant="secondary" onClick={onExit}>Voltar ao ecossistema</Button></div>\n    <Card className="data-card"><div className="card-head"><div><h2>Estrutura inicial</h2><p>Substitua este conteúdo pelas particularidades do domínio.</p></div><Status>Planejado</Status></div><Button onClick={() => notify("Fluxo demonstrativo do módulo ${escapeString(name)}.")}>Testar interação</Button></Card>\n  </div>;\n}\n`,
+    [`components/${code}-module.tsx`]: `"use client";
+
+import { useState } from "react";
+import { Button, Callout, Kpi, KpiGrid, Panel, Row, Segmented, Status } from "../../../packages/design-system";
+import type { ModuleRuntimeProps } from "../../runtime";
+
+/* Seções do módulo. A navegação é horizontal: módulo não cria barra lateral
+   própria — isso compete com a navegação da plataforma. */
+const sections = ["Painel", "Registros", "Relatórios"] as const;
+type Section = (typeof sections)[number];
+
+export function ${symbol}Module({ notify, onExit }: ModuleRuntimeProps) {
+  const [section, setSection] = useState<Section>("Painel");
+
+  return <div className="ds-module-body">
+    <div className="ds-module-bar">
+      <Button variant="secondary" compact onClick={onExit}>Ecossistema</Button>
+      <Segmented options={sections} value={section} onChange={setSection} ariaLabel="Seções de ${escapeString(name)}" />
+      <Status>Planejado</Status>
+    </div>
+
+    {/* Enquanto o módulo não tem dado real, diga isso na tela. Número sem
+        origem declarada é o que faz um painel perder credibilidade. */}
+    <Callout variant="warning" title="Módulo em construção">
+      ${escapeString(description)} Os números abaixo são demonstrativos e não vêm do banco.
+      Substitua este conteúdo pelas regras do domínio antes de solicitar homologação.
+    </Callout>
+
+    <KpiGrid>
+      <Kpi label="Registros" caption="Ainda sem persistência" value="0" tone="blue" />
+      <Kpi label="Pendências" caption="Aguardando regra de negócio" value="0" tone="amber" />
+      <Kpi label="Concluídos" caption="No período corrente" value="0" tone="green" />
+      <Kpi label="Cobertura" caption="Do processo mapeado" value="0" unit="%" tone="purple" />
+    </KpiGrid>
+
+    <Panel
+      title="Estrutura inicial"
+      subtitle="Substitua por telas, regras e indicadores do domínio."
+      actions={<Button compact onClick={() => notify("Fluxo demonstrativo do módulo ${escapeString(name)}.")}>Testar interação</Button>}
+    >
+      <Row label="Permissão de entrada" value="${code}.view" />
+      <Row label="Rota" value="${route}" />
+      <Row label="Estado" value="Planejado" />
+    </Panel>
+  </div>;
+}
+`,
     "data/README.md": `# Dados de ${name}\n\nImplemente repositórios e adaptadores deste domínio aqui. O módulo deve consumir identidade, organização e auditoria da Fundação, sem duplicar cadastros centrais.\n`,
     "tests/contract.test.mjs": `import assert from "node:assert/strict";\nimport { readFile } from "node:fs/promises";\nimport test from "node:test";\n\nconst manifest = await readFile(new URL("../manifest.ts", import.meta.url), "utf8");\n\ntest("${code}: inicia desativado e protegido", () => {\n  assert.match(manifest, /id: "${escapeRegex(code)}"/);\n  assert.match(manifest, /entryPermission: ${constant}_PERMISSIONS\\.view/);\n  assert.match(manifest, /enabled: false/);\n  assert.match(manifest, /menu: \\{ enabled: false/);\n});\n`,
     "README.md": `# ${name}\n\n${description}\n\n## Estado inicial\n\n- Versão: 0.1.0\n- Rota: \`${route}\`\n- Permissão de entrada: \`${code}.view\`\n- Estado: planejado e desativado\n\n## Regras\n\n- Não duplicar identidade, estrutura organizacional, documentos, notificações ou auditoria.\n- Toda ação deve validar permissão e escopo.\n- Manter \`enabled: false\` e \`menu.enabled: false\` até a homologação.\n- Registrar eventos críticos listados no manifesto.\n`,
