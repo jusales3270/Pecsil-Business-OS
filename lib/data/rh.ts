@@ -59,6 +59,21 @@ export type RhBenefitRequest = {
   requestedAt: string;
 };
 
+export type RhDocumentSignature = "signed" | "pending" | "not_required";
+
+export type RhDocument = {
+  id: string;
+  title: string;
+  category: string;
+  employeeName: string | null;
+  version: string;
+  objectPath: string;
+  reviewDueAt: string | null;
+  signature: RhDocumentSignature | null;
+  sensitive: boolean;
+  updatedAt: string;
+};
+
 export type RhSstCategory = "exam" | "training" | "ppe" | "incident";
 export type RhSstStatus =
   | "compliant" | "due_soon" | "overdue" | "scheduled" | "under_review";
@@ -109,6 +124,7 @@ export type RhSnapshot = {
   benefitPlans: RhBenefitPlan[];
   benefitRequests: RhBenefitRequest[];
   sstRecords: RhSstRecord[];
+  documents: RhDocument[];
   departmentShares: RhDepartmentShare[];
   employees: RhEmployeeOption[];
   loadedAt: string;
@@ -146,6 +162,11 @@ export const demoRhSnapshot: RhSnapshot = {
     { id:"demo-sst-1", employeeName:"Equipe Produção", department:"Produção", unit:"Unidade Industrial", category:"exam", title:"ASO periódico próximo do vencimento", dueDate:"2026-08-30", status:"due_soon", risk:"attention", note:"Exame periódico na janela de renovação.", sensitive:true },
     { id:"demo-sst-2", employeeName:"Célula Usinagem", department:"Produção", unit:"Unidade Industrial", category:"training", title:"NR-12 · reciclagem", dueDate:"2026-07-29", status:"overdue", risk:"critical", note:"Certificado vencido; afastar da atividade.", sensitive:false },
     { id:"demo-sst-3", employeeName:"Camila Ferreira", department:"Qualidade", unit:"Unidade Industrial", category:"ppe", title:"Entrega de EPI registrada", dueDate:null, status:"compliant", risk:"regular", note:"Entrega confirmada.", sensitive:false },
+  ],
+  documents: [
+    { id:"demo-doc-1", title:"Contrato de trabalho", category:"Admissional", employeeName:"Mariana Costa", version:"1.0", objectPath:"", reviewDueAt:null, signature:"signed", sensitive:false, updatedAt:"14 jul 2026 · 09:20" },
+    { id:"demo-doc-2", title:"ASO admissional", category:"Saúde ocupacional", employeeName:"Lucas Martins", version:"1.0", objectPath:"", reviewDueAt:"2026-12-01", signature:"not_required", sensitive:true, updatedAt:"10 jul 2026 · 15:02" },
+    { id:"demo-doc-3", title:"Termo de benefícios", category:"Contrato e termo", employeeName:"Ana Souza", version:"2.0", objectPath:"", reviewDueAt:null, signature:"pending", sensitive:false, updatedAt:"08 jul 2026 · 11:45" },
   ],
   departmentShares: [
     { name:"Produção", people:96, percentage:39 },

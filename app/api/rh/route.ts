@@ -5,10 +5,12 @@ import {
   applyRhMutation,
   createRhAbsence,
   createRhBenefitRequest,
+  createRhDocument,
   createRhEmployee,
   createRhSstRecord,
   type RhAbsenceDraft,
   type RhBenefitRequestDraft,
+  type RhDocumentDraft,
   type RhEmployeeDraft,
   type RhMutation,
   type RhSstDraft,
@@ -69,7 +71,8 @@ type RhCreateBody =
   | ({ entity?: "absence" } & RhAbsenceDraft)
   | ({ entity: "sst" } & RhSstDraft)
   | ({ entity: "benefit_request" } & RhBenefitRequestDraft)
-  | ({ entity: "employee" } & RhEmployeeDraft);
+  | ({ entity: "employee" } & RhEmployeeDraft)
+  | ({ entity: "document" } & RhDocumentDraft);
 
 export async function POST(request: Request) {
   const config = getSupabaseConfigStatus();
@@ -102,6 +105,12 @@ export async function POST(request: Request) {
         return NextResponse.json({ error:"INVALID_BODY" }, { status:400 });
       }
       return NextResponse.json(await createRhEmployee(body), { status:201 });
+    }
+    if (body.entity === "document") {
+      if (!body.title || !body.objectPath) {
+        return NextResponse.json({ error:"INVALID_BODY" }, { status:400 });
+      }
+      return NextResponse.json(await createRhDocument(body), { status:201 });
     }
     // padrão: ausência
     if (!body.employeeId || !body.startDate || !body.endDate || !body.days) {

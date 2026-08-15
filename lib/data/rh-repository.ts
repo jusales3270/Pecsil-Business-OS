@@ -5,6 +5,7 @@ import type {
   RhAbsence,
   RhBenefitPlan,
   RhBenefitRequest,
+  RhDocument,
   RhSnapshot,
   RhSstRecord,
 } from "./rh";
@@ -39,6 +40,7 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     sstResult,
     sstAlertsResult,
     departmentsResult,
+    documentsResult,
   ] = await Promise.all([
     supabase.from("employees").select("id", { count:"exact", head:true })
       .eq("organization_id", organizationId),
@@ -78,16 +80,25 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
       .eq("organization_id", organizationId).in("status", ["due_soon", "overdue"]),
     supabase.from("employees").select("id,full_name,departments(name),units(name)")
       .eq("organization_id", organizationId).eq("active", true).order("full_name"),
+    supabase
+      .from("documents")
+      .select("id,title,category,version,object_path,review_due_at,signature_status,classification,updated_at,employees(full_name)")
+      .eq("organization_id", organizationId)
+      .eq("module_code", "rh")
+      .eq("active", true)
+      .order("updated_at", { ascending:false })
+      .limit(50),
   ]);
 
   const failed = [
     employeesResult, activeEmployeesResult, absencesResult, pendingAbsencesResult,
     vacationResult, plansResult, enrollmentsResult, benefitRequestsResult, sstResult,
-    sstAlertsResult, departmentsResult,
+    sstAlertsResult, departmentsResult, documentsResult,
   ].find(result => result.error);
   if (failed?.error) throw failed.error;
 
   const benefitRequests = ((benefitRequestsResult.data ?? []) as unknown as Row[]).map(toBenefitRequest);
+  const documents = ((documentsResult.data ?? []) as unknown as Row[]).map(toDocument);
 
   const absences = ((absencesResult.data ?? []) as unknown as Row[]).map(toAbsence);
   const sstRecords = ((sstResult.data ?? []) as unknown as Row[]).map(toSstRecord);
@@ -142,6 +153,7 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     benefitPlans,
     benefitRequests,
     sstRecords,
+    documents,
     departmentShares,
     employees,
     loadedAt: new Date().toISOString(),
@@ -177,6 +189,23 @@ function toBenefitPlan(row: Row, members: number, eligible: number): RhBenefitPl
     employeeContribution: row.employee_contribution ? String(row.employee_contribution) : null,
     eligibilityRule: row.eligibility_rule ? String(row.eligibility_rule) : null,
     status: row.status as RhBenefitPlan["status"],
+  };
+}
+
+function toDocument(row: Row): RhDocument {
+  const classification = String(row.classification ?? "internal");
+  return {
+    id: String(row.id),
+    title: String(row.title),
+    category: String(row.category ?? "—"),
+    employeeName: relationName(row.employees),
+    version: String(row.version ?? "1.0"),
+    objectPath: row.object_path ? String(row.object_path) : "",
+    reviewDueAt: row.review_due_at ? String(row.review_due_at) : null,
+    signature: (row.signature_status as RhDocument["signature"]) ?? null,
+    // Documento sensível = classificação confidencial ou restrita.
+    sensitive: classification === "confidential" || classification === "restricted",
+    updatedAt: formatDateTime(row.updated_at),
   };
 }
 

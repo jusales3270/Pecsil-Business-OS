@@ -208,6 +208,56 @@ export async function createRhBenefitRequest(draft: RhBenefitRequestDraft): Prom
   return { id: String(data.id) };
 }
 
+export type RhDocumentDraft = {
+  title: string;
+  category: string;
+  employeeId: string | null;
+  objectPath: string;
+  sensitive: boolean;
+  signature: "signed" | "pending" | "not_required" | null;
+  reviewDueAt: string | null;
+};
+
+// Grava os metadados de um documento de RH em public.documents. O arquivo em si
+// já foi enviado ao Storage pelo navegador (RLS do bucket rh-documents); aqui só
+// registramos a referência. A RLS documents_manage exige core.documents edit.
+export async function createRhDocument(draft: RhDocumentDraft): Promise<{ id: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error("UNAUTHENTICATED");
+
+  const profileResult = await supabase
+    .from("profiles")
+    .select("id, organization_id")
+    .eq("user_id", authData.user.id)
+    .single();
+  if (profileResult.error) throw profileResult.error;
+  const profileId = profileResult.data.id as string;
+  const organizationId = profileResult.data.organization_id as string;
+
+  const { data, error } = await supabase
+    .from("documents")
+    .insert({
+      organization_id: organizationId,
+      module_code: "rh",
+      storage_bucket: "rh-documents",
+      object_path: draft.objectPath,
+      title: draft.title,
+      category: draft.category,
+      version: "1.0",
+      classification: draft.sensitive ? "confidential" : "internal",
+      employee_id: draft.employeeId,
+      signature_status: draft.signature,
+      owner_profile_id: profileId,
+      review_due_at: draft.reviewDueAt,
+      active: true,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return { id: String(data.id) };
+}
+
 export type RhEmployeeDraft = {
   fullName: string;
   employeeNumber: string;

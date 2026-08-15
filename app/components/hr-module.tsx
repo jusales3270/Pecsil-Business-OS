@@ -5,7 +5,8 @@ import type { FoundationSummary, Person } from "../../lib/data/foundation";
 import { hasPermission, type ModuleAccessContext } from "../../modules";
 import { Button, Card, Kpi, KpiGrid, Segmented, Status } from "../../packages/design-system";
 import { useRhData } from "../../lib/data/use-rh-data";
-import type { RhAbsence, RhBenefitPlan, RhBenefitRequest, RhEmployeeOption, RhSnapshot, RhSstRecord } from "../../lib/data/rh";
+import type { RhAbsence, RhBenefitPlan, RhBenefitRequest, RhDocument, RhEmployeeOption, RhSnapshot, RhSstRecord } from "../../lib/data/rh";
+import { getRhDocumentUrl, uploadRhDocument } from "../../lib/data/rh-documents-client";
 
 const sections = [
   ["Painel", "grid"],
@@ -110,6 +111,8 @@ type SstRecord = {
 type HrDocumentStatus = "Válido" | "Pendente" | "A vencer" | "Expirado" | "Reprovado";
 type HrDocumentRecord = {
   id: number;
+  sourceId?: string;
+  objectPath?: string;
   employee: string;
   initials: string;
   department: string;
@@ -283,7 +286,7 @@ export function HrModule({
           {section === "Férias e ausências" && <AbsenceSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Benefícios" && <BenefitsSection key={rh.loadedAt} summary={summary} notify={track} access={access} rh={rh}/>}
           {section === "Saúde e segurança" && <SafetySection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
-          {section === "Documentos" && <DocumentsSection notify={track} access={access}/>} 
+          {section === "Documentos" && <DocumentsSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Relatórios" && <ReportsSection notify={track} access={access}/>} 
           {section === "Homologação" && <HomologationSection notify={track} access={access}/>} 
         </>}
@@ -430,6 +433,36 @@ const benefitCategoryPt: Record<RhBenefitPlan["category"], BenefitPlan["category
 const benefitIconOf: Record<RhBenefitPlan["category"], string> = {
   food: "card", health: "heart", mobility: "clock", protection: "shield",
 };
+
+const docSignaturePt: Record<NonNullable<RhDocument["signature"]>, HrDocumentRecord["signature"]> = {
+  signed: "Assinado", pending: "Assinatura pendente", not_required: "Não exigida",
+};
+
+function toDocumentUiRecord(doc: RhDocument, index: number): HrDocumentRecord {
+  const fileName = doc.objectPath ? doc.objectPath.split("/").pop() ?? doc.objectPath : "—";
+  // Deriva um status simples a partir da validade, já que a Fundação não guarda
+  // um "status" de documento — a data de revisão é o sinal disponível.
+  const status: HrDocumentStatus = doc.reviewDueAt
+    ? (new Date(`${doc.reviewDueAt}T12:00:00`) < new Date() ? "Expirado" : "A vencer")
+    : "Válido";
+  return {
+    id: index + 1,
+    sourceId: doc.id,
+    objectPath: doc.objectPath || undefined,
+    employee: doc.employeeName ?? "—",
+    initials: initialsOf(doc.employeeName ?? "—"),
+    department: "—",
+    category: (doc.category as HrDocumentRecord["category"]) ?? "Admissional",
+    title: doc.title,
+    fileName,
+    version: Number(doc.version) || 1,
+    validUntil: doc.reviewDueAt,
+    status,
+    signature: doc.signature ? docSignaturePt[doc.signature] : "Não exigida",
+    sensitive: doc.sensitive,
+    updatedAt: doc.updatedAt,
+  };
+}
 
 const benefitActionPt: Record<RhBenefitRequest["action"], BenefitRequest["action"]> = {
   enroll: "Adesão", change: "Alteração", cancel: "Cancelamento", add_dependent: "Inclusão de dependente",
@@ -995,21 +1028,41 @@ function SstForm({nextId,employees,onClose,onSave}:{nextId:number;employees:RhEm
 function sstDueLabel(record:SstRecord){if(record.status==="Vencido")return"Prazo ultrapassado";if(record.status==="Conforme")return"Validade vigente";if(record.status==="Programado")return"Atividade agendada";return"Dentro da janela de atenção"}
 function sstTone(status:SstStatus):"success"|"attention"|"info"|"neutral"{return status==="Conforme"?"success":status==="Vencido"||status==="A vencer"?"attention":status==="Programado"?"info":"neutral"}
 
-function DocumentsSection({ notify, access }: { notify: (message: string) => void; access: ModuleAccessContext }) {
-  const [records,setRecords]=useState(initialHrDocuments);
+function DocumentsSection({ notify, access, rh }: { notify: (message: string) => void; access: ModuleAccessContext; rh: RhSnapshot }) {
+  const persists = rh.source === "supabase";
+  const [records,setRecords]=useState<HrDocumentRecord[]>(persists ? rh.documents.map(toDocumentUiRecord) : initialHrDocuments);
   const [tab,setTab]=useState<"Documentos"|"Assinaturas"|"Categorias">("Documentos");
   const [query,setQuery]=useState("");
   const [status,setStatus]=useState("Todos os status");
   const [category,setCategory]=useState("Todas as categorias");
   const [selected,setSelected]=useState<HrDocumentRecord|null>(null);
   const [creating,setCreating]=useState(false);
-  const canCreate=hasPermission(access,"rh.create");
+  const canCreate=hasPermission(access,"rh.create") || hasPermission(access,"core.documents.edit");
   const canApprove=hasPermission(access,"rh.approve");
   const visible=records.filter(record=>!record.sensitive||canApprove);
   const filtered=visible.filter(record=>`${record.employee} ${record.title} ${record.fileName}`.toLowerCase().includes(query.toLowerCase())&&(status==="Todos os status"||record.status===status)&&(category==="Todas as categorias"||record.category===category)&&(tab!=="Assinaturas"||record.signature==="Assinatura pendente"));
   const categories=Array.from(new Set(records.map(record=>record.category))).map(name=>({name,count:records.filter(record=>record.category===name).length,pending:records.filter(record=>record.category===name&&record.status!=="Válido").length}));
   const updateStatus=(record:HrDocumentRecord,next:HrDocumentStatus)=>{setRecords(current=>current.map(item=>item.id===record.id?{...item,status:next,signature:next==="Válido"&&item.signature==="Assinatura pendente"?"Assinado":item.signature,updatedAt:"Agora · demonstração local"}:item));setSelected(null);notify(`${record.title}: situação alterada para ${next}.`)};
-  const createRecord=(record:HrDocumentRecord)=>{setRecords(current=>[record,...current]);setCreating(false);notify(`${record.title}: documento registrado em modo demonstrativo.`)};
+  const signatureEnum:Record<HrDocumentRecord["signature"],RhDocument["signature"]>={"Assinado":"signed","Assinatura pendente":"pending","Não exigida":"not_required"};
+  const createRecord=async(record:HrDocumentRecord,file?:File,employeeId?:string)=>{
+    if(persists&&file&&rh.organizationId){
+      try{
+        const{id,objectPath}=await uploadRhDocument(file,{title:record.title,category:record.category,employeeId:employeeId??null,sensitive:record.sensitive,signature:signatureEnum[record.signature],reviewDueAt:record.validUntil},rh.organizationId);
+        setRecords(current=>[{...record,sourceId:id,objectPath,fileName:file.name},...current]);setCreating(false);
+        notify(`${record.title}: documento enviado e registrado no banco.`);
+      }catch{
+        notify(`${record.title}: não foi possível enviar o documento. Verifique suas permissões.`);
+      }
+      return;
+    }
+    setRecords(current=>[record,...current]);setCreating(false);
+    notify(`${record.title}: documento registrado em modo demonstrativo.`);
+  };
+  const openDocument=async(record:HrDocumentRecord)=>{
+    if(!record.objectPath){notify("Documento demonstrativo — sem arquivo para abrir.");return;}
+    try{ window.open(await getRhDocumentUrl(record.objectPath),"_blank","noopener"); }
+    catch{ notify("Não foi possível gerar o link do documento."); }
+  };
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · DOCUMENTOS</p><h1>Central de documentos</h1><p>Controle de arquivos funcionais, versões, validades e assinaturas conforme o escopo autorizado.</p></div>{canCreate&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Adicionar documento</Button>}</div>
     <div className="hr-stats doc-stats"><HrStat value={String(visible.length)} label="Documentos visíveis" meta="Conforme seu escopo" icon="file" tone="blue"/><HrStat value={String(visible.filter(item=>item.status==="Pendente").length)} label="Pendentes" meta="Aguardam conferência" icon="alert" tone="orange"/><HrStat value={String(visible.filter(item=>item.status==="A vencer"||item.status==="Expirado").length)} label="Validades" meta="Exigem atenção" icon="calendar" tone="purple"/><HrStat value={String(visible.filter(item=>item.signature==="Assinatura pendente").length)} label="Assinaturas" meta="Aguardando aceite" icon="edit" tone="green"/></div>
@@ -1017,14 +1070,27 @@ function DocumentsSection({ notify, access }: { notify: (message: string) => voi
     {tab!=="Categorias"&&<Card className="doc-card"><div className="doc-toolbar"><label className="doc-search"><HrIcon name="search"/><input aria-label="Buscar documentos" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar colaborador ou documento..."/></label><select aria-label="Filtrar categoria" value={category} onChange={event=>setCategory(event.target.value)}><option>Todas as categorias</option>{categories.map(item=><option key={item.name}>{item.name}</option>)}</select><select aria-label="Filtrar status" value={status} onChange={event=>setStatus(event.target.value)}><option>Todos os status</option><option>Válido</option><option>Pendente</option><option>A vencer</option><option>Expirado</option><option>Reprovado</option></select></div><div className="doc-table"><div className="doc-table-head"><span>Colaborador</span><span>Documento</span><span>Validade</span><span>Assinatura</span><span>Situação</span><span/></div>{filtered.map(record=><button key={record.id} onClick={()=>setSelected(record)}><span className="doc-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department}</small></span></span><span><b>{record.title}</b><small>{record.category} · v{record.version}</small></span><span><b>{record.validUntil?formatDate(record.validUntil):"Sem validade"}</b><small>{record.updatedAt}</small></span><span><b>{record.signature}</b><small>{record.fileName}</small></span><Status tone={documentTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!filtered.length&&<div className="hr-empty"><HrIcon name="search"/><b>Nenhum documento encontrado</b><small>Ajuste os filtros para ampliar a consulta.</small></div>}</div></Card>}
     {tab==="Categorias"&&<div className="doc-category-grid">{categories.map(item=><Card key={item.name}><span><HrIcon name="folder"/></span><div><h2>{item.name}</h2><p>{item.count} documentos demonstrativos</p><small>{item.pending?`${item.pending} exigem atenção`:"Categoria regular"}</small></div><Status tone={item.pending?"attention":"success"}>{item.pending?"Atenção":"Regular"}</Status></Card>)}</div>}
     <div className="doc-security"><HrIcon name="lock"/><span><b>Privacidade aplicada por escopo</b><small>Documentos sensíveis só aparecem para perfis autorizados. O conteúdo real será versionado, auditado e protegido quando o Supabase for conectado.</small></span></div>
-    {selected&&<DocumentDrawer record={selected} canApprove={canApprove} onClose={()=>setSelected(null)} onStatus={next=>updateStatus(selected,next)}/>} 
-    {creating&&<DocumentForm nextId={Math.max(...records.map(record=>record.id))+1} onClose={()=>setCreating(false)} onSave={createRecord}/>} 
+    {selected&&<DocumentDrawer record={selected} canApprove={canApprove} onClose={()=>setSelected(null)} onStatus={next=>updateStatus(selected,next)} onOpen={()=>openDocument(selected)}/>}
+    {creating&&<DocumentForm nextId={Math.max(0,...records.map(record=>record.id))+1} employees={persists?rh.employees:[]} persists={persists} onClose={()=>setCreating(false)} onSave={createRecord}/>}
   </>;
 }
 
-function DocumentDrawer({record,canApprove,onClose,onStatus}:{record:HrDocumentRecord;canApprove:boolean;onClose:()=>void;onStatus:(status:HrDocumentStatus)=>void}){return <div className="employee-layer" onMouseDown={onClose}><aside className="doc-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Documento ${record.title}`}><header><button onClick={onClose} aria-label="Fechar documento"><HrIcon name="close"/></button><span><HrIcon name="file"/></span><div><p className="eyebrow">{record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={documentTone(record.status)}>{record.status}</Status></header><div className="doc-drawer-content">{record.signature==="Assinatura pendente"&&<div className="doc-warning"><HrIcon name="edit"/><span><b>Assinatura aguardando aceite</b><small>O colaborador verá esta pendência somente em sua área pessoal.</small></span></div>}<DetailGroup title="Dados do documento" rows={[["Arquivo",record.fileName],["Versão",`v${record.version}`],["Validade",record.validUntil?formatDate(record.validUntil):"Sem validade"],["Assinatura",record.signature],["Última atualização",record.updatedAt]]}/>{record.sensitive&&<section className="doc-sensitive"><HrIcon name="lock"/><span><b>Documento sensível</b><small>Visualização e ações dependem de permissão específica e serão registradas na auditoria central.</small></span></section>}<section className="absence-workflow"><h3>Histórico de versões</h3><div><i>✓</i><span><b>Versão {record.version} registrada</b><small>{record.updatedAt}</small></span></div><div><i>{record.status==="Válido"?"✓":"2"}</i><span><b>{record.status==="Válido"?"Conferência concluída":"Aguardando conferência"}</b><small>Fluxo demonstrativo do RH</small></span></div></section></div>{canApprove&&record.status!=="Válido"&&<footer><button className="doc-reject" onClick={()=>onStatus("Reprovado")}>Reprovar</button><Button onClick={()=>onStatus("Válido")}><HrIcon name="check"/> Aprovar documento</Button></footer>}</aside></div>}
+function DocumentDrawer({record,canApprove,onClose,onStatus,onOpen}:{record:HrDocumentRecord;canApprove:boolean;onClose:()=>void;onStatus:(status:HrDocumentStatus)=>void;onOpen:()=>void}){return <div className="employee-layer" onMouseDown={onClose}><aside className="doc-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Documento ${record.title}`}><header><button onClick={onClose} aria-label="Fechar documento"><HrIcon name="close"/></button><span><HrIcon name="file"/></span><div><p className="eyebrow">{record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={documentTone(record.status)}>{record.status}</Status></header><div className="doc-drawer-content">{record.signature==="Assinatura pendente"&&<div className="doc-warning"><HrIcon name="edit"/><span><b>Assinatura aguardando aceite</b><small>O colaborador verá esta pendência somente em sua área pessoal.</small></span></div>}<DetailGroup title="Dados do documento" rows={[["Arquivo",record.fileName],["Versão",`v${record.version}`],["Validade",record.validUntil?formatDate(record.validUntil):"Sem validade"],["Assinatura",record.signature],["Última atualização",record.updatedAt]]}/>{record.objectPath&&<Button variant="secondary" onClick={onOpen}><HrIcon name="eye"/> Visualizar documento</Button>}{record.sensitive&&<section className="doc-sensitive"><HrIcon name="lock"/><span><b>Documento sensível</b><small>Visualização e ações dependem de permissão específica e serão registradas na auditoria central.</small></span></section>}<section className="absence-workflow"><h3>Histórico de versões</h3><div><i>✓</i><span><b>Versão {record.version} registrada</b><small>{record.updatedAt}</small></span></div><div><i>{record.status==="Válido"?"✓":"2"}</i><span><b>{record.status==="Válido"?"Conferência concluída":"Aguardando conferência"}</b><small>{record.objectPath?"Documento armazenado com segurança":"Fluxo demonstrativo do RH"}</small></span></div></section></div>{canApprove&&record.status!=="Válido"&&<footer><button className="doc-reject" onClick={()=>onStatus("Reprovado")}>Reprovar</button><Button onClick={()=>onStatus("Válido")}><HrIcon name="check"/> Aprovar documento</Button></footer>}</aside></div>}
 
-function DocumentForm({nextId,onClose,onSave}:{nextId:number;onClose:()=>void;onSave:(record:HrDocumentRecord)=>void}){const[employee,setEmployee]=useState("Lucas Martins");const[category,setCategory]=useState<HrDocumentRecord["category"]>("Admissional");const[title,setTitle]=useState("");const[fileName,setFileName]=useState("");const[validUntil,setValidUntil]=useState("");const[sensitive,setSensitive]=useState(false);const employeeMap:Record<string,[string,string]>={"Lucas Martins":["LM","Produção"],"Camila Ferreira":["CF","Qualidade"],"Paulo Mendes":["PM","Manutenção"],"Ana Souza":["AS","Administrativo"],"Mariana Costa":["MC","Recursos Humanos"]};const valid=Boolean(title&&fileName);const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid)return;const[initials,department]=employeeMap[employee];onSave({id:nextId,employee,initials,department,category,title,fileName,version:1,validUntil:validUntil||null,status:"Pendente",signature:category==="Contrato e termo"||category==="Férias e ausência"?"Assinatura pendente":"Não exigida",sensitive,updatedAt:"Agora · demonstração local"})};return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="doc-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · DOCUMENTOS</p><h2>Adicionar documento</h2><p>Registre metadados e simule o envio para conferência.</p></div><button type="button" onClick={onClose} aria-label="Fechar formulário"><HrIcon name="close"/></button></header><div className="doc-form-fields"><label><span>Colaborador *</span><select value={employee} onChange={event=>setEmployee(event.target.value)}>{Object.keys(employeeMap).map(name=><option key={name}>{name}</option>)}</select></label><label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as HrDocumentRecord["category"])}><option>Admissional</option><option>Contrato e termo</option><option>Férias e ausência</option><option>Saúde ocupacional</option><option>Treinamento</option></select></label><label className="field-wide"><span>Título do documento *</span><input value={title} onChange={event=>setTitle(event.target.value)} placeholder="Ex.: Termo de alteração contratual"/></label><label className="field-wide"><span>Arquivo demonstrativo *</span><input value={fileName} onChange={event=>setFileName(event.target.value)} placeholder="nome-do-arquivo.pdf"/></label><label><span>Validade</span><input type="date" value={validUntil} onChange={event=>setValidUntil(event.target.value)}/></label><label className="doc-check"><input type="checkbox" checked={sensitive} onChange={event=>setSensitive(event.target.checked)}/><span>Conteúdo sensível</span></label><div className="doc-form-note field-wide"><HrIcon name="lock"/><span><b>Envio demonstrativo nesta fase</b><small>O arquivo não é armazenado ainda. Com o Supabase, haverá storage privado, versionamento, antivírus, RLS e auditoria.</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Registrar documento <HrIcon name="check"/></Button></footer></form></div>}
+function DocumentForm({nextId,employees,persists,onClose,onSave}:{nextId:number;employees:RhEmployeeOption[];persists:boolean;onClose:()=>void;onSave:(record:HrDocumentRecord,file?:File,employeeId?:string)=>void}){
+  const demoOptions:RhEmployeeOption[]=[{id:"demo-emp-2",name:"Lucas Martins",department:"Produção",unit:"Unidade Industrial"},{id:"demo-emp-5",name:"Camila Ferreira",department:"Qualidade",unit:"Unidade Industrial"},{id:"demo-emp-3",name:"Ana Souza",department:"Administrativo",unit:"Matriz Boituva"},{id:"demo-emp-1",name:"Mariana Costa",department:"Recursos Humanos",unit:"Matriz Boituva"}];
+  const options=employees.length?employees:demoOptions;
+  const[employeeId,setEmployeeId]=useState(options[0]?.id??"");
+  const[category,setCategory]=useState<HrDocumentRecord["category"]>("Admissional");
+  const[title,setTitle]=useState("");
+  const[file,setFile]=useState<File|null>(null);
+  const[validUntil,setValidUntil]=useState("");
+  const[sensitive,setSensitive]=useState(false);
+  const chosen=options.find(option=>option.id===employeeId)??options[0];
+  // Em modo real o arquivo é obrigatório (vai ao Storage); em demo, opcional.
+  const valid=Boolean(chosen&&title&&(persists?file:true));
+  const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid||!chosen)return;onSave({id:nextId,employee:chosen.name,initials:initialsOf(chosen.name),department:chosen.department??"—",category,title,fileName:file?.name??"documento",version:1,validUntil:validUntil||null,status:"Pendente",signature:category==="Contrato e termo"||category==="Férias e ausência"?"Assinatura pendente":"Não exigida",sensitive,updatedAt:"Agora"},file??undefined,persists?chosen.id:undefined)};
+  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="doc-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · DOCUMENTOS</p><h2>Adicionar documento</h2><p>{persists?"Envie o arquivo para o armazenamento privado do RH.":"Registro demonstrativo enquanto não há conexão."}</p></div><button type="button" onClick={onClose} aria-label="Fechar formulário"><HrIcon name="close"/></button></header><div className="doc-form-fields"><label><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label><label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as HrDocumentRecord["category"])}><option>Admissional</option><option>Contrato e termo</option><option>Férias e ausência</option><option>Saúde ocupacional</option><option>Treinamento</option></select></label><label className="field-wide"><span>Título do documento *</span><input value={title} onChange={event=>setTitle(event.target.value)} placeholder="Ex.: Termo de alteração contratual"/></label><label className="field-wide"><span>Arquivo {persists?"*":"(opcional)"}</span><input type="file" onChange={event=>setFile(event.target.files?.[0]??null)}/></label><label><span>Validade</span><input type="date" value={validUntil} onChange={event=>setValidUntil(event.target.value)}/></label><label className="doc-check"><input type="checkbox" checked={sensitive} onChange={event=>setSensitive(event.target.checked)}/><span>Conteúdo sensível</span></label><div className="doc-form-note field-wide"><HrIcon name="lock"/><span><b>{persists?"Armazenamento privado com RLS":"Envio demonstrativo nesta fase"}</b><small>{persists?"O arquivo vai para o bucket rh-documents, acessível só por URL assinada a quem tem permissão.":"O arquivo não é armazenado sem conexão com o Supabase."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>{persists?"Enviar documento":"Registrar documento"} <HrIcon name="check"/></Button></footer></form></div>}
 
 function documentTone(status:HrDocumentStatus):"success"|"attention"|"info"|"neutral"{return status==="Válido"?"success":status==="A vencer"||status==="Expirado"?"attention":status==="Pendente"?"info":"neutral"}
 
