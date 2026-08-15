@@ -111,3 +111,162 @@ export async function createRhAbsence(draft: RhAbsenceDraft): Promise<{ id: stri
   if (error) throw error;
   return { id: String(data.id) };
 }
+
+export type RhSstDraft = {
+  employeeId: string;
+  category: "exam" | "training" | "ppe" | "incident";
+  title: string;
+  dueDate: string | null;
+  risk: "critical" | "attention" | "regular";
+  note: string | null;
+};
+
+// Cria um registro de SST. A RLS (rh_sst_manage) exige rh.approve — tratar SST
+// é ação de responsável, não de autosserviço. O banco recusa quem não puder.
+export async function createRhSstRecord(draft: RhSstDraft): Promise<{ id: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error("UNAUTHENTICATED");
+
+  const profileResult = await supabase
+    .from("profiles")
+    .select("organization_id")
+    .eq("user_id", authData.user.id)
+    .single();
+  if (profileResult.error) throw profileResult.error;
+  const organizationId = profileResult.data.organization_id as string;
+
+  const employeeResult = await supabase
+    .from("employees")
+    .select("unit_id, department_id")
+    .eq("id", draft.employeeId)
+    .single();
+  if (employeeResult.error) throw employeeResult.error;
+
+  // Status inicial derivado do prazo: sem data → programado; com data futura
+  // próxima o RH tratará; a criação nasce como "scheduled" e o vencimento é
+  // avaliado na leitura. Mantemos simples: agendado ao criar.
+  const { data, error } = await supabase
+    .from("rh_sst_records")
+    .insert({
+      organization_id: organizationId,
+      employee_id: draft.employeeId,
+      unit_id: employeeResult.data.unit_id,
+      department_id: employeeResult.data.department_id,
+      category: draft.category,
+      title: draft.title,
+      due_date: draft.dueDate,
+      status: "scheduled",
+      risk: draft.risk,
+      note: draft.note,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return { id: String(data.id) };
+}
+
+export type RhBenefitRequestDraft = {
+  employeeId: string;
+  planId: string;
+  action: "enroll" | "change" | "cancel" | "add_dependent";
+  effectiveDate: string | null;
+  reason: string | null;
+};
+
+// Cria uma solicitação de benefício. A RLS (rh_benefit_requests_create) permite
+// ao gestor criar para a equipe e ao colaborador criar a própria; o banco decide.
+export async function createRhBenefitRequest(draft: RhBenefitRequestDraft): Promise<{ id: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error("UNAUTHENTICATED");
+
+  const profileResult = await supabase
+    .from("profiles")
+    .select("id, organization_id")
+    .eq("user_id", authData.user.id)
+    .single();
+  if (profileResult.error) throw profileResult.error;
+  const profileId = profileResult.data.id as string;
+  const organizationId = profileResult.data.organization_id as string;
+
+  const { data, error } = await supabase
+    .from("rh_benefit_requests")
+    .insert({
+      organization_id: organizationId,
+      plan_id: draft.planId,
+      employee_id: draft.employeeId,
+      action: draft.action,
+      status: "pending",
+      reason: draft.reason,
+      effective_date: draft.effectiveDate,
+      requested_by_profile_id: profileId,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return { id: String(data.id) };
+}
+
+export type RhEmployeeDraft = {
+  fullName: string;
+  employeeNumber: string;
+  corporateEmail: string | null;
+  admissionDate: string | null;
+  departmentName: string | null;
+  unitName: string | null;
+  positionName: string | null;
+};
+
+// Cadastra um colaborador na Fundação (tabela employees). A RLS
+// (employees_manage) exige core.people edit. Resolve unidade/departamento/cargo
+// por nome dentro da organização — o form usa nomes; ids ausentes ficam nulos.
+export async function createRhEmployee(draft: RhEmployeeDraft): Promise<{ id: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error("UNAUTHENTICATED");
+
+  const profileResult = await supabase
+    .from("profiles")
+    .select("organization_id")
+    .eq("user_id", authData.user.id)
+    .single();
+  if (profileResult.error) throw profileResult.error;
+  const organizationId = profileResult.data.organization_id as string;
+
+  const lookupId = async (table: string, name: string | null): Promise<string | null> => {
+    if (!name) return null;
+    const { data } = await supabase
+      .from(table)
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("name", name)
+      .limit(1)
+      .maybeSingle();
+    return data ? String(data.id) : null;
+  };
+
+  const [departmentId, unitId, positionId] = await Promise.all([
+    lookupId("departments", draft.departmentName),
+    lookupId("units", draft.unitName),
+    lookupId("positions", draft.positionName),
+  ]);
+
+  const { data, error } = await supabase
+    .from("employees")
+    .insert({
+      organization_id: organizationId,
+      employee_number: draft.employeeNumber,
+      full_name: draft.fullName,
+      corporate_email: draft.corporateEmail,
+      admission_date: draft.admissionDate,
+      department_id: departmentId,
+      unit_id: unitId,
+      position_id: positionId,
+      active: true,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return { id: String(data.id) };
+}

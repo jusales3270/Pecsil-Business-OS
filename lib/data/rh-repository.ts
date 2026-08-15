@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "../supabase/server";
 import type {
   RhAbsence,
   RhBenefitPlan,
+  RhBenefitRequest,
   RhSnapshot,
   RhSstRecord,
 } from "./rh";
@@ -34,6 +35,7 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     vacationResult,
     plansResult,
     enrollmentsResult,
+    benefitRequestsResult,
     sstResult,
     sstAlertsResult,
     departmentsResult,
@@ -61,6 +63,12 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     supabase.from("rh_benefit_enrollments").select("plan_id")
       .eq("organization_id", organizationId).eq("active", true),
     supabase
+      .from("rh_benefit_requests")
+      .select("id,action,status,reason,effective_date,requested_at,employees(full_name,departments(name)),rh_benefit_plans(name)")
+      .eq("organization_id", organizationId)
+      .order("requested_at", { ascending:false })
+      .limit(20),
+    supabase
       .from("rh_sst_records")
       .select("id,category,title,due_date,status,risk,note,clinical_confidential,employees(full_name),departments(name),units(name)")
       .eq("organization_id", organizationId)
@@ -74,10 +82,12 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
 
   const failed = [
     employeesResult, activeEmployeesResult, absencesResult, pendingAbsencesResult,
-    vacationResult, plansResult, enrollmentsResult, sstResult, sstAlertsResult,
-    departmentsResult,
+    vacationResult, plansResult, enrollmentsResult, benefitRequestsResult, sstResult,
+    sstAlertsResult, departmentsResult,
   ].find(result => result.error);
   if (failed?.error) throw failed.error;
+
+  const benefitRequests = ((benefitRequestsResult.data ?? []) as unknown as Row[]).map(toBenefitRequest);
 
   const absences = ((absencesResult.data ?? []) as unknown as Row[]).map(toAbsence);
   const sstRecords = ((sstResult.data ?? []) as unknown as Row[]).map(toSstRecord);
@@ -130,6 +140,7 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     },
     absences,
     benefitPlans,
+    benefitRequests,
     sstRecords,
     departmentShares,
     employees,
@@ -166,6 +177,22 @@ function toBenefitPlan(row: Row, members: number, eligible: number): RhBenefitPl
     employeeContribution: row.employee_contribution ? String(row.employee_contribution) : null,
     eligibilityRule: row.eligibility_rule ? String(row.eligibility_rule) : null,
     status: row.status as RhBenefitPlan["status"],
+  };
+}
+
+function toBenefitRequest(row: Row): RhBenefitRequest {
+  const employee = Array.isArray(row.employees) ? row.employees[0] : row.employees;
+  const department = employee && typeof employee === "object" ? relationName((employee as Row).departments) : null;
+  return {
+    id: String(row.id),
+    employeeName: relationName(row.employees) ?? "Não informado",
+    department,
+    planName: relationName(row.rh_benefit_plans) ?? "—",
+    action: row.action as RhBenefitRequest["action"],
+    status: row.status as RhBenefitRequest["status"],
+    reason: row.reason ? String(row.reason) : null,
+    effectiveDate: row.effective_date ? String(row.effective_date) : null,
+    requestedAt: formatDateTime(row.requested_at),
   };
 }
 

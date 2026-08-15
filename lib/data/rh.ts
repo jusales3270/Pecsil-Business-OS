@@ -44,6 +44,21 @@ export type RhBenefitPlan = {
   status: "active" | "under_review" | "suspended";
 };
 
+export type RhBenefitRequestAction = "enroll" | "change" | "cancel" | "add_dependent";
+export type RhBenefitRequestStatus = "pending" | "under_review" | "approved" | "rejected";
+
+export type RhBenefitRequest = {
+  id: string;
+  employeeName: string;
+  department: string | null;
+  planName: string;
+  action: RhBenefitRequestAction;
+  status: RhBenefitRequestStatus;
+  reason: string | null;
+  effectiveDate: string | null;
+  requestedAt: string;
+};
+
 export type RhSstCategory = "exam" | "training" | "ppe" | "incident";
 export type RhSstStatus =
   | "compliant" | "due_soon" | "overdue" | "scheduled" | "under_review";
@@ -92,6 +107,7 @@ export type RhSnapshot = {
   summary: RhSummary;
   absences: RhAbsence[];
   benefitPlans: RhBenefitPlan[];
+  benefitRequests: RhBenefitRequest[];
   sstRecords: RhSstRecord[];
   departmentShares: RhDepartmentShare[];
   employees: RhEmployeeOption[];
@@ -121,6 +137,10 @@ export const demoRhSnapshot: RhSnapshot = {
     { id:"demo-ben-1", name:"Vale-alimentação", category:"food", provider:"Cartão corporativo", monthlyCost:124230, members:246, eligible:246, employeeContribution:"Sem coparticipação", eligibilityRule:"Elegível para todos os colaboradores ativos.", status:"active" },
     { id:"demo-ben-2", name:"Plano de saúde", category:"health", provider:"Unimed", monthlyCost:98600, members:218, eligible:246, employeeContribution:"Coparticipação de 20%", eligibilityRule:"Adesão voluntária após período de experiência.", status:"active" },
     { id:"demo-ben-3", name:"Vale-transporte", category:"mobility", provider:"Vale-transporte SP", monthlyCost:41200, members:172, eligible:246, employeeContribution:"Desconto legal de 6%", eligibilityRule:"Conforme deslocamento declarado.", status:"active" },
+  ],
+  benefitRequests: [
+    { id:"demo-req-1", employeeName:"Fernanda Rocha", department:"Qualidade", planName:"Plano de saúde", action:"enroll", status:"pending", reason:"Adesão do titular", effectiveDate:"2026-09-01", requestedAt:"14 jul 2026 · 10:12" },
+    { id:"demo-req-2", employeeName:"Lucas Martins", department:"Produção", planName:"Vale-transporte", action:"cancel", status:"under_review", reason:"Passou a usar transporte próprio", effectiveDate:"2026-08-01", requestedAt:"12 jul 2026 · 08:40" },
   ],
   sstRecords: [
     { id:"demo-sst-1", employeeName:"Equipe Produção", department:"Produção", unit:"Unidade Industrial", category:"exam", title:"ASO periódico próximo do vencimento", dueDate:"2026-08-30", status:"due_soon", risk:"attention", note:"Exame periódico na janela de renovação.", sensitive:true },

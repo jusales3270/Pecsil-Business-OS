@@ -5,7 +5,7 @@ import type { FoundationSummary, Person } from "../../lib/data/foundation";
 import { hasPermission, type ModuleAccessContext } from "../../modules";
 import { Button, Card, Kpi, KpiGrid, Segmented, Status } from "../../packages/design-system";
 import { useRhData } from "../../lib/data/use-rh-data";
-import type { RhAbsence, RhBenefitPlan, RhEmployeeOption, RhSnapshot, RhSstRecord } from "../../lib/data/rh";
+import type { RhAbsence, RhBenefitPlan, RhBenefitRequest, RhEmployeeOption, RhSnapshot, RhSstRecord } from "../../lib/data/rh";
 
 const sections = [
   ["Painel", "grid"],
@@ -57,13 +57,6 @@ function toEmployee(person: Person): EmployeeRecord {
     ...employeeDetails[person.email],
   };
 }
-
-const pendingItems = [
-  { title: "Aprovar férias de Mariana Costa", meta: "15 a 29 de agosto · 15 dias", type: "Férias", tone: "info" as const },
-  { title: "ASO periódico próximo do vencimento", meta: "12 colaboradores · vence em até 30 dias", type: "SST", tone: "attention" as const },
-  { title: "Revisar banco de horas da Produção", meta: "Saldo acima de 20h em 7 registros", type: "Jornada", tone: "attention" as const },
-  { title: "Documentos admissionais incompletos", meta: "2 novos colaboradores", type: "Documentos", tone: "neutral" as const },
-];
 
 type JourneyStatus = "Regular" | "Pendente" | "Em análise" | "Ajustado" | "Ausência";
 type JourneyRecord = {
@@ -285,7 +278,7 @@ export function HrModule({
     <div className="hr-workspace">
         {access.role === "Colaborador" ? <EmployeeSelfService section={section} notify={track}/> : <>
           {section === "Painel" && <HrDashboard people={employees} summary={summary} rh={rh} setSection={setSection} notify={track} access={access} canCreate={canCreate} requestCreate={() => setCreateRequested(value => value + 1)}/>}
-          {section === "Colaboradores" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>} 
+          {section === "Colaboradores" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} persists={rh.source === "supabase"} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
           {section === "Ponto e jornada" && <JourneySection notify={track} access={access}/>} 
           {section === "Férias e ausências" && <AbsenceSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Benefícios" && <BenefitsSection key={rh.loadedAt} summary={summary} notify={track} access={access} rh={rh}/>}
@@ -438,6 +431,29 @@ const benefitIconOf: Record<RhBenefitPlan["category"], string> = {
   food: "card", health: "heart", mobility: "clock", protection: "shield",
 };
 
+const benefitActionPt: Record<RhBenefitRequest["action"], BenefitRequest["action"]> = {
+  enroll: "Adesão", change: "Alteração", cancel: "Cancelamento", add_dependent: "Inclusão de dependente",
+};
+const benefitReqStatusPt: Record<RhBenefitRequest["status"], BenefitRequestStatus> = {
+  pending: "Pendente", under_review: "Em análise", approved: "Aprovada", rejected: "Reprovada",
+};
+
+function toBenefitUiRequest(request: RhBenefitRequest, index: number): BenefitRequest {
+  return {
+    id: index + 1,
+    sourceId: request.id,
+    employee: request.employeeName,
+    initials: initialsOf(request.employeeName),
+    department: request.department ?? "—",
+    plan: request.planName,
+    action: benefitActionPt[request.action],
+    requestedAt: request.requestedAt,
+    effectiveDate: request.effectiveDate ?? "",
+    status: benefitReqStatusPt[request.status],
+    reason: request.reason ?? "—",
+  };
+}
+
 function toBenefitUiPlan(plan: RhBenefitPlan, index: number): BenefitPlan {
   return {
     id: index + 1,
@@ -476,19 +492,46 @@ function HrDashboard({ people, summary, rh, setSection, notify, access, canCreat
   </>;
 }
 
-function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, canCreate, createRequested, onCreateHandled }: { people: EmployeeRecord[]; allPeople: EmployeeRecord[]; setPeople: React.Dispatch<React.SetStateAction<EmployeeRecord[]>>; query: string; setQuery: (value: string) => void; notify: (message: string) => void; canCreate: boolean; createRequested: number; onCreateHandled: () => void }) {
+function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, canCreate, persists, createRequested, onCreateHandled }: { people: EmployeeRecord[]; allPeople: EmployeeRecord[]; setPeople: React.Dispatch<React.SetStateAction<EmployeeRecord[]>>; query: string; setQuery: (value: string) => void; notify: (message: string) => void; canCreate: boolean; persists: boolean; createRequested: number; onCreateHandled: () => void }) {
   const [selected, setSelected] = useState<EmployeeRecord | null>(null);
   const [editing, setEditing] = useState<EmployeeRecord | null>(null);
   const [creating, setCreating] = useState(createRequested > 0 && canCreate);
   const [unit, setUnit] = useState("Todas as unidades");
   const visiblePeople = unit === "Todas as unidades" ? people : people.filter(person => person.unit === unit);
 
-  const saveEmployee = (employee: EmployeeRecord, isNew: boolean) => {
+  const saveEmployee = async (employee: EmployeeRecord, isNew: boolean) => {
     setPeople(current => isNew ? [employee, ...current] : current.map(item => item.email === editing?.email ? employee : item));
     setCreating(false);
     onCreateHandled();
     setEditing(null);
     setSelected(employee);
+    // Só a criação persiste por ora; edição segue local (v1).
+    if (persists && isNew) {
+      try {
+        const response = await fetch("/api/rh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            entity: "employee",
+            fullName: employee.name,
+            employeeNumber: employee.registration,
+            corporateEmail: employee.email || null,
+            admissionDate: employee.admissionDate || null,
+            departmentName: employee.department || null,
+            unitName: employee.unit || null,
+            positionName: employee.role || null,
+          }),
+        });
+        if (response.status === 401) { window.location.assign("/login"); return; }
+        if (!response.ok) throw new Error("RH_CREATE_DENIED");
+        notify(`${employee.name} foi cadastrado no banco.`);
+      } catch {
+        setPeople(current => current.filter(item => item.registration !== employee.registration));
+        setSelected(null);
+        notify(`${employee.name}: não foi possível cadastrar. Verifique suas permissões.`);
+      }
+      return;
+    }
     notify(isNew ? `${employee.name} foi incluído nos dados demonstrativos.` : `Cadastro de ${employee.name} atualizado.`);
   };
 
@@ -787,7 +830,7 @@ function absenceTone(status: AbsenceStatus): "success" | "attention" | "info" | 
 
 function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationSummary; notify: (message: string) => void; access: ModuleAccessContext; rh: RhSnapshot }) {
   const [plans] = useState<BenefitPlan[]>(rh.source === "supabase" ? rh.benefitPlans.map(toBenefitUiPlan) : initialBenefitPlans);
-  const [requests,setRequests] = useState(initialBenefitRequests);
+  const [requests,setRequests] = useState<BenefitRequest[]>(rh.source === "supabase" ? rh.benefitRequests.map(toBenefitUiRequest) : initialBenefitRequests);
   const [selectedPlan,setSelectedPlan] = useState<BenefitPlan|null>(null);
   const [selectedRequest,setSelectedRequest] = useState<BenefitRequest|null>(null);
   const [creating,setCreating] = useState(false);
@@ -798,14 +841,41 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
   const pending = requests.filter(request=>request.status==="Pendente"||request.status==="Em análise").length;
   const totalCost = plans.reduce((sum,plan)=>sum+plan.monthlyCost,0);
   const filteredRequests = requestStatus === "Todos os status" ? requests : requests.filter(request=>request.status===requestStatus);
-  const decide = (status:"Aprovada"|"Reprovada") => {
+  const decide = async (status:"Aprovada"|"Reprovada") => {
     if(!selectedRequest)return;
-    const updated={...selectedRequest,status};
-    setRequests(current=>current.map(request=>request.id===updated.id?updated:request));
+    const target=selectedRequest;
+    const updated={...target,status};
+    setRequests(current=>current.map(request=>request.id===target.id?updated:request));
     setSelectedRequest(updated);
-    notify(`${selectedRequest.employee}: solicitação de benefício ${status.toLowerCase()}.`);
+    try{
+      const persisted=target.sourceId?await sendRhMutation({entity:"benefit_request",id:target.sourceId,decision:status==="Aprovada"?"approved":"rejected"}):false;
+      notify(persisted?`${target.employee}: solicitação de benefício ${status.toLowerCase()} no banco.`:`${target.employee}: solicitação de benefício ${status.toLowerCase()} (demonstrativo).`);
+    }catch{
+      setRequests(current=>current.map(request=>request.id===target.id?target:request));setSelectedRequest(target);
+      notify(`${target.employee}: não foi possível registrar a decisão. Verifique suas permissões.`);
+    }
   };
-  const createRequest=(request:BenefitRequest)=>{setRequests(current=>[request,...current]);setCreating(false);setSelectedRequest(request);setTab("Solicitações");notify(`${request.employee}: solicitação de benefício registrada nos dados demonstrativos.`);};
+  const planIdByName = (name:string) => rh.source==="supabase" ? rh.benefitPlans.find(plan=>plan.name===name)?.id : undefined;
+  const benefitActionEnum:Record<BenefitRequest["action"],RhBenefitRequest["action"]>={"Adesão":"enroll","Alteração":"change","Cancelamento":"cancel","Inclusão de dependente":"add_dependent"};
+  const createRequest=async(request:BenefitRequest,employeeId?:string)=>{
+    setRequests(current=>[request,...current]);setCreating(false);setSelectedRequest(request);setTab("Solicitações");
+    const planId=planIdByName(request.plan);
+    if(rh.source==="supabase"&&employeeId&&planId){
+      try{
+        const response=await fetch("/api/rh",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entity:"benefit_request",employeeId,planId,action:benefitActionEnum[request.action],effectiveDate:request.effectiveDate||null,reason:request.reason||null})});
+        if(response.status===401){window.location.assign("/login");return;}
+        if(!response.ok)throw new Error("RH_CREATE_DENIED");
+        const{id}=(await response.json()) as {id:string};
+        setRequests(current=>current.map(r=>r.id===request.id?{...r,sourceId:id}:r));
+        notify(`${request.employee}: solicitação de benefício registrada no banco.`);
+      }catch{
+        setRequests(current=>current.filter(r=>r.id!==request.id));setSelectedRequest(null);
+        notify(`${request.employee}: não foi possível registrar. Verifique suas permissões.`);
+      }
+      return;
+    }
+    notify(`${request.employee}: solicitação de benefício registrada nos dados demonstrativos.`);
+  };
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · BENEFÍCIOS</p><h1>Benefícios</h1><p>Planos, elegibilidade, adesões, custos estimados e solicitações em uma única visão.</p></div>{canManage&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Nova movimentação</Button>}</div>
     <KpiGrid><HrStat value={String(plans.length)} label="Benefícios ativos" meta="Catálogo corporativo" icon="heart" tone="blue"/><HrStat value={String(rh.source === "supabase" ? rh.summary.activeEmployees : summary.activeEmployees)} label="Elegíveis" meta="Colaboradores ativos" icon="users" tone="green"/><HrStat value={String(pending)} label="Em aprovação" meta="Solicitações pendentes" icon="clock" tone="orange"/><HrStat value={totalCost >= 1000 ? `R$ ${Math.round(totalCost/1000)} mil` : `R$ ${totalCost}`} label="Custo estimado" meta="Competência mensal" icon="chart" tone="purple"/></KpiGrid>
@@ -816,7 +886,7 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
     {tab==="Políticas"&&<BenefitPolicies/>}
     {selectedPlan&&<BenefitPlanDrawer plan={selectedPlan} onClose={()=>setSelectedPlan(null)} onParticipants={()=>{setSelectedPlan(null);setTab("Participantes")}}/>}
     {selectedRequest&&<BenefitRequestDrawer request={selectedRequest} canApprove={canApprove} onClose={()=>setSelectedRequest(null)} onDecision={decide}/>} 
-    {creating&&<BenefitRequestForm nextId={Math.max(...requests.map(request=>request.id))+1} plans={plans} onClose={()=>setCreating(false)} onSave={createRequest}/>} 
+    {creating&&<BenefitRequestForm nextId={Math.max(0,...requests.map(request=>request.id))+1} plans={plans} employees={rh.source==="supabase"?rh.employees:[]} onClose={()=>setCreating(false)} onSave={createRequest}/>}
   </>;
 }
 
@@ -831,7 +901,19 @@ function BenefitPlanDrawer({plan,onClose,onParticipants}:{plan:BenefitPlan;onClo
 
 function BenefitRequestDrawer({request,canApprove,onClose,onDecision}:{request:BenefitRequest;canApprove:boolean;onClose:()=>void;onDecision:(status:"Aprovada"|"Reprovada")=>void}){const actionable=request.status==="Pendente"||request.status==="Em análise";return <div className="employee-layer" onMouseDown={onClose}><aside className="benefit-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Solicitação de ${request.employee}`}><header><button onClick={onClose} aria-label="Fechar solicitação de benefício"><HrIcon name="close"/></button><span><HrIcon name="heart"/></span><div><p className="eyebrow">SOLICITAÇÃO #{String(request.id).padStart(4,"0")}</p><h2>{request.action}</h2><p>{request.employee} · {request.department}</p></div><Status tone={benefitRequestTone(request.status)}>{request.status}</Status></header><div className="benefit-drawer-content"><section className="benefit-request-highlight"><span><small>Benefício solicitado</small><b>{request.plan}</b></span><span><small>Vigência pretendida</small><b>{formatDate(request.effectiveDate)}</b></span></section><DetailGroup title="Informações da solicitação" rows={[["Colaborador",request.employee],["Movimentação",request.action],["Justificativa",request.reason],["Solicitado em",request.requestedAt]]}/><section className="absence-workflow"><h3>Histórico da solicitação</h3><div><i>✓</i><span><b>Solicitação registrada</b><small>{request.requestedAt}</small></span></div><div><i>{actionable?"2":"✓"}</i><span><b>{actionable?"Aguardando decisão":`Solicitação ${request.status.toLowerCase()}`}</b><small>{actionable?"RH responsável foi notificado":"Movimentação registrada no histórico"}</small></span></div></section><section className="benefit-security-note"><HrIcon name="shield"/><span><b>Auditoria preparada</b><small>A decisão será vinculada ao aprovador quando a persistência estiver conectada.</small></span></section></div>{canApprove&&actionable&&<footer><button className="absence-reject" onClick={()=>onDecision("Reprovada")}><HrIcon name="close"/> Reprovar</button><Button onClick={()=>onDecision("Aprovada")}><HrIcon name="check"/> Aprovar solicitação</Button></footer>}</aside></div>}
 
-function BenefitRequestForm({nextId,plans,onClose,onSave}:{nextId:number;plans:BenefitPlan[];onClose:()=>void;onSave:(request:BenefitRequest)=>void}){const[employee,setEmployee]=useState("Ana Souza");const[plan,setPlan]=useState(plans[0].name);const[action,setAction]=useState<BenefitRequest["action"]>("Adesão");const[date,setDate]=useState("2026-08-01");const[reason,setReason]=useState("");const employeeMap:Record<string,[string,string]>={"Ana Souza":["AS","Administrativo"],"Lucas Martins":["LM","Produção"],"Camila Ferreira":["CF","Qualidade"],"Mariana Costa":["MC","Recursos Humanos"],"Ricardo Alves":["RA","Produção"]};const valid=Boolean(date&&reason);const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid)return;const[initials,department]=employeeMap[employee];onSave({id:nextId,employee,initials,department,plan,action,requestedAt:"Hoje · agora",effectiveDate:date,status:"Pendente",reason});};return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="benefit-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · BENEFÍCIOS</p><h2>Nova movimentação</h2><p>Registre uma adesão, alteração, inclusão ou cancelamento.</p></div><button type="button" onClick={onClose} aria-label="Fechar movimentação"><HrIcon name="close"/></button></header><div className="benefit-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employee} onChange={event=>setEmployee(event.target.value)}>{Object.keys(employeeMap).map(name=><option key={name}>{name}</option>)}</select></label><label><span>Benefício *</span><select value={plan} onChange={event=>setPlan(event.target.value)}>{plans.map(item=><option key={item.id}>{item.name}</option>)}</select></label><label><span>Movimentação *</span><select value={action} onChange={event=>setAction(event.target.value as BenefitRequest["action"])}><option>Adesão</option><option>Alteração</option><option>Cancelamento</option><option>Inclusão de dependente</option></select></label><label className="field-wide"><span>Vigência pretendida *</span><input type="date" value={date} onChange={event=>setDate(event.target.value)}/></label><label className="field-wide"><span>Justificativa *</span><textarea value={reason} onChange={event=>setReason(event.target.value)} placeholder="Descreva a necessidade da movimentação..."/></label><div className="benefit-form-note field-wide"><HrIcon name="shield"/><span><b>Sem alteração automática</b><small>A movimentação entra no fluxo de aprovação antes de alterar a adesão.</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Enviar para aprovação <HrIcon name="arrow"/></Button></footer></form></div>}
+function BenefitRequestForm({nextId,plans,employees,onClose,onSave}:{nextId:number;plans:BenefitPlan[];employees:RhEmployeeOption[];onClose:()=>void;onSave:(request:BenefitRequest,employeeId?:string)=>void}){
+  const demoOptions:RhEmployeeOption[]=[{id:"demo-emp-3",name:"Ana Souza",department:"Administrativo",unit:"Matriz Boituva"},{id:"demo-emp-2",name:"Lucas Martins",department:"Produção",unit:"Unidade Industrial"},{id:"demo-emp-5",name:"Camila Ferreira",department:"Qualidade",unit:"Unidade Industrial"},{id:"demo-emp-1",name:"Mariana Costa",department:"Recursos Humanos",unit:"Matriz Boituva"}];
+  const options=employees.length?employees:demoOptions;
+  const persists=employees.length>0;
+  const[employeeId,setEmployeeId]=useState(options[0]?.id??"");
+  const[plan,setPlan]=useState(plans[0]?.name??"");
+  const[action,setAction]=useState<BenefitRequest["action"]>("Adesão");
+  const[date,setDate]=useState("2026-08-01");
+  const[reason,setReason]=useState("");
+  const chosen=options.find(option=>option.id===employeeId)??options[0];
+  const valid=Boolean(chosen&&plan&&date&&reason);
+  const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid||!chosen)return;onSave({id:nextId,employee:chosen.name,initials:initialsOf(chosen.name),department:chosen.department??"—",plan,action,requestedAt:"Hoje · agora",effectiveDate:date,status:"Pendente",reason},persists?chosen.id:undefined)};
+  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="benefit-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · BENEFÍCIOS</p><h2>Nova movimentação</h2><p>Registre uma adesão, alteração, inclusão ou cancelamento.</p></div><button type="button" onClick={onClose} aria-label="Fechar movimentação"><HrIcon name="close"/></button></header><div className="benefit-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label><label><span>Benefício *</span><select value={plan} onChange={event=>setPlan(event.target.value)}>{plans.map(item=><option key={item.id}>{item.name}</option>)}</select></label><label><span>Movimentação *</span><select value={action} onChange={event=>setAction(event.target.value as BenefitRequest["action"])}><option>Adesão</option><option>Alteração</option><option>Cancelamento</option><option>Inclusão de dependente</option></select></label><label className="field-wide"><span>Vigência pretendida *</span><input type="date" value={date} onChange={event=>setDate(event.target.value)}/></label><label className="field-wide"><span>Justificativa *</span><textarea value={reason} onChange={event=>setReason(event.target.value)} placeholder="Descreva a necessidade da movimentação..."/></label><div className="benefit-form-note field-wide"><HrIcon name="shield"/><span><b>Sem alteração automática</b><small>{persists?"Entra no fluxo de aprovação e é gravada no banco.":"A movimentação entra no fluxo de aprovação antes de alterar a adesão."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Enviar para aprovação <HrIcon name="arrow"/></Button></footer></form></div>}
 
 function formatCurrency(value:number){return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0}).format(value)}
 function benefitRequestTone(status:BenefitRequestStatus):"success"|"attention"|"info"|"neutral"{return status==="Aprovada"?"success":status==="Pendente"?"attention":status==="Em análise"?"info":"neutral"}
@@ -861,7 +943,26 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
       notify(`${target.employee}: não foi possível tratar o registro. Verifique suas permissões.`);
     }
   };
-  const createRecord=(record:SstRecord)=>{setRecords(current=>[record,...current]);setCreating(false);setSelected(record);notify(`${record.employee}: registro de SST incluído nos dados demonstrativos.`)};
+  const sstCategoryEnum:Record<SstRecord["category"],RhSstRecord["category"]>={"Exame":"exam","Treinamento":"training","EPI":"ppe","Ocorrência":"incident"};
+  const sstRiskEnum:Record<SstRecord["risk"],RhSstRecord["risk"]>={"Crítico":"critical","Atenção":"attention","Regular":"regular"};
+  const createRecord=async(record:SstRecord,employeeId?:string)=>{
+    setRecords(current=>[record,...current]);setCreating(false);setSelected(record);
+    if(rh.source==="supabase"&&employeeId){
+      try{
+        const response=await fetch("/api/rh",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entity:"sst",employeeId,category:sstCategoryEnum[record.category],title:record.title,dueDate:record.dueDate||null,risk:sstRiskEnum[record.risk],note:record.note||null})});
+        if(response.status===401){window.location.assign("/login");return;}
+        if(!response.ok)throw new Error("RH_CREATE_DENIED");
+        const{id}=(await response.json()) as {id:string};
+        setRecords(current=>current.map(r=>r.id===record.id?{...r,sourceId:id}:r));
+        notify(`${record.employee}: registro de SST gravado no banco.`);
+      }catch{
+        setRecords(current=>current.filter(r=>r.id!==record.id));setSelected(null);
+        notify(`${record.employee}: não foi possível salvar o registro. Verifique suas permissões.`);
+      }
+      return;
+    }
+    notify(`${record.employee}: registro de SST incluído nos dados demonstrativos.`);
+  };
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · SST</p><h1>Saúde e segurança</h1><p>Exames, treinamentos, EPIs, ocorrências e obrigações organizados por risco e vencimento.</p></div>{canManage&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Novo registro</Button>}</div>
     <KpiGrid><HrStat value={String(records.filter(r => r.category === "Exame" && (r.status === "A vencer" || r.status === "Vencido")).length)} label="Exames a vencer" meta="Vencidos ou na janela" icon="heart" tone="orange"/><HrStat value={String(records.filter(r => r.category === "Treinamento").length)} label="Treinamentos" meta="No período" icon="shield" tone="blue"/><HrStat value={String(records.filter(r => r.risk === "Crítico").length)} label="Pendências críticas" meta="Exigem tratamento" icon="alert" tone="red"/><HrStat value={records.length ? `${Math.round((records.filter(r => r.status === "Conforme").length / records.length) * 100)}%` : "—"} label="Conformidade" meta="Registros conformes" icon="check" tone="green"/></KpiGrid>
@@ -869,7 +970,7 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
     {tab==="Prioridades"&&<div className="sst-overview"><SstRecordTable title="Prioridades de SST" eyebrow="VENCIMENTOS E PENDÊNCIAS" records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/><Card className="sst-health-card"><p className="eyebrow">CONFORMIDADE</p><h2>Saúde dos registros</h2><div className="sst-score"><strong>96%</strong><span><i style={{width:"96%"}}/></span></div><ul><li><i>✓</i><span><b>ASOs vinculados</b><small>236 de 246 colaboradores ativos</small></span></li><li><i>✓</i><span><b>Treinamentos controlados</b><small>Validades e certificados mapeados</small></span></li><li className="warning"><i>!</i><span><b>{alerts} pendências abertas</b><small>Tratamento por risco e vencimento</small></span></li></ul><div className="sst-risk-legend"><span><i className="critical"/> Crítico</span><span><i className="attention"/> Atenção</span><span><i className="regular"/> Regular</span></div></Card></div>}
     {tab!=="Prioridades"&&<SstRecordTable title={`Gestão de ${tab.toLowerCase()}`} eyebrow={`SST · ${tab.toUpperCase()}`} records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/>} 
     {selected&&<SstDrawer record={selected} canApprove={canApprove} onClose={()=>setSelected(null)} onConclude={conclude}/>} 
-    {creating&&<SstForm nextId={Math.max(...records.map(record=>record.id))+1} onClose={()=>setCreating(false)} onSave={createRecord}/>} 
+    {creating&&<SstForm nextId={Math.max(0,...records.map(record=>record.id))+1} employees={rh.source==="supabase"?rh.employees:[]} onClose={()=>setCreating(false)} onSave={createRecord}/>}
   </>;
 }
 
@@ -877,7 +978,19 @@ function SstRecordTable({title,eyebrow,records,status,setStatus,onSelect}:{title
 
 function SstDrawer({record,canApprove,onClose,onConclude}:{record:SstRecord;canApprove:boolean;onClose:()=>void;onConclude:()=>void}){const actionable=record.status!=="Conforme";return <div className="employee-layer" onMouseDown={onClose}><aside className="sst-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Registro de SST de ${record.employee}`}><header><button onClick={onClose} aria-label="Fechar registro de SST"><HrIcon name="close"/></button><span><HrIcon name={record.category==="Exame"?"heart":"shield"}/></span><div><p className="eyebrow">SST · {record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={sstTone(record.status)}>{record.status}</Status></header><div className="sst-drawer-content">{record.risk!=="Regular"&&<div className={`sst-alert ${record.risk==="Crítico"?"critical":""}`}><HrIcon name="alert"/><span><b>{record.risk==="Crítico"?"Ação imediata necessária":"Atenção necessária"}</b><small>{record.note}</small></span></div>}<section className="sst-deadline"><span><small>Vencimento ou prazo</small><b>{formatDate(record.dueDate)}</b></span><Status tone={record.risk==="Crítico"?"attention":"info"}>{record.risk}</Status></section><DetailGroup title="Informações operacionais" rows={[["Colaborador",record.employee],["Unidade",record.unit],["Categoria",record.category],["Documento",record.document],["Observação",record.note]]}/>{record.sensitive&&<section className="sst-sensitive-note"><HrIcon name="lock"/><span><b>Conteúdo sensível protegido</b><small>Resultados clínicos, diagnósticos e anexos médicos não são exibidos nesta visão. O acesso depende de permissão específica e auditoria.</small></span></section>}<section className="absence-workflow"><h3>Histórico do registro</h3><div><i>✓</i><span><b>Obrigação cadastrada</b><small>Registro demonstrativo do RH</small></span></div><div><i>{actionable?"2":"✓"}</i><span><b>{actionable?"Aguardando tratamento":"Registro conforme"}</b><small>{actionable?"Responsáveis notificados por escopo":"Validade e documento conferidos"}</small></span></div></section></div>{canApprove&&actionable&&<footer><button className="employee-cancel" onClick={onClose}>Fechar</button><Button onClick={onConclude}><HrIcon name="check"/> Marcar como conforme</Button></footer>}</aside></div>}
 
-function SstForm({nextId,onClose,onSave}:{nextId:number;onClose:()=>void;onSave:(record:SstRecord)=>void}){const[employee,setEmployee]=useState("Lucas Martins");const[category,setCategory]=useState<SstRecord["category"]>("Exame");const[title,setTitle]=useState("ASO periódico");const[dueDate,setDueDate]=useState("");const[note,setNote]=useState("");const employeeMap:Record<string,[string,string,string]>={"Lucas Martins":["LM","Produção","Unidade Industrial"],"Camila Ferreira":["CF","Qualidade","Unidade Industrial"],"Paulo Mendes":["PM","Manutenção","Unidade Industrial"],"Ana Souza":["AS","Administrativo","Matriz Boituva"],"Mariana Costa":["MC","Recursos Humanos","Matriz Boituva"]};const valid=Boolean(title&&dueDate&&note);const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid)return;const[initials,department,unit]=employeeMap[employee];onSave({id:nextId,employee,initials,department,unit,category,title,dueDate,status:"Em análise",risk:"Atenção",document:"Documento pendente",note,sensitive:category==="Exame"||category==="Ocorrência"})};return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="sst-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · SST</p><h2>Novo registro</h2><p>Cadastre uma obrigação ocupacional sem expor conteúdo clínico.</p></div><button type="button" onClick={onClose} aria-label="Fechar novo registro de SST"><HrIcon name="close"/></button></header><div className="sst-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employee} onChange={event=>setEmployee(event.target.value)}>{Object.keys(employeeMap).map(name=><option key={name}>{name}</option>)}</select></label><label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as SstRecord["category"])}><option>Exame</option><option>Treinamento</option><option>EPI</option><option>Ocorrência</option></select></label><label><span>Obrigação ou registro *</span><input value={title} onChange={event=>setTitle(event.target.value)}/></label><label className="field-wide"><span>Vencimento ou prazo *</span><input type="date" value={dueDate} onChange={event=>setDueDate(event.target.value)}/></label><label className="field-wide"><span>Observação operacional *</span><textarea value={note} onChange={event=>setNote(event.target.value)} placeholder="Descreva somente informações necessárias ao acompanhamento..."/></label><div className="sst-form-note field-wide"><HrIcon name="lock"/><span><b>Não inclua diagnóstico ou resultado clínico</b><small>Anexos médicos e dados de saúde terão armazenamento e permissão específicos quando o Supabase estiver conectado.</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Salvar registro <HrIcon name="check"/></Button></footer></form></div>}
+function SstForm({nextId,employees,onClose,onSave}:{nextId:number;employees:RhEmployeeOption[];onClose:()=>void;onSave:(record:SstRecord,employeeId?:string)=>void}){
+  const demoOptions:RhEmployeeOption[]=[{id:"demo-emp-2",name:"Lucas Martins",department:"Produção",unit:"Unidade Industrial"},{id:"demo-emp-5",name:"Camila Ferreira",department:"Qualidade",unit:"Unidade Industrial"},{id:"demo-emp-3",name:"Ana Souza",department:"Administrativo",unit:"Matriz Boituva"},{id:"demo-emp-1",name:"Mariana Costa",department:"Recursos Humanos",unit:"Matriz Boituva"}];
+  const options=employees.length?employees:demoOptions;
+  const persists=employees.length>0;
+  const[employeeId,setEmployeeId]=useState(options[0]?.id??"");
+  const[category,setCategory]=useState<SstRecord["category"]>("Exame");
+  const[title,setTitle]=useState("ASO periódico");
+  const[dueDate,setDueDate]=useState("");
+  const[note,setNote]=useState("");
+  const chosen=options.find(option=>option.id===employeeId)??options[0];
+  const valid=Boolean(chosen&&title&&dueDate&&note);
+  const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid||!chosen)return;onSave({id:nextId,employee:chosen.name,initials:initialsOf(chosen.name),department:chosen.department??"—",unit:chosen.unit??"—",category,title,dueDate,status:"Programado",risk:"Atenção",document:"Documento pendente",note,sensitive:category==="Exame"||category==="Ocorrência"},persists?chosen.id:undefined)};
+  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="sst-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · SST</p><h2>Novo registro</h2><p>Cadastre uma obrigação ocupacional sem expor conteúdo clínico.</p></div><button type="button" onClick={onClose} aria-label="Fechar novo registro de SST"><HrIcon name="close"/></button></header><div className="sst-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label><label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as SstRecord["category"])}><option>Exame</option><option>Treinamento</option><option>EPI</option><option>Ocorrência</option></select></label><label><span>Obrigação ou registro *</span><input value={title} onChange={event=>setTitle(event.target.value)}/></label><label className="field-wide"><span>Vencimento ou prazo *</span><input type="date" value={dueDate} onChange={event=>setDueDate(event.target.value)}/></label><label className="field-wide"><span>Observação operacional *</span><textarea value={note} onChange={event=>setNote(event.target.value)} placeholder="Descreva somente informações necessárias ao acompanhamento..."/></label><div className="sst-form-note field-wide"><HrIcon name="lock"/><span><b>Não inclua diagnóstico ou resultado clínico</b><small>{persists?"O registro será gravado no banco; anexos clínicos terão armazenamento e permissão próprios.":"Registro demonstrativo enquanto não há conexão."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Salvar registro <HrIcon name="check"/></Button></footer></form></div>}
 
 function sstDueLabel(record:SstRecord){if(record.status==="Vencido")return"Prazo ultrapassado";if(record.status==="Conforme")return"Validade vigente";if(record.status==="Programado")return"Atividade agendada";return"Dentro da janela de atenção"}
 function sstTone(status:SstStatus):"success"|"attention"|"info"|"neutral"{return status==="Conforme"?"success":status==="Vencido"||status==="A vencer"?"attention":status==="Programado"?"info":"neutral"}
