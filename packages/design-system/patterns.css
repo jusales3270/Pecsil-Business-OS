@@ -1154,6 +1154,7 @@
 .cost-grid,
 .bank-grid,
 .report-area-grid,
+.finance-report-grid,
 .finance-indicator-grid,
 .metric-catalog-grid {
   display: grid;
@@ -3278,7 +3279,7 @@ label > textarea {
   .catalog-grid, .profile-grid, .scope-grid, .document-category-grid,
   .doc-category-grid, .hr-benefit-grid, .benefit-plan-grid,
   .persistence-grid, .homologation-grid, .cost-grid, .bank-grid,
-  .report-area-grid, .finance-indicator-grid, .metric-catalog-grid {
+  .report-area-grid, .finance-report-grid, .finance-indicator-grid, .metric-catalog-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -3294,7 +3295,7 @@ label > textarea {
   .ds-grid-2, .catalog-grid, .profile-grid, .scope-grid,
   .document-category-grid, .doc-category-grid, .hr-benefit-grid,
   .benefit-plan-grid, .persistence-grid, .homologation-grid,
-  .cost-grid, .bank-grid, .report-area-grid, .finance-indicator-grid,
+  .cost-grid, .bank-grid, .report-area-grid, .finance-report-grid, .finance-indicator-grid,
   .metric-catalog-grid, .entity-grid, .module-strip, .session-layout {
     grid-template-columns: minmax(0, 1fr);
   }
