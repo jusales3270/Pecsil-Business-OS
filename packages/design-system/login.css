@@ -1,0 +1,286 @@
+/* ============================================================================
+   Pecsil Business OS — Tela de login
+   Painel de acesso à esquerda, hero de marca à direita. Usa os tokens do
+   Design System; responde a tema claro/escuro como o restante da plataforma.
+   ============================================================================ */
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+}
+
+/* --- Painel de acesso ------------------------------------------------------ */
+
+.login-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--sp-6);
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: var(--sp-8) var(--sp-7);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.login-brand img {
+  width: 56px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.login-brand div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: var(--lh-tight);
+}
+
+.login-brand b {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.login-brand small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* --- Cabeçalho ------------------------------------------------------------- */
+
+.login-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.login-heading > span {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--accent-blue);
+}
+
+.login-heading h1 {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+
+.login-heading p {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: var(--lh-normal);
+  max-width: 42ch;
+}
+
+/* --- Formulário ------------------------------------------------------------ */
+
+.login-panel form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.login-panel form label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.login-panel form label span {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+.login-panel form input {
+  height: 44px;
+  padding: 0 var(--sp-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-md);
+  color: var(--text-primary);
+  transition: border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.login-panel form input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: var(--shadow-focus);
+}
+
+.login-panel form button {
+  height: 44px;
+  margin-top: var(--sp-2);
+  border: 1px solid var(--accent-blue);
+  border-radius: var(--radius-md);
+  background: var(--accent-blue);
+  color: var(--text-on-accent);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  transition: filter var(--dur-fast) var(--ease);
+}
+
+.login-panel form button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.login-panel form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-message {
+  font-size: var(--fs-sm);
+  color: var(--accent-red);
+}
+
+/* --- Estado da conexão ----------------------------------------------------- */
+
+.login-connection {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--edge-green);
+  border-radius: var(--radius-md);
+  background: var(--tint-green);
+}
+
+.login-connection.pending {
+  border-color: var(--edge-amber);
+  background: var(--tint-amber);
+}
+
+.login-connection > i {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 0 4px var(--tint-green);
+}
+
+.login-connection.pending > i {
+  background: var(--accent-amber);
+  box-shadow: 0 0 0 4px var(--tint-amber);
+}
+
+.login-connection span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.login-connection b {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.login-connection small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* --- Hero de marca (sempre escuro, é um painel de identidade) -------------- */
+
+.login-visual {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--sp-7);
+  padding: var(--sp-8);
+  background: linear-gradient(150deg, #2864ed, #1f2b52 65%, #111827);
+  color: #fff;
+}
+
+.login-visual::before {
+  content: "";
+  position: absolute;
+  top: -120px;
+  right: -120px;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.14), transparent 70%);
+  pointer-events: none;
+}
+
+.login-visual > div {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.login-visual > div > span {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.login-visual > div > span b {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  color: #fff;
+}
+
+.login-visual > div > span small {
+  font-size: var(--fs-xs);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.login-visual blockquote {
+  position: relative;
+  margin: 0;
+  max-width: 34ch;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tracking-tight);
+  color: #fff;
+}
+
+/* --- Responsivo ------------------------------------------------------------ */
+
+@media (max-width: 860px) {
+  .login-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Em telas estreitas o hero sai; o foco é o formulário. */
+  .login-visual {
+    display: none;
+  }
+
+  .login-panel {
+    max-width: 420px;
+    padding: var(--sp-7) var(--sp-5);
+    min-height: 100vh;
+  }
+}

@@ -6,14 +6,11 @@
 
      tokens   → cor, tipografia, espaço, raio (claro + escuro)
      base     → reset e comportamento dos elementos nativos
-     legacy   → telas ainda não convertidas (em extinção, ver o arquivo)
      shell    → barra lateral, cabeçalho, conteúdo
      patterns → vocabulário de produto: KPI, painel, callout, tabela, gráfico
+     login    → tela de login
 
-   shell e patterns vêm depois de legacy de propósito: o Design System vence
-   qualquer regra herdada sobre o mesmo seletor.
-
-   Estilo novo vai para patterns.css. Não para cá.
+   Estilo novo vai para patterns.css (ou login.css para a tela de login).
    ============================================================================ */
 
 @import "tailwindcss";
@@ -22,3 +19,4 @@
 @import "../packages/design-system/base.css";
 @import "../packages/design-system/shell.css";
 @import "../packages/design-system/patterns.css";
+@import "../packages/design-system/login.css";
