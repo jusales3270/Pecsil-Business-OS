@@ -1988,6 +1988,61 @@ small {
   overflow: hidden;
 }
 
+/* --- Colaboradores: faixa de indicadores (ícone + número + rótulo) ---------
+   Sem regra própria, os três cartões caíam em pilha e esticavam. Aqui viram
+   uma faixa de três colunas com layout horizontal compacto. */
+.employee-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+.employee-overview > .ds-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.employee-overview > .ds-card > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+}
+.employee-overview > .ds-card > span svg {
+  width: 20px;
+  height: 20px;
+}
+.employee-overview > .ds-card > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.employee-overview > .ds-card > div > strong {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  color: var(--text-primary);
+}
+.employee-overview > .ds-card > div > small {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/* Estado vazio dentro de .hr-bars: a regra de grade `.hr-bars > div` (0,1,1)
+   vencia o `.hr-empty` (0,1,0) e encavalava ícone+textos em colunas. Reafirma
+   o fluxo em coluna centralizada com especificidade maior. */
+.hr-bars > .hr-empty {
+  display: flex;
+}
+
 /* Ponto de notificação do cabeçalho: marcador sobre o ícone, não avatar.
    Precisa de especificidade maior que a regra genérica de <i>, que empata e
    venceria por ordem de importação. */
