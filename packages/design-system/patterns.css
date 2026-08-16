@@ -3311,3 +3311,458 @@ label > textarea {
   .ds-bar { grid-template-columns: minmax(0, 1fr) auto; }
   .ds-bar-track { grid-column: 1 / -1; }
 }
+
+/* ============================================================================
+   18. DRAWERS DE DETALHE (RH) — cabeçalho, corpo, listas e estatísticas
+   ----------------------------------------------------------------------------
+   Os painéis laterais do RH reaproveitam nomes de classe que o CSS legado
+   escreveu para o Financeiro, porém com markup diferente: cabeçalho com
+   ícone + selo de status, listas de etapas com marcador numérico, faixas de
+   estatística. Sem regra própria caíam em pilha e encavalavam (ver prints).
+   Todos os 7 drawers são `.employee-layer > aside`, o que dá um escopo limpo
+   que NUNCA atinge o Financeiro (`.finance-layer > .finance-detail`).
+   ============================================================================ */
+
+/* --- Contêiner e fluxo vertical -------------------------------------------- */
+.employee-layer > aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.employee-layer > aside > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+/* --- Cabeçalho: ícone · título (flex) · selo · fechar ---------------------- */
+.employee-layer > aside > header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+.employee-layer > aside > header > span:not([class]) {
+  order: 1;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+}
+.employee-layer > aside > header > span:not([class]) > svg { width: 20px; height: 20px; }
+.employee-layer > aside > header > .employee-avatar { order: 1; margin: 0; }
+.employee-layer > aside > header > div {
+  order: 2;
+  flex: 1;
+  min-width: 0;
+}
+.employee-layer > aside > header > div > h2 {
+  font-size: var(--fs-lg);
+  line-height: var(--lh-tight);
+  margin: 2px 0;
+}
+.employee-layer > aside > header > div > p:not(.eyebrow) {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.employee-layer > aside > header > .ds-status {
+  order: 3;
+  flex: 0 0 auto;
+  align-self: center;
+}
+.employee-layer > aside > header > button {
+  order: 4;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  align-self: flex-start;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+.employee-layer > aside > header > button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* --- Rodapé: ações alinhadas à direita ------------------------------------- */
+.employee-layer > aside > footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.employee-layer > aside > footer > select {
+  height: 40px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+}
+/* Botões secundários do rodapé (Fechar, Cancelar, Reprovar, Marcar revisado):
+   viram botões-fantasma com ícone e texto na mesma linha. */
+.employee-layer > aside > footer > button:not(.ds-button) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 40px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+}
+.employee-layer > aside > footer > button:not(.ds-button):hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.employee-layer > aside > footer > button:not(.ds-button) > svg {
+  width: 16px;
+  height: 16px;
+}
+/* Botões destrutivos (Reprovar) ganham tom de alerta */
+.employee-layer > aside > footer > .absence-reject,
+.employee-layer > aside > footer > .doc-reject {
+  border-color: var(--edge-red);
+  color: var(--accent-red);
+}
+.employee-layer > aside > footer > .absence-reject:hover,
+.employee-layer > aside > footer > .doc-reject:hover {
+  background: var(--tint-red);
+  color: var(--accent-red);
+}
+
+/* --- Callouts que faltavam na lista principal (linha ícone + texto) -------- */
+.report-insight,
+.journey-no-punch,
+.sst-sensitive-note,
+.doc-sensitive,
+.employee-document-health,
+.report-form-note,
+.journey-form-note {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--edge-blue);
+  background: var(--tint-blue);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+.journey-no-punch,
+.employee-document-health.pending {
+  border-color: var(--edge-amber);
+  background: var(--tint-amber);
+}
+.sst-sensitive-note,
+.doc-sensitive {
+  border-color: var(--border-subtle);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+/* Texto interno de qualquer callout: ícone fixo + bloco em coluna */
+.employee-callout > span,
+.journey-warning > span,
+.doc-warning > span,
+.sst-alert > span,
+.absence-conflict > span,
+.benefit-security-note > span,
+.journey-audit-note > span,
+.report-insight > span,
+.journey-no-punch > span,
+.sst-sensitive-note > span,
+.doc-sensitive > span,
+.employee-document-health > span,
+.report-form-note > span,
+.journey-form-note > span,
+.employee-form-note > span,
+.journey-form-note > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.employee-callout > svg,
+.journey-warning > svg,
+.doc-warning > svg,
+.sst-alert > svg,
+.absence-conflict > svg,
+.benefit-security-note > svg,
+.journey-audit-note > svg,
+.report-insight > svg,
+.journey-no-punch > svg,
+.sst-sensitive-note > svg,
+.doc-sensitive > svg,
+.employee-document-health > svg,
+.report-form-note > svg,
+.journey-form-note > svg,
+.employee-form-note > svg {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+}
+
+/* --- Listas de etapas / histórico (marcador + texto [+ check]) ------------- */
+.absence-workflow,
+.journey-timeline,
+.employee-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.absence-workflow > h3,
+.journey-timeline > h3 {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+}
+.absence-workflow > div,
+.journey-timeline > div,
+.employee-history > div {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.absence-workflow > div > i,
+.journey-timeline > div > i,
+.employee-history > div > i {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 50%;
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  font-style: normal;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  overflow: visible;
+}
+.absence-workflow > div > span,
+.journey-timeline > div > span,
+.employee-history > div > span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.journey-timeline > div > svg {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--accent-green);
+}
+
+/* --- Faixas de estatística em 3 colunas ------------------------------------ */
+.journey-day-summary,
+.benefit-drawer-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.journey-day-summary > span,
+.benefit-drawer-stats > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.journey-day-summary > span > small,
+.benefit-drawer-stats > span > small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.journey-day-summary > span > b,
+.benefit-drawer-stats > span > b {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+.journey-day-summary > span > b.positive { color: var(--accent-green); }
+.journey-day-summary > span > b.negative { color: var(--accent-red); }
+
+/* --- SST: faixa de vencimento (label + selo) ------------------------------- */
+.sst-deadline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.sst-deadline > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sst-deadline > span > small { font-size: var(--fs-xs); color: var(--text-muted); }
+.sst-deadline > span > b { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+
+/* --- Colaborador: destaque de matrícula/admissão --------------------------- */
+.employee-highlight {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.employee-highlight > span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+}
+.employee-highlight > span > svg { width: 20px; height: 20px; }
+.employee-highlight > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.employee-highlight > div > small { font-size: var(--fs-xs); color: var(--text-muted); }
+.employee-highlight > div > strong { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+
+/* --- Colaborador: linha de documento (ícone + nome + selo) ----------------- */
+.employee-document-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.employee-document-row > span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+}
+.employee-document-row > span > svg { width: 18px; height: 18px; }
+.employee-document-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* --- Relatório (RH): resumo executivo em coluna (sobrepõe grade do Financeiro) */
+.report-drawer .report-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  grid-template-columns: none;
+  padding: var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.report-drawer .report-summary > small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-micro);
+}
+.report-drawer .report-summary > strong {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-snug);
+}
+
+/* --- Ausências: período (início → término · dias) -------------------------- */
+.absence-period > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.absence-period > div > small { font-size: var(--fs-xs); color: var(--text-muted); }
+.absence-period > div > strong { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+.absence-period > svg { flex: 0 0 auto; color: var(--text-muted); }
+.absence-period > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: auto;
+  text-align: right;
+}
+.absence-period > span > b {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+.absence-period > span > small { font-size: var(--fs-xs); color: var(--text-muted); }
+
+/* --- Benefícios: cartão de custo (dois valores + barra) -------------------- */
+.benefit-cost-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.benefit-cost-card > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.benefit-cost-card > div > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.benefit-cost-card > div > span > small { font-size: var(--fs-xs); color: var(--text-muted); }
+.benefit-cost-card > div > span > b {
+  font-family: var(--font-mono);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+.benefit-cost-card > i {
+  display: block;
+  width: auto;
+  height: 8px;
+  flex: initial;
+  border-radius: var(--radius-pill);
+  background: var(--data-track);
+  overflow: hidden;
+}
+.benefit-cost-card > i > em {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent-blue);
+}
+.benefit-cost-card > p { font-size: var(--fs-xs); color: var(--text-muted); }
