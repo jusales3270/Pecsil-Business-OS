@@ -2098,11 +2098,14 @@ i.info                 { background: var(--accent-blue); }
   padding: var(--sp-4);
 }
 
-/* Linha de conteúdo dentro de um cartão: ícone · texto · selo · seta. */
+/* Linha de conteúdo dentro de um cartão: ícone · texto · selo · seta.
+   Os `:not()` protegem barras de controle dentro do cartão — cabeçalho
+   (.card-head/.ds-panel-head) e filtros segmentados (.notification-filter):
+   seus botões são ações/abas, não linhas de lista de largura total. */
 .ds-card > button,
 .ds-card > section,
 .ds-card > article,
-.ds-card > div > button {
+.ds-card > div:not(.card-head):not(.ds-panel-head):not(.notification-filter) > button {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
@@ -2438,6 +2441,15 @@ label > textarea {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+}
+/* Indicador de "não lida": ponto azul, não a caixa-avatar do <i> genérico. */
+.notice-main > i {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  overflow: visible;
 }
 
 .search-results > button > span:nth-child(2),
