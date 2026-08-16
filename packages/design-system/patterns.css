@@ -1709,6 +1709,285 @@ small {
   overflow: visible;
 }
 
+/* ============================================================================
+   17. SEÇÕES NÃO CONVERTIDAS — Ponto, Relatórios, Homologação
+   ----------------------------------------------------------------------------
+   Estas telas ainda usam markup próprio, cujo CSS específico saiu com o legado.
+   A gramática genérica não cobre seus <i> especiais (chips de hora, barras de
+   gráfico, pontos de legenda, marcadores de checklist), que a regra de avatar
+   transformava em caixas azuis. Aqui cada um recebe a forma certa.
+   ============================================================================ */
+
+/* --- Ponto e jornada: chips de marcação (hora completa) -------------------- */
+.journey-punches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.journey-punches > i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  min-width: 56px;
+  flex: 0 0 auto;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  font-style: normal;
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  overflow: visible;
+}
+.journey-punches > small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* --- Relatórios: cabeçalho com duas ações lado a lado ---------------------- */
+.report-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+}
+.report-head-actions > button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 38px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+/* Primeiro botão = exportar (secundário), segundo = novo (primário) */
+.report-head-actions > button:first-child {
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+.report-head-actions > button:first-child:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.report-head-actions > button:last-child {
+  border: 1px solid var(--accent-blue);
+  background: var(--accent-blue);
+  color: var(--text-on-accent);
+}
+.report-head-actions > button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* --- Relatórios: gráfico de colunas por mês -------------------------------- */
+.report-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: 210px;
+  padding-top: var(--sp-4);
+}
+.report-chart > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1;
+}
+.report-chart .chart-columns {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 160px;
+}
+.report-chart .chart-columns > i,
+.report-chart .chart-columns > em {
+  display: block;
+  width: 16px;
+  min-height: 4px;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  overflow: visible;
+}
+.report-chart .chart-columns > i { background: var(--data-1); }
+.report-chart .chart-columns > em { background: var(--data-6); }
+.report-chart > div > b {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* --- Relatórios: legenda (pontos coloridos) -------------------------------- */
+.report-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.report-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.report-legend i,
+.report-legend em {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  min-height: 0;
+  border-radius: 3px;
+  overflow: visible;
+}
+.report-legend i { background: var(--data-1); }
+.report-legend em { background: var(--data-6); }
+
+/* --- Relatórios: distribuição por área (cartões com barra) ----------------- */
+.report-area-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+.report-area-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.report-area-grid > div > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.report-area-grid > div > i {
+  display: block;
+  width: auto;
+  height: 8px;
+  flex: initial;
+  border-radius: var(--radius-pill);
+  background: var(--data-track);
+  overflow: hidden;
+}
+.report-area-grid > div > i > em {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent-blue);
+}
+.report-area-grid > div > strong {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+/* --- Homologação: grade principal e checklist ------------------------------ */
+.homologation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sp-5);
+}
+
+/* Itens de cobertura: marcador de "conforme" (círculo verde, não avatar) */
+.homologation-checks > div:not(.card-head) {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.homologation-checks > div:not(.card-head) > i {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  border-radius: 50%;
+  background: var(--tint-green);
+  color: var(--accent-green);
+  font-size: var(--fs-xs);
+  font-style: normal;
+  overflow: visible;
+}
+.homologation-checks > div:not(.card-head) > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Integrações homologadas: linhas com ícone + texto + selo */
+.homologation-services > div {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.homologation-services > div > span:first-child,
+.homologation-services > div > svg {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+}
+.homologation-services > div > span:not(:first-child) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Matriz de comportamento por perfil: grade de colunas */
+.homologation-access-table > div,
+.homologation-access-table > section {
+  display: grid;
+  grid-template-columns: 180px 170px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+}
+.homologation-access-table > div {
+  background: var(--bg-subtle);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.homologation-access-table > section {
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--fs-sm);
+}
+.homologation-access-table > section > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.homologation-access-table {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
 /* Ponto de notificação do cabeçalho: marcador sobre o ícone, não avatar.
    Precisa de especificidade maior que a regra genérica de <i>, que empata e
    venceria por ordem de importação. */
@@ -2361,19 +2640,16 @@ label > textarea {
    Markup recorrente: <div><span>rótulo+meta</span><i><em/></i><strong>valor</strong></div>
    O <i> é o trilho e o <em> é o preenchimento. */
 .hr-bars,
-.chart-columns,
 .calendar-rows,
 .benefit-coverage,
 .absence-balance,
-.sst-risk,
-.report-chart {
+.sst-risk {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
 }
 
 .hr-bars > div,
-.chart-columns > div,
 .calendar-rows > div,
 .benefit-coverage > div,
 .absence-balance > div,
@@ -2385,7 +2661,6 @@ label > textarea {
 }
 
 .hr-bars > div > span:first-child,
-.chart-columns > div > span:first-child,
 .benefit-coverage > div > span:first-child,
 .absence-balance > div > span:first-child,
 .sst-risk > div > span:first-child {
@@ -2396,7 +2671,6 @@ label > textarea {
 }
 
 .hr-bars i,
-.chart-columns i,
 .calendar-rows i,
 .benefit-coverage i,
 .absence-balance i,
@@ -2409,7 +2683,6 @@ label > textarea {
 }
 
 .hr-bars em,
-.chart-columns em,
 .calendar-rows em,
 .benefit-coverage em,
 .absence-balance em,
@@ -2421,7 +2694,6 @@ label > textarea {
 }
 
 .hr-bars strong,
-.chart-columns strong,
 .calendar-rows strong,
 .benefit-coverage strong,
 .absence-balance strong,
