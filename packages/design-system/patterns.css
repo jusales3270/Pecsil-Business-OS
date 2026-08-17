@@ -964,9 +964,14 @@
   gap: 2px;
 }
 
+.ds-donut-center {
+  /* Não deixa o número/legenda encostar no anel: limita ao furo interno. */
+  max-width: 68%;
+}
+
 .ds-donut-center strong {
   font-family: var(--font-mono);
-  font-size: var(--fs-metric);
+  font-size: var(--fs-metric-sm);
   font-weight: var(--fw-semibold);
   line-height: 1;
   letter-spacing: var(--tracking-tight);
