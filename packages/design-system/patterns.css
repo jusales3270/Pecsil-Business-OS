@@ -2108,7 +2108,7 @@ i.info                 { background: var(--accent-blue); }
 .ds-card > button,
 .ds-card > section,
 .ds-card > article,
-.ds-card > div:not(.card-head):not(.ds-panel-head):not(.notification-filter):not(.journey-table):not(.doc-table):not(.sst-record-table):not(.absence-table):not(.benefit-request-table):not(.report-list):not(.hr-people-table):not(.people-table):not(.document-table) > button {
+.ds-card > div:not(.card-head):not(.ds-panel-head):not(.notification-filter):not(.journey-table):not(.doc-table):not(.sst-record-table):not(.absence-table):not(.benefit-request-table):not(.report-list):not(.hr-people-table):not(.people-table):not(.document-table):not(.journey-bank-list) > button {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
@@ -3125,6 +3125,38 @@ label > textarea {
 .benefit-request-table > button > svg,
 .report-list > button > svg {
   justify-self: center;
+}
+
+/* Banco de horas: grade avatar · texto · saldo · selo (o flex deixava o selo
+   de largura variável deslocar saldo e selo entre linhas; a grade fixa
+   alinha, com o selo abraçando o texto via justify-self). */
+.journey-bank-list > button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 100px 116px 20px;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  background: transparent;
+  text-align: left;
+}
+.journey-bank-list > button:hover { background: var(--bg-hover); }
+.journey-bank-list > button > svg { justify-self: center; }
+.journey-bank-list > button > span:not(.ds-status) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.journey-bank-list > button > strong {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.journey-bank-list > button > .ds-status {
+  justify-self: start;
 }
 
 .absence-table-head > *:not(i):not(svg):not(.ds-status),
