@@ -61,7 +61,7 @@ export async function getSupabaseFoundationSnapshot(): Promise<FoundationSnapsho
     source: "supabase",
     organization: {
       id: organizationId,
-      name: String(organizationResult.data.display_name ?? "Pecsil"),
+      name: String(organizationResult.data?.display_name ?? "Pecsil"),
     },
     summary: {
       employees: employeeCountResult.count ?? employees.length,
