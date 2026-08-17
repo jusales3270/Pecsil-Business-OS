@@ -837,7 +837,9 @@
 .absence-table > button,
 .doc-table > button,
 .journey-table > button,
-.sst-record-table > button {
+.sst-record-table > button,
+.benefit-request-table > button,
+.report-list > button {
   width: 100%;
   padding: var(--sp-3) var(--sp-4);
   border: none;
@@ -2106,7 +2108,7 @@ i.info                 { background: var(--accent-blue); }
 .ds-card > button,
 .ds-card > section,
 .ds-card > article,
-.ds-card > div:not(.card-head):not(.ds-panel-head):not(.notification-filter) > button {
+.ds-card > div:not(.card-head):not(.ds-panel-head):not(.notification-filter):not(.journey-table):not(.doc-table):not(.sst-record-table):not(.absence-table):not(.benefit-request-table):not(.report-list):not(.hr-people-table):not(.people-table):not(.document-table) > button {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
@@ -2318,14 +2320,14 @@ label > textarea {
 .finance-table > .head,
 .finance-table > .row {
   display: grid;
-  grid-template-columns: minmax(180px, 2fr) 110px minmax(120px, 1fr) 130px 120px auto;
+  grid-template-columns: minmax(180px, 2fr) 110px minmax(120px, 1fr) 130px 132px 132px;
   align-items: center;
   gap: var(--sp-3);
 }
 
 .finance-table.receivable > .head,
 .finance-table.receivable > .row {
-  grid-template-columns: minmax(180px, 2fr) 110px 130px 130px 120px auto;
+  grid-template-columns: minmax(180px, 2fr) 110px 130px 130px 132px 132px;
 }
 
 .finance-table > .row {
@@ -3076,21 +3078,53 @@ label > textarea {
    para qualquer número de colunas: a primeira é mais larga, as demais iguais.
    ---------------------------------------------------------------------------- */
 
-.absence-table-head,
-.absence-table > button,
-.doc-table-head,
-.doc-table > button,
+/* Tabelas de linha do RH: grade fixa em vez de flex.
+   Com flex, o selo de situação (.ds-status) tinha largura variável por linha
+   e as células flexíveis absorviam a diferença, desalinhando as colunas de
+   forma cumulativa entre linhas e contra o cabeçalho. A grade dá trilhos
+   iguais em toda linha; o selo continua "abraçando" o texto via justify-self. */
 .journey-table-head,
 .journey-table > button,
+.doc-table-head,
+.doc-table > button,
 .sst-record-head,
-.sst-record-table > button,
-.benefit-request-table > button,
-.homologation-access-table > *,
-.report-list-head,
-.report-list > button {
-  display: flex;
+.sst-record-table > button {
+  display: grid;
+  grid-template-columns:
+    minmax(150px, 1.9fr) minmax(110px, 1.2fr) minmax(130px, 1.4fr) minmax(90px, 1fr) 116px 20px;
   align-items: center;
   gap: var(--sp-4);
+}
+
+.absence-table-head,
+.absence-table > button,
+.benefit-request-head,
+.benefit-request-table > button,
+.report-list-head,
+.report-list > button {
+  display: grid;
+  grid-template-columns:
+    minmax(160px, 2fr) minmax(140px, 1.5fr) minmax(110px, 1.1fr) 116px 20px;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+/* O selo de situação abraça o texto (não estica no trilho) e a seta centraliza. */
+.journey-table > button > .ds-status,
+.doc-table > button > .ds-status,
+.sst-record-table > button > .ds-status,
+.absence-table > button > .ds-status,
+.benefit-request-table > button > .ds-status,
+.report-list > button > .ds-status {
+  justify-self: start;
+}
+.journey-table > button > svg,
+.doc-table > button > svg,
+.sst-record-table > button > svg,
+.absence-table > button > svg,
+.benefit-request-table > button > svg,
+.report-list > button > svg {
+  justify-self: center;
 }
 
 .absence-table-head > *:not(i):not(svg):not(.ds-status),
