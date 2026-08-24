@@ -13,7 +13,11 @@ type Row = Record<string, unknown>;
 export async function getSupabaseFoundationSnapshot(): Promise<FoundationSnapshot> {
   const supabase = await createSupabaseServerClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError || !authData.user) throw new Error("UNAUTHENTICATED");
+  // Erro do Auth (timeout/rede/servidor fora) é TRANSITÓRIO, não "sem sessão":
+  // vira 503 (modo demonstrativo), não 401 — assim um pisco do Supabase não
+  // expulsa um usuário que está de fato logado.
+  if (authError) throw new Error("AUTH_UNAVAILABLE");
+  if (!authData.user) throw new Error("UNAUTHENTICATED");
 
   const profileResult = await supabase
     .from("profiles")

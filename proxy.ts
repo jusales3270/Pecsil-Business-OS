@@ -38,7 +38,15 @@ export async function proxy(request: NextRequest) {
   });
 
   // Revalida e renova a sessão (grava os cookies atualizados na resposta).
-  await supabase.auth.getUser();
+  // Se o Supabase estiver temporariamente indisponível (timeout/rede), NÃO
+  // derruba o usuário: segue com os cookies existentes; a revalidação ocorre
+  // no próximo request. Sem este try/catch, uma queda do backend estouraria a
+  // página (500) e/ou expulsaria o usuário logado.
+  try {
+    await supabase.auth.getUser();
+  } catch {
+    return NextResponse.next({ request });
+  }
 
   return supabaseResponse;
 }
