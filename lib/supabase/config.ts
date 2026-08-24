@@ -6,6 +6,22 @@ export const SUPABASE_ENV_KEYS = {
 } as const;
 
 /**
+ * O Next.js só substitui `process.env.NEXT_PUBLIC_*` no bundle do navegador
+ * quando o acesso é ESTÁTICO (nome literal). Um acesso dinâmico
+ * `process.env[nome]` não é embutido no client e vira `undefined` no navegador
+ * — foi o que quebrava o login após migrar do vinext (que expunha `process.env`
+ * inteiro) para o Next padrão. Por isso os públicos são referenciados por nome
+ * literal aqui; o server-only (service role) fica no acesso dinâmico, lido só em
+ * runtime no servidor e nunca embutido no navegador.
+ */
+const STATIC_PUBLIC_ENV: Record<string, string | undefined> = {
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+};
+
+/**
  * Lê uma variável tratando string vazia como ausente.
  *
  * O `.env.example` instrui a deixar em branco a chave que não se aplica —
@@ -14,7 +30,8 @@ export const SUPABASE_ENV_KEYS = {
  * navegador reportaria "Supabase não configurado" mesmo com tudo preenchido.
  */
 function readEnv(name: string): string | undefined {
-  const value = process.env[name];
+  const value =
+    name in STATIC_PUBLIC_ENV ? STATIC_PUBLIC_ENV[name] : process.env[name];
   return value && value.trim() !== "" ? value : undefined;
 }
 
