@@ -2271,7 +2271,8 @@ i.info                 { background: var(--accent-blue); }
 .doc-form-fields,
 .journey-form-fields,
 .sst-form-fields,
-.report-form-fields {
+.report-form-fields,
+.user-admin-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-4);
@@ -2284,13 +2285,138 @@ i.info                 { background: var(--accent-blue); }
 .doc-form-fields label,
 .journey-form-fields label,
 .sst-form-fields label,
-.report-form-fields label {
+.report-form-fields label,
+.user-admin-fields label {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
   font-size: var(--fs-sm);
   color: var(--text-secondary);
   min-width: 0;
+}
+
+/* ============================================================================
+   Gestão de usuários (Pessoas e Acessos → Usuários)
+   ============================================================================ */
+.user-admin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.user-admin-toolbar > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.user-admin-toolbar b {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+.user-admin-toolbar small {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.user-admin-head,
+.user-admin-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 2fr) minmax(120px, 1fr) minmax(120px, 1fr) 116px;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+}
+.user-admin-head {
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.user-admin-row {
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--fs-sm);
+}
+.user-admin-row > .ds-status {
+  justify-self: start;
+}
+.user-admin-person {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.user-admin-person > i {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  font-style: normal;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+}
+.user-admin-person > span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.user-admin-person b {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+.user-admin-person small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.user-admin-empty {
+  padding: var(--sp-6) var(--sp-4);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.user-admin-denied {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  align-items: center;
+  text-align: center;
+  padding: var(--sp-8) var(--sp-5);
+}
+.user-admin-denied b { font-size: var(--fs-md); }
+.user-admin-denied small { font-size: var(--fs-sm); color: var(--text-muted); }
+
+.user-admin-note {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--edge-blue);
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+}
+.user-admin-note > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.user-admin-note b { font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.user-admin-note small { font-size: var(--fs-xs); color: var(--text-muted); }
+.user-admin-error {
+  grid-column: 1 / -1;
+  font-size: var(--fs-sm);
+  color: var(--accent-red);
 }
 
 .finance-form-fields input,
