@@ -208,7 +208,9 @@
   flex-direction: column;
   justify-content: flex-end;
   padding: var(--sp-8);
-  background: #0b1329;
+  /* Fundo da marca — visível quando não há vídeo configurado
+     (NEXT_PUBLIC_LOGIN_VIDEO_URL). Com vídeo, ele sobrepõe este gradiente. */
+  background: linear-gradient(150deg, #2864ed 0%, #1f2b52 60%, #0b1329 100%);
   color: #fff;
 }
 

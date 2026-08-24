@@ -93,15 +93,11 @@ export default function LoginPage() {
       </section>
 
       <aside className="login-visual">
-        <video
-          className="login-video-bg"
-          autoPlay
-          loop
-          muted
-          playsInline
-        >
-          <source src="/pecsil-video.mp4" type="video/mp4" />
-        </video>
+        {process.env.NEXT_PUBLIC_LOGIN_VIDEO_URL ? (
+          <video className="login-video-bg" autoPlay loop muted playsInline>
+            <source src={process.env.NEXT_PUBLIC_LOGIN_VIDEO_URL} type="video/mp4" />
+          </video>
+        ) : null}
         <div className="login-video-overlay" />
         <div className="login-visual-content">
           <div>

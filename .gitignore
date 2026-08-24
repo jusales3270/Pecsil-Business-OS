@@ -42,3 +42,7 @@ next-env.d.ts
 /outputs/
 /work/
 tsconfig.tsbuildinfo
+
+# Vídeo de login: servido por storage/CDN via NEXT_PUBLIC_LOGIN_VIDEO_URL, não versionado
+public/pecsil-video.mp4
+*.mp4
