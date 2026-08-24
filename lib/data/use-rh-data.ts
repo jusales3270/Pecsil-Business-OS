@@ -21,14 +21,18 @@ export function useRhData(): RhDataState {
 
     async function loadRh() {
       try {
-        const response = await fetch("/api/rh", { cache:"no-store", signal:controller.signal });
+        const response = await fetch("/api/rh", { cache: "no-store", signal: controller.signal });
         if (response.status === 401) {
-          window.location.assign("/login");
+          setState({
+            snapshot: demoRhSnapshot,
+            loading: false,
+            error: "Sessão não autorizada para o módulo de RH; exibindo base demonstrativa.",
+          });
           return;
         }
         if (!response.ok) throw new Error("RH_UNAVAILABLE");
         const snapshot = (await response.json()) as RhSnapshot;
-        setState({ snapshot, loading:false, error:null });
+        setState({ snapshot, loading: false, error: null });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         setState({

@@ -924,8 +924,65 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
 }
 
 function BenefitParticipants({plans,notify}:{plans:BenefitPlan[];notify:(message:string)=>void}) {
-  const participants=[["Mariana Costa","MC","Recursos Humanos","Assistência médica · Seguro de vida","Ativo"],["Lucas Martins","LM","Produção","Alimentação · Saúde · Transporte","Atualização pendente"],["Camila Ferreira","CF","Qualidade","Alimentação · Saúde · Seguro","Ativo"],["Ana Souza","AS","Administrativo","Alimentação · Seguro","Adesão pendente"],["Ricardo Alves","RA","Produção","Todos os benefícios elegíveis","Ativo"]];
-  return <Card className="benefit-participant-card"><div className="card-head"><div><p className="eyebrow">ADESÕES ATUAIS</p><h2>Participantes por benefício</h2><p>{plans.reduce((sum,plan)=>sum+plan.members,0)} vínculos ativos no catálogo</p></div><label className="benefit-search"><HrIcon name="search"/><input placeholder="Buscar colaborador..." onChange={()=>{}}/></label></div><div className="benefit-participant-list">{participants.map(([name,initials,area,coverage,status])=><button key={name} onClick={()=>notify(`${name}: ficha de benefícios aberta.`)}><i>{initials}</i><span><b>{name}</b><small>{area}</small></span><span><b>{coverage}</b><small>Vigência atual</small></span><Status tone={status==="Ativo"?"success":"attention"}>{status}</Status><HrIcon name="arrow"/></button>)}</div></Card>;
+  const [search, setSearch] = useState("");
+  const participants = [
+    ["Mariana Costa","MC","Recursos Humanos","Assistência médica · Seguro de vida","Ativo"],
+    ["Lucas Martins","LM","Produção","Alimentação · Saúde · Transporte","Atualização pendente"],
+    ["Camila Ferreira","CF","Qualidade","Alimentação · Saúde · Seguro","Ativo"],
+    ["Ana Souza","AS","Administrativo","Alimentação · Seguro","Adesão pendente"],
+    ["Ricardo Alves","RA","Produção","Todos os benefícios elegíveis","Ativo"],
+  ];
+  const filtered = participants.filter(([name, _, area, coverage]) =>
+    `${name} ${area} ${coverage}`.toLowerCase().includes(search.toLowerCase())
+  );
+  const totalMembers = plans.reduce((sum,plan)=>sum+plan.members,0);
+  const membersCount = totalMembers > 0 ? totalMembers : participants.length;
+
+  return (
+    <Card className="benefit-participant-card">
+      <div className="card-head">
+        <div>
+          <p className="eyebrow">ADESÕES ATUAIS</p>
+          <h2>Participantes por benefício</h2>
+          <p>{membersCount} vínculos ativos no catálogo</p>
+        </div>
+        <label className="benefit-search">
+          <HrIcon name="search"/>
+          <input
+            value={search}
+            placeholder="Buscar colaborador..."
+            onChange={event => setSearch(event.target.value)}
+          />
+        </label>
+      </div>
+      <div className="benefit-participant-table">
+        <div className="benefit-participant-head">
+          <span>Colaborador</span>
+          <span>Benefícios vinculados</span>
+          <span>Situação</span>
+          <span />
+        </div>
+        {filtered.map(([name,initials,area,coverage,status]) => (
+          <button key={name} onClick={()=>notify(`${name}: ficha de benefícios aberta.`)}>
+            <span className="benefit-participant-person">
+              <i>{initials}</i>
+              <span><b>{name}</b><small>{area}</small></span>
+            </span>
+            <span><b>{coverage}</b><small>Vigência atual</small></span>
+            <Status tone={status==="Ativo"?"success":"attention"}>{status}</Status>
+            <HrIcon name="arrow"/>
+          </button>
+        ))}
+        {!filtered.length && (
+          <div className="hr-empty">
+            <HrIcon name="search" size={24}/>
+            <b>Nenhum colaborador encontrado</b>
+            <small>Ajuste a busca por nome ou área.</small>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
 }
 
 function BenefitPolicies(){return <div className="benefit-policy-grid">{[["Elegibilidade","Vínculo ativo","Cada plano valida categoria, unidade e tipo de contrato.","users"],["Movimentações","Até o dia 20","Solicitações aprovadas entram na competência seguinte.","calendar"],["Dependentes","Documentação obrigatória","Inclusões exigem comprovação e validação do RH.","file"],["Proteção de dados","Acesso restrito","Informações de saúde seguem escopo sensível e auditável.","shield"]].map(([title,rule,description,icon])=><Card key={title}><span><HrIcon name={icon}/></span><div><h2>{title}</h2><strong>{rule}</strong><p>{description}</p></div></Card>)}</div>}

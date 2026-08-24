@@ -1274,20 +1274,26 @@
   align-items: center;
   gap: var(--sp-2);
   height: 38px;
-  min-width: 260px;
+  width: 280px;
+  max-width: 100%;
   padding: 0 var(--sp-3);
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-muted);
+  flex-shrink: 0;
 }
 
-.inline-search:focus-within {
+.inline-search:focus-within,
+.doc-search:focus-within,
+.benefit-search:focus-within {
   border-color: var(--accent-blue);
   box-shadow: var(--shadow-focus);
 }
 
-.inline-search input {
+.inline-search input,
+.doc-search input,
+.benefit-search input {
   flex: 1;
   min-width: 0;
   border: none;
@@ -1308,13 +1314,43 @@
 .report-list-toolbar {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  justify-content: space-between;
+  gap: var(--sp-4);
   flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
 }
 
-.table-tools > div:first-child { margin-right: auto; }
-.table-tools h2 { font-size: var(--fs-lg); margin-bottom: var(--sp-1); }
-.table-tools p { font-size: var(--fs-sm); color: var(--text-muted); }
+.table-tools > div:first-child,
+.hr-tools > div:first-child,
+.finance-toolbar > div:first-child,
+.absence-toolbar > div:first-child,
+.doc-toolbar > div:first-child,
+.journey-toolbar > div:first-child,
+.benefit-request-toolbar > div:first-child,
+.sst-record-toolbar > div:first-child,
+.report-list-toolbar > div:first-child {
+  margin-right: auto;
+}
+
+.table-tools h2,
+.journey-toolbar h2,
+.benefit-request-toolbar h2,
+.absence-toolbar h2,
+.sst-record-toolbar h2,
+.report-list-toolbar h2 {
+  font-size: var(--fs-lg);
+  margin-bottom: var(--sp-1);
+}
+
+.table-tools p,
+.journey-toolbar p,
+.benefit-request-toolbar p,
+.absence-toolbar p,
+.sst-record-toolbar p,
+.report-list-toolbar p {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
 
 .search-hero {
   display: grid;
@@ -1563,14 +1599,54 @@ small {
 }
 
 /* Rótulo antes de um controle (ex.: "Status" + <select>) fica na horizontal. */
-:where(label, .report-context, .journey-toolbar, .absence-toolbar):has(> select) {
-  display: flex;
+:where(label, .report-context, .journey-toolbar, .absence-toolbar, .benefit-request-toolbar, .sst-record-toolbar):has(> select) {
+  display: inline-flex;
   flex-direction: row;
   align-items: center;
   gap: var(--sp-2);
   font-size: var(--fs-sm);
   color: var(--text-muted);
   white-space: nowrap;
+  background: transparent;
+  border: none;
+  padding: 0;
+  height: auto;
+  flex: 0 0 auto;
+}
+
+.report-context {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.report-context > span,
+.report-context-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.report-context > span > svg,
+.report-context-scope > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent-blue);
+}
+
+.report-context > span > b,
+.report-context-scope > b {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
 }
 
 /* Marcação de ponto e legendas: itens lado a lado, com respiro. */
@@ -2423,12 +2499,37 @@ i.info                 { background: var(--accent-blue); }
 .finance-form-fields select,
 .employee-fields input,
 .employee-fields select,
+.doc-form-fields input,
+.doc-form-fields select,
+.journey-form-fields input,
+.journey-form-fields select,
+.sst-form-fields input,
+.sst-form-fields select,
+.report-form-fields input,
+.report-form-fields select,
+.benefit-form-fields input,
+.benefit-form-fields select,
+.user-admin-fields input,
+.user-admin-fields select,
 label > input,
 label > select,
 label > textarea {
   height: 38px;
   padding: 0 var(--sp-3);
   font-size: var(--fs-sm);
+}
+
+select,
+label > select,
+.finance-form-fields select,
+.employee-fields select,
+.doc-form-fields select,
+.journey-form-fields select,
+.sst-form-fields select,
+.report-form-fields select,
+.benefit-form-fields select,
+.user-admin-fields select {
+  padding-right: 34px;
 }
 
 .field-wide {
@@ -2531,17 +2632,27 @@ label > textarea {
   overflow: hidden;
 }
 
-/* Listas de linhas com grade própria (pessoas, documentos, auditoria). */
+/* Listas de linhas com grade própria (pessoas, documentos, benefícios, RH). */
 .people-header,
 .people-table > button,
 .document-header,
 .document-table > button,
 .hr-table-header,
-.hr-people-table > button {
+.hr-people-table > button,
+.benefit-participant-head,
+.benefit-participant-table > button,
+.benefit-participant-list > button {
   display: grid;
   align-items: center;
   gap: var(--sp-3);
-  grid-template-columns: minmax(180px, 1.6fr) minmax(140px, 1fr) 120px 110px auto;
+  grid-template-columns: minmax(180px, 1.8fr) minmax(160px, 1.5fr) 110px 24px;
+}
+
+.benefit-participant-person {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
 }
 
 .person-cell,
@@ -3386,14 +3497,15 @@ label > textarea {
    Barras de ferramenta com busca: o campo cresce, o filtro não.
    ---------------------------------------------------------------------------- */
 
-.finance-toolbar > label,
-.hr-tools > label,
-.absence-toolbar > label,
-.doc-toolbar > label,
-.journey-toolbar > label,
-.sst-record-toolbar > label,
-.benefit-request-toolbar > label,
-.report-list-toolbar > label {
+.finance-toolbar > label:has(> input),
+.hr-tools > label:has(> input),
+.absence-toolbar > label:has(> input),
+.doc-toolbar > label:has(> input),
+.journey-toolbar > label:has(> input),
+.sst-record-toolbar > label:has(> input),
+.benefit-request-toolbar > label:has(> input),
+.report-list-toolbar > label:has(> input),
+.benefit-search {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -3407,10 +3519,11 @@ label > textarea {
   color: var(--text-muted);
 }
 
-.finance-toolbar > label:focus-within,
-.hr-tools > label:focus-within,
-.absence-toolbar > label:focus-within,
-.doc-toolbar > label:focus-within {
+.finance-toolbar > label:has(> input):focus-within,
+.hr-tools > label:has(> input):focus-within,
+.absence-toolbar > label:has(> input):focus-within,
+.doc-toolbar > label:has(> input):focus-within,
+.benefit-search:focus-within {
   border-color: var(--accent-blue);
   box-shadow: var(--shadow-focus);
 }
@@ -3421,7 +3534,8 @@ label > textarea {
 .doc-toolbar > label > input,
 .journey-toolbar > label > input,
 .sst-record-toolbar > label > input,
-.report-list-toolbar > label > input {
+.report-list-toolbar > label > input,
+.benefit-search > input {
   flex: 1;
   min-width: 0;
   height: 100%;
@@ -3430,6 +3544,15 @@ label > textarea {
   background: transparent;
   font-size: var(--fs-sm);
   color: var(--text-primary);
+}
+
+.journey-toolbar-filters,
+.benefit-request-toolbar-filters,
+.journey-toolbar > div:last-child:not(:first-child) {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
 }
 
 /* Rótulo solto antes de um select numa barra de ferramentas. */
@@ -3534,15 +3657,27 @@ label > textarea {
    ============================================================================ */
 
 /* --- Contêiner e fluxo vertical -------------------------------------------- */
-.employee-layer > aside {
+.employee-layer:has(> aside) {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-5);
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 0;
 }
-.employee-layer > aside > div {
+
+.employee-layer > aside {
+  position: relative;
+  width: min(500px, 96vw);
+  height: 100%;
+  max-height: 100vh;
+  padding: 0;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-5);
+  gap: 0;
+  animation: drawer-in var(--dur-base) var(--ease);
 }
 
 /* --- Cabeçalho: ícone · título (flex) · selo · fechar ---------------------- */
@@ -3550,63 +3685,39 @@ label > textarea {
   display: flex;
   align-items: flex-start;
   gap: var(--sp-3);
-}
-.employee-layer > aside > header > span:not([class]) {
-  order: 1;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  border-radius: var(--radius-md);
-  background: var(--tint-blue);
-  color: var(--accent-blue);
-}
-.employee-layer > aside > header > span:not([class]) > svg { width: 20px; height: 20px; }
-.employee-layer > aside > header > .employee-avatar { order: 1; margin: 0; }
-.employee-layer > aside > header > div {
-  order: 2;
-  flex: 1;
-  min-width: 0;
-}
-.employee-layer > aside > header > div > h2 {
-  font-size: var(--fs-lg);
-  line-height: var(--lh-tight);
-  margin: 2px 0;
-}
-.employee-layer > aside > header > div > p:not(.eyebrow) {
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-}
-.employee-layer > aside > header > .ds-status {
-  order: 3;
-  flex: 0 0 auto;
-  align-self: center;
-}
-.employee-layer > aside > header > button {
-  order: 4;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
-  align-self: flex-start;
-  border-radius: var(--radius-sm);
-  background: var(--bg-subtle);
-  color: var(--text-secondary);
-}
-.employee-layer > aside > header > button:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  flex-shrink: 0;
+  padding: var(--sp-5) var(--sp-6);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
 }
 
-/* --- Rodapé: ações alinhadas à direita ------------------------------------- */
+.employee-layer > aside > div:not(header):not(footer),
+.employee-layer > aside > .journey-drawer-content,
+.employee-layer > aside > .absence-drawer-content,
+.employee-layer > aside > .benefit-drawer-content,
+.employee-layer > aside > .doc-drawer-content,
+.employee-layer > aside > .sst-drawer-content,
+.employee-layer > aside > .report-drawer-content,
+.employee-layer > aside > .employee-drawer-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-6);
+}
+
 .employee-layer > aside > footer {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: var(--sp-3);
   flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: var(--sp-4) var(--sp-6);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
 }
 .employee-layer > aside > footer > select {
   height: 40px;

@@ -207,52 +207,73 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  gap: var(--sp-7);
   padding: var(--sp-8);
-  background: linear-gradient(150deg, #2864ed, #1f2b52 65%, #111827);
+  background: #0b1329;
   color: #fff;
 }
 
-.login-visual::before {
-  content: "";
+.login-video-bg {
   position: absolute;
-  top: -120px;
-  right: -120px;
-  width: 420px;
-  height: 420px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.14), transparent 70%);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  z-index: 1;
+  opacity: 0.6;
+  filter: brightness(0.7) saturate(1.15);
+}
+
+.login-video-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(
+    150deg,
+    rgba(40, 100, 237, 0.45) 0%,
+    rgba(15, 23, 42, 0.7) 50%,
+    rgba(11, 19, 41, 0.9) 100%
+  );
   pointer-events: none;
 }
 
-.login-visual > div {
+.login-visual-content {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-7);
+}
+
+.login-visual-content > div {
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sp-3);
 }
 
-.login-visual > div > span {
+.login-visual-content > div > span {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
   padding: var(--sp-4);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(6px);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
-.login-visual > div > span b {
+.login-visual-content > div > span b {
   font-family: var(--font-mono);
   font-size: var(--fs-xl);
   font-weight: var(--fw-bold);
   color: #fff;
 }
 
-.login-visual > div > span small {
+.login-visual-content > div > span small {
   font-size: var(--fs-xs);
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .login-visual blockquote {
@@ -264,6 +285,7 @@
   line-height: var(--lh-snug);
   letter-spacing: var(--tracking-tight);
   color: #fff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
 /* --- Responsivo ------------------------------------------------------------ */

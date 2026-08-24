@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createSupabaseBrowserClient } from "../supabase/client";
 import {
   demoFoundationSnapshot,
   type FoundationSnapshot,
@@ -24,10 +25,27 @@ export function useFoundationData(): FoundationDataState {
 
     async function loadFoundation() {
       try {
-        const response = await fetch("/api/foundation", {
+        let response = await fetch("/api/foundation", {
           cache: "no-store",
           signal: controller.signal,
         });
+
+        if (response.status === 401) {
+          // Verifica se o navegador tem sessão ativa e tenta revalidar antes de deslogar
+          try {
+            const supabase = createSupabaseBrowserClient();
+            const { data } = await supabase.auth.getSession();
+            if (data?.session) {
+              await supabase.auth.refreshSession();
+              response = await fetch("/api/foundation", {
+                cache: "no-store",
+                signal: controller.signal,
+              });
+            }
+          } catch {
+            // Se falhar ao checar sessão, segue para verificação de status
+          }
+        }
 
         if (response.status === 401) {
           window.location.assign("/login");

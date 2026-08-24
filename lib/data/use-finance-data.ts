@@ -21,14 +21,18 @@ export function useFinanceData(): FinanceDataState {
 
     async function loadFinance() {
       try {
-        const response = await fetch("/api/finance", { cache:"no-store", signal:controller.signal });
+        const response = await fetch("/api/finance", { cache: "no-store", signal: controller.signal });
         if (response.status === 401) {
-          window.location.assign("/login");
+          setState({
+            snapshot: demoFinanceSnapshot,
+            loading: false,
+            error: "Sessão não autorizada para o módulo Financeiro; exibindo base demonstrativa.",
+          });
           return;
         }
         if (!response.ok) throw new Error("FINANCE_UNAVAILABLE");
         const snapshot = (await response.json()) as FinanceSnapshot;
-        setState({ snapshot, loading:false, error:null });
+        setState({ snapshot, loading: false, error: null });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         setState({
@@ -45,4 +49,3 @@ export function useFinanceData(): FinanceDataState {
 
   return state;
 }
-
