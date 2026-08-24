@@ -93,11 +93,23 @@ export default function LoginPage() {
       </section>
 
       <aside className="login-visual">
-        {process.env.NEXT_PUBLIC_LOGIN_VIDEO_URL ? (
-          <video className="login-video-bg" autoPlay loop muted playsInline>
-            <source src={process.env.NEXT_PUBLIC_LOGIN_VIDEO_URL} type="video/mp4" />
-          </video>
-        ) : null}
+        {/* Vídeo de fundo leve (~1,4MB, servido pela CDN). O poster aparece na
+            hora; o vídeo entra sem bloquear o carregamento. Sobrescreva a fonte
+            com NEXT_PUBLIC_LOGIN_VIDEO_URL (ex.: um CDN) se quiser. */}
+        <video
+          className="login-video-bg"
+          poster="/pecsil-login-poster.jpg"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+        >
+          <source
+            src={process.env.NEXT_PUBLIC_LOGIN_VIDEO_URL || "/pecsil-login.mp4"}
+            type="video/mp4"
+          />
+        </video>
         <div className="login-video-overlay" />
         <div className="login-visual-content">
           <div>

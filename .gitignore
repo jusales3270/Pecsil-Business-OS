@@ -43,6 +43,6 @@ next-env.d.ts
 /work/
 tsconfig.tsbuildinfo
 
-# Vídeo de login: servido por storage/CDN via NEXT_PUBLIC_LOGIN_VIDEO_URL, não versionado
+# Vídeo original de 66MB fora do repo; o login usa a versão comprimida
+# public/pecsil-login.mp4 (~1,4MB), servida pela CDN da Vercel.
 public/pecsil-video.mp4
-*.mp4
