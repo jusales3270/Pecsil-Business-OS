@@ -2416,7 +2416,41 @@ i.info                 { background: var(--accent-blue); }
 .user-admin-row {
   border-top: 1px solid var(--border-subtle);
   font-size: var(--fs-sm);
+  width: 100%;
+  text-align: left;
+  background: none;
+  transition: background-color var(--dur-fast) var(--ease);
 }
+
+.user-admin-row:hover:not(:disabled) { background: var(--bg-hover); }
+.user-admin-row:disabled { cursor: default; opacity: 0.75; }
+
+/* Linha de botões de ação dentro do painel de gestão. */
+.user-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+/* Campo de senha com botão de revelar. */
+.user-admin-password {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.user-admin-password > input { flex: 1; min-width: 0; }
+.user-admin-password > button {
+  flex: 0 0 auto;
+  padding: 0 var(--sp-3);
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+}
+.user-admin-password > button:hover { background: var(--bg-hover); color: var(--text-primary); }
 .user-admin-row > .ds-status {
   justify-self: start;
 }

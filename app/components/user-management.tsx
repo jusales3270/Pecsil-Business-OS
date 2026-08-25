@@ -11,9 +11,16 @@ type AdminUser = {
   roleName: string;
   roleCode: string | null;
   scopeLabel: string;
+  scopeType: string | null;
 };
 
-const ROLES: { code: string; name: string; hint: string }[] = [
+type ScopeOptions = {
+  units: { id: string; name: string }[];
+  departments: { id: string; name: string; unitId: string | null }[];
+  teams: { id: string; name: string; departmentId: string | null }[];
+};
+
+const ROLES = [
   { code: "director", name: "Diretor", hint: "Indicadores e aprovações das áreas" },
   { code: "manager", name: "Gestor", hint: "Gestão de RH e Financeiro" },
   { code: "operator", name: "Operador", hint: "Execução operacional" },
@@ -21,13 +28,23 @@ const ROLES: { code: string; name: string; hint: string }[] = [
   { code: "admin", name: "Administrador", hint: "Configuração técnica da plataforma" },
 ];
 
-const SCOPES: { type: string; label: string; hint: string }[] = [
+const SCOPES = [
   { type: "company", label: "Toda a empresa", hint: "Acesso aos dados de toda a Pecsil" },
+  { type: "unit", label: "Uma unidade", hint: "Somente os dados da unidade escolhida" },
+  { type: "department", label: "Um departamento", hint: "Somente os dados do departamento escolhido" },
+  { type: "team", label: "Uma equipe", hint: "Somente os dados da equipe escolhida" },
   { type: "self", label: "Próprio registro", hint: "Somente os próprios dados" },
 ];
 
+const STATUS_LABEL: Record<string, string> = {
+  active: "Ativo",
+  invited: "Convidado",
+  blocked: "Bloqueado",
+  disabled: "Desativado",
+};
+
 function initials(name: string) {
-  return name.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0]).join("").toUpperCase();
+  return name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 }
 
 function statusTone(status: string): "success" | "attention" | "neutral" {
@@ -36,20 +53,18 @@ function statusTone(status: string): "success" | "attention" | "neutral" {
   return "neutral";
 }
 
-const statusLabel: Record<string, string> = {
-  active: "Ativo",
-  invited: "Convidado",
-  blocked: "Bloqueado",
-  disabled: "Desativado",
-};
+/** Escopos que exigem escolher uma entidade da estrutura. */
+const ENTITY_SCOPES = new Set(["unit", "department", "team"]);
 
 export function UserManagement({ notify }: { notify: (message: string) => void }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [options, setOptions] = useState<ScopeOptions>({ units: [], departments: [], teams: [] });
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<AdminUser | null>(null);
 
-  async function fetchUsers(signal?: AbortSignal): Promise<{ denied: boolean; users: AdminUser[] }> {
+  async function fetchUsers(signal?: AbortSignal) {
     const response = await fetch("/api/admin/users", { cache: "no-store", signal });
     if (response.status === 401 || response.status === 403) return { denied: true, users: [] };
     if (response.ok) {
@@ -74,6 +89,10 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
         setUsers(result.users);
         setLoading(false);
       })
+      .catch(() => {});
+    fetch("/api/admin/scope-options", { cache: "no-store", signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => data && setOptions(data as ScopeOptions))
       .catch(() => {});
     return () => controller.abort();
   }, []);
@@ -109,25 +128,32 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
         ) : users.length === 0 ? (
           <div className="user-admin-empty">Nenhum usuário cadastrado ainda.</div>
         ) : (
-          users.map((u) => (
-            <div className="user-admin-row" key={u.id}>
-              <div className="user-admin-person">
-                <i>{initials(u.fullName)}</i>
+          users.map((user) => (
+            <button
+              className="user-admin-row"
+              key={user.id}
+              onClick={() => user.roleCode !== "owner" && setEditing(user)}
+              disabled={user.roleCode === "owner"}
+              title={user.roleCode === "owner" ? "O Proprietário não é editável" : "Gerenciar acesso"}
+            >
+              <span className="user-admin-person">
+                <i>{initials(user.fullName)}</i>
                 <span>
-                  <b>{u.fullName}</b>
-                  <small>{u.email}</small>
+                  <b>{user.fullName}</b>
+                  <small>{user.email}</small>
                 </span>
-              </div>
-              <span>{u.roleName}</span>
-              <span>{u.scopeLabel}</span>
-              <Status tone={statusTone(u.status)}>{statusLabel[u.status] ?? u.status}</Status>
-            </div>
+              </span>
+              <span>{user.roleName}</span>
+              <span>{user.scopeLabel}</span>
+              <Status tone={statusTone(user.status)}>{STATUS_LABEL[user.status] ?? user.status}</Status>
+            </button>
           ))
         )}
       </Card>
 
       {creating && (
         <CreateUserForm
+          options={options}
           onClose={() => setCreating(false)}
           onCreated={(email) => {
             setCreating(false);
@@ -136,14 +162,116 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
           }}
         />
       )}
+
+      {editing && (
+        <EditUserDrawer
+          user={editing}
+          options={options}
+          onClose={() => setEditing(null)}
+          onSaved={(message) => {
+            setEditing(null);
+            notify(message);
+            void refresh();
+          }}
+        />
+      )}
     </>
   );
 }
 
+/** Seletor de escopo: tipo + entidade da estrutura quando necessário. */
+function ScopeFields({
+  options,
+  scopeType,
+  entityId,
+  onScopeType,
+  onEntityId,
+}: {
+  options: ScopeOptions;
+  scopeType: string;
+  entityId: string;
+  onScopeType: (value: string) => void;
+  onEntityId: (value: string) => void;
+}) {
+  const entities =
+    scopeType === "unit"
+      ? options.units
+      : scopeType === "department"
+        ? options.departments
+        : scopeType === "team"
+          ? options.teams
+          : [];
+
+  return (
+    <>
+      <label>
+        <span>Escopo de acesso *</span>
+        <select
+          value={scopeType}
+          onChange={(event) => {
+            onScopeType(event.target.value);
+            onEntityId("");
+          }}
+        >
+          {SCOPES.map((scope) => (
+            <option key={scope.type} value={scope.type}>
+              {scope.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {ENTITY_SCOPES.has(scopeType) && (
+        <label>
+          <span>Qual? *</span>
+          <select value={entityId} onChange={(event) => onEntityId(event.target.value)}>
+            <option value="">Selecione…</option>
+            {entities.map((entity) => (
+              <option key={entity.id} value={entity.id}>
+                {entity.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+    </>
+  );
+}
+
+/** Campo de senha mascarado com botão de revelar. */
+function PasswordField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <label>
+      <span>{label}</span>
+      <span className="user-admin-password">
+        <input
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="Mínimo 8 caracteres"
+        />
+        <button type="button" onClick={() => setVisible((current) => !current)}>
+          {visible ? "Ocultar" : "Ver"}
+        </button>
+      </span>
+    </label>
+  );
+}
+
 function CreateUserForm({
+  options,
   onClose,
   onCreated,
 }: {
+  options: ScopeOptions;
   onClose: () => void;
   onCreated: (email: string) => void;
 }) {
@@ -152,10 +280,16 @@ function CreateUserForm({
   const [password, setPassword] = useState("");
   const [roleCode, setRoleCode] = useState("manager");
   const [scopeType, setScopeType] = useState("company");
+  const [entityId, setEntityId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const valid = fullName.trim() && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) && password.length >= 8;
+  const scopeReady = !ENTITY_SCOPES.has(scopeType) || Boolean(entityId);
+  const valid =
+    Boolean(fullName.trim()) &&
+    /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) &&
+    password.length >= 8 &&
+    scopeReady;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -170,14 +304,11 @@ function CreateUserForm({
         email: email.trim(),
         password,
         roleCode,
-        scope: { type: scopeType },
+        scope: { type: scopeType, entityId: entityId || null },
       }),
     });
     setSubmitting(false);
-    if (response.status === 201) {
-      onCreated(email.trim());
-      return;
-    }
+    if (response.status === 201) return onCreated(email.trim());
     const data = await response.json().catch(() => ({}));
     setError(data.error ?? "Não foi possível criar o usuário.");
   }
@@ -205,36 +336,31 @@ function CreateUserForm({
             <span>E-mail corporativo *</span>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@pecsil.com.br" />
           </label>
-          <label>
-            <span>Senha inicial *</span>
-            <input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 8 caracteres" />
-          </label>
+          <PasswordField label="Senha inicial *" value={password} onChange={setPassword} />
           <label>
             <span>Papel *</span>
             <select value={roleCode} onChange={(e) => setRoleCode(e.target.value)}>
-              {ROLES.map((r) => (
-                <option key={r.code} value={r.code}>
-                  {r.name}
+              {ROLES.map((role) => (
+                <option key={role.code} value={role.code}>
+                  {role.name}
                 </option>
               ))}
             </select>
           </label>
-          <label>
-            <span>Escopo de acesso *</span>
-            <select value={scopeType} onChange={(e) => setScopeType(e.target.value)}>
-              {SCOPES.map((s) => (
-                <option key={s.type} value={s.type}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <ScopeFields
+            options={options}
+            scopeType={scopeType}
+            entityId={entityId}
+            onScopeType={setScopeType}
+            onEntityId={setEntityId}
+          />
           <div className="user-admin-note field-wide">
             <span>🔒</span>
             <span>
-              <b>{ROLES.find((r) => r.code === roleCode)?.name}</b>
+              <b>{ROLES.find((role) => role.code === roleCode)?.name}</b>
               <small>
-                {ROLES.find((r) => r.code === roleCode)?.hint} · {SCOPES.find((s) => s.type === scopeType)?.hint}
+                {ROLES.find((role) => role.code === roleCode)?.hint} ·{" "}
+                {SCOPES.find((scope) => scope.type === scopeType)?.hint}
               </small>
             </span>
           </div>
@@ -248,6 +374,137 @@ function CreateUserForm({
           <Button type="submit" disabled={!valid || submitting}>
             {submitting ? "Criando…" : "Criar usuário"}
           </Button>
+        </footer>
+      </form>
+    </div>
+  );
+}
+
+function EditUserDrawer({
+  user,
+  options,
+  onClose,
+  onSaved,
+}: {
+  user: AdminUser;
+  options: ScopeOptions;
+  onClose: () => void;
+  onSaved: (message: string) => void;
+}) {
+  const [roleCode, setRoleCode] = useState(user.roleCode ?? "manager");
+  const [scopeType, setScopeType] = useState(user.scopeType ?? "company");
+  const [entityId, setEntityId] = useState("");
+  const [status, setStatus] = useState(user.status);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  // Ações destrutivas exigem digitar o e-mail: protege contra clique errado.
+  const confirmed = confirm.trim().toLowerCase() === user.email.toLowerCase();
+  const scopeReady = !ENTITY_SCOPES.has(scopeType) || Boolean(entityId);
+
+  async function send(body: Record<string, unknown>, message: string) {
+    setBusy(true);
+    setError("");
+    const response = await fetch(`/api/admin/users/${user.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setBusy(false);
+    if (response.ok) return onSaved(message);
+    const data = await response.json().catch(() => ({}));
+    setError(data.error ?? "Não foi possível aplicar a alteração.");
+  }
+
+  return (
+    <div className="employee-layer form-layer" onMouseDown={onClose}>
+      <form className="user-admin-form" onSubmit={(e) => e.preventDefault()} onMouseDown={(e) => e.stopPropagation()}>
+        <header>
+          <div>
+            <p className="eyebrow">IDENTIDADE · GERENCIAR ACESSO</p>
+            <h2>{user.fullName}</h2>
+            <p>{user.email}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar">
+            ✕
+          </button>
+        </header>
+
+        <div className="user-admin-fields">
+          <label>
+            <span>Papel</span>
+            <select value={roleCode} onChange={(e) => setRoleCode(e.target.value)}>
+              {ROLES.map((role) => (
+                <option key={role.code} value={role.code}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <ScopeFields
+            options={options}
+            scopeType={scopeType}
+            entityId={entityId}
+            onScopeType={setScopeType}
+            onEntityId={setEntityId}
+          />
+          <div className="user-admin-actions field-wide">
+            <Button
+              variant="secondary"
+              disabled={busy || !scopeReady}
+              onClick={() =>
+                send(
+                  { roleCode, scope: { type: scopeType, entityId: entityId || null } },
+                  `Acesso de ${user.fullName} atualizado.`,
+                )
+              }
+            >
+              Salvar papel e escopo
+            </Button>
+          </div>
+
+          <label className="field-wide">
+            <span>Situação</span>
+            <select value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="active">Ativo</option>
+              <option value="blocked">Bloqueado</option>
+              <option value="disabled">Desativado</option>
+            </select>
+          </label>
+
+          <PasswordField label="Definir nova senha" value={password} onChange={setPassword} />
+
+          <label className="field-wide">
+            <span>Para bloquear, desativar ou trocar a senha, digite o e-mail do usuário</span>
+            <input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={user.email} />
+          </label>
+
+          <div className="user-admin-actions field-wide">
+            <Button
+              variant="secondary"
+              disabled={busy || !confirmed || status === user.status}
+              onClick={() => send({ status }, `Situação de ${user.fullName} alterada.`)}
+            >
+              Aplicar situação
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={busy || !confirmed || password.length < 8}
+              onClick={() => send({ password }, `Senha de ${user.fullName} redefinida.`)}
+            >
+              Redefinir senha
+            </Button>
+          </div>
+
+          {error && <p className="user-admin-error field-wide">{error}</p>}
+        </div>
+
+        <footer>
+          <button type="button" className="employee-cancel" onClick={onClose}>
+            Fechar
+          </button>
         </footer>
       </form>
     </div>
