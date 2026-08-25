@@ -14,11 +14,21 @@ const supabase = createClient(url, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
+// Serviços compartilhados da Fundação: todo usuário autenticado precisa deles,
+// senão a navegação perde "Busca Corporativa" e "Notificações" (a interface
+// exige core.search.view e core.notifications.view em app/page.tsx:54,56).
+const BASELINE = {
+  "core.search": ["view"],
+  "core.notifications": ["view"],
+};
+
 // module_code -> ações concedidas, por papel.
 const MATRIX = {
   director: {
+    ...BASELINE,
     "core.organization": ["view", "export"],
     "core.people": ["view", "export"],
+    "core.access": ["view"],
     "core.documents": ["view", "export"],
     "core.audit": ["view", "export"],
     "platform.modules": ["view"],
@@ -26,26 +36,32 @@ const MATRIX = {
     financeiro: ["view", "approve", "export"],
   },
   manager: {
+    ...BASELINE,
     "core.people": ["view"],
     "core.documents": ["view", "create", "edit"],
     rh: ["view", "create", "edit", "approve", "export"],
     financeiro: ["view", "create", "edit", "approve", "export"],
   },
   operator: {
+    ...BASELINE,
     "core.documents": ["view", "create"],
     rh: ["view", "create", "edit"],
     financeiro: ["view"],
   },
   employee: {
+    ...BASELINE,
     "core.documents": ["view"],
     rh: ["view"],
   },
   admin: {
+    ...BASELINE,
     "core.organization": ["view", "edit", "admin"],
     "core.access": ["view", "edit", "admin"],
     "core.people": ["view", "edit"],
     "core.audit": ["view", "export"],
     "platform.modules": ["view", "edit", "admin"],
+    "platform.database": ["view"],
+    "platform.settings": ["view", "edit"],
   },
 };
 
