@@ -15,6 +15,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
+  // Se não houver cookies de autenticação do Supabase na requisição,
+  // não há sessão para renovar. Evita chamadas de rede lentas em rotas públicas.
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+
+  if (!hasAuthCookie) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -37,13 +47,13 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  // Revalida e renova a sessão (grava os cookies atualizados na resposta).
-  // Se o Supabase estiver temporariamente indisponível (timeout/rede), NÃO
-  // derruba o usuário: segue com os cookies existentes; a revalidação ocorre
-  // no próximo request. Sem este try/catch, uma queda do backend estouraria a
-  // página (500) e/ou expulsaria o usuário logado.
+  // Revalida a sessão com timeout seguro (máx. 3s) para não travar a aplicação
+  // caso o servidor Supabase esteja temporariamente lento ou inacessível.
   try {
-    await supabase.auth.getUser();
+    const authTimeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("auth_timeout")), 3000),
+    );
+    await Promise.race([supabase.auth.getUser(), authTimeout]);
   } catch {
     return NextResponse.next({ request });
   }
@@ -52,8 +62,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Roda em tudo, menos assets estáticos.
+  // Roda em tudo, menos assets estáticos e mídias pesadas.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|favicon.png|favicon.svg|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|favicon.png|favicon.svg|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|mp4|webm|ogg|woff|woff2|ttf|eot)$).*)",
   ],
 };
