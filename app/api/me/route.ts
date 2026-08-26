@@ -20,9 +20,18 @@ export async function GET() {
   const supabase = await createSupabaseServerClient();
 
   const { data: auth, error: authError } = await supabase.auth.getUser();
-  // Falha de rede/servidor é transitória: 503 (o cliente mantém o contexto
-  // atual) e não 401, que expulsaria um usuário de fato autenticado.
-  if (authError) return NextResponse.json({ error: "AUTH_UNAVAILABLE" }, { status: 503 });
+  if (authError) {
+    // "Sessão ausente" é visitante não autenticado → 401 (o cliente manda para
+    // o login). Só falha de rede/servidor é transitória → 503, para um pisco do
+    // Supabase não expulsar quem está de fato logado.
+    const semSessao =
+      authError.name === "AuthSessionMissingError" ||
+      authError.status === 400 ||
+      authError.status === 401;
+    return semSessao
+      ? NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 })
+      : NextResponse.json({ error: "AUTH_UNAVAILABLE" }, { status: 503 });
+  }
   if (!auth.user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
   const { data: profile, error: profileError } = await supabase
