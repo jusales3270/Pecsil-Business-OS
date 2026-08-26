@@ -5,12 +5,15 @@ import { createSupabaseServerClient } from "../supabase/server";
 import type { createSupabaseAdminClient } from "../supabase/admin";
 
 export const ROLE_CODES = ["director", "manager", "operator", "employee", "admin"] as const;
-export const SCOPE_TYPES = ["company", "unit", "department", "team", "self"] as const;
+export const SCOPE_TYPES = ["company", "module", "unit", "department", "team", "self"] as const;
 
 export type RoleCode = (typeof ROLE_CODES)[number];
 export type ScopeInput = {
   type: (typeof SCOPE_TYPES)[number];
+  /** Unidade/departamento/equipe — para os escopos da estrutura. */
   entityId?: string | null;
+  /** Código do módulo (rh, financeiro, compras...) — para o escopo de módulo. */
+  moduleCode?: string | null;
   label?: string;
 };
 
@@ -70,9 +73,24 @@ export async function resolveScope(
 ): Promise<{ error: string } | { scopeId: string }> {
   const table = SCOPE_ENTITY_TABLE[scope.type];
   let entityId: string | null = null;
+  let moduleCode: string | null = null;
   let derivedLabel: string | null = null;
 
-  if (table) {
+  // Escopo de módulo: é o eixo principal de acesso da PecSil — a pessoa é
+  // "Gestor do Financeiro", "Diretor do RH". Guarda module_code, não entity_id.
+  if (scope.type === "module") {
+    if (!scope.moduleCode) {
+      return { error: "Escopo de módulo exige a seleção do módulo." };
+    }
+    const { data: mod } = await admin
+      .from("modules")
+      .select("code, name")
+      .eq("code", scope.moduleCode)
+      .maybeSingle();
+    if (!mod) return { error: "Módulo não encontrado." };
+    moduleCode = mod.code as string;
+    derivedLabel = `Módulo ${mod.name as string}`;
+  } else if (table) {
     if (!scope.entityId) {
       return { error: "Escopo de unidade, departamento ou equipe exige a seleção da entidade." };
     }
@@ -96,6 +114,7 @@ export async function resolveScope(
     .eq("scope_type", scope.type)
     .limit(1);
   query = entityId ? query.eq("entity_id", entityId) : query.is("entity_id", null);
+  query = moduleCode ? query.eq("module_code", moduleCode) : query.is("module_code", null);
   const { data: existing } = await query.maybeSingle();
   if (existing?.id) return { scopeId: existing.id as string };
 
@@ -106,7 +125,13 @@ export async function resolveScope(
 
   const { data: created, error } = await admin
     .from("access_scopes")
-    .insert({ organization_id: orgId, scope_type: scope.type, entity_id: entityId, label })
+    .insert({
+      organization_id: orgId,
+      scope_type: scope.type,
+      entity_id: entityId,
+      module_code: moduleCode,
+      label,
+    })
     .select("id")
     .single();
   if (error || !created) return { error: error?.message ?? "Não foi possível criar o escopo." };

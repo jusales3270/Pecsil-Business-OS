@@ -15,6 +15,7 @@ type AdminUser = {
 };
 
 type ScopeOptions = {
+  modules: { code: string; name: string; status: string }[];
   units: { id: string; name: string }[];
   departments: { id: string; name: string; unitId: string | null }[];
   teams: { id: string; name: string; departmentId: string | null }[];
@@ -28,12 +29,16 @@ const ROLES = [
   { code: "admin", name: "Administrador", hint: "Configuração técnica da plataforma" },
 ];
 
+// O eixo principal de acesso da PecSil é o MÓDULO: a pessoa é "Gestor do
+// Financeiro", "Diretor do RH". Os escopos de estrutura ficam disponíveis para
+// quando fizer sentido recortar por unidade/departamento.
 const SCOPES = [
-  { type: "company", label: "Toda a empresa", hint: "Acesso aos dados de toda a Pecsil" },
+  { type: "module", label: "Um módulo (RH, Financeiro…)", hint: "Trabalha apenas nesse módulo" },
+  { type: "company", label: "Toda a empresa", hint: "Acesso a todos os módulos e dados" },
+  { type: "self", label: "Próprio registro", hint: "Somente os próprios dados" },
   { type: "unit", label: "Uma unidade", hint: "Somente os dados da unidade escolhida" },
   { type: "department", label: "Um departamento", hint: "Somente os dados do departamento escolhido" },
   { type: "team", label: "Uma equipe", hint: "Somente os dados da equipe escolhida" },
-  { type: "self", label: "Próprio registro", hint: "Somente os próprios dados" },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
@@ -54,11 +59,19 @@ function statusTone(status: string): "success" | "attention" | "neutral" {
 }
 
 /** Escopos que exigem escolher uma entidade da estrutura. */
-const ENTITY_SCOPES = new Set(["unit", "department", "team"]);
+const ENTITY_SCOPES = new Set(["module", "unit", "department", "team"]);
+
+
+/** Monta o escopo para a API: módulo usa moduleCode; a estrutura usa entityId. */
+function scopePayload(scopeType: string, value: string) {
+  return scopeType === "module"
+    ? { type: scopeType, moduleCode: value || null }
+    : { type: scopeType, entityId: value || null };
+}
 
 export function UserManagement({ notify }: { notify: (message: string) => void }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [options, setOptions] = useState<ScopeOptions>({ units: [], departments: [], teams: [] });
+  const [options, setOptions] = useState<ScopeOptions>({ modules: [], units: [], departments: [], teams: [] });
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -193,14 +206,21 @@ function ScopeFields({
   onScopeType: (value: string) => void;
   onEntityId: (value: string) => void;
 }) {
-  const entities =
-    scopeType === "unit"
-      ? options.units
-      : scopeType === "department"
-        ? options.departments
-        : scopeType === "team"
-          ? options.teams
-          : [];
+  // Para módulo o valor é o `code`; para a estrutura é o `id`. O componente
+  // trata os dois como uma lista simples de {valor, rótulo}.
+  const choices: { value: string; label: string }[] =
+    scopeType === "module"
+      ? options.modules.map((mod) => ({
+          value: mod.code,
+          label: mod.status === "integrated" ? mod.name : `${mod.name} (em preparação)`,
+        }))
+      : scopeType === "unit"
+        ? options.units.map((u) => ({ value: u.id, label: u.name }))
+        : scopeType === "department"
+          ? options.departments.map((d) => ({ value: d.id, label: d.name }))
+          : scopeType === "team"
+            ? options.teams.map((t) => ({ value: t.id, label: t.name }))
+            : [];
 
   return (
     <>
@@ -222,12 +242,12 @@ function ScopeFields({
       </label>
       {ENTITY_SCOPES.has(scopeType) && (
         <label>
-          <span>Qual? *</span>
+          <span>{scopeType === "module" ? "Qual módulo? *" : "Qual? *"}</span>
           <select value={entityId} onChange={(event) => onEntityId(event.target.value)}>
             <option value="">Selecione…</option>
-            {entities.map((entity) => (
-              <option key={entity.id} value={entity.id}>
-                {entity.name}
+            {choices.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
               </option>
             ))}
           </select>
@@ -279,7 +299,7 @@ function CreateUserForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [roleCode, setRoleCode] = useState("manager");
-  const [scopeType, setScopeType] = useState("company");
+  const [scopeType, setScopeType] = useState("module");
   const [entityId, setEntityId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -304,7 +324,7 @@ function CreateUserForm({
         email: email.trim(),
         password,
         roleCode,
-        scope: { type: scopeType, entityId: entityId || null },
+        scope: scopePayload(scopeType, entityId),
       }),
     });
     setSubmitting(false);
@@ -456,7 +476,7 @@ function EditUserDrawer({
               disabled={busy || !scopeReady}
               onClick={() =>
                 send(
-                  { roleCode, scope: { type: scopeType, entityId: entityId || null } },
+                  { roleCode, scope: scopePayload(scopeType, entityId) },
                   `Acesso de ${user.fullName} atualizado.`,
                 )
               }

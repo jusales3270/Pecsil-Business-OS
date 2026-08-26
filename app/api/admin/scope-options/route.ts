@@ -14,7 +14,13 @@ export async function GET() {
   if ("error" in auth) return auth.error;
 
   const admin = createSupabaseAdminClient();
-  const [units, departments, teams] = await Promise.all([
+  const [modules, units, departments, teams] = await Promise.all([
+    // Módulos habilitados para esta organização — é o eixo principal de acesso.
+    admin
+      .from("organization_modules")
+      .select("module_code, enabled, module:modules(code, name, status)")
+      .eq("organization_id", auth.orgId)
+      .eq("enabled", true),
     admin
       .from("units")
       .select("id, name")
@@ -36,6 +42,10 @@ export async function GET() {
   ]);
 
   return NextResponse.json({
+    modules: (modules.data ?? [])
+      .map((row) => row.module as { code?: string; name?: string; status?: string } | null)
+      .filter((mod): mod is { code: string; name: string; status: string } => Boolean(mod?.code))
+      .map((mod) => ({ code: mod.code, name: mod.name, status: mod.status })),
     units: (units.data ?? []).map((unit) => ({ id: unit.id, name: unit.name })),
     departments: (departments.data ?? []).map((department) => ({
       id: department.id,

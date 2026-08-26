@@ -4,7 +4,7 @@
 --
 -- Reúne, na ordem correta, as três migrations:
 --   202608250001_access_hardening.sql   (isolamento por organização)
---   202608250002_scoped_permissions.sql  (escopo aplicado de verdade)
+--   202608250002_scoped_permissions.sql  (escopo por MÓDULO e estrutura)
 --   202608250003_identity_audit.sql      (trilha de auditoria de identidade)
 --
 -- Seguro de executar mais de uma vez (idempotente). Testado no Postgres
@@ -253,7 +253,14 @@ as $$
       when 'unit'       then g.entity_id is not null and g.entity_id = a.unit_id
       when 'department' then g.entity_id is not null and g.entity_id = a.department_id
       when 'team'       then g.entity_id is not null and g.entity_id = a.team_id
+      -- Escopo de MÓDULO: é assim que a PecSil organiza o acesso — a pessoa é
+      -- "Gestor do Financeiro", "Diretor do RH". Restringe os módulos de
+      -- negócio (rh, financeiro, compras, ...) mas NÃO os serviços
+      -- compartilhados da Fundação (core.*, platform.*): sem eles o usuário
+      -- perderia pessoas, busca e notificações, que todo mundo precisa.
       when 'module'     then g.module_code = requested_module
+                             or requested_module like 'core.%'
+                             or requested_module like 'platform.%'
       when 'self'       then target_profile is not null
                              and target_profile = public.current_profile_id()
     end
