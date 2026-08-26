@@ -34,11 +34,23 @@ export async function GET() {
   }
   if (!auth.user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
-  const { data: profile, error: profileError } = await supabase
+  // `avatar_path` só existe depois da migration 202608260001. Enquanto ela não
+  // for aplicada, o perfil é lido sem essa coluna — o código não pode depender
+  // de uma migration pendente, senão a aplicação inteira cai.
+  const BASE_COLUMNS = "id, full_name, email, status, organization_id";
+  let { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, full_name, email, status, organization_id")
+    .select(`${BASE_COLUMNS}, avatar_path`)
     .eq("user_id", auth.user.id)
-    .maybeSingle();
+    .maybeSingle<ProfileRow>();
+
+  if (profileError?.code === "42703") {
+    ({ data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select(BASE_COLUMNS)
+      .eq("user_id", auth.user.id)
+      .maybeSingle<ProfileRow>());
+  }
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
@@ -101,6 +113,11 @@ export async function GET() {
     organizationId: profile.organization_id,
     email: profile.email,
     name: profile.full_name,
+    // Bucket público: a URL é direta e estável, sem precisar reassinar.
+    avatarUrl: profile.avatar_path
+      ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${profile.avatar_path}`
+      : null,
+    avatarPath: profile.avatar_path ?? null,
     initials: initialsOf(profile.full_name),
     // Um usuário pode ter mais de um vínculo; o primeiro papel é o principal.
     // O nome vem em português ("Proprietário", "Colaborador", ...) porque a
@@ -115,6 +132,15 @@ export async function GET() {
     scopes,
   });
 }
+
+type ProfileRow = {
+  id: string;
+  full_name: string;
+  email: string;
+  status: string;
+  organization_id: string;
+  avatar_path?: string | null;
+};
 
 function initialsOf(fullName: string) {
   return fullName

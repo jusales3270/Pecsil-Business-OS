@@ -2432,6 +2432,47 @@ i.info                 { background: var(--accent-blue); }
   gap: var(--sp-3);
 }
 
+/* --- Minha conta: bloco da foto de perfil ---------------------------------- */
+.account-avatar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.account-avatar > img,
+.account-avatar > .account-avatar-initials {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.account-avatar > .account-avatar-initials {
+  display: grid;
+  place-items: center;
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+}
+.account-avatar > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.account-avatar b { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+.account-avatar small { font-size: var(--fs-xs); color: var(--text-muted); }
+.account-avatar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+
 /* Campo de senha com botão de revelar. */
 .user-admin-password {
   display: flex;

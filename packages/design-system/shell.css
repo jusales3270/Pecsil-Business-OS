@@ -614,6 +614,24 @@
 .account-menu .account-identity b { font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
 .account-menu .account-identity small { font-size: var(--fs-xs); color: var(--text-muted); }
 
+/* Foto de perfil substituindo as iniciais. */
+.avatar-photo {
+  object-fit: cover;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.account-menu .account-identity > .avatar-photo { width: 34px; height: 34px; }
+.user-card > .avatar-photo.top { width: 32px; height: 32px; }
+
+.account-menu .account-item {
+  gap: var(--sp-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+.account-menu .account-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.account-menu .account-item > svg { flex-shrink: 0; }
+
 .account-menu .account-signout {
   gap: var(--sp-2);
   color: var(--accent-red);

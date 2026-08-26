@@ -3,15 +3,28 @@
 import { useEffect, useState } from "react";
 import { demoOwnerAccess, type ModuleAccessContext } from "../../modules";
 
+/** Dados da conta que a interface mostra fora do contexto de permissões. */
+export type SessionProfile = {
+  email: string;
+  avatarUrl: string | null;
+  profileId: string | null;
+};
+
 type SessionAccessState = {
   access: ModuleAccessContext;
   /** true quando o contexto veio do banco; false quando é o fallback demonstrativo. */
   real: boolean;
   loading: boolean;
+  profile: SessionProfile;
+  /** Recarrega a identidade (após editar nome ou foto). */
+  reload: () => void;
 };
 
 type MePayload = {
   userId: string;
+  profileId: string;
+  email: string;
+  avatarUrl: string | null;
   name: string;
   initials: string;
   role: string;
@@ -27,11 +40,15 @@ type MePayload = {
  * demonstrativo, para a aplicação não quebrar offline. `real` diz qual dos dois
  * está em uso, para a interface poder sinalizar o modo demonstrativo.
  */
+const EMPTY_PROFILE: SessionProfile = { email: "", avatarUrl: null, profileId: null };
+
 export function useSessionAccess(): SessionAccessState {
-  const [state, setState] = useState<SessionAccessState>({
+  const [version, setVersion] = useState(0);
+  const [state, setState] = useState<Omit<SessionAccessState, "reload">>({
     access: demoOwnerAccess,
     real: false,
     loading: true,
+    profile: EMPTY_PROFILE,
   });
 
   useEffect(() => {
@@ -63,6 +80,11 @@ export function useSessionAccess(): SessionAccessState {
           },
           real: true,
           loading: false,
+          profile: {
+            email: payload.email,
+            avatarUrl: payload.avatarUrl,
+            profileId: payload.profileId,
+          },
         });
       })
       .catch(() => {
@@ -70,7 +92,7 @@ export function useSessionAccess(): SessionAccessState {
       });
 
     return () => controller.abort();
-  }, []);
+  }, [version]);
 
-  return state;
+  return { ...state, reload: () => setVersion((current) => current + 1) };
 }
