@@ -366,7 +366,7 @@ export default function Home() {
   return <div className={sidebarCollapsed?"app-shell collapsed":"app-shell"}>
     <aside className={mobile?"sidebar open":"sidebar"}>
       <div className="brand">
-        <img src="/pecsil-logo.png" alt="Pecsil — Molds for Glass"/>
+        <img className="brand-logo light" src="/pecsil-logo.png" alt="Pecsil — Molds for Glass"/><img className="brand-logo dark" src="/pecsil-logo-dark.png" alt="" aria-hidden="true"/>
         <b>Business OS</b>
         <button className="close-menu" onClick={()=>setMobile(false)} aria-label="Fechar menu"><Icon name="close"/></button>
       </div>

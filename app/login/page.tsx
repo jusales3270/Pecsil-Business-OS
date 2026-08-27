@@ -40,7 +40,7 @@ export default function LoginPage() {
     <main className="login-page">
       <section className="login-panel">
         <div className="login-brand">
-          <img src="/pecsil-logo.png" alt="Pecsil — Molds for Glass" />
+          <img className="brand-logo light" src="/pecsil-logo.png" alt="Pecsil — Molds for Glass" /><img className="brand-logo dark" src="/pecsil-logo-dark.png" alt="" aria-hidden="true" />
           <div>
             <b>BUSINESS OS</b>
             <small>Ecossistema empresarial</small>

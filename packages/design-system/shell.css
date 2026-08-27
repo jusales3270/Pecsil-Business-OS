@@ -792,3 +792,22 @@
     font-size: var(--fs-lg);
   }
 }
+
+/* ============================================================================
+   Logo por tema
+   ----------------------------------------------------------------------------
+   A marca tem duas versões: a preta (clara) e a azul-marinho/cinza (escura).
+   A troca segue o mesmo padrão dos tokens: escolha explícita em [data-theme]
+   e, na ausência dela, a preferência do sistema.
+   ============================================================================ */
+.brand-logo.dark { display: none; }
+
+/* Escolha explícita do usuário */
+:root[data-theme="dark"] .brand-logo.light { display: none; }
+:root[data-theme="dark"] .brand-logo.dark { display: block; }
+
+/* Preferência do sistema, quando não há escolha explícita */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-logo.light { display: none; }
+  :root:not([data-theme="light"]) .brand-logo.dark { display: block; }
+}
