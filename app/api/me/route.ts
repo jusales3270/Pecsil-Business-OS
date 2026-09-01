@@ -21,16 +21,20 @@ export async function GET() {
 
   const { data: auth, error: authError } = await supabase.auth.getUser();
   if (authError) {
-    // "Sessão ausente" é visitante não autenticado → 401 (o cliente manda para
-    // o login). Só falha de rede/servidor é transitória → 503, para um pisco do
-    // Supabase não expulsar quem está de fato logado.
-    const semSessao =
-      authError.name === "AuthSessionMissingError" ||
-      authError.status === 400 ||
-      authError.status === 401;
-    return semSessao
-      ? NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 })
-      : NextResponse.json({ error: "AUTH_UNAVAILABLE" }, { status: 503 });
+    // Regra: se o servidor de autenticação RESPONDEU, a sessão não vale —
+    // ausente, expirada ou assinada com outro segredo (o caso de um Supabase
+    // reconstruído). Todos são "faça login de novo" → 401.
+    //
+    // Só falha de REDE é transitória → 503, para um pisco do servidor não
+    // expulsar quem está de fato logado. Antes isto olhava status 400/401 e,
+    // com um token inválido devolvendo outro status, a aplicação caía no modo
+    // demonstrativo em vez de mandar para o login — com o usuário achando que
+    // estava logado enquanto nada salvava.
+    const falhaDeRede =
+      authError.name === "AuthRetryableFetchError" || !authError.status;
+    return falhaDeRede
+      ? NextResponse.json({ error: "AUTH_UNAVAILABLE" }, { status: 503 })
+      : NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   }
   if (!auth.user) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
 
