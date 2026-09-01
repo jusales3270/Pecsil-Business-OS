@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button, Callout, Card, Kpi, KpiGrid, Status, ThemeToggle } from "../packages/design-system";
+import { Button, Card, Kpi, KpiGrid, Status, ThemeToggle } from "../packages/design-system";
 import type { FoundationSummary, OrganizationData, Person } from "../lib/data/foundation";
 import { useFoundationData } from "../lib/data/use-foundation-data";
 import { canAccessModule, getCatalogModules, getModuleById, getVisibleModules, hasPermission, moduleRegistry, renderModuleComponent, type ModuleAccessContext, type ModuleManifest } from "../modules";
@@ -116,10 +116,6 @@ function Overview({ setView, summary, onOpenModule, access, catalogModules, visi
         : [["modules",String(visibleModules.length),"Módulo ativo","Visível conforme credenciais","blue"],["users",String(summary.employees),"Colaboradores mapeados","Cadastro mestre inicial","green"],["shield",String(summary.roles),"Perfis de acesso","Modelo definido","purple"],["bell","4","Serviços centrais","Base da Fundação","orange"]];
   return <>
     <div className="page-head"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div><Button onClick={() => setView("Módulos")}><Icon name="modules"/> Explorar módulos</Button></div>
-    <Callout variant="info" title={`Escopo aplicado: ${access.scopeLabel}`}>
-      Interface simulada com as mesmas regras do futuro acesso autenticado. Perfil ativo: <strong>{access.role}</strong>.
-      Os números desta tela são demonstrativos até a conexão com o Supabase.
-    </Callout>
     <KpiGrid>
       {metricItems.map(([,value,label,meta,color]) => <Kpi key={label} label={label} caption={meta} value={value} tone={(color==="orange"?"amber":color) as "blue"|"green"|"amber"|"purple"}/>)}
     </KpiGrid>
