@@ -29,7 +29,22 @@ export default function LoginPage() {
     setLoading(false);
 
     if (error) {
-      setMessage("E-mail ou senha inválidos.");
+      // Antes qualquer falha virava "e-mail ou senha inválidos" — inclusive
+      // chave de API errada, servidor fora do ar ou usuário inexistente. Isso
+      // mandava para o caminho errado quem estava depurando o acesso.
+      // Credencial errada continua com a mensagem genérica de propósito (não
+      // revelar se o e-mail existe); o resto agora se identifica.
+      const credencialInvalida =
+        error.code === "invalid_credentials" || error.status === 400;
+      if (credencialInvalida) {
+        setMessage("E-mail ou senha inválidos.");
+      } else if (!error.status) {
+        setMessage("Não foi possível falar com o servidor de autenticação. Verifique a conexão.");
+      } else if (error.status === 401 || error.status === 403) {
+        setMessage("A chave de acesso desta aplicação foi recusada pelo servidor. Avise a administração.");
+      } else {
+        setMessage(`Falha no acesso (${error.status}): ${error.message}`);
+      }
       return;
     }
 
