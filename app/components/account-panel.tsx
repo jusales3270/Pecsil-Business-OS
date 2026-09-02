@@ -47,41 +47,33 @@ export function AccountPanel({
       setError("A imagem deve ter no máximo 2 MB.");
       return;
     }
-    if (!profile.profileId) {
-      setError("Perfil indisponível; recarregue a página.");
-      return;
-    }
     setBusy("avatar");
     setError("");
 
-    // O arquivo vai direto do navegador para o Storage; o RLS do bucket só
-    // aceita gravação dentro da pasta do próprio perfil.
-    const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-    const path = `${profile.profileId}/avatar-${Date.now()}.${extension}`;
-    const supabase = createSupabaseBrowserClient();
-    const upload = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (upload.error) {
-      setBusy("");
-      setError(`Não foi possível enviar a imagem: ${upload.error.message}`);
-      return;
-    }
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const response = await fetch("/api/me/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ avatarPath: path }),
-    });
-    setBusy("");
-    if (!response.ok) {
-      // Não deixa arquivo órfão se o registro do caminho falhar.
-      await supabase.storage.from("avatars").remove([path]);
-      const data = await response.json().catch(() => ({}));
-      setError(data.error ?? "Não foi possível salvar a foto.");
-      return;
+      const response = await fetch("/api/me/avatar", {
+        method: "POST",
+        body: formData,
+      });
+
+      setBusy("");
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        setError(data.error ?? "Não foi possível salvar a foto.");
+        return;
+      }
+
+      const result = await response.json();
+      setPreview(result.avatarUrl || URL.createObjectURL(file));
+      notify("Foto de perfil atualizada.");
+      onSaved();
+    } catch {
+      setBusy("");
+      setError("Falha de conexão ao enviar a foto.");
     }
-    setPreview(URL.createObjectURL(file));
-    notify("Foto de perfil atualizada.");
-    onSaved();
   }
 
   async function saveName() {
@@ -166,10 +158,8 @@ export function AccountPanel({
                   disabled={busy === "avatar"}
                   onClick={async () => {
                     setBusy("avatar");
-                    await fetch("/api/me/profile", {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ avatarPath: null }),
+                    await fetch("/api/me/avatar", {
+                      method: "DELETE",
                     });
                     setBusy("");
                     setPreview(null);
