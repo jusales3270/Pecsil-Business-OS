@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Callout, Card, Donut, Kpi, KpiGrid, Legend, Segmented, Status } from "../../packages/design-system";
 import { hasPermission, type ModuleAccessContext } from "../../modules";
+import type { FinanceSnapshot, FinanceTitle } from "../../lib/data/finance";
 
 const sections = [
   ["Painel", "grid"], ["Contas a pagar", "payable"], ["Contas a receber", "receivable"],
@@ -12,10 +13,49 @@ const sections = [
 type FinanceSection = (typeof sections)[number][0];
 type PayableStatus = "Pendente" | "Em aprovação" | "Aprovado" | "Pago" | "Vencido";
 type ReceivableStatus = "Em aberto" | "Recebido" | "Vencido" | "Parcial";
-type Payable = { id:number; supplier:string; document:string; category:string; costCenter:string; due:string; value:number; status:PayableStatus };
-type Receivable = { id:number; customer:string; document:string; category:string; due:string; value:number; received:number; status:ReceivableStatus };
+type Payable = { id:string|number; supplier:string; document:string; category:string; costCenter:string; due:string; value:number; status:PayableStatus };
+type Receivable = { id:string|number; customer:string; document:string; category:string; due:string; value:number; received:number; status:ReceivableStatus };
 type HomologationStatus = "Validado" | "Pendente";
 type HomologationItem = { id:string; title:string; description:string; owner:string; status:HomologationStatus };
+
+function mapTitleToPayable(title: FinanceTitle): Payable {
+  const statusMap: Record<string, PayableStatus> = {
+    pending_approval: "Em aprovação",
+    approved: "Aprovado",
+    settled: "Pago",
+    overdue: "Vencido",
+    draft: "Pendente",
+  };
+  return {
+    id: title.id,
+    supplier: title.counterparty,
+    document: title.documentNumber || "—",
+    category: title.chartAccount || "Despesa",
+    costCenter: title.costCenter || "Administrativo",
+    due: title.installments[0]?.dueDate || title.issueDate,
+    value: title.originalAmount,
+    status: statusMap[title.status] || "Pendente",
+  };
+}
+
+function mapTitleToReceivable(title: FinanceTitle): Receivable {
+  const statusMap: Record<string, ReceivableStatus> = {
+    settled: "Recebido",
+    partially_settled: "Parcial",
+    overdue: "Vencido",
+  };
+  const received = title.installments.reduce((acc, i) => acc + (i.settledAmount || 0), 0);
+  return {
+    id: title.id,
+    customer: title.counterparty,
+    document: title.documentNumber || "—",
+    category: title.chartAccount || "Receita",
+    due: title.installments[0]?.dueDate || title.issueDate,
+    value: title.originalAmount,
+    received,
+    status: statusMap[title.status] || "Em aberto",
+  };
+}
 
 const initialHomologation:HomologationItem[]=[
   {id:"payables",title:"Contas a pagar",description:"Cadastro, vencimento, aprovação, pagamento e estorno",owner:"Financeiro",status:"Validado"},
@@ -42,8 +82,6 @@ const initialReceivables:Receivable[]=[
   {id:4,customer:"Embalagens Luz",document:"NF-e 30161",category:"Venda de moldes",due:"2026-07-09",value:93750,received:93750,status:"Recebido"},
 ];
 const money=(value:number)=>value.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-/** Moeda abreviada para cartões de indicador. Valor por extenso não cabe em um
- *  número de 40px — e o painel executivo lê melhor a ordem de grandeza. */
 const moneyShort=(value:number)=>value>=1_000_000
   ? `R$ ${(value/1_000_000).toLocaleString("pt-BR",{maximumFractionDigits:1})} mi`
   : value>=1_000
@@ -56,8 +94,8 @@ function FIcon({name,size=18}:{name:string;size?:number}){const paths:Record<str
 
 export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:string)=>void;onEvent:(message:string,module?:string)=>void;onExit:()=>void;access:ModuleAccessContext}){
   const [section,setSection]=useState<FinanceSection>("Painel");
-  const [payables,setPayables]=useState(initialPayables);
-  const [receivables,setReceivables]=useState(initialReceivables);
+  const [payables,setPayables]=useState<Payable[]>(initialPayables);
+  const [receivables,setReceivables]=useState<Receivable[]>(initialReceivables);
   const [modal,setModal]=useState<"payable"|"receivable"|"report"|null>(null);
   const [selected,setSelected]=useState<Payable|Receivable|null>(null);
   const [homologation,setHomologation]=useState(initialHomologation);
@@ -69,7 +107,122 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
   const canExport=hasPermission(access,"financeiro.export");
   const canAdmin=hasPermission(access,"financeiro.admin");
   const accessibleSections=canAdmin?sections:sections.filter(([label])=>label!=="Homologação");
-  const render=()=>section==="Painel"?<Dashboard payables={payables} receivables={receivables} setSection={setSection} access={access}/>:section==="Contas a pagar"?<Payables data={payables} setData={setPayables} canCreate={canCreate} canApprove={canApprove} canSettle={canSettle} openCreate={()=>setModal("payable")} inspect={setSelected} track={track}/>:section==="Contas a receber"?<Receivables data={receivables} setData={setReceivables} canCreate={canCreate} canSettle={canSettle} openCreate={()=>setModal("receivable")} inspect={setSelected} track={track}/>:section==="Fluxo de caixa"?<CashFlow payables={payables} receivables={receivables}/>:section==="Bancos e conciliação"?<Banks track={track} canReconcile={canReconcile}/>:section==="Centros de custo"?<CostCenters track={track} canCreate={canCreate}/>:section==="Relatórios"?<Reports open={(title)=>{setSelected({id:0,customer:title,document:"",category:"",due:"",value:0,received:0,status:"Em aberto"});setModal("report")}}/>:<Homologation values={homologation} setValues={setHomologation} track={track}/>;
+
+  async function loadFinanceData(signal?: AbortSignal) {
+    try {
+      const res = await fetch("/api/finance", { cache: "no-store", signal });
+      if (!res.ok) return;
+      const data = (await res.json()) as FinanceSnapshot;
+      if (data && Array.isArray(data.titles)) {
+        const pList = data.titles.filter(t => t.direction === "payable").map(mapTitleToPayable);
+        const rList = data.titles.filter(t => t.direction === "receivable").map(mapTitleToReceivable);
+        if (pList.length > 0 || rList.length > 0) {
+          setPayables(pList);
+          setReceivables(rList);
+        }
+      }
+    } catch {
+      // Keep demo fallback
+    }
+  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadFinanceData(controller.signal);
+    return () => controller.abort();
+  }, []);
+
+  async function handleSavePayable(entry: Omit<Payable, "id">) {
+    try {
+      const res = await fetch("/api/finance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          direction: "payable",
+          counterparty: entry.supplier,
+          documentNumber: entry.document,
+          category: entry.category,
+          costCenterName: entry.costCenter,
+          dueDate: entry.due,
+          amount: entry.value,
+        }),
+      });
+      if (res.ok) {
+        track("Conta a pagar salva no Supabase.");
+        await loadFinanceData();
+        return;
+      }
+    } catch {
+      // fallback local
+    }
+    setPayables(current => [{ id: Date.now(), ...entry }, ...current]);
+    track("Conta a pagar cadastrada.");
+  }
+
+  async function handleSaveReceivable(entry: Omit<Receivable, "id">) {
+    try {
+      const res = await fetch("/api/finance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          direction: "receivable",
+          counterparty: entry.customer,
+          documentNumber: entry.document,
+          category: entry.category,
+          dueDate: entry.due,
+          amount: entry.value,
+        }),
+      });
+      if (res.ok) {
+        track("Conta a receber salva no Supabase.");
+        await loadFinanceData();
+        return;
+      }
+    } catch {
+      // fallback local
+    }
+    setReceivables(current => [{ id: Date.now(), ...entry }, ...current]);
+    track("Conta a receber cadastrada.");
+  }
+
+  async function handleUpdatePayableStatus(id: string | number, status: PayableStatus) {
+    setPayables(current => current.map(x => (x.id === id ? { ...x, status } : x)));
+    if (typeof id === "string") {
+      try {
+        const type = status === "Aprovado" ? "approve" : status === "Pago" ? "settle" : null;
+        if (type) {
+          await fetch("/api/finance", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type, titleId: id }),
+          });
+          await loadFinanceData();
+        }
+      } catch {
+        // local already updated
+      }
+    }
+    track(`Conta a pagar: situação alterada para ${status}.`);
+  }
+
+  async function handleReceive(id: string | number) {
+    setReceivables(current => current.map(x => (x.id === id ? { ...x, received: x.value, status: "Recebido" } : x)));
+    if (typeof id === "string") {
+      try {
+        await fetch("/api/finance", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "settle", titleId: id }),
+        });
+        await loadFinanceData();
+      } catch {
+        // local already updated
+      }
+    }
+    track("Conta a receber: recebimento confirmado.");
+  }
+
+  const render=()=>section==="Painel"?<Dashboard payables={payables} receivables={receivables} setSection={setSection} access={access}/>:section==="Contas a pagar"?<Payables data={payables} onUpdateStatus={handleUpdatePayableStatus} canCreate={canCreate} canApprove={canApprove} canSettle={canSettle} openCreate={()=>setModal("payable")} inspect={setSelected} track={track}/>:section==="Contas a receber"?<Receivables data={receivables} onReceive={handleReceive} canCreate={canCreate} canSettle={canSettle} openCreate={()=>setModal("receivable")} inspect={setSelected} track={track}/>:section==="Fluxo de caixa"?<CashFlow payables={payables} receivables={receivables}/>:section==="Bancos e conciliação"?<Banks track={track} canReconcile={canReconcile}/>:section==="Centros de custo"?<CostCenters track={track} canCreate={canCreate}/>:section==="Relatórios"?<Reports open={(title)=>{setSelected({id:0,customer:title,document:"",category:"",due:"",value:0,received:0,status:"Em aberto"});setModal("report")}}/>:<Homologation values={homologation} setValues={setHomologation} track={track}/>;
   return <div className="finance-module">
     <div className="ds-module-bar">
       <Button variant="secondary" compact onClick={onExit}><FIcon name="back"/> Ecossistema</Button>
@@ -77,7 +230,7 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
       <Status tone="info">{access.scopeLabel}</Status>
     </div>
     <main className="finance-workspace">{render()}</main>
-    {modal==="payable"&&<EntryForm kind="payable" onClose={()=>setModal(null)} onSave={(entry)=>{setPayables(current=>[{id:Date.now(),...(entry as Omit<Payable,"id">)},...current]);setModal(null);track("Conta a pagar cadastrada.")}}/>}{modal==="receivable"&&<EntryForm kind="receivable" onClose={()=>setModal(null)} onSave={(entry)=>{setReceivables(current=>[{id:Date.now(),...(entry as Omit<Receivable,"id">)},...current]);setModal(null);track("Conta a receber cadastrada.")}}/>}{selected&&modal!=="report"&&<Detail item={selected} onClose={()=>setSelected(null)}/>} {modal==="report"&&<ReportDetail title={(selected as Receivable)?.customer??"Relatório financeiro"} canExport={canExport} track={track} onClose={()=>{setModal(null);setSelected(null)}}/>}</div>
+    {modal==="payable"&&<EntryForm kind="payable" onClose={()=>setModal(null)} onSave={(entry)=>{void handleSavePayable(entry as Omit<Payable,"id">);setModal(null)}}/>}{modal==="receivable"&&<EntryForm kind="receivable" onClose={()=>setModal(null)} onSave={(entry)=>{void handleSaveReceivable(entry as Omit<Receivable,"id">);setModal(null)}}/>}{selected&&modal!=="report"&&<Detail item={selected} onClose={()=>setSelected(null)}/>} {modal==="report"&&<ReportDetail title={(selected as Receivable)?.customer??"Relatório financeiro"} canExport={canExport} track={track} onClose={()=>{setModal(null);setSelected(null)}}/>}</div>
 }
 
 function Header({eyebrow,title,description,action,onAction}:{eyebrow:string;title:string;description:string;action?:string;onAction?:()=>void}){return <div className="finance-page-head"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div>{action&&<Button onClick={onAction}><FIcon name="plus"/> {action}</Button>}</div>}
@@ -89,9 +242,9 @@ function Metric({value,label,meta,toneName}:{value:string;label:string;meta:stri
 function Dashboard({payables,receivables,setSection,access}:{payables:Payable[];receivables:Receivable[];setSection:(v:FinanceSection)=>void;access:ModuleAccessContext}){const payableOpen=payables.filter(x=>x.status!=="Pago").reduce((a,b)=>a+b.value,0);const receiveOpen=receivables.reduce((a,b)=>a+b.value-b.received,0);return <><Header eyebrow={`FINANCEIRO · ${access.role.toUpperCase()}`} title="Visão financeira" description={`Caixa, compromissos e recebíveis autorizados para ${access.scopeLabel.toLowerCase()}.`}/><KpiGrid><Metric value={moneyShort(842350)} label="Saldo disponível" meta="4 contas bancárias" toneName="blue"/><Metric value={moneyShort(receiveOpen)} label="A receber" meta="Próximos 30 dias" toneName="green"/><Metric value={moneyShort(payableOpen)} label="A pagar" meta="Próximos 30 dias" toneName="amber"/><Metric value={moneyShort(126840)} label="Caixa projetado" meta="Fechamento do mês" toneName="purple"/></KpiGrid><div className="finance-dashboard-grid"><Card className="finance-pending"><div className="finance-card-head"><div><p className="eyebrow">CENTRAL FINANCEIRA</p><h2>Ações que exigem atenção</h2><p>Compromissos, cobranças e conciliações pendentes.</p></div><Status tone="attention">5 pendências</Status></div>{[["Pagamento vencido · TechMold","R$ 12.800 · venceu em 15 jul","Contas a pagar"],["Título vencido · Cristal Forte","R$ 68.400 · cobrança pendente","Contas a receber"],["Conciliação bancária","3 lançamentos sem correspondência","Bancos e conciliação"]].map(([title,meta,target],i)=><button key={title} onClick={()=>setSection(target as FinanceSection)}><span><FIcon name={i===0?"payable":i===1?"receivable":"bank"}/></span><span><b>{title}</b><small>{meta}</small></span><Status tone={i<2?"danger":"attention"}>{i<2?"Prioridade":"Conferir"}</Status><FIcon name="arrow"/></button>)}</Card><Card className="finance-position"><p className="eyebrow">POSIÇÃO DO MÊS</p><h2>Entradas e saídas</h2><div className="finance-donut"><Donut slices={[{label:"Receitas previstas",value:842400,tone:"green"},{label:"Despesas previstas",value:715560,tone:"amber"}]} total={126840} caption="saldo projetado" size={170}/></div>
     <Legend slices={[{label:"Receitas previstas",value:842400,tone:"green"},{label:"Despesas previstas",value:715560,tone:"amber"}]}/><dl><div><dt>Receitas previstas</dt><dd>R$ 842.400</dd></div><div><dt>Despesas previstas</dt><dd>R$ 715.560</dd></div><div><dt>Margem de caixa</dt><dd>15,1%</dd></div></dl><button onClick={()=>setSection("Fluxo de caixa")}>Ver fluxo completo <FIcon name="arrow"/></button></Card></div></>}
 
-function Payables({data,setData,canCreate,canApprove,canSettle,openCreate,inspect,track}:{data:Payable[];setData:React.Dispatch<React.SetStateAction<Payable[]>>;canCreate:boolean;canApprove:boolean;canSettle:boolean;openCreate:()=>void;inspect:(x:Payable)=>void;track:(m:string)=>void}){const[query,setQuery]=useState("");const[filter,setFilter]=useState("Todos");const visible=useMemo(()=>data.filter(x=>(filter==="Todos"||x.status===filter)&&`${x.supplier} ${x.document} ${x.category}`.toLowerCase().includes(query.toLowerCase())),[data,query,filter]);const update=(id:number,status:PayableStatus)=>{setData(current=>current.map(x=>x.id===id?{...x,status}:x));track(`Conta a pagar: situação alterada para ${status}.`)};return <><Header eyebrow="FINANCEIRO · OBRIGAÇÕES" title="Contas a pagar" description="Títulos, vencimentos, aprovações e pagamentos por centro de custo." action={canCreate?"Nova conta":undefined} onAction={openCreate}/><div className="finance-toolbar"><label><FIcon name="search"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar fornecedor, documento ou categoria..."/></label><select value={filter} onChange={e=>setFilter(e.target.value)}><option>Todos</option><option>Pendente</option><option>Em aprovação</option><option>Aprovado</option><option>Pago</option><option>Vencido</option></select></div><Card className="finance-table-card"><div className="finance-table payable"><div className="head"><span>Fornecedor</span><span>Vencimento</span><span>Centro de custo</span><span>Valor</span><span>Situação</span><span/></div>{visible.map(x=><div className="row" key={x.id}><button className="title" onClick={()=>inspect(x)}><b>{x.supplier}</b><small>{x.document} · {x.category}</small></button><span>{date(x.due)}</span><span>{x.costCenter}</span><strong>{money(x.value)}</strong><Status tone={tone(x.status)}>{x.status}</Status><span className="actions">{canApprove&&(x.status==="Pendente"||x.status==="Em aprovação")&&<button onClick={()=>update(x.id,"Aprovado")}>Aprovar</button>}{canSettle&&x.status==="Aprovado"&&<button onClick={()=>update(x.id,"Pago")}>Pagar</button>}<button onClick={()=>inspect(x)} aria-label={`Detalhes de ${x.supplier}`}><FIcon name="arrow"/></button></span></div>)}</div></Card></>}
+function Payables({data,onUpdateStatus,canCreate,canApprove,canSettle,openCreate,inspect,track}:{data:Payable[];onUpdateStatus:(id:string|number,status:PayableStatus)=>void;canCreate:boolean;canApprove:boolean;canSettle:boolean;openCreate:()=>void;inspect:(x:Payable)=>void;track:(m:string)=>void}){const[query,setQuery]=useState("");const[filter,setFilter]=useState("Todos");const visible=useMemo(()=>data.filter(x=>(filter==="Todos"||x.status===filter)&&`${x.supplier} ${x.document} ${x.category}`.toLowerCase().includes(query.toLowerCase())),[data,query,filter]);const update=(id:string|number,status:PayableStatus)=>{onUpdateStatus(id,status)};return <><Header eyebrow="FINANCEIRO · OBRIGAÇÕES" title="Contas a pagar" description="Títulos, vencimentos, aprovações e pagamentos por centro de custo." action={canCreate?"Nova conta":undefined} onAction={openCreate}/><div className="finance-toolbar"><label><FIcon name="search"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar fornecedor, documento ou categoria..."/></label><select value={filter} onChange={e=>setFilter(e.target.value)}><option>Todos</option><option>Pendente</option><option>Em aprovação</option><option>Aprovado</option><option>Pago</option><option>Vencido</option></select></div><Card className="finance-table-card"><div className="finance-table payable"><div className="head"><span>Fornecedor</span><span>Vencimento</span><span>Centro de custo</span><span>Valor</span><span>Situação</span><span/></div>{visible.map(x=><div className="row" key={x.id}><button className="title" onClick={()=>inspect(x)}><b>{x.supplier}</b><small>{x.document} · {x.category}</small></button><span>{date(x.due)}</span><span>{x.costCenter}</span><strong>{money(x.value)}</strong><Status tone={tone(x.status)}>{x.status}</Status><span className="actions">{canApprove&&(x.status==="Pendente"||x.status==="Em aprovação")&&<button onClick={()=>update(x.id,"Aprovado")}>Aprovar</button>}{canSettle&&x.status==="Aprovado"&&<button onClick={()=>update(x.id,"Pago")}>Pagar</button>}<button onClick={()=>inspect(x)} aria-label={`Detalhes de ${x.supplier}`}><FIcon name="arrow"/></button></span></div>)}</div></Card></>}
 
-function Receivables({data,setData,canCreate,canSettle,openCreate,inspect,track}:{data:Receivable[];setData:React.Dispatch<React.SetStateAction<Receivable[]>>;canCreate:boolean;canSettle:boolean;openCreate:()=>void;inspect:(x:Receivable)=>void;track:(m:string)=>void}){const[query,setQuery]=useState("");const visible=data.filter(x=>`${x.customer} ${x.document}`.toLowerCase().includes(query.toLowerCase()));const receive=(id:number)=>{setData(current=>current.map(x=>x.id===id?{...x,received:x.value,status:"Recebido"}:x));track("Conta a receber: recebimento confirmado.")};return <><Header eyebrow="FINANCEIRO · RECEITAS" title="Contas a receber" description="Títulos, recebimentos, inadimplência e acompanhamento de cobrança." action={canCreate?"Novo recebível":undefined} onAction={openCreate}/><div className="finance-toolbar"><label><FIcon name="search"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar cliente ou documento..."/></label><Status tone="danger">1 título vencido</Status></div><Card className="finance-table-card"><div className="finance-table receivable"><div className="head"><span>Cliente</span><span>Vencimento</span><span>Valor</span><span>Recebido</span><span>Situação</span><span/></div>{visible.map(x=><div className="row" key={x.id}><button className="title" onClick={()=>inspect(x)}><b>{x.customer}</b><small>{x.document} · {x.category}</small></button><span>{date(x.due)}</span><strong>{money(x.value)}</strong><span>{money(x.received)}</span><Status tone={tone(x.status)}>{x.status}</Status><span className="actions">{canSettle&&x.status!=="Recebido"&&<button onClick={()=>receive(x.id)}>Receber</button>}<button onClick={()=>inspect(x)} aria-label={`Detalhes de ${x.customer}`}><FIcon name="arrow"/></button></span></div>)}</div></Card></>}
+function Receivables({data,onReceive,canCreate,canSettle,openCreate,inspect,track}:{data:Receivable[];onReceive:(id:string|number)=>void;canCreate:boolean;canSettle:boolean;openCreate:()=>void;inspect:(x:Receivable)=>void;track:(m:string)=>void}){const[query,setQuery]=useState("");const visible=data.filter(x=>`${x.customer} ${x.document}`.toLowerCase().includes(query.toLowerCase()));const receive=(id:string|number)=>{onReceive(id)};return <><Header eyebrow="FINANCEIRO · RECEITAS" title="Contas a receber" description="Títulos, recebimentos, inadimplência e acompanhamento de cobrança." action={canCreate?"Novo recebível":undefined} onAction={openCreate}/><div className="finance-toolbar"><label><FIcon name="search"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar cliente ou documento..."/></label><Status tone="danger">1 título vencido</Status></div><Card className="finance-table-card"><div className="finance-table receivable"><div className="head"><span>Cliente</span><span>Vencimento</span><span>Valor</span><span>Recebido</span><span>Situação</span><span/></div>{visible.map(x=><div className="row" key={x.id}><button className="title" onClick={()=>inspect(x)}><b>{x.customer}</b><small>{x.document} · {x.category}</small></button><span>{date(x.due)}</span><strong>{money(x.value)}</strong><span>{money(x.received)}</span><Status tone={tone(x.status)}>{x.status}</Status><span className="actions">{canSettle&&x.status!=="Recebido"&&<button onClick={()=>receive(x.id)}>Receber</button>}<button onClick={()=>inspect(x)} aria-label={`Detalhes de ${x.customer}`}><FIcon name="arrow"/></button></span></div>)}</div></Card></>}
 
 function CashFlow({payables,receivables}:{payables:Payable[];receivables:Receivable[]}){const months=[{m:"JUL",in:842,out:716},{m:"AGO",in:910,out:768},{m:"SET",in:875,out:702},{m:"OUT",in:980,out:824},{m:"NOV",in:1040,out:861},{m:"DEZ",in:1120,out:945}];return <><Header eyebrow="FINANCEIRO · TESOURARIA" title="Fluxo de caixa" description="Visão realizada e projetada das disponibilidades financeiras."/><KpiGrid><Metric value={moneyShort(receivables.reduce((a,b)=>a+b.received,0))} label="Entradas realizadas" meta="Julho de 2026" toneName="green"/><Metric value={moneyShort(payables.filter(x=>x.status==="Pago").reduce((a,b)=>a+b.value,0))} label="Saídas realizadas" meta="Julho de 2026" toneName="amber"/><Metric value="R$ 126,8 mil" label="Resultado projetado" meta="Fechamento mensal" toneName="blue"/></KpiGrid><Card className="cash-chart"><div className="finance-card-head"><div><p className="eyebrow">PROJEÇÃO DE 6 MESES</p><h2>Entradas versus saídas</h2><p>Valores demonstrativos em milhares de reais.</p></div><div className="legend"><span className="in">Entradas</span><span className="out">Saídas</span></div></div><div className="cash-bars">{months.map(x=><div key={x.m}><div><i className="in" style={{height:`${x.in/12}px`}}/><i className="out" style={{height:`${x.out/12}px`}}/></div><b>{x.m}</b><small>+{money((x.in-x.out)*1000).replace(",00","")}</small></div>)}</div></Card></>}
 

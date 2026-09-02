@@ -56,11 +56,7 @@ export function useSessionAccess(): SessionAccessState {
 
     fetch("/api/me", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
-        if (response.status === 401) {
-          window.location.assign("/login");
-          return null;
-        }
-        if (!response.ok) return null; // 503/500: mantém o fallback
+        if (!response.ok) return null; // 401/503/500: mantém o fallback demonstrativo sem redirecionar
         return (await response.json()) as MePayload;
       })
       .then((payload) => {

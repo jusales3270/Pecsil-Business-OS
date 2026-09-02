@@ -360,7 +360,7 @@ async function sendRhMutation(body: Record<string, string>): Promise<boolean> {
     body: JSON.stringify(body),
   });
   if (response.status === 409) return false; // modo demonstrativo
-  if (response.status === 401) { window.location.assign("/login"); throw new Error("UNAUTHENTICATED"); }
+  if (response.status === 401) { throw new Error("UNAUTHENTICATED"); }
   if (!response.ok) throw new Error("RH_MUTATION_DENIED");
   return true;
 }
@@ -555,7 +555,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
             positionName: employee.role || null,
           }),
         });
-        if (response.status === 401) { window.location.assign("/login"); return; }
+        if (response.status === 401) throw new Error("UNAUTHENTICATED");
         if (!response.ok) throw new Error("RH_CREATE_DENIED");
         notify(`${employee.name} foi cadastrado no banco.`);
       } catch {
@@ -778,7 +778,7 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
             reason: request.reason,
           }),
         });
-        if (response.status === 401) { window.location.assign("/login"); return; }
+        if (response.status === 401) throw new Error("UNAUTHENTICATED");
         if (!response.ok) throw new Error("RH_CREATE_DENIED");
         const { id } = (await response.json()) as { id: string };
         setRecords(current => current.map(record => record.id === request.id ? { ...record, sourceId: id } : record));
@@ -896,7 +896,7 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
     if(rh.source==="supabase"&&employeeId&&planId){
       try{
         const response=await fetch("/api/rh",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entity:"benefit_request",employeeId,planId,action:benefitActionEnum[request.action],effectiveDate:request.effectiveDate||null,reason:request.reason||null})});
-        if(response.status===401){window.location.assign("/login");return;}
+        if(response.status===401) throw new Error("UNAUTHENTICATED");
         if(!response.ok)throw new Error("RH_CREATE_DENIED");
         const{id}=(await response.json()) as {id:string};
         setRequests(current=>current.map(r=>r.id===request.id?{...r,sourceId:id}:r));
@@ -1040,7 +1040,7 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
     if(rh.source==="supabase"&&employeeId){
       try{
         const response=await fetch("/api/rh",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entity:"sst",employeeId,category:sstCategoryEnum[record.category],title:record.title,dueDate:record.dueDate||null,risk:sstRiskEnum[record.risk],note:record.note||null})});
-        if(response.status===401){window.location.assign("/login");return;}
+        if(response.status===401) throw new Error("UNAUTHENTICATED");
         if(!response.ok)throw new Error("RH_CREATE_DENIED");
         const{id}=(await response.json()) as {id:string};
         setRecords(current=>current.map(r=>r.id===record.id?{...r,sourceId:id}:r));

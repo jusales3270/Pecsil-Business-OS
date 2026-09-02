@@ -48,7 +48,7 @@ export function useFoundationData(): FoundationDataState {
         }
 
         if (response.status === 401) {
-          window.location.assign("/login");
+          setState({ snapshot: demoFoundationSnapshot, loading: false, error: null });
           return;
         }
         if (!response.ok) throw new Error("FOUNDATION_UNAVAILABLE");

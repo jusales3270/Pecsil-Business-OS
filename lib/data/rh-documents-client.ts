@@ -37,7 +37,7 @@ export async function uploadRhDocument(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ entity: "document", objectPath, ...meta }),
   });
-  if (response.status === 401) { window.location.assign("/login"); throw new Error("UNAUTHENTICATED"); }
+  if (response.status === 401) { throw new Error("UNAUTHENTICATED"); }
   if (!response.ok) {
     await supabase.storage.from(BUCKET).remove([objectPath]).catch(() => {});
     throw new Error("RH_DOC_DENIED");
