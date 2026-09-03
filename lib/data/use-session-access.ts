@@ -28,6 +28,7 @@ type MePayload = {
   name: string;
   initials: string;
   role: string;
+  roleCode?: string | null;
   scopeLabel: string;
   permissions: string[];
   scopes: { type: string; referenceId?: string; moduleCode?: string }[];
@@ -70,6 +71,7 @@ export function useSessionAccess(): SessionAccessState {
             name: payload.name,
             initials: payload.initials,
             role: payload.role,
+            roleCode: payload.roleCode ?? null,
             scopeLabel: payload.scopeLabel,
             permissions: payload.permissions,
             scopes: payload.scopes as ModuleAccessContext["scopes"],

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { createSupabaseAdminClient } from "../../../lib/supabase/admin";
 import { getSupabaseConfigStatus } from "../../../lib/supabase/config";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +66,8 @@ export async function GET() {
     return NextResponse.json({ error: "NO_ACTIVE_PROFILE" }, { status: 403 });
   }
 
-  const { data: grants, error: grantsError } = await supabase
+  const admin = createSupabaseAdminClient();
+  const { data: grants, error: grantsError } = await admin
     .from("user_roles")
     .select(
       "valid_until, role:roles(code, name, role_permissions(module_code, action, granted)), scope:access_scopes(scope_type, entity_id, module_code, label)",

@@ -20,7 +20,7 @@ export async function GET() {
   const { data, error } = await admin
     .from("profiles")
     .select(
-      "id, user_id, full_name, email, status, created_at, user_roles!profile_id(valid_until, role:roles(code,name), scope:access_scopes(label,scope_type))",
+      "id, user_id, full_name, email, status, created_at, user_roles!profile_id(valid_until, role:roles(code,name), scope:access_scopes(label,scope_type,module_code,entity_id))",
     )
     .eq("organization_id", auth.orgId)
     .order("created_at", { ascending: true });
@@ -34,7 +34,9 @@ export async function GET() {
       grants.find((grant) => !grant.valid_until || new Date(grant.valid_until) > new Date()) ??
       grants[0];
     const role = active?.role as { code?: string; name?: string } | undefined;
-    const scope = active?.scope as { label?: string; scope_type?: string } | undefined;
+    const scope = active?.scope as
+      | { label?: string; scope_type?: string; module_code?: string | null; entity_id?: string | null }
+      | undefined;
     return {
       id: profile.id,
       fullName: profile.full_name,
@@ -44,6 +46,8 @@ export async function GET() {
       roleCode: role?.code ?? null,
       scopeLabel: scope?.label ?? "—",
       scopeType: scope?.scope_type ?? null,
+      moduleCode: scope?.module_code ?? null,
+      entityId: scope?.entity_id ?? null,
     };
   });
   return NextResponse.json({ users });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Card, Kpi, KpiGrid, Status, ThemeToggle } from "../packages/design-system";
 import type { FoundationSummary, OrganizationData, Person } from "../lib/data/foundation";
 import { useFoundationData } from "../lib/data/use-foundation-data";
@@ -344,13 +344,75 @@ export default function Home() {
   // Enquanto carrega, ou com o Supabase inacessível, cai no contexto demonstrativo.
   const { access, real: realAccess, profile: sessionProfile, reload: reloadIdentity } = useSessionAccess();
   const [accountPanel,setAccountPanel]=useState(false);
+  const isExecutive = access.roleCode === "owner" || access.roleCode === "admin" || access.role === "Proprietário" || access.role === "Administrador";
   const modules=useMemo(()=>getCatalogModules(access,moduleRegistry),[access]);
   const visibleModules=useMemo(()=>getVisibleModules(access,moduleRegistry),[access]);
-  const foundationNav=useMemo(()=>nav.slice(2).filter(item=>!viewPermissions[item.label]||hasPermission(access,viewPermissions[item.label]!)),[access]);
+
+  // Módulo setorial de destino do usuário não executivo
+  const targetedModule = useMemo(() => {
+    if (isExecutive) return null;
+    const explicitModule = access.scopes.find(s => s.type === "module" && s.moduleCode)?.moduleCode;
+    if (explicitModule && visibleModules.some(m => m.id === explicitModule)) {
+      return explicitModule;
+    }
+    return visibleModules[0]?.id ?? null;
+  }, [isExecutive, access.scopes, visibleModules]);
+
+  const [routedInitialModule, setRoutedInitialModule] = useState(false);
+
+  // Direciona imediatamente para o módulo do usuário apenas no carregamento inicial
+  useEffect(() => {
+    if (!isExecutive && targetedModule && !routedInitialModule) {
+      setActiveModuleId(targetedModule);
+      setDeniedTarget(null);
+      setRoutedInitialModule(true);
+    }
+  }, [isExecutive, targetedModule, routedInitialModule]);
+
+  const foundationNav=useMemo(()=>{
+    if (!isExecutive) {
+      const isRh = targetedModule === "rh" || access.scopes.some(s => s.moduleCode === "rh");
+      return nav.slice(2).filter((item) => {
+        // Pessoas e Acessos só é relevante para quem atua no RH
+        if (item.label === "Pessoas e Acessos") return isRh && hasPermission(access, "core.people.view");
+        // Áreas de governança e infra são exclusivas de proprietário e admin
+        if (
+          item.label === "Estrutura" ||
+          item.label === "Permissões e Segurança" ||
+          item.label === "Banco e Autenticação" ||
+          item.label === "Auditoria" ||
+          item.label === "Configurações"
+        ) {
+          return false;
+        }
+        return !viewPermissions[item.label] || hasPermission(access, viewPermissions[item.label]!);
+      });
+    }
+    return nav.slice(2).filter(item=>!viewPermissions[item.label]||hasPermission(access,viewPermissions[item.label]!));
+  },[access, isExecutive, targetedModule]);
+
   const notify=(message:string)=>{setToast(message);setTimeout(()=>setToast(""),2600)};
   const recordOperationalEvent=(message:string,module="Recursos Humanos")=>{const lower=message.toLowerCase();const sensitive=lower.includes("aprov")||lower.includes("reprov")||lower.includes("conforme")||lower.includes("situação alterada");const monitored=lower.includes("export")||lower.includes("documento")||lower.includes("cadastro");const title=message.split(":")[0].replace(/\.$/,"");setOperationalEvents(current=>[{id:Date.now(),title,message,actor:access.name,module,time:"Agora",tone:(sensitive?"attention":"info") as OperationalEvent["tone"],risk:(sensitive?"Sensível":monitored?"Monitorado":"Normal") as OperationalEvent["risk"],icon:sensitive?"shield":lower.includes("export")?"download":"bell"},...current].slice(0,20));};
-  const change=(v:View)=>{const permission=viewPermissions[v];if(permission&&!hasPermission(access,permission)){setDeniedTarget(v);setActiveModuleId(null);setMobile(false);return}setDeniedTarget(null);setActiveModuleId(null);setView(v);setMobile(false)};
+  const change=(v:View)=>{
+    if (!isExecutive && (v === "Visão Geral" || v === "Módulos")) {
+      if (targetedModule) {
+        openModule(targetedModule);
+        return;
+      }
+    }
+    const permission=viewPermissions[v];
+    if(permission&&!hasPermission(access,permission)){setDeniedTarget(v);setActiveModuleId(null);setMobile(false);return}
+    setDeniedTarget(null);setActiveModuleId(null);setView(v);setMobile(false);
+  };
   const openModule=(moduleId:string)=>{const manifest=getModuleById(moduleId);if(!manifest||!canAccessModule(access,manifest)){setDeniedTarget(manifest?.name??"Módulo");setActiveModuleId(null);setMobile(false);return}setDeniedTarget(null);setActiveModuleId(moduleId);setMobile(false)};
+  const handleModuleExit = () => {
+    if (isExecutive) {
+      change("Módulos");
+    } else if (visibleModules.length > 1) {
+      const next = visibleModules.find(m => m.id !== activeModuleId) ?? visibleModules[0];
+      if (next) openModule(next.id);
+    }
+  };
   const openSearch=()=>change("Busca Corporativa");
   const signOut=async()=>{setAccountMenu(false);const form=document.createElement("form");form.method="POST";form.action="/auth/signout";document.body.appendChild(form);form.submit()};
   const activeModule=activeModuleId?getModuleById(activeModuleId):undefined;
@@ -367,8 +429,10 @@ export default function Home() {
         <button className="close-menu" onClick={()=>setMobile(false)} aria-label="Fechar menu"><Icon name="close"/></button>
       </div>
       <nav>
-        <p>Plataforma</p>
-        {nav.slice(0,2).map(n=><button key={n.label} title={n.label} aria-label={n.label} className={!activeModuleId&&!deniedTarget&&view===n.label?"active":""} onClick={()=>change(n.label)}><Icon name={n.icon}/><span>{n.label}</span></button>)}
+        {isExecutive && <>
+          <p>Plataforma</p>
+          {nav.slice(0,2).map(n=><button key={n.label} title={n.label} aria-label={n.label} className={!activeModuleId&&!deniedTarget&&view===n.label?"active":""} onClick={()=>change(n.label)}><Icon name={n.icon}/><span>{n.label}</span></button>)}
+        </>}
         {visibleModules.length>0&&<><p>Módulos</p>
           {visibleModules.map(module=><button key={module.id} title={module.name} aria-label={module.name} className={activeModuleId===module.id?"active":""} onClick={()=>openModule(module.id)}><Icon name={module.icon}/><span>{module.name}</span></button>)}
         </>}
@@ -401,7 +465,7 @@ export default function Home() {
           {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button><button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
         </div>
       </header>
-      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);setView("Visão Geral")}}/>:activeModuleId==="rh"?<HrModule people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={()=>change("Módulos")} access={access}/>:activeModuleId?renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:()=>change("Módulos"),access}):view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change}/>:view==="Documentos"?<DocumentsView notify={notify}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source}/>:<AdminView view={view}/>}</div>
+      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access}):view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change}/>:view==="Documentos"?<DocumentsView notify={notify}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source}/>:<AdminView view={view}/>}</div>
     </main>{accountPanel&&<AccountPanel access={access} profile={sessionProfile} onClose={()=>setAccountPanel(false)} onSaved={reloadIdentity} notify={notify}/>}
       {toast&&<div className="toast"><span>✓</span>{toast}</div>}
   </div>;

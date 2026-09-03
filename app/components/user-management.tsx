@@ -12,6 +12,8 @@ type AdminUser = {
   roleCode: string | null;
   scopeLabel: string;
   scopeType: string | null;
+  moduleCode?: string | null;
+  entityId?: string | null;
 };
 
 type ScopeOptions = {
@@ -229,8 +231,9 @@ function ScopeFields({
         <select
           value={scopeType}
           onChange={(event) => {
-            onScopeType(event.target.value);
-            onEntityId("");
+            const next = event.target.value;
+            onScopeType(next);
+            onEntityId(next === "module" ? (options.modules[0]?.code ?? "") : "");
           }}
         >
           {SCOPES.map((scope) => (
@@ -300,7 +303,7 @@ function CreateUserForm({
   const [password, setPassword] = useState("");
   const [roleCode, setRoleCode] = useState("manager");
   const [scopeType, setScopeType] = useState("module");
-  const [entityId, setEntityId] = useState("");
+  const [entityId, setEntityId] = useState(options.modules[0]?.code ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -375,12 +378,13 @@ function CreateUserForm({
             onEntityId={setEntityId}
           />
           <div className="user-admin-note field-wide">
-            <span>🔒</span>
+            <span>🎯</span>
             <span>
-              <b>{ROLES.find((role) => role.code === roleCode)?.name}</b>
+              <b>{scopeType === "module" ? "Foco Direto no Trabalho" : ROLES.find((role) => role.code === roleCode)?.name}</b>
               <small>
-                {ROLES.find((role) => role.code === roleCode)?.hint} ·{" "}
-                {SCOPES.find((scope) => scope.type === scopeType)?.hint}
+                {scopeType === "module"
+                  ? "O usuário será direcionado diretamente para o seu painel setorial ao fazer login, sem acesso à visão geral executiva nem dados de outros setores."
+                  : `${ROLES.find((role) => role.code === roleCode)?.hint} · ${SCOPES.find((scope) => scope.type === scopeType)?.hint}`}
               </small>
             </span>
           </div>
@@ -412,8 +416,12 @@ function EditUserDrawer({
   onSaved: (message: string) => void;
 }) {
   const [roleCode, setRoleCode] = useState(user.roleCode ?? "manager");
-  const [scopeType, setScopeType] = useState(user.scopeType ?? "company");
-  const [entityId, setEntityId] = useState("");
+  const [scopeType, setScopeType] = useState(user.scopeType ?? "module");
+  const [entityId, setEntityId] = useState(
+    user.scopeType === "module"
+      ? (user.moduleCode ?? options.modules[0]?.code ?? "")
+      : (user.entityId ?? "")
+  );
   const [status, setStatus] = useState(user.status);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -470,6 +478,17 @@ function EditUserDrawer({
             onScopeType={setScopeType}
             onEntityId={setEntityId}
           />
+          <div className="user-admin-note field-wide">
+            <span>🎯</span>
+            <span>
+              <b>{scopeType === "module" ? "Foco Direto no Trabalho" : ROLES.find((role) => role.code === roleCode)?.name}</b>
+              <small>
+                {scopeType === "module"
+                  ? "Este usuário entra diretamente no painel do módulo associado ao logar, sem distrações nem visualização de dados alheios."
+                  : `${ROLES.find((role) => role.code === roleCode)?.hint} · ${SCOPES.find((scope) => scope.type === scopeType)?.hint}`}
+              </small>
+            </span>
+          </div>
           <div className="user-admin-actions field-wide">
             <Button
               variant="secondary"

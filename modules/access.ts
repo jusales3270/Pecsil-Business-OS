@@ -6,6 +6,7 @@ export type ModuleAccessContext = {
   name: string;
   initials: string;
   role: string;
+  roleCode?: string | null;
   scopeLabel: string;
   permissions: readonly string[];
   scopes: readonly {
@@ -20,6 +21,7 @@ export const demoOwnerAccess: ModuleAccessContext = {
   name: "Júnior Sales",
   initials: "JS",
   role: "Proprietário",
+  roleCode: "owner",
   scopeLabel: "Toda a empresa",
   permissions: ["*"],
   scopes: [{ type:"company" }],
