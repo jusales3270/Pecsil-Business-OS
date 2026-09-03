@@ -21,8 +21,8 @@ interface ComprasAppProps {
 export default function ComprasApp({ access, onExit }: ComprasAppProps) {
   const { user, currentPage, fetchInitialData, login } = useStore();
 
-  const isOwner = access.roleCode === 'owner' || access.roleCode === 'director';
-  const isManager = access.roleCode === 'manager';
+  const isOwner = access.roleCode === 'owner' || access.roleCode === 'director' || access.role === 'Proprietário';
+  const isManager = access.roleCode === 'manager' || access.role === 'Gestor';
 
   // Configuração inicial de perfil e acesso
   useEffect(() => {

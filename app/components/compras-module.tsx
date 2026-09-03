@@ -41,13 +41,17 @@ export function ComprasModule({
     onEvent(message, "Compras");
   };
 
+  const isOwner = access.role === "Proprietário" || access.roleCode === "owner" || access.roleCode === "director";
+
   return (
     <div className="ds-module-body">
       {/* Barra de navegação interna do módulo */}
       <div className="ds-module-bar">
-        <Button variant="secondary" compact onClick={onExit}>
-          <ComprasIcon name="back" /> Ecossistema
-        </Button>
+        {isOwner && (
+          <Button variant="secondary" compact onClick={onExit}>
+            <ComprasIcon name="back" /> Ecossistema
+          </Button>
+        )}
         <Segmented
           options={sections.map(([label]) => label)}
           value={section}

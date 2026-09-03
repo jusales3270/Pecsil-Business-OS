@@ -82,7 +82,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 flex-shrink-0 gap-4">
       {/* Esquerda: Voltar ao Ecossistema + Seletor de Perfil (Proprietário) */}
       <div className="flex items-center gap-3">
-        {onExit && (
+        {onExit && isOwner && (
           <button
             type="button"
             onClick={onExit}

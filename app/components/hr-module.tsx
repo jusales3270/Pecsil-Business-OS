@@ -271,9 +271,11 @@ export function HrModule({
   const canCreate = hasPermission(access, "rh.create");
   const track=(message:string)=>{notify(message);onEvent(message)};
 
+  const isOwner = access.role === "Proprietário" || access.roleCode === "owner" || access.roleCode === "director";
+
   return <div className="ds-module-body">
     <div className="ds-module-bar">
-      <Button variant="secondary" compact onClick={onExit}><HrIcon name="back"/> Ecossistema</Button>
+      {isOwner && <Button variant="secondary" compact onClick={onExit}><HrIcon name="back"/> Ecossistema</Button>}
       <Segmented options={accessibleSections.map(([label]) => label)} value={section} onChange={setSection} ariaLabel="Seções do módulo de Recursos Humanos"/>
       <Status tone="info">{access.scopeLabel}</Status>
     </div>

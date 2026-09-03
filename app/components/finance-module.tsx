@@ -223,9 +223,11 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
   }
 
   const render=()=>section==="Painel"?<Dashboard payables={payables} receivables={receivables} setSection={setSection} access={access}/>:section==="Contas a pagar"?<Payables data={payables} onUpdateStatus={handleUpdatePayableStatus} canCreate={canCreate} canApprove={canApprove} canSettle={canSettle} openCreate={()=>setModal("payable")} inspect={setSelected} track={track}/>:section==="Contas a receber"?<Receivables data={receivables} onReceive={handleReceive} canCreate={canCreate} canSettle={canSettle} openCreate={()=>setModal("receivable")} inspect={setSelected} track={track}/>:section==="Fluxo de caixa"?<CashFlow payables={payables} receivables={receivables}/>:section==="Bancos e conciliação"?<Banks track={track} canReconcile={canReconcile}/>:section==="Centros de custo"?<CostCenters track={track} canCreate={canCreate}/>:section==="Relatórios"?<Reports open={(title)=>{setSelected({id:0,customer:title,document:"",category:"",due:"",value:0,received:0,status:"Em aberto"});setModal("report")}}/>:<Homologation values={homologation} setValues={setHomologation} track={track}/>;
+  const isOwner = access.role === "Proprietário" || access.roleCode === "owner" || access.roleCode === "director";
+
   return <div className="finance-module">
     <div className="ds-module-bar">
-      <Button variant="secondary" compact onClick={onExit}><FIcon name="back"/> Ecossistema</Button>
+      {isOwner && <Button variant="secondary" compact onClick={onExit}><FIcon name="back"/> Ecossistema</Button>}
       <Segmented options={accessibleSections.map(([label])=>label)} value={section} onChange={setSection} ariaLabel="Seções do módulo Financeiro"/>
       <Status tone="info">{access.scopeLabel}</Status>
     </div>
