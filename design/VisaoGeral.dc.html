@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: Geist, ui-sans-serif, system-ui, sans-serif; }
+    a { color: #2864ed; } a:hover { color: #1d4fc4; }
+    .mono { font-family: "Geist Mono", ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; background: #f5f6f8; color: #14161a; padding: 48px 56px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 32px;">
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">VISÃO GERAL</p>
+    <h1 style="margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">Menos caixa, mais informação</h1>
+    <p style="margin: 0; font-size: 13px; color: #545b66; max-width: 74ch; line-height: 1.55;">Duas mudanças: o número volta a caber no cartão, e a faixa que diz ao usuário que o sistema é uma simulação sai — a aplicação está conectada ao banco real.</p>
+  </div>
+
+  <!-- ANTES -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <span style="display: inline-flex; align-self: flex-start; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf0f2; color: #be123c; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Hoje</span>
+
+    <div style="display: flex; align-items: flex-start; gap: 12px; padding: 20px 24px; border: 1px solid #cfe0ff; border-radius: 16px; background: #eef4ff;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2864ed" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+        <b style="font-size: 13px; font-weight: 600;">Escopo aplicado: Pecsil completa</b>
+        <small style="font-size: 12px; color: #545b66; line-height: 1.55;">Interface simulada com as mesmas regras do futuro acesso autenticado. Perfil ativo: Proprietário. Os números desta tela são demonstrativos até a conexão com o Supabase.</small>
+      </span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px;">
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; min-height: 118px; padding: 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <span style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 13px; font-weight: 500;">Módulo ativo</span><span style="font-size: 12px; color: #848c99;">Visível conforme credenciais</span></span>
+        <span class="mono" style="font-size: 40px; font-weight: 600; color: #2864ed; line-height: 1;">2</span>
+      </div>
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; min-height: 118px; padding: 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <span style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 13px; font-weight: 500;">Colaboradores mapeados</span><span style="font-size: 12px; color: #848c99;">Cadastro mestre inicial</span></span>
+        <span class="mono" style="font-size: 40px; font-weight: 600; color: #059669; line-height: 1;">0</span>
+      </div>
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; min-height: 118px; padding: 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <span style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 13px; font-weight: 500;">Perfis de acesso</span><span style="font-size: 12px; color: #848c99;">Modelo definido</span></span>
+        <span class="mono" style="font-size: 40px; font-weight: 600; color: #7e22ce; line-height: 1;">6</span>
+      </div>
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; min-height: 118px; padding: 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <span style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 13px; font-weight: 500;">Serviços centrais</span><span style="font-size: 12px; color: #848c99;">Base da Fundação</span></span>
+        <span class="mono" style="font-size: 40px; font-weight: 600; color: #b45309; line-height: 1;">4</span>
+      </div>
+    </div>
+    <p style="margin: 0; font-size: 12px; color: #be123c; line-height: 1.55;">O número de 40px e o rótulo disputam a mesma linha; em valores maiores o cartão quebra. A faixa azul repete o escopo que já está na barra lateral.</p>
+  </div>
+
+  <!-- DEPOIS -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <span style="display: inline-flex; align-self: flex-start; align-items: center; padding: 3px 8px; border-radius: 999px; background: #e9f9f1; color: #059669; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Proposta</span>
+
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px;">
+      <div style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-height: 104px; padding: 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <span style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">MÓDULOS ATIVOS</span>
+          <span style="display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: #eef4ff; color: #2864ed;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+        </span>
+        <span style="display: flex; align-items: baseline; gap: 8px;"><span class="mono" style="font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1;">2</span><span style="font-size: 12px; color: #848c99;">de 6</span></span>
+      </div>
+      <div style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-height: 104px; padding: 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <span style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">COLABORADORES</span>
+          <span style="display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: #e9f9f1; color: #059669;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>
+        </span>
+        <span style="display: flex; align-items: baseline; gap: 8px;"><span class="mono" style="font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1;">0</span><span style="font-size: 12px; color: #848c99;">cadastrados</span></span>
+      </div>
+      <div style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-height: 104px; padding: 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <span style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">PERFIS DE ACESSO</span>
+          <span style="display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: #f7effe; color: #7e22ce;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        </span>
+        <span style="display: flex; align-items: baseline; gap: 8px;"><span class="mono" style="font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1;">6</span><span style="font-size: 12px; color: #848c99;">papéis</span></span>
+      </div>
+      <div style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-height: 104px; padding: 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <span style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">SERVIÇOS CENTRAIS</span>
+          <span style="display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: #fdf4e6; color: #b45309;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/></svg></span>
+        </span>
+        <span style="display: flex; align-items: baseline; gap: 8px;"><span class="mono" style="font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1;">4</span><span style="font-size: 12px; color: #848c99;">na Fundação</span></span>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: minmax(0,1.5fr) minmax(320px,0.8fr); gap: 20px;">
+      <div style="display: flex; flex-direction: column; gap: 20px; padding: 24px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <span style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">ECOSSISTEMA</span>
+          <b style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em;">Mapa da plataforma</b>
+        </span>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px 0;">
+          <span style="display: flex; align-items: center; gap: 12px; padding: 16px 24px; border: 1px solid #cfe0ff; border-radius: 12px; background: #eef4ff;">
+            <span style="display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: #2864ed; color: #fff;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+            <span style="display: flex; flex-direction: column; gap: 2px;"><b style="font-size: 13px; font-weight: 600;">Núcleo Pecsil</b><small style="font-size: 12px; color: #545b66;">Identidade · Acessos · Dados · Auditoria</small></span>
+          </span>
+          <span style="width: 1px; height: 20px; background: #e1e4ea;"></span>
+          <span style="display: flex; gap: 12px;">
+            <span style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 18px; border: 1px solid #ebedf1; border-radius: 12px;"><span style="color: #2864ed;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><small style="font-size: 12px; font-weight: 600;">RH</small></span>
+            <span style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 18px; border: 1px solid #ebedf1; border-radius: 12px;"><span style="color: #2864ed;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg></span><small style="font-size: 12px; font-weight: 600;">FN</small></span>
+            <span style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 18px; border: 1px solid #ebedf1; border-radius: 12px; opacity: 0.55;"><span style="color: #848c99;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg></span><small style="font-size: 12px; font-weight: 600;">CP</small></span>
+            <span style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 18px; border: 1px solid #ebedf1; border-radius: 12px; opacity: 0.55;"><span style="color: #848c99;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-9 5-9-5V8l9-5 9 5z"/></svg></span><small style="font-size: 12px; font-weight: 600;">ES</small></span>
+          </span>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 16px; padding: 24px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <span style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+          <span style="display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">FUNDAÇÃO</span>
+            <b style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em;">Estado do sistema</b>
+          </span>
+          <span class="mono" style="font-size: 20px; font-weight: 600; color: #059669;">100%</span>
+        </span>
+        <span style="height: 6px; border-radius: 999px; background: #e6e9ee; overflow: hidden;"><span style="display: block; width: 100%; height: 100%; background: #059669;"></span></span>
+        <span style="display: flex; flex-direction: column; gap: 12px; padding-top: 4px;">
+          <span style="display: flex; align-items: center; gap: 12px;"><span style="display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; border-radius: 999px; background: #e9f9f1; color: #059669;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span style="display: flex; flex-direction: column; gap: 1px;"><b style="font-size: 13px; font-weight: 500;">Identidade e organização</b><small style="font-size: 12px; color: #848c99;">Cadastros mestres estruturados</small></span></span>
+          <span style="display: flex; align-items: center; gap: 12px;"><span style="display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; border-radius: 999px; background: #e9f9f1; color: #059669;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span style="display: flex; flex-direction: column; gap: 1px;"><b style="font-size: 13px; font-weight: 500;">Permissões e escopo por módulo</b><small style="font-size: 12px; color: #848c99;">Aplicado no banco, por linha</small></span></span>
+          <span style="display: flex; align-items: center; gap: 12px;"><span style="display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; border-radius: 999px; background: #e9f9f1; color: #059669;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span style="display: flex; flex-direction: column; gap: 1px;"><b style="font-size: 13px; font-weight: 500;">Auditoria de credenciais</b><small style="font-size: 12px; color: #848c99;">Toda concessão fica registrada</small></span></span>
+        </span>
+      </div>
+    </div>
+
+    <p style="margin: 0; font-size: 12px; color: #545b66; line-height: 1.55;">Rótulo acima, número abaixo: cada um tem sua linha e o cartão não quebra. Ícone de 24px como apoio, não como protagonista. A faixa de "interface simulada" desaparece — o escopo já é dito na barra lateral.</p>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

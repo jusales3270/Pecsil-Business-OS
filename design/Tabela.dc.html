@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: Geist, ui-sans-serif, system-ui, sans-serif; }
+    a { color: #2864ed; } a:hover { color: #1d4fc4; }
+    .mono { font-family: "Geist Mono", ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; background: #f5f6f8; color: #14161a; padding: 48px 56px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 32px;">
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">FINANCEIRO · CONTAS A PAGAR</p>
+    <h1 style="margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">Uma gramática de linha</h1>
+    <p style="margin: 0; font-size: 13px; color: #545b66; max-width: 74ch; line-height: 1.55;">Existem hoje <b>12 definições de coluna diferentes</b> para o que é um só componente: a linha de tabela. Nenhuma igual à outra. Numa delas o cabeçalho é <i>flex</i> e o corpo é <i>grid</i> — por isso as colunas não batem.</p>
+  </div>
+
+  <!-- ANTES -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf0f2; color: #be123c; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Hoje</span>
+      <span style="font-size: 13px; color: #545b66;">a coluna de ação era <span class="mono">auto</span>: linhas sem botão deslocam tudo à direita</span>
+    </div>
+
+    <div style="background: #ffffff; border: 1px solid #ebedf1; border-radius: 16px; overflow: hidden;">
+      <div style="display: grid; grid-template-columns: minmax(180px,2fr) 110px minmax(120px,1fr) 130px 120px auto; align-items: center; gap: 12px; padding: 12px 16px; background: #f4f5f7; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">
+        <span>Fornecedor</span><span>Vencimento</span><span>Centro de custo</span><span>Valor</span><span>Situação</span><span></span>
+      </div>
+      <div style="display: grid; grid-template-columns: minmax(180px,2fr) 110px minmax(120px,1fr) 130px 120px auto; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid #ebedf1; font-size: 13px;">
+        <span style="display: flex; flex-direction: column; gap: 2px;"><b style="font-weight: 500;">Aços Boituva Ltda.</b><small style="font-size: 12px; color: #848c99;">NF 18452 · Matéria-prima</small></span>
+        <span class="mono" style="color: #545b66;">18/07/2026</span>
+        <span style="color: #545b66;">Produção</span>
+        <span class="mono" style="font-weight: 500;">R$ 48.290,00</span>
+        <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf4e6; color: #b45309; font-size: 12px; font-weight: 500; justify-self: start;">Em aprovação</span>
+        <span style="display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border: 1px solid #e1e4ea; border-radius: 8px; font-size: 12px; color: #545b66;">Aprovar</span>
+      </div>
+      <div style="display: grid; grid-template-columns: minmax(180px,2fr) 110px minmax(120px,1fr) 130px 120px auto; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid #ebedf1; font-size: 13px; background: #fdf0f2;">
+        <span style="display: flex; flex-direction: column; gap: 2px;"><b style="font-weight: 500;">TechMold Serviços</b><small style="font-size: 12px; color: #848c99;">NF 0921 · Manutenção</small></span>
+        <span class="mono" style="color: #545b66; padding-left: 18px;">15/07/2026</span>
+        <span style="color: #545b66; padding-left: 18px;">Manutenção</span>
+        <span class="mono" style="font-weight: 500; padding-left: 18px;">R$ 12.800,00</span>
+        <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf0f2; color: #be123c; font-size: 12px; font-weight: 500; justify-self: start; margin-left: 18px;">Vencido</span>
+        <span></span>
+      </div>
+      <div style="padding: 10px 16px; border-top: 1px solid #f6ccd5; background: #fdf0f2; font-size: 12px; color: #be123c;">↑ Sem o botão, a célula <span class="mono">auto</span> encolhe e as quatro colunas anteriores escorregam para a direita.</div>
+    </div>
+  </div>
+
+  <!-- DEPOIS -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #e9f9f1; color: #059669; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Proposta</span>
+      <span style="font-size: 13px; color: #545b66;">trilhos fixos; a ação reserva o espaço mesmo quando não existe</span>
+    </div>
+
+    <div style="background: #ffffff; border: 1px solid #ebedf1; border-radius: 16px; overflow: hidden;">
+      <div style="display: grid; grid-template-columns: minmax(200px,2fr) 112px minmax(120px,1fr) 132px 116px 96px; align-items: center; gap: 16px; padding: 12px 20px; background: #f4f5f7; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">
+        <span>Fornecedor</span><span>Vencimento</span><span>Centro de custo</span><span style="text-align: right;">Valor</span><span>Situação</span><span></span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: minmax(200px,2fr) 112px minmax(120px,1fr) 132px 116px 96px; align-items: center; gap: 16px; padding: 12px 20px; border-top: 1px solid #ebedf1; font-size: 13px;">
+        <span style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+          <span style="display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 12px; font-weight: 700;">AB</span>
+          <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><b style="font-size: 13px; font-weight: 500;">Aços Boituva Ltda.</b><small style="font-size: 12px; color: #848c99;">NF 18452 · Matéria-prima</small></span>
+        </span>
+        <span class="mono" style="color: #545b66;">18/07/2026</span>
+        <span style="color: #545b66;">Produção</span>
+        <span class="mono" style="font-weight: 500; text-align: right;">R$ 48.290,00</span>
+        <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf4e6; color: #b45309; font-size: 12px; font-weight: 500; justify-self: start;">Em aprovação</span>
+        <span style="display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 12px; border: 1px solid #e1e4ea; border-radius: 8px; font-size: 12px; font-weight: 500; color: #545b66; justify-self: end;">Aprovar</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: minmax(200px,2fr) 112px minmax(120px,1fr) 132px 116px 96px; align-items: center; gap: 16px; padding: 12px 20px; border-top: 1px solid #ebedf1; font-size: 13px;">
+        <span style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+          <span style="display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 12px; font-weight: 700;">TM</span>
+          <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><b style="font-size: 13px; font-weight: 500;">TechMold Serviços</b><small style="font-size: 12px; color: #848c99;">NF 0921 · Manutenção</small></span>
+        </span>
+        <span class="mono" style="color: #545b66;">15/07/2026</span>
+        <span style="color: #545b66;">Manutenção</span>
+        <span class="mono" style="font-weight: 500; text-align: right;">R$ 12.800,00</span>
+        <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf0f2; color: #be123c; font-size: 12px; font-weight: 500; justify-self: start;">Vencido</span>
+        <span></span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: minmax(200px,2fr) 112px minmax(120px,1fr) 132px 116px 96px; align-items: center; gap: 16px; padding: 12px 20px; border-top: 1px solid #ebedf1; font-size: 13px;">
+        <span style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+          <span style="display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 12px; font-weight: 700;">OM</span>
+          <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><b style="font-size: 13px; font-weight: 500;">Office Mais</b><small style="font-size: 12px; color: #848c99;">NF 5528 · Material administrativo</small></span>
+        </span>
+        <span class="mono" style="color: #545b66;">12/07/2026</span>
+        <span style="color: #545b66;">Administrativo</span>
+        <span class="mono" style="font-weight: 500; text-align: right;">R$ 2.380,00</span>
+        <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #e9f9f1; color: #059669; font-size: 12px; font-weight: 500; justify-self: start;">Pago</span>
+        <span></span>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 24px; padding: 16px 20px; background: #ffffff; border: 1px solid #ebedf1; border-radius: 12px; font-size: 12px; color: #545b66;">
+      <span style="display: flex; flex-direction: column; gap: 2px;"><b class="mono" style="font-size: 13px; color: #14161a;">96px</b>coluna de ação fixa</span>
+      <span style="display: flex; flex-direction: column; gap: 2px;"><b class="mono" style="font-size: 13px; color: #14161a;">116px</b>situação</span>
+      <span style="display: flex; flex-direction: column; gap: 2px;"><b class="mono" style="font-size: 13px; color: #14161a;">→</b>valor alinhado à direita</span>
+      <span style="display: flex; flex-direction: column; gap: 2px;"><b class="mono" style="font-size: 13px; color: #14161a;">1</b>mecanismo para cabeçalho e corpo</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

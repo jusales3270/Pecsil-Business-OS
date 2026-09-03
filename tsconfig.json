@@ -19,7 +19,13 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@/components/*": ["./modules/compras/src/components/*"],
+      "@/store": ["./modules/compras/src/store/index.ts"],
+      "@/types": ["./modules/compras/src/types/index.ts"],
+      "@/pages/*": ["./modules/compras/src/pages/*"],
+      "@/hooks/*": ["./modules/compras/src/hooks/*"],
+      "@/lib/*": ["./modules/compras/src/lib/*", "./lib/*"]
     }
   },
   "include": [

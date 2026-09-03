@@ -1,0 +1,127 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: Geist, ui-sans-serif, system-ui, sans-serif; }
+    a { color: #2864ed; } a:hover { color: #1d4fc4; }
+    .mono { font-family: "Geist Mono", ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
+    .chip { display: inline-flex; align-items: center; justify-content: center; min-width: 58px; height: 24px; padding: 0 8px; border: 1px solid #ebedf1; border-radius: 8px; background: #f4f5f7; font-family: "Geist Mono", ui-monospace, monospace; font-size: 12px; font-variant-numeric: tabular-nums; color: #14161a; }
+    .row { display: grid; grid-template-columns: minmax(200px,1.9fr) minmax(120px,1.1fr) minmax(180px,1.4fr) 108px 116px 32px; align-items: center; gap: 16px; padding: 12px 20px; border-top: 1px solid #ebedf1; font-size: 13px; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; background: #f5f6f8; color: #14161a; padding: 48px 56px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 28px;">
+
+  <!-- Cabeçalho de página -->
+  <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 24px;">
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #2864ed;">RH · JORNADA</p>
+      <h1 style="margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">Ponto e jornada</h1>
+      <p style="margin: 0; font-size: 13px; color: #545b66;">Marcações, escalas, banco de horas e exceções.</p>
+    </div>
+    <span style="display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 12px; background: #2864ed; color: #fff; font-size: 13px; font-weight: 600;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+      Registrar ajuste
+    </span>
+  </div>
+
+  <!-- KPIs compactos -->
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px;">
+    <div style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-height: 104px; padding: 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">PRESENTES HOJE</span>
+      <span style="display: flex; align-items: baseline; gap: 8px;"><span class="mono" style="font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1;">243</span><span style="font-size: 12px; color: #848c99;">97,8% do quadro</span></span>
+    </div>
+    <div style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-height: 104px; padding: 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">PENDÊNCIAS</span>
+      <span style="display: flex; align-items: baseline; gap: 8px;"><span class="mono" style="font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; color: #b45309;">3</span><span style="font-size: 12px; color: #848c99;">exigem conferência</span></span>
+    </div>
+    <div style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-height: 104px; padding: 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">HORAS EXTRAS</span>
+      <span style="display: flex; align-items: baseline; gap: 8px;"><span class="mono" style="font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1;">186</span><span style="font-size: 12px; color: #848c99;">h no mês</span></span>
+    </div>
+    <div style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-height: 104px; padding: 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 16px;">
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">SALDOS CRÍTICOS</span>
+      <span style="display: flex; align-items: baseline; gap: 8px;"><span class="mono" style="font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1;">7</span><span style="font-size: 12px; color: #848c99;">acima de 20h</span></span>
+    </div>
+  </div>
+
+  <!-- Abas -->
+  <div style="display: inline-flex; align-self: flex-start; align-items: center; gap: 2px; padding: 3px; border: 1px solid #ebedf1; border-radius: 12px; background: #f4f5f7;">
+    <span style="display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 16px; border-radius: 8px; background: #fff; box-shadow: 0 1px 2px rgba(16,24,40,.04); font-size: 13px; font-weight: 600;">Espelho diário <span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#fdf4e6;color:#b45309;font-size:11px;font-weight:600;">3</span></span>
+    <span style="display: inline-flex; align-items: center; height: 32px; padding: 0 16px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #545b66;">Banco de horas</span>
+    <span style="display: inline-flex; align-items: center; height: 32px; padding: 0 16px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #545b66;">Escalas</span>
+    <span style="display: inline-flex; align-items: center; height: 32px; padding: 0 16px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #545b66;">Regras</span>
+  </div>
+
+  <!-- Tabela -->
+  <div style="background: #fff; border: 1px solid #ebedf1; border-radius: 16px; overflow: hidden;">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 20px 16px;">
+      <span style="display: flex; flex-direction: column; gap: 4px;">
+        <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">ESPELHO DIÁRIO</span>
+        <b style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em;">Marcações de 15 de julho</b>
+      </span>
+      <span style="display: flex; align-items: center; gap: 12px;">
+        <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 12px; border: 1px solid #e1e4ea; border-radius: 12px; background: #fff; font-size: 13px; color: #545b66; gap: 8px;">Todas as áreas <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#848c99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 12px; border: 1px solid #e1e4ea; border-radius: 12px; background: #fff; font-size: 13px; color: #545b66; gap: 8px;">Todas as situações <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#848c99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+      </span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: minmax(200px,1.9fr) minmax(120px,1.1fr) minmax(180px,1.4fr) 108px 116px 32px; align-items: center; gap: 16px; padding: 12px 20px; background: #f4f5f7; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">
+      <span>Colaborador</span><span>Jornada</span><span>Marcações</span><span style="text-align: right;">Saldo</span><span>Situação</span><span></span>
+    </div>
+
+    <div class="row">
+      <span style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+        <span style="display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 12px; font-weight: 700;">LM</span>
+        <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><b style="font-size: 13px; font-weight: 500;">Lucas Martins</b><small style="font-size: 12px; color: #848c99;">Produção</small></span>
+      </span>
+      <span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px;">Turno A</span><small class="mono" style="font-size: 12px; color: #848c99;">06:00–14:20</small></span>
+      <span style="display: flex; flex-wrap: wrap; gap: 6px;"><span class="chip">05:57</span><span class="chip">10:02</span><span class="chip">10:44</span><span class="chip">14:38</span></span>
+      <span style="display: flex; flex-direction: column; gap: 2px; text-align: right;"><b class="mono" style="font-size: 13px; font-weight: 600; color: #059669;">+19min</b><small class="mono" style="font-size: 12px; color: #848c99;">8h 39min</small></span>
+      <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf4e6; color: #b45309; font-size: 12px; font-weight: 500; justify-self: start;">Pendente</span>
+      <span style="display: grid; place-items: center; color: #848c99; justify-self: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+    </div>
+
+    <div class="row">
+      <span style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+        <span style="display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 12px; font-weight: 700;">CF</span>
+        <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><b style="font-size: 13px; font-weight: 500;">Camila Ferreira</b><small style="font-size: 12px; color: #848c99;">Qualidade</small></span>
+      </span>
+      <span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px;">Turno A</span><small class="mono" style="font-size: 12px; color: #848c99;">06:00–14:20</small></span>
+      <span style="display: flex; flex-wrap: wrap; gap: 6px;"><span class="chip">05:59</span><span class="chip">10:01</span><span class="chip">10:42</span><span class="chip">14:19</span></span>
+      <span style="display: flex; flex-direction: column; gap: 2px; text-align: right;"><b class="mono" style="font-size: 13px; font-weight: 600; color: #545b66;">−1min</b><small class="mono" style="font-size: 12px; color: #848c99;">8h 19min</small></span>
+      <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #e9f9f1; color: #059669; font-size: 12px; font-weight: 500; justify-self: start;">Regular</span>
+      <span style="display: grid; place-items: center; color: #848c99; justify-self: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+    </div>
+
+    <div class="row">
+      <span style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+        <span style="display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 12px; font-weight: 700;">PM</span>
+        <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><b style="font-size: 13px; font-weight: 500;">Paulo Mendes</b><small style="font-size: 12px; color: #848c99;">Manutenção</small></span>
+      </span>
+      <span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px;">Turno B</span><small class="mono" style="font-size: 12px; color: #848c99;">14:00–22:20</small></span>
+      <span><span style="display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 8px; background: #f4f5f7; font-size: 12px; color: #848c99;">Sem marcações</span></span>
+      <span style="display: flex; flex-direction: column; gap: 2px; text-align: right;"><b class="mono" style="font-size: 13px; font-weight: 600; color: #545b66;">0min</b><small class="mono" style="font-size: 12px; color: #848c99;">—</small></span>
+      <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf4e6; color: #b45309; font-size: 12px; font-weight: 500; justify-self: start;">Ausência</span>
+      <span style="display: grid; place-items: center; color: #848c99; justify-self: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 28px; padding: 16px 20px; background: #fff; border: 1px solid #ebedf1; border-radius: 12px; font-size: 12px; color: #545b66; line-height: 1.55;">
+    <span style="display: flex; flex-direction: column; gap: 2px;"><b style="font-size: 13px; color: #14161a;">Chips de hora</b>largura mínima fixa: as colunas não dançam quando um horário falta</span>
+    <span style="display: flex; flex-direction: column; gap: 2px;"><b style="font-size: 13px; color: #14161a;">Saldo à direita</b>número monoespaçado, alinhado pela unidade</span>
+    <span style="display: flex; flex-direction: column; gap: 2px;"><b style="font-size: 13px; color: #14161a;">Selo à esquerda do trilho</b>abraça o texto sem esticar</span>
+    <span style="display: flex; flex-direction: column; gap: 2px;"><b style="font-size: 13px; color: #14161a;">Uma borda só</b>a tabela é o cartão; as linhas usam filete</span>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

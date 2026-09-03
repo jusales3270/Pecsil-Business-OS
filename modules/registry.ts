@@ -1,6 +1,7 @@
 import { plannedModuleManifests } from "./planned";
 import { rhModuleManifest } from "./rh/manifest";
 import { financeModuleManifest } from "./financeiro/manifest";
+import { comprasModuleManifest } from "./compras/manifest";
 import type { ModuleManifest } from "./types";
 // module-generator:imports
 
@@ -21,6 +22,7 @@ function createRegistry(manifests: readonly ModuleManifest[]) {
 export const moduleRegistry = createRegistry([
   rhModuleManifest,
   financeModuleManifest,
+  comprasModuleManifest,
   // module-generator:entries
   ...plannedModuleManifests,
 ]);

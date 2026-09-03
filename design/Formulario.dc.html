@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: Geist, ui-sans-serif, system-ui, sans-serif; }
+    a { color: #2864ed; } a:hover { color: #1d4fc4; }
+    .mono { font-family: "Geist Mono", ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
+    .lbl { font-size: 12px; font-weight: 500; color: #545b66; }
+    .fld { height: 38px; padding: 0 12px; border: 1px solid #e1e4ea; border-radius: 12px; background: #fff; font-size: 13px; color: #14161a; display: flex; align-items: center; box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; background: #f5f6f8; color: #14161a; padding: 48px 56px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 32px;">
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">IDENTIDADE · NOVO USUÁRIO</p>
+    <h1 style="margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">Formulário que explica o que deu errado</h1>
+    <p style="margin: 0; font-size: 13px; color: #545b66; max-width: 76ch; line-height: 1.55;">Hoje <b>9 dos 12 formulários</b> não mostram erro nenhum: apenas desabilitam o botão, sem dizer qual campo impede o envio. E o asterisco de obrigatório é decoração — nenhum campo declara <span class="mono">required</span>.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start;">
+
+    <!-- ANTES -->
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <span style="display: inline-flex; align-self: flex-start; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf0f2; color: #be123c; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Hoje</span>
+      <div style="display: flex; flex-direction: column; gap: 20px; padding: 24px; background: #fff; border: 1px solid #e1e4ea; border-radius: 16px; box-shadow: 0 12px 32px rgba(16,24,40,.1);">
+        <span style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+          <span style="display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">IDENTIDADE · NOVO ACESSO</span>
+            <b style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em;">Novo usuário</b>
+          </span>
+          <span style="display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: #f4f5f7; color: #545b66;">✕</span>
+        </span>
+
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px;">
+          <label style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Nome completo *</span><span class="fld" style="color: #848c99;">Ex.: Maria Oliveira</span></label>
+          <label style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">E-mail corporativo *</span><span class="fld" style="border-color: #e1e4ea;">ana@pecsil.com.br</span></label>
+          <label style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Senha inicial *</span><span style="display: flex; gap: 8px;"><span class="fld" style="flex: 1;">••••••</span><span style="display: inline-flex; align-items: center; height: 38px; padding: 0 12px; border: 1px solid #e1e4ea; border-radius: 12px; font-size: 12px; color: #545b66;">Ver</span></span></label>
+          <label style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Papel *</span><span class="fld" style="justify-content: space-between;">Gestor <span style="color:#848c99;">▾</span></span></label>
+          <label style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Escopo de acesso *</span><span class="fld" style="height: 40px; justify-content: space-between;">Um módulo <span style="color:#848c99;">▾</span></span></label>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #cfe0ff; border-radius: 12px; background: #eef4ff;">
+          <span style="font-size: 16px;">🔒</span>
+          <span style="display: flex; flex-direction: column; gap: 2px;"><b style="font-size: 13px; font-weight: 600;">Gestor</b><small style="font-size: 12px; color: #545b66;">Gestão de RH e Financeiro · Trabalha apenas nesse módulo</small></span>
+        </div>
+
+        <span style="display: flex; justify-content: flex-end; gap: 12px; align-items: center;">
+          <span style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border: 1px solid #e1e4ea; border-radius: 12px; font-size: 13px; color: #545b66;">Cancelar</span>
+          <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border-radius: 12px; background: #2864ed; color: #fff; font-size: 13px; font-weight: 600; opacity: 0.5;">Criar usuário</span>
+        </span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #be123c; line-height: 1.55;">
+        <span>· O botão está desabilitado e <b>nada diz por quê</b>.</span>
+        <span>· Escopo tem 40px, os outros campos 38px; "Cancelar" tem 40px e "Criar" 38px — <b>na mesma linha</b>.</span>
+        <span>· O cadeado é um emoji, quebrando o conjunto de ícones.</span>
+      </div>
+    </div>
+
+    <!-- DEPOIS -->
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <span style="display: inline-flex; align-self: flex-start; align-items: center; padding: 3px 8px; border-radius: 999px; background: #e9f9f1; color: #059669; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Proposta</span>
+      <div style="display: flex; flex-direction: column; gap: 20px; padding: 24px; background: #fff; border: 1px solid #e1e4ea; border-radius: 16px; box-shadow: 0 12px 32px rgba(16,24,40,.1);">
+        <span style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+          <span style="display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">IDENTIDADE · NOVO ACESSO</span>
+            <b style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em;">Novo usuário</b>
+          </span>
+          <span style="display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: #f4f5f7; color: #545b66;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+        </span>
+
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px;">
+          <label style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Nome completo <span style="color:#be123c;">*</span></span><span class="fld">Ana Paula Souza</span></label>
+
+          <label style="display: flex; flex-direction: column; gap: 8px;">
+            <span class="lbl">E-mail corporativo <span style="color:#be123c;">*</span></span>
+            <span class="fld" style="border-color: #be123c; box-shadow: 0 0 0 3px rgba(190,18,60,.12);">ana@pecsil</span>
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #be123c;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+              Informe um e-mail completo, com domínio.
+            </span>
+          </label>
+
+          <label style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Senha inicial <span style="color:#be123c;">*</span></span><span style="display: flex; gap: 8px;"><span class="fld" style="flex: 1;">••••••••••</span><span style="display: inline-flex; align-items: center; height: 38px; padding: 0 12px; border: 1px solid #e1e4ea; border-radius: 12px; font-size: 12px; font-weight: 500; color: #545b66;">Ver</span></span><span style="font-size: 12px; color: #848c99;">Mínimo de 8 caracteres.</span></label>
+
+          <label style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Papel <span style="color:#be123c;">*</span></span><span class="fld" style="justify-content: space-between;">Gestor <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#848c99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></label>
+          <label style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Módulo <span style="color:#be123c;">*</span></span><span class="fld" style="justify-content: space-between;">Financeiro <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#848c99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></label>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-left: 2px solid #2864ed; border-radius: 0 8px 8px 0; background: #eef4ff;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2864ed" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span style="display: flex; flex-direction: column; gap: 2px;"><b style="font-size: 13px; font-weight: 600;">Gestor · Módulo Financeiro</b><small style="font-size: 12px; color: #545b66;">Acessa o Financeiro de toda a empresa; não acessa o RH.</small></span>
+        </div>
+
+        <span style="display: flex; justify-content: flex-end; gap: 12px; align-items: center; padding-top: 4px; border-top: 1px solid #ebedf1;">
+          <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border: 1px solid #e1e4ea; border-radius: 12px; font-size: 13px; font-weight: 500; color: #545b66; margin-top: 16px;">Cancelar</span>
+          <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border-radius: 12px; background: #2864ed; color: #fff; font-size: 13px; font-weight: 600; margin-top: 16px;">Criar usuário</span>
+        </span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #545b66; line-height: 1.55;">
+        <span>· O erro aparece <b>no campo</b>, dizendo o que corrigir.</span>
+        <span>· Todos os controles em 38px — a linha assenta.</span>
+        <span>· A faixa de contexto perde a borda completa e ganha um filete; o cadeado vira ícone do conjunto.</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

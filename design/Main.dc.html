@@ -1,0 +1,219 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: Geist, ui-sans-serif, system-ui, sans-serif; }
+    a { color: #2864ed; } a:hover { color: #1d4fc4; }
+    .mono { font-family: "Geist Mono", ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; background: #f5f6f8; color: #14161a; padding: 48px 56px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px;">
+
+  <!-- Cabeçalho -->
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <p style="margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">FUNDAÇÃO VISUAL · A RÉGUA</p>
+    <h1 style="margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">Uma medida para cada coisa</h1>
+    <p style="margin: 0; font-size: 13px; color: #545b66; max-width: 68ch; line-height: 1.55;">Hoje a mesma peça é desenhada em vários tamanhos diferentes, e é isso que produz o desalinhamento. Cada bloco abaixo mostra o que existe e o que passa a existir.</p>
+  </div>
+
+  <!-- 1. ALTURAS DE CONTROLE -->
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: baseline; gap: 12px;">
+      <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em;">1 · Altura de controle</span>
+      <span style="font-size: 13px; color: #848c99;">9 alturas concorrentes → 2</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;">
+
+      <!-- ANTES -->
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 24px; background: #ffffff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf0f2; color: #be123c; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Hoje</span>
+          <span style="font-size: 13px; color: #545b66;">a mesma linha, cinco alturas</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 16px; background: #f4f5f7; border-radius: 12px;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; height: 38px; padding: 0 16px; border-radius: 12px; background: #2864ed; color: #fff; font-size: 13px; font-weight: 600;">Botão 38</span>
+          <span style="display: inline-flex; align-items: center; height: 40px; padding: 0 12px; border: 1px solid #e1e4ea; border-radius: 12px; background: #fff; font-size: 13px; color: #545b66;">Select 40</span>
+          <span style="display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border: 1px solid #e1e4ea; border-radius: 12px; background: #fff; font-size: 13px; color: #545b66;">Abas 44</span>
+          <span style="display: inline-flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 12px; color: #2864ed; font-size: 13px; font-weight: 500;">Link 36</span>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #848c99; line-height: 1.55;">Nenhuma dessas alturas vem de um token — são números soltos. Três delas nem são declaradas: resultam do padding.</p>
+      </div>
+
+      <!-- DEPOIS -->
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 24px; background: #ffffff; border: 1px solid #cfe0ff; border-radius: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #e9f9f1; color: #059669; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Proposta</span>
+          <span style="font-size: 13px; color: #545b66;">tudo assenta na mesma linha de base</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 16px; background: #f4f5f7; border-radius: 12px;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; height: 38px; padding: 0 16px; border-radius: 12px; background: #2864ed; color: #fff; font-size: 13px; font-weight: 600;">Botão</span>
+          <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 12px; border: 1px solid #e1e4ea; border-radius: 12px; background: #fff; font-size: 13px; color: #545b66;">Select</span>
+          <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border: 1px solid #e1e4ea; border-radius: 12px; background: #fff; font-size: 13px; color: #545b66;">Abas</span>
+          <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 12px; border-radius: 12px; color: #2864ed; font-size: 13px; font-weight: 500;">Link</span>
+        </div>
+        <div style="display: flex; gap: 20px; font-size: 12px; color: #545b66;">
+          <span><b class="mono" style="color: #14161a;">38px</b> &nbsp;controle padrão</span>
+          <span><b class="mono" style="color: #14161a;">32px</b> &nbsp;compacto (dentro de tabela)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. CAIXAS QUADRADAS -->
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: baseline; gap: 12px;">
+      <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em;">2 · Caixa quadrada (avatar e ícone)</span>
+      <span style="font-size: 13px; color: #848c99;">8 tamanhos → 3</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;">
+      <div style="display: flex; flex-direction: column; gap: 16px; padding: 24px; background: #ffffff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf0f2; color: #be123c; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Hoje</span>
+          <span style="font-size: 13px; color: #545b66;">28 · 30 · 32 · 34 · 36 · 38 · 40 · 44</span>
+        </div>
+        <div style="display: flex; align-items: flex-end; gap: 12px;">
+          <span style="display: grid; place-items: center; width: 28px; height: 28px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 11px; font-weight: 700;">28</span>
+          <span style="display: grid; place-items: center; width: 30px; height: 30px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 11px; font-weight: 700;">30</span>
+          <span style="display: grid; place-items: center; width: 32px; height: 32px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 11px; font-weight: 700;">32</span>
+          <span style="display: grid; place-items: center; width: 34px; height: 34px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 11px; font-weight: 700;">34</span>
+          <span style="display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 11px; font-weight: 700;">36</span>
+          <span style="display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 11px; font-weight: 700;">38</span>
+          <span style="display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 11px; font-weight: 700;">40</span>
+          <span style="display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 11px; font-weight: 700;">44</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #f6ccd5; border-radius: 12px; background: #fdf0f2;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#be123c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+            <b style="font-size: 13px; font-weight: 600;">Bug medido no cabeçalho</b>
+            <small style="font-size: 12px; color: #545b66;">Avatar com iniciais tem 36px; com foto, 32px. Trocar a foto move o layout.</small>
+          </span>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 16px; padding: 24px; background: #ffffff; border: 1px solid #cfe0ff; border-radius: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #e9f9f1; color: #059669; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Proposta</span>
+          <span style="font-size: 13px; color: #545b66;">três degraus, um propósito cada</span>
+        </div>
+        <div style="display: flex; align-items: flex-end; gap: 24px;">
+          <span style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <span style="display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: #eef4ff; color: #2864ed;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+            <small class="mono" style="font-size: 11px; color: #545b66;">24</small>
+          </span>
+          <span style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <span style="display: grid; place-items: center; width: 32px; height: 32px; border-radius: 12px; background: #eef4ff; color: #2864ed; font-size: 12px; font-weight: 700;">JS</span>
+            <small class="mono" style="font-size: 11px; color: #545b66;">32</small>
+          </span>
+          <span style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <span style="display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #eef4ff; color: #2864ed;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></span>
+            <small class="mono" style="font-size: 11px; color: #545b66;">40</small>
+          </span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #545b66; line-height: 1.55;">
+          <span><b class="mono" style="color:#14161a;">24</b> &nbsp;marcador dentro de lista &nbsp;·&nbsp; <b class="mono" style="color:#14161a;">32</b> &nbsp;avatar e botão de ícone &nbsp;·&nbsp; <b class="mono" style="color:#14161a;">40</b> &nbsp;destaque de cartão</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. TIPOGRAFIA -->
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: baseline; gap: 12px;">
+      <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em;">3 · Tipografia</span>
+      <span style="font-size: 13px; color: #848c99;">9 degraus → 6</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;">
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 24px; background: #ffffff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <span style="display: inline-flex; align-self: flex-start; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf0f2; color: #be123c; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Hoje</span>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-size: 11px;">11 &nbsp;Aa — rótulo micro</span>
+          <span style="font-size: 12px;">12 &nbsp;Aa — legenda</span>
+          <span style="font-size: 13px;">13 &nbsp;Aa — corpo</span>
+          <span style="font-size: 14px;">14 &nbsp;Aa — corpo médio</span>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #be123c; line-height: 1.55;">Quatro degraus dentro de 3px — indistinguíveis na tela, mas cada um exige uma decisão.</p>
+        <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 4px; border-top: 1px solid #ebedf1;">
+          <span style="font-size: 16px;">16 &nbsp;Aa</span>
+          <span style="font-size: 20px;">20 &nbsp;Aa</span>
+          <span style="font-size: 26px;">26 &nbsp;Aa</span>
+          <span style="font-size: 12px; color: #848c99;">+ 28 e 40 (o 40 é usado <b>uma única vez</b> no projeto inteiro)</span>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 24px; background: #ffffff; border: 1px solid #cfe0ff; border-radius: 16px;">
+        <span style="display: inline-flex; align-self: flex-start; align-items: center; padding: 3px 8px; border-radius: 999px; background: #e9f9f1; color: #059669; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Proposta</span>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <span style="display: flex; align-items: baseline; gap: 12px;"><b class="mono" style="font-size: 11px; color: #848c99; width: 28px;">12</b><span style="font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99; font-weight: 600;">RÓTULO E LEGENDA</span></span>
+          <span style="display: flex; align-items: baseline; gap: 12px;"><b class="mono" style="font-size: 11px; color: #848c99; width: 28px;">13</b><span style="font-size: 13px;">Corpo — o texto de trabalho da interface</span></span>
+          <span style="display: flex; align-items: baseline; gap: 12px;"><b class="mono" style="font-size: 11px; color: #848c99; width: 28px;">16</b><span style="font-size: 16px;">Ênfase e nome de registro</span></span>
+          <span style="display: flex; align-items: baseline; gap: 12px;"><b class="mono" style="font-size: 11px; color: #848c99; width: 28px;">20</b><span style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em;">Título de painel</span></span>
+          <span style="display: flex; align-items: baseline; gap: 12px;"><b class="mono" style="font-size: 11px; color: #848c99; width: 28px;">26</b><span style="font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">Título de página</span></span>
+          <span style="display: flex; align-items: baseline; gap: 12px;"><b class="mono" style="font-size: 11px; color: #848c99; width: 28px;">32</b><span class="mono" style="font-size: 32px; font-weight: 600; letter-spacing: -0.02em;">248</span></span>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #545b66; line-height: 1.55;">O 11 entra no 12; o 14 se resolve entre 13 e 16; o número grande cai de 40 para 32 e passa a caber no cartão sem estourar.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. CARTÃO E DENSIDADE -->
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: baseline; gap: 12px;">
+      <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em;">4 · Cartão e densidade</span>
+      <span style="font-size: 13px; color: #848c99;">cartão dentro de cartão sai de cena</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;">
+
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 24px; background: #ffffff; border: 1px solid #ebedf1; border-radius: 16px;">
+        <span style="display: inline-flex; align-self: flex-start; align-items: center; padding: 3px 8px; border-radius: 999px; background: #fdf0f2; color: #be123c; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Hoje</span>
+        <div style="padding: 20px; border: 1px solid #ebedf1; border-radius: 16px; background: #ffffff; display: flex; flex-direction: column; gap: 12px;">
+          <b style="font-size: 16px; font-weight: 600;">Cartão externo</b>
+          <div style="padding: 16px; border: 1px solid #ebedf1; border-radius: 12px; background: #ffffff; display: flex; flex-direction: column; gap: 8px;">
+            <b style="font-size: 13px; font-weight: 600;">Cartão interno</b>
+            <div style="padding: 12px; border: 1px solid #f2ddb4; border-radius: 12px; background: #fdf4e6; font-size: 12px; color: #545b66;">Faixa de aviso com borda própria</div>
+          </div>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #be123c; line-height: 1.55;">Três bordas aninhadas. Medimos telas com <b>14 caixas com borda ao mesmo tempo</b> e 13 casos de cartão dentro de cartão.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 24px; background: #ffffff; border: 1px solid #cfe0ff; border-radius: 16px;">
+        <span style="display: inline-flex; align-self: flex-start; align-items: center; padding: 3px 8px; border-radius: 999px; background: #e9f9f1; color: #059669; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;">Proposta</span>
+        <div style="padding: 20px; border: 1px solid #ebedf1; border-radius: 16px; background: #ffffff; display: flex; flex-direction: column; gap: 16px;">
+          <b style="font-size: 16px; font-weight: 600;">Cartão externo</b>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #848c99;">SEÇÃO INTERNA</span>
+            <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid #ebedf1;">
+              <span style="font-size: 13px; color: #545b66;">O agrupamento passa a ser feito por espaço e um filete, não por outra borda.</span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-left: 2px solid #b45309; background: #fdf4e6; border-radius: 0 8px 8px 0; font-size: 12px; color: #545b66;">Aviso: só o que é excepcional ganha cor.</div>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #545b66; line-height: 1.55;">Uma borda por nível. O que era caixa vira hierarquia tipográfica — menos ruído, mesma informação.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rodapé de escopo -->
+  <div style="display: flex; align-items: center; gap: 16px; padding: 20px 24px; background: #ffffff; border: 1px solid #ebedf1; border-radius: 16px;">
+    <span style="display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; background: #eef4ff; color: #2864ed;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+    </span>
+    <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+      <b style="font-size: 13px; font-weight: 600;">O que estas quatro decisões resolvem</b>
+      <small style="font-size: 12px; color: #545b66; line-height: 1.55;">Elas eliminam a raiz de 19 regras de remendo, 13 exclusões encadeadas e 12 layouts de tabela diferentes — sem mudar nenhuma funcionalidade.</small>
+    </span>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
