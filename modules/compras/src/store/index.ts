@@ -127,33 +127,107 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchInitialData: async () => {
     try {
-      // 1. Fetch cotacoes
+      // 1. Tenta carregar pela API segura do Pecsil Business OS (/api/compras)
+      try {
+        const res = await fetch('/api/compras', { cache: 'no-store' });
+        if (res.ok) {
+          const payload = await res.json();
+          if (payload && Array.isArray(payload.cotacoes)) {
+            const cotacoes: Cotacao[] = payload.cotacoes.map((c: any) => ({
+              id: Number(c.id),
+              fornecedor: c.fornecedor,
+              divisao: c.divisao || 'USINAGEM',
+              status: c.status,
+              userId: isNaN(Number(c.userId)) ? 1 : Number(c.userId),
+              aprovadoPor: c.aprovadoPor,
+              motivoRejeicao: c.motivoRejeicao,
+              dataDecisao: c.dataDecisao,
+              createdAt: c.createdAt,
+              updatedAt: c.updatedAt,
+              deletedAt: c.deletedAt,
+              produtos: (c.produtos || []).map((p: any) => ({
+                id: String(p.id),
+                produto: p.produto,
+                valorUnit: Number(p.valorUnit),
+                quantidade: Number(p.quantidade),
+                unidade: p.unidade,
+                icms: Number(p.icms),
+                ipi: Number(p.ipi),
+                prazo: p.prazo,
+                obs: p.obs,
+                status: p.status,
+                motivoRejeicao: p.motivoRejeicao,
+              })),
+              produto: c.produto || undefined,
+              valorUnit: c.valorUnit ? Number(c.valorUnit) : undefined,
+              quantidade: c.quantidade ? Number(c.quantidade) : undefined,
+              unidade: c.unidade || undefined,
+              icms: c.icms ? Number(c.icms) : undefined,
+              ipi: c.ipi ? Number(c.ipi) : undefined,
+              prazo: c.prazo || undefined,
+              obs: c.obs || undefined,
+            }));
+
+            const compras: Compra[] = (payload.compras || []).map((c: any) => ({
+              id: Number(c.id),
+              cotacaoId: Number(c.cotacaoId),
+              fornecedor: c.fornecedor,
+              produto: c.produto,
+              quantidade: Number(c.quantidade),
+              unidade: c.unidade,
+              valorUnit: Number(c.valorUnit),
+              total: Number(c.total),
+              nf: c.nf,
+              dataCompra: c.dataCompra,
+              obs: c.obs,
+              createdAt: c.createdAt,
+            }));
+
+            const notificacoes: Notificacao[] = (payload.notificacoes || []).map((n: any) => ({
+              id: Number(n.id),
+              userId: isNaN(Number(n.userId)) ? 1 : Number(n.userId),
+              cotacaoId: n.cotacaoId ? Number(n.cotacaoId) : null,
+              tipo: n.tipo as TipoNotificacao,
+              mensagem: n.mensagem,
+              lida: Boolean(n.lida),
+              createdAt: n.createdAt,
+            }));
+
+            set({ cotacoes, compras, notificacoes });
+            try {
+              localStorage.setItem('somacompras_cotacoes', JSON.stringify(cotacoes));
+              localStorage.setItem('somacompras_compras', JSON.stringify(compras));
+              localStorage.setItem('somacompras_notificacoes', JSON.stringify(notificacoes));
+            } catch { /* ignore */ }
+            return;
+          }
+        }
+      } catch (apiErr) {
+        console.warn('Fallback para query direta do Supabase...', apiErr);
+      }
+
+      // 2. Fallback: Consulta direta ao Supabase
       const { data: cotacoesData, error: cotError } = await supabase
         .from('cotacoes')
         .select('*');
 
       if (cotError) throw cotError;
 
-      // 2. Fetch cotacao_produtos
       const { data: produtosData, error: prodError } = await supabase
         .from('cotacao_produtos')
         .select('*');
 
       if (prodError) throw prodError;
 
-      // 3. Fetch compras
       const { data: comprasData, error: compError } = await supabase
         .from('compras')
         .select('*');
 
       if (compError) throw compError;
 
-      // 4. Fetch notificacoes
-      const { data: notificacoesData, error: notError } = await supabase
-        .from('notificacoes')
+      const { data: notificacoesData } = await supabase
+        .from('notificacoes_compras')
         .select('*');
-
-      if (notError) throw notError;
 
       // Map database data to frontend format
       const cotacoes: Cotacao[] = (cotacoesData || []).map(c => {
@@ -215,13 +289,12 @@ export const useStore = create<AppState>((set, get) => ({
         cotacaoId: n.cotacao_id ? Number(n.cotacao_id) : null,
         tipo: n.tipo as TipoNotificacao,
         mensagem: n.mensagem,
-        lida: n.lida,
+        lida: Boolean(n.lida),
         createdAt: n.created_at,
       }));
 
       set({ cotacoes, compras, notificacoes });
 
-      // Sync local storage as fallback
       localStorage.setItem('somacompras_cotacoes', JSON.stringify(cotacoes));
       localStorage.setItem('somacompras_compras', JSON.stringify(compras));
       localStorage.setItem('somacompras_notificacoes', JSON.stringify(notificacoes));
@@ -284,7 +357,7 @@ export const useStore = create<AppState>((set, get) => ({
 
         // 3. Create notification in Supabase
         try {
-          await supabase.from('notificacoes').insert({
+          await supabase.from('notificacoes_compras').insert({
             user_id: '2', // Gestor profile ID
             cotacao_id: cotacaoId,
             tipo: 'NOVA_COTACAO_PENDENTE',
@@ -475,7 +548,7 @@ export const useStore = create<AppState>((set, get) => ({
       .eq('cotacao_id', id);
 
     // 3. Create notification
-    await supabase.from('notificacoes').insert({
+    await supabase.from('notificacoes_compras').insert({
       user_id: String(cotacao.userId),
       cotacao_id: id,
       tipo: 'COTACAO_APROVADA',
@@ -514,7 +587,7 @@ export const useStore = create<AppState>((set, get) => ({
       .eq('cotacao_id', id);
 
     // 3. Create notification
-    await supabase.from('notificacoes').insert({
+    await supabase.from('notificacoes_compras').insert({
       user_id: String(cotacao.userId),
       cotacao_id: id,
       tipo: 'COTACAO_REJEITADA',
@@ -624,7 +697,7 @@ export const useStore = create<AppState>((set, get) => ({
         .eq('id', cotacaoId);
 
       // Create notification
-      await supabase.from('notificacoes').insert({
+      await supabase.from('notificacoes_compras').insert({
         user_id: String(cotacao.userId),
         cotacao_id: cotacaoId,
         tipo: newStatus === 'APROVADO' ? 'COTACAO_APROVADA' : 'COTACAO_REJEITADA',
@@ -718,7 +791,7 @@ export const useStore = create<AppState>((set, get) => ({
 
     // 3. Create notification
     if (cotacaoData) {
-      await supabase.from('notificacoes').insert({
+      await supabase.from('notificacoes_compras').insert({
         user_id: String(cotacaoData.user_id),
         cotacao_id: cotacaoId,
         tipo: 'COTACAO_COMPRADA',
@@ -732,7 +805,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   markNotificacaoLida: async (id) => {
     await supabase
-      .from('notificacoes')
+      .from('notificacoes_compras')
       .update({ lida: true })
       .eq('id', id);
     await get().fetchInitialData();
@@ -744,14 +817,14 @@ export const useStore = create<AppState>((set, get) => ({
     if (!userId) return;
 
     await supabase
-      .from('notificacoes')
+      .from('notificacoes_compras')
       .update({ lida: true })
       .eq('user_id', String(userId));
     await get().fetchInitialData();
   },
 
   addNotificacao: async (n) => {
-    await supabase.from('notificacoes').insert({
+    await supabase.from('notificacoes_compras').insert({
       user_id: String(n.userId),
       cotacao_id: n.cotacaoId,
       tipo: n.tipo,

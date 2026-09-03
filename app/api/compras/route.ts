@@ -76,10 +76,27 @@ export async function GET() {
 
     const summary = calculateComprasSummary(cotacoes, compras);
 
+    // Busca notificações
+    const { data: rawNotifs } = await admin
+      .from("notificacoes_compras")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    const notificacoes = (rawNotifs ?? []).map((n) => ({
+      id: Number(n.id),
+      userId: isNaN(Number(n.user_id)) ? 1 : Number(n.user_id),
+      cotacaoId: n.cotacao_id ? Number(n.cotacao_id) : null,
+      tipo: n.tipo,
+      mensagem: n.mensagem,
+      lida: Boolean(n.lida),
+      createdAt: n.created_at,
+    }));
+
     const snapshot: ComprasSnapshot = {
       source: "supabase",
       cotacoes,
       compras,
+      notificacoes,
       summary,
       loadedAt: new Date().toISOString(),
     };

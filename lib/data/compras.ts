@@ -73,6 +73,7 @@ export interface ComprasSnapshot {
   source: "supabase" | "demo";
   cotacoes: Cotacao[];
   compras: Compra[];
+  notificacoes?: any[];
   summary: ComprasSummary;
   loadedAt: string;
 }
