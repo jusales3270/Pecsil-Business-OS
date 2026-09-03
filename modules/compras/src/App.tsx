@@ -9,7 +9,7 @@ import ComprasPage from '@/pages/ComprasPage';
 import PendentesPage from '@/pages/PendentesPage';
 import HistoricoPage from '@/pages/HistoricoPage';
 import { Toaster } from '@/components/ui/sonner';
-import type { ModuleAccessContext } from '@/modules/types';
+import type { ModuleAccessContext } from '@/modules/access';
 import './compras.css';
 
 interface ComprasAppProps {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { createSupabaseAdminClient } from "../../../lib/supabase/admin";
-import { calculateComprasSummary, type ComprasSnapshot, type Cotacao, type Compra } from "../../../lib/data/compras";
+import { calculateComprasSummary, demoComprasSnapshot, type ComprasSnapshot, type Cotacao, type Compra } from "../../../lib/data/compras";
 
 export const dynamic = "force-dynamic";
 
@@ -211,7 +211,7 @@ export async function PATCH(req: Request) {
       .from("cotacoes")
       .update({
         status: statusCotacao,
-        aprovado_por: decision === "APROVADO" ? auth.user.email || "Gestor" : undefined,
+        aprovado_por: decision === "APROVADO" ? "Gestor" : undefined,
         data_decisao: new Date().toISOString(),
       })
       .eq("id", item.cotacao_id);
