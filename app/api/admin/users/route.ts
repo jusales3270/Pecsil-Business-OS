@@ -5,6 +5,7 @@ import {
   SCOPE_TYPES,
   authorize,
   resolveScope,
+  ensureRolePermissionsForModule,
   writeAudit,
   type RoleCode,
   type ScopeInput,
@@ -158,6 +159,10 @@ export async function POST(request: Request) {
     await admin.from("profiles").delete().eq("id", profile.id);
     await admin.auth.admin.deleteUser(newUserId);
     return NextResponse.json({ error: linkError.message }, { status: 500 });
+  }
+
+  if (scope.type === "module" && scope.moduleCode) {
+    await ensureRolePermissionsForModule(admin, role.id, roleCode, scope.moduleCode);
   }
 
   await writeAudit(admin, {

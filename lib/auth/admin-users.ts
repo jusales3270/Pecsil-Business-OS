@@ -50,6 +50,44 @@ export async function authorize(): Promise<{ error: NextResponse } | AdminAuth> 
   return { orgId: orgId as string, profileId: profileId as string, userId: user.id };
 }
 
+export const KNOWN_MODULES: Record<string, string> = {
+  rh: "Recursos Humanos",
+  financeiro: "Financeiro",
+  compras: "Compras",
+  portaria: "Portaria & Acesso",
+};
+
+export async function ensureRolePermissionsForModule(
+  admin: AdminClient,
+  roleId: string,
+  roleCode: string,
+  moduleCode: string,
+) {
+  const actionsByRole: Record<string, string[]> = {
+    director: ["view", "create", "edit", "approve", "export"],
+    manager: ["view", "create", "edit", "approve", "export"],
+    operator: ["view", "create", "edit"],
+    employee: ["view"],
+    admin: ["view", "create", "edit", "approve", "export", "admin"],
+  };
+
+  const actions = actionsByRole[roleCode] ?? ["view"];
+  const rows = actions.map((action) => ({
+    role_id: roleId,
+    module_code: moduleCode,
+    action,
+    granted: true,
+  }));
+
+  try {
+    await admin.from("role_permissions").upsert(rows, {
+      onConflict: "role_id,module_code,action",
+    });
+  } catch (err) {
+    console.warn("Aviso ao semear permissões de módulo para papel:", err);
+  }
+}
+
 /** Tabela da estrutura organizacional correspondente a cada tipo de escopo. */
 const SCOPE_ENTITY_TABLE: Partial<Record<ScopeInput["type"], string>> = {
   unit: "units",
@@ -77,19 +115,51 @@ export async function resolveScope(
   let derivedLabel: string | null = null;
 
   // Escopo de módulo: é o eixo principal de acesso da PecSil — a pessoa é
-  // "Gestor do Financeiro", "Diretor do RH". Guarda module_code, não entity_id.
+  // "Gestor do Financeiro", "Diretor do RH", "Gestor de Compras", "Operador de Portaria". Guarda module_code, não entity_id.
   if (scope.type === "module") {
     if (!scope.moduleCode) {
       return { error: "Escopo de módulo exige a seleção do módulo." };
     }
+    let modName = KNOWN_MODULES[scope.moduleCode];
     const { data: mod } = await admin
       .from("modules")
       .select("code, name")
       .eq("code", scope.moduleCode)
       .maybeSingle();
-    if (!mod) return { error: "Módulo não encontrado." };
-    moduleCode = mod.code as string;
-    derivedLabel = `Módulo ${mod.name as string}`;
+
+    if (mod) {
+      modName = mod.name as string;
+    } else if (modName) {
+      try {
+        await admin.from("modules").upsert(
+          {
+            code: scope.moduleCode,
+            name: modName,
+            version: "1.0.0",
+            route: `/modules/${scope.moduleCode}`,
+            entry_permission: `${scope.moduleCode}.view`,
+            status: "integrated",
+          },
+          { onConflict: "code" },
+        );
+        await admin.from("organization_modules").upsert(
+          {
+            organization_id: orgId,
+            module_code: scope.moduleCode,
+            enabled: true,
+            menu_enabled: true,
+          },
+          { onConflict: "organization_id,module_code" },
+        );
+      } catch (e) {
+        console.warn("Aviso ao registrar módulo em resolveScope:", e);
+      }
+    } else {
+      return { error: "Módulo não encontrado." };
+    }
+
+    moduleCode = scope.moduleCode;
+    derivedLabel = `Módulo ${modName}`;
   } else if (table) {
     if (!scope.entityId) {
       return { error: "Escopo de unidade, departamento ou equipe exige a seleção da entidade." };

@@ -34,6 +34,8 @@ const MATRIX = {
     "platform.modules": ["view"],
     rh: ["view", "approve", "export"],
     financeiro: ["view", "approve", "export"],
+    compras: ["view", "approve", "export"],
+    portaria: ["view", "approve", "export"],
   },
   manager: {
     ...BASELINE,
@@ -41,17 +43,23 @@ const MATRIX = {
     "core.documents": ["view", "create", "edit"],
     rh: ["view", "create", "edit", "approve", "export"],
     financeiro: ["view", "create", "edit", "approve", "export"],
+    compras: ["view", "create", "edit", "approve", "export"],
+    portaria: ["view", "create", "edit", "approve", "export"],
   },
   operator: {
     ...BASELINE,
     "core.documents": ["view", "create"],
     rh: ["view", "create", "edit"],
     financeiro: ["view"],
+    compras: ["view", "create", "edit"],
+    portaria: ["view", "create", "edit"],
   },
   employee: {
     ...BASELINE,
     "core.documents": ["view"],
     rh: ["view"],
+    compras: ["view"],
+    portaria: ["view"],
   },
   admin: {
     ...BASELINE,
@@ -62,6 +70,10 @@ const MATRIX = {
     "platform.modules": ["view", "edit", "admin"],
     "platform.database": ["view"],
     "platform.settings": ["view", "edit"],
+    rh: ["view", "create", "edit", "approve", "export"],
+    financeiro: ["view", "create", "edit", "approve", "export"],
+    compras: ["view", "create", "edit", "approve", "export"],
+    portaria: ["view", "create", "edit", "approve", "export"],
   },
 };
 

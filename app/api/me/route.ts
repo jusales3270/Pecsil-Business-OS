@@ -106,6 +106,21 @@ export async function GET() {
         ...(scope.entity_id ? { referenceId: scope.entity_id } : {}),
         ...(scope.module_code ? { moduleCode: scope.module_code } : {}),
       });
+
+      // Se o escopo for um módulo específico, garante as permissões correspondentes ao papel no módulo
+      if (scope.scope_type === "module" && scope.module_code) {
+        const mod = scope.module_code;
+        permissions.add(`${mod}.view`);
+        if (role?.code === "director" || role?.code === "manager") {
+          permissions.add(`${mod}.create`);
+          permissions.add(`${mod}.edit`);
+          permissions.add(`${mod}.approve`);
+          permissions.add(`${mod}.export`);
+        } else if (role?.code === "operator") {
+          permissions.add(`${mod}.create`);
+          permissions.add(`${mod}.edit`);
+        }
+      }
     }
   }
 

@@ -23,19 +23,25 @@ type ScopeOptions = {
   teams: { id: string; name: string; departmentId: string | null }[];
 };
 
+const DEFAULT_MODULE_OPTIONS = [
+  { code: "rh", name: "Recursos Humanos", status: "integrated" },
+  { code: "financeiro", name: "Financeiro", status: "integrated" },
+  { code: "compras", name: "Compras", status: "integrated" },
+  { code: "portaria", name: "Portaria & Acesso", status: "integrated" },
+];
+
 const ROLES = [
   { code: "director", name: "Diretor", hint: "Indicadores e aprovações das áreas" },
-  { code: "manager", name: "Gestor", hint: "Gestão de RH e Financeiro" },
-  { code: "operator", name: "Operador", hint: "Execução operacional" },
+  { code: "manager", name: "Gestor", hint: "Gestão setorial e operacional" },
+  { code: "operator", name: "Operador", hint: "Execução operacional do setor" },
   { code: "employee", name: "Colaborador", hint: "Autosserviço e próprio registro" },
   { code: "admin", name: "Administrador", hint: "Configuração técnica da plataforma" },
 ];
 
 // O eixo principal de acesso da PecSil é o MÓDULO: a pessoa é "Gestor do
-// Financeiro", "Diretor do RH". Os escopos de estrutura ficam disponíveis para
-// quando fizer sentido recortar por unidade/departamento.
+// Financeiro", "Diretor do RH", "Gestor de Compras", "Operador de Portaria".
 const SCOPES = [
-  { type: "module", label: "Um módulo (RH, Financeiro…)", hint: "Trabalha apenas nesse módulo" },
+  { type: "module", label: "Um módulo (RH, Financeiro, Compras, Portaria…)", hint: "Trabalha apenas no módulo selecionado" },
   { type: "company", label: "Toda a empresa", hint: "Acesso a todos os módulos e dados" },
   { type: "self", label: "Próprio registro", hint: "Somente os próprios dados" },
   { type: "unit", label: "Uma unidade", hint: "Somente os dados da unidade escolhida" },
@@ -73,7 +79,12 @@ function scopePayload(scopeType: string, value: string) {
 
 export function UserManagement({ notify }: { notify: (message: string) => void }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [options, setOptions] = useState<ScopeOptions>({ modules: [], units: [], departments: [], teams: [] });
+  const [options, setOptions] = useState<ScopeOptions>({
+    modules: DEFAULT_MODULE_OPTIONS,
+    units: [],
+    departments: [],
+    teams: [],
+  });
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -107,7 +118,16 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
       .catch(() => {});
     fetch("/api/admin/scope-options", { cache: "no-store", signal: controller.signal })
       .then((response) => (response.ok ? response.json() : null))
-      .then((data) => data && setOptions(data as ScopeOptions))
+      .then((data: ScopeOptions | null) => {
+        if (!data) return;
+        const moduleMap = new Map<string, { code: string; name: string; status: string }>();
+        for (const m of DEFAULT_MODULE_OPTIONS) moduleMap.set(m.code, m);
+        for (const m of data.modules ?? []) moduleMap.set(m.code, m);
+        setOptions({
+          ...data,
+          modules: Array.from(moduleMap.values()),
+        });
+      })
       .catch(() => {});
     return () => controller.abort();
   }, []);
@@ -214,7 +234,11 @@ function ScopeFields({
     scopeType === "module"
       ? options.modules.map((mod) => ({
           value: mod.code,
-          label: mod.status === "integrated" ? mod.name : `${mod.name} (em preparação)`,
+          label:
+            mod.status === "integrated" ||
+            ["rh", "financeiro", "compras", "portaria"].includes(mod.code)
+              ? mod.name
+              : `${mod.name} (em preparação)`,
         }))
       : scopeType === "unit"
         ? options.units.map((u) => ({ value: u.id, label: u.name }))

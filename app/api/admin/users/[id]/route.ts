@@ -5,6 +5,7 @@ import {
   SCOPE_TYPES,
   authorize,
   resolveScope,
+  ensureRolePermissionsForModule,
   writeAudit,
   type RoleCode,
   type ScopeInput,
@@ -185,6 +186,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       { onConflict: "profile_id,role_id,scope_id" },
     );
     if (grantError) return NextResponse.json({ error: grantError.message }, { status: 500 });
+
+    if (scope.type === "module" && scope.moduleCode) {
+      await ensureRolePermissionsForModule(admin, role.id, roleCode, scope.moduleCode);
+    }
 
     await writeAudit(admin, {
       orgId,

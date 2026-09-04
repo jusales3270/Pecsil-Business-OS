@@ -1,0 +1,205 @@
+/* ============================================================================
+   Pecsil Business OS — Módulo de Portaria & Controle de Acesso
+   Coerência cromática e suporte total aos temas Claro e Escuro
+   ============================================================================ */
+
+.portaria-app-root {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  min-height: 100dvh;
+}
+
+/* ============================================================================
+   REGRAS ESPECÍFICAS DE MODO ESCURO PARA O MÓDULO DE PORTARIA
+   ============================================================================ */
+
+:root[data-theme="dark"] .portaria-app-root {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .portaria-app-root {
+    color-scheme: dark;
+  }
+}
+
+/* Fundos de superfícies brancas para tema escuro */
+:root[data-theme="dark"] .portaria-app-root .bg-white,
+:root[data-theme="dark"] .portaria-app-root [class*="bg-white"] {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .portaria-app-root .bg-white,
+  :root:not([data-theme="light"]) .portaria-app-root [class*="bg-white"] {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+  }
+}
+
+/* Canvas e containers */
+:root[data-theme="dark"] .portaria-app-root .bg-gray-100,
+:root[data-theme="dark"] .portaria-app-root .bg-slate-100,
+:root[data-theme="dark"] .portaria-app-root .bg-gray-50,
+:root[data-theme="dark"] .portaria-app-root .bg-slate-50 {
+  background-color: var(--bg-canvas) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .portaria-app-root .bg-gray-100,
+  :root:not([data-theme="light"]) .portaria-app-root .bg-slate-100,
+  :root:not([data-theme="light"]) .portaria-app-root .bg-gray-50,
+  :root:not([data-theme="light"]) .portaria-app-root .bg-slate-50 {
+    background-color: var(--bg-canvas) !important;
+  }
+}
+
+/* Bordas */
+:root[data-theme="dark"] .portaria-app-root .border-gray-200,
+:root[data-theme="dark"] .portaria-app-root .border-gray-100,
+:root[data-theme="dark"] .portaria-app-root .border-slate-200 {
+  border-color: var(--border) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .portaria-app-root .border-gray-200,
+  :root:not([data-theme="light"]) .portaria-app-root .border-gray-100,
+  :root:not([data-theme="light"]) .portaria-app-root .border-slate-200 {
+    border-color: var(--border) !important;
+  }
+}
+
+/* Textos principais */
+:root[data-theme="dark"] .portaria-app-root .text-gray-900,
+:root[data-theme="dark"] .portaria-app-root .text-slate-900,
+:root[data-theme="dark"] .portaria-app-root .text-black,
+:root[data-theme="dark"] .portaria-app-root h1,
+:root[data-theme="dark"] .portaria-app-root h2,
+:root[data-theme="dark"] .portaria-app-root h3,
+:root[data-theme="dark"] .portaria-app-root h4 {
+  color: var(--text-primary) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .portaria-app-root .text-gray-900,
+  :root:not([data-theme="light"]) .portaria-app-root .text-slate-900,
+  :root:not([data-theme="light"]) .portaria-app-root .text-black,
+  :root:not([data-theme="light"]) .portaria-app-root h1,
+  :root:not([data-theme="light"]) .portaria-app-root h2,
+  :root:not([data-theme="light"]) .portaria-app-root h3,
+  :root:not([data-theme="light"]) .portaria-app-root h4 {
+    color: var(--text-primary) !important;
+  }
+}
+
+/* Textos secundários e silenciados */
+:root[data-theme="dark"] .portaria-app-root .text-gray-700,
+:root[data-theme="dark"] .portaria-app-root .text-gray-600,
+:root[data-theme="dark"] .portaria-app-root .text-slate-600 {
+  color: var(--text-secondary) !important;
+}
+
+:root[data-theme="dark"] .portaria-app-root .text-gray-500,
+:root[data-theme="dark"] .portaria-app-root .text-gray-400,
+:root[data-theme="dark"] .portaria-app-root .text-slate-400 {
+  color: var(--text-muted) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .portaria-app-root .text-gray-700,
+  :root:not([data-theme="light"]) .portaria-app-root .text-gray-600,
+  :root:not([data-theme="light"]) .portaria-app-root .text-slate-600 {
+    color: var(--text-secondary) !important;
+  }
+
+  :root:not([data-theme="light"]) .portaria-app-root .text-gray-500,
+  :root:not([data-theme="light"]) .portaria-app-root .text-gray-400,
+  :root:not([data-theme="light"]) .portaria-app-root .text-slate-400 {
+    color: var(--text-muted) !important;
+  }
+}
+
+/* Inputs, seletores e formulários */
+:root[data-theme="dark"] .portaria-app-root input,
+:root[data-theme="dark"] .portaria-app-root select,
+:root[data-theme="dark"] .portaria-app-root textarea {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .portaria-app-root input,
+  :root:not([data-theme="light"]) .portaria-app-root select,
+  :root:not([data-theme="light"]) .portaria-app-root textarea {
+    background-color: var(--bg-surface) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+  }
+}
+
+/* Modais e diálogos (dentro e fora do root) */
+[data-slot="dialog-overlay"] {
+  background-color: rgba(0, 0, 0, 0.65) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 50 !important;
+}
+
+[data-slot="dialog-content"],
+div[role="dialog"],
+.portaria-app-root [role="dialog"],
+.portaria-app-root [class*="dialog-content"] {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  opacity: 1 !important;
+}
+
+:root[data-theme="dark"] [data-slot="dialog-content"],
+:root[data-theme="dark"] div[role="dialog"],
+:root[data-theme="dark"] .portaria-app-root [role="dialog"],
+:root[data-theme="dark"] .portaria-app-root [class*="dialog-content"] {
+  background-color: var(--bg-surface-raised, #18181b) !important;
+  border: 1px solid var(--border, #27272a) !important;
+  color: var(--text-primary, #f4f4f5) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-slot="dialog-content"],
+  :root:not([data-theme="light"]) div[role="dialog"],
+  :root:not([data-theme="light"]) .portaria-app-root [role="dialog"],
+  :root:not([data-theme="light"]) .portaria-app-root [class*="dialog-content"] {
+    background-color: var(--bg-surface-raised, #18181b) !important;
+    border: 1px solid var(--border, #27272a) !important;
+    color: var(--text-primary, #f4f4f5) !important;
+  }
+}
+
+/* Select dropdowns no body */
+[data-slot="select-content"] {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
+  opacity: 1 !important;
+}
+
+:root[data-theme="dark"] [data-slot="select-content"] {
+  background-color: var(--bg-surface-raised, #18181b) !important;
+  color: var(--text-primary, #f4f4f5) !important;
+  border-color: var(--border, #27272a) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-slot="select-content"] {
+    background-color: var(--bg-surface-raised, #18181b) !important;
+    color: var(--text-primary, #f4f4f5) !important;
+    border-color: var(--border, #27272a) !important;
+  }
+}
+
