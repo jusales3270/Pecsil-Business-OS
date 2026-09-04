@@ -1,147 +1,246 @@
 /* ============================================================================
    Pecsil Business OS — Módulo de Portaria & Controle de Acesso
-   Coerência cromática e suporte total aos temas Claro e Escuro
+   Fidelidade estrita ao design do repositório oficial (controle-acesso-pecsil)
    ============================================================================ */
+
+.content:has(.portaria-app-root) {
+  padding: 0 !important;
+  max-width: 100% !important;
+  gap: 0 !important;
+}
 
 .portaria-app-root {
-  background-color: var(--bg-canvas);
-  color: var(--text-primary);
-  min-height: 100dvh;
+  background-color: #f3f4f6 !important;
+  color: #111827 !important;
+  min-height: 100vh;
+  width: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ============================================================================
-   REGRAS ESPECÍFICAS DE MODO ESCURO PARA O MÓDULO DE PORTARIA
-   ============================================================================ */
-
-:root[data-theme="dark"] .portaria-app-root {
-  color-scheme: dark;
+/* Header superior oficial da Portaria */
+.portaria-app-root header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  color: #111827 !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .portaria-app-root {
-    color-scheme: dark;
-  }
+.portaria-app-root header img {
+  height: 40px !important;
+  max-height: 40px !important;
+  width: auto !important;
+  max-width: 140px !important;
+  object-fit: contain !important;
+  display: block !important;
 }
 
-/* Fundos de superfícies brancas para tema escuro */
-:root[data-theme="dark"] .portaria-app-root .bg-white,
-:root[data-theme="dark"] .portaria-app-root [class*="bg-white"] {
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
+/* Todos os Cards: superfícies brancas sólidas, bordas limpas e sombras suaves */
+.portaria-app-root [data-slot="card"],
+.portaria-app-root .bg-white {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .portaria-app-root .bg-white,
-  :root:not([data-theme="light"]) .portaria-app-root [class*="bg-white"] {
-    background-color: var(--bg-surface);
-    color: var(--text-primary);
-  }
+/* Botões da barra lateral (Sidebar) */
+.portaria-app-root aside nav button {
+  cursor: pointer;
+  outline: none !important;
 }
 
-/* Canvas e containers */
-:root[data-theme="dark"] .portaria-app-root .bg-gray-100,
-:root[data-theme="dark"] .portaria-app-root .bg-slate-100,
-:root[data-theme="dark"] .portaria-app-root .bg-gray-50,
-:root[data-theme="dark"] .portaria-app-root .bg-slate-50 {
-  background-color: var(--bg-canvas) !important;
+/* Botão ATIVO de Terceiros (laranja oficial conforme repositório) */
+.portaria-app-root aside nav button.bg-orange-500,
+.portaria-app-root .bg-orange-500 {
+  background-color: #f97316 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 6px -1px rgba(251, 146, 60, 0.35) !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .portaria-app-root .bg-gray-100,
-  :root:not([data-theme="light"]) .portaria-app-root .bg-slate-100,
-  :root:not([data-theme="light"]) .portaria-app-root .bg-gray-50,
-  :root:not([data-theme="light"]) .portaria-app-root .bg-slate-50 {
-    background-color: var(--bg-canvas) !important;
-  }
+.portaria-app-root aside nav button.bg-orange-500 svg,
+.portaria-app-root .bg-orange-500 svg {
+  color: #ffffff !important;
 }
 
-/* Bordas */
-:root[data-theme="dark"] .portaria-app-root .border-gray-200,
-:root[data-theme="dark"] .portaria-app-root .border-gray-100,
-:root[data-theme="dark"] .portaria-app-root .border-slate-200 {
-  border-color: var(--border) !important;
+.portaria-app-root aside nav button.bg-orange-500 [data-slot="badge"],
+.portaria-app-root aside nav button.bg-orange-500 .bg-white\/20 {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .portaria-app-root .border-gray-200,
-  :root:not([data-theme="light"]) .portaria-app-root .border-gray-100,
-  :root:not([data-theme="light"]) .portaria-app-root .border-slate-200 {
-    border-color: var(--border) !important;
-  }
+/* Botão ATIVO padrão (Visitas, Dashboard, Recebidos, Frota) */
+.portaria-app-root aside nav button.bg-blue-600,
+.portaria-app-root .bg-blue-600 {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 6px -1px rgba(147, 197, 253, 0.45) !important;
 }
 
-/* Textos principais */
-:root[data-theme="dark"] .portaria-app-root .text-gray-900,
-:root[data-theme="dark"] .portaria-app-root .text-slate-900,
-:root[data-theme="dark"] .portaria-app-root .text-black,
-:root[data-theme="dark"] .portaria-app-root h1,
-:root[data-theme="dark"] .portaria-app-root h2,
-:root[data-theme="dark"] .portaria-app-root h3,
-:root[data-theme="dark"] .portaria-app-root h4 {
-  color: var(--text-primary) !important;
+.portaria-app-root aside nav button.bg-blue-600 svg,
+.portaria-app-root .bg-blue-600 svg {
+  color: #ffffff !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .portaria-app-root .text-gray-900,
-  :root:not([data-theme="light"]) .portaria-app-root .text-slate-900,
-  :root:not([data-theme="light"]) .portaria-app-root .text-black,
-  :root:not([data-theme="light"]) .portaria-app-root h1,
-  :root:not([data-theme="light"]) .portaria-app-root h2,
-  :root:not([data-theme="light"]) .portaria-app-root h3,
-  :root:not([data-theme="light"]) .portaria-app-root h4 {
-    color: var(--text-primary) !important;
-  }
+.portaria-app-root aside nav button.bg-blue-600 [data-slot="badge"],
+.portaria-app-root aside nav button.bg-blue-600 .bg-white\/20 {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
 }
 
-/* Textos secundários e silenciados */
-:root[data-theme="dark"] .portaria-app-root .text-gray-700,
-:root[data-theme="dark"] .portaria-app-root .text-gray-600,
-:root[data-theme="dark"] .portaria-app-root .text-slate-600 {
-  color: var(--text-secondary) !important;
+/* Botões INATIVOS da barra lateral */
+.portaria-app-root aside nav button.text-gray-600 {
+  color: #4b5563 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
-:root[data-theme="dark"] .portaria-app-root .text-gray-500,
-:root[data-theme="dark"] .portaria-app-root .text-gray-400,
-:root[data-theme="dark"] .portaria-app-root .text-slate-400 {
-  color: var(--text-muted) !important;
+.portaria-app-root aside nav button.text-gray-600:hover {
+  background-color: #e5e7eb !important;
+  color: #111827 !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .portaria-app-root .text-gray-700,
-  :root:not([data-theme="light"]) .portaria-app-root .text-gray-600,
-  :root:not([data-theme="light"]) .portaria-app-root .text-slate-600 {
-    color: var(--text-secondary) !important;
-  }
-
-  :root:not([data-theme="light"]) .portaria-app-root .text-gray-500,
-  :root:not([data-theme="light"]) .portaria-app-root .text-gray-400,
-  :root:not([data-theme="light"]) .portaria-app-root .text-slate-400 {
-    color: var(--text-muted) !important;
-  }
+/* Badges da barra lateral */
+.portaria-app-root aside nav .bg-gray-200 {
+  background-color: #e5e7eb !important;
+  color: #374151 !important;
 }
 
-/* Inputs, seletores e formulários */
-:root[data-theme="dark"] .portaria-app-root input,
-:root[data-theme="dark"] .portaria-app-root select,
-:root[data-theme="dark"] .portaria-app-root textarea {
-  background-color: var(--bg-surface) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--border) !important;
+.portaria-app-root aside nav .bg-orange-100 {
+  background-color: #ffedd5 !important;
+  color: #c2410c !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .portaria-app-root input,
-  :root:not([data-theme="light"]) .portaria-app-root select,
-  :root:not([data-theme="light"]) .portaria-app-root textarea {
-    background-color: var(--bg-surface) !important;
-    color: var(--text-primary) !important;
-    border-color: var(--border) !important;
-  }
+/* Botão de ação Laranja (ex: + Registrar Entrada) */
+.portaria-app-root button.bg-orange-500:hover {
+  background-color: #ea580c !important;
 }
 
-/* Modais e diálogos (dentro e fora do root) */
+/* Indicadores / KPIs com borda esquerda colorida */
+.portaria-app-root .border-l-emerald-500 {
+  border-left: 4px solid #10b981 !important;
+}
+.portaria-app-root .border-l-amber-500 {
+  border-left: 4px solid #f59e0b !important;
+}
+.portaria-app-root .border-l-blue-500 {
+  border-left: 4px solid #3b82f6 !important;
+}
+.portaria-app-root .border-l-purple-500 {
+  border-left: 4px solid #a855f7 !important;
+}
+.portaria-app-root .border-l-rose-500 {
+  border-left: 4px solid #f43f5e !important;
+}
+.portaria-app-root .border-t-teal-500 {
+  border-top: 4px solid #14b8a6 !important;
+}
+
+/* Cards internos de estatísticas da Frota */
+.portaria-app-root .bg-teal-50 {
+  background-color: #f0fdfa !important;
+  border-color: #ccfbf1 !important;
+}
+.portaria-app-root .text-teal-700 {
+  color: #0f766e !important;
+}
+.portaria-app-root .text-teal-600 {
+  color: #0d9488 !important;
+}
+
+.portaria-app-root .bg-amber-50 {
+  background-color: #fffbeb !important;
+  border-color: #fef3c7 !important;
+}
+.portaria-app-root .text-amber-700 {
+  color: #b45309 !important;
+}
+.portaria-app-root .text-amber-600 {
+  color: #d97706 !important;
+}
+
+.portaria-app-root .bg-blue-50 {
+  background-color: #eff6ff !important;
+  border-color: #dbeafe !important;
+}
+.portaria-app-root .text-blue-700 {
+  color: #1d4ed8 !important;
+}
+.portaria-app-root .text-blue-600 {
+  color: #2563eb !important;
+}
+
+.portaria-app-root .bg-gray-50 {
+  background-color: #f9fafb !important;
+}
+
+/* Inputs, Filtros e Selects */
+.portaria-app-root input,
+.portaria-app-root select,
+.portaria-app-root textarea {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+.portaria-app-root input:focus,
+.portaria-app-root select:focus,
+.portaria-app-root textarea:focus {
+  outline: none !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+}
+
+/* Tabela */
+.portaria-app-root table {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+}
+
+.portaria-app-root thead,
+.portaria-app-root thead tr,
+.portaria-app-root thead th {
+  background-color: #f9fafb !important;
+  color: #4b5563 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.portaria-app-root tbody tr {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+}
+
+.portaria-app-root tbody tr:hover {
+  background-color: #f9fafb !important;
+}
+
+.portaria-app-root tbody td {
+  color: #111827 !important;
+}
+
+/* Badge de status "Em andamento" */
+.portaria-app-root .bg-emerald-100 {
+  background-color: #dcfce7 !important;
+  color: #15803d !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+.portaria-app-root .bg-emerald-500 {
+  background-color: #10b981 !important;
+}
+
+/* Botão Encerrar Terceiro */
+.portaria-app-root .border-red-200 {
+  border-color: #fecaca !important;
+  color: #dc2626 !important;
+  background-color: #ffffff !important;
+}
+
+.portaria-app-root .border-red-200:hover {
+  background-color: #fef2f2 !important;
+}
+
+/* Modais e Diálogos Radix (renderizados no final do body) */
 [data-slot="dialog-overlay"] {
-  background-color: rgba(0, 0, 0, 0.65) !important;
+  background-color: rgba(0, 0, 0, 0.6) !important;
   backdrop-filter: blur(4px) !important;
   -webkit-backdrop-filter: blur(4px) !important;
   position: fixed !important;
@@ -150,56 +249,40 @@
 }
 
 [data-slot="dialog-content"],
-div[role="dialog"],
-.portaria-app-root [role="dialog"],
-.portaria-app-root [class*="dialog-content"] {
+div[role="dialog"] {
   background-color: #ffffff !important;
   color: #111827 !important;
   border: 1px solid #e5e7eb !important;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
   opacity: 1 !important;
+  border-radius: 0.75rem !important;
 }
 
-:root[data-theme="dark"] [data-slot="dialog-content"],
-:root[data-theme="dark"] div[role="dialog"],
-:root[data-theme="dark"] .portaria-app-root [role="dialog"],
-:root[data-theme="dark"] .portaria-app-root [class*="dialog-content"] {
-  background-color: var(--bg-surface-raised, #18181b) !important;
-  border: 1px solid var(--border, #27272a) !important;
-  color: var(--text-primary, #f4f4f5) !important;
+[data-slot="dialog-content"] input,
+[data-slot="dialog-content"] select,
+div[role="dialog"] input,
+div[role="dialog"] select {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) [data-slot="dialog-content"],
-  :root:not([data-theme="light"]) div[role="dialog"],
-  :root:not([data-theme="light"]) .portaria-app-root [role="dialog"],
-  :root:not([data-theme="light"]) .portaria-app-root [class*="dialog-content"] {
-    background-color: var(--bg-surface-raised, #18181b) !important;
-    border: 1px solid var(--border, #27272a) !important;
-    color: var(--text-primary, #f4f4f5) !important;
-  }
+[data-slot="dialog-content"] label,
+div[role="dialog"] label {
+  color: #374151 !important;
 }
 
-/* Select dropdowns no body */
+/* Select Dropdown Portais */
 [data-slot="select-content"] {
   background-color: #ffffff !important;
   color: #111827 !important;
   border: 1px solid #e5e7eb !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
   opacity: 1 !important;
+  border-radius: 0.5rem !important;
 }
 
-:root[data-theme="dark"] [data-slot="select-content"] {
-  background-color: var(--bg-surface-raised, #18181b) !important;
-  color: var(--text-primary, #f4f4f5) !important;
-  border-color: var(--border, #27272a) !important;
+[data-slot="select-item"]:hover {
+  background-color: #f3f4f6 !important;
+  color: #111827 !important;
 }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) [data-slot="select-content"] {
-    background-color: var(--bg-surface-raised, #18181b) !important;
-    color: var(--text-primary, #f4f4f5) !important;
-    border-color: var(--border, #27272a) !important;
-  }
-}
-

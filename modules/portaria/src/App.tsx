@@ -1889,10 +1889,16 @@ function App({ onExit }: { onExit?: () => void } = {}) {
               >
                 <Menu className="w-5 h-5" />
               </Button>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold tracking-wider text-gray-800 dark:text-zinc-200 uppercase">
-                  Controle Portaria
-                </span>
+              <div className="flex items-center gap-3">
+                <img
+                  src="/logo-pecsil.png"
+                  alt="Pecsil Logo"
+                  className="h-10 w-auto object-contain"
+                  style={{ height: "40px", maxHeight: "40px", width: "auto" }}
+                />
+                <div className="hidden sm:flex border-l-2 border-gray-200 pl-3">
+                  <span className="text-xs font-medium text-gray-500 tracking-wide uppercase mt-1">Controle Portaria</span>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-3">
