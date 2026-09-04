@@ -9,6 +9,7 @@ import { useSessionAccess } from "../lib/data/use-session-access";
 import { HrModule } from "./components/hr-module";
 import { UserManagement } from "./components/user-management";
 import { AccountPanel } from "./components/account-panel";
+import { usePwa } from "./components/pwa-provider";
 
 type View = "Visão Geral" | "Módulos" | "Pessoas e Acessos" | "Estrutura" | "Permissões e Segurança" | "Busca Corporativa" | "Documentos" | "Notificações" | "Auditoria" | "Banco e Autenticação" | "Configurações";
 
@@ -343,6 +344,7 @@ export default function Home() {
   // Identidade real do usuário autenticado (papel, permissões e escopo do banco).
   // Enquanto carrega, ou com o Supabase inacessível, cai no contexto demonstrativo.
   const { access, real: realAccess, profile: sessionProfile, reload: reloadIdentity } = useSessionAccess();
+  const { isInstallable, isIos, promptInstall } = usePwa();
   const [accountPanel,setAccountPanel]=useState(false);
   const isExecutive = access.roleCode === "owner" || access.roleCode === "admin" || access.role === "Proprietário" || access.role === "Administrador";
   const modules=useMemo(()=>getCatalogModules(access,moduleRegistry),[access]);
@@ -462,10 +464,68 @@ export default function Home() {
             {sessionProfile.avatarUrl ? <img className="avatar top avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span className="avatar top">{access.initials}</span>}
             <span><b>{access.name}</b><small>{access.role}</small></span>
           </button>
-          {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button><button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
+          {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{(isInstallable || isIos) && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar no celular (PWA)</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
         </div>
       </header>
       <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access}):view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change}/>:view==="Documentos"?<DocumentsView notify={notify}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source}/>:<AdminView view={view}/>}</div>
+      <nav className="mobile-bottom-nav" aria-label="Navegação rápida móvel">
+        <button
+          type="button"
+          className={`mobile-bottom-nav-item ${!activeModuleId && !deniedTarget && view === "Visão Geral" ? "active" : ""}`}
+          onClick={() => change("Visão Geral")}
+          aria-label="Início"
+        >
+          <Icon name="grid" size={20} />
+          <span>Início</span>
+        </button>
+        <button
+          type="button"
+          className={`mobile-bottom-nav-item ${activeModuleId || (!deniedTarget && view === "Módulos") ? "active" : ""}`}
+          onClick={() => {
+            if (isExecutive) {
+              change("Módulos");
+            } else if (targetedModule) {
+              openModule(targetedModule);
+            } else if (visibleModules.length > 0) {
+              openModule(visibleModules[0].id);
+            } else {
+              change("Módulos");
+            }
+          }}
+          aria-label="Módulos"
+        >
+          <Icon name="modules" size={20} />
+          <span>Módulos</span>
+        </button>
+        <button
+          type="button"
+          className={`mobile-bottom-nav-item ${!activeModuleId && !deniedTarget && view === "Busca Corporativa" ? "active" : ""}`}
+          onClick={() => change("Busca Corporativa")}
+          aria-label="Buscar"
+        >
+          <Icon name="search" size={20} />
+          <span>Buscar</span>
+        </button>
+        <button
+          type="button"
+          className={`mobile-bottom-nav-item ${!activeModuleId && !deniedTarget && view === "Notificações" ? "active" : ""}`}
+          onClick={() => change("Notificações")}
+          aria-label="Alertas"
+        >
+          <Icon name="bell" size={20} />
+          {3 + operationalEvents.length > 0 && <i className="badge">{3 + operationalEvents.length}</i>}
+          <span>Alertas</span>
+        </button>
+        <button
+          type="button"
+          className={`mobile-bottom-nav-item ${mobile ? "active" : ""}`}
+          onClick={() => setMobile(true)}
+          aria-label="Menu"
+        >
+          <Icon name="menu" size={20} />
+          <span>Menu</span>
+        </button>
+      </nav>
     </main>{accountPanel&&<AccountPanel access={access} profile={sessionProfile} onClose={()=>setAccountPanel(false)} onSaved={reloadIdentity} notify={notify}/>}
       {toast&&<div className="toast"><span>✓</span>{toast}</div>}
   </div>;

@@ -1,0 +1,68 @@
+{
+  "name": "Pecsil Business OS",
+  "short_name": "Pecsil OS",
+  "description": "Ecossistema empresarial modular da Pecsil: Compras, Recursos Humanos, Financeiro e Gestão Corporativa.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#08090b",
+  "theme_color": "#08090b",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Visão Geral",
+      "short_name": "Início",
+      "description": "Visão geral e indicadores executivos",
+      "url": "/?view=overview",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Módulo de Compras",
+      "short_name": "Compras",
+      "description": "Cotações, pendências e pedidos de compra",
+      "url": "/?module=compras",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Recursos Humanos",
+      "short_name": "RH",
+      "description": "Colaboradores, férias, jornada e benefícios",
+      "url": "/?module=rh",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Financeiro",
+      "short_name": "Financeiro",
+      "description": "Fluxo de caixa, contas e liquidações",
+      "url": "/?module=financeiro",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider, themeBootstrapScript } from "../packages/design-system/theme";
+import { PwaProvider } from "./components/pwa-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,17 +17,33 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Pecsil Business OS",
   description: "Ecossistema empresarial modular da Pecsil.",
+  manifest: "/manifest.webmanifest",
+  applicationName: "Pecsil Business OS",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Pecsil OS",
+  },
   other: {
     "codex-preview": "development",
+    "mobile-web-app-capable": "yes",
   },
   icons: {
-    icon: "/favicon.png",
+    icon: [
+      { url: "/favicon.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
     shortcut: "/favicon.png",
-    apple: "/favicon.png",
+    apple: "/icons/apple-touch-icon.png",
   },
 };
 
-export const viewport = {
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f5f6f8" },
     { media: "(prefers-color-scheme: dark)", color: "#08090b" },
@@ -46,8 +63,11 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <PwaProvider>{children}</PwaProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
 }
+

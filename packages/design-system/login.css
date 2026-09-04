@@ -295,16 +295,27 @@
 @media (max-width: 860px) {
   .login-page {
     grid-template-columns: minmax(0, 1fr);
+    min-height: 100dvh;
   }
 
-  /* Em telas estreitas o hero sai; o foco é o formulário. */
+  /* Em telas estreitas o hero sai; o foco é o formulário limpo e acessível. */
   .login-visual {
     display: none;
   }
 
   .login-panel {
     max-width: 420px;
-    padding: var(--sp-7) var(--sp-5);
-    min-height: 100vh;
+    padding: calc(var(--sp-6) + var(--sat)) var(--sp-5) calc(var(--sp-6) + var(--sab));
+    min-height: 100dvh;
+  }
+
+  .login-panel form input {
+    font-size: 16px;
+    height: 48px;
+  }
+
+  .login-panel form button {
+    height: 48px;
+    font-size: var(--fs-md);
   }
 }

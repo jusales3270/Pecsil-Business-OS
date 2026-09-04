@@ -69,7 +69,15 @@
   --shell-sidebar-w: 268px;
   --shell-sidebar-w-collapsed: 76px;
   --shell-header-h: 76px;
+  --shell-header-h-mobile: 60px;
+  --shell-bottom-nav-h: 62px;
   --shell-content-max: 1640px;
+
+  /* --- Safe areas para celulares (notch, dynamic island, home indicator) -- */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
 
   /* --- Movimento --------------------------------------------------------- */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -77,6 +85,7 @@
   --dur-base: 180ms;
 
   --z-sidebar: 30;
+  --z-bottom-nav: 25;
   --z-header: 20;
   --z-overlay: 60;
   --z-toast: 70;
