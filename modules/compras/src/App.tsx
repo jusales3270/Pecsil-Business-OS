@@ -71,7 +71,7 @@ export default function ComprasApp({ access, onExit }: ComprasAppProps) {
   };
 
   return (
-    <div className="w-full h-full min-h-screen bg-[#f5f5f5] text-slate-900">
+    <div className="w-full h-full min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] compras-app-root">
       <Layout isOwner={isOwner} onExit={onExit}>
         {renderPage()}
       </Layout>

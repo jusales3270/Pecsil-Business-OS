@@ -33,15 +33,19 @@ export default function DivisaoTabs({ counts }: DivisaoTabsProps) {
     <div className="flex items-center gap-2">
       {DIVISOES.map((d) => {
         const isActive = currentDivisao === d.value;
+        const isUsinagem = d.value === 'USINAGEM';
+
         return (
           <button
             key={d.value}
             onClick={() => setDivisao(d.value)}
             className={`
-              flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border-2
+              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 border
               ${isActive
-                ? `${d.activeBg} ${d.activeColor} shadow-sm`
-                : `border-transparent text-slate-500 ${d.hoverBg} hover:text-slate-700`
+                ? isUsinagem
+                  ? 'bg-[var(--tint-blue)] border-[var(--accent-blue)] text-[var(--accent-blue)] shadow-sm'
+                  : 'bg-[var(--tint-amber)] border-[var(--accent-amber)] text-[var(--accent-amber)] shadow-sm'
+                : 'border-[var(--border-subtle)] text-[var(--text-muted)] bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
               }
             `}
           >
@@ -53,10 +57,10 @@ export default function DivisaoTabs({ counts }: DivisaoTabsProps) {
               <span className={`
                 ml-1 min-w-[20px] h-5 flex items-center justify-center rounded-full text-[11px] font-bold px-1.5
                 ${isActive
-                  ? d.value === 'USINAGEM'
-                    ? 'bg-blue-200/70 text-blue-800'
-                    : 'bg-orange-200/70 text-orange-800'
-                  : 'bg-slate-100 text-slate-500'
+                  ? isUsinagem
+                    ? 'bg-[var(--accent-blue)]/20 text-[var(--accent-blue)]'
+                    : 'bg-[var(--accent-amber)]/20 text-[var(--accent-amber)]'
+                  : 'bg-[var(--bg-subtle)] text-[var(--text-muted)]'
                 }
               `}>
                 {counts[d.value]}

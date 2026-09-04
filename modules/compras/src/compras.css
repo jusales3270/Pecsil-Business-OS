@@ -1,32 +1,403 @@
+/* ============================================================================
+   Pecsil Business OS — Módulo de Compras
+   Coerência cromática e suporte total aos temas Claro e Escuro
+   ============================================================================ */
+
 .compras-app-root {
-  --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
-  --primary: 221.2 83.2% 53.3%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 221.2 83.2% 53.3%;
-  --radius: 0.625rem;
-  --sidebar-background: 0 0% 98%;
-  --sidebar-foreground: 240 5.3% 26.1%;
-  --sidebar-primary: 221.2 83.2% 53.3%;
-  --sidebar-primary-foreground: 0 0% 98%;
-  --sidebar-accent: 240 4.8% 95.9%;
-  --sidebar-accent-foreground: 240 5.9% 10%;
-  --sidebar-border: 220 13% 91%;
-  --sidebar-ring: 221.2 83.2% 53.3%;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  min-height: 100dvh;
+}
+
+/* ============================================================================
+   REGRAS ESPECÍFICAS DE MODO ESCURO PARA O MÓDULO DE COMPRAS
+   Aplicadas via [data-theme="dark"] e prefers-color-scheme
+   ============================================================================ */
+
+:root[data-theme="dark"] .compras-app-root {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root {
+    color-scheme: dark;
+  }
+}
+
+/* Seletores compostos para cobrir [data-theme="dark"] e prefers-color-scheme */
+:root[data-theme="dark"] .compras-app-root,
+:root[data-theme="dark"] .compras-app-root .bg-white,
+:root[data-theme="dark"] .compras-app-root [class*="bg-white"] {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root,
+  :root:not([data-theme="light"]) .compras-app-root .bg-white,
+  :root:not([data-theme="light"]) .compras-app-root [class*="bg-white"] {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+  }
+}
+
+/* Fundos de canvas e containers da aplicação */
+:root[data-theme="dark"] .compras-app-root .bg-\[\#f5f5f5\],
+:root[data-theme="dark"] .compras-app-root .bg-\[\#f8fafc\],
+:root[data-theme="dark"] .compras-app-root .bg-slate-50,
+:root[data-theme="dark"] .compras-app-root .bg-gray-50 {
+  background-color: var(--bg-canvas) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root .bg-\[\#f5f5f5\],
+  :root:not([data-theme="light"]) .compras-app-root .bg-\[\#f8fafc\],
+  :root:not([data-theme="light"]) .compras-app-root .bg-slate-50,
+  :root:not([data-theme="light"]) .compras-app-root .bg-gray-50 {
+    background-color: var(--bg-canvas) !important;
+  }
+}
+
+/* Superfícies secundárias, cabeçalhos de tabela e poços */
+:root[data-theme="dark"] .compras-app-root .bg-slate-100,
+:root[data-theme="dark"] .compras-app-root .bg-slate-100\/90,
+:root[data-theme="dark"] .compras-app-root .bg-gray-100,
+:root[data-theme="dark"] .compras-app-root .bg-\[\#fafafa\],
+:root[data-theme="dark"] .compras-app-root .bg-\[\#fcfcfc\],
+:root[data-theme="dark"] .compras-app-root thead,
+:root[data-theme="dark"] .compras-app-root thead tr {
+  background-color: var(--bg-subtle) !important;
+  color: var(--text-primary) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root .bg-slate-100,
+  :root:not([data-theme="light"]) .compras-app-root .bg-slate-100\/90,
+  :root:not([data-theme="light"]) .compras-app-root .bg-gray-100,
+  :root:not([data-theme="light"]) .compras-app-root .bg-\[\#fafafa\],
+  :root:not([data-theme="light"]) .compras-app-root .bg-\[\#fcfcfc\],
+  :root:not([data-theme="light"]) .compras-app-root thead,
+  :root:not([data-theme="light"]) .compras-app-root thead tr {
+    background-color: var(--bg-subtle) !important;
+    color: var(--text-primary) !important;
+  }
+}
+
+/* Bordas nos cartões e divisórias */
+:root[data-theme="dark"] .compras-app-root .border-black\/\[0\.08\],
+:root[data-theme="dark"] .compras-app-root .border-black\/\[0\.06\],
+:root[data-theme="dark"] .compras-app-root .border-black\/\[0\.04\],
+:root[data-theme="dark"] .compras-app-root .border-slate-200,
+:root[data-theme="dark"] .compras-app-root .border-slate-200\/80,
+:root[data-theme="dark"] .compras-app-root .border-slate-200\/60,
+:root[data-theme="dark"] .compras-app-root .border-slate-300,
+:root[data-theme="dark"] .compras-app-root .border-gray-200 {
+  border-color: var(--border) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root .border-black\/\[0\.08\],
+  :root:not([data-theme="light"]) .compras-app-root .border-black\/\[0\.06\],
+  :root:not([data-theme="light"]) .compras-app-root .border-black\/\[0\.04\],
+  :root:not([data-theme="light"]) .compras-app-root .border-slate-200,
+  :root:not([data-theme="light"]) .compras-app-root .border-slate-200\/80,
+  :root:not([data-theme="light"]) .compras-app-root .border-slate-200\/60,
+  :root:not([data-theme="light"]) .compras-app-root .border-slate-300,
+  :root:not([data-theme="light"]) .compras-app-root .border-gray-200 {
+    border-color: var(--border) !important;
+  }
+}
+
+/* Linhas de tabelas */
+:root[data-theme="dark"] .compras-app-root tr,
+:root[data-theme="dark"] .compras-app-root th,
+:root[data-theme="dark"] .compras-app-root td {
+  border-color: var(--border-subtle) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root tr,
+  :root:not([data-theme="light"]) .compras-app-root th,
+  :root:not([data-theme="light"]) .compras-app-root td {
+    border-color: var(--border-subtle) !important;
+  }
+}
+
+/* Textos principais com alto contraste */
+:root[data-theme="dark"] .compras-app-root .text-\[\#212121\],
+:root[data-theme="dark"] .compras-app-root .text-slate-900,
+:root[data-theme="dark"] .compras-app-root .text-slate-800,
+:root[data-theme="dark"] .compras-app-root .text-gray-900,
+:root[data-theme="dark"] .compras-app-root .text-black,
+:root[data-theme="dark"] .compras-app-root h1,
+:root[data-theme="dark"] .compras-app-root h2,
+:root[data-theme="dark"] .compras-app-root h3,
+:root[data-theme="dark"] .compras-app-root h4,
+:root[data-theme="dark"] .compras-app-root th {
+  color: var(--text-primary) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root .text-\[\#212121\],
+  :root:not([data-theme="light"]) .compras-app-root .text-slate-900,
+  :root:not([data-theme="light"]) .compras-app-root .text-slate-800,
+  :root:not([data-theme="light"]) .compras-app-root .text-gray-900,
+  :root:not([data-theme="light"]) .compras-app-root .text-black,
+  :root:not([data-theme="light"]) .compras-app-root h1,
+  :root:not([data-theme="light"]) .compras-app-root h2,
+  :root:not([data-theme="light"]) .compras-app-root h3,
+  :root:not([data-theme="light"]) .compras-app-root h4,
+  :root:not([data-theme="light"]) .compras-app-root th {
+    color: var(--text-primary) !important;
+  }
+}
+
+/* Textos secundários */
+:root[data-theme="dark"] .compras-app-root .text-slate-700,
+:root[data-theme="dark"] .compras-app-root .text-slate-600,
+:root[data-theme="dark"] .compras-app-root .text-gray-700,
+:root[data-theme="dark"] .compras-app-root .text-gray-600,
+:root[data-theme="dark"] .compras-app-root td {
+  color: var(--text-secondary) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root .text-slate-700,
+  :root:not([data-theme="light"]) .compras-app-root .text-slate-600,
+  :root:not([data-theme="light"]) .compras-app-root .text-gray-700,
+  :root:not([data-theme="light"]) .compras-app-root .text-gray-600,
+  :root:not([data-theme="light"]) .compras-app-root td {
+    color: var(--text-secondary) !important;
+  }
+}
+
+/* Textos silenciados e metadados */
+:root[data-theme="dark"] .compras-app-root .text-\[\#757575\],
+:root[data-theme="dark"] .compras-app-root .text-\[\#94a3b8\],
+:root[data-theme="dark"] .compras-app-root .text-slate-500,
+:root[data-theme="dark"] .compras-app-root .text-slate-400,
+:root[data-theme="dark"] .compras-app-root .text-gray-500,
+:root[data-theme="dark"] .compras-app-root .text-gray-400 {
+  color: var(--text-muted) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root .text-\[\#757575\],
+  :root:not([data-theme="light"]) .compras-app-root .text-\[\#94a3b8\],
+  :root:not([data-theme="light"]) .compras-app-root .text-slate-500,
+  :root:not([data-theme="light"]) .compras-app-root .text-slate-400,
+  :root:not([data-theme="light"]) .compras-app-root .text-gray-500,
+  :root:not([data-theme="light"]) .compras-app-root .text-gray-400 {
+    color: var(--text-muted) !important;
+  }
+}
+
+/* Campos de entrada, seletores e caixas de texto */
+:root[data-theme="dark"] .compras-app-root input,
+:root[data-theme="dark"] .compras-app-root select,
+:root[data-theme="dark"] .compras-app-root textarea {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root input,
+  :root:not([data-theme="light"]) .compras-app-root select,
+  :root:not([data-theme="light"]) .compras-app-root textarea {
+    background-color: var(--bg-surface) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+  }
+}
+
+:root[data-theme="dark"] .compras-app-root input::placeholder,
+:root[data-theme="dark"] .compras-app-root textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root input::placeholder,
+  :root:not([data-theme="light"]) .compras-app-root textarea::placeholder {
+    color: var(--text-muted) !important;
+  }
+}
+
+/* Estados de foco e hover em linhas de tabela e botões */
+:root[data-theme="dark"] .compras-app-root .hover\:bg-slate-50:hover,
+:root[data-theme="dark"] .compras-app-root .hover\:bg-gray-50:hover,
+:root[data-theme="dark"] .compras-app-root .hover\:bg-slate-100:hover,
+:root[data-theme="dark"] .compras-app-root .hover\:bg-\[\#fafafa\]:hover,
+:root[data-theme="dark"] .compras-app-root .hover\:bg-\[\#e8e8e8\]:hover,
+:root[data-theme="dark"] .compras-app-root .hover\:bg-blue-50\/40:hover,
+:root[data-theme="dark"] .compras-app-root tr:hover {
+  background-color: var(--bg-hover) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root .hover\:bg-slate-50:hover,
+  :root:not([data-theme="light"]) .compras-app-root .hover\:bg-gray-50:hover,
+  :root:not([data-theme="light"]) .compras-app-root .hover\:bg-slate-100:hover,
+  :root:not([data-theme="light"]) .compras-app-root .hover\:bg-\[\#fafafa\]:hover,
+  :root:not([data-theme="light"]) .compras-app-root .hover\:bg-\[\#e8e8e8\]:hover,
+  :root:not([data-theme="light"]) .compras-app-root .hover\:bg-blue-50\/40:hover,
+  :root:not([data-theme="light"]) .compras-app-root tr:hover {
+    background-color: var(--bg-hover) !important;
+  }
+}
+
+/* Modais e diálogos elevados */
+:root[data-theme="dark"] .compras-app-root [class*="shadow-2xl"],
+:root[data-theme="dark"] .compras-app-root [class*="max-w-"][class*="rounded-xl"],
+:root[data-theme="dark"] .compras-app-root [class*="max-w-"][class*="rounded-2xl"] {
+  background-color: var(--bg-surface-raised) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root [class*="shadow-2xl"],
+  :root:not([data-theme="light"]) .compras-app-root [class*="max-w-"][class*="rounded-xl"],
+  :root:not([data-theme="light"]) .compras-app-root [class*="max-w-"][class*="rounded-2xl"] {
+    background-color: var(--bg-surface-raised) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+  }
+}
+
+:root[data-theme="dark"] .compras-app-root [class*="shadow-2xl"] .border-t,
+:root[data-theme="dark"] .compras-app-root [class*="shadow-2xl"] .border-b {
+  border-color: var(--border-subtle) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root [class*="shadow-2xl"] .border-t,
+  :root:not([data-theme="light"]) .compras-app-root [class*="shadow-2xl"] .border-b {
+    border-color: var(--border-subtle) !important;
+  }
+}
+
+/* Badges e selos semânticos (Pendente, Aprovado, Rejeitado, Comprado) */
+:root[data-theme="dark"] .compras-app-root .bg-\[\#fff3e0\] {
+  background-color: var(--tint-amber) !important;
+  border-color: var(--edge-amber) !important;
+}
+:root[data-theme="dark"] .compras-app-root .text-\[\#e65100\] {
+  color: var(--accent-amber) !important;
+}
+
+:root[data-theme="dark"] .compras-app-root .bg-\[\#e8f5e9\],
+:root[data-theme="dark"] .compras-app-root .bg-green-100 {
+  background-color: var(--tint-green) !important;
+  border-color: var(--edge-green) !important;
+}
+:root[data-theme="dark"] .compras-app-root .text-\[\#2e7d32\],
+:root[data-theme="dark"] .compras-app-root .text-green-700 {
+  color: var(--accent-green) !important;
+}
+
+:root[data-theme="dark"] .compras-app-root .bg-\[\#ffebee\],
+:root[data-theme="dark"] .compras-app-root .bg-red-100 {
+  background-color: var(--tint-red) !important;
+  border-color: var(--edge-red) !important;
+}
+:root[data-theme="dark"] .compras-app-root .text-\[\#c62828\],
+:root[data-theme="dark"] .compras-app-root .text-red-700 {
+  color: var(--accent-red) !important;
+}
+
+:root[data-theme="dark"] .compras-app-root .bg-\[\#e3f2fd\],
+:root[data-theme="dark"] .compras-app-root .bg-blue-100 {
+  background-color: var(--tint-blue) !important;
+  border-color: var(--edge-blue) !important;
+}
+:root[data-theme="dark"] .compras-app-root .text-\[\#1565c0\],
+:root[data-theme="dark"] .compras-app-root .text-blue-700 {
+  color: var(--accent-blue) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root .bg-\[\#fff3e0\] {
+    background-color: var(--tint-amber) !important;
+    border-color: var(--edge-amber) !important;
+  }
+  :root:not([data-theme="light"]) .compras-app-root .text-\[\#e65100\] {
+    color: var(--accent-amber) !important;
+  }
+  :root:not([data-theme="light"]) .compras-app-root .bg-\[\#e8f5e9\],
+  :root:not([data-theme="light"]) .compras-app-root .bg-green-100 {
+    background-color: var(--tint-green) !important;
+    border-color: var(--edge-green) !important;
+  }
+  :root:not([data-theme="light"]) .compras-app-root .text-\[\#2e7d32\],
+  :root:not([data-theme="light"]) .compras-app-root .text-green-700 {
+    color: var(--accent-green) !important;
+  }
+  :root:not([data-theme="light"]) .compras-app-root .bg-\[\#ffebee\],
+  :root:not([data-theme="light"]) .compras-app-root .bg-red-100 {
+    background-color: var(--tint-red) !important;
+    border-color: var(--edge-red) !important;
+  }
+  :root:not([data-theme="light"]) .compras-app-root .text-\[\#c62828\],
+  :root:not([data-theme="light"]) .compras-app-root .text-red-700 {
+    color: var(--accent-red) !important;
+  }
+  :root:not([data-theme="light"]) .compras-app-root .bg-\[\#e3f2fd\],
+  :root:not([data-theme="light"]) .compras-app-root .bg-blue-100 {
+    background-color: var(--tint-blue) !important;
+    border-color: var(--edge-blue) !important;
+  }
+  :root:not([data-theme="light"]) .compras-app-root .text-\[\#1565c0\],
+  :root:not([data-theme="light"]) .compras-app-root .text-blue-700 {
+    color: var(--accent-blue) !important;
+  }
+}
+
+/* Gráficos Recharts em Modo Escuro */
+:root[data-theme="dark"] .compras-app-root .recharts-cartesian-grid-horizontal line,
+:root[data-theme="dark"] .compras-app-root .recharts-cartesian-grid-vertical line {
+  stroke: var(--border-subtle) !important;
+}
+
+:root[data-theme="dark"] .compras-app-root .recharts-text,
+:root[data-theme="dark"] .compras-app-root .recharts-cartesian-axis-tick-value {
+  fill: var(--text-muted) !important;
+}
+
+:root[data-theme="dark"] .compras-app-root .recharts-default-tooltip {
+  background-color: var(--bg-surface-raised) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+:root[data-theme="dark"] .compras-app-root .recharts-tooltip-item {
+  color: var(--text-primary) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root .recharts-cartesian-grid-horizontal line,
+  :root:not([data-theme="light"]) .compras-app-root .recharts-cartesian-grid-vertical line {
+    stroke: var(--border-subtle) !important;
+  }
+
+  :root:not([data-theme="light"]) .compras-app-root .recharts-text,
+  :root:not([data-theme="light"]) .compras-app-root .recharts-cartesian-axis-tick-value {
+    fill: var(--text-muted) !important;
+  }
+
+  :root:not([data-theme="light"]) .compras-app-root .recharts-default-tooltip {
+    background-color: var(--bg-surface-raised) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: var(--shadow-md) !important;
+  }
+
+  :root:not([data-theme="light"]) .compras-app-root .recharts-tooltip-item {
+    color: var(--text-primary) !important;
+  }
 }
 
 @keyframes bounce-short {

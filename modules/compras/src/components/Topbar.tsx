@@ -79,14 +79,14 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
   }, []);
 
   return (
-    <header className="bg-white border-b border-slate-200 flex flex-wrap md:flex-nowrap items-center justify-between px-3 sm:px-4 md:px-6 py-2.5 md:py-0 md:h-16 flex-shrink-0 gap-2 sm:gap-4">
+    <header className="bg-[var(--bg-surface)] border-b border-[var(--border-subtle)] text-[var(--text-primary)] flex flex-wrap md:flex-nowrap items-center justify-between px-3 sm:px-4 md:px-6 py-2.5 md:py-0 md:h-16 flex-shrink-0 gap-2 sm:gap-4">
       {/* Esquerda: Voltar ao Ecossistema + Seletor de Perfil (Proprietário) */}
       <div className="flex items-center gap-2 sm:gap-3 order-1">
         {onExit && isOwner && (
           <button
             type="button"
             onClick={onExit}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-xs font-semibold shadow-xs transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] text-xs font-semibold shadow-xs transition-colors"
           >
             <ChevronLeft size={16} />
             <span className="hidden xs:inline">Ecossistema</span>
@@ -94,7 +94,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
         )}
 
         {isOwner ? (
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+          <div className="flex items-center gap-1 bg-[var(--bg-subtle)] p-1 rounded-lg border border-[var(--border)]">
             <button
               type="button"
               onClick={() => {
@@ -103,8 +103,8 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
               }}
               className={`px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                 user?.role === 'ORCAMENTISTA'
-                  ? 'bg-white text-blue-700 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[var(--bg-surface)] text-[var(--accent-blue)] shadow-xs border border-[var(--border-subtle)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Orçamentista
@@ -117,8 +117,8 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
               }}
               className={`px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                 user?.role === 'GESTOR'
-                  ? 'bg-white text-amber-700 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[var(--bg-surface)] text-[var(--accent-amber)] shadow-xs border border-[var(--border-subtle)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Gestor
@@ -127,8 +127,8 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
         ) : (
           <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${
             user?.role === 'ORCAMENTISTA'
-              ? 'bg-blue-100 text-blue-700'
-              : 'bg-amber-100 text-amber-700'
+              ? 'bg-[var(--tint-blue)] text-[var(--accent-blue)]'
+              : 'bg-[var(--tint-amber)] text-[var(--accent-amber)]'
           }`}>
             {user?.role === 'ORCAMENTISTA' ? 'Orçamentista' : 'Gestor'}
           </span>
@@ -136,7 +136,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
       </div>
 
       {/* Centro: Submenus do Módulo de Compras (Estilo Segmented Tabs do Business OS) */}
-      <nav className="flex items-center gap-1 p-1 bg-slate-100/90 rounded-lg border border-slate-200/80 overflow-x-auto w-full md:w-auto order-3 md:order-2 scrollbar-none">
+      <nav className="flex items-center gap-1 p-1 bg-[var(--bg-subtle)] rounded-lg border border-[var(--border)] overflow-x-auto w-full md:w-auto order-3 md:order-2 scrollbar-none">
         {tabs.map((tab) => {
           const isActive = currentPage === tab.page;
           return (
@@ -146,8 +146,8 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
               onClick={() => setPage(tab.page)}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                 isActive
-                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-xs border border-[var(--border)] font-semibold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
               }`}
             >
               {tab.label}
@@ -161,8 +161,8 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
         {user && (
           <span className={`inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[11px] font-semibold ${
             currentDivisao === 'USINAGEM'
-              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-              : 'bg-orange-50 text-orange-700 border border-orange-200'
+              ? 'bg-[var(--tint-blue)] text-[var(--accent-blue)] border border-[var(--edge-blue)]'
+              : 'bg-[var(--tint-amber)] text-[var(--accent-amber)] border border-[var(--edge-amber)]'
           }`}>
             {currentDivisao === 'USINAGEM' ? <Cog size={12} /> : <Flame size={12} />}
             <span>{currentDivisao === 'USINAGEM' ? 'Usinagem' : 'Fundição'}</span>
@@ -174,7 +174,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
           <button
             type="button"
             onClick={() => setShowNotifs(!showNotifs)}
-            className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-600"
+            className="relative p-2 rounded-lg hover:bg-[var(--bg-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             title="Notificações"
           >
             <Bell size={18} />
@@ -194,10 +194,10 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
                 marginTop: '8px',
                 width: '460px',
                 maxWidth: 'calc(100vw - 32px)',
-                background: '#ffffff',
+                background: 'var(--bg-surface-raised)',
                 borderRadius: '12px',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                border: '1px solid #e2e8f0',
+                boxShadow: 'var(--shadow-lg)',
+                border: '1px solid var(--border)',
                 zIndex: 60,
                 overflow: 'hidden',
               }}
@@ -209,12 +209,12 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '14px 18px',
-                  borderBottom: '1px solid #e2e8f0',
-                  background: '#ffffff',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  background: 'var(--bg-surface-raised)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
                     Notificações
                   </h3>
                   {unreadCount > 0 && (
@@ -224,8 +224,8 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
                         borderRadius: '9999px',
                         fontSize: '11px',
                         fontWeight: 700,
-                        background: '#dbeafe',
-                        color: '#1d4ed8',
+                        background: 'var(--tint-blue)',
+                        color: 'var(--accent-blue)',
                       }}
                     >
                       {unreadCount} nova{unreadCount > 1 ? 's' : ''}
@@ -242,7 +242,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
                       cursor: 'pointer',
                       fontSize: '12px',
                       fontWeight: 600,
-                      color: '#2563eb',
+                      color: 'var(--accent-blue)',
                     }}
                   >
                     Marcar todas como lidas
@@ -256,14 +256,14 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
                   maxHeight: '440px',
                   overflowY: 'auto',
                   padding: '12px',
-                  background: '#f8fafc',
+                  background: 'var(--bg-subtle)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px',
                 }}
               >
                 {myNotificacoes.length === 0 ? (
-                  <div style={{ padding: '40px 16px', textAlign: 'center', fontSize: '13px', color: '#94a3b8' }}>
+                  <div style={{ padding: '40px 16px', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>
                     Nenhuma notificação recente
                   </div>
                 ) : (
@@ -291,8 +291,8 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
                         }
                       }}
                       style={{
-                        background: n.lida ? '#ffffff' : '#f0f7ff',
-                        border: n.lida ? '1px solid #e2e8f0' : '1px solid #bae6fd',
+                        background: n.lida ? 'var(--bg-surface)' : 'var(--tint-blue)',
+                        border: n.lida ? '1px solid var(--border-subtle)' : '1px solid var(--edge-blue)',
                         borderRadius: '10px',
                         padding: '14px 16px',
                         display: 'flex',
@@ -311,8 +311,8 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
                               width: '26px',
                               height: '26px',
                               borderRadius: '50%',
-                              background: '#ffffff',
-                              border: '1px solid #e2e8f0',
+                              background: 'var(--bg-surface)',
+                              border: '1px solid var(--border-subtle)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -325,7 +325,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
                             style={{
                               fontSize: '11px',
                               fontWeight: 700,
-                              color: n.lida ? '#64748b' : '#0284c7',
+                              color: n.lida ? 'var(--text-muted)' : 'var(--accent-blue)',
                               letterSpacing: '0.02em',
                             }}
                           >
@@ -340,7 +340,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                             {new Date(n.createdAt).toLocaleDateString('pt-BR')} às{' '}
                             {new Date(n.createdAt).toLocaleTimeString('pt-BR', {
                               hour: '2-digit',
@@ -353,7 +353,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
                                 width: '8px',
                                 height: '8px',
                                 borderRadius: '50%',
-                                background: '#2563eb',
+                                background: 'var(--accent-blue)',
                                 flexShrink: 0,
                               }}
                             />
@@ -367,7 +367,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
                           margin: 0,
                           fontSize: '13px',
                           lineHeight: '1.45',
-                          color: '#1e293b',
+                          color: 'var(--text-primary)',
                           fontWeight: 500,
                         }}
                       >
@@ -383,7 +383,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
 
         {/* Avatar */}
         {user && (
-          <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+          <div className="w-8 h-8 rounded-full bg-[var(--text-primary)] text-[var(--text-inverse)] flex items-center justify-center text-xs font-bold shadow-xs">
             {user.name.charAt(0)}
           </div>
         )}
