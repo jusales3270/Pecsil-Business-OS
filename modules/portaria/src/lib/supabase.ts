@@ -2,15 +2,16 @@ import { createClient } from '@supabase/supabase-js';
 import { visitasIniciais, veiculosIniciais, terceirosIniciais, recebidosIniciais } from '../data/dados';
 
 const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://supabase.pecsil.com.br';
+  process.env.NEXT_PUBLIC_PORTARIA_SUPABASE_URL ||
+  'https://hukhlzcrjbtqseszfxyq.supabase.co';
 
 const supabaseKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzg4MTk4OTgwLCJleHAiOjE5NDU4Nzg5ODB9.daHxX0Wmh4lwJmmw8OZDnt-pCIvA4qCS4Lj_C-hPMV4';
-
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  process.env.NEXT_PUBLIC_PORTARIA_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1a2hsemNyamJ0cXNlc3pmeHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNDc3ODksImV4cCI6MjA5MzgyMzc4OX0.gYY_SBYaskuE1IAztWTkjhixjg6zuYuf7hkofL_x-ds';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Cliente Admin (com service_role) usado APENAS para criação de usuários.
 export const supabaseAdmin = supabaseServiceKey
