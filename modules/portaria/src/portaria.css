@@ -18,21 +18,7 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* Header superior oficial da Portaria */
-.portaria-app-root header {
-  background-color: #ffffff !important;
-  border-bottom: 1px solid #e5e7eb !important;
-  color: #111827 !important;
-}
 
-.portaria-app-root header img {
-  height: 40px !important;
-  max-height: 40px !important;
-  width: auto !important;
-  max-width: 140px !important;
-  object-fit: contain !important;
-  display: block !important;
-}
 
 /* Todos os Cards: superfícies brancas sólidas, bordas limpas e sombras suaves */
 .portaria-app-root [data-slot="card"],

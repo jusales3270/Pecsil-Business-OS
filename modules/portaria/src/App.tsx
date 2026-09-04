@@ -1876,58 +1876,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
       {/* Banner de status de conexão */}
       <OfflineBanner isOnline={isOnline} pendingCount={pendingCount} isSyncing={isSyncing} justSynced={justSynced} />
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden"
-                onClick={() => setMenuAberto(!menuAberto)}
-              >
-                <Menu className="w-5 h-5" />
-              </Button>
-              <div className="flex items-center gap-3">
-                <img
-                  src="/logo-pecsil.png"
-                  alt="Pecsil Logo"
-                  className="h-10 w-auto object-contain"
-                  style={{ height: "40px", maxHeight: "40px", width: "auto" }}
-                />
-                <div className="hidden sm:flex border-l-2 border-gray-200 pl-3">
-                  <span className="text-xs font-medium text-gray-500 tracking-wide uppercase mt-1">Controle Portaria</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="hidden sm:flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200">
-                <CalendarDays className="w-3 h-3" />
-                {new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
-              </Badge>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPaginaAtiva('configuracoes')}
-                  className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-white font-semibold text-sm hover:ring-2 hover:ring-blue-400 transition-all"
-                  title={`${perfil?.nome || user.email} — Configurações`}
-                >
-                  {perfil?.foto_base64 ? (
-                    <img src={perfil.foto_base64} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
-                      {perfil?.nome ? perfil.nome.charAt(0).toUpperCase() : <UserCircle className="w-5 h-5 text-white" />}
-                    </div>
-                  )}
-                </button>
-                <Button variant="ghost" size="icon" onClick={signOut} title="Sair do Sistema">
-                  <LogOut className="w-4 h-4 text-gray-600" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <div className="flex gap-6">
