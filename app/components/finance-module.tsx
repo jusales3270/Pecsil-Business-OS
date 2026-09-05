@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, Callout, Card, Donut, Kpi, KpiGrid, Legend, Segmented, Status } from "../../packages/design-system";
 import { hasPermission, type ModuleAccessContext } from "../../modules";
 import type { FinanceSnapshot, FinanceTitle } from "../../lib/data/finance";
+import { useModuleNav } from "../../lib/module-nav-context";
 
 const sections = [
   ["Painel", "grid"], ["Contas a pagar", "payable"], ["Contas a receber", "receivable"],
@@ -107,6 +108,18 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
   const canExport=hasPermission(access,"financeiro.export");
   const canAdmin=hasPermission(access,"financeiro.admin");
   const accessibleSections=canAdmin?sections:sections.filter(([label])=>label!=="Homologação");
+  const { registerNav } = useModuleNav();
+
+  useEffect(() => {
+    registerNav({
+      moduleId: "financeiro",
+      moduleName: "Financeiro",
+      items: accessibleSections.map(([label, icon]) => ({ id: label, label, icon })),
+      activeId: section,
+      onSelect: (id) => setSection(id as FinanceSection),
+    });
+    return () => registerNav(null);
+  }, [accessibleSections, section, registerNav]);
 
   async function loadFinanceData(signal?: AbortSignal) {
     try {

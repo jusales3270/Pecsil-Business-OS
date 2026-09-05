@@ -135,8 +135,8 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
         )}
       </div>
 
-      {/* Centro: Submenus do Módulo de Compras (Estilo Segmented Tabs do Business OS) */}
-      <nav className="flex items-center gap-1 p-1 bg-[var(--bg-subtle)] rounded-lg border border-[var(--border)] overflow-x-auto w-full md:w-auto order-3 md:order-2 scrollbar-none">
+      {/* Centro: Submenus do Módulo de Compras (Estilo Segmented Tabs do Business OS) - escondido no mobile e transferido para o menu lateral */}
+      <nav className="hidden md:flex items-center gap-1 p-1 bg-[var(--bg-subtle)] rounded-lg border border-[var(--border)] overflow-x-auto w-full md:w-auto order-3 md:order-2 scrollbar-none">
         {tabs.map((tab) => {
           const isActive = currentPage === tab.page;
           return (

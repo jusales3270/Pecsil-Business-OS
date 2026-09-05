@@ -10,6 +10,7 @@ import PendentesPage from '@/pages/PendentesPage';
 import HistoricoPage from '@/pages/HistoricoPage';
 import { Toaster } from '@/components/ui/sonner';
 import type { ModuleAccessContext } from '@/modules/access';
+import { useModuleNav } from '@/lib/module-nav-context';
 import './compras.css';
 
 interface ComprasAppProps {
@@ -19,7 +20,29 @@ interface ComprasAppProps {
 }
 
 export default function ComprasApp({ access, onExit }: ComprasAppProps) {
-  const { user, currentPage, fetchInitialData, login } = useStore();
+  const { user, currentPage, fetchInitialData, login, setPage } = useStore();
+  const { registerNav } = useModuleNav();
+
+  useEffect(() => {
+    const tabs = user?.role === 'ORCAMENTISTA' ? [
+      { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
+      { id: 'cotacoes', label: 'Minhas Cotações', icon: 'file' },
+      { id: 'compras', label: 'Compras Realizadas', icon: 'cart' },
+    ] : [
+      { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
+      { id: 'pendentes', label: 'Pendentes de Aprovação', icon: 'clock' },
+      { id: 'historico', label: 'Histórico de Decisões', icon: 'check' },
+      { id: 'compras', label: 'Compras', icon: 'cart' },
+    ];
+    registerNav({
+      moduleId: 'compras',
+      moduleName: 'Compras',
+      items: tabs,
+      activeId: currentPage,
+      onSelect: (id) => setPage(id as any),
+    });
+    return () => registerNav(null);
+  }, [user?.role, currentPage, registerNav, setPage]);
 
   const isOwner = access.roleCode === 'owner' || access.roleCode === 'director' || access.role === 'Proprietário';
   const isManager = access.roleCode === 'manager' || access.role === 'Gestor';

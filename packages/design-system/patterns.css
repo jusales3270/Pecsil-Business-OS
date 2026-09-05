@@ -697,6 +697,12 @@
   display: none;
 }
 
+@media (max-width: 860px) {
+  .ds-module-bar > .ds-segmented {
+    display: none !important;
+  }
+}
+
 /* Área de trabalho do módulo: fluxo vertical com o mesmo ritmo do conteúdo. */
 .finance-workspace,
 .hr-workspace,

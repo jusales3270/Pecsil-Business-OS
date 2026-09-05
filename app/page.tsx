@@ -6,6 +6,7 @@ import type { FoundationSummary, OrganizationData, Person } from "../lib/data/fo
 import { useFoundationData } from "../lib/data/use-foundation-data";
 import { canAccessModule, getCatalogModules, getModuleById, getVisibleModules, hasPermission, moduleRegistry, renderModuleComponent, type ModuleAccessContext, type ModuleManifest } from "../modules";
 import { useSessionAccess } from "../lib/data/use-session-access";
+import { ModuleNavProvider, useModuleNav } from "../lib/module-nav-context";
 import { HrModule } from "./components/hr-module";
 import { UserManagement } from "./components/user-management";
 import { AccountPanel } from "./components/account-panel";
@@ -102,6 +103,13 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
     inbox: <><path d="M4 5h16l2 10v5H2v-5L4 5Z"/><path d="M2 15h6l2 2h4l2-2h6"/></>,
     external: <><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v7H4V6h7"/></>,
     database: <><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></>,
+    calendar: <><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>,
+    heart: <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>,
+    payable: <><path d="M4 5h16v14H4zM7 9h10M7 13h6"/><path d="m16 16 2 2 3-4"/></>,
+    receivable: <><path d="M4 5h16v14H4zM7 9h10M7 13h6"/><path d="M18 12v6M15 15h6"/></>,
+    bank: <><path d="m3 9 9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 21h18"/></>,
+    cost: <><circle cx="12" cy="12" r="9"/><path d="M12 6v12M16 9c-1-2-7-2-7 1 0 3 7 1 7 5 0 3-6 3-8 1"/></>,
+    truck: <><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name]}</svg>;
 }
@@ -333,7 +341,8 @@ function AccessDenied({ target, access, onBack }: { target: string; access: Modu
   return <div className="access-denied"><Card><span><Icon name="lock" size={30}/></span><p className="eyebrow">ACESSO CONTROLADO</p><h1>Esta área não faz parte do seu perfil</h1><p><b>{target}</b> não está disponível para {access.role.toLowerCase()} no escopo <b>{access.scopeLabel}</b>.</p><div><Status tone="attention">Negado por padrão</Status><small>A interface oculta o recurso e o PostgreSQL repetirá a validação quando a conexão real estiver ativa.</small></div><Button onClick={onBack}><Icon name="back"/> Voltar à visão autorizada</Button></Card></div>;
 }
 
-export default function Home() {
+function HomeContent() {
+  const { navState } = useModuleNav();
   const [view,setView]=useState<View>("Visão Geral"); const [mobile,setMobile]=useState(false); const [toast,setToast]=useState(""); const [globalQuery,setGlobalQuery]=useState("");
   const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const [activeModuleId,setActiveModuleId]=useState<string | null>(null);
@@ -431,6 +440,27 @@ export default function Home() {
         <button className="close-menu" onClick={()=>setMobile(false)} aria-label="Fechar menu"><Icon name="close"/></button>
       </div>
       <nav>
+        {activeModule && navState && navState.items && navState.items.length > 0 && (
+          <div className="sidebar-module-nav">
+            <p>Seções · {activeModule.name}</p>
+            <div className="sidebar-subitem-list">
+              {navState.items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`sidebar-subitem ${navState.activeId === item.id ? "active" : ""}`}
+                  onClick={() => {
+                    navState.onSelect(item.id);
+                    setMobile(false);
+                  }}
+                >
+                  {item.icon && <Icon name={item.icon} size={18} />}
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {isExecutive && <>
           <p>Plataforma</p>
           {nav.slice(0,2).map(n=><button key={n.label} title={n.label} aria-label={n.label} className={!activeModuleId&&!deniedTarget&&view===n.label?"active":""} onClick={()=>change(n.label)}><Icon name={n.icon}/><span>{n.label}</span></button>)}
@@ -529,4 +559,12 @@ export default function Home() {
     </main>{accountPanel&&<AccountPanel access={access} profile={sessionProfile} onClose={()=>setAccountPanel(false)} onSaved={reloadIdentity} notify={notify}/>}
       {toast&&<div className="toast"><span>✓</span>{toast}</div>}
   </div>;
+}
+
+export default function Home() {
+  return (
+    <ModuleNavProvider>
+      <HomeContent />
+    </ModuleNavProvider>
+  );
 }

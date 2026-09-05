@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   applicationName: "Pecsil Business OS",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "Pecsil OS",
   },
   other: {

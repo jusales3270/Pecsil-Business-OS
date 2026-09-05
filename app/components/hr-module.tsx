@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FoundationSummary, Person } from "../../lib/data/foundation";
 import { hasPermission, type ModuleAccessContext } from "../../modules";
 import { Button, Card, Kpi, KpiGrid, Segmented, Status } from "../../packages/design-system";
 import { useRhData } from "../../lib/data/use-rh-data";
+import { useModuleNav } from "../../lib/module-nav-context";
 import type { RhAbsence, RhBenefitPlan, RhBenefitRequest, RhDocument, RhEmployeeOption, RhSnapshot, RhSstRecord } from "../../lib/data/rh";
 import { getRhDocumentUrl, uploadRhDocument } from "../../lib/data/rh-documents-client";
 
@@ -270,6 +271,18 @@ export function HrModule({
     : sections.filter(([label]) => label!=="Homologação"||hasPermission(access,"rh.admin"));
   const canCreate = hasPermission(access, "rh.create");
   const track=(message:string)=>{notify(message);onEvent(message)};
+  const { registerNav } = useModuleNav();
+
+  useEffect(() => {
+    registerNav({
+      moduleId: "rh",
+      moduleName: "Recursos Humanos",
+      items: accessibleSections.map(([label, icon]) => ({ id: label, label, icon })),
+      activeId: section,
+      onSelect: (id) => setSection(id as HrSection),
+    });
+    return () => registerNav(null);
+  }, [accessibleSections, section, registerNav]);
 
   const isOwner = access.role === "Proprietário" || access.roleCode === "owner" || access.roleCode === "director";
 

@@ -30,6 +30,7 @@ import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { OfflineBanner } from "./components/OfflineBanner";
 import { enqueueOperation } from "./lib/offlineQueue";
 import type { IdMapping } from "./lib/offlineQueue";
+import { useModuleNav } from "@/lib/module-nav-context";
 
 type PaginaAtiva = 'dashboard' | 'visitas' | 'terceiros' | 'recebidos' | 'veiculos' | 'usuarios' | 'configuracoes';
 
@@ -50,6 +51,27 @@ function App({ onExit }: { onExit?: () => void } = {}) {
   const [carregando, setCarregando] = useState(true);
   const { user, perfil, loading: authLoading, signOut } = useAuth();
   const [paginaAtiva, setPaginaAtiva] = useState<PaginaAtiva>('dashboard');
+  const { registerNav } = useModuleNav();
+
+  useEffect(() => {
+    const items = [
+      { id: 'dashboard', label: 'Painel Geral', icon: 'grid' },
+      { id: 'visitas', label: 'Visitas', icon: 'users' },
+      { id: 'terceiros', label: 'Terceiros', icon: 'briefcase' },
+      { id: 'recebidos', label: 'Recebidos', icon: 'box' },
+      { id: 'veiculos', label: 'Veículos', icon: 'truck' },
+      ...(perfil?.role === 'admin' || perfil?.role === 'super_admin' ? [{ id: 'usuarios', label: 'Usuários', icon: 'key' }] : []),
+      { id: 'configuracoes', label: 'Configurações', icon: 'settings' },
+    ];
+    registerNav({
+      moduleId: 'portaria',
+      moduleName: 'Portaria',
+      items,
+      activeId: paginaAtiva,
+      onSelect: (id) => setPaginaAtiva(id as PaginaAtiva),
+    });
+    return () => registerNav(null);
+  }, [paginaAtiva, perfil?.role, registerNav]);
   const [busca, setBusca] = useState('');
   const [filtroResponsavel, setFiltroResponsavel] = useState('todos');
   const [filtroDescricao, setFiltroDescricao] = useState('todos');
