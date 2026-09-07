@@ -14,6 +14,7 @@ const OFFICIAL_INTEGRATED_MODULES = [
   { code: "financeiro", name: "Financeiro", status: "integrated" },
   { code: "compras", name: "Compras", status: "integrated" },
   { code: "portaria", name: "Portaria & Acesso", status: "integrated" },
+  { code: "producao", name: "Produção", status: "integrated" },
 ];
 
 export async function GET() {

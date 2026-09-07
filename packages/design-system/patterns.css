@@ -563,19 +563,32 @@
   font-weight: var(--fw-medium);
   color: var(--text-muted);
   white-space: nowrap;
+  border: 1px solid transparent;
+  outline: none;
   transition: background-color var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease);
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 
 .ds-segmented button:hover {
-  color: var(--text-primary);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  border-color: var(--edge-blue);
 }
 
 .ds-segmented button.active {
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  border-color: var(--edge-blue);
   font-weight: var(--fw-semibold);
   box-shadow: var(--shadow-sm);
+}
+
+.ds-segmented button:focus-visible {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px var(--edge-blue);
 }
 
 .ds-segmented.compact button {
@@ -682,6 +695,12 @@
 .ds-module-bar > .ds-button,
 .ds-module-bar > .ds-status {
   flex-shrink: 0;
+}
+
+.ds-module-bar > .ds-button:hover {
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  border-color: var(--edge-blue);
 }
 
 /* Com muitas seções o segmentado rola em vez de empurrar o escopo para baixo. */

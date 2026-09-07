@@ -4,6 +4,7 @@ import { createElement, type ComponentType } from "react";
 import { FinanceModule } from "../app/components/finance-module";
 import ComprasApp from "./compras/src/App";
 import PortariaApp from "./portaria/src/PortariaApp";
+import ProducaoApp from "./producao/src/ProducaoApp";
 import type { ModuleAccessContext } from "./access";
 // module-generator:imports
 
@@ -18,6 +19,7 @@ const moduleComponents: Record<string, ComponentType<ModuleRuntimeProps>> = {
   financeiro: FinanceModule,
   compras: ComprasApp,
   portaria: PortariaApp,
+  producao: ProducaoApp,
   // module-generator:entries
 };
 

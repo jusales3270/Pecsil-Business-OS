@@ -9,12 +9,12 @@ export const demoPersonas: Record<DemoPersonaId, ModuleAccessContext> = {
   },
   director: {
     userId: "demo-director", name: "Mariana Costa", initials: "MC", role: "Diretora", scopeLabel: "Diretoria Industrial",
-    permissions: ["platform.modules.view", "core.organization.view", "core.people.view", "core.documents.view", "core.notifications.view", "core.search.view", "core.audit.view", "rh.view", "rh.approve", "rh.export", "financeiro.view", "financeiro.approve", "financeiro.export"],
+    permissions: ["platform.modules.view", "core.organization.view", "core.people.view", "core.documents.view", "core.notifications.view", "core.search.view", "core.audit.view", "rh.view", "rh.approve", "rh.export", "financeiro.view", "financeiro.approve", "financeiro.export", "producao.view", "producao.*"],
     scopes: [{ type: "unit", referenceId: "industrial" }],
   },
   manager: {
     userId: "demo-manager", name: "Carlos Mendes", initials: "CM", role: "Gestor", scopeLabel: "Produção · Equipes A e B",
-    permissions: ["core.people.view", "core.documents.view", "core.notifications.view", "core.search.view", "rh.view", "rh.approve"],
+    permissions: ["core.people.view", "core.documents.view", "core.notifications.view", "core.search.view", "rh.view", "rh.approve", "producao.view", "producao.*"],
     scopes: [{ type: "department", referenceId: "producao" }],
   },
   hr: {

@@ -28,6 +28,7 @@ const DEFAULT_MODULE_OPTIONS = [
   { code: "financeiro", name: "Financeiro", status: "integrated" },
   { code: "compras", name: "Compras", status: "integrated" },
   { code: "portaria", name: "Portaria & Acesso", status: "integrated" },
+  { code: "producao", name: "Produção", status: "integrated" },
 ];
 
 const ROLES = [
@@ -236,7 +237,7 @@ function ScopeFields({
           value: mod.code,
           label:
             mod.status === "integrated" ||
-            ["rh", "financeiro", "compras", "portaria"].includes(mod.code)
+            ["rh", "financeiro", "compras", "portaria", "producao"].includes(mod.code)
               ? mod.name
               : `${mod.name} (em preparação)`,
         }))
