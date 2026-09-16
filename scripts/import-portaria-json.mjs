@@ -73,11 +73,11 @@ const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRe
 async function resolveOrganization() {
   const forced = getArg("--org-id");
   if (forced) return forced;
-  const { data, error } = await db.from("organizations").select("id, name");
+  const { data, error } = await db.from("organizations").select("id, display_name");
   if (error) throw new Error(`Falha ao ler organizações: ${error.message}`);
   if (data.length !== 1) {
     console.error(`❌ ${data.length} organizações encontradas. Informe --org-id:`);
-    for (const org of data) console.error(`   ${org.id}  ${org.name}`);
+    for (const org of data) console.error(`   ${org.id}  ${org.display_name}`);
     process.exit(1);
   }
   return data[0].id;
