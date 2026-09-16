@@ -1,5 +1,6 @@
 // Pecsil Business OS — Service Worker para modo PWA e cache de app-shell
-const CACHE_NAME = 'pecsil-business-os-v1';
+// v2: descarta o cache da v1, que chegou a guardar respostas do gateway /sb.
+const CACHE_NAME = 'pecsil-business-os-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -43,11 +44,13 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Não interferir em chamadas de API, Auth ou Supabase
+  // Não interferir em chamadas de API, Auth ou Supabase. O Supabase é acessado
+  // pelo gateway `/sb` do próprio domínio: dados por usuário NUNCA vão para o cache.
   if (
+    url.origin !== self.location.origin ||
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/auth/') ||
-    url.hostname.includes('supabase')
+    url.pathname.startsWith('/sb/')
   ) {
     return;
   }
