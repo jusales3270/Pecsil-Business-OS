@@ -17,6 +17,14 @@ export const dynamic = "force-dynamic";
  */
 const ALLOWED_PREFIXES = ["auth/v1/", "rest/v1/", "storage/v1/"];
 
+/**
+ * Dentro das APIs liberadas, rotas que nunca devem vir do navegador:
+ * - `auth/v1/signup`: contas são criadas só pelo administrador (/api/admin/users);
+ *   o GoTrue do servidor está com cadastro público habilitado.
+ * - `auth/v1/admin`: API administrativa do Auth (exige service role, que só o servidor tem).
+ */
+const BLOCKED_PREFIXES = ["auth/v1/signup", "auth/v1/admin"];
+
 /** Headers que não podem atravessar um proxy (RFC 9110 §7.6.1) ou que o fetch recalcula. */
 const HOP_BY_HOP = new Set([
   "connection",
@@ -43,7 +51,10 @@ async function forward(request: Request, context: { params: Promise<{ path: stri
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   const joined = path.join("/");
-  if (!ALLOWED_PREFIXES.some(prefix => joined.startsWith(prefix))) {
+  if (
+    !ALLOWED_PREFIXES.some(prefix => joined.startsWith(prefix)) ||
+    BLOCKED_PREFIXES.some(prefix => joined === prefix || joined.startsWith(`${prefix}/`))
+  ) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
