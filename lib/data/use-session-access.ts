@@ -57,7 +57,13 @@ export function useSessionAccess(): SessionAccessState {
 
     fetch("/api/me", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) return null; // 401/503/500: mantém o fallback demonstrativo sem redirecionar
+        // 401 = o Supabase está configurado e respondeu que não há sessão válida:
+        // o lugar certo é o login, não uma plataforma "logada" em modo demonstrativo.
+        if (response.status === 401) {
+          window.location.assign("/login");
+          return null;
+        }
+        if (!response.ok) return null; // 503/500 (rede ou sem configuração): mantém o fallback demonstrativo
         return (await response.json()) as MePayload;
       })
       .then((payload) => {
