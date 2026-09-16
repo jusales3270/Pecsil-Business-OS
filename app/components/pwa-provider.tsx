@@ -7,10 +7,16 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
+/** Plataformas sem prompt nativo: a instalação é manual, com guia na tela. */
+type GuidePlatform = "ios" | "mac-safari";
+
 interface PwaContextType {
   isInstallable: boolean;
   isInstalled: boolean;
   isIos: boolean;
+  isMacSafari: boolean;
+  /** true quando há algum caminho de instalação a oferecer (prompt nativo ou guia). */
+  canInstall: boolean;
   promptInstall: () => Promise<void>;
   showIosGuide: boolean;
   setShowIosGuide: (show: boolean) => void;
@@ -20,6 +26,8 @@ const PwaContext = createContext<PwaContextType>({
   isInstallable: false,
   isInstalled: false,
   isIos: false,
+  isMacSafari: false,
+  canInstall: false,
   promptInstall: async () => {},
   showIosGuide: false,
   setShowIosGuide: () => {},
@@ -29,12 +37,32 @@ export function usePwa() {
   return useContext(PwaContext);
 }
 
+const guides: Record<GuidePlatform, { subtitle: string; steps: React.ReactNode[] }> = {
+  ios: {
+    subtitle: "Instale no seu iPhone/iPad para abrir direto em tela cheia.",
+    steps: [
+      <>Toque no botão <b>Compartilhar</b> <span className="ios-icon-share">⎋</span> na barra inferior do Safari.</>,
+      <>Role para cima e selecione <b>Adicionar à Tela de Início</b> <span className="ios-icon-plus">＋</span>.</>,
+      <>Toque em <b>Adicionar</b> no canto superior direito para confirmar.</>,
+    ],
+  },
+  "mac-safari": {
+    subtitle: "Instale no seu Mac para abrir pelo Dock, em janela própria.",
+    steps: [
+      <>No menu do Safari, abra <b>Arquivo</b>.</>,
+      <>Selecione <b>Adicionar ao Dock…</b></>,
+      <>Confirme em <b>Adicionar</b>. O Pecsil OS aparece no Dock e no Launchpad.</>,
+    ],
+  },
+};
+
 export function PwaProvider({ children }: { children: React.ReactNode }) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIos, setIsIos] = useState(false);
-  const [showIosGuide, setShowIosGuide] = useState(false);
+  const [isMacSafari, setIsMacSafari] = useState(false);
+  const [guide, setGuide] = useState<GuidePlatform | null>(null);
 
   useEffect(() => {
     // 1. Registro do Service Worker
@@ -55,10 +83,17 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     setIsInstalled(isStandalone);
 
-    // 3. Detectar dispositivo iOS
+    // 3. Detectar plataformas sem prompt nativo
     const userAgent = window.navigator.userAgent.toLowerCase();
-    const isAppleMobile = /iphone|ipad|ipod/.test(userAgent) && !isStandalone;
+    const isAppleMobile =
+      (/iphone|ipad|ipod/.test(userAgent) ||
+        // iPadOS se apresenta como Mac, mas tem toque
+        (/macintosh/.test(userAgent) && navigator.maxTouchPoints > 1)) &&
+      !isStandalone;
     setIsIos(isAppleMobile);
+    // Safari do macOS (Sonoma+) instala por "Arquivo → Adicionar ao Dock"
+    const isSafariEngineOnly = /safari/.test(userAgent) && !/chrome|chromium|crios|edg|opr|firefox|fxios/.test(userAgent);
+    setIsMacSafari(/macintosh/.test(userAgent) && isSafariEngineOnly && !isAppleMobile && !isStandalone);
 
     // 4. Capturar evento de instalação (Chromium / Android / Edge)
     const handleBeforeInstall = (e: Event) => {
@@ -92,9 +127,14 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       }
       setDeferredPrompt(null);
     } else if (isIos) {
-      setShowIosGuide(true);
+      setGuide("ios");
+    } else if (isMacSafari) {
+      setGuide("mac-safari");
     }
   };
+
+  const canInstall = !isInstalled && (isInstallable || isIos || isMacSafari);
+  const activeGuide = guide ? guides[guide] : null;
 
   return (
     <PwaContext.Provider
@@ -102,16 +142,18 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         isInstallable,
         isInstalled,
         isIos,
+        isMacSafari,
+        canInstall,
         promptInstall,
-        showIosGuide,
-        setShowIosGuide,
+        showIosGuide: guide !== null,
+        setShowIosGuide: (show) => setGuide(show ? (isMacSafari ? "mac-safari" : "ios") : null),
       }}
     >
       {children}
 
-      {/* Modal / Diálogo de instruções para instalação no iOS Safari */}
-      {showIosGuide && (
-        <div className="pwa-ios-modal-overlay" onClick={() => setShowIosGuide(false)}>
+      {/* Instruções de instalação para plataformas sem prompt nativo (iOS e Safari do Mac) */}
+      {activeGuide && (
+        <div className="pwa-ios-modal-overlay" onClick={() => setGuide(null)}>
           <div className="pwa-ios-modal" onClick={(e) => e.stopPropagation()}>
             <div className="pwa-ios-modal-header">
               <div className="pwa-modal-icon">
@@ -119,11 +161,11 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
               </div>
               <div>
                 <h3>Instalar Pecsil Business OS</h3>
-                <p>Instale no seu iPhone/iPad para abrir direto em tela cheia.</p>
+                <p>{activeGuide.subtitle}</p>
               </div>
               <button
                 className="pwa-close-btn"
-                onClick={() => setShowIosGuide(false)}
+                onClick={() => setGuide(null)}
                 aria-label="Fechar"
               >
                 ✕
@@ -131,33 +173,19 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
             </div>
 
             <ol className="pwa-ios-steps">
-              <li>
-                <span className="step-num">1</span>
-                <div>
-                  Toque no botão <b>Compartilhar</b>{" "}
-                  <span className="ios-icon-share">⎋</span> na barra inferior do Safari.
-                </div>
-              </li>
-              <li>
-                <span className="step-num">2</span>
-                <div>
-                  Role para cima e selecione <b>Adicionar à Tela de Início</b>{" "}
-                  <span className="ios-icon-plus">＋</span>.
-                </div>
-              </li>
-              <li>
-                <span className="step-num">3</span>
-                <div>
-                  Toque em <b>Adicionar</b> no canto superior direito para confirmar.
-                </div>
-              </li>
+              {activeGuide.steps.map((step, index) => (
+                <li key={index}>
+                  <span className="step-num">{index + 1}</span>
+                  <div>{step}</div>
+                </li>
+              ))}
             </ol>
 
             <div className="pwa-ios-modal-footer">
               <button
                 type="button"
                 className="ds-button primary"
-                onClick={() => setShowIosGuide(false)}
+                onClick={() => setGuide(null)}
               >
                 Entendi
               </button>

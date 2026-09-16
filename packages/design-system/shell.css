@@ -438,6 +438,34 @@
   display: none;
 }
 
+/* Instalar o aplicativo (PWA): só existe quando o navegador permite */
+.header-install {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 38px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--accent-blue);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.header-install:hover {
+  background: var(--tint-blue);
+  border-color: var(--accent-blue);
+}
+
+.header-install:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 /* --- Bloco do usuário ------------------------------------------------------ */
 
 .user-card {
@@ -775,6 +803,32 @@
   }
 
   .header-title p {
+    display: none;
+  }
+
+  /* Ícones do cabeçalho mantêm o tamanho de toque; quem cede espaço é o título,
+     que já trunca com reticências */
+  .main header .header-icon,
+  .main header .user-card {
+    flex-shrink: 0;
+  }
+
+  /* O selo de conexão (Supabase/Demonstrativo) toma o lugar do título no
+     celular; o menu da conta já indica o modo demonstrativo */
+  .main header > .ds-status {
+    display: none;
+  }
+
+  /* No celular o botão de instalar vira só ícone, no tamanho dos demais */
+  .header-install {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .header-install span {
     display: none;
   }
 
