@@ -13,7 +13,9 @@ import { createSupabaseServerClient } from "../../../lib/supabase/server";
  * forma: o resultado visível é sempre o mesmo, cair no login deslogado.
  */
 export async function POST(request: NextRequest) {
-  const response = NextResponse.redirect(new URL("/login", request.url), { status: 303 });
+  // Location relativo: atrás do proxy do Coolify o `request.url` enxerga o host
+  // interno (localhost:3000), e um redirect absoluto mandaria o usuário para lá.
+  const response = new NextResponse(null, { status: 303, headers: { Location: "/login" } });
 
   try {
     const supabase = await createSupabaseServerClient();

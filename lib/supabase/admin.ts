@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
+import { getServerSupabaseUrl } from "./config";
 
 /**
  * Cliente administrativo (service role). IGNORA o RLS e pode usar a API de
@@ -9,7 +10,7 @@ import { createClient } from "@supabase/supabase-js";
  * Nunca exponha a service role key no navegador.
  */
 export function createSupabaseAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getServerSupabaseUrl();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceRoleKey) {
     throw new Error("Configuração administrativa do Supabase ausente.");

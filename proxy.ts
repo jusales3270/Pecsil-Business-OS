@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { getSupabaseConfigStatus, requirePublicSupabaseConfig } from "./lib/supabase/config";
+import { getSupabaseConfigStatus, requireServerSupabaseConfig, SUPABASE_AUTH_COOKIE } from "./lib/supabase/config";
 
 /**
  * Renova a sessão do Supabase a cada request e propaga os cookies.
@@ -29,8 +29,9 @@ export async function proxy(request: NextRequest) {
     request,
   });
 
-  const { url, publishableKey } = requirePublicSupabaseConfig();
+  const { url, publishableKey } = requireServerSupabaseConfig();
   const supabase = createServerClient(url, publishableKey, {
+    cookieOptions: { name: SUPABASE_AUTH_COOKIE },
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -62,8 +63,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Roda em tudo, menos assets estáticos e mídias pesadas.
+  // Roda em tudo, menos assets estáticos, mídias pesadas e o gateway `/sb` —
+  // este só repassa ao Supabase, que valida o token por conta própria.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|favicon.png|favicon.svg|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|mp4|webm|ogg|woff|woff2|ttf|eot)$).*)",
+    "/((?!_next/static|_next/image|sb/|favicon.ico|favicon.png|favicon.svg|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|mp4|webm|ogg|woff|woff2|ttf|eot)$).*)",
   ],
 };

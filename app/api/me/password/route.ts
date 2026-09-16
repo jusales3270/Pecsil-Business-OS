@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "../../../../lib/supabase/server";
 import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
-import { requirePublicSupabaseConfig } from "../../../../lib/supabase/config";
+import { requireServerSupabaseConfig } from "../../../../lib/supabase/config";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   }
 
   // --- Confere a senha atual num cliente isolado -----------------------------
-  const { url, publishableKey } = requirePublicSupabaseConfig();
+  const { url, publishableKey } = requireServerSupabaseConfig();
   const probe = createClient(url, publishableKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });

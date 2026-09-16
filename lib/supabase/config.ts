@@ -1,9 +1,20 @@
 export const SUPABASE_ENV_KEYS = {
   url: "NEXT_PUBLIC_SUPABASE_URL",
+  internalUrl: "SUPABASE_INTERNAL_URL",
   publishableKey: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
   anonKey: "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   serviceRoleKey: "SUPABASE_SERVICE_ROLE_KEY",
 } as const;
+
+/**
+ * Nome fixo do cookie de sessão.
+ *
+ * Por padrão o `@supabase/ssr` deriva o nome do hostname da URL. Em produção o
+ * navegador fala com `https://<business-os>/sb` e o servidor com o Kong pela
+ * rede interna — hostnames diferentes gerariam cookies diferentes e o servidor
+ * não enxergaria a sessão. Todo cliente SSR deve usar este nome.
+ */
+export const SUPABASE_AUTH_COOKIE = "sb-pecsil-auth-token";
 
 /**
  * O Next.js só substitui `process.env.NEXT_PUBLIC_*` no bundle do navegador
@@ -58,6 +69,23 @@ export function getSupabaseConfigStatus(): SupabaseConfigStatus {
     serverAdministrationReady: Boolean(url && serviceRoleKey),
     missingPublicKeys,
   };
+}
+
+/**
+ * URL do Supabase para chamadas feitas NO SERVIDOR.
+ *
+ * O Supabase não é publicado para fora: o navegador passa pelo gateway `/sb`
+ * do Business OS (URL pública), enquanto o servidor fala direto com o Kong pela
+ * rede interna do Docker (`SUPABASE_INTERNAL_URL`). Sem a interna configurada
+ * (ex.: desenvolvimento local), usa a pública.
+ */
+export function getServerSupabaseUrl() {
+  return readEnv(SUPABASE_ENV_KEYS.internalUrl) ?? readEnv(SUPABASE_ENV_KEYS.url);
+}
+
+export function requireServerSupabaseConfig() {
+  const { publishableKey } = requirePublicSupabaseConfig();
+  return { url: getServerSupabaseUrl()!, publishableKey };
 }
 
 export function requirePublicSupabaseConfig() {

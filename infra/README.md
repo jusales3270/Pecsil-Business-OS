@@ -2,6 +2,31 @@
 
 Runbook para fechar o perímetro e habilitar a integração real. Siga na ordem.
 
+## Topologia de produção (Coolify) — setembro/2026
+
+A plataforma inteira roda no Coolify do servidor da PecSil. **A única porta
+pública é o Business OS, em HTTPS.** O Supabase não é publicado para fora.
+
+```
+Internet ──HTTPS──▶ Traefik (Coolify) ──▶ Business OS (Next.js)
+                                            │  /sb/auth/v1, /sb/rest/v1, /sb/storage/v1
+                                            └──rede Docker interna──▶ Kong :8000 ──▶ Supabase
+```
+
+- O navegador usa `NEXT_PUBLIC_SUPABASE_URL=https://<business-os>/sb`. O handler
+  `app/sb/[...path]/route.ts` repassa ao Kong e responde 404 para qualquer outra
+  API (postgres-meta, analytics, functions).
+- O servidor Next fala direto com `SUPABASE_INTERNAL_URL` (rotas de API, proxy de sessão).
+- O cookie de sessão tem nome fixo (`sb-pecsil-auth-token`), independente do hostname.
+- No Supabase (GoTrue): `SITE_URL=https://<business-os>`,
+  `API_EXTERNAL_URL=https://<business-os>/sb`.
+- Nenhuma porta do Supabase (5432, 6543, 8000, 8443, 3000) publicada no host.
+  O Caddy e o domínio `supabase.pecsil.com.br` descritos abaixo deixam de ser usados.
+- Histórico da Portaria: `node scripts/import-portaria-json.mjs --apply` (uma vez).
+
+O restante deste documento é o runbook anterior (Supabase exposto por compose
+manual) e serve de referência para o diagnóstico de portas.
+
 **Situação em 14/08/2026:** o Supabase responde em `181.224.8.145` (IP público)
 com PostgreSQL, pooler e gateway acessíveis pela internet, em HTTP puro.
 Verificação: `npm run check:perimeter`.

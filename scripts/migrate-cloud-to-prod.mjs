@@ -1,10 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 
 const cloudUrl = process.env.COMPRAS_CLOUD_URL || "https://vfnyyyzsicgiweisgamt.supabase.co";
-const cloudKey = process.env.COMPRAS_CLOUD_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbnl5eXpzaWNnaXdlaXNnYW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyODgyMzYsImV4cCI6MjA5NDg2NDIzNn0.yQSupeKsGmZUa2RypvoTuxxnOFK9z4o_Zo0RRUruGMg";
+const cloudKey = process.env.COMPRAS_CLOUD_KEY;
 
-const prodUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://supabase.pecsil.com.br";
-const prodServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3ODgxOTg5ODAsImV4cCI6MTk0NTg3ODk4MH0.8cQiVoWqJsD_6zy2qHvZRJDNTaiImzhlu4dYjrXnCzM";
+const prodUrl = process.env.SUPABASE_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const prodServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Chaves nunca ficam no código: defina COMPRAS_CLOUD_KEY, a URL de destino e
+// SUPABASE_SERVICE_ROLE_KEY no ambiente.
+if (!cloudKey || !prodUrl || !prodServiceKey) {
+  console.error("❌ Defina COMPRAS_CLOUD_KEY, SUPABASE_INTERNAL_URL (ou NEXT_PUBLIC_SUPABASE_URL) e SUPABASE_SERVICE_ROLE_KEY.");
+  process.exit(1);
+}
 
 console.log("==========================================================");
 console.log("🚀 MIGRAÇÃO DE DADOS: SUPABASE CLOUD ➔ SUPABASE PRODUÇÃO");

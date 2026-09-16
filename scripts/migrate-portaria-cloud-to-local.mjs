@@ -14,7 +14,12 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 const CLOUD_URL = process.env.PORTARIA_CLOUD_URL || "https://hukhlzcrjbtqseszfxyq.supabase.co";
-const CLOUD_KEY = process.env.PORTARIA_CLOUD_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1a2hsemNyamJ0cXNlc3pmeHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNDc3ODksImV4cCI6MjA5MzgyMzc4OX0.gYY_SBYaskuE1IAztWTkjhixjg6zuYuf7hkofL_x-ds";
+const CLOUD_KEY = process.env.PORTARIA_CLOUD_KEY;
+
+if (!CLOUD_KEY) {
+  console.error("❌ Defina PORTARIA_CLOUD_KEY no ambiente (a chave nunca fica no código).");
+  process.exit(1);
+}
 
 console.log("==========================================================");
 console.log("🚀 MIGRAÇÃO DE DADOS: PORTARIA CLOUD ➔ BUSINESS OS");

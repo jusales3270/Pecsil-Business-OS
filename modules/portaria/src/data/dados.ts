@@ -1,11 +1,11 @@
 import type { Visita, ControleVeiculo, RegistroTerceiro, Recebido } from "../types";
-import migrados from "./dados-migrados.json";
-
-export const visitasIniciais: Visita[] = (migrados?.visitas as Visita[]) || [];
-export const veiculosIniciais: ControleVeiculo[] = (migrados?.frota as ControleVeiculo[]) || [];
-export const terceirosIniciais: RegistroTerceiro[] = (migrados?.terceiros as RegistroTerceiro[]) || [];
-export const recebidosIniciais: Recebido[] = (migrados?.encomendas as Recebido[]) || [];
-export const visitantesIniciais = migrados?.visitantes || [];
+// O histórico migrado do Cloud (dados-migrados.json, ~23 MB) vive no banco da
+// Pecsil — importado por `scripts/import-portaria-json.mjs`. Não é mais embutido
+// no bundle do navegador; sem conexão, a Portaria usa o cache local.
+export const visitasIniciais: Visita[] = [];
+export const veiculosIniciais: ControleVeiculo[] = [];
+export const terceirosIniciais: RegistroTerceiro[] = [];
+export const recebidosIniciais: Recebido[] = [];
 
 export const RESPONSAVEIS_INICIAIS = [
   "Compras",

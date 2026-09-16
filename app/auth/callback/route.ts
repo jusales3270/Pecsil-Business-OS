@@ -9,10 +9,18 @@ export async function GET(request: NextRequest) {
   if (code) {
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(new URL(next, url.origin));
+    if (!error) return redirectTo(next);
   }
 
-  return NextResponse.redirect(new URL("/login?error=callback", url.origin));
+  return redirectTo("/login?error=callback");
+}
+
+/**
+ * Location relativo: atrás do proxy do Coolify o `request.url` enxerga o host
+ * interno (localhost:3000), e um redirect absoluto mandaria o usuário para lá.
+ */
+function redirectTo(path: string) {
+  return new NextResponse(null, { status: 307, headers: { Location: path } });
 }
 
 function safeNext(value: string | null) {
