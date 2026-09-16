@@ -352,7 +352,7 @@ function HomeContent() {
   const { snapshot, loading, error } = useFoundationData();
   // Identidade real do usuário autenticado (papel, permissões e escopo do banco).
   // Enquanto carrega, ou com o Supabase inacessível, cai no contexto demonstrativo.
-  const { access, real: realAccess, profile: sessionProfile, reload: reloadIdentity } = useSessionAccess();
+  const { access, real: realAccess, loading: accessLoading, profile: sessionProfile, reload: reloadIdentity } = useSessionAccess();
   const { isInstallable, isIos, promptInstall } = usePwa();
   const [accountPanel,setAccountPanel]=useState(false);
   const isExecutive = access.roleCode === "owner" || access.roleCode === "admin" || access.role === "Proprietário" || access.role === "Administrador";
@@ -371,14 +371,28 @@ function HomeContent() {
 
   const [routedInitialModule, setRoutedInitialModule] = useState(false);
 
-  // Direciona imediatamente para o módulo do usuário apenas no carregamento inicial
+  // Roteamento inicial, uma única vez e só com as permissões reais carregadas
+  // (o contexto demonstrativo tem acesso total e abriria módulos indevidos):
+  // 1. Atalho do aplicativo instalado (manifest `shortcuts`): `/?module=compras`.
+  // 2. Usuário não executivo vai direto para o módulo do seu escopo.
   useEffect(() => {
-    if (!isExecutive && targetedModule && !routedInitialModule) {
+    if (routedInitialModule || accessLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("module") || params.has("view")) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    const requested = params.get("module");
+    const shortcut = requested ? getModuleById(requested) : undefined;
+    if (shortcut) {
+      const allowed = canAccessModule(access, shortcut);
+      setActiveModuleId(allowed ? shortcut.id : null);
+      setDeniedTarget(allowed ? null : shortcut.name);
+    } else if (!isExecutive && targetedModule) {
       setActiveModuleId(targetedModule);
       setDeniedTarget(null);
-      setRoutedInitialModule(true);
     }
-  }, [isExecutive, targetedModule, routedInitialModule]);
+    setRoutedInitialModule(true);
+  }, [routedInitialModule, accessLoading, access, isExecutive, targetedModule]);
 
   const foundationNav=useMemo(()=>{
     if (!isExecutive) {

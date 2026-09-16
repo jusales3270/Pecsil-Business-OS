@@ -66,10 +66,19 @@ export function AuthProvider({ children, access }: { children: ReactNode; access
       setLoading(false);
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => apply(session?.user ?? null));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => apply(session?.user ?? null));
+    let unsubscribe = () => {};
+    try {
+      supabase.auth.getSession()
+        .then(({ data: { session } }) => apply(session?.user ?? null))
+        .catch(() => apply(null));
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => apply(session?.user ?? null));
+      unsubscribe = () => subscription.unsubscribe();
+    } catch {
+      // Supabase não configurado (modo demonstrativo): identidade só pelas credenciais do OS.
+      apply(null);
+    }
 
-    return () => subscription.unsubscribe();
+    return () => unsubscribe();
   }, [access]);
 
   const refreshPerfil = async () => {

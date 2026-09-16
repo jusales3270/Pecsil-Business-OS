@@ -1,6 +1,6 @@
 // Pecsil Business OS — Service Worker para modo PWA e cache de app-shell
 // v2: descarta o cache da v1, que chegou a guardar respostas do gateway /sb.
-const CACHE_NAME = 'pecsil-business-os-v2';
+const CACHE_NAME = 'pecsil-business-os-v3';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -55,7 +55,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Estratégia Stale-While-Revalidate para ativos estáticos e páginas
+  // Páginas: rede primeiro. Servir o HTML do cache antes da rede mostrava a
+  // versão anterior depois de um deploy (e ela aponta para chunks que já não
+  // existem). O cache só entra sem conexão.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse.status === 200 && !networkResponse.redirected) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cache = await caches.open(CACHE_NAME);
+          return (await cache.match(request, { ignoreSearch: true })) || (await cache.match('/')) || Response.error();
+        })
+    );
+    return;
+  }
+
+  // Estratégia Stale-While-Revalidate para ativos estáticos
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
       const cachedResponse = await cache.match(request);
