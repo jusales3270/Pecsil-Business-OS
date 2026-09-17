@@ -47,13 +47,13 @@ export function ConfiguracaoConexaoSection({ status, onTestPing, isTesting }: Pr
       >
         <SectionLabel>Detalhes Técnicos do Gateway</SectionLabel>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--sp-4)', fontSize: 'var(--fs-xs)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 'var(--sp-4)', fontSize: 'var(--fs-xs)' }}>
           <div>
             <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
               Endpoint de Integração
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <code style={{ background: 'var(--bg-canvas)', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', flex: 1 }}>
+              <code style={{ background: 'var(--bg-canvas)', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
                 {status.endpoint}
               </code>
               <Button variant="secondary" compact onClick={copiarEndpoint}>

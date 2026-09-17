@@ -135,6 +135,7 @@ export function Configuracoes() {
               {/* Foto */}
               <div className="flex items-center gap-6">
                 <div
+                  data-audit-ignore="foto de perfil de 96px (intencional)"
                   className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-200 bg-gray-100 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity relative group"
                   onClick={() => fileRef.current?.click()}
                 >

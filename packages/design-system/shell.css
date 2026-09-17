@@ -309,7 +309,7 @@
 
 /* --- Cabeçalho ------------------------------------------------------------- */
 
-.main header {
+.main > header {
   position: sticky;
   top: 0;
   z-index: var(--z-header);
@@ -738,7 +738,7 @@
     gap: var(--sp-5);
   }
 
-  .main header {
+  .main > header {
     padding: var(--sp-3) var(--sp-5);
   }
 }
@@ -785,7 +785,7 @@
     margin-left: 0;
   }
 
-  .main header {
+  .main > header {
     padding: calc(var(--sp-2) + var(--sat)) var(--sp-4) var(--sp-2);
     min-height: calc(58px + var(--sat));
     gap: var(--sp-3);
@@ -808,14 +808,14 @@
 
   /* Ícones do cabeçalho mantêm o tamanho de toque; quem cede espaço é o título,
      que já trunca com reticências */
-  .main header .header-icon,
-  .main header .user-card {
+  .main > header .header-icon,
+  .main > header .user-card {
     flex-shrink: 0;
   }
 
   /* O selo de conexão (Supabase/Demonstrativo) toma o lugar do título no
      celular; o menu da conta já indica o modo demonstrativo */
-  .main header > .ds-status {
+  .main > header > .ds-status {
     display: none;
   }
 
@@ -1042,7 +1042,7 @@
     display: none; /* No celular a busca é acessada pela barra inferior */
   }
 
-  .main header {
+  .main > header {
     padding: calc(var(--sp-2) + var(--sat)) var(--sp-3) var(--sp-2);
     gap: var(--sp-2);
   }

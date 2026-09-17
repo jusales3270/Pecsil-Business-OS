@@ -12,7 +12,7 @@ import './portaria.css';
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { ScrollArea, ScrollBar } from "./components/ui/scroll-area";
+import { ScrollArea } from "./components/ui/scroll-area";
 import { Badge } from "./components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
@@ -24,7 +24,6 @@ import { CameraCapture } from "./components/CameraCapture";
 import { extractFaceDescriptor, base64ToImage } from "./lib/faceApi";
 import { buscarVisitantePorFace, buscarVisitantesPorNome, salvarVisitante, fetchVisitas, fetchFotoVisita, fetchFrota, inserirVisita, atualizarVisitaDb, encerrarVisitaDb, excluirVisitaDb, inserirVeiculo, atualizarVeiculoDb, excluirVeiculoDb, fetchTerceiros, inserirTerceiro, encerrarTerceiroDb, excluirTerceiroDb, fetchRecebidos, fetchFotoRecebido, inserirRecebido, excluirRecebidoDb } from "./lib/supabase"; import { useAuth } from "./contexts/AuthContext";
 import { Login } from "./pages/Login";
-import { GerenciarUsuarios } from "./pages/GerenciarUsuarios";
 import { Configuracoes } from "./pages/Configuracoes";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { OfflineBanner } from "./components/OfflineBanner";
@@ -1190,7 +1189,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
   const renderDashboard = () => (
     <div className="space-y-6">
       {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3">
         <Card
           className={`border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-all ${isAdmin ? 'cursor-pointer hover:border-l-emerald-600 active:scale-[0.98]' : ''
             }`}
@@ -1414,7 +1413,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
       {/* Filtros */}
       <Card className="shadow-sm">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -1580,8 +1579,6 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 </tbody>
               </table>
             </div>
-            <ScrollBar orientation="horizontal" className="h-1.5 bg-slate-100/10" />
-            <ScrollBar orientation="vertical" className="w-1.5 bg-slate-100/10" />
           </ScrollArea>
         </CardContent>
       </Card>
@@ -1674,7 +1671,6 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 ))}
               </tbody>
             </table>
-            <ScrollBar orientation="vertical" className="w-1.5 bg-slate-100/10" />
           </ScrollArea>
         </CardContent>
       </Card>
@@ -1686,7 +1682,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
       {/* Filtros */}
       <Card className="shadow-sm">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -1778,7 +1774,6 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 ))}
               </tbody>
             </table>
-            <ScrollBar orientation="vertical" className="w-1.5 bg-slate-100/10" />
           </ScrollArea>
         </CardContent>
       </Card>
@@ -1790,7 +1785,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
       {/* Filtros */}
       <Card className="shadow-sm">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -2054,7 +2049,22 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 {paginaAtiva === 'terceiros' && renderTerceiros()}
                 {paginaAtiva === 'recebidos' && renderRecebidos()}
                 {paginaAtiva === 'veiculos' && renderVeiculos()}
-                {paginaAtiva === 'usuarios' && <GerenciarUsuarios />}
+                {paginaAtiva === 'usuarios' && (
+                  // A tela legada consultava a tabela `perfis` do app standalone, que não
+                  // existe no banco da Pecsil. No Business OS, contas e perfis ficam em
+                  // Pessoas e Acessos, com papéis e escopos da plataforma.
+                  <Card className="max-w-2xl shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <UserCircle className="w-5 h-5 text-blue-600" /> Usuários da Portaria
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm text-gray-600">
+                      <p>As contas de acesso são gerenciadas em <b>Pessoas e Acessos</b>, no menu Fundação do Business OS.</p>
+                      <p>Para dar acesso à Portaria, crie o usuário com escopo no módulo <b>Portaria &amp; Acesso</b>.</p>
+                    </CardContent>
+                  </Card>
+                )}
                 {paginaAtiva === 'configuracoes' && <Configuracoes />}
               </>
             )}

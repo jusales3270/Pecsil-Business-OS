@@ -46,7 +46,7 @@ export async function getSupabaseFoundationSnapshot(): Promise<FoundationSnapsho
     positionsResult,
   ] = await Promise.all([
     supabase.from("organizations").select("id,display_name").eq("id", organizationId).single(),
-    supabase.from("employees").select("id,full_name,corporate_email,active,employee_number,profiles!employees_profile_id_fkey(email,status),positions(name),departments(name),units(name)").eq("organization_id", organizationId).limit(100),
+    supabase.from("employees").select("id,profile_id,full_name,corporate_email,active,employee_number,admission_date,profiles!employees_profile_id_fkey(email,status),positions(name),departments(name),teams(name),units(name)").eq("organization_id", organizationId).order("full_name").limit(500),
     supabase.from("employees").select("id", { count:"exact", head:true }).eq("organization_id", organizationId),
     supabase.from("employees").select("id", { count:"exact", head:true }).eq("organization_id", organizationId).eq("active", true),
     supabase.from("profiles").select("id", { count:"exact", head:true }).eq("organization_id", organizationId),
@@ -93,14 +93,18 @@ function toPerson(row: Row): Person {
   const name = String(row.full_name ?? "Colaborador");
   const profile = relation(row.profiles);
   return {
+    id: String(row.id),
     initials: initials(name),
     name,
-    email: String(row.corporate_email ?? profile.email ?? "E-mail não informado"),
+    email: String(row.corporate_email ?? profile.email ?? ""),
     role: relationName(row.positions, "Cargo não informado"),
     department: relationName(row.departments, "Sem departamento"),
     unit: relationName(row.units, "Sem unidade"),
-    profile: "Perfil vinculado",
+    profile: row.profile_id || profile.email ? "Conta vinculada" : "Sem conta de acesso",
     status: accountStatus(profile.status, Boolean(row.active)),
+    registration: row.employee_number ? String(row.employee_number) : undefined,
+    admissionDate: row.admission_date ? String(row.admission_date) : null,
+    team: relation(row.teams).name ? String(relation(row.teams).name) : null,
   };
 }
 

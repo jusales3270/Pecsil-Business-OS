@@ -22,7 +22,11 @@ function ScrollArea({
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
-      <ScrollBar />
+      {/* As duas barras ficam fora do Viewport: o Radix só libera a rolagem de
+          um eixo quando a barra dele está registrada. Sem a horizontal, tabelas
+          mais largas que o cartão eram cortadas (colunas e ações invisíveis). */}
+      <ScrollBar orientation="vertical" />
+      <ScrollBar orientation="horizontal" />
       <ScrollAreaPrimitive.Corner />
     </ScrollAreaPrimitive.Root>
   )

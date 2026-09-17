@@ -9,6 +9,11 @@ export type Person = {
   unit: string;
   profile: string;
   status: PersonStatus;
+  /** Presentes só nos dados reais (cadastro mestre do banco). */
+  id?: string;
+  registration?: string;
+  admissionDate?: string | null;
+  team?: string | null;
 };
 
 export type OrganizationEntity = {

@@ -2102,7 +2102,8 @@ small {
    uma faixa de três colunas com layout horizontal compacto. */
 .employee-overview {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Colunas que cabem na largura: 3 fixas estouravam o celular (página 417px). */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: var(--sp-4);
 }
 .employee-overview > .ds-card {
@@ -2155,7 +2156,7 @@ small {
 /* Ponto de notificação do cabeçalho: marcador sobre o ícone, não avatar.
    Precisa de especificidade maior que a regra genérica de <i>, que empata e
    venceria por ordem de importação. */
-.main header .header-icon > i {
+.main > header .header-icon > i {
   position: absolute;
   right: 7px;
   top: 7px;
@@ -2733,12 +2734,6 @@ label > select,
 }
 
 /* Listas de linhas com grade própria (pessoas, documentos, benefícios, RH). */
-.people-header,
-.people-table > button,
-.document-header,
-.document-table > button,
-.hr-table-header,
-.hr-people-table > button,
 .benefit-participant-head,
 .benefit-participant-table > button,
 .benefit-participant-list > button {
@@ -2746,6 +2741,69 @@ label > select,
   align-items: center;
   gap: var(--sp-3);
   grid-template-columns: minmax(180px, 1.8fr) minmax(160px, 1.5fr) 110px 24px;
+}
+
+/* Pessoas e Acessos: pessoa · cargo/departamento · perfil · situação · seta. */
+.people-header,
+.people-table > button {
+  display: grid;
+  align-items: center;
+  gap: var(--sp-3);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr) max-content max-content 20px;
+}
+
+/* Documentos: documento · categoria · versão · atualização · situação · seta. */
+.document-header,
+.document-table > button {
+  display: grid;
+  align-items: center;
+  gap: var(--sp-3);
+  grid-template-columns: minmax(0, 2.2fr) max-content 56px minmax(0, 1fr) max-content 20px;
+}
+
+.people-table > button > span,
+.document-table > button > span {
+  min-width: 0;
+}
+
+/* Lista de colaboradores do RH: 5 filhos (pessoa · cargo · departamento ·
+   situação · seta). Grade própria — a compartilhada acima tem 4 colunas e
+   fazia a seta cair para uma segunda linha. */
+.hr-table-header,
+.hr-people-table > button {
+  display: grid;
+  align-items: center;
+  gap: var(--sp-3);
+  grid-template-columns: minmax(220px, 2fr) minmax(160px, 1.4fr) minmax(120px, 1fr) max-content 20px;
+}
+
+.hr-people-table > button > span {
+  min-width: 0;
+}
+
+.hr-people-table > button > span b,
+.hr-people-table > button > span small,
+.hr-people-table > button > span:nth-child(3) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Painel do RH: colaboradores recentes (avatar · nome/cargo · situação). */
+.hr-recent-person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.hr-recent-person .person-cell b,
+.hr-recent-person .person-cell small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .benefit-participant-person {
@@ -3256,7 +3314,8 @@ label > select,
 /* Resumo da homologação em quatro blocos. */
 .finance-homologation-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* 4 colunas fixas deixavam cartões de 80px no celular e alargavam a página. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: var(--sp-4);
 }
 
@@ -3264,6 +3323,7 @@ label > select,
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--sp-3);
 }
 
@@ -4620,4 +4680,140 @@ button.holiday-row:hover {
   .holiday-form > footer .ds-button {
     flex: 1;
   }
+}
+
+/* ============================================================================
+   Pente fino responsivo — tabelas de linha viram cartões em tela estreita.
+
+   As listas do RH (e as que seguem o mesmo padrão cabeçalho + <button> por
+   linha) têm grades de 5–6 colunas com mínimos em px: abaixo de ~720px elas
+   vazavam do cartão. No celular: cabeçalho de colunas oculto; primeira célula
+   (identificação) e selo na primeira linha; demais células empilhadas; a seta
+   sai (a linha inteira já é o alvo de toque).
+   ============================================================================ */
+@media (max-width: 720px) {
+  .hr-table-header,
+  .people-header,
+  .document-header,
+  .journey-table-head,
+  .doc-table-head,
+  .sst-record-head,
+  .absence-table-head,
+  .benefit-request-head,
+  .report-list-head {
+    display: none;
+  }
+
+  .hr-people-table > button,
+  .people-table > button,
+  .document-table > button,
+  .journey-table > button,
+  .doc-table > button,
+  .sst-record-table > button,
+  .absence-table > button,
+  .benefit-request-table > button,
+  .report-list > button {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--sp-3);
+    row-gap: var(--sp-1);
+    padding: var(--sp-3);
+  }
+
+  :is(.hr-people-table, .people-table, .document-table, .journey-table, .doc-table, .sst-record-table, .absence-table, .benefit-request-table, .report-list) > button > :first-child {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  :is(.hr-people-table, .people-table, .document-table, .journey-table, .doc-table, .sst-record-table, .absence-table, .benefit-request-table, .report-list) > button > :nth-last-child(2) {
+    /* Situação: o penúltimo elemento de toda linha (antes da seta). Outros
+       selos da linha (categoria, perfil) seguem empilhados abaixo. */
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: start;
+  }
+
+  :is(.hr-people-table, .people-table, .document-table, .journey-table, .doc-table, .sst-record-table, .absence-table, .benefit-request-table, .report-list) > button > :not(:first-child):not(:nth-last-child(2)):not(svg) {
+    grid-column: 1 / -1;
+    min-width: 0;
+    padding-left: calc(34px + var(--sp-3));
+    font-size: var(--fs-xs);
+    color: var(--text-secondary);
+  }
+
+  :is(.hr-people-table, .people-table, .document-table, .journey-table, .doc-table, .sst-record-table, .absence-table, .benefit-request-table, .report-list) > button > svg {
+    display: none;
+  }
+
+  /* Com as linhas em cartão, a rolagem horizontal do cartão deixa de ser necessária. */
+  .hr-table-card {
+    overflow-x: visible;
+  }
+}
+
+/* Botão de fechar das gavetas: alvo de toque de 40px (era 20px no celular). */
+.employee-layer > aside > header > button:first-child {
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  min-height: 40px;
+  margin: calc(var(--sp-2) * -1) 0 0 calc(var(--sp-2) * -1);
+  border-radius: var(--radius-md);
+}
+
+/* Financeiro — contas a pagar/receber: 6 colunas com larguras fixas não cabem
+   entre 721px e 1280px (a partir de 720px as regras de celular assumem). O
+   cartão rola na horizontal com a tabela inteira, em vez de cortar as colunas
+   de situação e ações. */
+@media (max-width: 1280px) {
+  .finance-table-card {
+    overflow-x: auto;
+  }
+
+  .finance-table {
+    min-width: 860px;
+  }
+}
+
+/* Financeiro — critérios da homologação: no celular, ícone + texto na primeira
+   linha e as demais células empilhadas. */
+@media (max-width: 720px) {
+  .finance-homologation-list > section {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .finance-homologation-list > section > :nth-child(n + 3) {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+/* Abas da ficha e demais gavetas: afastadas da borda como o restante do conteúdo. */
+.employee-layer > aside > nav.employee-tabs {
+  flex-shrink: 0;
+  margin: var(--sp-4) var(--sp-6) 0;
+  max-width: calc(100% - var(--sp-6) * 2);
+}
+
+@media (max-width: 720px) {
+  .employee-layer > aside > nav.employee-tabs {
+    margin: var(--sp-3) var(--sp-4) 0;
+    max-width: calc(100% - var(--sp-4) * 2);
+  }
+}
+
+/* Ação no cabeçalho do cartão ("Ver todos ›", "Ver agenda"): texto e ícone na
+   mesma linha. Sem regra própria o botão herdava bloco e a seta caía embaixo. */
+.card-head > button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.card-head > button > svg {
+  width: 16px;
+  height: 16px;
 }

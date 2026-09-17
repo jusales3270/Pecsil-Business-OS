@@ -47,6 +47,22 @@ const employeeDetails: Record<string, Partial<EmployeeRecord>> = {
 };
 
 function toEmployee(person: Person): EmployeeRecord {
+  // Dados reais (têm id do banco): nada de detalhes fictícios. O que o cadastro
+  // mestre ainda não guarda aparece como "Não informado".
+  if (person.id) {
+    return {
+      ...person,
+      registration: person.registration ?? "—",
+      cpf: "Restrito ao RH",
+      phone: "Não informado",
+      admissionDate: person.admissionDate ?? "",
+      contractType: "Não informado",
+      manager: "Não informado",
+      team: person.team ?? "Sem equipe",
+      schedule: "Não informado",
+      documentStatus: "Pendente",
+    };
+  }
   return {
     ...person,
     registration: "—",
@@ -60,6 +76,11 @@ function toEmployee(person: Person): EmployeeRecord {
     documentStatus: "Pendente",
     ...employeeDetails[person.email],
   };
+}
+
+/** Identidade estável de uma pessoa: id do banco (dados reais) ou e-mail (demonstração). */
+function personKey(person: Pick<Person, "id" | "email">) {
+  return person.id ?? person.email;
 }
 
 type JourneyStatus = "Regular" | "Pendente" | "Em análise" | "Ajustado" | "Ausência";
@@ -540,7 +561,7 @@ function HrDashboard({ people, summary, rh, setSection, notify, access, canCreat
       <Card className="hr-distribution"><p className="eyebrow">QUADRO ATIVO</p><h2>Distribuição por área</h2><div className="hr-bars">{rh.departmentShares.length ? rh.departmentShares.map(dept => <div key={dept.name}><span><b>{dept.name}</b><small>{dept.people} {dept.people === 1 ? "pessoa" : "pessoas"}</small></span><i><em style={{width:`${dept.percentage}%`}}/></i><strong>{dept.percentage}%</strong></div>) : <div className="hr-empty"><HrIcon name="users" size={26}/><b>Sem colaboradores</b><small>Cadastre para ver a distribuição.</small></div>}</div><button onClick={() => setSection("Colaboradores")}>Ver quadro completo <HrIcon name="arrow"/></button></Card>
     </div>
     <div className="hr-dashboard-grid secondary">
-      <Card className="hr-recent-people"><div className="card-head"><div><p className="eyebrow">CADASTRO MESTRE</p><h2>Colaboradores recentes</h2></div><button onClick={() => setSection("Colaboradores")}>Ver todos <HrIcon name="arrow"/></button></div>{people.slice(0,4).map(person => <div key={person.email}><i>{person.initials}</i><span><b>{person.name}</b><small>{person.role} · {person.department}</small></span><Status tone={person.status === "Ativo" ? "success" : "attention"}>{person.status}</Status></div>)}</Card>
+      <Card className="hr-recent-people"><div className="card-head"><div><p className="eyebrow">CADASTRO MESTRE</p><h2>Colaboradores recentes</h2></div><button onClick={() => setSection("Colaboradores")}>Ver todos <HrIcon name="arrow"/></button></div>{[...people].sort((a, b) => String(b.admissionDate ?? "").localeCompare(String(a.admissionDate ?? ""))).slice(0,4).map(person => <div className="hr-recent-person" key={personKey(person)}><span className="person-cell"><i>{person.initials}</i><span><b>{person.name}</b><small>{person.role} · {person.department}</small></span></span><Status tone={person.status === "Ativo" ? "success" : "attention"}>{person.status}</Status></div>)}</Card>
       <Card className="hr-calendar-card"><div className="card-head"><div><p className="eyebrow">PRÓXIMOS EVENTOS</p><h2>Agenda do RH</h2></div><button onClick={() => setSection("Férias e ausências")}><HrIcon name="calendar"/></button></div>{[["18","JUL","Fechamento do ponto","Todas as unidades"],["22","JUL","Integração de novos colaboradores","Matriz Boituva"],["29","JUL","Treinamento NR-12","Unidade Industrial"]].map(([day,month,title,meta]) => <div key={title}><time><b>{day}</b><small>{month}</small></time><span><b>{title}</b><small>{meta}</small></span></div>)}</Card>
     </div>
   </>;
@@ -554,7 +575,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
   const visiblePeople = unit === "Todas as unidades" ? people : people.filter(person => person.unit === unit);
 
   const saveEmployee = async (employee: EmployeeRecord, isNew: boolean) => {
-    setPeople(current => isNew ? [employee, ...current] : current.map(item => item.email === editing?.email ? employee : item));
+    setPeople(current => isNew ? [employee, ...current] : current.map(item => editing && personKey(item) === personKey(editing) ? employee : item));
     setCreating(false);
     onCreateHandled();
     setEditing(null);
@@ -592,7 +613,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
   const changeStatus = (status: Person["status"]) => {
     if (!selected) return;
     const updated = { ...selected, status };
-    setPeople(current => current.map(item => item.email === selected.email ? updated : item));
+    setPeople(current => current.map(item => personKey(item) === personKey(selected) ? updated : item));
     setSelected(updated);
     notify(`${selected.name}: situação alterada para ${status}.`);
   };
@@ -602,9 +623,11 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
     <div className="employee-overview">
       <Card><span><HrIcon name="users"/></span><div><strong>{allPeople.length}</strong><small>registros visíveis</small></div></Card>
       <Card><span><HrIcon name="check"/></span><div><strong>{allPeople.filter(person => person.status === "Ativo").length}</strong><small>vínculos ativos</small></div></Card>
-      <Card><span><HrIcon name="file"/></span><div><strong>{allPeople.filter(person => person.documentStatus === "Pendente").length}</strong><small>cadastros pendentes</small></div></Card>
+      {allPeople.some(person => person.id)
+        ? <Card><span><HrIcon name="key"/></span><div><strong>{allPeople.filter(person => person.profile === "Sem conta de acesso").length}</strong><small>sem conta de acesso</small></div></Card>
+        : <Card><span><HrIcon name="file"/></span><div><strong>{allPeople.filter(person => person.documentStatus === "Pendente").length}</strong><small>cadastros pendentes</small></div></Card>}
     </div>
-    <Card className="hr-table-card"><div className="hr-tools"><label><HrIcon name="search"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, matrícula, cargo ou departamento..."/></label><select value={unit} onChange={event => setUnit(event.target.value)} aria-label="Filtrar unidade"><option>Todas as unidades</option><option>Matriz Boituva</option><option>Unidade Industrial</option></select><button onClick={() => { setQuery(""); setUnit("Todas as unidades"); }}><HrIcon name="filter"/> Limpar filtros</button></div><div className="hr-people-table"><div className="hr-table-header"><span>Colaborador</span><span>Cargo</span><span>Departamento</span><span>Status</span><span/></div>{visiblePeople.map(person => <button key={person.email} onClick={() => setSelected(person)}><span className="hr-person"><i>{person.initials}</i><span><b>{person.name}</b><small>Matrícula {person.registration} · {person.email}</small></span></span><span><b>{person.role}</b><small>{person.unit}</small></span><span>{person.department}</span><Status tone={person.status === "Ativo" ? "success" : person.status === "Pendente" ? "info" : "neutral"}>{person.status}</Status><HrIcon name="arrow"/></button>)}{!visiblePeople.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhum colaborador encontrado</b><small>Ajuste a busca ou a unidade selecionada.</small></div>}</div></Card>
+    <Card className="hr-table-card"><div className="hr-tools"><label><HrIcon name="search"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, matrícula, cargo ou departamento..."/></label><select value={unit} onChange={event => setUnit(event.target.value)} aria-label="Filtrar unidade"><option>Todas as unidades</option>{Array.from(new Set(allPeople.map(person => person.unit))).sort().map(name => <option key={name}>{name}</option>)}</select><button onClick={() => { setQuery(""); setUnit("Todas as unidades"); }}><HrIcon name="filter"/> Limpar filtros</button></div><div className="hr-people-table"><div className="hr-table-header"><span>Colaborador</span><span>Cargo</span><span>Departamento</span><span>Status</span><span/></div>{visiblePeople.map(person => <button key={personKey(person)} onClick={() => setSelected(person)}><span className="hr-person"><i>{person.initials}</i><span><b>{person.name}</b><small>Matrícula {person.registration}{person.email ? ` · ${person.email}` : ""}</small></span></span><span><b>{person.role}</b><small>{person.unit}</small></span><span>{person.department}</span><Status tone={person.status === "Ativo" ? "success" : person.status === "Pendente" ? "info" : "neutral"}>{person.status}</Status><HrIcon name="arrow"/></button>)}{!visiblePeople.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhum colaborador encontrado</b><small>Ajuste a busca ou a unidade selecionada.</small></div>}</div></Card>
     {selected && <EmployeeDrawer employee={selected} canEdit={canCreate} onClose={() => setSelected(null)} onEdit={() => { setEditing(selected); setSelected(null); }} onStatus={changeStatus}/>} 
     {(creating || editing) && <EmployeeForm employee={editing} nextRegistration={String(allPeople.length + 1).padStart(4,"0")} onClose={() => { setCreating(false); setEditing(null); onCreateHandled(); }} onSave={saveEmployee}/>} 
   </>;
@@ -618,10 +641,12 @@ function EmployeeDrawer({ employee, canEdit, onClose, onEdit, onStatus }: { empl
       <header><button onClick={onClose} aria-label="Fechar ficha"><HrIcon name="close"/></button><span className="employee-avatar">{employee.initials}</span><div><p className="eyebrow">FICHA DO COLABORADOR</p><h2>{employee.name}</h2><p>{employee.role} · {employee.department}</p></div><Status tone={employee.status === "Ativo" ? "success" : employee.status === "Pendente" ? "info" : "neutral"}>{employee.status}</Status></header>
       <nav className="employee-tabs" aria-label="Seções da ficha">{(["Resumo","Vínculo","Documentos","Histórico"] as const).map(item => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</nav>
       <div className="employee-detail-content">
-        {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div><div><small>Admissão</small><strong>{admission}</strong></div></section><DetailGroup title="Contato" rows={[["E-mail corporativo",employee.email],["Telefone",employee.phone],["CPF",employee.cpf]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/></>}
+        {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div><div><small>Admissão</small><strong>{admission}</strong></div></section><DetailGroup title="Contato" rows={[["E-mail corporativo",employee.email || "Não informado"],["Telefone",employee.phone],["CPF",employee.cpf]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/></>}
         {tab === "Vínculo" && <><DetailGroup title="Dados contratuais" rows={[["Tipo de contrato",employee.contractType],["Cargo",employee.role],["Gestor responsável",employee.manager],["Jornada",employee.schedule]]}/><div className="employee-callout"><HrIcon name="shield"/><span><b>Escopo protegido</b><small>Alterações de vínculo serão registradas na auditoria quando o banco estiver conectado.</small></span></div></>}
-        {tab === "Documentos" && <><div className={`employee-document-health ${employee.documentStatus === "Completo" ? "complete" : "pending"}`}><HrIcon name={employee.documentStatus === "Completo" ? "check" : "alert"}/><span><b>Cadastro documental {employee.documentStatus.toLowerCase()}</b><small>{employee.documentStatus === "Completo" ? "Documentos obrigatórios conferidos." : "Existem documentos que exigem conferência."}</small></span></div>{[["Documento de identidade","Conferido"],["Contrato de trabalho","Assinado"],["Comprovante de residência",employee.documentStatus === "Completo" ? "Conferido" : "Pendente"],["ASO admissional","Válido"]].map(([name,status]) => <div className="employee-document-row" key={name}><span><HrIcon name="file"/></span><div><b>{name}</b><small>Arquivo protegido</small></div><Status tone={status === "Pendente" ? "attention" : "success"}>{status}</Status></div>)}</>}
-        {tab === "Histórico" && <div className="employee-history">{[["Cadastro funcional revisado","Hoje · RH"],["Perfil de acesso vinculado",employee.profile],["Admissão registrada",admission]].map(([title,meta],index) => <div key={title}><i>{index + 1}</i><span><b>{title}</b><small>{meta}</small></span></div>)}</div>}
+        {tab === "Documentos" && employee.id && <div className="employee-callout"><HrIcon name="file"/><span><b>Documentos em RH › Documentos</b><small>Arquivos, validades e assinaturas deste colaborador são controlados na central de documentos do RH, conforme o seu escopo.</small></span></div>}
+        {tab === "Documentos" && !employee.id && <><div className={`employee-document-health ${employee.documentStatus === "Completo" ? "complete" : "pending"}`}><HrIcon name={employee.documentStatus === "Completo" ? "check" : "alert"}/><span><b>Cadastro documental {employee.documentStatus.toLowerCase()}</b><small>{employee.documentStatus === "Completo" ? "Documentos obrigatórios conferidos." : "Existem documentos que exigem conferência."}</small></span></div>{[["Documento de identidade","Conferido"],["Contrato de trabalho","Assinado"],["Comprovante de residência",employee.documentStatus === "Completo" ? "Conferido" : "Pendente"],["ASO admissional","Válido"]].map(([name,status]) => <div className="employee-document-row" key={name}><span><HrIcon name="file"/></span><div><b>{name}</b><small>Arquivo protegido</small></div><Status tone={status === "Pendente" ? "attention" : "success"}>{status}</Status></div>)}</>}
+        {tab === "Histórico" && employee.id && <div className="employee-history"><div><i>1</i><span><b>Admissão</b><small>{admission}</small></span></div><div><i>2</i><span><b>Cadastro importado da folha</b><small>Matrícula {employee.registration}</small></span></div></div>}
+        {tab === "Histórico" && !employee.id && <div className="employee-history">{[["Cadastro funcional revisado","Hoje · RH"],["Perfil de acesso vinculado",employee.profile],["Admissão registrada",admission]].map(([title,meta],index) => <div key={title}><i>{index + 1}</i><span><b>{title}</b><small>{meta}</small></span></div>)}</div>}
       </div>
       {canEdit && <footer><Button variant="secondary" onClick={onEdit}><HrIcon name="edit"/> Editar cadastro</Button><select value={employee.status} onChange={event => onStatus(event.target.value as Person["status"])} aria-label="Alterar situação do vínculo"><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select></footer>}
     </aside>
