@@ -8,12 +8,14 @@ import { useRhData } from "../../lib/data/use-rh-data";
 import { useModuleNav } from "../../lib/module-nav-context";
 import type { RhAbsence, RhBenefitPlan, RhBenefitRequest, RhDocument, RhEmployeeOption, RhSnapshot, RhSstRecord } from "../../lib/data/rh";
 import { getRhDocumentUrl, uploadRhDocument } from "../../lib/data/rh-documents-client";
+import { HolidaysSection } from "./hr-holidays";
 
 const sections = [
   ["Painel", "grid"],
   ["Colaboradores", "users"],
   ["Ponto e jornada", "clock"],
   ["Férias e ausências", "calendar"],
+  ["Feriados", "calendar"],
   ["Benefícios", "heart"],
   ["Saúde e segurança", "shield"],
   ["Documentos", "file"],
@@ -266,9 +268,12 @@ export function HrModule({
     () => employees.filter(person => `${person.name} ${person.role} ${person.department} ${person.registration}`.toLowerCase().includes(query.toLowerCase())),
     [employees, query],
   );
-  const accessibleSections = access.role === "Colaborador"
+  // Memorizado: é dependência do efeito que registra o menu lateral. Recriado a
+  // cada render, o efeito limpava e registrava o menu de novo em todo render,
+  // o que causava outro render — laço "Maximum update depth exceeded".
+  const accessibleSections = useMemo(() => access.role === "Colaborador"
     ? sections.filter(([label]) => ["Painel", "Ponto e jornada", "Férias e ausências", "Benefícios", "Saúde e segurança", "Documentos"].includes(label))
-    : sections.filter(([label]) => label!=="Homologação"||hasPermission(access,"rh.admin"));
+    : sections.filter(([label]) => label!=="Homologação"||hasPermission(access,"rh.admin")), [access]);
   const canCreate = hasPermission(access, "rh.create");
   const track=(message:string)=>{notify(message);onEvent(message)};
   const { registerNav } = useModuleNav();
@@ -299,6 +304,7 @@ export function HrModule({
           {section === "Colaboradores" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} persists={rh.source === "supabase"} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
           {section === "Ponto e jornada" && <JourneySection notify={track} access={access}/>} 
           {section === "Férias e ausências" && <AbsenceSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
+          {section === "Feriados" && <HolidaysSection/>}
           {section === "Benefícios" && <BenefitsSection key={rh.loadedAt} summary={summary} notify={track} access={access} rh={rh}/>}
           {section === "Saúde e segurança" && <SafetySection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Documentos" && <DocumentsSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}

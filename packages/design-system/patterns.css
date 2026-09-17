@@ -4257,3 +4257,212 @@ label > select,
   background: var(--accent-blue);
 }
 .benefit-cost-card > p { font-size: var(--fs-xs); color: var(--text-muted); }
+
+/* ============================================================================
+   RH · Calendário de feriados
+   Cores por abrangência seguem os tons do <Status>: nacional = info (azul),
+   estadual = success (verde), municipal = attention (âmbar), facultativo = neutro.
+   ============================================================================ */
+
+.holiday-year {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.holiday-year b {
+  min-width: 48px;
+  text-align: center;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.holiday-year button {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--fs-lg);
+  line-height: 1;
+}
+
+.holiday-year button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.holiday-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-6);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.holiday-empty small {
+  color: var(--text-muted);
+}
+
+.holiday-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.holiday-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.holiday-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-xs);
+  background: var(--holiday-color);
+}
+
+.holiday-dot.nacional,
+.holiday-day.nacional { --holiday-color: var(--accent-blue); --holiday-tint: var(--tint-blue); }
+.holiday-dot.estadual,
+.holiday-day.estadual { --holiday-color: var(--accent-green); --holiday-tint: var(--tint-green); }
+.holiday-dot.municipal,
+.holiday-day.municipal { --holiday-color: var(--accent-amber); --holiday-tint: var(--tint-amber); }
+.holiday-dot.facultativo,
+.holiday-day.facultativo { --holiday-color: var(--accent-neutral); --holiday-tint: var(--tint-neutral); }
+
+.holiday-months {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-5) var(--sp-6);
+  margin-top: var(--sp-4);
+}
+
+.holiday-month h3 {
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.holiday-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.holiday-weekday {
+  padding-bottom: var(--sp-1);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+}
+
+.holiday-day {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.holiday-day.weekend {
+  color: var(--text-muted);
+}
+
+.holiday-day.today {
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.holiday-day.is-holiday {
+  background: var(--holiday-tint);
+  box-shadow: inset 0 0 0 1.5px var(--holiday-color);
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+  cursor: help;
+}
+
+.holiday-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--sp-3);
+}
+
+.holiday-row {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.holiday-row.past {
+  opacity: 0.55;
+}
+
+.holiday-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-1) 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  line-height: 1.1;
+}
+
+.holiday-date b {
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.holiday-date small {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.holiday-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.holiday-name small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+@media (max-width: 860px) {
+  .holiday-months {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--sp-4);
+  }
+
+  .holiday-calendar-card .card-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-3);
+  }
+
+  .holiday-row {
+    grid-template-columns: 48px 1fr;
+  }
+
+  .holiday-row .ds-status {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
