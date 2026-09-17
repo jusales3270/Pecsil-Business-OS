@@ -9,12 +9,49 @@ export type RhHoliday = {
   location: string | null;
   /** A empresa não trabalha na data (entra no cálculo de dias úteis). */
   dayOff: boolean;
+  /** Completado por padrão de outro ano; o RH ainda precisa conferir. */
+  pendingReview: boolean;
 };
 
 export type RhHolidayCalendar = {
   year: number;
   holidays: RhHoliday[];
+  /** Calculado no banco (has_scoped_permission): o usuário pode editar o calendário. */
+  canEdit: boolean;
 };
+
+/** Corpo aceito para criar ou alterar um feriado. */
+export type RhHolidayDraft = {
+  date: string;
+  name: string;
+  scope: RhHolidayScope;
+  location: string | null;
+  dayOff: boolean;
+};
+
+export const HOLIDAY_SCOPES: RhHolidayScope[] = ["nacional", "estadual", "municipal", "facultativo"];
+
+/** Validação compartilhada entre formulário e API. Devolve a mensagem do primeiro problema. */
+export function validateHolidayDraft(input: unknown): { ok: true; draft: RhHolidayDraft } | { ok: false; error: string } {
+  if (!input || typeof input !== "object") return { ok: false, error: "Dados do feriado ausentes." };
+  const raw = input as Record<string, unknown>;
+  const date = typeof raw.date === "string" ? raw.date.trim() : "";
+  const name = typeof raw.name === "string" ? raw.name.trim().replace(/\s+/g, " ") : "";
+  const scope = raw.scope as RhHolidayScope;
+  const location = typeof raw.location === "string" && raw.location.trim() ? raw.location.trim() : null;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: "Informe uma data válida." };
+  const { year, month, day } = isoParts(date);
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day || year < 2000 || year > 2100) {
+    return { ok: false, error: "Informe uma data válida." };
+  }
+  if (name.length < 3 || name.length > 120) return { ok: false, error: "O nome deve ter entre 3 e 120 caracteres." };
+  if (!HOLIDAY_SCOPES.includes(scope)) return { ok: false, error: "Escolha a abrangência do feriado." };
+  if (location && location.length > 60) return { ok: false, error: "O local deve ter no máximo 60 caracteres." };
+
+  return { ok: true, draft: { date, name, scope, location, dayOff: raw.dayOff !== false } };
+}
 
 export const holidayScopeLabel: Record<RhHolidayScope, string> = {
   nacional: "Nacional",

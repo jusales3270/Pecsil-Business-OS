@@ -4445,6 +4445,137 @@ label > select,
   color: var(--text-muted);
 }
 
+/* --- Edição do calendário ------------------------------------------------- */
+
+.holiday-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.holiday-review {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--accent-amber);
+  border-radius: var(--radius-md);
+  background: var(--tint-amber);
+  font-size: var(--fs-sm);
+}
+
+.holiday-review small {
+  color: var(--text-secondary);
+}
+
+button.holiday-day {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+button.holiday-day:hover {
+  background: var(--bg-hover);
+}
+
+button.holiday-day.is-holiday {
+  background: var(--holiday-tint);
+  cursor: pointer;
+}
+
+.holiday-day.pending {
+  box-shadow: inset 0 0 0 1.5px var(--holiday-color), 0 0 0 2px var(--tint-amber);
+  text-decoration: underline dotted var(--accent-amber);
+  text-underline-offset: 3px;
+}
+
+.holiday-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+button.holiday-row {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+button.holiday-row:hover {
+  background: var(--bg-hover);
+}
+
+/* O <header> do formulário fica dentro de .main e herdava o cabeçalho da página
+   (fixo, fundo, borda e espaçamento). */
+.main .holiday-form > header {
+  position: static;
+  min-height: 0;
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+.holiday-form .doc-form-fields label {
+  align-items: stretch;
+  text-align: left;
+}
+
+.holiday-form .doc-form-fields input:not([type="checkbox"]),
+.holiday-form .doc-form-fields select {
+  width: 100%;
+}
+
+.holiday-form-close {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xl);
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.holiday-form-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.holiday-form .doc-form-fields label.holiday-form-check {
+  flex-direction: row;
+  align-items: center;
+  align-self: end;
+  gap: var(--sp-2);
+  min-height: 40px;
+  color: var(--text-primary);
+}
+
+.holiday-form-error {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--tint-red);
+  color: var(--accent-red);
+  font-size: var(--fs-sm);
+}
+
+.holiday-form footer .holiday-form-delete {
+  margin-right: auto;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--accent-red);
+  border-radius: var(--radius-md);
+  color: var(--accent-red);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.holiday-form footer .holiday-form-delete:hover {
+  background: var(--tint-red);
+}
+
 @media (max-width: 860px) {
   .holiday-months {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -4461,8 +4592,32 @@ label > select,
     grid-template-columns: 48px 1fr;
   }
 
-  .holiday-row .ds-status {
+  .holiday-row .holiday-tags {
     grid-column: 2;
-    justify-self: start;
+    justify-content: flex-start;
+  }
+
+  .holiday-head-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .holiday-form .doc-form-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .holiday-form > footer {
+    flex-wrap: wrap;
+  }
+
+  .holiday-form > footer .holiday-form-delete {
+    order: 3;
+    width: 100%;
+    min-height: 40px;
+    margin-right: 0;
+  }
+
+  .holiday-form > footer .ds-button {
+    flex: 1;
   }
 }
