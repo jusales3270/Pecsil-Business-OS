@@ -9,6 +9,16 @@ import type { DashboardData } from "../types";
  */
 export const emptyForjaDashboardData: DashboardData = {
   geradoEm: new Date(0).toISOString(),
+  indicadores: {
+    carteira: { total: 0, emDia: 0, atrasadas: 0 },
+    historico: {
+      dias: 0, inicio: "", fim: "", total: 0, emDia: 0, atrasadas: 0, pontualidade: null,
+      semDataConclusao: 0, porCliente: [], porTipo: [], evolucao: [],
+    },
+  },
+  gargalos: [],
+  enviosExternos: [],
+  totalOSExternas: 0,
   osPorStatus: {},
   osPorStatusLista: {},
   osAtrasadas: [],

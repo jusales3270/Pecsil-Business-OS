@@ -1,62 +1,63 @@
 import type { DashboardData, ForjaConnectionStatus } from '../types';
+import { emptyForjaDashboardData } from '../data/emptyForjaData';
 
 export interface DashboardApiResponse {
   success: boolean;
   source: 'live' | 'sem-conexao';
   endpoint: string;
+  fetchedAt?: string;
+  motivo?: string;
   data: DashboardData;
   warning?: string;
 }
+
+const ENDPOINT = '/api/forja/dashboard';
 
 export async function fetchForjaDashboard(): Promise<{
   data: DashboardData;
   status: ForjaConnectionStatus;
 }> {
   const inicio = performance.now();
+  const falha = (modo: ForjaConnectionStatus['modo'], erroMensagem: string) => ({
+    data: emptyForjaDashboardData,
+    status: {
+      online: false,
+      modo,
+      endpoint: ENDPOINT,
+      latenciaMs: Math.round(performance.now() - inicio),
+      ultimaAtualizacao: new Date().toISOString(),
+      erroMensagem,
+    },
+  });
+
   try {
-    const res = await fetch('/api/forja/dashboard', {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    });
+    const res = await fetch(ENDPOINT, { headers: { Accept: 'application/json' }, cache: 'no-store' });
 
-    const latenciaMs = Math.round(performance.now() - inicio);
-
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+    // Sessão expirada: o lugar certo é o login.
+    if (res.status === 401) {
+      window.location.assign('/login');
+      return falha('erro', 'Sessão expirada.');
     }
+    if (res.status === 403) {
+      return falha('sem-acesso', 'Seu perfil não tem acesso à Produção. Fale com o proprietário da conta.');
+    }
+    if (!res.ok) return falha('erro', `A plataforma respondeu ${res.status}.`);
 
     const payload: DashboardApiResponse = await res.json();
-
+    const online = payload.source === 'live';
     return {
       data: payload.data,
       status: {
-        online: payload.source === 'live',
-        modo: payload.source === 'live' ? 'live' : 'mock',
+        online,
+        modo: online ? 'live' : 'sem-conexao',
         endpoint: payload.endpoint,
-        latenciaMs,
-        ultimaAtualizacao: new Date().toISOString(),
-        erroMensagem: payload.warning,
+        latenciaMs: Math.round(performance.now() - inicio),
+        ultimaAtualizacao: payload.fetchedAt ?? new Date().toISOString(),
+        erroMensagem: online ? undefined : payload.warning,
       },
     };
   } catch (err: unknown) {
-    const latenciaMs = Math.round(performance.now() - inicio);
-    const erroMensagem = err instanceof Error ? err.message : String(err);
-
     // Painel vazio se a própria rota do Next falhar (nada de dado fictício)
-    const { emptyForjaDashboardData } = await import('../data/emptyForjaData');
-
-    return {
-      data: emptyForjaDashboardData,
-      status: {
-        online: false,
-        modo: 'erro',
-        endpoint: '/api/forja/dashboard',
-        latenciaMs,
-        ultimaAtualizacao: new Date().toISOString(),
-        erroMensagem,
-      },
-    };
+    return falha('erro', err instanceof Error ? err.message : String(err));
   }
 }

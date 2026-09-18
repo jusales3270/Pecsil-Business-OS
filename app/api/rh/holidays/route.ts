@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateHolidayDraft, type RhHolidayCalendar } from "../../../../lib/data/rh-holidays";
-import { HOLIDAY_COLUMNS, holidaySession, holidayWriteError, toHoliday } from "../../../../lib/data/rh-holidays-server";
+import { HOLIDAY_COLUMNS, holidayWriteError, toHoliday } from "../../../../lib/data/rh-holidays-server";
+import { requireUserSession } from "../../../../lib/supabase/session";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
  * mesmo predicado do banco, para a tela não oferecer o que o banco negaria.
  */
 export async function GET(request: Request) {
-  const session = await holidaySession();
+  const session = await requireUserSession();
   if ("error" in session) return session.error;
   const { supabase } = session;
 
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
 
 /** Cria um feriado. */
 export async function POST(request: Request) {
-  const session = await holidaySession();
+  const session = await requireUserSession();
   if ("error" in session) return session.error;
 
   const parsed = validateHolidayDraft(await request.json().catch(() => null));

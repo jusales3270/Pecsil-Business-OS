@@ -12,7 +12,8 @@ export function QualidadeSection({ data }: Props) {
   const reprovado = data.inspecao['reprovado'] ?? 0;
   const total = aprovado + comObs + reprovado;
 
-  const taxaAprovacao = total > 0 ? Math.round((aprovado / total) * 100) : 100;
+  const taxaAprovacao = total > 0 ? Math.round((aprovado / total) * 100) : null;
+  const taxaTexto = taxaAprovacao === null ? '—' : `${taxaAprovacao}%`;
 
   return (
     <div className="producao-workspace">
@@ -22,15 +23,17 @@ export function QualidadeSection({ data }: Props) {
           <h1>Qualidade & Inspeções</h1>
           <p>Inspeção dimensional cota a cota com tolerâncias do Artigo e controle de volume.</p>
         </div>
-        <Status tone="success">{taxaAprovacao}% conformidade</Status>
+        <Status tone={taxaAprovacao === null ? 'neutral' : 'success'}>
+          {taxaAprovacao === null ? 'Sem inspeções concluídas' : `${taxaAprovacao}% conformidade`}
+        </Status>
       </div>
 
       <SectionLabel>Indicadores de Metrologia</SectionLabel>
       <KpiGrid>
-        <Kpi label="Conformidade Direta" caption="Aprovadas de primeira" value={`${taxaAprovacao}%`} tone="green" />
-        <Kpi label="Aprovadas" caption="Dentro de todas as tolerâncias" value={aprovado} tone="green" />
-        <Kpi label="Com observações" caption="Desvios aceitos tecnicamente" value={comObs} tone="amber" />
-        <Kpi label="Reprovadas" caption="Refugo ou retrabalho fabril" value={reprovado} tone="red" />
+        <Kpi label="Conformidade direta" caption={`Aprovadas sem ressalva · ${total} inspeções`} value={taxaTexto} tone={taxaAprovacao === null ? 'neutral' : 'green'} />
+        <Kpi label="Aprovadas" caption="Dentro de todas as tolerâncias" value={aprovado} tone={aprovado > 0 ? 'green' : 'neutral'} />
+        <Kpi label="Com observações" caption="Desvios aceitos tecnicamente" value={comObs} tone={comObs > 0 ? 'amber' : 'neutral'} />
+        <Kpi label="Reprovadas" caption="Refugo ou retrabalho fabril" value={reprovado} tone={reprovado > 0 ? 'red' : 'neutral'} />
       </KpiGrid>
 
       <Panel

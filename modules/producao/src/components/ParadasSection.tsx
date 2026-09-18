@@ -31,8 +31,8 @@ export function ParadasSection({ data }: Props) {
       <SectionLabel>Visão Geral de Disponibilidade</SectionLabel>
       <KpiGrid>
         <Kpi label="Paradas agora" caption="Máquinas interrompidas" value={ativas.length} tone={ativas.length > 0 ? "red" : "neutral"} />
-        <Kpi label="Tempo parado hoje" caption="Acumulado de todas as paradas" value={`${tempoTotal} min`} tone="amber" />
-        <Kpi label="Ocorrências" caption="Eventos registrados no turno" value={totalEventos} tone="blue" />
+        <Kpi label="Tempo parado hoje" caption="Acumulado de todas as paradas" value={`${tempoTotal} min`} tone={tempoTotal > 0 ? 'amber' : 'neutral'} />
+        <Kpi label="Ocorrências" caption="Eventos registrados no turno" value={totalEventos} tone={totalEventos > 0 ? 'blue' : 'neutral'} />
       </KpiGrid>
 
       <Panel

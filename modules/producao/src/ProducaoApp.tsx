@@ -12,6 +12,7 @@ import { ParadasSection } from "./components/ParadasSection";
 import { QualidadeSection } from "./components/QualidadeSection";
 import { LotesFantasmasSection } from "./components/LotesFantasmasSection";
 import { GraficosAnalise } from "./components/GraficosAnalise";
+import { EnviosExternosSection } from "./components/EnviosExternosSection";
 import { ConfiguracaoConexaoSection } from "./components/ConfiguracaoConexaoSection";
 import { ProducaoIcon } from "./components/ProducaoIcon";
 import "./producao.css";
@@ -23,6 +24,7 @@ const sections = [
   ["Paradas", "alert"],
   ["Qualidade", "check"],
   ["Lotes fantasmas", "clock"],
+  ["Envios externos", "truck"],
   ["BI & Análises", "chart"],
   ["Conexão Forja", "settings"],
 ] as const;
@@ -85,12 +87,14 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
               <h1>{section}</h1>
               <p>Dados vindos da API do Forja.</p>
             </div>
-            <Status tone="attention">Sem conexão</Status>
+            <Status tone="attention">{status.modo === "sem-acesso" ? "Sem acesso" : "Sem conexão"}</Status>
           </div>
           <div className="producao-empty">
-            <b>Sem conexão com a API do Forja</b>
-            <small>{status.erroMensagem ?? `Endpoint configurado: ${status.endpoint}`}</small>
-            <Button variant="secondary" compact onClick={() => setSection("Conexão Forja")}>Ver conexão</Button>
+            <b>{status.modo === "sem-acesso" ? "Sem acesso à Produção" : "Sem conexão com o Forja"}</b>
+            <small>{status.erroMensagem ?? "O Forja não respondeu. Nenhum dado de produção disponível."}</small>
+            {status.modo !== "sem-acesso" && (
+              <Button variant="secondary" compact onClick={() => setSection("Conexão Forja")}>Ver conexão</Button>
+            )}
           </div>
         </div>
       );
@@ -117,12 +121,21 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
             <div className="page-head">
               <div>
                 <p className="eyebrow">FUNDIÇÃO · ROTEIRO DE FASES</p>
-                <h1>Pipeline da Fundição</h1>
-                <p>Sequenciamento de modelação, moldagem, vazamento e tratamento térmico.</p>
+                <h1>Pipeline {data.pipelines[0] ? `· ${data.pipelines[0].etapaNome}` : 'da Fundição'}</h1>
+                <p>Lotes fase a fase nas etapas com operações internas, como o tótem da fábrica mostra.</p>
               </div>
-              <Status tone="info">8 fases ativas</Status>
+              <Status tone="info">
+                {data.pipelines[0] ? `${data.pipelines[0].fases.length} fases` : 'Sem fases cadastradas'}
+              </Status>
             </div>
-            <PipelineFundicao pipeline={data.pipelines[0]} />
+            {data.pipelines[0] ? (
+              <PipelineFundicao pipeline={data.pipelines[0]} />
+            ) : (
+              <div className="producao-empty">
+                <b>Nenhuma etapa com fases no Forja</b>
+                <small>O pipeline aparece quando uma etapa tem operações internas cadastradas.</small>
+              </div>
+            )}
           </div>
         );
       case "Paradas":
@@ -131,19 +144,18 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
         return <QualidadeSection data={data} />;
       case "Lotes fantasmas":
         return <LotesFantasmasSection data={data} />;
+      case "Envios externos":
+        return <EnviosExternosSection data={data} />;
       case "BI & Análises":
         return <GraficosAnalise data={data} />;
       case "Conexão Forja":
         return (
           <ConfiguracaoConexaoSection
             status={status}
+            geradoEm={data.geradoEm}
             onTestPing={async () => {
               await refetch();
-              notify(
-                status.online
-                  ? "Conexão com a Forja API testada com sucesso!"
-                  : "Aviso: Servidor Forja em contingência."
-              );
+              notify("Conexão com o Forja verificada. Veja o resultado nesta tela.");
             }}
             isTesting={isRefreshing}
           />

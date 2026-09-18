@@ -11,12 +11,12 @@ export function OrdensServicoSection({ data }: Props) {
   const [filtroStatus, setFiltroStatus] = useState<string>('todas');
   const [busca, setBusca] = useState<string>('');
 
-  const todasOS: (OSResumo & { statusReal: string })[] = [];
-  Object.entries(data.osPorStatusLista).forEach(([status, lista]) => {
-    lista.forEach((os) => {
-      todasOS.push({ ...os, statusReal: status });
-    });
-  });
+  // "atrasada" no Forja é calculada pelo prazo: a mesma OS também está na lista
+  // do status gravado (aberta ou em produção). Aqui ela aparece uma vez só.
+  const idsAtrasadas = new Set((data.osPorStatusLista.atrasada ?? []).map((os) => os.id));
+  const todasOS: (OSResumo & { statusReal: string })[] = Object.entries(data.osPorStatusLista)
+    .filter(([status]) => status !== 'atrasada')
+    .flatMap(([status, lista]) => lista.map((os) => ({ ...os, statusReal: idsAtrasadas.has(os.id) ? 'atrasada' : status })));
 
   const osFiltradas = todasOS.filter((os) => {
     if (filtroStatus !== 'todas' && os.statusReal !== filtroStatus) return false;

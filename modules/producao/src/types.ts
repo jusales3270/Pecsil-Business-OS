@@ -15,15 +15,7 @@ export interface OSResumo {
   artigo: { codigo: string; descricao: string };
 }
 
-export interface OSAtrasada {
-  id: string;
-  codigoGrv: string;
-  prazoEntrega: string;
-  prioridade: string;
-  status: string;
-  cliente: { nome: string };
-  artigo: { codigo: string; descricao: string };
-}
+export type OSAtrasada = OSResumo;
 
 export interface KanbanCard {
   opLoteId: string;
@@ -39,6 +31,18 @@ export interface KanbanCard {
   operador: string | null;
   programador: string | null;
   maquina: string | null;
+  /** Lote fora da fábrica (metalização externa). */
+  externo: boolean;
+  fornecedor: string | null;
+  /** Peças disponíveis nesta etapa, ou enviadas ao fornecedor. */
+  quantidade: number;
+  veioDe: PassoRoteiro | null;
+  proxima: PassoRoteiro | null;
+}
+
+export interface PassoRoteiro {
+  estacao: string;
+  tipoServico: string;
 }
 
 export interface KanbanEtapa {
@@ -135,8 +139,65 @@ export interface FantasmaTurno {
   operador: string;
 }
 
+export interface GrupoPontualidade {
+  id: string;
+  nome: string;
+  total: number;
+  atrasadas: number;
+  mediaDiasAtraso: number;
+}
+
+export interface IndicadoresProducao {
+  /** OS em aberto hoje. */
+  carteira: { total: number; emDia: number; atrasadas: number };
+  /** OS finalizadas na janela (padrão do Forja: 90 dias). */
+  historico: {
+    dias: number;
+    inicio: string;
+    fim: string;
+    total: number;
+    emDia: number;
+    atrasadas: number;
+    pontualidade: number | null;
+    semDataConclusao: number;
+    porCliente: GrupoPontualidade[];
+    porTipo: GrupoPontualidade[];
+    evolucao: { mes: string; emDia: number; atrasadas: number }[];
+  };
+}
+
+export interface Gargalo {
+  etapaId: string;
+  nome: string;
+  operacoes: number;
+  pecas: number;
+  horasPlanejadas: number;
+  osAtrasadas: number;
+}
+
+export interface EnvioExterno {
+  opLoteId: string;
+  codigoGrv: string;
+  codigoOp: string;
+  tipoServico: string;
+  numeroLote: number;
+  cliente: string;
+  artigo: string;
+  descricao: string;
+  fornecedor: string | null;
+  quantidade: number | null;
+  enviadoEm: string;
+  diasFora: number;
+  prazoEntrega: string;
+  diasAtePrazo: number;
+}
+
 export interface DashboardData {
   geradoEm: string;
+  indicadores: IndicadoresProducao;
+  gargalos: Gargalo[];
+  enviosExternos: EnvioExterno[];
+  totalOSExternas: number;
   osPorStatus: Record<string, number>;
   osPorStatusLista: Record<string, OSResumo[]>;
   osAtrasadas: OSAtrasada[];
@@ -155,7 +216,8 @@ export interface DashboardData {
 
 export interface ForjaConnectionStatus {
   online: boolean;
-  modo: 'live' | 'mock' | 'erro';
+  /** `sem-acesso`: o perfil do usuário não tem Produção no Business OS. */
+  modo: 'live' | 'sem-conexao' | 'sem-acesso' | 'erro';
   endpoint: string;
   latenciaMs?: number;
   ultimaAtualizacao?: string;

@@ -35,6 +35,7 @@ export function KanbanFabrica({ etapas, termoBusca = '', onCardClick }: Props) {
         card.operador || '',
         card.programador || '',
         card.maquina || '',
+        card.fornecedor || '',
         etapa.nome,
       ]
         .join(' ')
@@ -119,9 +120,16 @@ export function KanbanFabrica({ etapas, termoBusca = '', onCardClick }: Props) {
                         {card.cliente} · {card.artigo}
                       </div>
 
+                      {card.externo && (
+                        <div className="card-externo">
+                          Externo · {card.fornecedor ?? 'fornecedor não informado'}
+                        </div>
+                      )}
+
                       <div className="card-meta">
                         <span>
                           OP {card.codigoOp} · Lote {card.numeroLote}
+                          {card.quantidade > 0 ? ` · ${card.quantidade} pç` : ''}
                         </span>
                         <span style={{ fontWeight: 'var(--fw-bold)', color: corPrazo }}>
                           {isOverdue ? `${Math.abs(card.diasAtePrazo)}d atrasado` : `${card.diasAtePrazo}d`}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { DashboardData, ForjaConnectionStatus, KanbanCard, OSResumo } from '../types';
-import { Button, Callout, Card, Kpi, KpiGrid, Panel, SectionLabel, Status } from '../../../../packages/design-system';
+import { Bar, Button, Card, Kpi, KpiGrid, Panel, SectionLabel, Status } from '../../../../packages/design-system';
 import { PipelineFundicao } from './PipelineFundicao';
 import { KanbanFabrica } from './KanbanFabrica';
 import { ProducaoIcon } from './ProducaoIcon';
@@ -17,8 +17,8 @@ interface Props {
 const LABELS_STATUS: Record<string, { label: string; sub: string; tone: "neutral" | "amber" | "green" | "red" }> = {
   aberta: { label: 'Abertas', sub: 'Aguardando início', tone: 'neutral' },
   em_producao: { label: 'Em produção', sub: 'Em linha ativa', tone: 'amber' },
-  finalizada: { label: 'Finalizadas', sub: 'Concluídas no mês', tone: 'green' },
-  atrasada: { label: 'Atrasadas', sub: 'Prazo vencido', tone: 'red' },
+  finalizada: { label: 'Finalizadas', sub: 'Total registrado no Forja', tone: 'green' },
+  atrasada: { label: 'Atrasadas', sub: 'Prazo vencido, ainda em aberto', tone: 'red' },
   cancelada: { label: 'Canceladas', sub: 'Encerradas', tone: 'neutral' },
 };
 
@@ -37,7 +37,9 @@ export function PainelProducao({
     card?: KanbanCard;
   } | null>(null);
 
-  const horaFormatada = new Date(data.geradoEm || Date.now()).toLocaleTimeString('pt-BR');
+  const horaFormatada = new Date(data.geradoEm).toLocaleTimeString('pt-BR');
+  const { carteira, historico } = data.indicadores;
+  const gargalosAtivos = data.gargalos.filter((g) => g.operacoes > 0 || g.horasPlanejadas > 0);
 
   return (
     <div className="producao-workspace">
@@ -52,20 +54,13 @@ export function PainelProducao({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
           <Status tone={status.online ? 'success' : 'attention'}>
-            {status.online ? 'AO VIVO' : 'CONTINGÊNCIA'}
+            {status.online ? 'AO VIVO' : 'SEM CONEXÃO'}
           </Status>
           <Button variant="secondary" compact onClick={onRefresh} disabled={isRefreshing}>
             <ProducaoIcon name="refresh" size={14} /> {isRefreshing ? 'Atualizando...' : `${countdown}s`}
           </Button>
         </div>
       </div>
-
-      {/* Alerta editorial quando em modo de contingência */}
-      {!status.online && (
-        <Callout variant="warning" title="Conexão com a Forja API em contingência">
-          Exibindo dados sincronizados recentemente. A comunicação com o servidor em <code>{status.endpoint}</code> está temporariamente offline.
-        </Callout>
-      )}
 
       {/* Barra de Busca Rápida */}
       <div className="producao-toolbar">
@@ -113,13 +108,57 @@ export function PainelProducao({
                   label={info.label}
                   caption={info.sub}
                   value={total}
-                  tone={key === 'atrasada' && total > 0 ? 'red' : info.tone}
+                  tone={total > 0 ? info.tone : 'neutral'}
                 />
               </div>
             );
           })}
         </KpiGrid>
       </div>
+
+      {/* Carteira e pontualidade (indicadores do próprio Forja) */}
+      <div>
+        <SectionLabel>Carteira e pontualidade de entrega</SectionLabel>
+        <KpiGrid>
+          <Kpi label="Carteira ativa" caption="OS abertas ou em produção" value={carteira.total} tone={carteira.total > 0 ? 'blue' : 'neutral'} />
+          <Kpi label="Em dia" caption="Dentro do prazo de entrega" value={carteira.emDia} tone={carteira.emDia > 0 ? 'green' : 'neutral'} />
+          <Kpi label="Atrasadas" caption="Prazo vencido, ainda em aberto" value={carteira.atrasadas} tone={carteira.atrasadas > 0 ? 'red' : 'neutral'} />
+          <Kpi
+            label="Pontualidade"
+            caption={historico.total > 0
+              ? `${historico.emDia} de ${historico.total} entregues no prazo · ${historico.dias} dias`
+              : `Nenhuma OS finalizada nos últimos ${historico.dias || 90} dias`}
+            value={historico.pontualidade === null ? '—' : `${historico.pontualidade}%`}
+            tone={historico.pontualidade === null ? 'neutral' : historico.pontualidade >= 90 ? 'green' : 'amber'}
+          />
+        </KpiGrid>
+      </div>
+
+      {/* Gargalos: carga planejada parada em cada etapa */}
+      <Panel
+        title="Gargalos por etapa"
+        subtitle="Horas planejadas das peças que aguardam em cada etapa (tempo unitário × peças disponíveis). Valores em horas."
+        actions={<Status tone="neutral">{gargalosAtivos.length} etapas com carga</Status>}
+      >
+        {gargalosAtivos.length === 0 ? (
+          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: 0 }}>
+            Nenhuma etapa com peças aguardando no momento.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+            {gargalosAtivos.slice(0, 5).map((g) => (
+              <Bar
+                key={g.etapaId}
+                label={g.nome}
+                caption={`${g.operacoes} ${g.operacoes === 1 ? 'operação' : 'operações'} · ${g.pecas} peças${g.osAtrasadas > 0 ? ` · ${g.osAtrasadas} OS atrasada${g.osAtrasadas > 1 ? 's' : ''}` : ''}`}
+                value={g.horasPlanejadas}
+                max={gargalosAtivos[0].horasPlanejadas}
+                tone="blue"
+              />
+            ))}
+          </div>
+        )}
+      </Panel>
 
       {/* 4 Blocos de Alerta Operacional Imediato */}
       <div>
@@ -165,7 +204,7 @@ export function PainelProducao({
             subtitle="Acúmulo de horas improdutivas nas estações de trabalho"
             actions={
               <Status tone="neutral">
-                {Object.keys(data.paradas.porMotivoHoje).length} motivos
+                {Object.keys(data.paradas.porMotivoHoje).length} {Object.keys(data.paradas.porMotivoHoje).length === 1 ? 'motivo' : 'motivos'}
               </Status>
             }
           >
@@ -273,19 +312,19 @@ export function PainelProducao({
             label="Aprovadas"
             caption="Liberadas de primeira sem ressalva"
             value={data.inspecao['aprovado'] ?? 0}
-            tone="green"
+            tone={(data.inspecao['aprovado'] ?? 0) > 0 ? 'green' : 'neutral'}
           />
           <Kpi
             label="Com observações"
             caption="Desvios dimensionais tolerados"
             value={data.inspecao['com_observacoes'] ?? 0}
-            tone="amber"
+            tone={(data.inspecao['com_observacoes'] ?? 0) > 0 ? 'amber' : 'neutral'}
           />
           <Kpi
             label="Reprovadas"
             caption="Refugo ou re-fusão na fundição"
             value={data.inspecao['reprovado'] ?? 0}
-            tone="red"
+            tone={(data.inspecao['reprovado'] ?? 0) > 0 ? 'red' : 'neutral'}
           />
         </KpiGrid>
       </div>
@@ -377,6 +416,22 @@ export function PainelProducao({
                         : `${modal.card.diasAtePrazo} dias restantes`}
                     </strong>
                   </div>
+
+                  {(modal.card.veioDe || modal.card.proxima) && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--sp-3)', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Roteiro</span>
+                      <strong style={{ textAlign: 'right' }}>
+                        {modal.card.veioDe ? `${modal.card.veioDe.estacao} → ` : ''}esta etapa{modal.card.proxima ? ` → ${modal.card.proxima.estacao}` : ''}
+                      </strong>
+                    </div>
+                  )}
+
+                  {modal.card.externo && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Em fornecedor externo</span>
+                      <strong>{modal.card.fornecedor ?? 'Fornecedor não informado'} · {modal.card.quantidade} peças</strong>
+                    </div>
+                  )}
 
                   {modal.card.maquina && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>

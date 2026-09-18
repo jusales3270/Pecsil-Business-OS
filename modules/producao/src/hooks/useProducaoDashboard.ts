@@ -7,7 +7,7 @@ export function useProducaoDashboard(intervaloSegundos = 30) {
   const [data, setData] = useState<DashboardData>(emptyForjaDashboardData);
   const [status, setStatus] = useState<ForjaConnectionStatus>({
     online: false,
-    modo: 'mock',
+    modo: 'sem-conexao',
     endpoint: '/api/forja/dashboard',
   });
   const [loading, setLoading] = useState(true);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateHolidayDraft } from "../../../../../lib/data/rh-holidays";
-import { HOLIDAY_COLUMNS, holidaySession, holidayWriteError, toHoliday } from "../../../../../lib/data/rh-holidays-server";
+import { HOLIDAY_COLUMNS, holidayWriteError, toHoliday } from "../../../../../lib/data/rh-holidays-server";
+import { requireUserSession } from "../../../../../lib/supabase/session";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const { id } = await context.params;
   if (!UUID.test(id)) return notChanged();
 
-  const session = await holidaySession();
+  const session = await requireUserSession();
   if ("error" in session) return session.error;
 
   const parsed = validateHolidayDraft(await request.json().catch(() => null));
@@ -48,7 +49,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   const { id } = await context.params;
   if (!UUID.test(id)) return notChanged();
 
-  const session = await holidaySession();
+  const session = await requireUserSession();
   if ("error" in session) return session.error;
 
   const { data, error } = await session.supabase.from("rh_holidays").delete().eq("id", id).select("id");

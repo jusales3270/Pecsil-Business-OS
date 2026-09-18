@@ -1,93 +1,66 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { ForjaConnectionStatus } from '../types';
 import { Button, Callout, Panel, SectionLabel, Status } from '../../../../packages/design-system';
 
 interface Props {
   status: ForjaConnectionStatus;
+  geradoEm: string;
   onTestPing: () => void;
   isTesting: boolean;
 }
 
-export function ConfiguracaoConexaoSection({ status, onTestPing, isTesting }: Props) {
-  const [copied, setCopied] = useState(false);
+const rotuloModo: Record<ForjaConnectionStatus['modo'], string> = {
+  live: 'Conectado',
+  'sem-conexao': 'Sem conexão',
+  'sem-acesso': 'Sem acesso',
+  erro: 'Erro',
+};
 
-  const copiarEndpoint = () => {
-    navigator.clipboard.writeText(status.endpoint);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+export function ConfiguracaoConexaoSection({ status, geradoEm, onTestPing, isTesting }: Props) {
+  const temDado = status.online && geradoEm && !geradoEm.startsWith('1970');
+
+  const detalhes: [string, React.ReactNode][] = [
+    ['Origem dos dados', status.endpoint],
+    ['Autenticação', 'Conta de integração do Business OS no Forja (papel Chefe)'],
+    ['Latência da última leitura', status.latenciaMs !== undefined ? `${status.latenciaMs} ms` : '—'],
+    ['Dado gerado pelo Forja em', temDado ? new Date(geradoEm).toLocaleString('pt-BR') : '—'],
+    ['Atualização', 'A cada 30 segundos, com cache de 15 segundos no servidor'],
+  ];
 
   return (
     <div className="producao-workspace">
       <div className="page-head">
         <div>
-          <p className="eyebrow">INTEGRAÇÕES & INFRAESTRUTURA</p>
-          <h1>Conexão com Forja API</h1>
-          <p>Parâmetros de comunicação em tempo real entre o Business OS e o backend da fábrica.</p>
+          <p className="eyebrow">INTEGRAÇÕES · FORJA</p>
+          <h1>Conexão com o Forja</h1>
+          <p>O Business OS lê o painel de produção do Forja pela rede interna do servidor. Nada é gravado no Forja.</p>
         </div>
-        <Status tone={status.online ? "success" : "attention"}>
-          {status.online ? "Conectado" : "Contingência"}
-        </Status>
+        <Status tone={status.online ? 'success' : 'attention'}>{rotuloModo[status.modo]}</Status>
       </div>
 
       {!status.online && (
-        <Callout variant="warning" title="Servidor Forja em contingência">
-          O endpoint <code>{status.endpoint}</code> não respondeu no último heartbeat. O Business OS está utilizando a base demonstrativa segura.
+        <Callout variant="warning" title="O Forja não entregou dados">
+          {status.erroMensagem ?? 'Sem resposta do Forja.'} Enquanto isso, a Produção fica vazia: nenhum número é exibido sem vir do Forja.
         </Callout>
       )}
 
       <Panel
-        title="Parâmetros de Conectividade"
-        subtitle="Configuração REST / JWT para consumo de dados em chão de fábrica"
+        title="Parâmetros da integração"
+        subtitle="Leitura somente do painel de produção"
         actions={
           <Button variant="primary" compact onClick={onTestPing} disabled={isTesting}>
-            {isTesting ? "Testando..." : "Testar Conexão (Ping)"}
+            {isTesting ? 'Testando...' : 'Testar conexão'}
           </Button>
         }
       >
-        <SectionLabel>Detalhes Técnicos do Gateway</SectionLabel>
-
+        <SectionLabel>Detalhes</SectionLabel>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 'var(--sp-4)', fontSize: 'var(--fs-xs)' }}>
-          <div>
-            <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-              Endpoint de Integração
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <code style={{ background: 'var(--bg-canvas)', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
-                {status.endpoint}
-              </code>
-              <Button variant="secondary" compact onClick={copiarEndpoint}>
-                {copied ? "✓" : "Copiar"}
-              </Button>
+          {detalhes.map(([rotulo, valor]) => (
+            <div key={rotulo}>
+              <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>{rotulo}</span>
+              <strong style={{ overflowWrap: 'anywhere' }}>{valor}</strong>
             </div>
-          </div>
-
-          <div>
-            <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-              Latência de Comunicação
-            </span>
-            <strong style={{ fontSize: 'var(--fs-md)', fontFamily: 'var(--font-mono, monospace)' }}>
-              {status.latenciaMs !== undefined ? `${status.latenciaMs} ms` : "—"}
-            </strong>
-          </div>
-
-          <div>
-            <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-              Última Sincronização
-            </span>
-            <span>
-              {status.ultimaAtualizacao
-                ? new Date(status.ultimaAtualizacao).toLocaleString("pt-BR")
-                : "Aguardando primeiro ping"}
-            </span>
-          </div>
-
-          <div>
-            <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-              Intervalo de Polling
-            </span>
-            <span>A cada 30 segundos (automático com recarga em segundo plano)</span>
-          </div>
+          ))}
         </div>
       </Panel>
     </div>

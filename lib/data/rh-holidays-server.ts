@@ -2,8 +2,6 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 import type { RhHoliday, RhHolidayScope } from "./rh-holidays";
-import { createSupabaseServerClient } from "../supabase/server";
-import { getSupabaseConfigStatus } from "../supabase/config";
 
 type Row = Record<string, unknown>;
 
@@ -19,19 +17,6 @@ export function toHoliday(row: Row): RhHoliday {
     dayOff: Boolean(row.day_off),
     pendingReview: typeof row.source === "string" && row.source.startsWith("derivado-"),
   };
-}
-
-/** Cliente de sessão do usuário, ou a resposta de erro pronta (sem configuração / sem sessão). */
-export async function holidaySession() {
-  if (!getSupabaseConfigStatus().publicConnectionReady) {
-    return { error: NextResponse.json({ error: "NOT_CONFIGURED" }, { status: 503 }) } as const;
-  }
-  const supabase = await createSupabaseServerClient();
-  const { data: auth, error: authError } = await supabase.auth.getUser();
-  if (authError || !auth.user) {
-    return { error: NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }) } as const;
-  }
-  return { supabase } as const;
 }
 
 /** Traduz erros do PostgREST/Postgres em respostas claras para o formulário. */
