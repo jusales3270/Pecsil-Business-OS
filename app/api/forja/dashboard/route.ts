@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { mockForjaDashboardData } from "@/modules/producao/src/data/mockForjaData";
+import { emptyForjaDashboardData } from "@/modules/producao/src/data/emptyForjaData";
 
 export const dynamic = "force-dynamic";
 
@@ -55,18 +55,18 @@ export async function GET() {
     console.info(`[Forja Proxy] Conexão com Forja offline (${targetUrl}): ${errorMsg}. Utilizando dados locais em fallback.`);
   }
 
-  // Fallback seguro de dados
+  // Sem dado real: devolve vazio e avisa. Nunca dado fictício.
   return NextResponse.json(
     {
       success: true,
-      source: "mock-fallback",
+      source: "sem-conexao",
       endpoint: targetUrl,
-      data: mockForjaDashboardData,
-      warning: "Conexão com a API do Forja não disponível. Exibindo dados de contingência.",
+      data: emptyForjaDashboardData,
+      warning: "Sem conexão com a API do Forja. Nenhum dado de produção disponível.",
     },
     {
       headers: {
-        "X-Forja-Source": "mock-fallback",
+        "X-Forja-Source": "sem-conexao",
         "Cache-Control": "no-cache, no-store, must-revalidate",
       },
     }

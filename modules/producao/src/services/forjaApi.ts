@@ -2,7 +2,7 @@ import type { DashboardData, ForjaConnectionStatus } from '../types';
 
 export interface DashboardApiResponse {
   success: boolean;
-  source: 'live' | 'mock-fallback';
+  source: 'live' | 'sem-conexao';
   endpoint: string;
   data: DashboardData;
   warning?: string;
@@ -44,11 +44,11 @@ export async function fetchForjaDashboard(): Promise<{
     const latenciaMs = Math.round(performance.now() - inicio);
     const erroMensagem = err instanceof Error ? err.message : String(err);
 
-    // Import dinâmico do mock de contingência se a própria rota Next falhar
-    const { mockForjaDashboardData } = await import('../data/mockForjaData');
+    // Painel vazio se a própria rota do Next falhar (nada de dado fictício)
+    const { emptyForjaDashboardData } = await import('../data/emptyForjaData');
 
     return {
-      data: mockForjaDashboardData,
+      data: emptyForjaDashboardData,
       status: {
         online: false,
         modo: 'erro',

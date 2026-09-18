@@ -132,55 +132,24 @@ export type RhSnapshot = {
 
 // Snapshot demonstrativo — o mesmo espírito dos mocks já usados no hr-module,
 // exibido enquanto não há sessão autenticada ou conexão com o Supabase.
+// Sem sessão ou sem conexão: vazio, nunca cadastro fictício.
 export const demoRhSnapshot: RhSnapshot = {
   source: "demo",
   organizationId: null,
   summary: {
-    employees: 248,
-    activeEmployees: 246,
-    pendingAbsences: 4,
-    scheduledVacationDays: 18,
-    sstAlerts: 12,
-    benefitMonthlyCost: 124230,
+    employees: 0,
+    activeEmployees: 0,
+    pendingAbsences: 0,
+    scheduledVacationDays: 0,
+    sstAlerts: 0,
+    benefitMonthlyCost: 0,
   },
-  absences: [
-    { id:"demo-abs-1", employeeName:"Mariana Costa", department:"Recursos Humanos", unit:"Matriz Boituva", type:"vacation", startDate:"2026-08-15", endDate:"2026-08-29", days:15, status:"pending", hasConflict:false, reason:"Período aquisitivo 2025/2026", requestedAt:"14 jul 2026 · 09:18" },
-    { id:"demo-abs-2", employeeName:"Lucas Martins", department:"Produção", unit:"Unidade Industrial", type:"time_bank", startDate:"2026-07-18", endDate:"2026-07-18", days:1, status:"pending", hasConflict:true, reason:"Compensação de banco de horas", requestedAt:"15 jul 2026 · 07:42" },
-    { id:"demo-abs-3", employeeName:"Ana Souza", department:"Administrativo", unit:"Matriz Boituva", type:"medical_certificate", startDate:"2026-07-12", endDate:"2026-07-13", days:2, status:"registered", hasConflict:false, reason:"Atestado médico", requestedAt:"12 jul 2026 · 16:05" },
-    { id:"demo-abs-4", employeeName:"Ricardo Alves", department:"Produção", unit:"Unidade Industrial", type:"vacation", startDate:"2026-09-02", endDate:"2026-09-16", days:15, status:"under_review", hasConflict:true, reason:"Sobreposição com escala", requestedAt:"10 jul 2026 · 11:30" },
-  ],
-  benefitPlans: [
-    { id:"demo-ben-1", name:"Vale-alimentação", category:"food", provider:"Cartão corporativo", monthlyCost:124230, members:246, eligible:246, employeeContribution:"Sem coparticipação", eligibilityRule:"Elegível para todos os colaboradores ativos.", status:"active" },
-    { id:"demo-ben-2", name:"Plano de saúde", category:"health", provider:"Unimed", monthlyCost:98600, members:218, eligible:246, employeeContribution:"Coparticipação de 20%", eligibilityRule:"Adesão voluntária após período de experiência.", status:"active" },
-    { id:"demo-ben-3", name:"Vale-transporte", category:"mobility", provider:"Vale-transporte SP", monthlyCost:41200, members:172, eligible:246, employeeContribution:"Desconto legal de 6%", eligibilityRule:"Conforme deslocamento declarado.", status:"active" },
-  ],
-  benefitRequests: [
-    { id:"demo-req-1", employeeName:"Fernanda Rocha", department:"Qualidade", planName:"Plano de saúde", action:"enroll", status:"pending", reason:"Adesão do titular", effectiveDate:"2026-09-01", requestedAt:"14 jul 2026 · 10:12" },
-    { id:"demo-req-2", employeeName:"Lucas Martins", department:"Produção", planName:"Vale-transporte", action:"cancel", status:"under_review", reason:"Passou a usar transporte próprio", effectiveDate:"2026-08-01", requestedAt:"12 jul 2026 · 08:40" },
-  ],
-  sstRecords: [
-    { id:"demo-sst-1", employeeName:"Equipe Produção", department:"Produção", unit:"Unidade Industrial", category:"exam", title:"ASO periódico próximo do vencimento", dueDate:"2026-08-30", status:"due_soon", risk:"attention", note:"Exame periódico na janela de renovação.", sensitive:true },
-    { id:"demo-sst-2", employeeName:"Célula Usinagem", department:"Produção", unit:"Unidade Industrial", category:"training", title:"NR-12 · reciclagem", dueDate:"2026-07-29", status:"overdue", risk:"critical", note:"Certificado vencido; afastar da atividade.", sensitive:false },
-    { id:"demo-sst-3", employeeName:"Camila Ferreira", department:"Qualidade", unit:"Unidade Industrial", category:"ppe", title:"Entrega de EPI registrada", dueDate:null, status:"compliant", risk:"regular", note:"Entrega confirmada.", sensitive:false },
-  ],
-  documents: [
-    { id:"demo-doc-1", title:"Contrato de trabalho", category:"Admissional", employeeName:"Mariana Costa", version:"1.0", objectPath:"", reviewDueAt:null, signature:"signed", sensitive:false, updatedAt:"14 jul 2026 · 09:20" },
-    { id:"demo-doc-2", title:"ASO admissional", category:"Saúde ocupacional", employeeName:"Lucas Martins", version:"1.0", objectPath:"", reviewDueAt:"2026-12-01", signature:"not_required", sensitive:true, updatedAt:"10 jul 2026 · 15:02" },
-    { id:"demo-doc-3", title:"Termo de benefícios", category:"Contrato e termo", employeeName:"Ana Souza", version:"2.0", objectPath:"", reviewDueAt:null, signature:"pending", sensitive:false, updatedAt:"08 jul 2026 · 11:45" },
-  ],
-  departmentShares: [
-    { name:"Produção", people:96, percentage:39 },
-    { name:"Manutenção", people:24, percentage:10 },
-    { name:"Administrativo", people:22, percentage:9 },
-    { name:"Qualidade", people:18, percentage:7 },
-    { name:"Demais áreas", people:86, percentage:35 },
-  ],
-  employees: [
-    { id:"demo-emp-1", name:"Mariana Costa", department:"Recursos Humanos", unit:"Matriz Boituva" },
-    { id:"demo-emp-2", name:"Lucas Martins", department:"Produção", unit:"Unidade Industrial" },
-    { id:"demo-emp-3", name:"Ana Souza", department:"Administrativo", unit:"Matriz Boituva" },
-    { id:"demo-emp-4", name:"Ricardo Alves", department:"Produção", unit:"Unidade Industrial" },
-    { id:"demo-emp-5", name:"Camila Ferreira", department:"Qualidade", unit:"Unidade Industrial" },
-  ],
+  absences: [],
+  benefitPlans: [],
+  benefitRequests: [],
+  sstRecords: [],
+  documents: [],
+  departmentShares: [],
+  employees: [],
   loadedAt: new Date(0).toISOString(),
 };

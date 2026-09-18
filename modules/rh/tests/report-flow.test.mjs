@@ -4,23 +4,17 @@ import test from "node:test";
 
 const source = readFileSync(new URL("../../../app/components/hr-module.tsx", import.meta.url), "utf8");
 
-test("rh possui painel, biblioteca e catálogo de métricas", () => {
-  assert.match(source, /Painel executivo/);
-  assert.match(source, /Catálogo de métricas/);
-  assert.match(source, /Biblioteca gerencial/i);
-  assert.match(source, /hrMetricCatalog/);
+// Os indicadores dependem de ponto, benefícios e SST com registros reais. Até
+// lá a seção declara isso; antes exibia gráficos e métricas inventados.
+test("rh: relatórios declaram a origem pendente em vez de indicadores fictícios", () => {
+  assert.match(source, /Nenhum indicador disponível/);
+  assert.match(source, /a partir do ponto, dos benefícios e da SST/);
+  assert.doesNotMatch(source, /hrMetricCatalog|Catálogo de métricas|Painel executivo/);
 });
 
-test("relatórios respeitam escopo e permissões", () => {
-  assert.match(source, /hasPermission\(access,"rh\.export"\)/);
-  assert.match(source, /hasPermission\(access,"rh\.create"\)/);
-  assert.match(source, /Escopo aplicado/);
-  assert.match(source, /nunca poderá consultar dados além das permissões/);
-});
-
-test("indicadores estão preparados para inteligência corporativa", () => {
-  assert.match(source, /Preparado para o Jarvis Business/);
-  assert.match(source, /domínio, origem e frequência/);
-  assert.match(source, /ReportDrawer/);
-  assert.match(source, /ReportForm/);
+test("rh: nenhuma tela do módulo mostra colaborador fictício", () => {
+  for (const nome of ["Mariana Costa", "Lucas Martins", "Camila Ferreira", "Ricardo Alves", "Ana Souza"]) {
+    assert.doesNotMatch(source, new RegExp(nome));
+  }
+  assert.doesNotMatch(source, /Matriz Boituva|Unidade Industrial/);
 });

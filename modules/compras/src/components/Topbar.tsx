@@ -98,7 +98,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
             <button
               type="button"
               onClick={() => {
-                login('ORCAMENTISTA', user?.name || 'Júnior Sales');
+                login('ORCAMENTISTA', user?.name || 'Orçamentista');
                 setPage('dashboard');
               }}
               className={`px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all ${
@@ -112,7 +112,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
             <button
               type="button"
               onClick={() => {
-                login('GESTOR', user?.name || 'Júnior Sales');
+                login('GESTOR', user?.name || 'Gestor');
                 setPage('dashboard');
               }}
               className={`px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all ${

@@ -16,15 +16,19 @@ export type ModuleAccessContext = {
   }[];
 };
 
+/**
+ * Identidade de espera: usada só enquanto /api/me responde, ou quando o servidor
+ * de identidade está inacessível. Não concede nada e não inventa nome.
+ */
 export const demoOwnerAccess: ModuleAccessContext = {
-  userId: "demo-owner",
-  name: "Júnior Sales",
-  initials: "JS",
-  role: "Proprietário",
-  roleCode: "owner",
-  scopeLabel: "Toda a empresa",
-  permissions: ["*"],
-  scopes: [{ type:"company" }],
+  userId: "",
+  name: "Carregando conta…",
+  initials: "--",
+  role: "Sem perfil",
+  roleCode: null,
+  scopeLabel: "Escopo não carregado",
+  permissions: [],
+  scopes: [],
 };
 
 export { hasAnyPermission, hasPermission };

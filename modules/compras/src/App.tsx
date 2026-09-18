@@ -52,7 +52,7 @@ export default function ComprasApp({ access, onExit }: ComprasAppProps) {
     if (isOwner) {
       // Proprietário tem acesso a ambas as visões, inicia como orçamentista ou mantém a selecionada
       if (!user) {
-        login('ORCAMENTISTA', 'Júnior Sales');
+        login('ORCAMENTISTA', access?.name ?? 'Orçamentista');
       }
     } else if (isManager) {
       // Perfil Gestor isolado

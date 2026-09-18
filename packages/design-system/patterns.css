@@ -2215,7 +2215,7 @@ i.info                 { background: var(--accent-blue); }
 .ds-card > button,
 .ds-card > section,
 .ds-card > article,
-.ds-card > div:not(.card-head):not(.ds-panel-head):not(.notification-filter):not(.journey-table):not(.doc-table):not(.sst-record-table):not(.absence-table):not(.benefit-request-table):not(.report-list):not(.hr-people-table):not(.people-table):not(.document-table):not(.journey-bank-list) > button {
+.ds-card > div:not(.card-head):not(.ds-panel-head):not(.notification-filter):not(.journey-table):not(.doc-table):not(.sst-record-table):not(.absence-table):not(.benefit-request-table):not(.report-list):not(.hr-people-table):not(.people-table):not(.document-table):not(.journey-bank-list):not(.calendar-rows) > button {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
@@ -4816,4 +4816,220 @@ button.holiday-row:hover {
 .card-head > button > svg {
   width: 16px;
   height: 16px;
+}
+
+/* ============================================================================
+   RH · Calendário consolidado de férias e ausências
+
+   As linhas são <button> (a regra genérica de barras só pegava <div>): sem
+   grade, o rótulo colava no cabeçalho e o avatar de iniciais era estilizado
+   como trilho de 8px, sobrepondo o nome.
+   ============================================================================ */
+.absence-calendar .calendar-scale,
+.absence-calendar .calendar-rows > button {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(0, 3fr);
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.absence-calendar .calendar-scale {
+  margin-top: var(--sp-4);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Os três meses ocupam, juntos, a mesma faixa das barras. */
+.absence-calendar .calendar-scale > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-2);
+  text-align: center;
+}
+
+.absence-calendar .calendar-rows {
+  margin-top: var(--sp-2);
+}
+
+.absence-calendar .calendar-rows > button {
+  width: 100%;
+  padding: var(--sp-3) 0;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.absence-calendar .calendar-rows > button:first-child {
+  border-top: none;
+}
+
+.absence-calendar .calendar-rows > button:hover {
+  background: var(--bg-hover);
+}
+
+/* Pessoa: avatar de iniciais + nome/área (não é trilho de barra). */
+.absence-calendar .calendar-rows > button > span:first-child {
+  display: flex;
+  /* A regra genérica de <span> sem classe dentro de cartão empilha em coluna. */
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.absence-calendar .calendar-rows > button > span:first-child > i {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  font-style: normal;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  overflow: visible;
+}
+
+.absence-calendar .calendar-rows > button > span:first-child > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.absence-calendar .calendar-rows > button > span:first-child b,
+.absence-calendar .calendar-rows > button > span:first-child small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Faixa do trimestre com a barra do período posicionada por data. */
+.absence-calendar .calendar-rows > button > em {
+  position: relative;
+  display: block;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--data-track);
+}
+
+.absence-calendar .calendar-rows > button > em > i {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  min-width: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-blue);
+  cursor: help;
+}
+
+.absence-calendar .calendar-rows > button > em > i.conflict {
+  background: var(--accent-amber);
+}
+
+@media (max-width: 720px) {
+  .absence-calendar .calendar-scale,
+  .absence-calendar .calendar-rows > button {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--sp-2);
+  }
+
+  .absence-calendar .calendar-scale > div {
+    grid-column: 1;
+  }
+}
+
+/* ============================================================================
+   Formulários em camada — alinhamento dos campos
+
+   Os rótulos apareciam centralizados e os seletores estreitos (texto do
+   colaborador cortado no formulário de documento). Vale para todos os
+   formulários dos módulos, não só o de feriados.
+   ============================================================================ */
+.finance-form-fields,
+.employee-fields,
+.absence-form-fields,
+.benefit-form-fields,
+.doc-form-fields,
+.journey-form-fields,
+.sst-form-fields,
+.report-form-fields,
+.user-admin-fields {
+  text-align: left;
+}
+
+.finance-form-fields label,
+.employee-fields label,
+.absence-form-fields label,
+.benefit-form-fields label,
+.doc-form-fields label,
+.journey-form-fields label,
+.sst-form-fields label,
+.report-form-fields label,
+.user-admin-fields label {
+  align-items: stretch;
+  text-align: left;
+}
+
+:is(.finance-form-fields, .employee-fields, .absence-form-fields, .benefit-form-fields, .doc-form-fields, .journey-form-fields, .sst-form-fields, .report-form-fields, .user-admin-fields) :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Caixa de seleção: rótulo ao lado, alinhado ao campo vizinho. */
+:is(.finance-form-fields, .employee-fields, .absence-form-fields, .benefit-form-fields, .doc-form-fields, .journey-form-fields, .sst-form-fields, .report-form-fields, .user-admin-fields) label:has(> input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: center;
+  align-self: end;
+  gap: var(--sp-2);
+  min-height: 40px;
+  color: var(--text-primary);
+}
+
+/* Campo de arquivo: fica com a mesma moldura dos outros campos. */
+:is(.doc-form-fields, .employee-fields, .sst-form-fields) input[type="file"] {
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+/* Legenda do calendário: marcador pequeno (o <i> sem classe herdava a caixa
+   de avatar de 34px). */
+.absence-calendar .calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+  margin-top: var(--sp-4);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.absence-calendar .calendar-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.absence-calendar .calendar-legend > span > i {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-blue);
+}
+
+.absence-calendar .calendar-legend > span:last-child > i {
+  background: var(--accent-amber);
 }

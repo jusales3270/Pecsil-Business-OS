@@ -71,7 +71,30 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
     access.roleCode === "owner" ||
     access.roleCode === "director";
 
+  const semConexao = !status.online;
+
   const renderSection = () => {
+    // Sem a API do Forja não há produção para mostrar. Só a aba de conexão
+    // continua útil (testar e ver o endereço configurado).
+    if (semConexao && section !== "Conexão Forja") {
+      return (
+        <div className="producao-workspace">
+          <div className="page-head">
+            <div>
+              <p className="eyebrow">PRODUÇÃO · {section.toUpperCase()}</p>
+              <h1>{section}</h1>
+              <p>Dados vindos da API do Forja.</p>
+            </div>
+            <Status tone="attention">Sem conexão</Status>
+          </div>
+          <div className="producao-empty">
+            <b>Sem conexão com a API do Forja</b>
+            <small>{status.erroMensagem ?? `Endpoint configurado: ${status.endpoint}`}</small>
+            <Button variant="secondary" compact onClick={() => setSection("Conexão Forja")}>Ver conexão</Button>
+          </div>
+        </div>
+      );
+    }
     switch (section) {
       case "Painel":
         return (

@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { DashboardData, ForjaConnectionStatus } from '../types';
 import { fetchForjaDashboard } from '../services/forjaApi';
-import { mockForjaDashboardData } from '../data/mockForjaData';
+import { emptyForjaDashboardData } from '../data/emptyForjaData';
 
 export function useProducaoDashboard(intervaloSegundos = 30) {
-  const [data, setData] = useState<DashboardData>(mockForjaDashboardData);
+  const [data, setData] = useState<DashboardData>(emptyForjaDashboardData);
   const [status, setStatus] = useState<ForjaConnectionStatus>({
     online: false,
     modo: 'mock',

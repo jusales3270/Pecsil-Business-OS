@@ -37,14 +37,6 @@ type EmployeeRecord = Person & {
   documentStatus: "Completo" | "Pendente";
 };
 
-const employeeDetails: Record<string, Partial<EmployeeRecord>> = {
-  "junior.sales@pecsil.com.br": { registration: "0001", cpf: "***.782.***-**", phone: "(15) 99742-1180", admissionDate: "2012-03-05", contractType: "Sócio-administrador", manager: "—", team: "Diretoria", schedule: "Executiva", documentStatus: "Completo" },
-  "mariana.costa@pecsil.com.br": { registration: "0148", cpf: "***.451.***-**", phone: "(15) 99128-4406", admissionDate: "2021-08-16", contractType: "CLT", manager: "Júnior Sales", team: "Gestão de Pessoas", schedule: "Administrativo", documentStatus: "Completo" },
-  "ricardo.alves@pecsil.com.br": { registration: "0032", cpf: "***.963.***-**", phone: "(15) 99810-2231", admissionDate: "2016-02-01", contractType: "CLT", manager: "Júnior Sales", team: "Gestão Industrial", schedule: "Administrativo", documentStatus: "Completo" },
-  "camila.ferreira@pecsil.com.br": { registration: "0194", cpf: "***.210.***-**", phone: "(15) 99642-7750", admissionDate: "2023-04-10", contractType: "CLT", manager: "Ricardo Alves", team: "Inspeção Final", schedule: "Turno A", documentStatus: "Completo" },
-  "lucas.martins@pecsil.com.br": { registration: "0207", cpf: "***.507.***-**", phone: "(15) 99731-8854", admissionDate: "2024-01-22", contractType: "CLT", manager: "Ricardo Alves", team: "Usinagem · Turno A", schedule: "Turno A", documentStatus: "Pendente" },
-  "ana.souza@pecsil.com.br": { registration: "0126", cpf: "***.844.***-**", phone: "(15) 99845-1202", admissionDate: "2020-09-14", contractType: "CLT", manager: "Mariana Costa", team: "Serviços Administrativos", schedule: "Administrativo", documentStatus: "Pendente" },
-};
 
 function toEmployee(person: Person): EmployeeRecord {
   // Dados reais (têm id do banco): nada de detalhes fictícios. O que o cadastro
@@ -74,7 +66,6 @@ function toEmployee(person: Person): EmployeeRecord {
     team: "Não definida",
     schedule: "Administrativo",
     documentStatus: "Pendente",
-    ...employeeDetails[person.email],
   };
 }
 
@@ -83,22 +74,6 @@ function personKey(person: Pick<Person, "id" | "email">) {
   return person.id ?? person.email;
 }
 
-type JourneyStatus = "Regular" | "Pendente" | "Em análise" | "Ajustado" | "Ausência";
-type JourneyRecord = {
-  id: number;
-  employee: string;
-  initials: string;
-  department: string;
-  unit: string;
-  date: string;
-  schedule: string;
-  punches: string[];
-  worked: string;
-  balanceMinutes: number;
-  status: JourneyStatus;
-  issue: string | null;
-  reason: string;
-};
 
 type BenefitPlan = {
   id: number;
@@ -151,23 +126,9 @@ type HrDocumentRecord = {
   updatedAt: string;
 };
 
-const initialHrDocuments: HrDocumentRecord[] = [
-  { id:1,employee:"Lucas Martins",initials:"LM",department:"Produção",category:"Admissional",title:"Comprovante de residência",fileName:"comprovante-residencia-lucas.pdf",version:1,validUntil:"2026-07-28",status:"A vencer",signature:"Não exigida",sensitive:false,updatedAt:"15 jul 2026 · 07:48" },
-  { id:2,employee:"Mariana Costa",initials:"MC",department:"Recursos Humanos",category:"Contrato e termo",title:"Termo de alteração contratual",fileName:"termo-alteracao-mariana.pdf",version:2,validUntil:null,status:"Pendente",signature:"Assinatura pendente",sensitive:false,updatedAt:"14 jul 2026 · 16:20" },
-  { id:3,employee:"Camila Ferreira",initials:"CF",department:"Qualidade",category:"Treinamento",title:"Certificado NR-12",fileName:"certificado-nr12-camila.pdf",version:1,validUntil:"2027-07-29",status:"Válido",signature:"Não exigida",sensitive:false,updatedAt:"13 jul 2026 · 10:14" },
-  { id:4,employee:"Ana Souza",initials:"AS",department:"Administrativo",category:"Saúde ocupacional",title:"ASO periódico",fileName:"aso-periodico-ana.pdf",version:3,validUntil:"2026-09-14",status:"Válido",signature:"Assinado",sensitive:true,updatedAt:"12 jul 2026 · 11:02" },
-  { id:5,employee:"Ricardo Alves",initials:"RA",department:"Produção",category:"Férias e ausência",title:"Aviso de férias",fileName:"aviso-ferias-ricardo.pdf",version:1,validUntil:null,status:"Pendente",signature:"Assinatura pendente",sensitive:false,updatedAt:"10 jul 2026 · 09:35" },
-  { id:6,employee:"Paulo Mendes",initials:"PM",department:"Manutenção",category:"Treinamento",title:"Certificado NR-35",fileName:"certificado-nr35-paulo.pdf",version:1,validUntil:"2026-07-18",status:"Expirado",signature:"Não exigida",sensitive:false,updatedAt:"08 jul 2026 · 14:11" },
-];
+const initialHrDocuments: HrDocumentRecord[] = [];
 
-const initialSstRecords: SstRecord[] = [
-  { id:1,employee:"Lucas Martins",initials:"LM",department:"Produção",unit:"Unidade Industrial",category:"Exame",title:"ASO periódico",dueDate:"2026-07-22",status:"A vencer",risk:"Atenção",document:"Agendamento pendente",note:"Exame periódico dentro da janela de renovação.",sensitive:true },
-  { id:2,employee:"Camila Ferreira",initials:"CF",department:"Qualidade",unit:"Unidade Industrial",category:"Treinamento",title:"NR-12 · Segurança em máquinas",dueDate:"2026-07-29",status:"Programado",risk:"Regular",document:"Turma confirmada",note:"Treinamento de reciclagem programado.",sensitive:false },
-  { id:3,employee:"Paulo Mendes",initials:"PM",department:"Manutenção",unit:"Unidade Industrial",category:"Treinamento",title:"NR-35 · Trabalho em altura",dueDate:"2026-07-18",status:"Vencido",risk:"Crítico",document:"Certificado vencido",note:"Colaborador deve permanecer fora da atividade até regularização.",sensitive:false },
-  { id:4,employee:"Ricardo Alves",initials:"RA",department:"Produção",unit:"Unidade Industrial",category:"EPI",title:"Entrega de protetor auricular",dueDate:"2026-07-16",status:"Em análise",risk:"Atenção",document:"Assinatura pendente",note:"Entrega registrada, aguardando confirmação do colaborador.",sensitive:false },
-  { id:5,employee:"Ana Souza",initials:"AS",department:"Administrativo",unit:"Matriz Boituva",category:"Exame",title:"ASO periódico",dueDate:"2026-09-14",status:"Conforme",risk:"Regular",document:"Documento válido",note:"Registro ocupacional vigente.",sensitive:true },
-  { id:6,employee:"Mariana Costa",initials:"MC",department:"Recursos Humanos",unit:"Matriz Boituva",category:"Ocorrência",title:"Investigação de quase acidente",dueDate:"2026-07-20",status:"Em análise",risk:"Atenção",document:"Plano de ação aberto",note:"Ocorrência sem afastamento, em investigação preventiva.",sensitive:true },
-];
+const initialSstRecords: SstRecord[] = [];
 type BenefitRequestStatus = "Pendente" | "Em análise" | "Aprovada" | "Reprovada";
 type BenefitRequest = {
   id: number;
@@ -183,28 +144,10 @@ type BenefitRequest = {
   reason: string;
 };
 
-const initialBenefitPlans: BenefitPlan[] = [
-  { id:1,name:"Vale-alimentação",category:"Alimentação",icon:"card",members:246,eligible:246,monthlyCost:124230,employeeContribution:"Sem coparticipação",status:"Ativo",rule:"Elegível para todos os colaboradores ativos.",provider:"Cartão corporativo" },
-  { id:2,name:"Assistência médica",category:"Saúde",icon:"heart",members:218,eligible:246,monthlyCost:96410,employeeContribution:"Coparticipação por utilização",status:"Ativo",rule:"Adesão do titular e dependentes conforme política vigente.",provider:"Plano empresarial regional" },
-  { id:3,name:"Vale-transporte",category:"Mobilidade",icon:"bus",members:142,eligible:246,monthlyCost:31860,employeeContribution:"Desconto legal aplicável",status:"Ativo",rule:"Adesão opcional mediante declaração de necessidade.",provider:"Operadoras municipais" },
-  { id:4,name:"Seguro de vida",category:"Proteção",icon:"shield",members:246,eligible:246,monthlyCost:8730,employeeContribution:"Integralmente custeado pela empresa",status:"Ativo",rule:"Inclusão automática para colaboradores ativos.",provider:"Apólice coletiva Pecsil" },
-];
+const initialBenefitPlans: BenefitPlan[] = [];
 
-const initialBenefitRequests: BenefitRequest[] = [
-  { id:1,employee:"Ana Souza",initials:"AS",department:"Administrativo",plan:"Vale-transporte",action:"Adesão",requestedAt:"15 jul 2026 · 08:12",effectiveDate:"2026-08-01",status:"Pendente",reason:"Alteração do trajeto residência–empresa." },
-  { id:2,employee:"Lucas Martins",initials:"LM",department:"Produção",plan:"Assistência médica",action:"Inclusão de dependente",requestedAt:"14 jul 2026 · 15:46",effectiveDate:"2026-08-01",status:"Em análise",reason:"Inclusão de dependente com documentação enviada." },
-  { id:3,employee:"Camila Ferreira",initials:"CF",department:"Qualidade",plan:"Vale-transporte",action:"Cancelamento",requestedAt:"12 jul 2026 · 10:20",effectiveDate:"2026-08-01",status:"Aprovada",reason:"Mudança para transporte próprio." },
-  { id:4,employee:"Mariana Costa",initials:"MC",department:"Recursos Humanos",plan:"Assistência médica",action:"Alteração",requestedAt:"10 jul 2026 · 09:05",effectiveDate:"2026-08-01",status:"Aprovada",reason:"Alteração de acomodação conforme opção disponível." },
-];
+const initialBenefitRequests: BenefitRequest[] = [];
 
-const initialJourneyRecords: JourneyRecord[] = [
-  { id: 1, employee: "Lucas Martins", initials: "LM", department: "Produção", unit: "Unidade Industrial", date: "2026-07-15", schedule: "Turno A · 06:00–14:20", punches: ["05:57","10:02","10:44","14:38"], worked: "8h 39min", balanceMinutes: 19, status: "Pendente", issue: "Saída 18 minutos após a jornada prevista.", reason: "Finalização de lote em produção" },
-  { id: 2, employee: "Camila Ferreira", initials: "CF", department: "Qualidade", unit: "Unidade Industrial", date: "2026-07-15", schedule: "Turno A · 06:00–14:20", punches: ["05:59","10:01","10:42","14:19"], worked: "8h 19min", balanceMinutes: -1, status: "Regular", issue: null, reason: "Marcações regulares" },
-  { id: 3, employee: "Ana Souza", initials: "AS", department: "Administrativo", unit: "Matriz Boituva", date: "2026-07-15", schedule: "Administrativo · 08:00–17:48", punches: ["08:03","12:01","13:00","17:49"], worked: "8h 47min", balanceMinutes: -1, status: "Regular", issue: null, reason: "Marcações regulares" },
-  { id: 4, employee: "Ricardo Alves", initials: "RA", department: "Produção", unit: "Unidade Industrial", date: "2026-07-15", schedule: "Administrativo · 07:30–17:18", punches: ["07:28","12:04","13:02"], worked: "—", balanceMinutes: 0, status: "Pendente", issue: "Marcação de saída não identificada.", reason: "Aguardando justificativa" },
-  { id: 5, employee: "Mariana Costa", initials: "MC", department: "Recursos Humanos", unit: "Matriz Boituva", date: "2026-07-15", schedule: "Administrativo · 08:00–17:48", punches: ["07:56","12:00","13:01","17:54"], worked: "8h 57min", balanceMinutes: 9, status: "Em análise", issue: "Solicitação de ajuste enviada pela colaboradora.", reason: "Reunião de integração após o expediente" },
-  { id: 6, employee: "Paulo Mendes", initials: "PM", department: "Manutenção", unit: "Unidade Industrial", date: "2026-07-15", schedule: "Turno B · 14:00–22:20", punches: [], worked: "—", balanceMinutes: 0, status: "Ausência", issue: "Ausência ainda não justificada.", reason: "Sem justificativa registrada" },
-];
 
 type AbsenceStatus = "Pendente" | "Em análise" | "Aprovada" | "Reprovada" | "Registrado";
 type AbsenceRecord = {
@@ -225,43 +168,10 @@ type AbsenceRecord = {
   conflict: string | null;
 };
 
-const initialAbsences: AbsenceRecord[] = [
-  { id: 1, employee: "Mariana Costa", initials: "MC", type: "Férias", start: "2026-08-15", end: "2026-08-29", days: 15, status: "Pendente", unit: "Matriz Boituva", department: "Recursos Humanos", requestedAt: "14 jul 2026 · 09:18", reason: "Período de descanso anual", balance: 30, conflict: null },
-  { id: 2, employee: "Lucas Martins", initials: "LM", type: "Banco de horas", start: "2026-07-18", end: "2026-07-18", days: 1, status: "Pendente", unit: "Unidade Industrial", department: "Produção", requestedAt: "15 jul 2026 · 07:42", reason: "Compensação de saldo acumulado", balance: 22, conflict: "Dois supervisores do Turno A estarão ausentes nesta data." },
-  { id: 3, employee: "Ana Souza", initials: "AS", type: "Atestado médico", start: "2026-07-12", end: "2026-07-13", days: 2, status: "Registrado", unit: "Matriz Boituva", department: "Administrativo", requestedAt: "12 jul 2026 · 16:05", reason: "Documento médico anexado ao registro", balance: 18, conflict: null },
-  { id: 4, employee: "Ricardo Alves", initials: "RA", type: "Férias", start: "2026-09-02", end: "2026-09-16", days: 15, status: "Em análise", unit: "Unidade Industrial", department: "Produção", requestedAt: "10 jul 2026 · 11:30", reason: "Segundo período do ciclo atual", balance: 15, conflict: "Coincide por 3 dias com parada programada da Produção." },
-  { id: 5, employee: "Camila Ferreira", initials: "CF", type: "Licença", start: "2026-08-04", end: "2026-08-05", days: 2, status: "Aprovada", unit: "Unidade Industrial", department: "Qualidade", requestedAt: "08 jul 2026 · 14:22", reason: "Licença prevista em política interna", balance: 20, conflict: null },
-];
+const initialAbsences: AbsenceRecord[] = [];
 
-type HrReportRecord = {
-  id: number;
-  title: string;
-  category: "Pessoas" | "Jornada" | "Ausências" | "SST" | "Benefícios" | "Documentos";
-  period: string;
-  updatedAt: string;
-  owner: string;
-  status: "Atualizado" | "Atenção" | "Programado";
-  summary: string;
-  insight: string;
-};
 
-const initialHrReports: HrReportRecord[] = [
-  {id:1,title:"Quadro de colaboradores",category:"Pessoas",period:"Julho de 2026",updatedAt:"Hoje · 07:45",owner:"Gestão de Pessoas",status:"Atualizado",summary:"248 colaboradores mapeados, com 246 vínculos ativos.",insight:"Produção concentra 39% do quadro ativo e deve orientar análises de capacidade."},
-  {id:2,title:"Horas extras por unidade",category:"Jornada",period:"Julho de 2026",updatedAt:"Hoje · 07:30",owner:"RH e gestores",status:"Atenção",summary:"312 horas extras acumuladas no mês, 18% acima de junho.",insight:"O Turno A da Produção responde por 46% do aumento observado."},
-  {id:3,title:"Férias previstas",category:"Ausências",period:"Próximos 90 dias",updatedAt:"Ontem · 16:20",owner:"Gestão de Pessoas",status:"Atualizado",summary:"18 períodos programados e 2 solicitações aguardando decisão.",insight:"Há uma sobreposição de liderança na Produção durante a parada programada."},
-  {id:4,title:"Vencimentos de SST",category:"SST",period:"Próximos 60 dias",updatedAt:"Hoje · 06:55",owner:"SST",status:"Atenção",summary:"12 ASOs e 9 treinamentos entram na janela de renovação.",insight:"Uma certificação NR-35 está expirada e bloqueia atividade de risco."},
-  {id:5,title:"Custo estimado de benefícios",category:"Benefícios",period:"Julho de 2026",updatedAt:"Ontem · 17:10",owner:"RH e Financeiro",status:"Atualizado",summary:"Custo mensal estimado de R$ 261.230 para o quadro elegível.",insight:"Assistência médica representa 37% do custo mensal estimado."},
-  {id:6,title:"Integridade documental",category:"Documentos",period:"Posição atual",updatedAt:"Hoje · 07:48",owner:"Gestão de Pessoas",status:"Atenção",summary:"96% dos cadastros funcionais estão documentalmente completos.",insight:"Dois documentos aguardam conferência e duas assinaturas estão pendentes."},
-];
 
-const hrMetricCatalog = [
-  {name:"Headcount ativo",domain:"Pessoas",value:"246",description:"Vínculos ativos no fechamento do período.",source:"Cadastro mestre",frequency:"Tempo real"},
-  {name:"Taxa de presença",domain:"Jornada",value:"97,8%",description:"Colaboradores presentes sobre o quadro previsto.",source:"Ponto e jornada",frequency:"Diária"},
-  {name:"Horas extras",domain:"Jornada",value:"312h",description:"Horas realizadas além da jornada contratada.",source:"Banco de horas",frequency:"Diária"},
-  {name:"Absenteísmo",domain:"Ausências",value:"2,2%",description:"Horas de ausência sobre as horas previstas.",source:"Ausências",frequency:"Mensal"},
-  {name:"Conformidade SST",domain:"SST",value:"96%",description:"Obrigações vigentes sobre registros aplicáveis.",source:"Saúde e segurança",frequency:"Diária"},
-  {name:"Integridade documental",domain:"Documentos",value:"96%",description:"Cadastros com documentação obrigatória completa.",source:"Documentos",frequency:"Tempo real"},
-];
 
 export function HrModule({
   people,
@@ -336,15 +246,14 @@ export function HrModule({
   </div>;
 }
 
-function EmployeeSelfService({ section, notify }: { section: HrSection; notify: (message: string) => void }) {
-  if (section === "Ponto e jornada") return <><SectionHead eyebrow="MEU RH · JORNADA" title="Meu ponto" description="Marcações, saldo e solicitações vinculadas somente ao seu cadastro." action="Solicitar ajuste" notify={notify}/><KpiGrid><HrStat value="8h 47min" label="Jornada hoje" meta="4 marcações" icon="clock" tone="blue"/><HrStat value="+8h 12min" label="Banco de horas" meta="Saldo pessoal" icon="check" tone="green"/><HrStat value="0" label="Pendências" meta="Espelho regular" icon="shield" tone="purple"/><HrStat value="18 jul" label="Fechamento" meta="Conferência mensal" icon="calendar" tone="orange"/></KpiGrid><Card className="journey-self-card"><div className="card-head"><div><p className="eyebrow">MARCAÇÕES DE HOJE</p><h2>Quarta-feira, 15 de julho</h2><p>Jornada administrativa · 08:00–17:48</p></div><Status tone="success">Regular</Status></div><div className="journey-punch-line">{[["Entrada","08:03"],["Início intervalo","12:01"],["Fim intervalo","13:00"],["Saída","17:49"]].map(([label,time],index)=><div key={label}><i>{index+1}</i><span><small>{label}</small><b>{time}</b></span></div>)}</div><div className="journey-self-summary"><span><small>Horas trabalhadas</small><b>8h 47min</b></span><span><small>Saldo do dia</small><b>-1min</b></span><button onClick={()=>notify("Espelho mensal pessoal aberto.")}>Ver espelho mensal <HrIcon name="arrow"/></button></div></Card></>;
-  if (section === "Saúde e segurança") return <><div className="page-head hr-page-head"><div><p className="eyebrow">MEU RH · SST</p><h1>Minha saúde e segurança</h1><p>Validades e obrigações ocupacionais limitadas ao seu próprio cadastro.</p></div></div><KpiGrid><HrStat value="Válido" label="ASO periódico" meta="Até 14 set 2026" icon="heart" tone="green"/><HrStat value="2" label="Treinamentos" meta="Certificados vigentes" icon="shield" tone="blue"/><HrStat value="4" label="EPIs registrados" meta="Entregas confirmadas" icon="check" tone="purple"/><HrStat value="0" label="Pendências" meta="Situação regular" icon="alert" tone="green"/></KpiGrid><Card className="sst-self-card"><div className="card-head"><div><p className="eyebrow">MEUS REGISTROS</p><h2>Obrigações ocupacionais</h2><p>Resultados clínicos não são exibidos nesta área.</p></div><Status tone="success">Acesso pessoal</Status></div>{[["ASO periódico","Válido até 14/09/2026","Conforme","heart"],["NR-12 · Segurança em máquinas","Válido até 29/07/2027","Conforme","shield"],["Integração de segurança","Concluído em 22/01/2024","Conforme","check"]].map(([title,meta,status,icon])=><button key={title} onClick={()=>notify(`${title}: comprovante pessoal aberto.`)}><span><HrIcon name={icon}/></span><span><b>{title}</b><small>{meta}</small></span><Status tone="success">{status}</Status><HrIcon name="arrow"/></button>)}</Card></>;
-  if (section === "Férias e ausências") return <><SectionHead eyebrow="MEU RH · FÉRIAS" title="Minhas férias e ausências" description="Solicitações e saldos vinculados somente ao seu cadastro." action="Nova solicitação" notify={notify}/><KpiGrid><HrStat value="18 dias" label="Saldo disponível" meta="Período atual" icon="calendar" tone="blue"/><HrStat value="0" label="Em aprovação" meta="Nenhuma pendência" icon="clock" tone="green"/><HrStat value="04 nov" label="Próximo período" meta="Aquisitivo" icon="check" tone="purple"/><HrStat value="2" label="Ausências no ano" meta="Ambas justificadas" icon="heart" tone="orange"/></KpiGrid><Card className="hr-table-card"><div className="card-head"><div><p className="eyebrow">MEU HISTÓRICO</p><h2>Movimentações pessoais</h2></div><Status tone="success">Privado</Status></div><div className="hr-simple-table">{[["Atestado médico","12 jul — 13 jul","Registrado"],["Férias","05 fev — 19 fev","Concluída"]].map(row=><button key={row[0]} onClick={()=>notify(`${row[0]}: detalhe pessoal aberto.`)}><span className="primary">{row[0]}</span><span>{row[1]}</span><Status tone="success">{row[2]}</Status><HrIcon name="arrow"/></button>)}</div></Card></>;
-  if (section === "Benefícios") return <><SectionHead eyebrow="MEU RH · BENEFÍCIOS" title="Meus benefícios" description="Coberturas e adesões disponíveis no seu vínculo." action="Solicitar alteração" notify={notify}/><div className="hr-benefit-grid">{[["Vale-alimentação","Ativo","Crédito em 01 ago"],["Assistência médica","Ativo","Plano empresarial"],["Vale-transporte","Não aderido","Adesão opcional"],["Seguro de vida","Ativo","Cobertura vigente"]].map(([name,status,meta],index)=><Card key={name}><span className={`hr-benefit-icon benefit-${index}`}><HrIcon name={index===1?"heart":index===2?"bus":"shield"}/></span><Status tone={status==="Ativo"?"success":"neutral"}>{status}</Status><h2>{name}</h2><p>{meta}</p><button onClick={()=>notify(`${name}: detalhes pessoais abertos.`)}>Ver detalhes <HrIcon name="arrow"/></button></Card>)}</div></>;
-  if (section === "Documentos") return <><SectionHead eyebrow="MEU RH · DOCUMENTOS" title="Meus documentos" description="Arquivos pessoais autorizados e protegidos pelo seu escopo." action="Enviar documento" notify={notify}/><div className="hr-document-grid">{[["Contrato de trabalho","Assinado","Válido"],["Documento de identidade","Atualizado","Válido"],["Comprovante de residência","Enviado em jun/26","Válido"],["Termo de benefícios","Assinatura pendente","Pendente"]].map(([name,meta,status])=><Card key={name}><span><HrIcon name="file"/></span><div><h2>{name}</h2><p>{meta}</p><small>{status}</small></div><button onClick={()=>notify(`${name}: visualização pessoal aberta.`)}><HrIcon name="arrow"/></button></Card>)}</div></>;
-  return <><div className="page-head hr-page-head"><div><p className="eyebrow">RECURSOS HUMANOS · AUTOSSERVIÇO</p><h1>Meu RH</h1><p>Informações e solicitações limitadas ao seu próprio cadastro.</p></div></div><KpiGrid><HrStat value="18 dias" label="Saldo de férias" meta="Disponível" icon="calendar" tone="blue"/><HrStat value="8h" label="Banco de horas" meta="Saldo pessoal" icon="clock" tone="green"/><HrStat value="3" label="Benefícios ativos" meta="1 opção disponível" icon="heart" tone="purple"/><HrStat value="1" label="Documento pendente" meta="Assinatura necessária" icon="file" tone="orange"/></KpiGrid><div className="hr-dashboard-grid"><Card className="hr-pending-card"><div className="card-head"><div><p className="eyebrow">MINHAS PENDÊNCIAS</p><h2>Ações pessoais</h2></div><Status tone="attention">1 pendência</Status></div><div className="hr-pending-list"><button onClick={()=>notify("Termo de benefícios aberto para assinatura.")}><span className="hr-list-icon"><HrIcon name="file"/></span><span><b>Assinar termo de benefícios</b><small>Prazo: 22 de julho</small></span><Status tone="attention">Documento</Status><HrIcon name="arrow"/></button></div></Card><Card className="hr-calendar-card"><div className="card-head"><div><p className="eyebrow">PRÓXIMOS EVENTOS</p><h2>Minha agenda</h2></div></div>{[["18","JUL","Fechamento do ponto","Conferir marcações"],["04","NOV","Novo período de férias","18 dias disponíveis"]].map(([day,month,title,meta])=><div key={title}><time><b>{day}</b><small>{month}</small></time><span><b>{title}</b><small>{meta}</small></span></div>)}</Card></div></>;
+function EmployeeSelfService({ section }: { section: HrSection; notify: (message: string) => void }) {
+  // O autosserviço mostrava saldos, benefícios e documentos inventados. Passa a
+  // ter conteúdo quando o colaborador tiver conta vinculada e registros próprios.
+  return <>
+    <div className="page-head hr-page-head"><div><p className="eyebrow">RECURSOS HUMANOS · AUTOSSERVIÇO</p><h1>Meu RH</h1><p>Informações e solicitações limitadas ao seu próprio cadastro.</p></div></div>
+    <HrEmpty icon="users" title={`Sem registros em ${section.toLowerCase()}`} description="Seus dados aparecerão aqui quando o RH vincular sua conta ao cadastro funcional e lançar os registros."/>
+  </>;
 }
-
 type PendingItem = { key: string; title: string; meta: string; type: string; tone: "attention" | "danger" | "info"; icon: string; section: HrSection };
 
 const absenceTypeLabel: Record<RhAbsence["type"], string> = {
@@ -549,7 +458,7 @@ function HrDashboard({ people, summary, rh, setSection, notify, access, canCreat
   // Pendências reais: ausências aguardando decisão + SST vencido/a vencer.
   const pending = buildPendingItems(rh);
   return <>
-    <div className="page-head hr-page-head"><div><p className="eyebrow">RECURSOS HUMANOS · {access.role.toUpperCase()}</p><h1>{access.role === "Colaborador" ? "Meu RH" : "Gestão de pessoas"}</h1><p>{access.role === "Colaborador" ? "Solicitações, benefícios e documentos limitados ao seu próprio cadastro." : `Indicadores e rotinas autorizados para ${access.scopeLabel.toLowerCase()}.`}</p></div>{canCreate&&<Button onClick={() => { requestCreate(); setSection("Colaboradores"); }}><HrIcon name="plus"/> Novo colaborador</Button>}</div>
+    <div className="page-head hr-page-head"><div><p className="eyebrow">RECURSOS HUMANOS · {access.role.toUpperCase()}</p><h1>{access.role === "Colaborador" ? "Meu RH" : "Gestão de pessoas"}</h1><p>{access.role === "Colaborador" ? "Solicitações, benefícios e documentos limitados ao seu próprio cadastro." : `Indicadores e rotinas autorizados no seu escopo: ${access.scopeLabel}.`}</p></div>{canCreate&&<Button onClick={() => { requestCreate(); setSection("Colaboradores"); }}><HrIcon name="plus"/> Novo colaborador</Button>}</div>
     <KpiGrid>
       <HrStat value={String(rh.summary.employees)} label="Colaboradores" meta={`${rh.summary.activeEmployees} ativos`} icon="users" tone="blue"/>
       <HrStat value={String(rh.summary.pendingAbsences)} label="Ausências pendentes" meta="Aguardando decisão" icon="clock" tone="orange"/>
@@ -562,7 +471,7 @@ function HrDashboard({ people, summary, rh, setSection, notify, access, canCreat
     </div>
     <div className="hr-dashboard-grid secondary">
       <Card className="hr-recent-people"><div className="card-head"><div><p className="eyebrow">CADASTRO MESTRE</p><h2>Colaboradores recentes</h2></div><button onClick={() => setSection("Colaboradores")}>Ver todos <HrIcon name="arrow"/></button></div>{[...people].sort((a, b) => String(b.admissionDate ?? "").localeCompare(String(a.admissionDate ?? ""))).slice(0,4).map(person => <div className="hr-recent-person" key={personKey(person)}><span className="person-cell"><i>{person.initials}</i><span><b>{person.name}</b><small>{person.role} · {person.department}</small></span></span><Status tone={person.status === "Ativo" ? "success" : "attention"}>{person.status}</Status></div>)}</Card>
-      <Card className="hr-calendar-card"><div className="card-head"><div><p className="eyebrow">PRÓXIMOS EVENTOS</p><h2>Agenda do RH</h2></div><button onClick={() => setSection("Férias e ausências")}><HrIcon name="calendar"/></button></div>{[["18","JUL","Fechamento do ponto","Todas as unidades"],["22","JUL","Integração de novos colaboradores","Matriz Boituva"],["29","JUL","Treinamento NR-12","Unidade Industrial"]].map(([day,month,title,meta]) => <div key={title}><time><b>{day}</b><small>{month}</small></time><span><b>{title}</b><small>{meta}</small></span></div>)}</Card>
+      <Card className="hr-calendar-card"><div className="card-head"><div><p className="eyebrow">PRÓXIMOS EVENTOS</p><h2>Agenda do RH</h2></div></div><div className="hr-empty"><HrIcon name="calendar" size={26}/><b>Nenhum evento agendado</b><small>Férias aprovadas e vencimentos de SST aparecerão aqui.</small></div></Card>
     </div>
   </>;
 }
@@ -629,7 +538,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
     </div>
     <Card className="hr-table-card"><div className="hr-tools"><label><HrIcon name="search"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, matrícula, cargo ou departamento..."/></label><select value={unit} onChange={event => setUnit(event.target.value)} aria-label="Filtrar unidade"><option>Todas as unidades</option>{Array.from(new Set(allPeople.map(person => person.unit))).sort().map(name => <option key={name}>{name}</option>)}</select><button onClick={() => { setQuery(""); setUnit("Todas as unidades"); }}><HrIcon name="filter"/> Limpar filtros</button></div><div className="hr-people-table"><div className="hr-table-header"><span>Colaborador</span><span>Cargo</span><span>Departamento</span><span>Status</span><span/></div>{visiblePeople.map(person => <button key={personKey(person)} onClick={() => setSelected(person)}><span className="hr-person"><i>{person.initials}</i><span><b>{person.name}</b><small>Matrícula {person.registration}{person.email ? ` · ${person.email}` : ""}</small></span></span><span><b>{person.role}</b><small>{person.unit}</small></span><span>{person.department}</span><Status tone={person.status === "Ativo" ? "success" : person.status === "Pendente" ? "info" : "neutral"}>{person.status}</Status><HrIcon name="arrow"/></button>)}{!visiblePeople.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhum colaborador encontrado</b><small>Ajuste a busca ou a unidade selecionada.</small></div>}</div></Card>
     {selected && <EmployeeDrawer employee={selected} canEdit={canCreate} onClose={() => setSelected(null)} onEdit={() => { setEditing(selected); setSelected(null); }} onStatus={changeStatus}/>} 
-    {(creating || editing) && <EmployeeForm employee={editing} nextRegistration={String(allPeople.length + 1).padStart(4,"0")} onClose={() => { setCreating(false); setEditing(null); onCreateHandled(); }} onSave={saveEmployee}/>} 
+    {(creating || editing) && <EmployeeForm employee={editing} nextRegistration={String(allPeople.length + 1).padStart(4,"0")} units={Array.from(new Set(allPeople.map(person => person.unit).filter(Boolean))).sort()} departments={Array.from(new Set(allPeople.map(person => person.department).filter(Boolean))).sort()} onClose={() => { setCreating(false); setEditing(null); onCreateHandled(); }} onSave={saveEmployee}/>} 
   </>;
 }
 
@@ -657,7 +566,7 @@ function DetailGroup({ title, rows }: { title: string; rows: string[][] }) {
   return <section className="employee-detail-group"><h3>{title}</h3><dl>{rows.map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>;
 }
 
-function EmployeeForm({ employee, nextRegistration, onClose, onSave }: { employee: EmployeeRecord | null; nextRegistration: string; onClose: () => void; onSave: (employee: EmployeeRecord, isNew: boolean) => void }) {
+function EmployeeForm({ employee, nextRegistration, units, departments, onClose, onSave }: { employee: EmployeeRecord | null; nextRegistration: string; units: string[]; departments: string[]; onClose: () => void; onSave: (employee: EmployeeRecord, isNew: boolean) => void }) {
   const isNew = !employee;
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<EmployeeRecord>(() => employee ?? {
@@ -665,8 +574,8 @@ function EmployeeForm({ employee, nextRegistration, onClose, onSave }: { employe
     name: "",
     email: "",
     role: "",
-    department: "Recursos Humanos",
-    unit: "Matriz Boituva",
+    department: "",
+    unit: "",
     profile: "Colaborador",
     status: "Pendente",
     registration: nextRegistration,
@@ -693,7 +602,7 @@ function EmployeeForm({ employee, nextRegistration, onClose, onSave }: { employe
       <div className="employee-stepper">{([[1,"Dados pessoais"],[2,"Vínculo"],[3,"Contato e acesso"]] as [number, string][]).map(([number,label]) => <span className={step >= number ? "active" : ""} key={label}><i>{step > number ? "✓" : number}</i><b>{label}</b></span>)}</div>
       <div className="employee-fields">
         {step === 1 && <><label className="field-wide"><span>Nome completo *</span><input autoFocus value={form.name} onChange={event => update("name",event.target.value)} placeholder="Nome civil do colaborador"/></label><label><span>CPF *</span><input value={form.cpf} onChange={event => update("cpf",event.target.value)} placeholder="000.000.000-00"/></label><label><span>Telefone *</span><input value={form.phone} onChange={event => update("phone",event.target.value)} placeholder="(00) 00000-0000"/></label></>}
-        {step === 2 && <><label><span>Matrícula *</span><input value={form.registration} onChange={event => update("registration",event.target.value)}/></label><label><span>Data de admissão *</span><input type="date" value={form.admissionDate} onChange={event => update("admissionDate",event.target.value)}/></label><label><span>Unidade *</span><select value={form.unit} onChange={event => update("unit",event.target.value)}><option>Matriz Boituva</option><option>Unidade Industrial</option></select></label><label><span>Departamento *</span><select value={form.department} onChange={event => update("department",event.target.value)}><option>Recursos Humanos</option><option>Produção</option><option>Qualidade</option><option>Manutenção</option><option>Administrativo</option><option>Comercial</option><option>Diretoria</option></select></label><label className="field-wide"><span>Cargo *</span><input value={form.role} onChange={event => update("role",event.target.value)} placeholder="Ex.: Analista de Recursos Humanos"/></label><label><span>Tipo de contrato</span><select value={form.contractType} onChange={event => update("contractType",event.target.value)}><option>CLT</option><option>Temporário</option><option>Estágio</option><option>Aprendiz</option><option>Terceirizado</option><option>Sócio-administrador</option></select></label><label><span>Jornada</span><select value={form.schedule} onChange={event => update("schedule",event.target.value)}><option>Administrativo</option><option>Turno A</option><option>Turno B</option><option>Turno C</option><option>Executiva</option></select></label></>}
+        {step === 2 && <><label><span>Matrícula *</span><input value={form.registration} onChange={event => update("registration",event.target.value)}/></label><label><span>Data de admissão *</span><input type="date" value={form.admissionDate} onChange={event => update("admissionDate",event.target.value)}/></label><label><span>Unidade *</span><select value={form.unit} onChange={event => update("unit",event.target.value)}>{units.map(name => <option key={name}>{name}</option>)}</select></label><label><span>Departamento *</span><select value={form.department} onChange={event => update("department",event.target.value)}>{departments.map(name => <option key={name}>{name}</option>)}</select></label><label className="field-wide"><span>Cargo *</span><input value={form.role} onChange={event => update("role",event.target.value)} placeholder="Ex.: Analista de Recursos Humanos"/></label><label><span>Tipo de contrato</span><select value={form.contractType} onChange={event => update("contractType",event.target.value)}><option>CLT</option><option>Temporário</option><option>Estágio</option><option>Aprendiz</option><option>Terceirizado</option><option>Sócio-administrador</option></select></label><label><span>Jornada</span><select value={form.schedule} onChange={event => update("schedule",event.target.value)}><option>Administrativo</option><option>Turno A</option><option>Turno B</option><option>Turno C</option><option>Executiva</option></select></label></>}
         {step === 3 && <><label className="field-wide"><span>E-mail corporativo *</span><input type="email" value={form.email} onChange={event => update("email",event.target.value)} placeholder="nome.sobrenome@pecsil.com.br"/></label><label><span>Equipe</span><input value={form.team} onChange={event => update("team",event.target.value)} placeholder="Equipe de trabalho"/></label><label><span>Gestor responsável</span><input value={form.manager} onChange={event => update("manager",event.target.value)} placeholder="Nome do gestor"/></label><label><span>Situação inicial</span><select value={form.status} onChange={event => update("status",event.target.value)}><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select></label><label><span>Documentação</span><select value={form.documentStatus} onChange={event => update("documentStatus",event.target.value)}><option>Pendente</option><option>Completo</option></select></label><div className="employee-form-note field-wide"><HrIcon name="lock"/><span><b>Acesso separado do vínculo</b><small>O perfil de usuário será concedido pela área de Pessoas e Acessos, respeitando as credenciais da plataforma.</small></span></div></>}
       </div>
       <footer><button type="button" className="employee-cancel" onClick={step === 1 ? onClose : () => setStep(value => value - 1)}>{step === 1 ? "Cancelar" : "Voltar"}</button><Button type="submit" disabled={!canAdvance}>{step < 3 ? "Continuar" : isNew ? "Concluir cadastro" : "Salvar alterações"} <HrIcon name={step < 3 ? "arrow" : "check"}/></Button></footer>
@@ -701,71 +610,15 @@ function EmployeeForm({ employee, nextRegistration, onClose, onSave }: { employe
   </div>;
 }
 
-function JourneySection({ notify, access }: { notify: (message: string) => void; access: ModuleAccessContext }) {
-  const [records,setRecords] = useState(initialJourneyRecords);
-  const [selected,setSelected] = useState<JourneyRecord | null>(null);
-  const [creating,setCreating] = useState(false);
-  const [tab,setTab] = useState<"Espelho diário" | "Banco de horas" | "Escalas" | "Regras">("Espelho diário");
-  const [department,setDepartment] = useState("Todas as áreas");
-  const [status,setStatus] = useState("Todas as situações");
-  const canAdjust = hasPermission(access,"rh.edit") || hasPermission(access,"rh.create");
-  const canApprove = hasPermission(access,"rh.approve");
-  const visible = records.filter(record => (department === "Todas as áreas" || record.department === department) && (status === "Todas as situações" || record.status === status));
-  const pending = records.filter(record => record.status === "Pendente" || record.status === "Em análise").length;
-  const decide = (nextStatus: "Ajustado" | "Regular") => {
-    if (!selected) return;
-    const updated = {...selected,status:nextStatus,issue:null};
-    setRecords(current => current.map(record => record.id === selected.id ? updated : record));
-    setSelected(updated);
-    notify(`${selected.employee}: espelho ${nextStatus === "Ajustado" ? "ajustado e aprovado" : "revisado"}.`);
-  };
-  const createAdjustment = (record: JourneyRecord) => {
-    setRecords(current => [record,...current]);
-    setCreating(false);
-    setSelected(record);
-    notify(`${record.employee}: solicitação de ajuste registrada nos dados demonstrativos.`);
-  };
+function JourneySection({ access }: { notify: (message: string) => void; access: ModuleAccessContext }) {
+  // Sem integração com o relógio de ponto não há marcação, saldo nem escala:
+  // esta seção exibia presença, banco de horas e turnos fictícios.
+  void access;
   return <>
-    <div className="page-head hr-page-head"><div><p className="eyebrow">RH · JORNADA</p><h1>Ponto e jornada</h1><p>Marcações, escalas, banco de horas e exceções em uma visão operacional.</p></div>{canAdjust&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Registrar ajuste</Button>}</div>
-    <KpiGrid><HrStat value="243" label="Presentes hoje" meta="97,8% do quadro" icon="check" tone="green"/><HrStat value={String(pending)} label="Pendências" meta="Exigem conferência" icon="alert" tone="orange"/><HrStat value="186h" label="Horas extras" meta="Acumulado do mês" icon="clock" tone="blue"/><HrStat value="7" label="Saldos críticos" meta="Acima de 20 horas" icon="chart" tone="purple"/></KpiGrid>
-    <div className="journey-tabs" role="tablist">{(["Espelho diário","Banco de horas","Escalas","Regras"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Espelho diário"&&<i>{pending}</i>}</button>)}</div>
-    {tab === "Espelho diário" && <Card className="journey-card"><div className="journey-toolbar"><div><p className="eyebrow">ESPELHO DIÁRIO</p><h2>Marcações de 15 de julho</h2><p>Dados demonstrativos · última consolidação às 08:02</p></div><div><label><span>Área</span><select value={department} onChange={event=>setDepartment(event.target.value)}><option>Todas as áreas</option><option>Produção</option><option>Qualidade</option><option>Manutenção</option><option>Administrativo</option><option>Recursos Humanos</option></select></label><label><span>Situação</span><select value={status} onChange={event=>setStatus(event.target.value)}><option>Todas as situações</option><option>Regular</option><option>Pendente</option><option>Em análise</option><option>Ajustado</option><option>Ausência</option></select></label></div></div><div className="journey-table"><div className="journey-table-head"><span>Colaborador</span><span>Jornada</span><span>Marcações</span><span>Saldo</span><span>Situação</span><span/></div>{visible.map(record=><button key={record.id} onClick={()=>setSelected(record)}><span className="journey-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department} · {record.unit}</small></span></span><span><b>{record.schedule.split(" · ")[0]}</b><small>{record.schedule.split(" · ")[1]}</small></span><span className="journey-punches">{record.punches.length?record.punches.map(punch=><i key={punch}>{punch}</i>):<small>Sem marcações</small>}</span><span className={record.balanceMinutes>0?"positive":record.balanceMinutes<0?"negative":""}><b>{formatBalance(record.balanceMinutes)}</b><small>{record.worked}</small></span><Status tone={journeyTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}</div></Card>}
-    {tab === "Banco de horas" && <JourneyBank onSelect={record=>setSelected(record)} records={records}/>} 
-    {tab === "Escalas" && <JourneySchedules/>}
-    {tab === "Regras" && <JourneyRules/>}
-    {selected&&<JourneyDrawer record={selected} canApprove={canApprove} onClose={()=>setSelected(null)} onDecision={decide}/>} 
-    {creating&&<JourneyAdjustmentForm nextId={Math.max(...records.map(record=>record.id))+1} onClose={()=>setCreating(false)} onSave={createAdjustment}/>} 
+    <div className="page-head hr-page-head"><div><p className="eyebrow">RH · JORNADA</p><h1>Ponto e jornada</h1><p>Marcações, escalas e banco de horas dos colaboradores.</p></div></div>
+    <HrEmpty icon="clock" title="Nenhuma marcação registrada" description="A jornada aparecerá aqui quando o relógio de ponto (Secullum) for integrado à plataforma."/>
   </>;
 }
-
-function JourneyBank({ records,onSelect }: { records: JourneyRecord[]; onSelect:(record:JourneyRecord)=>void }) {
-  const balances = [["Lucas Martins","LM","Produção","+22h 18min","Crítico"],["Ricardo Alves","RA","Produção","+18h 42min","Atenção"],["Camila Ferreira","CF","Qualidade","+7h 05min","Regular"],["Ana Souza","AS","Administrativo","-2h 14min","Atenção"],["Mariana Costa","MC","Recursos Humanos","+4h 36min","Regular"]];
-  return <Card className="journey-bank"><div className="card-head"><div><p className="eyebrow">SALDOS CONSOLIDADOS</p><h2>Banco de horas</h2><p>Competência julho de 2026</p></div><Status tone="attention">7 saldos críticos</Status></div><div className="journey-bank-summary"><span><small>Créditos acumulados</small><b>+186h 24min</b></span><span><small>Débitos acumulados</small><b>-38h 12min</b></span><span><small>Saldo líquido</small><b>+148h 12min</b></span></div><div className="journey-bank-list">{balances.map(([name,initials,area,balance,situation])=><button key={name} onClick={()=>{const record=records.find(item=>item.employee===name);if(record)onSelect(record)}}><i>{initials}</i><span><b>{name}</b><small>{area}</small></span><strong className={balance.startsWith("+")?"positive":"negative"}>{balance}</strong><Status tone={situation==="Regular"?"success":"attention"}>{situation}</Status><HrIcon name="arrow"/></button>)}</div></Card>;
-}
-
-function JourneySchedules() {
-  const schedules = [["Administrativo","08:00–17:48","1h de intervalo","74 colaboradores"],["Turno A","06:00–14:20","42min de intervalo","68 colaboradores"],["Turno B","14:00–22:20","42min de intervalo","61 colaboradores"],["Turno C","22:00–06:20","42min de intervalo","39 colaboradores"]];
-  return <div className="journey-schedule-grid">{schedules.map(([name,time,breakTime,people],index)=><Card key={name}><span><HrIcon name="clock"/></span><Status tone={index===0?"info":"success"}>Ativa</Status><h2>{name}</h2><strong>{time}</strong><p>{breakTime}</p><footer><b>{people}</b><small>Escala semanal configurada</small></footer></Card>)}</div>;
-}
-
-function JourneyRules() {
-  return <div className="journey-rule-grid">{[["Tolerância de marcação","5 minutos","Variações dentro da tolerância não geram pendência."],["Horas extras","Aprovação obrigatória","Saldos positivos dependem da liderança e do RH."],["Fechamento mensal","Dia 18","Pendências devem ser tratadas antes da consolidação."],["Intervalo mínimo","Conforme jornada","Exceções ficam destacadas no espelho diário."]].map(([title,value,description],index)=><Card key={title}><i>{index+1}</i><div><h2>{title}</h2><strong>{value}</strong><p>{description}</p></div></Card>)}</div>;
-}
-
-function JourneyDrawer({record,canApprove,onClose,onDecision}:{record:JourneyRecord;canApprove:boolean;onClose:()=>void;onDecision:(status:"Ajustado"|"Regular")=>void}) {
-  const actionable = record.status === "Pendente" || record.status === "Em análise" || record.status === "Ausência";
-  return <div className="employee-layer" onMouseDown={onClose}><aside className="journey-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Espelho de ${record.employee}`}><header><button onClick={onClose} aria-label="Fechar espelho"><HrIcon name="close"/></button><span><HrIcon name="clock"/></span><div><p className="eyebrow">ESPELHO DE JORNADA</p><h2>{record.employee}</h2><p>{formatDate(record.date)} · {record.department}</p></div><Status tone={journeyTone(record.status)}>{record.status}</Status></header><div className="journey-drawer-content">{record.issue&&<div className="journey-warning"><HrIcon name="alert"/><span><b>Pendência identificada</b><small>{record.issue}</small></span></div>}<section className="journey-day-summary"><span><small>Jornada prevista</small><b>{record.schedule.split(" · ")[1]}</b></span><span><small>Horas trabalhadas</small><b>{record.worked}</b></span><span><small>Saldo do dia</small><b className={record.balanceMinutes>0?"positive":record.balanceMinutes<0?"negative":""}>{formatBalance(record.balanceMinutes)}</b></span></section><section className="journey-timeline"><h3>Marcações registradas</h3>{record.punches.length?record.punches.map((punch,index)=><div key={`${punch}-${index}`}><i>{index+1}</i><span><b>{["Entrada","Início do intervalo","Fim do intervalo","Saída"][index]||"Marcação"}</b><small>{punch} · Registro demonstrativo</small></span><HrIcon name="check"/></div>):<div className="journey-no-punch"><HrIcon name="alert"/><span><b>Nenhuma marcação encontrada</b><small>A ausência precisa ser justificada ou confirmada.</small></span></div>}</section><DetailGroup title="Informações do registro" rows={[["Unidade",record.unit],["Escala",record.schedule],["Justificativa",record.reason],["Competência","Julho de 2026"]]}/><section className="journey-audit-note"><HrIcon name="shield"/><span><b>Rastreabilidade preparada</b><small>A decisão será vinculada ao usuário aprovador quando a persistência estiver conectada.</small></span></section></div>{canApprove&&actionable&&<footer><button className="journey-review" onClick={()=>onDecision("Regular")}><HrIcon name="check"/> Marcar revisado</button><Button onClick={()=>onDecision("Ajustado")}><HrIcon name="edit"/> Aprovar ajuste</Button></footer>}</aside></div>;
-}
-
-function JourneyAdjustmentForm({nextId,onClose,onSave}:{nextId:number;onClose:()=>void;onSave:(record:JourneyRecord)=>void}) {
-  const [employee,setEmployee]=useState("Lucas Martins"); const [date,setDate]=useState("2026-07-15"); const [punch,setPunch]=useState(""); const [reason,setReason]=useState("");
-  const people:Record<string,[string,string,string,string]>={"Lucas Martins":["LM","Produção","Unidade Industrial","Turno A · 06:00–14:20"],"Camila Ferreira":["CF","Qualidade","Unidade Industrial","Turno A · 06:00–14:20"],"Ana Souza":["AS","Administrativo","Matriz Boituva","Administrativo · 08:00–17:48"],"Ricardo Alves":["RA","Produção","Unidade Industrial","Administrativo · 07:30–17:18"],"Mariana Costa":["MC","Recursos Humanos","Matriz Boituva","Administrativo · 08:00–17:48"]};
-  const valid=Boolean(date&&punch&&reason); const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid)return;const[initials,department,unit,schedule]=people[employee];onSave({id:nextId,employee,initials,department,unit,date,schedule,punches:[punch],worked:"Em cálculo",balanceMinutes:0,status:"Em análise",issue:"Ajuste manual aguardando aprovação.",reason});};
-  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="journey-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · AJUSTE DE PONTO</p><h2>Registrar ajuste</h2><p>Inclua uma marcação com justificativa para o fluxo de aprovação.</p></div><button type="button" onClick={onClose} aria-label="Fechar ajuste"><HrIcon name="close"/></button></header><div className="journey-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employee} onChange={event=>setEmployee(event.target.value)}>{Object.keys(people).map(name=><option key={name}>{name}</option>)}</select></label><label><span>Data *</span><input type="date" value={date} onChange={event=>setDate(event.target.value)}/></label><label><span>Marcação correta *</span><input type="time" value={punch} onChange={event=>setPunch(event.target.value)}/></label><label className="field-wide"><span>Tipo de ajuste</span><select><option>Inclusão de marcação</option><option>Correção de horário</option><option>Justificativa de ausência</option></select></label><label className="field-wide"><span>Justificativa *</span><textarea value={reason} onChange={event=>setReason(event.target.value)} placeholder="Explique o motivo do ajuste..."/></label><div className="journey-form-note field-wide"><HrIcon name="shield"/><span><b>Fluxo protegido</b><small>O ajuste ficará em análise e não altera o espelho sem aprovação.</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Enviar para aprovação <HrIcon name="arrow"/></Button></footer></form></div>;
-}
-
-function formatBalance(minutes:number){if(minutes===0)return "0min";const sign=minutes>0?"+":"-";const absolute=Math.abs(minutes);return absolute>=60?`${sign}${Math.floor(absolute/60)}h ${String(absolute%60).padStart(2,"0")}min`:`${sign}${absolute}min`;}
-function journeyTone(status:JourneyStatus):"success"|"attention"|"info"|"neutral"{return status==="Regular"||status==="Ajustado"?"success":status==="Pendente"||status==="Ausência"?"attention":status==="Em análise"?"info":"neutral";}
 
 function AbsenceSection({ notify, access, rh }: { notify: (message: string) => void; access: ModuleAccessContext; rh: RhSnapshot }) {
   // Dados reais quando logado; mocks ricos em modo demonstrativo. O componente
@@ -854,7 +707,7 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
 
 function AbsenceCalendar({ records, onSelect }: { records: AbsenceRecord[]; onSelect: (record: AbsenceRecord) => void }) {
   const visible = records.filter(record => record.status !== "Reprovada");
-  return <Card className="absence-calendar"><div className="card-head"><div><p className="eyebrow">PLANEJAMENTO DE EQUIPE</p><h2>Calendário consolidado</h2><p>Julho a setembro de 2026</p></div><Status tone="info">{visible.length} movimentações</Status></div><div className="calendar-scale"><span>Colaborador</span><b>Julho</b><b>Agosto</b><b>Setembro</b></div><div className="calendar-rows">{visible.map(record => { const month = Number(record.start.slice(5,7)); const left = month === 7 ? 3 : month === 8 ? 35 : 68; const width = Math.max(7,Math.min(29,record.days * 1.4)); return <button key={record.id} onClick={() => onSelect(record)}><span><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department}</small></span></span><em><i className={record.conflict ? "conflict" : ""} style={{left:`${left}%`,width:`${width}%`}}>{record.type}</i></em></button>; })}</div><div className="calendar-legend"><span><i/> Programação regular</span><span><i className="conflict"/> Exige avaliação de conflito</span></div></Card>;
+  return <Card className="absence-calendar"><div className="card-head"><div><p className="eyebrow">PLANEJAMENTO DE EQUIPE</p><h2>Calendário consolidado</h2><p>Julho a setembro de 2026</p></div><Status tone="info">{visible.length} movimentações</Status></div><div className="calendar-scale"><span>Colaborador</span><div><b>Julho</b><b>Agosto</b><b>Setembro</b></div></div><div className="calendar-rows">{visible.map(record => { const month = Number(record.start.slice(5,7)); const left = month === 7 ? 3 : month === 8 ? 35 : 68; const width = Math.max(7,Math.min(29,record.days * 1.4)); return <button key={record.id} onClick={() => onSelect(record)}><span><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department}</small></span></span><em><i className={record.conflict ? "conflict" : ""} style={{left:`${left}%`,width:`${width}%`}} title={`${record.type} · ${record.days} ${record.days === 1 ? "dia" : "dias"}${record.conflict ? " · exige avaliação de conflito" : ""}`}/></em></button>; })}</div><div className="calendar-legend"><span><i/> Programação regular</span><span><i className="conflict"/> Exige avaliação de conflito</span></div></Card>;
 }
 
 function AbsencePolicies() {
@@ -873,15 +726,8 @@ function AbsenceDrawer({ record, canApprove, onClose, onDecision }: { record: Ab
 }
 
 function AbsenceForm({ nextId, employees, onClose, onSave }: { nextId: number; employees: RhEmployeeOption[]; onClose: () => void; onSave: (record: AbsenceRecord, employeeId?: string) => void }) {
-  // Colaboradores reais quando logado; catálogo demonstrativo em modo demo.
-  const demoOptions: RhEmployeeOption[] = [
-    { id:"demo-emp-1", name:"Mariana Costa", department:"Recursos Humanos", unit:"Matriz Boituva" },
-    { id:"demo-emp-2", name:"Lucas Martins", department:"Produção", unit:"Unidade Industrial" },
-    { id:"demo-emp-3", name:"Ana Souza", department:"Administrativo", unit:"Matriz Boituva" },
-    { id:"demo-emp-4", name:"Ricardo Alves", department:"Produção", unit:"Unidade Industrial" },
-    { id:"demo-emp-5", name:"Camila Ferreira", department:"Qualidade", unit:"Unidade Industrial" },
-  ];
-  const options = employees.length ? employees : demoOptions;
+  // Só colaboradores reais: sem sessão a lista fica vazia e o formulário avisa.
+  const options = employees;
   const persists = employees.length > 0;
   const [employeeId,setEmployeeId] = useState(options[0]?.id ?? "");
   const [type,setType] = useState<AbsenceRecord["type"]>("Férias");
@@ -969,66 +815,13 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
   </>;
 }
 
-function BenefitParticipants({plans,notify}:{plans:BenefitPlan[];notify:(message:string)=>void}) {
-  const [search, setSearch] = useState("");
-  const participants = [
-    ["Mariana Costa","MC","Recursos Humanos","Assistência médica · Seguro de vida","Ativo"],
-    ["Lucas Martins","LM","Produção","Alimentação · Saúde · Transporte","Atualização pendente"],
-    ["Camila Ferreira","CF","Qualidade","Alimentação · Saúde · Seguro","Ativo"],
-    ["Ana Souza","AS","Administrativo","Alimentação · Seguro","Adesão pendente"],
-    ["Ricardo Alves","RA","Produção","Todos os benefícios elegíveis","Ativo"],
-  ];
-  const filtered = participants.filter(([name, _, area, coverage]) =>
-    `${name} ${area} ${coverage}`.toLowerCase().includes(search.toLowerCase())
-  );
-  const totalMembers = plans.reduce((sum,plan)=>sum+plan.members,0);
-  const membersCount = totalMembers > 0 ? totalMembers : participants.length;
-
-  return (
-    <Card className="benefit-participant-card">
-      <div className="card-head">
-        <div>
-          <p className="eyebrow">ADESÕES ATUAIS</p>
-          <h2>Participantes por benefício</h2>
-          <p>{membersCount} vínculos ativos no catálogo</p>
-        </div>
-        <label className="benefit-search">
-          <HrIcon name="search"/>
-          <input
-            value={search}
-            placeholder="Buscar colaborador..."
-            onChange={event => setSearch(event.target.value)}
-          />
-        </label>
-      </div>
-      <div className="benefit-participant-table">
-        <div className="benefit-participant-head">
-          <span>Colaborador</span>
-          <span>Benefícios vinculados</span>
-          <span>Situação</span>
-          <span />
-        </div>
-        {filtered.map(([name,initials,area,coverage,status]) => (
-          <button key={name} onClick={()=>notify(`${name}: ficha de benefícios aberta.`)}>
-            <span className="benefit-participant-person">
-              <i>{initials}</i>
-              <span><b>{name}</b><small>{area}</small></span>
-            </span>
-            <span><b>{coverage}</b><small>Vigência atual</small></span>
-            <Status tone={status==="Ativo"?"success":"attention"}>{status}</Status>
-            <HrIcon name="arrow"/>
-          </button>
-        ))}
-        {!filtered.length && (
-          <div className="hr-empty">
-            <HrIcon name="search" size={24}/>
-            <b>Nenhum colaborador encontrado</b>
-            <small>Ajuste a busca por nome ou área.</small>
-          </div>
-        )}
-      </div>
-    </Card>
-  );
+function BenefitParticipants({ plans }: { plans: BenefitPlan[]; notify: (message: string) => void }) {
+  // A lista de participantes por pessoa exige adesões reais (rh_benefit_enrollments).
+  const totalMembers = plans.reduce((sum, plan) => sum + plan.members, 0);
+  return <Card className="benefit-participant-card">
+    <div className="card-head"><div><p className="eyebrow">ADESÕES</p><h2>Participantes por benefício</h2></div><Status tone={totalMembers ? "info" : "neutral"}>{totalMembers} {totalMembers === 1 ? "adesão" : "adesões"}</Status></div>
+    <div className="hr-empty"><HrIcon name="heart" size={26}/><b>Nenhuma adesão individual registrada</b><small>As adesões por colaborador aparecerão aqui quando forem lançadas no módulo.</small></div>
+  </Card>;
 }
 
 function BenefitPolicies(){return <div className="benefit-policy-grid">{[["Elegibilidade","Vínculo ativo","Cada plano valida categoria, unidade e tipo de contrato.","users"],["Movimentações","Até o dia 20","Solicitações aprovadas entram na competência seguinte.","calendar"],["Dependentes","Documentação obrigatória","Inclusões exigem comprovação e validação do RH.","file"],["Proteção de dados","Acesso restrito","Informações de saúde seguem escopo sensível e auditável.","shield"]].map(([title,rule,description,icon])=><Card key={title}><span><HrIcon name={icon}/></span><div><h2>{title}</h2><strong>{rule}</strong><p>{description}</p></div></Card>)}</div>}
@@ -1038,8 +831,7 @@ function BenefitPlanDrawer({plan,onClose,onParticipants}:{plan:BenefitPlan;onClo
 function BenefitRequestDrawer({request,canApprove,onClose,onDecision}:{request:BenefitRequest;canApprove:boolean;onClose:()=>void;onDecision:(status:"Aprovada"|"Reprovada")=>void}){const actionable=request.status==="Pendente"||request.status==="Em análise";return <div className="employee-layer" onMouseDown={onClose}><aside className="benefit-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Solicitação de ${request.employee}`}><header><button onClick={onClose} aria-label="Fechar solicitação de benefício"><HrIcon name="close"/></button><span><HrIcon name="heart"/></span><div><p className="eyebrow">SOLICITAÇÃO #{String(request.id).padStart(4,"0")}</p><h2>{request.action}</h2><p>{request.employee} · {request.department}</p></div><Status tone={benefitRequestTone(request.status)}>{request.status}</Status></header><div className="benefit-drawer-content"><section className="benefit-request-highlight"><span><small>Benefício solicitado</small><b>{request.plan}</b></span><span><small>Vigência pretendida</small><b>{formatDate(request.effectiveDate)}</b></span></section><DetailGroup title="Informações da solicitação" rows={[["Colaborador",request.employee],["Movimentação",request.action],["Justificativa",request.reason],["Solicitado em",request.requestedAt]]}/><section className="absence-workflow"><h3>Histórico da solicitação</h3><div><i>✓</i><span><b>Solicitação registrada</b><small>{request.requestedAt}</small></span></div><div><i>{actionable?"2":"✓"}</i><span><b>{actionable?"Aguardando decisão":`Solicitação ${request.status.toLowerCase()}`}</b><small>{actionable?"RH responsável foi notificado":"Movimentação registrada no histórico"}</small></span></div></section><section className="benefit-security-note"><HrIcon name="shield"/><span><b>Auditoria preparada</b><small>A decisão será vinculada ao aprovador quando a persistência estiver conectada.</small></span></section></div>{canApprove&&actionable&&<footer><button className="absence-reject" onClick={()=>onDecision("Reprovada")}><HrIcon name="close"/> Reprovar</button><Button onClick={()=>onDecision("Aprovada")}><HrIcon name="check"/> Aprovar solicitação</Button></footer>}</aside></div>}
 
 function BenefitRequestForm({nextId,plans,employees,onClose,onSave}:{nextId:number;plans:BenefitPlan[];employees:RhEmployeeOption[];onClose:()=>void;onSave:(request:BenefitRequest,employeeId?:string)=>void}){
-  const demoOptions:RhEmployeeOption[]=[{id:"demo-emp-3",name:"Ana Souza",department:"Administrativo",unit:"Matriz Boituva"},{id:"demo-emp-2",name:"Lucas Martins",department:"Produção",unit:"Unidade Industrial"},{id:"demo-emp-5",name:"Camila Ferreira",department:"Qualidade",unit:"Unidade Industrial"},{id:"demo-emp-1",name:"Mariana Costa",department:"Recursos Humanos",unit:"Matriz Boituva"}];
-  const options=employees.length?employees:demoOptions;
+  const options=employees;
   const persists=employees.length>0;
   const[employeeId,setEmployeeId]=useState(options[0]?.id??"");
   const[plan,setPlan]=useState(plans[0]?.name??"");
@@ -1115,8 +907,7 @@ function SstRecordTable({title,eyebrow,records,status,setStatus,onSelect}:{title
 function SstDrawer({record,canApprove,onClose,onConclude}:{record:SstRecord;canApprove:boolean;onClose:()=>void;onConclude:()=>void}){const actionable=record.status!=="Conforme";return <div className="employee-layer" onMouseDown={onClose}><aside className="sst-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Registro de SST de ${record.employee}`}><header><button onClick={onClose} aria-label="Fechar registro de SST"><HrIcon name="close"/></button><span><HrIcon name={record.category==="Exame"?"heart":"shield"}/></span><div><p className="eyebrow">SST · {record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={sstTone(record.status)}>{record.status}</Status></header><div className="sst-drawer-content">{record.risk!=="Regular"&&<div className={`sst-alert ${record.risk==="Crítico"?"critical":""}`}><HrIcon name="alert"/><span><b>{record.risk==="Crítico"?"Ação imediata necessária":"Atenção necessária"}</b><small>{record.note}</small></span></div>}<section className="sst-deadline"><span><small>Vencimento ou prazo</small><b>{formatDate(record.dueDate)}</b></span><Status tone={record.risk==="Crítico"?"attention":"info"}>{record.risk}</Status></section><DetailGroup title="Informações operacionais" rows={[["Colaborador",record.employee],["Unidade",record.unit],["Categoria",record.category],["Documento",record.document],["Observação",record.note]]}/>{record.sensitive&&<section className="sst-sensitive-note"><HrIcon name="lock"/><span><b>Conteúdo sensível protegido</b><small>Resultados clínicos, diagnósticos e anexos médicos não são exibidos nesta visão. O acesso depende de permissão específica e auditoria.</small></span></section>}<section className="absence-workflow"><h3>Histórico do registro</h3><div><i>✓</i><span><b>Obrigação cadastrada</b><small>Registro demonstrativo do RH</small></span></div><div><i>{actionable?"2":"✓"}</i><span><b>{actionable?"Aguardando tratamento":"Registro conforme"}</b><small>{actionable?"Responsáveis notificados por escopo":"Validade e documento conferidos"}</small></span></div></section></div>{canApprove&&actionable&&<footer><button className="employee-cancel" onClick={onClose}>Fechar</button><Button onClick={onConclude}><HrIcon name="check"/> Marcar como conforme</Button></footer>}</aside></div>}
 
 function SstForm({nextId,employees,onClose,onSave}:{nextId:number;employees:RhEmployeeOption[];onClose:()=>void;onSave:(record:SstRecord,employeeId?:string)=>void}){
-  const demoOptions:RhEmployeeOption[]=[{id:"demo-emp-2",name:"Lucas Martins",department:"Produção",unit:"Unidade Industrial"},{id:"demo-emp-5",name:"Camila Ferreira",department:"Qualidade",unit:"Unidade Industrial"},{id:"demo-emp-3",name:"Ana Souza",department:"Administrativo",unit:"Matriz Boituva"},{id:"demo-emp-1",name:"Mariana Costa",department:"Recursos Humanos",unit:"Matriz Boituva"}];
-  const options=employees.length?employees:demoOptions;
+  const options=employees;
   const persists=employees.length>0;
   const[employeeId,setEmployeeId]=useState(options[0]?.id??"");
   const[category,setCategory]=useState<SstRecord["category"]>("Exame");
@@ -1181,8 +972,7 @@ function DocumentsSection({ notify, access, rh }: { notify: (message: string) =>
 function DocumentDrawer({record,canApprove,onClose,onStatus,onOpen}:{record:HrDocumentRecord;canApprove:boolean;onClose:()=>void;onStatus:(status:HrDocumentStatus)=>void;onOpen:()=>void}){return <div className="employee-layer" onMouseDown={onClose}><aside className="doc-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Documento ${record.title}`}><header><button onClick={onClose} aria-label="Fechar documento"><HrIcon name="close"/></button><span><HrIcon name="file"/></span><div><p className="eyebrow">{record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={documentTone(record.status)}>{record.status}</Status></header><div className="doc-drawer-content">{record.signature==="Assinatura pendente"&&<div className="doc-warning"><HrIcon name="edit"/><span><b>Assinatura aguardando aceite</b><small>O colaborador verá esta pendência somente em sua área pessoal.</small></span></div>}<DetailGroup title="Dados do documento" rows={[["Arquivo",record.fileName],["Versão",`v${record.version}`],["Validade",record.validUntil?formatDate(record.validUntil):"Sem validade"],["Assinatura",record.signature],["Última atualização",record.updatedAt]]}/>{record.objectPath&&<Button variant="secondary" onClick={onOpen}><HrIcon name="eye"/> Visualizar documento</Button>}{record.sensitive&&<section className="doc-sensitive"><HrIcon name="lock"/><span><b>Documento sensível</b><small>Visualização e ações dependem de permissão específica e serão registradas na auditoria central.</small></span></section>}<section className="absence-workflow"><h3>Histórico de versões</h3><div><i>✓</i><span><b>Versão {record.version} registrada</b><small>{record.updatedAt}</small></span></div><div><i>{record.status==="Válido"?"✓":"2"}</i><span><b>{record.status==="Válido"?"Conferência concluída":"Aguardando conferência"}</b><small>{record.objectPath?"Documento armazenado com segurança":"Fluxo demonstrativo do RH"}</small></span></div></section></div>{canApprove&&record.status!=="Válido"&&<footer><button className="doc-reject" onClick={()=>onStatus("Reprovado")}>Reprovar</button><Button onClick={()=>onStatus("Válido")}><HrIcon name="check"/> Aprovar documento</Button></footer>}</aside></div>}
 
 function DocumentForm({nextId,employees,persists,onClose,onSave}:{nextId:number;employees:RhEmployeeOption[];persists:boolean;onClose:()=>void;onSave:(record:HrDocumentRecord,file?:File,employeeId?:string)=>void}){
-  const demoOptions:RhEmployeeOption[]=[{id:"demo-emp-2",name:"Lucas Martins",department:"Produção",unit:"Unidade Industrial"},{id:"demo-emp-5",name:"Camila Ferreira",department:"Qualidade",unit:"Unidade Industrial"},{id:"demo-emp-3",name:"Ana Souza",department:"Administrativo",unit:"Matriz Boituva"},{id:"demo-emp-1",name:"Mariana Costa",department:"Recursos Humanos",unit:"Matriz Boituva"}];
-  const options=employees.length?employees:demoOptions;
+  const options=employees;
   const[employeeId,setEmployeeId]=useState(options[0]?.id??"");
   const[category,setCategory]=useState<HrDocumentRecord["category"]>("Admissional");
   const[title,setTitle]=useState("");
@@ -1197,38 +987,14 @@ function DocumentForm({nextId,employees,persists,onClose,onSave}:{nextId:number;
 
 function documentTone(status:HrDocumentStatus):"success"|"attention"|"info"|"neutral"{return status==="Válido"?"success":status==="A vencer"||status==="Expirado"?"attention":status==="Pendente"?"info":"neutral"}
 
-function ReportsSection({ notify, access }: { notify: (message: string) => void; access: ModuleAccessContext }) {
-  const [reports,setReports]=useState(initialHrReports);
-  const [tab,setTab]=useState<"Painel executivo"|"Relatórios"|"Catálogo de métricas">("Painel executivo");
-  const [period,setPeriod]=useState("Julho de 2026");
-  const [unit,setUnit]=useState("Todas as unidades");
-  const [query,setQuery]=useState("");
-  const [selected,setSelected]=useState<HrReportRecord|null>(null);
-  const [creating,setCreating]=useState(false);
-  const canCreate=hasPermission(access,"rh.create");
-  const canExport=hasPermission(access,"rh.export");
-  const filtered=reports.filter(report=>`${report.title} ${report.category} ${report.owner}`.toLowerCase().includes(query.toLowerCase()));
-  const createReport=(report:HrReportRecord)=>{setReports(current=>[report,...current]);setCreating(false);notify(`${report.title}: relatório criado em modo demonstrativo.`)};
+function ReportsSection({ access }: { notify: (message: string) => void; access: ModuleAccessContext }) {
+  // Os indicadores dependem de ponto, benefícios e SST com dados reais.
+  void access;
   return <>
-    <div className="page-head hr-page-head report-page-head"><div><p className="eyebrow">RH · INTELIGÊNCIA</p><h1>Relatórios e indicadores</h1><p>Leitura gerencial das pessoas, rotinas e riscos autorizados no seu escopo.</p></div><div className="report-head-actions">{canExport&&<button onClick={()=>notify("Exportação demonstrativa preparada. O arquivo real será gerado após a persistência dos dados.")}><HrIcon name="file"/> Exportar visão</button>}{canCreate&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Novo relatório</Button>}</div></div>
-    <div className="report-context"><label><span>Período</span><select value={period} onChange={event=>setPeriod(event.target.value)}><option>Julho de 2026</option><option>Junho de 2026</option><option>Últimos 90 dias</option></select></label><label><span>Unidade</span><select value={unit} onChange={event=>setUnit(event.target.value)}><option>Todas as unidades</option><option>Matriz Boituva</option><option>Unidade Industrial</option></select></label><span><HrIcon name="shield"/><b>Escopo aplicado</b><small>{access.scopeLabel} · {unit}</small></span></div>
-    <div className="report-tabs" role="tablist">{(["Painel executivo","Relatórios","Catálogo de métricas"] as const).map(item=><button key={item} role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item}</button>)}</div>
-    {tab==="Painel executivo"&&<>
-      <div className="hr-stats report-stats"><HrStat value="246" label="Quadro ativo" meta="+2 no período" icon="users" tone="blue"/><HrStat value="97,8%" label="Presença média" meta="+0,6 p.p." icon="check" tone="green"/><HrStat value="312h" label="Horas extras" meta="+18% vs. junho" icon="clock" tone="orange"/><HrStat value="96%" label="Conformidade" meta="SST e documentos" icon="shield" tone="purple"/></div>
-      <div className="report-dashboard-grid"><Card className="report-trend-card"><div className="card-head"><div><p className="eyebrow">EVOLUÇÃO MENSAL</p><h2>Presença e horas extras</h2><p>Comparativo operacional dos últimos seis meses.</p></div><Status tone="info">{period}</Status></div><div className="report-chart" aria-label="Evolução demonstrativa de presença e horas extras">{[["Fev",68,42],["Mar",73,47],["Abr",76,52],["Mai",81,48],["Jun",78,61],["Jul",86,72]].map(([month,presence,overtime])=><div key={String(month)}><span className="chart-columns"><i style={{height:`${presence}%`}}/><em style={{height:`${overtime}%`}}/></span><b>{month}</b></div>)}</div><div className="report-legend"><span><i/> Presença relativa</span><span><em/> Horas extras</span></div></Card><Card className="report-insight-card"><p className="eyebrow">LEITURA GERENCIAL</p><h2>Pontos de atenção</h2>{reports.filter(item=>item.status==="Atenção").map(item=><button key={item.id} onClick={()=>setSelected(item)}><span><HrIcon name="alert"/></span><span><b>{item.title}</b><small>{item.insight}</small></span><HrIcon name="arrow"/></button>)}<div className="report-ai-note"><span>J</span><p><b>Preparado para o Jarvis Business</b><small>Esses indicadores já possuem domínio, origem e frequência para futura análise transversal.</small></p></div></Card></div>
-      <Card className="report-area-card"><div className="card-head"><div><p className="eyebrow">QUADRO ATIVO</p><h2>Distribuição e movimentação por área</h2><p>Base demonstrativa para capacidade, absenteísmo e planejamento.</p></div><button onClick={()=>setTab("Relatórios")}>Ver relatórios <HrIcon name="arrow"/></button></div><div className="report-area-grid">{[["Produção",96,"39%","+2"],["Manutenção",24,"10%","0"],["Administrativo",22,"9%","-1"],["Qualidade",18,"7%","+1"],["Demais áreas",86,"35%","0"]].map(([name,count,share,change])=><div key={String(name)}><span><b>{name}</b><small>{count} pessoas · {share} do quadro</small></span><i><em style={{width:String(share)}}/></i><strong className={String(change).startsWith("-")?"negative":"positive"}>{change}</strong></div>)}</div></Card>
-    </>}
-    {tab==="Relatórios"&&<Card className="report-list-card"><div className="report-list-toolbar"><div><p className="eyebrow">BIBLIOTECA GERENCIAL</p><h2>Relatórios do RH</h2><p>Consultas padronizadas com origem, período e responsável.</p></div><label><HrIcon name="search"/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar relatório..."/></label></div><div className="report-list"><div className="report-list-head"><span>Relatório</span><span>Período</span><span>Responsável</span><span>Situação</span><span/></div>{filtered.map(report=><button key={report.id} onClick={()=>setSelected(report)}><span><i><HrIcon name="chart"/></i><span><b>{report.title}</b><small>{report.category} · {report.summary}</small></span></span><span><b>{report.period}</b><small>{report.updatedAt}</small></span><span><b>{report.owner}</b><small>Escopo: {access.scopeLabel}</small></span><Status tone={report.status==="Atenção"?"attention":report.status==="Atualizado"?"success":"info"}>{report.status}</Status><HrIcon name="arrow"/></button>)}</div></Card>}
-    {tab==="Catálogo de métricas"&&<div className="metric-catalog-grid">{hrMetricCatalog.map(metric=><Card key={metric.name}><header><span><HrIcon name="chart"/></span><Status>{metric.domain}</Status></header><strong>{metric.value}</strong><h2>{metric.name}</h2><p>{metric.description}</p><footer><span><small>Origem</small><b>{metric.source}</b></span><span><small>Atualização</small><b>{metric.frequency}</b></span></footer></Card>)}</div>}
-    {selected&&<ReportDrawer report={selected} canExport={canExport} access={access} onClose={()=>setSelected(null)} notify={notify}/>} 
-    {creating&&<ReportForm nextId={Math.max(...reports.map(report=>report.id))+1} onClose={()=>setCreating(false)} onSave={createReport}/>} 
+    <div className="page-head hr-page-head report-page-head"><div><p className="eyebrow">RH · INTELIGÊNCIA</p><h1>Relatórios e indicadores</h1><p>Leitura gerencial das pessoas, rotinas e riscos do seu escopo.</p></div></div>
+    <HrEmpty icon="chart" title="Nenhum indicador disponível" description="Os relatórios serão gerados a partir do ponto, dos benefícios e da SST, quando essas rotinas tiverem registros reais."/>
   </>;
 }
-
-function ReportDrawer({report,canExport,access,onClose,notify}:{report:HrReportRecord;canExport:boolean;access:ModuleAccessContext;onClose:()=>void;notify:(message:string)=>void}){return <div className="employee-layer" onMouseDown={onClose}><aside className="report-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Relatório ${report.title}`}><header><button onClick={onClose} aria-label="Fechar relatório"><HrIcon name="close"/></button><span><HrIcon name="chart"/></span><div><p className="eyebrow">{report.category.toUpperCase()}</p><h2>{report.title}</h2><p>{report.period} · {report.updatedAt}</p></div><Status tone={report.status==="Atenção"?"attention":"success"}>{report.status}</Status></header><div className="report-drawer-content"><section className="report-summary"><small>Resumo executivo</small><strong>{report.summary}</strong></section><section className="report-insight"><HrIcon name="alert"/><span><b>Leitura recomendada</b><small>{report.insight}</small></span></section><DetailGroup title="Governança da informação" rows={[["Responsável",report.owner],["Domínio",report.category],["Escopo aplicado",access.scopeLabel],["Atualização",report.updatedAt],["Fonte","Dados demonstrativos do módulo de RH"]]}/><section className="absence-workflow"><h3>Preparação do indicador</h3><div><i>✓</i><span><b>Definição e origem registradas</b><small>Métrica pronta para o catálogo corporativo</small></span></div><div><i>2</i><span><b>Persistência pendente</b><small>Aguardando conexão segura com o Supabase</small></span></div></section></div><footer><button className="employee-cancel" onClick={onClose}>Fechar</button>{canExport&&<Button onClick={()=>notify(`${report.title}: exportação demonstrativa preparada.`)}><HrIcon name="file"/> Exportar relatório</Button>}</footer></aside></div>}
-
-function ReportForm({nextId,onClose,onSave}:{nextId:number;onClose:()=>void;onSave:(report:HrReportRecord)=>void}){const[title,setTitle]=useState("");const[category,setCategory]=useState<HrReportRecord["category"]>("Pessoas");const[period,setPeriod]=useState("Julho de 2026");const[summary,setSummary]=useState("");const valid=Boolean(title&&summary);const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid)return;onSave({id:nextId,title,category,period,updatedAt:"Agora · demonstração local",owner:"Gestão de Pessoas",status:"Programado",summary,insight:"Relatório recém-configurado; a leitura gerencial será consolidada após atualização dos dados."})};return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="report-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · INTELIGÊNCIA</p><h2>Novo relatório</h2><p>Configure uma visão gerencial usando os domínios autorizados.</p></div><button type="button" onClick={onClose} aria-label="Fechar novo relatório"><HrIcon name="close"/></button></header><div className="report-form-fields"><label className="field-wide"><span>Título *</span><input value={title} onChange={event=>setTitle(event.target.value)} placeholder="Ex.: Movimentação do quadro por área"/></label><label><span>Domínio *</span><select value={category} onChange={event=>setCategory(event.target.value as HrReportRecord["category"])}><option>Pessoas</option><option>Jornada</option><option>Ausências</option><option>SST</option><option>Benefícios</option><option>Documentos</option></select></label><label><span>Período *</span><select value={period} onChange={event=>setPeriod(event.target.value)}><option>Julho de 2026</option><option>Últimos 90 dias</option><option>Posição atual</option></select></label><label className="field-wide"><span>Objetivo do relatório *</span><textarea value={summary} onChange={event=>setSummary(event.target.value)} placeholder="Descreva a pergunta gerencial que este relatório deverá responder..."/></label><div className="report-form-note field-wide"><HrIcon name="shield"/><span><b>Escopo e fontes serão aplicados automaticamente</b><small>O relatório nunca poderá consultar dados além das permissões do usuário.</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Criar relatório <HrIcon name="check"/></Button></footer></form></div>}
-
 function HomologationSection({notify,access}:{notify:(message:string)=>void;access:ModuleAccessContext}){
   const[lastRun,setLastRun]=useState("16 jul 2026 · validação inicial");
   const areas=[
@@ -1259,8 +1025,9 @@ function HomologationSection({notify,access}:{notify:(message:string)=>void;acce
   </>;
 }
 
-function SectionHead({ eyebrow, title, description, action, notify }: { eyebrow: string; title: string; description: string; action: string; notify: (message: string) => void }) {
-  return <div className="page-head hr-page-head"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div><Button onClick={() => notify(`${action}: fluxo demonstrativo aberto.`)}><HrIcon name="plus"/> {action}</Button></div>;
+/** Estado vazio honesto: diz que não há registro e o que falta para haver. */
+function HrEmpty({ icon = "search", title, description }: { icon?: string; title: string; description: string }) {
+  return <Card className="hr-empty-card"><div className="hr-empty"><HrIcon name={icon} size={26}/><b>{title}</b><small>{description}</small></div></Card>;
 }
 
 /** Indicador do RH. Delega ao KPI do Design System — sem ícone e sem barra
