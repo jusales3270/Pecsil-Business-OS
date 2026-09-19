@@ -140,6 +140,50 @@ try {
     }
     await client.auth.signOut();
   }
+
+  // --- Terceiro: validade vale no banco -------------------------------------
+  {
+    const n = "terceiro com validade";
+    const email = `matriz.${randomBytes(4).toString("hex")}@pecsil-teste.local`;
+    const password = randomBytes(18).toString("base64url") + "!9a";
+    const future = new Date(Date.now() + 7 * 86_400_000).toISOString();
+    const { data: authUser, error: authError } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    if (authError) throw authError;
+    const { data: profile, error: profileError } = await admin
+      .from("profiles")
+      .insert({
+        user_id: authUser.user.id, organization_id: org.id, email, full_name: "Matriz terceiro", status: "active",
+        account_type: "terceiro", company_name: "Prestadora Teste", access_expires_at: future,
+      })
+      .select("id")
+      .single();
+    created.push({ userId: authUser.user.id, profileId: profile?.id });
+    if (profileError) throw profileError;
+    await admin.from("user_feature_grants").insert({
+      organization_id: org.id, profile_id: profile.id, feature_code: "portaria.visitas", level: "ver", granted_by: owner.id,
+    });
+    const client = createClient(URL_BASE, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, opts);
+    const { error: loginError } = await client.auth.signInWithPassword({ email, password });
+    if (loginError) throw loginError;
+
+    check(n, "dentro da validade vê visitas", (await total(client, "visitas")) === reference.visitas, await total(client, "visitas"));
+    check(n, "não vê frota", (await total(client, "frota")) === 0, await total(client, "frota"));
+
+    await client.from("profiles").update({ access_expires_at: null, account_type: "colaborador" }).eq("id", profile.id);
+    const { data: after } = await admin.from("profiles").select("access_expires_at, account_type").eq("id", profile.id).single();
+    check(n, "não estende a própria validade nem vira colaborador",
+      after.access_expires_at !== null && after.account_type === "terceiro", `${after.account_type} · ${after.access_expires_at}`);
+
+    await admin.from("profiles").update({ access_expires_at: new Date(Date.now() - 60_000).toISOString() }).eq("id", profile.id);
+    check(n, "vencido: não vê mais visitas", (await total(client, "visitas")) === 0, await total(client, "visitas"));
+    const { data: currentProfile } = await client.rpc("current_profile_id");
+    check(n, "vencido: sem perfil corrente", currentProfile === null, currentProfile);
+    check(n, "vencido: lê zero permissões", (await total(client, "user_feature_grants")) === 0, await total(client, "user_feature_grants"));
+
+    await admin.from("profiles").update({ access_expires_at: future }).eq("id", profile.id);
+    check(n, "renovado: volta a ver visitas", (await total(client, "visitas")) === reference.visitas, await total(client, "visitas"));
+    await client.auth.signOut();
+  }
 } finally {
   for (const { userId, profileId } of created) {
     if (profileId) await admin.from("profiles").delete().eq("id", profileId);

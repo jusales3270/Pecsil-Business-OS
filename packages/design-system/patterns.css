@@ -5345,3 +5345,83 @@ button.holiday-row:hover {
 @media (max-width: 720px) {
   .access-matrix-row { grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
 }
+
+/* Novo usuário: colaborador da PecSil ou terceiro. */
+.access-kind {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+.access-kind > button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 56px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  text-align: left;
+  cursor: pointer;
+}
+.access-kind > button b { font-size: var(--fs-sm); color: var(--text-primary); }
+.access-kind > button small { font-size: var(--fs-xs); color: var(--text-muted); }
+.access-kind > button.active {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 1px var(--accent-blue);
+  background: var(--bg-subtle);
+}
+
+.access-third-party {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+.access-third-party > label:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.user-admin-fields .access-third-party label > small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* Funcionalidades como SUBMENU do módulo: recuadas até o texto do módulo,
+   com linha-guia à esquerda e fundo próprio — não parecem o módulo seguinte. */
+.access-checklist { gap: var(--sp-3); }
+.access-module > header .access-check b {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+}
+.access-module > ul.access-submenu {
+  /* Recuo até o nome do módulo: caixa (18px) + espaço (sp-3) + borda do cartão. */
+  margin: 0 var(--sp-3) var(--sp-3) calc(var(--sp-3) * 2 + 18px);
+  padding: var(--sp-1) var(--sp-3) var(--sp-1) calc(var(--sp-3) + 12px);
+  border-left: 2px solid var(--border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--bg-subtle);
+}
+.access-module.on > ul.access-submenu { border-left-color: var(--accent-blue); }
+.access-module > ul.access-submenu > li:first-child { border-top: 0; }
+.access-module > ul.access-submenu .access-check b {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+.access-module > ul.access-submenu .access-levels { background: var(--bg-surface); }
+.access-module > ul.access-submenu .access-levels > button.active { background: var(--bg-subtle); }
+
+.access-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.access-toggle > svg { transition: transform var(--dur-fast) var(--ease); }
+.access-toggle[aria-expanded="true"] > svg { transform: rotate(180deg); }
+
+@media (max-width: 720px) {
+  .access-kind,
+  .access-third-party { grid-template-columns: minmax(0, 1fr); }
+  .access-module > ul.access-submenu {
+    margin-left: var(--sp-3);
+    padding-left: var(--sp-3);
+  }
+  .access-module > ul.access-submenu .access-levels { margin-left: 0; }
+}

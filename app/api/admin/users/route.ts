@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 import { authorize, replaceGrants, writeAudit } from "../../../../lib/auth/admin-users";
-import { normalizeGrants, type AccessGrants } from "../../../../modules/access-catalog";
+import { endOfDayBrasilia, isAccessExpired, normalizeGrants, type AccessGrants, type AccountType } from "../../../../modules/access-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +11,10 @@ export type AdminUser = {
   email: string;
   status: string;
   isOwner: boolean;
+  accountType: AccountType;
+  companyName: string | null;
+  accessExpiresAt: string | null;
+  expired: boolean;
   employee: { id: string; name: string; registration: string | null; department: string | null } | null;
   grants: AccessGrants;
 };
@@ -28,7 +32,7 @@ export async function GET() {
 
   const admin = createSupabaseAdminClient();
   const [profilesResult, grantsResult, employeesResult] = await Promise.all([
-    admin.from("profiles").select("id, full_name, email, status, is_owner").eq("organization_id", auth.orgId).order("full_name"),
+    admin.from("profiles").select("id, full_name, email, status, is_owner, account_type, company_name, access_expires_at").eq("organization_id", auth.orgId).order("full_name"),
     admin.from("user_feature_grants").select("profile_id, feature_code, level").eq("organization_id", auth.orgId),
     admin
       .from("employees")
@@ -55,6 +59,10 @@ export async function GET() {
       email: profile.email,
       status: profile.status,
       isOwner: profile.is_owner === true,
+      accountType: profile.account_type === "terceiro" ? "terceiro" : "colaborador",
+      companyName: profile.company_name ?? null,
+      accessExpiresAt: profile.access_expires_at ?? null,
+      expired: isAccessExpired(profile.access_expires_at),
       employee: employee
         ? {
             id: String(employee.id),
@@ -70,27 +78,39 @@ export async function GET() {
   return NextResponse.json({ users });
 }
 
+type CreateBody = {
+  kind?: AccountType;
+  employeeId?: string;
+  fullName?: string;
+  companyName?: string;
+  accessExpiresAt?: string | null;
+  email?: string;
+  password?: string;
+  grants?: unknown;
+};
+
 /**
- * Cria o acesso de um colaborador: usuário no Auth, perfil, vínculo com a ficha
- * do RH e as permissões marcadas. Em qualquer falha, desfaz o que já criou.
+ * Cria um acesso: de um COLABORADOR (vinculado à ficha do RH) ou de um
+ * TERCEIRO (prestador de fora do quadro, com a empresa e validade opcional).
+ * Em qualquer falha, desfaz o que já criou.
  */
 export async function POST(request: Request) {
   const auth = await authorize();
   if ("error" in auth) return auth.error;
   const { orgId, profileId: actorProfileId, userId: actorUserId } = auth;
 
-  let body: { employeeId?: string; email?: string; password?: string; grants?: unknown };
+  let body: CreateBody;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
+  const kind: AccountType = body.kind === "terceiro" ? "terceiro" : "colaborador";
   const email = body.email?.trim().toLowerCase() ?? "";
   const password = body.password ?? "";
   const grants = normalizeGrants(body.grants);
 
-  if (!body.employeeId) return NextResponse.json({ error: "Escolha o colaborador." }, { status: 400 });
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return NextResponse.json({ error: "E-mail inválido." }, { status: 400 });
   }
@@ -103,17 +123,39 @@ export async function POST(request: Request) {
 
   const admin = createSupabaseAdminClient();
 
-  const { data: employee } = await admin
-    .from("employees")
-    .select("id, full_name, profile_id, active")
-    .eq("organization_id", orgId)
-    .eq("id", body.employeeId)
-    .maybeSingle();
-  if (!employee) return NextResponse.json({ error: "Colaborador não encontrado." }, { status: 404 });
-  if (employee.profile_id) {
-    return NextResponse.json({ error: "Este colaborador já tem acesso à plataforma." }, { status: 409 });
+  // Quem é: colaborador (nome vem da ficha) ou terceiro (dados informados).
+  let fullName: string;
+  let employeeId: string | null = null;
+  let companyName: string | null = null;
+  let accessExpiresAt: string | null = null;
+
+  if (kind === "colaborador") {
+    if (!body.employeeId) return NextResponse.json({ error: "Escolha o colaborador." }, { status: 400 });
+    const { data: employee } = await admin
+      .from("employees")
+      .select("id, full_name, profile_id")
+      .eq("organization_id", orgId)
+      .eq("id", body.employeeId)
+      .maybeSingle();
+    if (!employee) return NextResponse.json({ error: "Colaborador não encontrado." }, { status: 404 });
+    if (employee.profile_id) {
+      return NextResponse.json({ error: "Este colaborador já tem acesso à plataforma." }, { status: 409 });
+    }
+    fullName = String(employee.full_name);
+    employeeId = String(employee.id);
+  } else {
+    fullName = body.fullName?.trim() ?? "";
+    companyName = body.companyName?.trim() ?? "";
+    if (!fullName) return NextResponse.json({ error: "Informe o nome do terceiro." }, { status: 400 });
+    if (!companyName) return NextResponse.json({ error: "Informe a empresa prestadora." }, { status: 400 });
+    if (body.accessExpiresAt) {
+      accessExpiresAt = endOfDayBrasilia(body.accessExpiresAt);
+      if (!accessExpiresAt) return NextResponse.json({ error: "Data de validade inválida." }, { status: 400 });
+      if (isAccessExpired(accessExpiresAt)) {
+        return NextResponse.json({ error: "A validade precisa ser uma data futura." }, { status: 400 });
+      }
+    }
   }
-  const fullName = String(employee.full_name);
 
   const { data: createdUser, error: authError } = await admin.auth.admin.createUser({
     email,
@@ -132,7 +174,16 @@ export async function POST(request: Request) {
 
   const { data: profile, error: profileError } = await admin
     .from("profiles")
-    .insert({ user_id: newUserId, organization_id: orgId, email, full_name: fullName, status: "active" })
+    .insert({
+      user_id: newUserId,
+      organization_id: orgId,
+      email,
+      full_name: fullName,
+      status: "active",
+      account_type: kind,
+      company_name: companyName,
+      access_expires_at: accessExpiresAt,
+    })
     .select("id")
     .single();
   if (profileError || !profile) {
@@ -141,19 +192,23 @@ export async function POST(request: Request) {
   }
 
   const rollback = async () => {
-    await admin.from("employees").update({ profile_id: null }).eq("id", employee.id).eq("profile_id", profile.id);
+    if (employeeId) {
+      await admin.from("employees").update({ profile_id: null }).eq("id", employeeId).eq("profile_id", profile.id);
+    }
     await admin.from("profiles").delete().eq("id", profile.id);
     await admin.auth.admin.deleteUser(newUserId);
   };
 
-  const { error: linkError } = await admin
-    .from("employees")
-    .update({ profile_id: profile.id })
-    .eq("id", employee.id)
-    .is("profile_id", null);
-  if (linkError) {
-    await rollback();
-    return NextResponse.json({ error: linkError.message }, { status: 500 });
+  if (employeeId) {
+    const { error: linkError } = await admin
+      .from("employees")
+      .update({ profile_id: profile.id })
+      .eq("id", employeeId)
+      .is("profile_id", null);
+    if (linkError) {
+      await rollback();
+      return NextResponse.json({ error: linkError.message }, { status: 500 });
+    }
   }
 
   const saved = await replaceGrants(admin, { orgId, profileId: profile.id, grantedBy: actorProfileId }, grants);
@@ -170,7 +225,7 @@ export async function POST(request: Request) {
     entityType: "profile",
     entityId: profile.id,
     riskLevel: "sensitive",
-    metadata: { email, fullName, employeeId: employee.id, grants },
+    metadata: { email, fullName, accountType: kind, employeeId, companyName, accessExpiresAt, grants },
   });
 
   return NextResponse.json({ id: profile.id, email, fullName }, { status: 201 });

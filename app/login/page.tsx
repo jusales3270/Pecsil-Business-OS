@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
 
 const configured = Boolean(
@@ -14,6 +14,28 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Acesso de terceiro vencido (vindo da aplicação ou do próprio login).
+  useEffect(() => {
+    const until = new URLSearchParams(window.location.search).get("expirado");
+    if (until !== null) {
+      // Adiado: o estado inicial precisa ser igual ao do servidor (hidratação).
+      void Promise.resolve().then(() => setMessage(expiredMessage(until)));
+      return;
+    }
+    // Sessão ainda aberta de um acesso que venceu (qualquer tela pode ter
+    // mandado para cá): explica o motivo e encerra a sessão.
+    if (!configured) return;
+    fetch("/api/me", { cache: "no-store" })
+      .then(async (response) => {
+        if (response.status !== 403) return;
+        const body = await response.json().catch(() => ({}));
+        if (body?.error !== "ACCESS_EXPIRED") return;
+        setMessage(expiredMessage(typeof body.expiresAt === "string" ? body.expiresAt : ""));
+        await createSupabaseBrowserClient().auth.signOut().catch(() => {});
+      })
+      .catch(() => {});
+  }, []);
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -46,6 +68,17 @@ export default function LoginPage() {
         setMessage(`Falha no acesso (${error.status}): ${error.message}`);
       }
       return;
+    }
+
+    // Credencial certa não basta: um terceiro com validade vencida não entra.
+    const me = await fetch("/api/me", { cache: "no-store" });
+    if (me.status === 403) {
+      const body = await me.json().catch(() => ({}));
+      if (body?.error === "ACCESS_EXPIRED") {
+        await supabase.auth.signOut().catch(() => {});
+        setMessage(expiredMessage(typeof body.expiresAt === "string" ? body.expiresAt : ""));
+        return;
+      }
     }
 
     window.location.assign("/");
@@ -148,4 +181,12 @@ export default function LoginPage() {
       </aside>
     </main>
   );
+}
+
+function expiredMessage(until: string) {
+  const parsed = Date.parse(until);
+  const date = Number.isFinite(parsed)
+    ? ` em ${new Date(parsed).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`
+    : "";
+  return `Seu acesso expirou${date}. Fale com o responsável pela plataforma.`;
 }

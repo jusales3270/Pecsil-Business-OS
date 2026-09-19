@@ -66,6 +66,16 @@ export function useSessionAccess(): SessionAccessState {
           window.location.assign("/login");
           return null;
         }
+        // Acesso de terceiro vencido: encerra a sessão e o login explica.
+        if (response.status === 403) {
+          const body = await response.json().catch(() => ({}));
+          if (body?.error === "ACCESS_EXPIRED") {
+            await fetch("/auth/signout", { method: "POST" }).catch(() => {});
+            const until = typeof body.expiresAt === "string" ? body.expiresAt : "";
+            window.location.assign(`/login?expirado=${encodeURIComponent(until)}`);
+            return null;
+          }
+        }
         if (!response.ok) return null; // 503/500 (rede ou sem configuração): mantém o fallback demonstrativo
         return (await response.json()) as MePayload;
       })

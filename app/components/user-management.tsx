@@ -17,6 +17,10 @@ type AdminUser = {
   email: string;
   status: string;
   isOwner: boolean;
+  accountType: "colaborador" | "terceiro";
+  companyName: string | null;
+  accessExpiresAt: string | null;
+  expired: boolean;
   employee: { id: string; name: string; registration: string | null; department: string | null } | null;
   grants: AccessGrants;
 };
@@ -39,6 +43,17 @@ const STATUS_LABEL: Record<string, string> = {
 
 function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+}
+
+/** Data no fuso de Brasília: exibição (dd/mm/aaaa) e campo de data (aaaa-mm-dd). */
+function brDate(iso: string) {
+  return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+function inputDate(iso: string | null) {
+  return iso ? new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }) : "";
+}
+function todayInput() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 }
 
 function statusTone(status: string): "success" | "attention" | "neutral" {
@@ -118,7 +133,7 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
       <Card className="user-admin-card">
         <div className="user-admin-head">
           <span>Usuário</span>
-          <span>Colaborador</span>
+          <span>Vínculo</span>
           <span>Acesso</span>
           <span>Situação</span>
         </div>
@@ -142,7 +157,7 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
                   <small>{user.email}</small>
                 </span>
               </span>
-              <span>{user.employee ? user.employee.name : user.isOwner ? "—" : "Sem vínculo"}</span>
+              <span>{linkLabel(user)}</span>
               <span className="access-chips">
                 {user.isOwner ? (
                   <em>Proprietário · acesso total</em>
@@ -152,7 +167,11 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
                   modulesOf(user.grants).map((module) => <em key={module.code}>{module.label}</em>)
                 )}
               </span>
-              <Status tone={statusTone(user.status)}>{STATUS_LABEL[user.status] ?? user.status}</Status>
+              {user.expired ? (
+                <Status tone="danger">Expirado</Status>
+              ) : (
+                <Status tone={statusTone(user.status)}>{STATUS_LABEL[user.status] ?? user.status}</Status>
+              )}
             </button>
           ))
         )}
@@ -184,6 +203,16 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
       )}
     </>
   );
+}
+
+/** Coluna "Vínculo": ficha do RH, ou terceiro com a empresa e a validade. */
+function linkLabel(user: AdminUser) {
+  if (user.isOwner) return "—";
+  if (user.accountType === "terceiro") {
+    const until = user.accessExpiresAt ? ` · ${user.expired ? "expirou" : "até"} ${brDate(user.accessExpiresAt)}` : "";
+    return `Terceiro · ${user.companyName ?? "empresa não informada"}${until}`;
+  }
+  return user.employee ? user.employee.name : "Colaborador sem ficha vinculada";
 }
 
 /**
@@ -241,11 +270,14 @@ function AccessChecklist({ grants, onChange }: { grants: AccessGrants; onChange:
                 aria-expanded={Boolean(open[module.code])}
                 onClick={() => setOpen((current) => ({ ...current, [module.code]: !current[module.code] }))}
               >
-                {open[module.code] ? "Ocultar" : "Detalhar"}
+                <span>{open[module.code] ? "Ocultar" : "Detalhar"}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
               </button>
             </header>
             {open[module.code] && (
-              <ul>
+              <ul className="access-submenu" aria-label={`Funcionalidades de ${module.label}`}>
                 {module.features.map((feature) => {
                   const level = grants[feature.code];
                   return (
@@ -367,6 +399,10 @@ function CreateUserForm({
   onClose: () => void;
   onCreated: (name: string) => void;
 }) {
+  const [kind, setKind] = useState<"colaborador" | "terceiro">("colaborador");
+  const [fullName, setFullName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [query, setQuery] = useState("");
   const [employeeId, setEmployeeId] = useState("");
@@ -397,8 +433,9 @@ function CreateUserForm({
       : list;
   }, [candidates, query]);
 
+  const who = kind === "colaborador" ? Boolean(employee) : Boolean(fullName.trim() && companyName.trim());
   const valid =
-    Boolean(employee) &&
+    who &&
     /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) &&
     password.length >= 8 &&
     Object.keys(grants).length > 0;
@@ -410,16 +447,19 @@ function CreateUserForm({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!valid || submitting || !employee) return;
+    if (!valid || submitting) return;
     setSubmitting(true);
     setError("");
+    const payload = kind === "colaborador"
+      ? { kind, employeeId: employee?.id, email: email.trim(), password, grants }
+      : { kind, fullName: fullName.trim(), companyName: companyName.trim(), accessExpiresAt: expiresAt || null, email: email.trim(), password, grants };
     const response = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ employeeId: employee.id, email: email.trim(), password, grants }),
+      body: JSON.stringify(payload),
     });
     setSubmitting(false);
-    if (response.status === 201) return onCreated(employee.name);
+    if (response.status === 201) return onCreated(kind === "colaborador" ? employee?.name ?? "" : fullName.trim());
     const data = await response.json().catch(() => ({}));
     setError(data.error ?? "Não foi possível criar o usuário.");
   }
@@ -431,7 +471,7 @@ function CreateUserForm({
           <div>
             <p className="eyebrow">PESSOAS E ACESSOS · NOVO USUÁRIO</p>
             <h2>Novo usuário</h2>
-            <p>Escolha o colaborador, defina a senha inicial e marque o que ele poderá acessar.</p>
+            <p>Diga quem é (colaborador da PecSil ou terceiro), defina a senha inicial e marque o que a pessoa poderá acessar.</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar">
             ✕
@@ -440,8 +480,42 @@ function CreateUserForm({
 
         <div className="user-admin-fields">
           <div className="field-wide access-step">
-            <span className="access-step-title">1. Colaborador</span>
-            {employee ? (
+            <span className="access-step-title">1. Quem é</span>
+            <div className="access-kind" role="radiogroup" aria-label="Tipo de usuário">
+              {([
+                ["colaborador", "Colaborador da PecSil", "Está no quadro do RH"],
+                ["terceiro", "Terceiro", "Prestador de fora do quadro"],
+              ] as const).map(([value, label, hint]) => (
+                <button
+                  type="button"
+                  key={value}
+                  role="radio"
+                  aria-checked={kind === value}
+                  className={kind === value ? "active" : ""}
+                  onClick={() => setKind(value)}
+                >
+                  <b>{label}</b>
+                  <small>{hint}</small>
+                </button>
+              ))}
+            </div>
+            {kind === "terceiro" ? (
+              <div className="access-third-party">
+                <label>
+                  <span>Nome completo *</span>
+                  <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ex.: Maria Oliveira" />
+                </label>
+                <label>
+                  <span>Empresa prestadora *</span>
+                  <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Ex.: Contabilidade Silva" />
+                </label>
+                <label>
+                  <span>Acesso válido até</span>
+                  <input type="date" value={expiresAt} min={todayInput()} onChange={(e) => setExpiresAt(e.target.value)} />
+                  <small>Opcional. No fim desse dia o acesso para sozinho; dá para renovar depois.</small>
+                </label>
+              </div>
+            ) : employee ? (
               <div className="access-employee chosen">
                 <span className="user-admin-person">
                   <i>{initials(employee.name)}</i>
@@ -528,6 +602,8 @@ function EditUserDrawer({
 }) {
   const [grants, setGrants] = useState<AccessGrants>(user.grants);
   const [checklistKey, setChecklistKey] = useState(0);
+  const [companyName, setCompanyName] = useState(user.companyName ?? "");
+  const [expiresAt, setExpiresAt] = useState(inputDate(user.accessExpiresAt));
   const [status, setStatus] = useState(user.status);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -559,7 +635,7 @@ function EditUserDrawer({
           <div>
             <p className="eyebrow">PESSOAS E ACESSOS · GERENCIAR</p>
             <h2>{user.fullName}</h2>
-            <p>{user.email}{user.employee ? ` · ${user.employee.name}` : " · sem vínculo com colaborador"}</p>
+            <p>{user.email} · {linkLabel(user)}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar">
             ✕
@@ -567,6 +643,34 @@ function EditUserDrawer({
         </header>
 
         <div className="user-admin-fields">
+          {user.accountType === "terceiro" && (
+            <div className="field-wide access-step">
+              <span className="access-step-title">Dados do terceiro</span>
+              {user.expired && (
+                <p className="user-admin-error">O acesso expirou em {brDate(user.accessExpiresAt!)}. Defina uma nova data ou remova o prazo para liberar de novo.</p>
+              )}
+              <div className="access-third-party">
+                <label>
+                  <span>Empresa prestadora *</span>
+                  <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+                </label>
+                <label>
+                  <span>Acesso válido até</span>
+                  <input type="date" value={expiresAt} min={todayInput()} onChange={(e) => setExpiresAt(e.target.value)} />
+                  <small>Vazio = sem prazo.</small>
+                </label>
+              </div>
+              <div className="user-admin-actions">
+                <Button
+                  variant="secondary"
+                  disabled={busy || !companyName.trim() || (companyName.trim() === (user.companyName ?? "") && expiresAt === inputDate(user.accessExpiresAt))}
+                  onClick={() => send({ companyName: companyName.trim(), accessExpiresAt: expiresAt || null }, `Dados de ${user.fullName} atualizados.`)}
+                >
+                  Salvar dados do terceiro
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="field-wide access-step">
             <span className="access-step-title">Acessos</span>
             <CopyFrom

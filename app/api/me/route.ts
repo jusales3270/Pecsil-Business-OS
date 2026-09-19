@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { getSupabaseConfigStatus } from "../../../lib/supabase/config";
-import { derivePermissions } from "../../../modules/access-catalog";
+import { derivePermissions, isAccessExpired } from "../../../modules/access-catalog";
 import { readSessionAccess } from "../../../lib/auth/session-access";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +42,7 @@ export async function GET() {
   // `avatar_path` só existe depois da migration 202608260001. Enquanto ela não
   // for aplicada, o perfil é lido sem essa coluna — o código não pode depender
   // de uma migration pendente, senão a aplicação inteira cai.
-  const BASE_COLUMNS = "id, full_name, email, status, organization_id";
+  const BASE_COLUMNS = "id, full_name, email, status, organization_id, access_expires_at";
   let { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select(`${BASE_COLUMNS}, avatar_path`)
@@ -64,6 +64,10 @@ export async function GET() {
   // bloqueado): trata como não autenticado para a aplicação.
   if (!profile || profile.status !== "active") {
     return NextResponse.json({ error: "NO_ACTIVE_PROFILE" }, { status: 403 });
+  }
+  // Terceiro com validade vencida: a conta existe, mas o acesso acabou.
+  if (isAccessExpired(profile.access_expires_at)) {
+    return NextResponse.json({ error: "ACCESS_EXPIRED", expiresAt: profile.access_expires_at }, { status: 403 });
   }
 
   // Acesso do USUÁRIO: proprietário ou funcionalidades liberadas uma a uma.
@@ -106,6 +110,7 @@ type ProfileRow = {
   email: string;
   status: string;
   organization_id: string;
+  access_expires_at?: string | null;
   avatar_path?: string | null;
 };
 

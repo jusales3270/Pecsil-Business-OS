@@ -4,7 +4,9 @@ import test from "node:test";
 import {
   ACCESS_CATALOG,
   derivePermissions,
+  endOfDayBrasilia,
   hasFeature,
+  isAccessExpired,
   hasModuleAccess,
   normalizeGrants,
 } from "../modules/access-catalog.ts";
@@ -89,4 +91,13 @@ test("Produção: quem só vê Paradas não recebe OS, clientes nem envios exter
   assert.deepEqual(data.enviosExternos, []);
   assert.deepEqual(data.kanban, []);
   assert.equal(data.indicadores.carteira.total, 0);
+});
+
+test("validade de terceiro: sem data nunca vence; vence no fim do dia em Brasília", () => {
+  assert.equal(isAccessExpired(null), false);
+  const limit = endOfDayBrasilia("2026-09-30");
+  assert.equal(limit, "2026-10-01T02:59:59.000Z");
+  assert.equal(isAccessExpired(limit, new Date("2026-09-30T23:00:00-03:00")), false);
+  assert.equal(isAccessExpired(limit, new Date("2026-10-01T00:00:01-03:00")), true);
+  assert.equal(endOfDayBrasilia("30/09/2026"), null);
 });

@@ -207,3 +207,26 @@ export function derivePermissions(grants: AccessGrants): string[] {
   }
   return [...permissions].sort();
 }
+
+/** Tipo da conta: colaborador (ficha no RH) ou terceiro (prestador externo). */
+export type AccountType = "colaborador" | "terceiro";
+
+/**
+ * O acesso venceu? Sem data, nunca vence. Espelha `current_profile_id()` do
+ * banco, que deixa de reconhecer o perfil depois de `access_expires_at`.
+ */
+export function isAccessExpired(expiresAt: string | null | undefined, now: Date = new Date()): boolean {
+  if (!expiresAt) return false;
+  const limit = Date.parse(expiresAt);
+  return Number.isFinite(limit) && limit <= now.getTime();
+}
+
+/**
+ * Converte a data escolhida na tela (AAAA-MM-DD) no fim daquele dia, no fuso
+ * de Brasília: "válido até 30/09" vale o dia 30 inteiro.
+ */
+export function endOfDayBrasilia(date: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const parsed = Date.parse(`${date}T23:59:59-03:00`);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+}
