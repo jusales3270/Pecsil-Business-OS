@@ -12,7 +12,10 @@ import {
 } from "../modules/access-catalog.ts";
 import { pruneDashboard } from "../lib/forja/forja-session.ts";
 
-const migration = readFileSync(new URL("../supabase/migrations/202609190001_user_access.sql", import.meta.url), "utf8");
+// O catálogo é semeado pela migração de acesso e ampliado pelas seguintes.
+const migration = ["202609190001_user_access.sql", "202609210001_module_events.sql"]
+  .map((name) => readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), "utf8"))
+  .join("\n");
 
 test("catálogo em código é o mesmo semeado no banco", () => {
   const seeded = new Map(

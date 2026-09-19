@@ -9,11 +9,13 @@ import { useSessionAccess } from "../lib/data/use-session-access";
 import { ModuleNavProvider, useModuleNav } from "../lib/module-nav-context";
 import { HrModule } from "./components/hr-module";
 import { UserManagement } from "./components/user-management";
+import { MasterDataView } from "./components/master-data";
+import { EventTrailView } from "./components/event-trail";
 import { AccountPanel } from "./components/account-panel";
 import { ACCESS_CATALOG, ACCESS_LEVELS, LEVEL_LABELS, levelRank, type AccessGrants } from "../modules/access-catalog";
 import { usePwa } from "./components/pwa-provider";
 
-type View = "Visão Geral" | "Módulos" | "Pessoas e Acessos" | "Estrutura" | "Permissões e Segurança" | "Busca Corporativa" | "Documentos" | "Notificações" | "Auditoria" | "Banco e Autenticação" | "Configurações";
+type View = "Visão Geral" | "Módulos" | "Pessoas e Acessos" | "Estrutura" | "Cadastros" | "Eventos" | "Permissões e Segurança" | "Busca Corporativa" | "Documentos" | "Notificações" | "Auditoria" | "Banco e Autenticação" | "Configurações";
 
 type OperationalEvent = {
   id: number;
@@ -30,6 +32,7 @@ type OperationalEvent = {
 const nav: { label: View; icon: string }[] = [
   { label: "Visão Geral", icon: "grid" }, { label: "Módulos", icon: "modules" },
   { label: "Pessoas e Acessos", icon: "users" }, { label: "Estrutura", icon: "org" },
+  { label: "Cadastros", icon: "briefcase" }, { label: "Eventos", icon: "clock" },
   { label: "Permissões e Segurança", icon: "lock" },
   { label: "Busca Corporativa", icon: "search" },
   { label: "Documentos", icon: "file" }, { label: "Notificações", icon: "bell" },
@@ -43,6 +46,8 @@ const headerCopy: Record<View, [string, string]> = {
   "Módulos": ["Módulos", "Catálogo de domínios e estado de cada um"],
   "Pessoas e Acessos": ["Pessoas e acessos", "Usuários e o que cada um pode acessar"],
   "Estrutura": ["Estrutura empresarial", "Empresa, unidades, departamentos, equipes e cargos"],
+  "Cadastros": ["Cadastros", "Fornecedores e centros de custo usados por todos os módulos"],
+  "Eventos": ["Eventos", "O que acontece em cada módulo, em ordem"],
   "Permissões e Segurança": ["Permissões e segurança", "O que cada usuário acessa e como o banco isola os dados"],
   "Busca Corporativa": ["Busca corporativa", "Pessoas, estruturas, documentos e eventos autorizados"],
   "Documentos": ["Documentos", "Arquivos versionados, classificados e rastreáveis"],
@@ -58,6 +63,8 @@ const OWNER_ONLY_VIEWS: View[] = ["Pessoas e Acessos", "Permissões e Segurança
 const viewPermissions: Partial<Record<View, string>> = {
   "Pessoas e Acessos": "core.people.view",
   "Estrutura": "core.organization.view",
+  "Cadastros": "core.cadastros.view",
+  "Eventos": "core.eventos.view",
   "Permissões e Segurança": "core.access.view",
   "Busca Corporativa": "core.search.view",
   "Documentos": "core.documents.view",
@@ -133,7 +140,7 @@ function Overview({ setView, summary, onOpenModule, access, catalogModules, visi
       {metricItems.map(([,value,label,meta,color]) => <Kpi key={label} label={label} caption={meta} value={value} tone={(color==="orange"?"amber":color) as "blue"|"green"|"amber"|"purple"}/>)}
     </KpiGrid>
     <div className="overview-grid">
-      <Card className="executive-card"><div className="card-head"><div><p className="eyebrow">ECOSSISTEMA</p><h2>Mapa da plataforma</h2></div><Status tone="info">Fundação v1</Status></div><div className="system-map"><div className="core"><span><Icon name="grid"/></span><b>Núcleo Pecsil</b><small>Identidade · Acessos · Dados · Auditoria</small></div><div className="connector"/><div className="module-row">{catalogModules.slice(0,5).map(m=><button key={m.name} className={`map-module ${m.color}`} onClick={()=>m.enabled?onOpenModule(m.id):setView("Módulos")}><Icon name={m.icon}/><span>{m.short}</span></button>)}</div><div className="intelligence"><span>J</span><div><b>Jarvis Business</b><small>Inteligência transversal — preparado para fase futura</small></div><Status>Planejado</Status></div></div></Card>
+      <Card className="executive-card"><div className="card-head"><div><p className="eyebrow">ECOSSISTEMA</p><h2>Mapa da plataforma</h2></div><Status tone="info">Fundação v1</Status></div><div className="system-map"><div className="core"><span><Icon name="grid"/></span><b>Núcleo Pecsil</b><small>Identidade · Acessos · Dados · Auditoria</small></div><div className="connector"/><div className="module-row">{catalogModules.slice(0,5).map(m=><button key={m.name} className={`map-module ${m.color}`} onClick={()=>m.enabled?onOpenModule(m.id):setView("Módulos")}><Icon name={m.icon}/><span>{m.short}</span></button>)}</div><div className="intelligence"><span>S</span><div><b>SARA</b><small>Inteligência transversal — lê a trilha de eventos dos módulos (fase futura)</small></div><Status>Planejado</Status></div></div></Card>
       <Card className="foundation-card"><div className="card-head"><div><p className="eyebrow">ECOSSISTEMA</p><h2>Módulos da plataforma</h2></div><Status tone="info">{moduleRegistry.filter(manifest=>manifest.enabled).length} de {moduleRegistry.length}</Status></div><ul className="check-list">{moduleRegistry.map(manifest=><li key={manifest.id} className={manifest.enabled?"done":""}><span>{manifest.enabled?"✓":"•"}</span><div><b>{manifest.name}</b><small>{manifest.enabled?"Integrado":"Planejado"}</small></div></li>)}</ul></Card>
     </div>
     <Card className="module-preview"><div className="card-head"><div><p className="eyebrow">MÓDULOS AUTORIZADOS</p><h2>Seu ambiente de trabalho</h2><p>O catálogo e o menu respeitam o perfil e o escopo selecionados.</p></div><button className="link-button" onClick={()=>setView("Módulos")}>Ver catálogo <Icon name="arrow"/></button></div><div className="module-strip">{catalogModules.slice(0,4).map(m=><button key={m.name} onClick={()=>m.enabled?onOpenModule(m.id):setView("Módulos")}><span className={`module-icon ${m.color}`}><Icon name={m.icon}/></span><span><b>{m.name}</b><small>{m.status}</small></span><Icon name="arrow"/></button>)}</div></Card>
@@ -449,7 +456,7 @@ function HomeContent() {
           {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{canInstall && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar aplicativo</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
         </div>
       </header>
-      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={snapshot.loadedAt} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access}):view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule}/>:view==="Documentos"?<DocumentsView/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
+      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={snapshot.loadedAt} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access}):view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Documentos"?<DocumentsView/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
       <nav className="mobile-bottom-nav" aria-label="Navegação rápida móvel">
         <button
           type="button"

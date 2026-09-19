@@ -37,6 +37,7 @@ const CASES = [
   { name: "só Contas a pagar (aprovar)", grants: { "financeiro.pagar": "aprovar" } },
   { name: "só Visitas (operar)", grants: { "portaria.visitas": "operar" } },
   { name: "só Cotações (ver)", grants: { "compras.cotacoes": "ver" } },
+  { name: "só Eventos (ver)", grants: { "fundacao.eventos": "ver" } },
 ];
 
 const { data: org } = await admin.from("organizations").select("id").limit(1).single();
@@ -138,6 +139,23 @@ try {
       const quote = await client.from("cotacoes").insert({ organization_id: org.id, fornecedor: "Teste matriz", divisao: "USINAGEM", status: "PENDENTE", user_id: "1" });
       check(n, "não cria cotação com Ver", Boolean(quote.error), quote.error?.code);
     }
+    // Trilha de eventos e cadastros mestres.
+    const events = await total(client, "module_events");
+    const seesEvents = "fundacao.eventos" in scenario.grants;
+    check(n, seesEvents ? "lê a trilha de eventos" : "não lê a trilha de eventos",
+      seesEvents ? typeof events === "number" && events > 0 : events === 0, events);
+    const fakeEvent = await client.from("module_events").insert({
+      organization_id: org.id, module_code: "rh", event_type: "rh.colaborador.desligado", entity_type: "colaborador", summary: "falso",
+    });
+    check(n, "não insere evento direto", Boolean(fakeEvent.error), fakeEvent.error?.code);
+    check(n, "lê fornecedores (cadastro comum)", (await total(client, "suppliers")) > 0, await total(client, "suppliers"));
+    const { data: anySupplier } = await admin.from("suppliers").select("id, name").limit(1).single();
+    await client.from("suppliers").update({ name: "ALTERADO PELA MATRIZ" }).eq("id", anySupplier.id);
+    const { data: supplierAfter } = await admin.from("suppliers").select("name").eq("id", anySupplier.id).single();
+    check(n, "não edita fornecedor sem Cadastros", supplierAfter.name === anySupplier.name, supplierAfter.name);
+    const merge = await client.rpc("merge_suppliers", { keep_id: anySupplier.id, drop_id: anySupplier.id });
+    check(n, "não unifica fornecedores sem Cadastros", Boolean(merge.error), merge.error?.code);
+
     await client.auth.signOut();
   }
 
@@ -186,6 +204,7 @@ try {
   }
 } finally {
   for (const { userId, profileId } of created) {
+    if (profileId) await admin.from("module_events").delete().eq("entity_id", profileId);
     if (profileId) await admin.from("profiles").delete().eq("id", profileId);
     await admin.auth.admin.deleteUser(userId);
   }

@@ -106,6 +106,8 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     features: [
       { code: "fundacao.estrutura", label: "Estrutura", description: "Unidades, departamentos, equipes e cargos (consulta).", levels: VER },
       { code: "fundacao.auditoria", label: "Auditoria", description: "Trilha de auditoria da plataforma.", levels: VER },
+      { code: "fundacao.cadastros", label: "Cadastros", description: "Fornecedores e centros de custo usados por todos os módulos; operar edita e unifica.", levels: VER_OPERAR },
+      { code: "fundacao.eventos", label: "Eventos", description: "Linha do tempo do que acontece em cada módulo (base das integrações e da SARA).", levels: VER },
     ],
   },
 ];
@@ -188,6 +190,8 @@ export function derivePermissions(grants: AccessGrants): string[] {
     if (moduleCode === "fundacao") {
       if (code === "fundacao.estrutura") permissions.add("core.organization.view");
       if (code === "fundacao.auditoria") permissions.add("core.audit.view");
+      if (code === "fundacao.cadastros") permissions.add("core.cadastros.view");
+      if (code === "fundacao.eventos") permissions.add("core.eventos.view");
       continue;
     }
     permissions.add(`${moduleCode}.view`);

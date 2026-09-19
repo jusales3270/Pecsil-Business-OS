@@ -26,7 +26,7 @@ módulos de negócio + dados compartilhados + governança + inteligência corpor
 A trajetória em uma linha:
 
 > **Demo RH → Core real → RH integrado → Financeiro → demais módulos → dados
-> consolidados → Jarvis → Module Builder**
+> consolidados → SARA → Module Builder**
 
 ---
 
@@ -80,7 +80,7 @@ Auditoria do repositório em 10/08/2026. A coluna **Código** é o que existe de
 | Compras / Estoque / Produção / Qualidade | ⚪ Planejado | Declarados em `planned.ts` | Confere |
 | Manutenção / Portaria e Frota / Fiscal / Comercial | ⚪ Planejado | **Ausentes do `planned.ts`** | Lacuna de registro |
 | Camada analítica | ⚪ Planejada | — | Confere |
-| Jarvis Business | ⚪ Planejado | — | Confere |
+| SARA | ⚪ Planejado | — | Confere |
 | Module Builder | 🔵 Backlog | — | Confere |
 
 ### 3.1 — Divergências abertas
@@ -213,7 +213,9 @@ números diferentes para o mesmo conceito.
 
 ---
 
-### Fase 6 — Jarvis Business
+### Fase 6 — SARA (antes "Jarvis Business")
+
+> **21/09/2026:** a inteligência transversal passou a se chamar **SARA**. Base já criada: a trilha de eventos entre módulos (`module_events`), que registra os fatos de cada departamento para a SARA narrar, cobrar e recomendar.
 
 Camada transversal de inteligência sobre todo o Business OS — **não** um chatbot
 colocado em cima do ERP. Construído em níveis:
@@ -227,7 +229,7 @@ colocado em cima do ERP. Construído em níveis:
 
 **Restrições inegociáveis:**
 
-- O Jarvis **herda as permissões de quem pergunta**. Nunca vê mais que o usuário.
+- A SARA **herda as permissões de quem pergunta**. Nunca vê mais que o usuário.
 - Toda resposta é auditável e rastreável até a origem do dado.
 - Nível 4 exige aprovação humana explícita para qualquer ação crítica.
 - Nível N+1 só começa quando o nível N estiver em uso real.
@@ -326,7 +328,7 @@ Registrado para não ser reaberto sem motivo novo:
 
 - **Folha de pagamento no RH** — complexidade regulatória desproporcional ao valor inicial
 - **Module Builder agora** — sem contrato estabilizado, geraria dívida estrutural
-- **Jarvis como chatbot sobre o ERP** — precisa ser camada transversal com permissões
+- **SARA como chatbot sobre o ERP** — precisa ser camada transversal com permissões
 - **Módulos com login/usuários próprios** — mata a premissa da plataforma
 - **Dados demonstrativos em produção** — o modo demo é ponte, não destino
 
