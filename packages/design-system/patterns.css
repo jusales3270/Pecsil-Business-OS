@@ -5425,3 +5425,18 @@ button.holiday-row:hover {
   }
   .access-module > ul.access-submenu .access-levels { margin-left: 0; }
 }
+
+/* Novo usuário: o que falta para liberar "Criar usuário". */
+.form-layer form > footer.access-form-footer {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.access-missing {
+  flex: 1 1 280px;
+  margin: 0;
+  padding-left: var(--sp-2);
+  border-left: 2px solid var(--accent-amber);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}

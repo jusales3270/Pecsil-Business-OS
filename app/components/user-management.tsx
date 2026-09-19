@@ -433,12 +433,17 @@ function CreateUserForm({
       : list;
   }, [candidates, query]);
 
-  const who = kind === "colaborador" ? Boolean(employee) : Boolean(fullName.trim() && companyName.trim());
-  const valid =
-    who &&
-    /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) &&
-    password.length >= 8 &&
-    Object.keys(grants).length > 0;
+  // O que ainda falta para criar — mostrado ao lado do botão, para ninguém
+  // ficar diante de um botão desativado sem saber por quê.
+  const missing = [
+    kind === "colaborador" && !employee && "escolher o colaborador (passo 1)",
+    kind === "terceiro" && !fullName.trim() && "nome do terceiro",
+    kind === "terceiro" && !companyName.trim() && "empresa prestadora",
+    !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) && "e-mail de login válido",
+    password.length < 8 && "senha com pelo menos 8 caracteres",
+    Object.keys(grants).length === 0 && "marcar ao menos uma funcionalidade",
+  ].filter((item): item is string => Boolean(item));
+  const valid = missing.length === 0;
 
   function choose(candidate: Candidate) {
     setEmployeeId(candidate.id);
@@ -571,7 +576,8 @@ function CreateUserForm({
           {error && <p className="user-admin-error field-wide">{error}</p>}
         </div>
 
-        <footer>
+        <footer className="access-form-footer">
+          {!valid && <p className="access-missing" role="status">Para criar, falta: {missing.join(" · ")}.</p>}
           <button type="button" className="employee-cancel" onClick={onClose}>
             Cancelar
           </button>
