@@ -2,6 +2,24 @@ export type UserRole = 'ORCAMENTISTA' | 'GESTOR';
 
 export type Divisao = 'USINAGEM' | 'FUNDICAO';
 
+/**
+ * O que o usuário logado pode fazer no Compras, vindo das funcionalidades
+ * liberadas pelo proprietário (Cotações, Aprovações, Compras realizadas).
+ */
+export interface ComprasCaps {
+  verCotacoes: boolean;
+  cotar: boolean;
+  verAprovacoes: boolean;
+  aprovar: boolean;
+  verRealizadas: boolean;
+  comprar: boolean;
+}
+
+/**
+ * Visão de trabalho no Compras. `id` é a CAIXA do papel (1 = compras,
+ * 2 = aprovação), não uma pessoa: cotações e notificações históricas usam
+ * esses números. O nome é o do usuário logado.
+ */
 export interface User {
   id: number;
   name: string;

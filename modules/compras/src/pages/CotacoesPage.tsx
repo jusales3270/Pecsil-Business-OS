@@ -90,6 +90,7 @@ const formatProdutosQtd = (prods: any[], cotacaoId?: number, compras?: any[]) =>
 };
 
 export default function CotacoesPage() {
+  const caps = useStore((state) => state.caps);
   const { user, cotacoes, compras, deleteCotacao, currentDivisao, dashboardAction, setDashboardAction, revertCotacaoParaPendente, activeCotacaoIdForModal, setActiveCotacaoIdForModal } = useStore();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -230,13 +231,13 @@ export default function CotacoesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-[#212121]">Minhas Cotações</h2>
-        <button
+        {caps.cotar && (<button
           onClick={() => { setEditingCotacao(null); setModalOpen(true); }}
           className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors active:scale-[0.98]"
         >
           <Plus size={16} />
           Nova Cotação
-        </button>
+        </button>)}
       </div>
 
       {/* Filters */}
@@ -336,8 +337,8 @@ export default function CotacoesPage() {
                     <td className="py-3 px-4 font-medium text-primary">
                       <div className="flex items-center gap-1">
                         <IconButton icon={<Eye size={14} />} onClick={() => setDetailModal(c)} title="Ver detalhes" />
-                        <IconButton icon={<Pencil size={14} />} onClick={() => handleEdit(c)} title="Editar" />
-                        <IconButton icon={<Trash2 size={14} />} onClick={() => setDeleteConfirm(c)} title="Excluir" danger />
+                        {caps.cotar && (<IconButton icon={<Pencil size={14} />} onClick={() => handleEdit(c)} title="Editar" />)}
+                        {caps.cotar && (<IconButton icon={<Trash2 size={14} />} onClick={() => setDeleteConfirm(c)} title="Excluir" danger />)}
                         {(c.status === 'APROVADO' || (c.status === 'PENDENTE' && c.produtos && c.produtos.some(p => p.status === 'APROVADO'))) && (
                           <>
                             <IconButton icon={<ShoppingCart size={14} />} onClick={() => handleComprar(c)} title="Comprar" primary />
@@ -422,18 +423,18 @@ export default function CotacoesPage() {
                 >
                   <Eye size={13} /> Ver
                 </button>
-                <button
+                {caps.cotar && (<button
                   onClick={() => handleEdit(c)}
                   className="flex-1 min-w-[70px] flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium bg-[#e8eaf6] text-primary hover:bg-[#c5cae9] transition-colors"
                 >
                   <Pencil size={13} /> Editar
-                </button>
-                <button
+                </button>)}
+                {caps.cotar && (<button
                   onClick={() => setDeleteConfirm(c)}
                   className="flex-1 min-w-[70px] flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium bg-[#ffebee] text-[#c62828] hover:bg-[#ffcdd2] transition-colors"
                 >
                   <Trash2 size={13} /> Excluir
-                </button>
+                </button>)}
                 {(c.status === 'APROVADO' || (c.status === 'PENDENTE' && c.produtos && c.produtos.some(p => p.status === 'APROVADO'))) && (
                   <>
                     <button

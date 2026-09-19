@@ -1,15 +1,35 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
 import type { ModuleAccessContext } from '@/modules/access';
+import { levelRank, type AccessLevel } from '@/modules/access-catalog';
 import { supabase } from "../lib/supabase";
 
 export type UserRole = 'super_admin' | 'admin' | 'user';
 
+export type AreaPortaria = 'visitas' | 'terceiros' | 'recebidos' | 'veiculos';
+
 export interface Perfil {
   id: string;
   nome: string;
+  /** super_admin = proprietário; os demais são `user` e valem pelas áreas. */
   role: UserRole;
+  /** Nível liberado em cada área (ver / operar / aprovar = gerenciar). */
+  areas: Record<AreaPortaria, AccessLevel | null>;
   foto_base64?: string;
+}
+
+const AREAS: AreaPortaria[] = ['visitas', 'terceiros', 'recebidos', 'veiculos'];
+
+/** A pessoa pode `nivel` na área? Proprietário pode tudo. */
+export function podePortaria(perfil: Perfil | null, area: AreaPortaria, nivel: AccessLevel = 'ver'): boolean {
+  if (!perfil) return false;
+  if (perfil.role === 'super_admin') return true;
+  return levelRank(perfil.areas[area]) >= levelRank(nivel);
+}
+
+/** Gerencia alguma área (detalhamentos do painel). */
+export function gerenciaAlgumaArea(perfil: Perfil | null): boolean {
+  return AREAS.some((area) => podePortaria(perfil, area, 'aprovar'));
 }
 
 interface AuthContextType {
@@ -28,14 +48,15 @@ const AuthContext = createContext<AuthContextType>({
   refreshPerfil: async () => {},
 });
 
-/** Papel da Portaria derivado das credenciais do Business OS. */
+/** Perfil da Portaria derivado do acesso do usuário no Business OS. */
 function perfilFromAccess(access: ModuleAccessContext, userId: string): Perfil {
-  const isSuperAdmin = access.roleCode === 'owner' || access.roleCode === 'director' || access.role === 'Proprietário';
-  const isManager = access.roleCode === 'manager' || access.role === 'Gestor';
   return {
     id: userId,
     nome: access.name || 'Operador Portaria',
-    role: isSuperAdmin ? 'super_admin' : isManager ? 'admin' : 'user',
+    role: access.isOwner ? 'super_admin' : 'user',
+    areas: Object.fromEntries(
+      AREAS.map((area) => [area, access.isOwner ? 'aprovar' : access.grants[`portaria.${area}`] ?? null]),
+    ) as Record<AreaPortaria, AccessLevel | null>,
   };
 }
 

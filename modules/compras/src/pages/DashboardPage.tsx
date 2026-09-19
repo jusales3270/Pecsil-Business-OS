@@ -28,6 +28,7 @@ const COLORS = {
 };
 
 export default function DashboardPage() {
+  const caps = useStore((state) => state.caps);
   const { user, cotacoes, compras, setPage, currentDivisao, setDashboardAction } = useStore();
   const [drilldownType, setDrilldownType] = useState<'PENDENTES' | 'APROVADOS_MES' | 'COMPRADOS' | 'ORC_TOTAL' | 'ORC_PENDENTES' | 'ORC_APROVADOS' | 'ORC_COMPRADOS' | null>(null);
 
@@ -349,20 +350,20 @@ export default function DashboardPage() {
                           >
                             <Eye size={14} />
                           </button>
-                          <button
+                          {caps.cotar && (<button
                             onClick={() => handleAction('EDIT', c.id)}
                             className="p-1 hover:bg-black/[0.04] rounded text-[#757575] hover:text-primary transition-colors"
                             title="Editar cotação"
                           >
                             <Pencil size={14} />
-                          </button>
-                          <button
+                          </button>)}
+                          {caps.cotar && (<button
                             onClick={() => handleAction('DELETE', c.id)}
                             className="p-1 hover:bg-black/[0.04] rounded text-[#757575] hover:text-[#c62828] transition-colors"
                             title="Excluir cotação"
                           >
                             <Trash2 size={14} />
-                          </button>
+                          </button>)}
                         </>
                       ) : (
                         <button
@@ -407,18 +408,18 @@ export default function DashboardPage() {
                   >
                     <Eye size={12} /> Ver
                   </button>
-                  <button
+                  {caps.cotar && (<button
                     onClick={() => handleAction('EDIT', c.id)}
                     className="flex-1 py-1 rounded bg-[#e8eaf6] text-primary text-[11px] font-medium flex items-center justify-center gap-1"
                   >
                     <Pencil size={12} /> Editar
-                  </button>
-                  <button
+                  </button>)}
+                  {caps.cotar && (<button
                     onClick={() => handleAction('DELETE', c.id)}
                     className="flex-1 py-1 rounded bg-[#ffebee] text-[#c62828] text-[11px] font-medium flex items-center justify-center gap-1"
                   >
                     <Trash2 size={12} /> Excluir
-                  </button>
+                  </button>)}
                 </div>
               ) : (
                 <div className="pt-2 mt-2 border-t border-black/[0.06]">
@@ -495,6 +496,7 @@ function StatusBadge({ status, cotacao }: { status: string; cotacao?: any }) {
 }
 
 function DrilldownModal({ type, onClose }: { type: 'PENDENTES' | 'APROVADOS_MES' | 'COMPRADOS' | 'ORC_TOTAL' | 'ORC_PENDENTES' | 'ORC_APROVADOS' | 'ORC_COMPRADOS'; onClose: () => void }) {
+  const caps = useStore((state) => state.caps);
   const { user, cotacoes, compras, currentDivisao, setPage, setActiveCotacaoIdForModal, setDashboardAction, revertCotacaoParaPendente } = useStore();
 
   const title = {
@@ -651,7 +653,7 @@ function DrilldownModal({ type, onClose }: { type: 'PENDENTES' | 'APROVADOS_MES'
                         <span className="text-xs font-bold text-[#757575]">#{c.id}</span>
                         {type === 'APROVADOS_MES' && (
                           <span className="text-[10px] px-1.5 py-0.2 rounded bg-green-50 text-green-700 font-semibold border border-green-200">
-                            Aprovado por: {c.aprovadoPor || 'Ricardo'}
+                            Aprovado por: {c.aprovadoPor || 'não informado'}
                           </span>
                         )}
                         {type.startsWith('ORC_') && (
@@ -687,20 +689,20 @@ function DrilldownModal({ type, onClose }: { type: 'PENDENTES' | 'APROVADOS_MES'
                                <RotateCcw size={14} />
                              </button>
                            )}
-                          <button
+                          {caps.cotar && (<button
                             onClick={(e) => handleActionClick('EDIT', c.id, e)}
                             className="p-1.5 hover:bg-black/[0.06] rounded text-[#757575] hover:text-primary transition-colors"
                             title="Editar cotação"
                           >
                             <Pencil size={14} />
-                          </button>
-                          <button
+                          </button>)}
+                          {caps.cotar && (<button
                             onClick={(e) => handleActionClick('DELETE', c.id, e)}
                             className="p-1.5 hover:bg-black/[0.06] rounded text-[#757575] hover:text-[#c62828] transition-colors"
                             title="Excluir cotação"
                           >
                             <Trash2 size={14} />
-                          </button>
+                          </button>)}
                         </div>
                       ) : (
                         <ArrowRight size={16} className="text-[#757575] group-hover:text-primary group-hover:translate-x-1 transition-all" />

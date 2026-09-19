@@ -10,6 +10,7 @@ import { ModuleNavProvider, useModuleNav } from "../lib/module-nav-context";
 import { HrModule } from "./components/hr-module";
 import { UserManagement } from "./components/user-management";
 import { AccountPanel } from "./components/account-panel";
+import { ACCESS_CATALOG, ACCESS_LEVELS, LEVEL_LABELS, levelRank, type AccessGrants } from "../modules/access-catalog";
 import { usePwa } from "./components/pwa-provider";
 
 type View = "Visão Geral" | "Módulos" | "Pessoas e Acessos" | "Estrutura" | "Permissões e Segurança" | "Busca Corporativa" | "Documentos" | "Notificações" | "Auditoria" | "Banco e Autenticação" | "Configurações";
@@ -40,9 +41,9 @@ const nav: { label: View; icon: string }[] = [
 const headerCopy: Record<View, [string, string]> = {
   "Visão Geral": ["Visão geral", "Estado do ecossistema, módulos e indicadores autorizados"],
   "Módulos": ["Módulos", "Catálogo de domínios e estado de cada um"],
-  "Pessoas e Acessos": ["Pessoas e acessos", "Cadastro mestre de colaboradores, contas e perfis"],
+  "Pessoas e Acessos": ["Pessoas e acessos", "Usuários e o que cada um pode acessar"],
   "Estrutura": ["Estrutura empresarial", "Empresa, unidades, departamentos, equipes e cargos"],
-  "Permissões e Segurança": ["Permissões e segurança", "Papéis, escopos, ações e isolamento de dados"],
+  "Permissões e Segurança": ["Permissões e segurança", "O que cada usuário acessa e como o banco isola os dados"],
   "Busca Corporativa": ["Busca corporativa", "Pessoas, estruturas, documentos e eventos autorizados"],
   "Documentos": ["Documentos", "Arquivos versionados, classificados e rastreáveis"],
   "Notificações": ["Notificações", "Alertas e pendências consolidados dos módulos"],
@@ -51,8 +52,8 @@ const headerCopy: Record<View, [string, string]> = {
   "Configurações": ["Configurações", "Parâmetros centrais herdados por todos os módulos"],
 };
 
-/** Áreas restritas ao proprietário: vínculo de contas, perfis e escopos. */
-const OWNER_ONLY_VIEWS: View[] = ["Pessoas e Acessos"];
+/** Áreas exclusivas do proprietário: acessos de usuários, segurança e infraestrutura. */
+const OWNER_ONLY_VIEWS: View[] = ["Pessoas e Acessos", "Permissões e Segurança", "Banco e Autenticação", "Configurações"];
 
 const viewPermissions: Partial<Record<View, string>> = {
   "Pessoas e Acessos": "core.people.view",
@@ -169,47 +170,19 @@ function OrganizationView({ notify, organizationData, summary, organizationName 
   </>;
 }
 
-/** Papéis provisionados na organização. A contagem de contas vem da API. */
-const ROLE_CATALOG = [
-  { code:"owner", name:"Proprietário", scope:"Empresa completa", description:"Visão transversal e vínculo de acessos" },
-  { code:"director", name:"Diretor", scope:"Áreas autorizadas", description:"Indicadores e decisões" },
-  { code:"manager", name:"Gestor", scope:"Módulo, equipe ou departamento", description:"Gestão e aprovações" },
-  { code:"operator", name:"Operador", scope:"Módulo autorizado", description:"Execução das rotinas" },
-  { code:"employee", name:"Colaborador", scope:"Próprio registro", description:"Autosserviço" },
-  { code:"admin", name:"Administrador", scope:"Plataforma", description:"Configuração técnica" },
-] as const;
-
 function PeopleAccessView({ notify, people, summary }: { notify:(message:string)=>void; people: Person[]; summary: FoundationSummary }) {
-  const [tab,setTab]=useState<"Colaboradores"|"Usuários"|"Perfis de acesso">("Colaboradores");
+  const [tab,setTab]=useState<"Colaboradores"|"Usuários">("Usuários");
   const [query,setQuery]=useState("");
   const [status,setStatus]=useState("Todos");
   const [selected,setSelected]=useState<Person | null>(null);
   const filtered=useMemo(()=>people.filter(p=>(status==="Todos"||p.status===status)&&`${p.name} ${p.role} ${p.department}`.toLowerCase().includes(query.toLowerCase())),[people,query,status]);
-  // Contagem real das contas por papel (a lista fixa de usuários por perfil saiu).
-  const [roleCounts,setRoleCounts]=useState<Record<string,number>|null>(null);
-  useEffect(()=>{
-    if(tab!=="Perfis de acesso"||roleCounts) return;
-    const controller=new AbortController();
-    fetch("/api/admin/users",{cache:"no-store",signal:controller.signal})
-      .then(response=>response.ok?response.json():null)
-      .then(payload=>{
-        const counts:Record<string,number>={};
-        for(const user of payload?.users??[]) if(user.roleCode) counts[user.roleCode]=(counts[user.roleCode]??0)+1;
-        setRoleCounts(counts);
-      })
-      .catch(()=>setRoleCounts({}));
-    return ()=>controller.abort();
-  },[tab,roleCounts]);
-  const profiles: [string,string,string,string][] = ROLE_CATALOG.map(role=>[
-    role.name, role.scope, role.description,
-    roleCounts ? `${roleCounts[role.code] ?? 0} ${(roleCounts[role.code] ?? 0) === 1 ? "usuário" : "usuários"}` : "—",
-  ]);
+  const featureCount=ACCESS_CATALOG.reduce((total,module)=>total+module.features.length,0);
   return <>
-    <div className="page-head"><div><p className="eyebrow">ETAPA 2 · IDENTIDADE</p><h1>Pessoas e acessos</h1><p>Cadastro mestre de colaboradores, contas e perfis que sustentará todo o ecossistema.</p></div><Button onClick={()=>notify("Novo colaborador preparado para a futura gravação no banco.")}><Icon name="plus"/> Novo colaborador</Button></div>
-    <MetricCards items={[[String(summary.employees),"Colaboradores",`${summary.activeEmployees} ativos`],[String(summary.users),"Usuários","Contas cadastradas"],[String(summary.roles),"Perfis-base","Modelo corporativo"],[String(Math.max(summary.employees-summary.activeEmployees,0)),"Pendências","Exigem revisão"]]}/>
-    <div className="section-tabs" role="tablist">{(["Colaboradores","Usuários","Perfis de acesso"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}</button>)}</div>
-    {tab==="Usuários" ? <UserManagement notify={notify}/> : tab!=="Perfis de acesso" ? <Card className="people-card"><div className="table-tools"><label className="inline-search"><Icon name="search"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar nome, cargo ou departamento..."/></label><select value={status} onChange={e=>setStatus(e.target.value)} aria-label="Filtrar por status"><option>Todos</option><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select><button className="filter-button"><Icon name="filter"/> Mais filtros</button></div><div className="people-table"><div className="people-header"><span>Colaborador</span><span>Cargo e departamento</span><span>Perfil</span><span>Status</span><span/></div>{filtered.map(p=><button key={p.email} onClick={()=>setSelected(p)}><span className="person-cell"><i>{p.initials}</i><span><b>{p.name}</b><small>{p.unit}</small></span></span><span><b>{p.role}</b><small>{p.department}</small></span><Status>{p.profile}</Status><Status tone={p.status==="Ativo"?"success":p.status==="Pendente"?"info":"neutral"}>{p.status}</Status><Icon name="arrow"/></button>)}</div>{!filtered.length&&<div className="empty-state"><Icon name="search" size={28}/><b>Nenhum registro encontrado</b><small>Ajuste a busca ou os filtros.</small></div>}</Card> : <div className="profile-grid">{profiles.map(([name,scope,desc,count])=><Card key={name}><span className="profile-icon"><Icon name="key"/></span><Status>{count}</Status><h2>{name}</h2><p>{desc}</p><dl><dt>Escopo padrão</dt><dd>{scope}</dd></dl><button onClick={()=>notify(`Matriz do perfil ${name} aberta para a próxima etapa.`)}>Ver matriz de permissões <Icon name="arrow"/></button></Card>)}</div>}
-    {selected&&<div className="drawer-backdrop" onClick={()=>setSelected(null)}><aside className="person-drawer" onClick={e=>e.stopPropagation()}><button className="drawer-close" onClick={()=>setSelected(null)} aria-label="Fechar"><Icon name="close"/></button><span className="drawer-avatar">{selected.initials}</span><p className="eyebrow">CADASTRO MESTRE</p><h2>{selected.name}</h2><p>{selected.email}</p><Status tone={selected.status==="Ativo"?"success":"info"}>{selected.status}</Status><dl><div><dt>Cargo</dt><dd>{selected.role}</dd></div><div><dt>Departamento</dt><dd>{selected.department}</dd></div><div><dt>Unidade</dt><dd>{selected.unit}</dd></div><div><dt>Perfil-base</dt><dd>{selected.profile}</dd></div></dl><Button onClick={()=>notify("Edição do cadastro preparada para a integração com o banco.")}>Editar cadastro</Button><Button variant="secondary" onClick={()=>setTab("Perfis de acesso")}><Icon name="key"/> Revisar acessos</Button></aside></div>}
+    <div className="page-head"><div><p className="eyebrow">ETAPA 2 · IDENTIDADE</p><h1>Pessoas e acessos</h1><p>Quem acessa a plataforma e o que cada pessoa pode fazer: módulos e, dentro deles, funcionalidades com nível.</p></div></div>
+    <MetricCards items={[[String(summary.employees),"Colaboradores",`${summary.activeEmployees} ativos`],[String(summary.users),"Usuários","Contas cadastradas"],[String(featureCount),"Funcionalidades","Liberáveis por usuário"],[String(Math.max(summary.employees-summary.activeEmployees,0)),"Pendências","Exigem revisão"]]}/>
+    <div className="section-tabs" role="tablist">{(["Usuários","Colaboradores"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}</button>)}</div>
+    {tab==="Usuários" ? <UserManagement notify={notify}/> : <Card className="people-card"><div className="table-tools"><label className="inline-search"><Icon name="search"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar nome, cargo ou departamento..."/></label><select value={status} onChange={e=>setStatus(e.target.value)} aria-label="Filtrar por status"><option>Todos</option><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select><button className="filter-button"><Icon name="filter"/> Mais filtros</button></div><div className="people-table"><div className="people-header"><span>Colaborador</span><span>Cargo e departamento</span><span>Perfil</span><span>Status</span><span/></div>{filtered.map(p=><button key={p.email} onClick={()=>setSelected(p)}><span className="person-cell"><i>{p.initials}</i><span><b>{p.name}</b><small>{p.unit}</small></span></span><span><b>{p.role}</b><small>{p.department}</small></span><Status>{p.profile}</Status><Status tone={p.status==="Ativo"?"success":p.status==="Pendente"?"info":"neutral"}>{p.status}</Status><Icon name="arrow"/></button>)}</div>{!filtered.length&&<div className="empty-state"><Icon name="search" size={28}/><b>Nenhum registro encontrado</b><small>Ajuste a busca ou os filtros.</small></div>}</Card>}
+    {selected&&<div className="drawer-backdrop" onClick={()=>setSelected(null)}><aside className="person-drawer" onClick={e=>e.stopPropagation()}><button className="drawer-close" onClick={()=>setSelected(null)} aria-label="Fechar"><Icon name="close"/></button><span className="drawer-avatar">{selected.initials}</span><p className="eyebrow">CADASTRO MESTRE</p><h2>{selected.name}</h2><p>{selected.email}</p><Status tone={selected.status==="Ativo"?"success":"info"}>{selected.status}</Status><dl><div><dt>Cargo</dt><dd>{selected.role}</dd></div><div><dt>Departamento</dt><dd>{selected.department}</dd></div><div><dt>Unidade</dt><dd>{selected.unit}</dd></div><div><dt>Acesso à plataforma</dt><dd>{selected.profile}</dd></div></dl><Button variant="secondary" onClick={()=>{setSelected(null);setTab("Usuários")}}><Icon name="key"/> Ver usuários e acessos</Button></aside></div>}
   </>;
 }
 
@@ -217,17 +190,31 @@ function PeopleAccessView({ notify, people, summary }: { notify:(message:string)
 
 
 function SecurityView({ access }: { notify:(message:string)=>void; access: ModuleAccessContext }) {
-  // A matriz editável era demonstrativa. O que vale está em role_permissions e
-  // access_scopes, aplicado pelo RLS; aqui a leitura é do modelo em uso.
+  // Leitura do modelo em uso: o acesso é de cada usuário (módulos →
+  // funcionalidades → nível), gravado em user_feature_grants e aplicado pelo RLS.
+  const [users,setUsers]=useState<AccessMatrixUser[]|null>(null);
+  useEffect(()=>{
+    if(!access.isOwner) return;
+    const controller=new AbortController();
+    fetch("/api/admin/users",{cache:"no-store",signal:controller.signal})
+      .then(response=>response.ok?response.json():{users:[]})
+      .then(payload=>setUsers(payload.users??[]))
+      .catch(()=>{});
+    return ()=>controller.abort();
+  },[access.isOwner]);
   return <>
-    <div className="page-head"><div><p className="eyebrow">GOVERNANÇA</p><h1>Permissões e segurança</h1><p>Papéis, escopos e ações aplicados pelo banco em cada consulta.</p></div><Status tone="success">Negação por padrão</Status></div>
-    <div className="profile-grid">{ROLE_CATALOG.map(role=><Card key={role.code}><span className="profile-icon"><Icon name="key"/></span><h2>{role.name}</h2><p>{role.description}</p><dl><dt>Escopo padrão</dt><dd>{role.scope}</dd></dl></Card>)}</div>
-    <Card className="rls-card"><div className="card-head"><div><p className="eyebrow">MÓDULOS E PERMISSÃO DE ENTRADA</p><h2>Escopo por módulo</h2><p>Cada módulo exige a permissão de entrada abaixo, no escopo do usuário.</p></div><Status tone="info">{access.scopeLabel}</Status></div>
-      <div className="policy-list">{moduleRegistry.filter(manifest=>manifest.enabled).map(manifest=><div key={manifest.id} className="holiday-row"><span className="holiday-name"><b>{manifest.name}</b><small>{manifest.access.entryPermission}</small></span><Status tone={canAccessModule(access,manifest)?"success":"neutral"}>{canAccessModule(access,manifest)?"Seu acesso permite":"Fora do seu escopo"}</Status></div>)}</div>
+    <div className="page-head"><div><p className="eyebrow">GOVERNANÇA</p><h1>Permissões e segurança</h1><p>O que cada usuário acessa, por módulo, com o nível mais alto liberado. Tudo é conferido pelo banco em cada consulta.</p></div><Status tone="success">Negação por padrão</Status></div>
+    <Card className="rls-card"><div className="card-head"><div><p className="eyebrow">ACESSO POR USUÁRIO</p><h2>Matriz de acesso</h2><p>Para alterar, abra o usuário em Pessoas e Acessos.</p></div><Status tone="info">{users?`${users.length} usuários`:"Carregando…"}</Status></div>
+      <div className="access-matrix">{(users??[]).map(user=><div key={user.id} className="access-matrix-row"><span className="access-matrix-person"><b>{user.fullName}</b><small>{user.employee?.name ?? user.email}</small></span><span className="access-chips">{user.isOwner?<em>Proprietário · acesso total</em>:ACCESS_CATALOG.filter(module=>module.features.some(feature=>user.grants[feature.code])).map(module=>{
+        const granted=module.features.filter(feature=>user.grants[feature.code]);
+        const top=granted.reduce((best,feature)=>Math.max(best,levelRank(user.grants[feature.code])),0);
+        return <em key={module.code}>{module.label}: {LEVEL_LABELS[ACCESS_LEVELS[top-1]]} · {granted.length}/{module.features.length}</em>;
+      })}{!user.isOwner&&!Object.keys(user.grants).length&&<em>Sem acesso</em>}</span></div>)}</div>
     </Card>
-    <Card className="security-contract"><div><span><Icon name="lock"/></span><div><p className="eyebrow">CONTRATO DE SEGURANÇA</p><h2>O frontend nunca decide sozinho</h2><p>Identidade, organização, módulo habilitado, papel, permissão e escopo são verificados no PostgreSQL. Uma chamada direta à API continua limitada pelo RLS.</p></div></div></Card>
+    <Card className="security-contract"><div><span><Icon name="lock"/></span><div><p className="eyebrow">CONTRATO DE SEGURANÇA</p><h2>O frontend nunca decide sozinho</h2><p>Identidade, organização, funcionalidade e nível são verificados no PostgreSQL. Uma chamada direta à API continua limitada pelo RLS.</p></div></div></Card>
   </>;
 }
+type AccessMatrixUser = { id:string; fullName:string; email:string; isOwner:boolean; employee:{name:string}|null; grants:AccessGrants };
 function CorporateSearchView({ initialQuery, setView, people, modules, organizationData, onOpenModule }: { initialQuery:string; setView:(view:View)=>void; people: Person[]; modules: ModuleManifest[]; organizationData: OrganizationData; onOpenModule:(moduleId:string)=>void }) {
   const [query,setQuery]=useState(initialQuery);
   // Busca sobre o cadastro real: pessoas, módulos e estrutura.
@@ -322,20 +309,18 @@ function HomeContent() {
   const { access, real: realAccess, loading: accessLoading, profile: sessionProfile, reload: reloadIdentity } = useSessionAccess();
   const { canInstall, promptInstall } = usePwa();
   const [accountPanel,setAccountPanel]=useState(false);
-  const isExecutive = access.roleCode === "owner" || access.roleCode === "admin" || access.role === "Proprietário" || access.role === "Administrador";
-  const isOwner = access.roleCode === "owner" || access.role === "Proprietário";
+  // Visão executiva (Visão Geral, catálogo de módulos) é do proprietário; os
+  // demais entram direto nos módulos liberados a eles.
+  const isOwner = access.isOwner;
+  const isExecutive = isOwner;
   const modules=useMemo(()=>getCatalogModules(access,moduleRegistry),[access]);
   const visibleModules=useMemo(()=>getVisibleModules(access,moduleRegistry),[access]);
 
   // Módulo setorial de destino do usuário não executivo
   const targetedModule = useMemo(() => {
     if (isExecutive) return null;
-    const explicitModule = access.scopes.find(s => s.type === "module" && s.moduleCode)?.moduleCode;
-    if (explicitModule && visibleModules.some(m => m.id === explicitModule)) {
-      return explicitModule;
-    }
     return visibleModules[0]?.id ?? null;
-  }, [isExecutive, access.scopes, visibleModules]);
+  }, [isExecutive, visibleModules]);
 
   const [routedInitialModule, setRoutedInitialModule] = useState(false);
 
@@ -363,25 +348,10 @@ function HomeContent() {
   }, [routedInitialModule, accessLoading, access, isExecutive, targetedModule]);
 
   const foundationNav=useMemo(()=>{
-    if (!isExecutive) {
-      return nav.slice(2).filter((item) => {
-        // Vínculo de contas e perfis é exclusivo do proprietário.
-        if (OWNER_ONLY_VIEWS.includes(item.label)) return false;
-        // Áreas de governança e infra são exclusivas de proprietário e admin
-        if (
-          item.label === "Estrutura" ||
-          item.label === "Permissões e Segurança" ||
-          item.label === "Banco e Autenticação" ||
-          item.label === "Auditoria" ||
-          item.label === "Configurações"
-        ) {
-          return false;
-        }
-        return !viewPermissions[item.label] || hasPermission(access, viewPermissions[item.label]!);
-      });
-    }
+    // Áreas do proprietário ficam fora para os demais; o resto segue a
+    // funcionalidade liberada (Estrutura, Auditoria) ou é comum a todos.
     return nav.slice(2).filter(item=>(!OWNER_ONLY_VIEWS.includes(item.label)||isOwner)&&(!viewPermissions[item.label]||hasPermission(access,viewPermissions[item.label]!)));
-  },[access, isExecutive, isOwner, targetedModule]);
+  },[access, isOwner]);
 
   const notify=(message:string)=>{setToast(message);setTimeout(()=>setToast(""),2600)};
   const recordOperationalEvent=(message:string,module="Recursos Humanos")=>{const lower=message.toLowerCase();const sensitive=lower.includes("aprov")||lower.includes("reprov")||lower.includes("conforme")||lower.includes("situação alterada");const monitored=lower.includes("export")||lower.includes("documento")||lower.includes("cadastro");const title=message.split(":")[0].replace(/\.$/,"");setOperationalEvents(current=>[{id:Date.now(),title,message,actor:access.name,module,time:"Agora",tone:(sensitive?"attention":"info") as OperationalEvent["tone"],risk:(sensitive?"Sensível":monitored?"Monitorado":"Normal") as OperationalEvent["risk"],icon:sensitive?"shield":lower.includes("export")?"download":"bell"},...current].slice(0,20));};

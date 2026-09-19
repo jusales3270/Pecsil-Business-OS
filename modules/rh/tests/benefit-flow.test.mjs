@@ -15,7 +15,7 @@ test("rh: benefícios cobre catálogo, participantes, solicitações e política
 test("rh: movimentação de benefício possui fluxo protegido", () => {
   assert.match(source, /BenefitRequestForm/);
   assert.match(source, /Sem alteração automática/);
-  assert.match(source, /hasPermission\(access,"rh\.approve"\)/);
+  assert.match(source, /canUseFeature\(access,"rh\.beneficios","aprovar"\)/);
   assert.match(source, /canApprove&&actionable/);
   assert.match(source, /Aprovar solicitação/);
 });

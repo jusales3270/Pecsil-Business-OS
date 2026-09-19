@@ -13,7 +13,7 @@ test("rh: férias e ausências cobre solicitação, calendário e políticas", (
 });
 
 test("rh: decisão de ausência exige permissão explícita", () => {
-  assert.match(source, /hasPermission\(access, "rh\.approve"\)/);
+  assert.match(source, /canUseFeature\(access, "rh\.ferias", "aprovar"\)/);
   assert.match(source, /canApprove && actionable/);
   assert.match(source, /Aprovar solicitação/);
   assert.match(source, /Reprovar/);

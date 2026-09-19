@@ -14,7 +14,7 @@ test("rh: cadastro de colaborador possui etapas e ficha individual", () => {
 });
 
 test("rh: criação e edição respeitam a permissão do módulo", () => {
-  assert.match(source, /hasPermission\(access, "rh\.create"\)/);
+  assert.match(source, /canUseFeature\(access, "rh\.colaboradores", "operar"\)/);
   assert.match(source, /canCreate && <Button/);
   assert.match(source, /canEdit=\{canCreate\}/);
 });

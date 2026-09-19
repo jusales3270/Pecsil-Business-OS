@@ -13,8 +13,9 @@ test("rh: ponto e jornada declara a ausência de integração em vez de dados fi
   assert.doesNotMatch(source, /JourneyBank|JourneySchedules|JourneyRules/);
 });
 
-test("rh: autosserviço do colaborador não inventa saldos nem marcações", () => {
-  assert.match(source, /function EmployeeSelfService/);
-  assert.match(source, /Sem registros em \$\{section\.toLowerCase\(\)\}/);
+test("rh: seções saem das funcionalidades do usuário, nunca do nome do cargo", () => {
+  assert.match(source, /const SECTION_FEATURE/);
+  assert.match(source, /"Ponto e jornada": "rh\.jornada"/);
+  assert.doesNotMatch(source, /access\.role === "Colaborador"/);
   assert.doesNotMatch(source, /Espelho mensal pessoal aberto/);
 });

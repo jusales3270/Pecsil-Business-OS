@@ -1,12 +1,13 @@
 import { create } from 'zustand';
-import type { User, UserRole, Cotacao, Compra, Notificacao, Page, TipoNotificacao, Divisao } from '@/types';
+import type { ComprasCaps, User, UserRole, Cotacao, Compra, Notificacao, Page, TipoNotificacao, Divisao } from '@/types';
 import { supabase } from '@/lib/supabase';
 
-// Seed users
-const seedUsers: User[] = [
-  { id: 1, name: 'Orçamentista', email: 'orcamento@empresa.com', role: 'ORCAMENTISTA' },
-  { id: 2, name: 'Ricardo', email: 'ricardo@empresa.com', role: 'GESTOR' },
-];
+/** Caixa de cada visão (ver `User`): 1 = compras, 2 = aprovação. */
+const ROLE_INBOX: Record<UserRole, number> = { ORCAMENTISTA: 1, GESTOR: 2 };
+
+const NO_CAPS: ComprasCaps = {
+  verCotacoes: false, cotar: false, verAprovacoes: false, aprovar: false, verRealizadas: false, comprar: false,
+};
 
 const seedCotacoes: Cotacao[] = [];
 const seedCompras: Compra[] = [];
@@ -24,7 +25,9 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 interface AppState {
   // Auth
   user: User | null;
-  login: (role: UserRole, gestorName?: string) => void;
+  caps: ComprasCaps;
+  setCaps: (caps: ComprasCaps) => void;
+  login: (role: UserRole, name?: string) => void;
   logout: () => void;
 
   // Page
@@ -71,17 +74,9 @@ interface AppState {
 }
 
 export const useStore = create<AppState>((set, get) => ({
-  user: (() => {
-    const u = loadFromStorage<User | null>('somacompras_user', null);
-    if (u && u.role === 'GESTOR' && u.name === 'Gestor') {
-      u.name = 'Ricardo';
-      u.email = 'ricardo@empresa.com';
-      try {
-        localStorage.setItem('somacompras_user', JSON.stringify(u));
-      } catch { /* ignore */ }
-    }
-    return u;
-  })(),
+  user: loadFromStorage<User | null>('somacompras_user', null),
+  caps: NO_CAPS,
+  setCaps: (caps) => set({ caps }),
   currentPage: loadFromStorage('somacompras_page', 'login'),
   currentDivisao: loadFromStorage<Divisao>('somacompras_divisao', 'USINAGEM'),
   cotacoes: loadFromStorage('somacompras_cotacoes', seedCotacoes),
@@ -92,17 +87,8 @@ export const useStore = create<AppState>((set, get) => ({
   dashboardAction: null,
   setDashboardAction: (action) => set({ dashboardAction: action }),
 
-  login: (role: UserRole, gestorName?: string) => {
-    let user;
-    if (role === 'ORCAMENTISTA') {
-      user = seedUsers[0];
-    } else {
-      if (gestorName === 'Domingo Duque') {
-        user = { id: 3, name: 'Domingo Duque', email: 'domingo@empresa.com', role: 'GESTOR' as const };
-      } else {
-        user = seedUsers[1]; // Ricardo
-      }
-    }
+  login: (role: UserRole, name?: string) => {
+    const user: User = { id: ROLE_INBOX[role], name: name ?? '', email: '', role };
     set({ user, currentPage: 'dashboard' });
     localStorage.setItem('somacompras_user', JSON.stringify(user));
     localStorage.setItem('somacompras_page', 'dashboard');

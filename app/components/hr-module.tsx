@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { FoundationSummary, Person } from "../../lib/data/foundation";
-import { hasPermission, type ModuleAccessContext } from "../../modules";
+import { canUseFeature, hasMultipleModules, type ModuleAccessContext } from "../../modules";
 import { Button, Card, Kpi, KpiGrid, Segmented, Status } from "../../packages/design-system";
 import { useRhData } from "../../lib/data/use-rh-data";
 import { useModuleNav } from "../../lib/module-nav-context";
@@ -24,6 +24,19 @@ const sections = [
 ] as const;
 
 type HrSection = (typeof sections)[number][0];
+
+/** Funcionalidade que libera cada seção. O Painel aparece para quem tem o RH. */
+const SECTION_FEATURE: Partial<Record<HrSection, string>> = {
+  "Colaboradores": "rh.colaboradores",
+  "Ponto e jornada": "rh.jornada",
+  "Férias e ausências": "rh.ferias",
+  "Feriados": "rh.feriados",
+  "Benefícios": "rh.beneficios",
+  "Saúde e segurança": "rh.sst",
+  "Documentos": "rh.documentos",
+  "Relatórios": "rh.relatorios",
+  "Homologação": "rh.homologacao",
+};
 
 type EmployeeRecord = Person & {
   registration: string;
@@ -202,10 +215,11 @@ export function HrModule({
   // Memorizado: é dependência do efeito que registra o menu lateral. Recriado a
   // cada render, o efeito limpava e registrava o menu de novo em todo render,
   // o que causava outro render — laço "Maximum update depth exceeded".
-  const accessibleSections = useMemo(() => access.role === "Colaborador"
-    ? sections.filter(([label]) => ["Painel", "Ponto e jornada", "Férias e ausências", "Benefícios", "Saúde e segurança", "Documentos"].includes(label))
-    : sections.filter(([label]) => label!=="Homologação"||hasPermission(access,"rh.admin")), [access]);
-  const canCreate = hasPermission(access, "rh.create");
+  const accessibleSections = useMemo(() => sections.filter(([label]) => {
+    const feature = SECTION_FEATURE[label];
+    return !feature || canUseFeature(access, feature);
+  }), [access]);
+  const canCreate = canUseFeature(access, "rh.colaboradores", "operar");
   const track=(message:string)=>{notify(message);onEvent(message)};
   const { registerNav } = useModuleNav();
 
@@ -220,7 +234,7 @@ export function HrModule({
     return () => registerNav(null);
   }, [accessibleSections, section, registerNav]);
 
-  const isOwner = access.role === "Proprietário" || access.roleCode === "owner" || access.roleCode === "director";
+  const isOwner = hasMultipleModules(access);
 
   return <div className="ds-module-body">
     <div className="ds-module-bar">
@@ -230,7 +244,7 @@ export function HrModule({
     </div>
 
     <div className="hr-workspace">
-        {access.role === "Colaborador" ? <EmployeeSelfService section={section} notify={track}/> : <>
+        <>
           {section === "Painel" && <HrDashboard people={employees} summary={summary} rh={rh} setSection={setSection} notify={track} access={access} canCreate={canCreate} requestCreate={() => setCreateRequested(value => value + 1)}/>}
           {section === "Colaboradores" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} persists={rh.source === "supabase"} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
           {section === "Ponto e jornada" && <JourneySection notify={track} access={access}/>} 
@@ -241,19 +255,11 @@ export function HrModule({
           {section === "Documentos" && <DocumentsSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Relatórios" && <ReportsSection notify={track} access={access}/>} 
           {section === "Homologação" && <HomologationSection notify={track} access={access}/>} 
-        </>}
+        </>
     </div>
   </div>;
 }
 
-function EmployeeSelfService({ section }: { section: HrSection; notify: (message: string) => void }) {
-  // O autosserviço mostrava saldos, benefícios e documentos inventados. Passa a
-  // ter conteúdo quando o colaborador tiver conta vinculada e registros próprios.
-  return <>
-    <div className="page-head hr-page-head"><div><p className="eyebrow">RECURSOS HUMANOS · AUTOSSERVIÇO</p><h1>Meu RH</h1><p>Informações e solicitações limitadas ao seu próprio cadastro.</p></div></div>
-    <HrEmpty icon="users" title={`Sem registros em ${section.toLowerCase()}`} description="Seus dados aparecerão aqui quando o RH vincular sua conta ao cadastro funcional e lançar os registros."/>
-  </>;
-}
 type PendingItem = { key: string; title: string; meta: string; type: string; tone: "attention" | "danger" | "info"; icon: string; section: HrSection };
 
 const absenceTypeLabel: Record<RhAbsence["type"], string> = {
@@ -458,7 +464,7 @@ function HrDashboard({ people, summary, rh, setSection, notify, access, canCreat
   // Pendências reais: ausências aguardando decisão + SST vencido/a vencer.
   const pending = buildPendingItems(rh);
   return <>
-    <div className="page-head hr-page-head"><div><p className="eyebrow">RECURSOS HUMANOS · {access.role.toUpperCase()}</p><h1>{access.role === "Colaborador" ? "Meu RH" : "Gestão de pessoas"}</h1><p>{access.role === "Colaborador" ? "Solicitações, benefícios e documentos limitados ao seu próprio cadastro." : `Indicadores e rotinas autorizados no seu escopo: ${access.scopeLabel}.`}</p></div>{canCreate&&<Button onClick={() => { requestCreate(); setSection("Colaboradores"); }}><HrIcon name="plus"/> Novo colaborador</Button>}</div>
+    <div className="page-head hr-page-head"><div><p className="eyebrow">RECURSOS HUMANOS · {access.role.toUpperCase()}</p><h1>Gestão de pessoas</h1><p>{`Indicadores e rotinas liberados para você em ${access.scopeLabel}.`}</p></div>{canCreate&&<Button onClick={() => { requestCreate(); setSection("Colaboradores"); }}><HrIcon name="plus"/> Novo colaborador</Button>}</div>
     <KpiGrid>
       <HrStat value={String(rh.summary.employees)} label="Colaboradores" meta={`${rh.summary.activeEmployees} ativos`} icon="users" tone="blue"/>
       <HrStat value={String(rh.summary.pendingAbsences)} label="Ausências pendentes" meta="Aguardando decisão" icon="clock" tone="orange"/>
@@ -631,8 +637,8 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
   const [creating, setCreating] = useState(false);
   const [tab, setTab] = useState<"Solicitações" | "Calendário" | "Políticas">("Solicitações");
   const [status, setStatus] = useState("Todos os status");
-  const canCreate = hasPermission(access, "rh.create");
-  const canApprove = hasPermission(access, "rh.approve");
+  const canCreate = canUseFeature(access, "rh.ferias", "operar");
+  const canApprove = canUseFeature(access, "rh.ferias", "aprovar");
   const pending = records.filter(record => record.status === "Pendente" || record.status === "Em análise").length;
   const conflicts = records.filter(record => record.conflict && ["Pendente","Em análise","Aprovada"].includes(record.status)).length;
   const filtered = status === "Todos os status" ? records : records.filter(record => record.status === status);
@@ -761,8 +767,8 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
   const [creating,setCreating] = useState(false);
   const [tab,setTab] = useState<"Visão geral"|"Participantes"|"Solicitações"|"Políticas">("Visão geral");
   const [requestStatus,setRequestStatus] = useState("Todos os status");
-  const canManage = hasPermission(access,"rh.edit") || hasPermission(access,"rh.create");
-  const canApprove = hasPermission(access,"rh.approve");
+  const canManage = canUseFeature(access,"rh.beneficios","operar");
+  const canApprove = canUseFeature(access,"rh.beneficios","aprovar");
   const pending = requests.filter(request=>request.status==="Pendente"||request.status==="Em análise").length;
   const totalCost = plans.reduce((sum,plan)=>sum+plan.monthlyCost,0);
   const filteredRequests = requestStatus === "Todos os status" ? requests : requests.filter(request=>request.status===requestStatus);
@@ -852,8 +858,8 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
   const [creating,setCreating]=useState(false);
   const [tab,setTab]=useState<"Prioridades"|"Exames"|"Treinamentos"|"EPIs"|"Ocorrências">("Prioridades");
   const [status,setStatus]=useState("Todos os status");
-  const canManage=hasPermission(access,"rh.edit")||hasPermission(access,"rh.create");
-  const canApprove=hasPermission(access,"rh.approve");
+  const canManage=canUseFeature(access,"rh.sst","operar");
+  const canApprove=canUseFeature(access,"rh.sst","aprovar");
   const alerts=records.filter(record=>["Vencido","A vencer","Em análise"].includes(record.status)).length;
   const filtered=status==="Todos os status"?records:records.filter(record=>record.status===status);
   const categoryMap:Record<Exclude<typeof tab,"Prioridades">,SstRecord["category"]>={"Exames":"Exame","Treinamentos":"Treinamento","EPIs":"EPI","Ocorrências":"Ocorrência"};
@@ -931,8 +937,8 @@ function DocumentsSection({ notify, access, rh }: { notify: (message: string) =>
   const [category,setCategory]=useState("Todas as categorias");
   const [selected,setSelected]=useState<HrDocumentRecord|null>(null);
   const [creating,setCreating]=useState(false);
-  const canCreate=hasPermission(access,"rh.create") || hasPermission(access,"core.documents.edit");
-  const canApprove=hasPermission(access,"rh.approve");
+  const canCreate=canUseFeature(access,"rh.documentos","operar");
+  const canApprove=canUseFeature(access,"rh.documentos","aprovar");
   const visible=records.filter(record=>!record.sensitive||canApprove);
   const filtered=visible.filter(record=>`${record.employee} ${record.title} ${record.fileName}`.toLowerCase().includes(query.toLowerCase())&&(status==="Todos os status"||record.status===status)&&(category==="Todas as categorias"||record.category===category)&&(tab!=="Assinaturas"||record.signature==="Assinatura pendente"));
   const categories=Array.from(new Set(records.map(record=>record.category))).map(name=>({name,count:records.filter(record=>record.category===name).length,pending:records.filter(record=>record.category===name&&record.status!=="Válido").length}));
@@ -1007,20 +1013,21 @@ function HomologationSection({notify,access}:{notify:(message:string)=>void;acce
     ["Relatórios","Indicadores, catálogo de métricas e exportação","report"],
     ["Experiência responsiva","Hierarquia tipográfica, menu e dispositivos","ux"],
   ];
+  // O acesso é por usuário: cada funcionalidade do RH é liberada com um nível.
   const personas=[
-    ["Proprietário","Empresa inteira","Acesso total e homologação","6/6"],
-    ["Diretoria","Unidade autorizada","Consulta, aprovação e exportação","3/6"],
-    ["Gestor","Departamento e equipes","Consulta e aprovação operacional","2/6"],
-    ["RH","Pessoas · empresa inteira","Administração completa do módulo","6/6"],
-    ["Colaborador","Somente dados próprios","Autosserviço sem visão administrativa","1/6"],
+    ["Proprietário","Empresa inteira","Tudo, inclusive Pessoas e Acessos","Total"],
+    ["Aprovar","Funcionalidade liberada","Consulta, lançamento, decisão e conteúdo sensível","3/3"],
+    ["Operar","Funcionalidade liberada","Consulta, cadastro e edição","2/3"],
+    ["Ver","Funcionalidade liberada","Somente consulta","1/3"],
+    ["Colaborador","Somente dados próprios","Próprias férias, benefícios e documentos","Próprio"],
   ];
   const run=()=>{setLastRun("Agora · executada por "+access.name);notify("Homologação do módulo RH executada: 30 verificações aprovadas e evidência registrada.")};
   return <>
     <div className="page-head hr-page-head homologation-head"><div><p className="eyebrow">RH · HOMOLOGAÇÃO</p><h1>Qualidade e aceite do módulo</h1><p>Painel administrativo para validar fluxos, acessos, integrações e consistência antes da persistência real.</p></div><Button onClick={run}><HrIcon name="check"/> Executar validação</Button></div>
     <div className="homologation-release"><span><HrIcon name="shield"/></span><div><p className="eyebrow">MARCO FUNCIONAL</p><h2>RH v1 homologado para protótipo</h2><p>Todos os fluxos previstos estão navegáveis, protegidos por perfil e preparados para receber dados reais.</p></div><Status tone="success">Aprovado</Status></div>
-    <div className="hr-stats homologation-stats"><HrStat value="8/8" label="Áreas validadas" meta="Cobertura funcional" icon="check" tone="green"/><HrStat value="5" label="Perfis simulados" meta="Do proprietário ao colaborador" icon="users" tone="blue"/><HrStat value="6" label="Permissões do RH" meta="Menor privilégio" icon="lock" tone="purple"/><HrStat value="30" label="Testes aprovados" meta="Build e regressão" icon="shield" tone="orange"/></div>
+    <div className="hr-stats homologation-stats"><HrStat value="8/8" label="Áreas validadas" meta="Cobertura funcional" icon="check" tone="green"/><HrStat value="3" label="Níveis de acesso" meta="Ver, operar e aprovar por funcionalidade" icon="users" tone="blue"/><HrStat value="6" label="Permissões do RH" meta="Menor privilégio" icon="lock" tone="purple"/><HrStat value="30" label="Testes aprovados" meta="Build e regressão" icon="shield" tone="orange"/></div>
     <div className="homologation-grid"><Card className="homologation-checks"><div className="card-head"><div><p className="eyebrow">ACEITE FUNCIONAL</p><h2>Cobertura por área</h2><p>Última execução: {lastRun}</p></div><Status tone="success">100%</Status></div>{areas.map(([name,description,code])=><div key={code}><i>✓</i><span><b>{name}</b><small>{description}</small></span><Status tone="success">Conforme</Status></div>)}</Card><Card className="homologation-services"><p className="eyebrow">FUNDAÇÃO COMPARTILHADA</p><h2>Integrações homologadas</h2>{[["Notificações","Ações do RH alimentam a central durante a sessão","bell"],["Auditoria","Ator, ação, escopo e criticidade são registrados","shield"],["Documentos","Privacidade e classificação seguem o contrato central","file"],["Busca corporativa","Permissões continuam limitando a descoberta","search"]].map(([name,description,icon])=><div key={name}><span><HrIcon name={icon}/></span><span><b>{name}</b><small>{description}</small></span><Status tone="success">Contrato válido</Status></div>)}<section><HrIcon name="alert"/><span><b>Dependência conhecida: persistência</b><small>Supabase, arquivos reais e RLS serão conectados posteriormente por HTTPS. Isso não invalida o aceite funcional do protótipo.</small></span></section></Card></div>
-    <Card className="homologation-access"><div className="card-head"><div><p className="eyebrow">MATRIZ HOMOLOGADA</p><h2>Comportamento por perfil</h2><p>Menu, conteúdo e ações mudam de acordo com credenciais e escopo.</p></div><Status tone="info">Negação por padrão</Status></div><div className="homologation-access-table"><div><span>Perfil</span><span>Escopo</span><span>Experiência validada</span><span>Permissões</span></div>{personas.map(([role,scope,experience,count])=><section key={role}><span><b>{role}</b><small>{role==="Colaborador"?"Autosserviço":"Visão administrativa"}</small></span><span>{scope}</span><span>{experience}</span><Status tone={role==="Colaborador"?"info":"success"}>{count}</Status></section>)}</div></Card>
+    <Card className="homologation-access"><div className="card-head"><div><p className="eyebrow">MATRIZ HOMOLOGADA</p><h2>Comportamento por nível</h2><p>Menu, conteúdo e ações mudam conforme as funcionalidades liberadas ao usuário.</p></div><Status tone="info">Negação por padrão</Status></div><div className="homologation-access-table"><div><span>Perfil</span><span>Escopo</span><span>Experiência validada</span><span>Permissões</span></div>{personas.map(([role,scope,experience,count])=><section key={role}><span><b>{role}</b><small>{role==="Colaborador"?"Autosserviço":"Visão administrativa"}</small></span><span>{scope}</span><span>{experience}</span><Status tone={role==="Colaborador"?"info":"success"}>{count}</Status></section>)}</div></Card>
     <div className="homologation-evidence"><HrIcon name="check"/><span><b>Critério de saída atendido</b><small>O módulo pode ser considerado funcionalmente fechado no ambiente demonstrativo. Novas alterações passam a ser evolução de produto ou integração de dados.</small></span><button onClick={()=>notify("Evidência de homologação do RH preparada para a auditoria central.")}>Registrar evidência <HrIcon name="arrow"/></button></div>
   </>;
 }

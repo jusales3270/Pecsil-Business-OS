@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { AccessGrants } from "../../modules/access-catalog";
 import { demoOwnerAccess, type ModuleAccessContext } from "../../modules";
 
 /** Dados da conta que a interface mostra fora do contexto de permissões. */
@@ -30,6 +31,8 @@ type MePayload = {
   role: string;
   roleCode?: string | null;
   scopeLabel: string;
+  isOwner?: boolean;
+  grants?: AccessGrants;
   permissions: string[];
   scopes: { type: string; referenceId?: string; moduleCode?: string }[];
 };
@@ -79,6 +82,8 @@ export function useSessionAccess(): SessionAccessState {
             role: payload.role,
             roleCode: payload.roleCode ?? null,
             scopeLabel: payload.scopeLabel,
+            isOwner: payload.isOwner === true,
+            grants: payload.grants ?? {},
             permissions: payload.permissions,
             scopes: payload.scopes as ModuleAccessContext["scopes"],
           },

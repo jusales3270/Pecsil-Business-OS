@@ -7,13 +7,13 @@ const shell = readFileSync(new URL("../../../app/page.tsx", import.meta.url), "u
 const manifest = readFileSync(new URL("../manifest.ts", import.meta.url), "utf8");
 
 test("homologação é exclusiva para administração do RH", () => {
-  assert.match(hr, /label!=="Homologação"\|\|hasPermission\(access,"rh\.admin"\)/);
+  assert.match(hr, /"Homologação": "rh\.homologacao"/);
   assert.match(hr, /section === "Homologação" && <HomologationSection/);
 });
 
 test("aceite cobre áreas, perfis e dependência conhecida", () => {
   assert.match(hr, /8\/8/);
-  assert.match(hr, /Comportamento por perfil/);
+  assert.match(hr, /Comportamento por nível/);
   assert.match(hr, /Dependência conhecida: persistência/);
   assert.match(hr, /funcionalmente fechado no ambiente demonstrativo/);
 });

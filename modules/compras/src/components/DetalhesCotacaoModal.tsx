@@ -13,6 +13,7 @@ interface Props {
 }
 
 export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, onlyRejected }: Props) {
+  const caps = useStore((state) => state.caps);
   const { user, cotacoes, compras, decidirProduto, revertProdutoParaPendente } = useStore();
   const [compraItemId, setCompraItemId] = useState<string | null>(null);
 
@@ -196,7 +197,7 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
                       {isPending ? (
                         <>
                           <span className="text-[10px] text-amber-600 font-medium">Aguardando decisão</span>
-                          {user?.role === 'GESTOR' && currentCotacao.status === 'PENDENTE' && (
+                          {user?.role === 'GESTOR' && caps.aprovar && currentCotacao.status === 'PENDENTE' && (
                             <div className="flex gap-2">
                               <button
                                 type="button"
@@ -229,7 +230,7 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
                               ({p.motivoRejeicao})
                             </span>
                           )}
-                          {user?.role === 'ORCAMENTISTA' && p.status === 'APROVADO' && !isPurchased && (currentCotacao.status === 'APROVADO' || (currentCotacao.status === 'PENDENTE' && currentCotacao.produtos && currentCotacao.produtos.some(item => item.status === 'APROVADO'))) && (
+                          {user?.role === 'ORCAMENTISTA' && caps.comprar && p.status === 'APROVADO' && !isPurchased && (currentCotacao.status === 'APROVADO' || (currentCotacao.status === 'PENDENTE' && currentCotacao.produtos && currentCotacao.produtos.some(item => item.status === 'APROVADO'))) && (
                             <button
                               type="button"
                               onClick={() => setCompraItemId(p.id)}
@@ -240,7 +241,7 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
                               Comprar
                             </button>
                           )}
-                          {user?.role === 'ORCAMENTISTA' && p.status === 'APROVADO' && (
+                          {user?.role === 'ORCAMENTISTA' && caps.cotar && p.status === 'APROVADO' && (
                             <button
                               type="button"
                               onClick={() => handleRevertItem(p.id)}
@@ -326,7 +327,7 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
           >
             Fechar
           </button>
-          {onComprar && user?.role === 'ORCAMENTISTA' && (currentCotacao.status === 'APROVADO' || (currentCotacao.status === 'PENDENTE' && currentCotacao.produtos && currentCotacao.produtos.some(p => p.status === 'APROVADO'))) && (
+          {onComprar && caps.comprar && user?.role === 'ORCAMENTISTA' && (currentCotacao.status === 'APROVADO' || (currentCotacao.status === 'PENDENTE' && currentCotacao.produtos && currentCotacao.produtos.some(p => p.status === 'APROVADO'))) && (
             <button
               onClick={onComprar}
               className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#2e7d32] text-white text-sm font-medium hover:bg-[#1b5e20] transition-colors active:scale-[0.98]"

@@ -166,6 +166,37 @@ function counts(value: unknown): Record<string, number> {
 }
 
 /**
+ * Recorta o painel pelas funcionalidades liberadas ao usuário: quem só vê
+ * Paradas não recebe a lista de OS, clientes e prazos. O Painel é o resumo da
+ * fábrica e leva tudo, menos envios externos e o histórico de pontualidade.
+ */
+export function pruneDashboard(
+  data: DashboardData,
+  can: (feature: string) => boolean,
+  empty: DashboardData,
+): DashboardData {
+  const any = (...features: string[]) => features.some((feature) => can(`producao.${feature}`));
+  return {
+    geradoEm: data.geradoEm,
+    osPorStatus: any("painel", "os", "bi") ? data.osPorStatus : empty.osPorStatus,
+    osPorStatusLista: any("painel", "os") ? data.osPorStatusLista : empty.osPorStatusLista,
+    osAtrasadas: any("painel", "os") ? data.osAtrasadas : empty.osAtrasadas,
+    kanban: any("painel", "bi") ? data.kanban : empty.kanban,
+    pipelines: any("painel", "fundicao") ? data.pipelines : empty.pipelines,
+    inspecao: any("painel", "qualidade") ? data.inspecao : empty.inspecao,
+    paradas: any("painel", "paradas", "bi") ? data.paradas : empty.paradas,
+    fantasmas: any("painel", "fantasmas") ? data.fantasmas : empty.fantasmas,
+    indicadores: {
+      carteira: any("painel", "os", "bi") ? data.indicadores.carteira : empty.indicadores.carteira,
+      historico: any("bi") ? data.indicadores.historico : empty.indicadores.historico,
+    },
+    gargalos: any("painel") ? data.gargalos : empty.gargalos,
+    enviosExternos: any("externos") ? data.enviosExternos : empty.enviosExternos,
+    totalOSExternas: any("externos") ? data.totalOSExternas : empty.totalOSExternas,
+  };
+}
+
+/**
  * Recorta a resposta do Forja para o que a Produção usa. O Forja manda também
  * roteiros completos, listas de ids e cadastros de clientes — não vão ao
  * navegador, que só precisa do painel.

@@ -5033,3 +5033,315 @@ button.holiday-row:hover {
 .absence-calendar .calendar-legend > span:last-child > i {
   background: var(--accent-amber);
 }
+
+/* ============================================================================
+   Pessoas e Acessos: acesso por usuário (módulos → funcionalidades → nível)
+   ============================================================================ */
+.form-layer > form.access-form {
+  width: min(780px, 100%);
+}
+
+.user-admin-row > .access-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+.access-chips em {
+  font-style: normal;
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.access-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.access-step-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.access-employee.chosen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.access-employee.chosen .user-admin-person { min-width: 0; }
+
+.access-employee-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+.access-employee-list > small {
+  padding: var(--sp-3);
+  color: var(--text-muted);
+}
+.access-employee-list > button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  text-align: left;
+  cursor: pointer;
+}
+.access-employee-list > button:first-child { border-top: 0; }
+.access-employee-list > button:hover { background: var(--bg-hover); }
+.access-employee-list b { font-size: var(--fs-sm); color: var(--text-primary); }
+.access-employee-list small { font-size: var(--fs-xs); color: var(--text-muted); }
+
+.access-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.access-module {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+.access-module.on { border-color: var(--border); }
+.access-module > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+}
+.access-module > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--sp-3) var(--sp-2);
+  display: flex;
+  flex-direction: column;
+}
+.access-module > ul > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.user-admin-fields .access-checklist label.access-check {
+  flex-direction: row;
+  align-items: flex-start;
+  align-self: auto;
+  gap: var(--sp-3);
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+  cursor: pointer;
+}
+.access-check > input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--accent-blue);
+}
+.access-check > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.access-check b {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+.access-check small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.access-toggle {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: none;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.access-toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.access-levels {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+.access-levels > button {
+  min-height: 32px;
+  min-width: 64px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: none;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.access-module li:not(.on) .access-levels { opacity: 0.55; }
+.access-levels > button.active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.access-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  font-size: var(--fs-sm);
+}
+.access-summary.empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+.access-summary ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.access-summary li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.access-summary li > span { font-weight: var(--fw-semibold); color: var(--text-primary); }
+.access-summary li > small { color: var(--text-muted); line-height: 1.4; }
+
+@media (max-width: 720px) {
+  .form-layer > form.access-form { padding: var(--sp-4); }
+  .access-module > ul > li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .access-levels { align-self: flex-start; margin-left: calc(18px + var(--sp-3)); }
+  .access-levels > button { min-height: 36px; }
+}
+
+/* Lista de usuários: grade própria. A regra genérica `.ds-card > button`
+   (linha flex) tem especificidade maior que `.user-admin-row` e desalinhava
+   as colunas; aqui a grade é declarada com a mesma força e vem depois. */
+.ds-card.user-admin-card {
+  --user-admin-cols: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.6fr) 104px;
+}
+.ds-card.user-admin-card > .user-admin-head,
+.ds-card.user-admin-card > button.user-admin-row {
+  display: grid;
+  grid-template-columns: var(--user-admin-cols);
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+}
+.ds-card.user-admin-card > button.user-admin-row > span:not([class]) {
+  display: block;
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.ds-card.user-admin-card > button.user-admin-row > .user-admin-person { min-width: 0; }
+.ds-card.user-admin-card > button.user-admin-row > .ds-status { justify-self: start; }
+
+@media (max-width: 720px) {
+  .ds-card.user-admin-card > .user-admin-head { display: none; }
+  .ds-card.user-admin-card > button.user-admin-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "person status"
+      "employee employee"
+      "access access";
+    row-gap: var(--sp-2);
+    padding: var(--sp-3);
+  }
+  .ds-card.user-admin-card > button.user-admin-row > .user-admin-person { grid-area: person; }
+  .ds-card.user-admin-card > button.user-admin-row > span:not([class]) { grid-area: employee; white-space: normal; }
+  .ds-card.user-admin-card > button.user-admin-row > .access-chips { grid-area: access; }
+  .ds-card.user-admin-card > button.user-admin-row > .ds-status { grid-area: status; justify-self: end; }
+  .user-admin-toolbar { flex-wrap: wrap; }
+}
+
+@media (max-width: 720px) {
+  .access-form .user-admin-fields { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Permissões e Segurança: matriz usuário × módulos (somente leitura). */
+.access-matrix {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--sp-4);
+}
+.access-matrix-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.access-matrix-row:first-child { border-top: 0; }
+.access-matrix-person {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.access-matrix-person b,
+.access-matrix-person small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.access-matrix-row > .access-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  .access-matrix-row { grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
+}

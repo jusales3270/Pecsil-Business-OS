@@ -19,15 +19,14 @@ test("rh: conteúdo clínico permanece protegido", () => {
 });
 
 test("rh: tratamento de SST exige permissão de aprovação", () => {
-  assert.match(source, /hasPermission\(access,"rh\.approve"\)/);
+  assert.match(source, /canUseFeature\(access,"rh\.sst","aprovar"\)/);
   assert.match(source, /canApprove&&actionable/);
   assert.match(source, /Marcar como conforme/);
 });
 
-// O autosserviço mostrava ASO, treinamentos e EPIs fictícios. Agora declara a
-// ausência de registros; o escopo próprio continua garantido pelo RLS.
-test("rh: autosserviço de SST não exibe registro fictício", () => {
-  assert.match(source, /limitadas ao seu próprio cadastro/);
-  assert.match(source, /Sem registros em \$\{section\.toLowerCase\(\)\}/);
+// O autosserviço fictício por cargo saiu: o acesso é por funcionalidade e o
+// escopo próprio do colaborador continua garantido pelo RLS.
+test("rh: SST não exibe registro fictício", () => {
+  assert.match(source, /"Saúde e segurança": "rh\.sst"/);
   assert.doesNotMatch(source, /ASO periódico próximo do vencimento|Válido até 14\/09\/2026/);
 });

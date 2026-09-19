@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import type { ModuleRuntimeProps } from "@/modules/runtime";
 import { useModuleNav } from "@/lib/module-nav-context";
+import { canUseFeature, hasMultipleModules } from "@/modules/access";
 import { Button, Segmented, Status } from "../../../packages/design-system";
 import { useProducaoDashboard } from "./hooks/useProducaoDashboard";
 import { PainelProducao } from "./components/PainelProducao";
@@ -31,8 +32,25 @@ const sections = [
 
 type ProducaoSection = (typeof sections)[number][0];
 
+/** Cada seção é uma funcionalidade liberável por usuário. */
+const SECTION_FEATURE: Record<ProducaoSection, string> = {
+  "Painel": "producao.painel",
+  "Ordens de serviço": "producao.os",
+  "Pipeline fundição": "producao.fundicao",
+  "Paradas": "producao.paradas",
+  "Qualidade": "producao.qualidade",
+  "Lotes fantasmas": "producao.fantasmas",
+  "Envios externos": "producao.externos",
+  "BI & Análises": "producao.bi",
+  "Conexão Forja": "producao.conexao",
+};
+
 export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleRuntimeProps) {
-  const [section, setSection] = useState<ProducaoSection>("Painel");
+  const allowedSections = useMemo(
+    () => sections.filter(([label]) => canUseFeature(access, SECTION_FEATURE[label])),
+    [access],
+  );
+  const [section, setSection] = useState<ProducaoSection>(() => allowedSections[0]?.[0] ?? "Painel");
 
   const { registerNav } = useModuleNav();
   const {
@@ -49,7 +67,7 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
     registerNav({
       moduleId: "producao",
       moduleName: "Produção",
-      items: sections.map(([label, icon]) => ({ id: label, label, icon })),
+      items: allowedSections.map(([label, icon]) => ({ id: label, label, icon })),
       activeId: section,
       onSelect: (id) => {
         setSection(id as ProducaoSection);
@@ -58,7 +76,7 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
     });
 
     return () => registerNav(null);
-  }, [section, registerNav, onEvent]);
+  }, [section, registerNav, onEvent, allowedSections]);
 
   if (loading) {
     return (
@@ -68,10 +86,7 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
     );
   }
 
-  const isOwner =
-    access.role === "Proprietário" ||
-    access.roleCode === "owner" ||
-    access.roleCode === "director";
+  const isOwner = hasMultipleModules(access);
 
   const semConexao = !status.online;
 
@@ -92,7 +107,7 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
           <div className="producao-empty">
             <b>{status.modo === "sem-acesso" ? "Sem acesso à Produção" : "Sem conexão com o Forja"}</b>
             <small>{status.erroMensagem ?? "O Forja não respondeu. Nenhum dado de produção disponível."}</small>
-            {status.modo !== "sem-acesso" && (
+            {status.modo !== "sem-acesso" && canUseFeature(access, "producao.conexao") && (
               <Button variant="secondary" compact onClick={() => setSection("Conexão Forja")}>Ver conexão</Button>
             )}
           </div>
@@ -175,7 +190,7 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
           </Button>
         )}
         <Segmented
-          options={sections.map(([label]) => label)}
+          options={allowedSections.map(([label]) => label)}
           value={section}
           onChange={(val) => setSection(val as ProducaoSection)}
           ariaLabel="Seções do módulo de Produção"

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
  * Calendário de feriados de um ano (`?year=2026`).
  *
  * Tudo usa o cliente de sessão: o RLS de `rh_holidays` libera a leitura para a
- * organização e a escrita só para RH com edição no escopo. `canEdit` vem do
+ * organização e a escrita só para quem tem Feriados em Operar. `canEdit` vem do
  * mesmo predicado do banco, para a tela não oferecer o que o banco negaria.
  */
 export async function GET(request: Request) {
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       .gte("holiday_date", `${year}-01-01`)
       .lte("holiday_date", `${year}-12-31`)
       .order("holiday_date"),
-    supabase.rpc("has_scoped_permission", { requested_module: "rh", requested_action: "edit" }),
+    supabase.rpc("has_feature", { requested_feature: "rh.feriados", min_level: "operar" }),
   ]);
 
   if (holidaysResult.error) {

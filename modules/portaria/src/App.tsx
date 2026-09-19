@@ -22,7 +22,7 @@ import type { Visita, ControleVeiculo, RegistroTerceiro, Recebido } from "./type
 import { RESPONSAVEIS, MOTORISTAS, DESCRICOES, VEICULOS, TERCEIROS, DESTINATARIOS } from "./types";
 import { CameraCapture } from "./components/CameraCapture";
 import { extractFaceDescriptor, base64ToImage } from "./lib/faceApi";
-import { buscarVisitantePorFace, buscarVisitantesPorNome, salvarVisitante, fetchVisitas, fetchFotoVisita, fetchFrota, inserirVisita, atualizarVisitaDb, encerrarVisitaDb, excluirVisitaDb, inserirVeiculo, atualizarVeiculoDb, excluirVeiculoDb, fetchTerceiros, inserirTerceiro, encerrarTerceiroDb, excluirTerceiroDb, fetchRecebidos, fetchFotoRecebido, inserirRecebido, excluirRecebidoDb } from "./lib/supabase"; import { useAuth } from "./contexts/AuthContext";
+import { buscarVisitantePorFace, buscarVisitantesPorNome, salvarVisitante, fetchVisitas, fetchFotoVisita, fetchFrota, inserirVisita, atualizarVisitaDb, encerrarVisitaDb, excluirVisitaDb, inserirVeiculo, atualizarVeiculoDb, excluirVeiculoDb, fetchTerceiros, inserirTerceiro, encerrarTerceiroDb, excluirTerceiroDb, fetchRecebidos, fetchFotoRecebido, inserirRecebido, excluirRecebidoDb } from "./lib/supabase"; import { gerenciaAlgumaArea, podePortaria, useAuth } from "./contexts/AuthContext";
 import { Login } from "./pages/Login";
 import { Configuracoes } from "./pages/Configuracoes";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
@@ -55,11 +55,11 @@ function App({ onExit }: { onExit?: () => void } = {}) {
   useEffect(() => {
     const items = [
       { id: 'dashboard', label: 'Painel Geral', icon: 'grid' },
-      { id: 'visitas', label: 'Visitas', icon: 'users' },
-      { id: 'terceiros', label: 'Terceiros', icon: 'briefcase' },
-      { id: 'recebidos', label: 'Recebidos', icon: 'box' },
-      { id: 'veiculos', label: 'Veículos', icon: 'truck' },
-      ...(perfil?.role === 'admin' || perfil?.role === 'super_admin' ? [{ id: 'usuarios', label: 'Usuários', icon: 'key' }] : []),
+      ...(podePortaria(perfil, 'visitas') ? [{ id: 'visitas', label: 'Visitas', icon: 'users' }] : []),
+      ...(podePortaria(perfil, 'terceiros') ? [{ id: 'terceiros', label: 'Terceiros', icon: 'briefcase' }] : []),
+      ...(podePortaria(perfil, 'recebidos') ? [{ id: 'recebidos', label: 'Recebidos', icon: 'box' }] : []),
+      ...(podePortaria(perfil, 'veiculos') ? [{ id: 'veiculos', label: 'Veículos', icon: 'truck' }] : []),
+      ...(perfil?.role === 'super_admin' ? [{ id: 'usuarios', label: 'Usuários', icon: 'key' }] : []),
       { id: 'configuracoes', label: 'Configurações', icon: 'settings' },
     ];
     registerNav({
@@ -70,7 +70,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
       onSelect: (id) => setPaginaAtiva(id as PaginaAtiva),
     });
     return () => registerNav(null);
-  }, [paginaAtiva, perfil?.role, registerNav]);
+  }, [paginaAtiva, perfil, registerNav]);
   const [busca, setBusca] = useState('');
   const [filtroResponsavel, setFiltroResponsavel] = useState('todos');
   const [filtroDescricao, setFiltroDescricao] = useState('todos');
@@ -403,7 +403,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
     return acc + v.notasFiscais.reduce((sum, nf) => sum + (nf.valor || 0), 0);
   }, 0);
 
-  const isAdmin = perfil?.role === 'super_admin' || perfil?.role === 'admin';
+  const isAdmin = gerenciaAlgumaArea(perfil);
 
   // Obter todas as NFs de entrada das visitas com número e valor válidos
   const todasNFsVisitas = useMemo(() => {
@@ -1321,9 +1321,9 @@ function App({ onExit }: { onExit?: () => void } = {}) {
               <LogIn className="w-5 h-5 text-gray-600" />
               Últimas Visitas
             </CardTitle>
-            <Button variant="outline" size="sm" onClick={() => setPaginaAtiva('visitas')}>
+            {podePortaria(perfil, 'visitas') && (<Button variant="outline" size="sm" onClick={() => setPaginaAtiva('visitas')}>
               Ver todas
-            </Button>
+            </Button>)}
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto overflow-y-auto max-h-[250px] pr-1">
@@ -1367,9 +1367,9 @@ function App({ onExit }: { onExit?: () => void } = {}) {
               <Car className="w-5 h-5 text-gray-600" />
               Últimos Registros — Frota
             </CardTitle>
-            <Button variant="outline" size="sm" onClick={() => setPaginaAtiva('veiculos')}>
+            {podePortaria(perfil, 'veiculos') && (<Button variant="outline" size="sm" onClick={() => setPaginaAtiva('veiculos')}>
               Ver todos
-            </Button>
+            </Button>)}
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto overflow-y-auto max-h-[250px] pr-1">
@@ -1458,9 +1458,9 @@ function App({ onExit }: { onExit?: () => void } = {}) {
               <Button variant="outline" size="icon" onClick={() => exportarCSV('visitas')} title="Exportar CSV">
                 <Download className="w-4 h-4" />
               </Button>
-              <Button onClick={() => { resetFormVisita(); setModalVisitaAberto(true); }} className="flex-1">
+              {podePortaria(perfil, 'visitas', 'operar') && (<Button onClick={() => { resetFormVisita(); setModalVisitaAberto(true); }} className="flex-1">
                 <Plus className="w-4 h-4 mr-1" /> Nova
-              </Button>
+              </Button>)}
             </div>
           </div>
         </CardContent>
@@ -1549,24 +1549,24 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                         <td className="py-3 pl-3 pr-6">
                           <div className="flex items-center justify-end gap-2">
                             {estaAberta ? (
-                              <button
+                              podePortaria(perfil, 'visitas', 'operar') ? (<button
                                 onClick={(e) => { e.stopPropagation(); encerrarVisita(v.id); }}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xs font-semibold shadow-sm shadow-emerald-200 transition-all duration-150 cursor-pointer select-none"
                                 title="Registra saída com o horário atual e encerra a visita"
                               >
                                 <LogOut className="w-3.5 h-3.5" />
                                 Encerrar visita
-                              </button>
+                              </button>) : null
                             ) : (
                               <span className="inline-flex items-center gap-1 text-xs text-emerald-700 font-medium">
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                                 Encerrada
                               </span>
                             )}
-                            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={(e) => { e.stopPropagation(); abrirEdicaoVisita(v); }} title="Editar Visita">
+                            {podePortaria(perfil, 'visitas', 'operar') && (<Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={(e) => { e.stopPropagation(); abrirEdicaoVisita(v); }} title="Editar Visita">
                               <Edit3 className="w-3.5 h-3.5 text-gray-500" />
-                            </Button>
-                            {(perfil?.role === 'super_admin' || perfil?.role === 'admin') && (
+                            </Button>)}
+                            {podePortaria(perfil, 'visitas', 'aprovar') && (
                               <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={(e) => { e.stopPropagation(); excluirVisita(v.id); }}>
                                 <Trash2 className="w-3.5 h-3.5 text-red-400" />
                               </Button>
@@ -1599,9 +1599,9 @@ function App({ onExit }: { onExit?: () => void } = {}) {
           <Button variant="outline" size="sm" onClick={() => exportarCSV('terceiros')} className="gap-1">
             <Download className="w-4 h-4" /> Exportar CSV
           </Button>
-          <Button onClick={() => setModalTerceiroAberto(true)} className="gap-1 bg-orange-500 hover:bg-orange-600">
+          {podePortaria(perfil, 'terceiros', 'operar') && (<Button onClick={() => setModalTerceiroAberto(true)} className="gap-1 bg-orange-500 hover:bg-orange-600">
             <Plus className="w-4 h-4" /> Registrar Entrada
-          </Button>
+          </Button>)}
         </div>
       </div>
 
@@ -1655,12 +1655,12 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                     <td className="py-3 px-4 font-medium text-gray-800">{formatarTempo(t.minutosTrabalhados || 0)}</td>
                     <td className="py-3 pl-4 pr-6">
                       <div className="flex items-center gap-2">
-                        {!t.horaSaida && (
+                        {!t.horaSaida && podePortaria(perfil, 'terceiros', 'operar') && (
                           <Button size="sm" variant="outline" className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50 gap-1" onClick={() => encerrarTerceiro(t)}>
                             <X className="w-3 h-3" /> Encerrar
                           </Button>
                         )}
-                        {(perfil?.role === 'admin' || perfil?.role === 'super_admin') && (
+                        {podePortaria(perfil, 'terceiros', 'aprovar') && (
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => excluirTerceiro(t.id)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
@@ -1706,9 +1706,9 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 <Download className="w-4 h-4" />
               </Button>
             </div>
-            <Button onClick={() => { resetFormVeiculo(); setModalVeiculoAberto(true); }}>
+            {podePortaria(perfil, 'veiculos', 'operar') && (<Button onClick={() => { resetFormVeiculo(); setModalVeiculoAberto(true); }}>
               <Plus className="w-4 h-4 mr-1" /> Novo Registro
-            </Button>
+            </Button>)}
           </div>
         </CardContent>
       </Card>
@@ -1763,7 +1763,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => abrirEdicaoVeiculo(v)}>
                           <Edit3 className="w-3.5 h-3.5 text-gray-500" />
                         </Button>
-                        {(perfil?.role === 'super_admin' || perfil?.role === 'admin') && (
+                        {podePortaria(perfil, 'veiculos', 'aprovar') && (
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => excluirVeiculo(v.id)}>
                             <Trash2 className="w-3.5 h-3.5 text-red-500" />
                           </Button>
@@ -1809,9 +1809,9 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 <Download className="w-4 h-4" />
               </Button>
             </div>
-            <Button onClick={() => { resetFormRecebido(); setModalRecebidoAberto(true); }}>
+            {podePortaria(perfil, 'recebidos', 'operar') && (<Button onClick={() => { resetFormRecebido(); setModalRecebidoAberto(true); }}>
               <Plus className="w-4 h-4 mr-1" /> Novo Recebido
-            </Button>
+            </Button>)}
           </div>
         </CardContent>
       </Card>
@@ -1863,7 +1863,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                     <td className="py-3 px-3 text-gray-500 text-xs truncate max-w-[200px]">{e.descricao || '-'}</td>
                     <td className="py-3 px-3">
                       <div className="flex items-center justify-end gap-2" onClick={(ev) => ev.stopPropagation()}>
-                        {(perfil?.role === 'super_admin' || perfil?.role === 'admin') && (
+                        {podePortaria(perfil, 'recebidos', 'aprovar') && (
                           <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => excluirRecebido(e.id)}>
                             <Trash2 className="w-3.5 h-3.5 text-red-400 hover:text-red-600" />
                           </Button>
@@ -1910,7 +1910,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 <BarChart3 className="w-5 h-5" />
                 Dashboard
               </button>
-              <button
+              {podePortaria(perfil, 'visitas') && (<button
                 onClick={() => { setPaginaAtiva('visitas'); setMenuAberto(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${paginaAtiva === 'visitas'
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
@@ -1920,8 +1920,8 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 <Users className="w-5 h-5" />
                 Visitas
                 <Badge className={`ml-auto ${paginaAtiva === 'visitas' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-800'}`}>{visitas.length}</Badge>
-              </button>
-              <button
+              </button>)}
+              {podePortaria(perfil, 'terceiros') && (<button
                 onClick={() => { setPaginaAtiva('terceiros'); setMenuAberto(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${paginaAtiva === 'terceiros'
                   ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
@@ -1933,8 +1933,8 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 {terceirosAtivos.length > 0 && (
                   <Badge className={`ml-auto ${paginaAtiva === 'terceiros' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-700'}`}>{terceirosAtivos.length}</Badge>
                 )}
-              </button>
-              <button
+              </button>)}
+              {podePortaria(perfil, 'recebidos') && (<button
                 onClick={() => { setPaginaAtiva('recebidos'); setMenuAberto(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${paginaAtiva === 'recebidos'
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
@@ -1944,8 +1944,8 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 <Package className="w-5 h-5" />
                 Recebidos
                 <Badge className={`ml-auto ${paginaAtiva === 'recebidos' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-800'}`}>{recebidos.length}</Badge>
-              </button>
-              <button
+              </button>)}
+              {podePortaria(perfil, 'veiculos') && (<button
                 onClick={() => { setPaginaAtiva('veiculos'); setMenuAberto(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${paginaAtiva === 'veiculos'
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
@@ -1955,9 +1955,9 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 <Car className="w-5 h-5" />
                 Frota
                 <Badge className={`ml-auto ${paginaAtiva === 'veiculos' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-800'}`}>{veiculos.length}</Badge>
-              </button>
+              </button>)}
 
-              {(perfil?.role === 'super_admin' || perfil?.role === 'admin') && (
+              {perfil?.role === 'super_admin' && (
                 <button
                   onClick={() => { setPaginaAtiva('usuarios'); setMenuAberto(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${paginaAtiva === 'usuarios'
@@ -2045,10 +2045,10 @@ function App({ onExit }: { onExit?: () => void } = {}) {
             ) : (
               <>
                 {paginaAtiva === 'dashboard' && renderDashboard()}
-                {paginaAtiva === 'visitas' && renderVisitas()}
-                {paginaAtiva === 'terceiros' && renderTerceiros()}
-                {paginaAtiva === 'recebidos' && renderRecebidos()}
-                {paginaAtiva === 'veiculos' && renderVeiculos()}
+                {paginaAtiva === 'visitas' && podePortaria(perfil, 'visitas') && renderVisitas()}
+                {paginaAtiva === 'terceiros' && podePortaria(perfil, 'terceiros') && renderTerceiros()}
+                {paginaAtiva === 'recebidos' && podePortaria(perfil, 'recebidos') && renderRecebidos()}
+                {paginaAtiva === 'veiculos' && podePortaria(perfil, 'veiculos') && renderVeiculos()}
                 {paginaAtiva === 'usuarios' && (
                   // A tela legada consultava a tabela `perfis` do app standalone, que não
                   // existe no banco da Pecsil. No Business OS, contas e perfis ficam em

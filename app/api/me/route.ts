@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
-import { createSupabaseAdminClient } from "../../../lib/supabase/admin";
 import { getSupabaseConfigStatus } from "../../../lib/supabase/config";
+import { derivePermissions } from "../../../modules/access-catalog";
+import { readSessionAccess } from "../../../lib/auth/session-access";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Identidade do usuário autenticado.
  *
- * Monta o mesmo formato que o frontend já consome (`ModuleAccessContext`),
- * porém a partir do banco: papel, permissões (`modulo.acao`) e escopo reais.
- * Usa o cliente de SESSÃO — o RLS decide o que pode ser lido; este código não
- * usa a service role e não confia em nada vindo do navegador.
+ * Monta o `ModuleAccessContext` a partir do banco: se é o proprietário e quais
+ * funcionalidades (com nível) foram liberadas a este usuário. Usa o cliente de
+ * SESSÃO — o RLS decide o que pode ser lido; nada vem do navegador.
  */
 export async function GET() {
   if (!getSupabaseConfigStatus().publicConnectionReady) {
@@ -66,67 +66,14 @@ export async function GET() {
     return NextResponse.json({ error: "NO_ACTIVE_PROFILE" }, { status: 403 });
   }
 
-  const admin = createSupabaseAdminClient();
-  const { data: grants, error: grantsError } = await admin
-    .from("user_roles")
-    .select(
-      "valid_until, role:roles(code, name, role_permissions(module_code, action, granted)), scope:access_scopes(scope_type, entity_id, module_code, label)",
-    )
-    .eq("profile_id", profile.id);
-
-  if (grantsError) {
-    return NextResponse.json({ error: grantsError.message }, { status: 500 });
+  // Acesso do USUÁRIO: proprietário ou funcionalidades liberadas uma a uma.
+  let access;
+  try {
+    access = await readSessionAccess(supabase, profile.id);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "ACCESS_UNAVAILABLE" }, { status: 500 });
   }
-
-  const active = (grants ?? []).filter(
-    (grant) => !grant.valid_until || new Date(grant.valid_until) > new Date(),
-  );
-
-  const permissions = new Set<string>();
-  const scopes: { type: string; referenceId?: string; moduleCode?: string }[] = [];
-  const roleNames: string[] = [];
-  const roleCodes: string[] = [];
-
-  for (const grant of active) {
-    const role = grant.role as
-      | { code?: string; name?: string; role_permissions?: { module_code: string; action: string; granted: boolean }[] }
-      | null;
-    if (role?.code) roleCodes.push(role.code);
-    const scope = grant.scope as
-      | { scope_type?: string; entity_id?: string | null; module_code?: string | null; label?: string }
-      | null;
-
-    if (role?.name) roleNames.push(role.name);
-    for (const permission of role?.role_permissions ?? []) {
-      if (permission.granted) permissions.add(`${permission.module_code}.${permission.action}`);
-    }
-    if (scope?.scope_type) {
-      scopes.push({
-        type: scope.scope_type,
-        ...(scope.entity_id ? { referenceId: scope.entity_id } : {}),
-        ...(scope.module_code ? { moduleCode: scope.module_code } : {}),
-      });
-
-      // Se o escopo for um módulo específico, garante as permissões correspondentes ao papel no módulo
-      if (scope.scope_type === "module" && scope.module_code) {
-        const mod = scope.module_code;
-        permissions.add(`${mod}.view`);
-        if (role?.code === "director" || role?.code === "manager") {
-          permissions.add(`${mod}.create`);
-          permissions.add(`${mod}.edit`);
-          permissions.add(`${mod}.approve`);
-          permissions.add(`${mod}.export`);
-        } else if (role?.code === "operator") {
-          permissions.add(`${mod}.create`);
-          permissions.add(`${mod}.edit`);
-        }
-      }
-    }
-  }
-
-  const scopeLabels = active
-    .map((grant) => (grant.scope as { label?: string } | null)?.label)
-    .filter((label): label is string => Boolean(label));
+  const { isOwner, grants } = access;
 
   return NextResponse.json({
     userId: auth.user.id,
@@ -140,17 +87,16 @@ export async function GET() {
       : null,
     avatarPath: profile.avatar_path ?? null,
     initials: initialsOf(profile.full_name),
-    // Um usuário pode ter mais de um vínculo; o primeiro papel é o principal.
-    // O nome vem em português ("Proprietário", "Colaborador", ...) porque a
-    // interface compara o papel por nome em alguns pontos.
-    role: roleNames[0] ?? "Sem papel",
-    roles: roleNames,
-    roleCode: roleCodes[0] ?? null,
-    scopeLabel: scopeLabels[0] ?? "Sem escopo",
-    // O Proprietário recebe curinga: seu papel é ter tudo, inclusive módulos
-    // que ainda nem existem. Os demais recebem a lista explícita do banco.
-    permissions: roleCodes.includes("owner") ? ["*"] : [...permissions],
-    scopes,
+    role: isOwner ? "Proprietário" : "Usuário",
+    roles: [isOwner ? "Proprietário" : "Usuário"],
+    roleCode: isOwner ? "owner" : null,
+    scopeLabel: "Pecsil Molds for Glass",
+    isOwner,
+    grants,
+    // O Proprietário recebe curinga: tem tudo, inclusive módulos futuros.
+    permissions: isOwner ? ["*"] : derivePermissions(grants),
+    // Sem recorte por setor: o acesso vale para a empresa toda.
+    scopes: [{ type: "company", referenceId: profile.organization_id }],
   });
 }
 

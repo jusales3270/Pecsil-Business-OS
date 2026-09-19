@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { emptyForjaDashboardData } from "@/modules/producao/src/data/emptyForjaData";
 import { ForjaError, getForjaSession } from "@/lib/forja/client";
 import { requireUserSession } from "@/lib/supabase/session";
+import { readSessionAccess } from "@/lib/auth/session-access";
+import { pruneDashboard } from "@/lib/forja/forja-session";
 
 export const dynamic = "force-dynamic";
 
@@ -12,23 +14,27 @@ const NO_STORE = { "Cache-Control": "no-store" };
 /**
  * Painel de produção vindo do Forja.
  *
- * Só para quem tem Produção no Business OS: o painel traz clientes, OS e
- * prazos. A leitura no Forja usa a conta de integração (lib/forja/client.ts).
+ * Só para quem tem alguma funcionalidade da Produção, e recortado por elas:
+ * o painel traz clientes, OS e prazos. A leitura no Forja usa a conta de integração (lib/forja/client.ts).
  */
 export async function GET() {
   const session = await requireUserSession();
   if ("error" in session) return session.error;
 
-  const permission = await session.supabase.rpc("has_scoped_permission", {
-    requested_module: "producao",
-    requested_action: "view",
-  });
-  if (permission.data !== true) {
+  let access;
+  try {
+    access = await readSessionAccess(session.supabase);
+  } catch {
+    return NextResponse.json({ error: "ACCESS_UNAVAILABLE" }, { status: 503, headers: NO_STORE });
+  }
+  if (!access.canModule("producao")) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403, headers: NO_STORE });
   }
 
   try {
-    const { data, fetchedAt } = await getForjaSession().getDashboard();
+    const { data: full, fetchedAt } = await getForjaSession().getDashboard();
+    // Cada usuário recebe só o que as funcionalidades dele mostram.
+    const data = access.isOwner ? full : pruneDashboard(full, (feature) => access.can(feature), emptyForjaDashboardData);
     return NextResponse.json(
       { success: true, source: "live", endpoint: ENDPOINT_LABEL, fetchedAt: new Date(fetchedAt).toISOString(), data },
       { headers: NO_STORE },

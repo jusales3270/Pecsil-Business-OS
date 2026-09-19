@@ -13,8 +13,8 @@ test("central de documentos possui fluxos operacionais", () => {
 });
 
 test("ações documentais respeitam permissões e privacidade", () => {
-  assert.match(source, /hasPermission\(access,"rh\.create"\)/);
-  assert.match(source, /hasPermission\(access,"rh\.approve"\)/);
+  assert.match(source, /canUseFeature\(access,"rh\.documentos","operar"\)/);
+  assert.match(source, /canUseFeature\(access,"rh\.documentos","aprovar"\)/);
   assert.match(source, /record\.sensitive/);
   assert.match(source, /Privacidade aplicada por escopo/);
 });

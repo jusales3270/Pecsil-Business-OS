@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button, Callout, Card, Donut, Kpi, KpiGrid, Legend, Segmented, Status } from "../../packages/design-system";
-import { hasPermission, type ModuleAccessContext } from "../../modules";
+import { canUseFeature, hasMultipleModules, type ModuleAccessContext } from "../../modules";
 import type { FinanceSnapshot, FinanceTitle } from "../../lib/data/finance";
 import { useModuleNav } from "../../lib/module-nav-context";
 
@@ -12,6 +12,16 @@ const sections = [
   ["Relatórios", "report"], ["Homologação", "check"],
 ] as const;
 type FinanceSection = (typeof sections)[number][0];
+/** Funcionalidade que libera cada seção. O Painel aparece para quem tem o Financeiro. */
+const SECTION_FEATURE: Partial<Record<FinanceSection, string>> = {
+  "Contas a pagar": "financeiro.pagar",
+  "Contas a receber": "financeiro.receber",
+  "Fluxo de caixa": "financeiro.fluxo",
+  "Bancos e conciliação": "financeiro.bancos",
+  "Centros de custo": "financeiro.centros",
+  "Relatórios": "financeiro.relatorios",
+  "Homologação": "financeiro.homologacao",
+};
 type PayableStatus = "Pendente" | "Em aprovação" | "Aprovado" | "Pago" | "Vencido";
 type ReceivableStatus = "Em aberto" | "Recebido" | "Vencido" | "Parcial";
 type Payable = { id:string|number; supplier:string; document:string; category:string; costCenter:string; due:string; value:number; status:PayableStatus };
@@ -101,13 +111,18 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
   const [selected,setSelected]=useState<Payable|Receivable|null>(null);
   const [homologation,setHomologation]=useState(initialHomologation);
   const track=(message:string)=>{notify(message);onEvent(message,"Financeiro")};
-  const canCreate=hasPermission(access,"financeiro.create");
-  const canApprove=hasPermission(access,"financeiro.approve");
-  const canSettle=hasPermission(access,"financeiro.settle");
-  const canReconcile=hasPermission(access,"financeiro.reconcile");
-  const canExport=hasPermission(access,"financeiro.export");
-  const canAdmin=hasPermission(access,"financeiro.admin");
-  const accessibleSections=canAdmin?sections:sections.filter(([label])=>label!=="Homologação");
+  // Cada seção e cada botão saem da funcionalidade liberada ao usuário.
+  const canCreatePayable=canUseFeature(access,"financeiro.pagar","operar");
+  const canApprovePayable=canUseFeature(access,"financeiro.pagar","aprovar");
+  const canCreateReceivable=canUseFeature(access,"financeiro.receber","operar");
+  const canSettleReceivable=canUseFeature(access,"financeiro.receber","aprovar");
+  const canReconcile=canUseFeature(access,"financeiro.bancos","operar");
+  const canCreateCenter=canUseFeature(access,"financeiro.centros","operar");
+  const canExport=canUseFeature(access,"financeiro.relatorios");
+  const accessibleSections=useMemo(()=>sections.filter(([label])=>{
+    const feature=SECTION_FEATURE[label];
+    return !feature||canUseFeature(access,feature);
+  }),[access]);
   const { registerNav } = useModuleNav();
 
   useEffect(() => {
@@ -235,8 +250,8 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
     track("Conta a receber: recebimento confirmado.");
   }
 
-  const render=()=>section==="Painel"?<Dashboard payables={payables} receivables={receivables} setSection={setSection} access={access}/>:section==="Contas a pagar"?<Payables data={payables} onUpdateStatus={handleUpdatePayableStatus} canCreate={canCreate} canApprove={canApprove} canSettle={canSettle} openCreate={()=>setModal("payable")} inspect={setSelected} track={track}/>:section==="Contas a receber"?<Receivables data={receivables} onReceive={handleReceive} canCreate={canCreate} canSettle={canSettle} openCreate={()=>setModal("receivable")} inspect={setSelected} track={track}/>:section==="Fluxo de caixa"?<CashFlow payables={payables} receivables={receivables}/>:section==="Bancos e conciliação"?<Banks track={track} canReconcile={canReconcile}/>:section==="Centros de custo"?<CostCenters track={track} canCreate={canCreate}/>:section==="Relatórios"?<Reports open={(title)=>{setSelected({id:0,customer:title,document:"",category:"",due:"",value:0,received:0,status:"Em aberto"});setModal("report")}}/>:<Homologation values={homologation} setValues={setHomologation} track={track}/>;
-  const isOwner = access.role === "Proprietário" || access.roleCode === "owner" || access.roleCode === "director";
+  const render=()=>section==="Painel"?<Dashboard payables={payables} receivables={receivables} setSection={setSection} access={access}/>:section==="Contas a pagar"?<Payables data={payables} onUpdateStatus={handleUpdatePayableStatus} canCreate={canCreatePayable} canApprove={canApprovePayable} canSettle={canApprovePayable} openCreate={()=>setModal("payable")} inspect={setSelected} track={track}/>:section==="Contas a receber"?<Receivables data={receivables} onReceive={handleReceive} canCreate={canCreateReceivable} canSettle={canSettleReceivable} openCreate={()=>setModal("receivable")} inspect={setSelected} track={track}/>:section==="Fluxo de caixa"?<CashFlow payables={payables} receivables={receivables}/>:section==="Bancos e conciliação"?<Banks track={track} canReconcile={canReconcile}/>:section==="Centros de custo"?<CostCenters track={track} canCreate={canCreateCenter}/>:section==="Relatórios"?<Reports open={(title)=>{setSelected({id:0,customer:title,document:"",category:"",due:"",value:0,received:0,status:"Em aberto"});setModal("report")}}/>:<Homologation values={homologation} setValues={setHomologation} track={track}/>;
+  const isOwner = hasMultipleModules(access);
 
   return <div className="finance-module">
     <div className="ds-module-bar">

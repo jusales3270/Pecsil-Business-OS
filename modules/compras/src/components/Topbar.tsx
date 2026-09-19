@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '@/store';
-import type { Page } from '@/types';
+import { tabsFor } from '../lib/access';
 import {
   Bell,
   CheckCircle,
@@ -16,7 +16,8 @@ import {
 
 interface TopbarProps {
   onExit?: () => void;
-  isOwner?: boolean;
+  canExit?: boolean;
+  canSwitch?: boolean;
 }
 
 const tipoIcon = {
@@ -26,20 +27,7 @@ const tipoIcon = {
   COTACAO_COMPRADA: <ShoppingCart size={18} className="text-blue-600" />,
 };
 
-const orcamentistaTabs: { page: Page; label: string }[] = [
-  { page: 'dashboard', label: 'Dashboard' },
-  { page: 'cotacoes', label: 'Minhas Cotações' },
-  { page: 'compras', label: 'Compras Realizadas' },
-];
-
-const gestorTabs: { page: Page; label: string }[] = [
-  { page: 'dashboard', label: 'Dashboard' },
-  { page: 'pendentes', label: 'Pendentes de Aprovação' },
-  { page: 'historico', label: 'Histórico de Decisões' },
-  { page: 'compras', label: 'Compras' },
-];
-
-export default function Topbar({ onExit, isOwner }: TopbarProps) {
+export default function Topbar({ onExit, canExit, canSwitch }: TopbarProps) {
   const {
     user,
     currentPage,
@@ -52,12 +40,13 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
     cotacoes,
     setActiveCotacaoIdForModal,
     login,
+    caps,
   } = useStore();
 
   const [showNotifs, setShowNotifs] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const tabs = user?.role === 'ORCAMENTISTA' ? orcamentistaTabs : gestorTabs;
+  const tabs = tabsFor(user?.role, caps);
 
   const unreadCount = notificacoes.filter(
     n => n.userId === user?.id && !n.lida
@@ -82,7 +71,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
     <header className="bg-[var(--bg-surface)] border-b border-[var(--border-subtle)] text-[var(--text-primary)] flex flex-wrap md:flex-nowrap items-center justify-between px-3 sm:px-4 md:px-6 py-2.5 md:py-0 md:h-16 flex-shrink-0 gap-2 sm:gap-4">
       {/* Esquerda: Voltar ao Ecossistema + Seletor de Perfil (Proprietário) */}
       <div className="flex items-center gap-2 sm:gap-3 order-1">
-        {onExit && isOwner && (
+        {onExit && canExit && (
           <button
             type="button"
             onClick={onExit}
@@ -93,12 +82,12 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
           </button>
         )}
 
-        {isOwner ? (
+        {canSwitch ? (
           <div className="flex items-center gap-1 bg-[var(--bg-subtle)] p-1 rounded-lg border border-[var(--border)]">
             <button
               type="button"
               onClick={() => {
-                login('ORCAMENTISTA', user?.name || 'Orçamentista');
+                login('ORCAMENTISTA', user?.name);
                 setPage('dashboard');
               }}
               className={`px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all ${
@@ -112,7 +101,7 @@ export default function Topbar({ onExit, isOwner }: TopbarProps) {
             <button
               type="button"
               onClick={() => {
-                login('GESTOR', user?.name || 'Gestor');
+                login('GESTOR', user?.name);
                 setPage('dashboard');
               }}
               className={`px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all ${

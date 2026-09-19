@@ -11,9 +11,9 @@ test("financeiro: cobre os domínios operacionais da versão 1", () => {
 });
 
 test("financeiro: ações críticas respeitam permissões", () => {
-  assert.match(source, /hasPermission\(access,"financeiro\.create"\)/);
-  assert.match(source, /hasPermission\(access,"financeiro\.approve"\)/);
-  assert.match(source, /hasPermission\(access,"financeiro\.settle"\)/);
+  assert.match(source, /canUseFeature\(access,"financeiro\.pagar","operar"\)/);
+  assert.match(source, /canUseFeature\(access,"financeiro\.pagar","aprovar"\)/);
+  assert.match(source, /canUseFeature\(access,"financeiro\.receber","aprovar"\)/);
 });
 
 test("financeiro: cria, aprova, liquida, recebe e concilia em modo demonstrativo", () => {
