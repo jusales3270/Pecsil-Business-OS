@@ -310,7 +310,7 @@ function buildPendingItems(rh: RhSnapshot): PendingItem[] {
 // Envia uma decisão do RH ao servidor. Retorna true se persistiu; false se o
 // backend está em modo demonstrativo (409) — a UI então mantém só o local.
 // Lança em 401/403 para o chamador tratar (sessão expirada, sem permissão).
-async function sendRhMutation(body: Record<string, string>): Promise<boolean> {
+async function sendRhMutation(body: Record<string, unknown>): Promise<boolean> {
   const response = await fetch("/api/rh", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -856,6 +856,7 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
   const [records,setRecords]=useState<SstRecord[]>(rh.source === "supabase" ? rh.sstRecords.map(toSstUiRecord) : initialSstRecords);
   const [selected,setSelected]=useState<SstRecord|null>(null);
   const [creating,setCreating]=useState(false);
+  const [editing,setEditing]=useState<SstRecord|null>(null);
   const [tab,setTab]=useState<"Prioridades"|"Exames"|"Treinamentos"|"EPIs"|"Ocorrências">("Prioridades");
   const [status,setStatus]=useState("Todos os status");
   const canManage=canUseFeature(access,"rh.sst","operar");
@@ -879,6 +880,33 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
   };
   const sstCategoryEnum:Record<SstRecord["category"],RhSstRecord["category"]>={"Exame":"exam","Treinamento":"training","EPI":"ppe","Ocorrência":"incident"};
   const sstRiskEnum:Record<SstRecord["risk"],RhSstRecord["risk"]>={"Crítico":"critical","Atenção":"attention","Regular":"regular"};
+  // Edição do registro: aplica na tela e grava. Se o banco recusar (permissão
+  // ou registro clínico confidencial), volta ao que era e avisa — nunca deixa a
+  // tela mostrando um dado que não foi gravado.
+  const saveEdit=async(changes:{category:SstRecord["category"];title:string;dueDate:string;risk:SstRecord["risk"];note:string})=>{
+    if(!editing)return;
+    const antes=editing;
+    const depois:SstRecord={...antes,...changes,dueDate:changes.dueDate,note:changes.note};
+    setRecords(current=>current.map(record=>record.id===antes.id?depois:record));
+    if(selected?.id===antes.id)setSelected(depois);
+    setEditing(null);
+    if(!antes.sourceId){notify(`${antes.employee}: alteração aplicada nos dados demonstrativos.`);return;}
+    try{
+      const gravou=await sendRhMutation({entity:"sst",id:antes.sourceId,action:"update",changes:{
+        title:changes.title,
+        category:sstCategoryEnum[changes.category],
+        dueDate:changes.dueDate||null,
+        risk:sstRiskEnum[changes.risk],
+        note:changes.note||null,
+      }});
+      if(!gravou)throw new Error("RH_MUTATION_DENIED");
+      notify(`${antes.employee}: registro de SST atualizado no banco.`);
+    }catch{
+      setRecords(current=>current.map(record=>record.id===antes.id?antes:record));
+      if(selected?.id===antes.id)setSelected(antes);
+      notify(`${antes.employee}: não foi possível salvar a alteração. Verifique suas permissões.`);
+    }
+  };
   const createRecord=async(record:SstRecord,employeeId?:string)=>{
     setRecords(current=>[record,...current]);setCreating(false);setSelected(record);
     if(rh.source==="supabase"&&employeeId){
@@ -903,14 +931,52 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
     <div className="sst-tabs" role="tablist">{(["Prioridades","Exames","Treinamentos","EPIs","Ocorrências"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Prioridades"&&<i>{alerts}</i>}</button>)}</div>
     {tab==="Prioridades"&&<div className="sst-overview"><SstRecordTable title="Prioridades de SST" eyebrow="VENCIMENTOS E PENDÊNCIAS" records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/><Card className="sst-health-card"><p className="eyebrow">CONFORMIDADE</p><h2>Saúde dos registros</h2><div className="sst-score"><strong>96%</strong><span><i style={{width:"96%"}}/></span></div><ul><li><i>✓</i><span><b>ASOs vinculados</b><small>236 de 246 colaboradores ativos</small></span></li><li><i>✓</i><span><b>Treinamentos controlados</b><small>Validades e certificados mapeados</small></span></li><li className="warning"><i>!</i><span><b>{alerts} pendências abertas</b><small>Tratamento por risco e vencimento</small></span></li></ul><div className="sst-risk-legend"><span><i className="critical"/> Crítico</span><span><i className="attention"/> Atenção</span><span><i className="regular"/> Regular</span></div></Card></div>}
     {tab!=="Prioridades"&&<SstRecordTable title={`Gestão de ${tab.toLowerCase()}`} eyebrow={`SST · ${tab.toUpperCase()}`} records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/>} 
-    {selected&&<SstDrawer record={selected} canApprove={canApprove} onClose={()=>setSelected(null)} onConclude={conclude}/>} 
+    {selected&&<SstDrawer record={selected} canApprove={canApprove} canManage={canManage} onClose={()=>setSelected(null)} onConclude={conclude} onEdit={()=>setEditing(selected)}/>}
+    {editing&&<SstEditForm record={editing} onClose={()=>setEditing(null)} onSave={saveEdit}/>}
     {creating&&<SstForm nextId={Math.max(0,...records.map(record=>record.id))+1} employees={rh.source==="supabase"?rh.employees:[]} onClose={()=>setCreating(false)} onSave={createRecord}/>}
   </>;
 }
 
 function SstRecordTable({title,eyebrow,records,status,setStatus,onSelect}:{title:string;eyebrow:string;records:SstRecord[];status:string;setStatus:(status:string)=>void;onSelect:(record:SstRecord)=>void}){return <Card className="sst-record-card"><div className="sst-record-toolbar"><div><p className="eyebrow">{eyebrow}</p><h2>{title}</h2><p>Informações operacionais sem exposição de resultados clínicos.</p></div><label><span>Status</span><select value={status} onChange={event=>setStatus(event.target.value)}><option>Todos os status</option><option>Vencido</option><option>A vencer</option><option>Programado</option><option>Conforme</option><option>Em análise</option></select></label></div><div className="sst-record-table"><div className="sst-record-head"><span>Colaborador</span><span>Obrigação</span><span>Vencimento</span><span>Risco</span><span>Situação</span><span/></div>{records.map(record=><button key={record.id} onClick={()=>onSelect(record)}><span className="sst-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department} · {record.unit}</small></span></span><span><b>{record.title}</b><small>{record.category} · {record.document}</small></span><span><b>{formatDate(record.dueDate)}</b><small>{sstDueLabel(record)}</small></span><strong className={`sst-risk ${record.risk.toLowerCase().replace("ç","c")}`}>{record.risk}</strong><Status tone={sstTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!records.length&&<div className="hr-empty"><HrIcon name="search"/><b>Nenhum registro encontrado</b><small>Altere o filtro de situação.</small></div>}</div></Card>}
 
-function SstDrawer({record,canApprove,onClose,onConclude}:{record:SstRecord;canApprove:boolean;onClose:()=>void;onConclude:()=>void}){const actionable=record.status!=="Conforme";return <div className="employee-layer" onMouseDown={onClose}><aside className="sst-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Registro de SST de ${record.employee}`}><header><button onClick={onClose} aria-label="Fechar registro de SST"><HrIcon name="close"/></button><span><HrIcon name={record.category==="Exame"?"heart":"shield"}/></span><div><p className="eyebrow">SST · {record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={sstTone(record.status)}>{record.status}</Status></header><div className="sst-drawer-content">{record.risk!=="Regular"&&<div className={`sst-alert ${record.risk==="Crítico"?"critical":""}`}><HrIcon name="alert"/><span><b>{record.risk==="Crítico"?"Ação imediata necessária":"Atenção necessária"}</b><small>{record.note}</small></span></div>}<section className="sst-deadline"><span><small>Vencimento ou prazo</small><b>{formatDate(record.dueDate)}</b></span><Status tone={record.risk==="Crítico"?"attention":"info"}>{record.risk}</Status></section><DetailGroup title="Informações operacionais" rows={[["Colaborador",record.employee],["Unidade",record.unit],["Categoria",record.category],["Documento",record.document],["Observação",record.note]]}/>{record.sensitive&&<section className="sst-sensitive-note"><HrIcon name="lock"/><span><b>Conteúdo sensível protegido</b><small>Resultados clínicos, diagnósticos e anexos médicos não são exibidos nesta visão. O acesso depende de permissão específica e auditoria.</small></span></section>}<section className="absence-workflow"><h3>Histórico do registro</h3><div><i>✓</i><span><b>Obrigação cadastrada</b><small>Registro demonstrativo do RH</small></span></div><div><i>{actionable?"2":"✓"}</i><span><b>{actionable?"Aguardando tratamento":"Registro conforme"}</b><small>{actionable?"Responsáveis notificados por escopo":"Validade e documento conferidos"}</small></span></div></section></div>{canApprove&&actionable&&<footer><button className="employee-cancel" onClick={onClose}>Fechar</button><Button onClick={onConclude}><HrIcon name="check"/> Marcar como conforme</Button></footer>}</aside></div>}
+function SstDrawer({record,canApprove,canManage,onClose,onConclude,onEdit}:{record:SstRecord;canApprove:boolean;canManage:boolean;onClose:()=>void;onConclude:()=>void;onEdit:()=>void}){const actionable=record.status!=="Conforme";return <div className="employee-layer" onMouseDown={onClose}><aside className="sst-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Registro de SST de ${record.employee}`}><header><button onClick={onClose} aria-label="Fechar registro de SST"><HrIcon name="close"/></button><span><HrIcon name={record.category==="Exame"?"heart":"shield"}/></span><div><p className="eyebrow">SST · {record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={sstTone(record.status)}>{record.status}</Status></header><div className="sst-drawer-content">{record.risk!=="Regular"&&<div className={`sst-alert ${record.risk==="Crítico"?"critical":""}`}><HrIcon name="alert"/><span><b>{record.risk==="Crítico"?"Ação imediata necessária":"Atenção necessária"}</b><small>{record.note}</small></span></div>}<section className="sst-deadline"><span><small>Vencimento ou prazo</small><b>{formatDate(record.dueDate)}</b></span><Status tone={record.risk==="Crítico"?"attention":"info"}>{record.risk}</Status></section><DetailGroup title="Informações operacionais" rows={[["Colaborador",record.employee],["Unidade",record.unit],["Categoria",record.category],["Documento",record.document],["Observação",record.note]]}/>{record.sensitive&&<section className="sst-sensitive-note"><HrIcon name="lock"/><span><b>Conteúdo sensível protegido</b><small>Resultados clínicos, diagnósticos e anexos médicos não são exibidos nesta visão. O acesso depende de permissão específica e auditoria.</small></span></section>}<section className="absence-workflow"><h3>Histórico do registro</h3><div><i>✓</i><span><b>Obrigação cadastrada</b><small>Registro demonstrativo do RH</small></span></div><div><i>{actionable?"2":"✓"}</i><span><b>{actionable?"Aguardando tratamento":"Registro conforme"}</b><small>{actionable?"Responsáveis notificados por escopo":"Validade e documento conferidos"}</small></span></div></section></div>{/* O rodapé aparece sempre que houver ação: editar é de quem opera o SST, e
+    marcar como conforme só faz sentido em registro ainda pendente. Registro já
+    conforme continuava sem rodapé nenhum — e sem como corrigir um dado errado. */}
+{(canManage||(canApprove&&actionable))&&<footer><button className="employee-cancel" onClick={onClose}>Fechar</button>{canManage&&<button className="employee-cancel" onClick={onEdit}><HrIcon name="edit"/> Editar</button>}{canApprove&&actionable&&<Button onClick={onConclude}><HrIcon name="check"/> Marcar como conforme</Button>}</footer>}</aside></div>}
+
+/**
+ * Edição de um registro de SST já existente. O colaborador não muda — trocá-lo
+ * seria outro registro, não uma correção deste. O que se corrige é a obrigação:
+ * categoria, título, prazo, risco e observação.
+ */
+function SstEditForm({record,onClose,onSave}:{record:SstRecord;onClose:()=>void;onSave:(changes:{category:SstRecord["category"];title:string;dueDate:string;risk:SstRecord["risk"];note:string})=>Promise<void>}){
+  const[category,setCategory]=useState<SstRecord["category"]>(record.category);
+  const[title,setTitle]=useState(record.title);
+  const[dueDate,setDueDate]=useState(record.dueDate??"");
+  const[risk,setRisk]=useState<SstRecord["risk"]>(record.risk);
+  const[note,setNote]=useState(record.note??"");
+  const[busy,setBusy]=useState(false);
+  const valid=Boolean(title.trim());
+  const submit=async(event:React.FormEvent)=>{
+    event.preventDefault();
+    if(!valid||busy)return;
+    setBusy(true);
+    await onSave({category,title:title.trim(),dueDate,risk,note:note.trim()});
+    setBusy(false);
+  };
+  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="sst-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}>
+    <header><div><p className="eyebrow">RH · SST</p><h2>Editar registro</h2><p>{record.employee} · {record.department}</p></div><button type="button" onClick={onClose} aria-label="Fechar edição do registro de SST"><HrIcon name="close"/></button></header>
+    <div className="sst-form-fields">
+      <label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as SstRecord["category"])}><option>Exame</option><option>Treinamento</option><option>EPI</option><option>Ocorrência</option></select></label>
+      <label><span>Risco *</span><select value={risk} onChange={event=>setRisk(event.target.value as SstRecord["risk"])}><option>Crítico</option><option>Atenção</option><option>Regular</option></select></label>
+      <label className="field-wide"><span>Obrigação ou registro *</span><input value={title} onChange={event=>setTitle(event.target.value)}/></label>
+      <label className="field-wide"><span>Vencimento ou prazo</span><input type="date" value={dueDate} onChange={event=>setDueDate(event.target.value)}/></label>
+      <label className="field-wide"><span>Observação operacional</span><textarea value={note} onChange={event=>setNote(event.target.value)} placeholder="Somente o necessário ao acompanhamento..."/></label>
+      <div className="sst-form-note field-wide"><HrIcon name="lock"/><span><b>Não inclua diagnóstico ou resultado clínico</b><small>Esta tela é de controle da obrigação, não do conteúdo médico.</small></span></div>
+    </div>
+    <footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid||busy}>{busy?"Salvando…":"Salvar alterações"} <HrIcon name="check"/></Button></footer>
+  </form></div>;
+}
 
 function SstForm({nextId,employees,onClose,onSave}:{nextId:number;employees:RhEmployeeOption[];onClose:()=>void;onSave:(record:SstRecord,employeeId?:string)=>void}){
   const options=employees;

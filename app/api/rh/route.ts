@@ -58,6 +58,9 @@ export async function PATCH(request: Request) {
     if (error instanceof Error && error.message === "UNAUTHENTICATED") {
       return NextResponse.json({ error:"UNAUTHENTICATED" }, { status:401 });
     }
+    if (error instanceof Error && error.message === "RH_MUTATION_DENIED") {
+      return NextResponse.json({ error:"RH_MUTATION_DENIED" }, { status:403 });
+    }
     // Recusa da RLS aparece como erro do PostgREST — sem permissão de decisão.
     console.error("Falha na decisão do RH", error);
     return NextResponse.json({ error:"RH_MUTATION_DENIED" }, { status:403 });

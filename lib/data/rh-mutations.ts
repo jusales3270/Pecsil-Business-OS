@@ -7,10 +7,19 @@ import { createSupabaseServerClient } from "../supabase/server";
 // rh_benefit_requests_decide, rh_sst_manage) exigem a permissão certa. Se o
 // usuário não puder, o próprio PostgreSQL recusa — este código não checa papel.
 
+export type RhSstEdit = {
+  title?: string;
+  category?: "exam" | "training" | "ppe" | "incident";
+  dueDate?: string | null;
+  risk?: "critical" | "attention" | "regular";
+  note?: string | null;
+};
+
 export type RhMutation =
   | { entity: "absence"; id: string; decision: "approved" | "rejected" }
   | { entity: "benefit_request"; id: string; decision: "approved" | "rejected" }
-  | { entity: "sst"; id: string; action: "mark_compliant" };
+  | { entity: "sst"; id: string; action: "mark_compliant" }
+  | { entity: "sst"; id: string; action: "update"; changes: RhSstEdit };
 
 export async function applyRhMutation(mutation: RhMutation): Promise<{ ok: true }> {
   const supabase = await createSupabaseServerClient();
@@ -43,6 +52,30 @@ export async function applyRhMutation(mutation: RhMutation): Promise<{ ok: true 
       .update({ status: mutation.decision, decided_at: now, decided_by_profile_id: profileId })
       .eq("id", mutation.id);
     if (error) throw error;
+    return { ok: true };
+  }
+
+  // SST: editar os dados da obrigação (título, categoria, prazo, risco, nota).
+  // Quem decide se pode é a policy `rh_sst_manage` — exige rh.sst em operar, e
+  // aprovar quando o registro é clinicamente confidencial.
+  if (mutation.action === "update") {
+    const changes: Record<string, unknown> = {};
+    if (mutation.changes.title !== undefined) changes.title = mutation.changes.title;
+    if (mutation.changes.category !== undefined) changes.category = mutation.changes.category;
+    if (mutation.changes.dueDate !== undefined) changes.due_date = mutation.changes.dueDate;
+    if (mutation.changes.risk !== undefined) changes.risk = mutation.changes.risk;
+    if (mutation.changes.note !== undefined) changes.note = mutation.changes.note;
+    if (!Object.keys(changes).length) return { ok: true };
+
+    const { data, error } = await supabase
+      .from("rh_sst_records")
+      .update(changes)
+      .eq("id", mutation.id)
+      .select("id");
+    if (error) throw error;
+    // A RLS não devolve erro quando simplesmente não encontra a linha: zero
+    // linhas alteradas é recusa de permissão, não sucesso silencioso.
+    if (!data?.length) throw new Error("RH_MUTATION_DENIED");
     return { ok: true };
   }
 
