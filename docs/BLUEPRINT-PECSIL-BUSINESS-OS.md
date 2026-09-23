@@ -377,4 +377,6 @@ Se uma regra deste documento estiver atrapalhando o trabalho real, o padrão é
 | [`docs/IMPLANTACAO-SUPABASE-PECSIL.md`](./IMPLANTACAO-SUPABASE-PECSIL.md) | Ordem de implantação e critérios de aceite |
 | [`docs/PENDENCIA-INFRA-SUPABASE.md`](./PENDENCIA-INFRA-SUPABASE.md) | Bloqueio de infraestrutura (Fase 0) |
 | [`modules/planned.ts`](../modules/planned.ts) | Roadmap de módulos em código |
+| [`docs/PROCESSOS-PECSIL.md`](./PROCESSOS-PECSIL.md) | Cadeias entre departamentos (base das reações entre módulos) |
+| [`docs/VISAO-PRODUTO-ESCALA.md`](./VISAO-PRODUTO-ESCALA.md) | **Retomar ao fim do roadmap:** levar o Business OS a outras indústrias — diferenciais, prioridades P1–P4 e reflexos no sistema |
 | [`.env.example`](../.env.example) | Variáveis necessárias |
