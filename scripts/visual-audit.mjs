@@ -10,6 +10,8 @@
  *   distorted  avatar de iniciais esticado (faixa) ou achatado
  *   giant      ícone SVG acima de 40px (SVG sem tamanho escala até o contêiner)
  *   glued      textos irmãos encostados, sem separação
+ *   unreachable (só em camada aberta) botão/campo fora da tela e sem rolagem
+ *              que o alcance — é o botão que a pessoa não consegue clicar
  *   tap        (só celular) alvo de toque menor que 32px — aviso, não falha
  *   console    erro de página ou de console
  *
@@ -23,7 +25,9 @@
  *   BASE=http://localhost:3000 OUT=/tmp/audit ONLY="Recursos Humanos" node scripts/visual-audit.mjs
  *
  * Variáveis: BASE, OUT (pasta de saída), ONLY (filtra telas pelo nome),
- * WIDTHS (ex.: "1440,390"), CHROME_PATH.
+ * WIDTHS (ex.: "1440,390"), CHROME_PATH, QA_STATE (arquivo onde guardar a
+ * sessão, para auditar várias vezes sem o servidor de autenticação barrar a
+ * rajada de logins).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -75,20 +79,30 @@ const LAYERS = {
   "Recursos Humanos › Feriados": [{ name: "Editar feriado", open: ".holiday-row", close: "Escape" }],
   "Recursos Humanos › Documentos": [{ name: "Documento", open: ".doc-table > button", close: "Escape" }],
   "Recursos Humanos › Férias e ausências": [{ name: "Ausência", open: ".absence-table > button", close: "Escape" }],
+  // A gaveta de SST ficava de fora — e foi justamente onde apareceu um defeito
+  // de UI relatado por quem usa. Gaveta não auditada é gaveta sem rede.
+  "Recursos Humanos › Saúde e segurança": [
+    { name: "Registro de SST", open: ".sst-record-table > button", close: ".employee-layer > aside > header button" },
+    { name: "Novo registro de SST", open: ".hr-page-head .ds-button", close: ".sst-form > header button" },
+  ],
+  "Recursos Humanos › Benefícios": [{ name: "Solicitação de benefício", open: ".benefit-request-table > button", close: "Escape" }],
+  "Comercial › CRM › Funil": [{ name: "Novo card", open: ".page-head .ds-button", close: ".user-admin-form > header button" }],
+  "Comercial › CRM › Clientes": [{ name: "Novo cliente", open: ".md-toolbar .ds-button", close: ".user-admin-form > header button" }],
+  "Cadastros": [{ name: "Editar fornecedor", open: ".md-actions .ds-button", close: ".user-admin-form > header button" }],
   "Visão Geral": [{ name: "Menu da conta", open: ".user-card", close: ".user-card" }],
 };
 
 // ---------------------------------------------------------------------------
 // Sonda executada dentro da página
 // ---------------------------------------------------------------------------
-const probe = ({ mobile, root, width }) => {
+const probe = ({ mobile, root, width, height }) => {
   // Cache: getComputedStyle/getBoundingClientRect repetidos em milhares de nós
   // (e em cada ancestral) tornavam a varredura lenta demais.
   const styles = new Map();
   const rects = new Map();
   const CS = el => { let v = styles.get(el); if (!v) { v = getComputedStyle(el); styles.set(el, v); } return v; };
   const RECT = el => { let v = rects.get(el); if (!v) { v = el.getBoundingClientRect(); rects.set(el, v); } return v; };
-  const found = { overflow: [], escape: [], clipped: [], wrapped: [], overlap: [], distorted: [], giant: [], glued: [], tap: [] };
+  const found = { overflow: [], escape: [], clipped: [], wrapped: [], overlap: [], distorted: [], giant: [], glued: [], unreachable: [], tap: [] };
   // Largura configurada, não innerWidth: no modo celular o navegador alarga a
   // área de layout até caber o conteúdo que estoura, escondendo o defeito.
   const W = width;
@@ -162,10 +176,29 @@ const probe = ({ mobile, root, width }) => {
     }
 
     // distorted: avatar de iniciais (1–3 letras, fundo colorido, arredondado).
+    // Aba e botão de seleção ficam de fora: um rótulo curto em maiúsculas
+    // ("CRM") não é avatar, e a proporção dele é do texto, não de um retrato.
     const txt = (el.textContent || "").trim();
-    if (el.children.length === 0 && /^[A-ZÀ-Ú]{1,3}$/.test(txt) && s.backgroundColor !== "rgba(0, 0, 0, 0)" && parseFloat(s.borderRadius) >= 6) {
+    const avatarPossivel = el.children.length === 0 && el.getAttribute("role") !== "tab" && !el.closest(".ds-segmented, [role=tablist]");
+    if (avatarPossivel && /^[A-ZÀ-Ú]{1,3}$/.test(txt) && s.backgroundColor !== "rgba(0, 0, 0, 0)" && parseFloat(s.borderRadius) >= 6) {
       const ratio = r.width / r.height;
       if (ratio > 1.6 || ratio < 0.62) found.distorted.push(`${describe(el)} ${Math.round(r.width)}x${Math.round(r.height)}`);
+    }
+
+    // unreachable: dentro de uma camada aberta (gaveta, formulário, menu), um
+    // controle fora da tela sem rolagem que o alcance é um botão que a pessoa
+    // não consegue clicar. Só vale com `root`: na página inteira, controle
+    // abaixo da dobra é normal — a própria página rola.
+    if (root && el.matches("button, a[href], input:not([type=hidden]), select, textarea") && !el.disabled) {
+      const foraDaTela = r.bottom > height + 2 || r.top < -2;
+      if (foraDaTela) {
+        let alcancavel = false;
+        for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+          const ps = CS(p);
+          if (ps.overflowY === "auto" || ps.overflowY === "scroll") { alcancavel = true; break; }
+        }
+        if (!alcancavel) found.unreachable.push(`${describe(el)} [${Math.round(r.top)}..${Math.round(r.bottom)} em tela de ${height}px]`);
+      }
     }
 
     // tap: alvo pequeno no celular.
@@ -243,8 +276,13 @@ async function clickMenu(page, selector, text) {
 async function goTo(page, width, view) {
   await clickMenu(page, ".sidebar nav > button[aria-label]", view.nav);
   await sleep(900);
+  // Departamento (ex.: Comercial): primeiro a área, depois a seção dela.
+  if (view.area) {
+    await clickMenu(page, ".sidebar-area", view.area);
+    await sleep(900);
+  }
   if (view.sub) {
-    await clickMenu(page, ".sidebar-subitem", view.sub);
+    await clickMenu(page, view.area ? ".sidebar-section" : ".sidebar-subitem", view.sub);
     await sleep(900);
   }
   if (width <= MOBILE_MAX && await page.locator(".sidebar.open").count()) await page.locator(".scrim").click({ timeout: 3000 }).catch(() => {});
@@ -255,10 +293,26 @@ async function goTo(page, width, view) {
 async function discover(page) {
   const views = [];
   const navs = await page.locator(".sidebar nav > button[aria-label]").evaluateAll(els => els.map(e => e.getAttribute("aria-label")));
+  const textos = (page, seletor) => page.locator(seletor).evaluateAll(els => els.map(e => e.textContent.trim()));
   for (const nav of navs) {
     await clickMenu(page, ".sidebar nav > button[aria-label]", nav);
     await sleep(1200);
-    const subs = await page.locator(".sidebar-subitem").evaluateAll(els => els.map(e => e.textContent.trim()));
+
+    // Departamento: cada área tem as próprias seções (Comercial › CRM › …).
+    // Sem isso, as telas do departamento sumiriam da auditoria.
+    const areas = await textos(page, ".sidebar-area");
+    if (areas.length) {
+      for (const area of areas) {
+        await clickMenu(page, ".sidebar-area", area);
+        await sleep(1200);
+        const secoes = await textos(page, ".sidebar-section");
+        if (secoes.length) for (const sub of secoes) views.push({ nav, area, sub });
+        else views.push({ nav, area, sub: null });
+      }
+      continue;
+    }
+
+    const subs = await textos(page, ".sidebar-subitem");
     if (subs.length) for (const sub of subs) views.push({ nav, sub });
     else views.push({ nav, sub: null });
   }
@@ -270,32 +324,110 @@ async function discover(page) {
 // ---------------------------------------------------------------------------
 const browser = await chromium.launch(CHROME ? { executablePath: CHROME } : {});
 
-async function login(context) {
-  const page = await context.newPage();
-  await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
-  await page.fill('input[type="email"]', env.QA_EMAIL);
-  await page.fill('input[type="password"]', env.QA_PASSWORD);
-  await page.click('button[type="submit"]');
-  await page.waitForSelector(".app-shell", { timeout: 30000 });
-  await sleep(1500);
-  return page;
+/**
+ * Entra na plataforma. Tenta de novo com folga: o servidor de autenticação
+ * recusa uma rajada de logins com senha, e auditar várias vezes seguidas caía
+ * nisso — parecia falha da tela, e não era.
+ */
+async function login(context, tentativas = 3) {
+  for (let tentativa = 1; ; tentativa += 1) {
+    const page = await context.newPage();
+    try {
+      await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+      await sleep(400);
+      await page.fill('input[type="email"]', env.QA_EMAIL);
+      await page.fill('input[type="password"]', env.QA_PASSWORD);
+      await page.click('button[type="submit"]');
+      await page.waitForSelector(".app-shell", { state: "attached", timeout: 30000 });
+      await esperarMenu(page);
+      return page;
+    } catch (erro) {
+      await page.close();
+      if (tentativa >= tentativas) throw erro;
+      console.log(`  login recusado; nova tentativa em 20s (${tentativa}/${tentativas})`);
+      await sleep(20000);
+    }
+  }
 }
 
-const discoverCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-const discoverPage = await login(discoverCtx);
+/**
+ * Sessão reaproveitável (opcional, via `QA_STATE=/caminho/estado.json`).
+ *
+ * Auditar várias vezes seguidas fazia o servidor de autenticação recusar o
+ * login (ele barra uma rajada de tentativas com senha). Guardar a sessão
+ * resolve e deixa a auditoria mais rápida; sem a variável, nada muda.
+ */
+const STATE = env.QA_STATE;
+
+/**
+ * Espera a barra lateral ter módulos. `.app-shell` aparece antes de as
+ * permissões chegarem — varrer nesse intervalo descobre zero telas e a
+ * auditoria passa sem medir nada.
+ */
+async function esperarMenu(page) {
+  await page.waitForFunction(
+    () => document.querySelectorAll(".sidebar nav > button[aria-label]").length > 0,
+    { timeout: 30000 },
+  );
+  await sleep(800);
+}
+
+/** Tenta a sessão guardada; se ela não valer mais, faz o login. */
+async function abrirSessao() {
+  if (STATE && existsSync(STATE)) {
+    const ctx = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+      storageState: JSON.parse(readFileSync(STATE, "utf8")),
+    });
+    const page = await ctx.newPage();
+    try {
+      await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+      await page.waitForSelector(".app-shell", { state: "attached", timeout: 20000 });
+      await esperarMenu(page);
+      return { ctx, page };
+    } catch {
+      await ctx.close();
+    }
+  }
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  return { ctx, page: await login(ctx) };
+}
+
+const { ctx: discoverCtx, page: discoverPage } = await abrirSessao();
 const storage = await discoverCtx.storageState();
-const views = (await discover(discoverPage)).filter(v => !ONLY || `${v.nav} › ${v.sub ?? ""}`.includes(ONLY));
+if (STATE) writeFileSync(STATE, JSON.stringify(storage), { mode: 0o600 });
+const views = (await discover(discoverPage)).filter(v => !ONLY || [v.nav, v.area, v.sub].filter(Boolean).join(" › ").includes(ONLY));
 await discoverCtx.close();
 console.log(`Telas descobertas: ${views.length} · larguras: ${WIDTHS.join(", ")} · base: ${BASE}\n`);
+
+// Nenhuma tela descoberta e "0 defeitos" no fim é um verde falso — foi o que
+// aconteceu quando a sessão guardada venceu e a varredura rodou na tela de
+// login. Sem tela para medir, a auditoria falha.
+if (views.length === 0) {
+  console.error(
+    ONLY
+      ? `Nenhuma tela casou com ONLY="${ONLY}". Confira o nome (ex.: "Comercial › CRM › Funil").`
+      : "Nenhuma tela descoberta: a sessão não abriu a plataforma. Confira QA_EMAIL/QA_PASSWORD e o BASE.",
+  );
+  await browser.close();
+  process.exit(2);
+}
 
 const report = [];
 let failures = 0;
 let warnings = 0;
+/** Cobertura: o relatório só guarda o que teve defeito, então a contagem do
+ *  que foi realmente medido precisa ser feita aqui — "0 defeitos" só vale se
+ *  vier acompanhado de quantas telas passaram pela régua. */
+const medidas = new Set();
+let medicoes = 0;
 
 async function audit(page, label, width, theme, shotName, root = null) {
-  const result = await page.evaluate(probe, { mobile: width <= 480, root, width });
+  const result = await page.evaluate(probe, { mobile: width <= 480, root, width, height: page.viewportSize().height });
   const tap = result.tap; delete result.tap;
   const count = Object.values(result).reduce((n, list) => n + list.length, 0);
+  medidas.add(label);
+  medicoes += 1;
   failures += count;
   warnings += tap.length;
   if (count || tap.length) report.push({ view: label, width, theme, ...result, tap });
@@ -320,13 +452,18 @@ for (const width of WIDTHS) {
     await sleep(1500);
 
     for (const view of views) {
-      const label = view.sub ? `${view.nav} › ${view.sub}` : view.nav;
+      const label = [view.nav, view.area, view.sub].filter(Boolean).join(" › ");
       const slug = `${label}-${width}-${theme}`.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase();
       try {
         errors.length = 0;
         await goTo(page, width, view);
         await audit(page, label, width, theme, slug);
+        let indiceCamada = 0;
         for (const layer of LAYERS[label] ?? []) {
+          // Duas camadas na mesma tela precisam de nomes de captura diferentes,
+          // senão a segunda sobrescreve a evidência da primeira.
+          indiceCamada += 1;
+          const slugCamada = `${slug}-camada-${indiceCamada}`;
           const opener = page.locator(layer.open).first();
           if (!(await opener.count())) continue;
           await opener.click({ timeout: 5000 }); await sleep(700);
@@ -334,10 +471,10 @@ for (const width of WIDTHS) {
           if (tabs) {
             for (let t = 0; t < tabs; t++) {
               await page.locator(layer.tabs).nth(t).click({ timeout: 5000 }); await sleep(300);
-              await audit(page, `${label} › ${layer.name} › aba ${t + 1}`, width, theme, `${slug}-layer-${t + 1}`, LAYER_ROOT);
+              await audit(page, `${label} › ${layer.name} › aba ${t + 1}`, width, theme, `${slugCamada}-aba-${t + 1}`, LAYER_ROOT);
             }
           } else {
-            await audit(page, `${label} › ${layer.name}`, width, theme, `${slug}-layer`, LAYER_ROOT);
+            await audit(page, `${label} › ${layer.name}`, width, theme, slugCamada, LAYER_ROOT);
           }
           if (layer.close === "Escape") { await page.keyboard.press("Escape"); await page.mouse.click(5, 5).catch(() => {}); }
           else await page.locator(layer.close).first().click().catch(() => {});
@@ -362,6 +499,10 @@ for (const width of WIDTHS) {
 
 await browser.close();
 writeFileSync(`${OUT}/report.json`, JSON.stringify(report, null, 2));
-console.log(`\nDefeitos: ${failures} · avisos de toque (celular): ${warnings}`);
+console.log(`\nMedidas: ${medidas.size} de ${views.length} telas · ${medicoes} medições (largura × tema)`);
+if (medidas.size < views.length) {
+  console.log(`Não medidas: ${views.filter(v => !medidas.has([v.nav, v.area, v.sub].filter(Boolean).join(" › "))).map(v => [v.nav, v.area, v.sub].filter(Boolean).join(" › ")).join(", ")}`);
+}
+console.log(`Defeitos: ${failures} · avisos de toque (celular): ${warnings}`);
 console.log(`Relatório: ${OUT}/report.json · capturas em ${OUT}`);
 process.exitCode = failures ? 1 : 0;

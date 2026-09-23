@@ -38,6 +38,7 @@ const CASES = [
   { name: "só Visitas (operar)", grants: { "portaria.visitas": "operar" } },
   { name: "só Cotações (ver)", grants: { "compras.cotacoes": "ver" } },
   { name: "só Eventos (ver)", grants: { "fundacao.eventos": "ver" } },
+  { name: "só Funil (ver)", grants: { "comercial.funil": "ver" } },
 ];
 
 const { data: org } = await admin.from("organizations").select("id").limit(1).single();
@@ -68,6 +69,8 @@ try {
     grants: await total(admin, "user_feature_grants"),
     titlesPayable: await total(admin, "finance_titles", (q) => q.eq("direction", "payable")),
     titlesReceivable: await total(admin, "finance_titles", (q) => q.eq("direction", "receivable")),
+    stages: await total(admin, "crm_stages"),
+    cards: await total(admin, "crm_cards"),
   };
   console.log("Referência (service role):", reference);
 
@@ -139,6 +142,27 @@ try {
       const quote = await client.from("cotacoes").insert({ organization_id: org.id, fornecedor: "Teste matriz", divisao: "USINAGEM", status: "PENDENTE", user_id: "1" });
       check(n, "não cria cotação com Ver", Boolean(quote.error), quote.error?.code);
     }
+    // Funil do CRM: quem só VÊ não cria nem move card.
+    const veFunil = "comercial.funil" in scenario.grants;
+    const etapas = await total(client, "crm_stages");
+    check(n, veFunil ? "vê as etapas do funil" : "não vê as etapas do funil",
+      veFunil ? etapas === reference.stages : etapas === 0, etapas);
+    check(n, veFunil ? "vê os cards do funil" : "não vê os cards do funil",
+      (await total(client, "crm_cards")) === (veFunil ? reference.cards : 0), await total(client, "crm_cards"));
+    if (veFunil) {
+      const { data: primeiraEtapa } = await admin.from("crm_stages").select("id").eq("organization_id", org.id).order("position").limit(1).single();
+      const novoCard = await client.from("crm_cards").insert({
+        organization_id: org.id, stage_id: primeiraEtapa.id, title: "Card da matriz", position: 1,
+      });
+      check(n, "não cria card com Ver", Boolean(novoCard.error), novoCard.error?.code);
+      if (reference.cards > 0) {
+        const { data: algum } = await admin.from("crm_cards").select("id, stage_id").limit(1).single();
+        await client.from("crm_cards").update({ stage_id: primeiraEtapa.id }).eq("id", algum.id);
+        const { data: depois } = await admin.from("crm_cards").select("stage_id").eq("id", algum.id).single();
+        check(n, "não move card com Ver", depois.stage_id === algum.stage_id, depois.stage_id === algum.stage_id ? "parado" : "MOVEU");
+      }
+    }
+
     // Trilha de eventos e cadastros mestres.
     const events = await total(client, "module_events");
     const seesEvents = "fundacao.eventos" in scenario.grants;
