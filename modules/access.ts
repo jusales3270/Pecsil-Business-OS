@@ -1,5 +1,6 @@
 import type { ModuleManifest, ModuleScope } from "./types";
 import { hasAnyPermission, hasPermission } from "./access-policy";
+import { getDepartmentAreas, getModuleById } from "./registry";
 import { hasFeature, hasModuleAccess, type AccessGrants, type AccessLevel } from "./access-catalog";
 
 export type ModuleAccessContext = {
@@ -48,24 +49,37 @@ export function canUseFeature(context: ModuleAccessContext, code: string, level:
 
 /**
  * Mostra o atalho de volta ao ecossistema: o proprietário, ou quem tem mais de
- * um módulo liberado (precisa trocar de módulo).
+ * um DEPARTAMENTO liberado. Áreas do mesmo departamento (Compras dentro do
+ * Comercial) contam como um só — quem só tem Compras não precisa de troca.
  */
 export function hasMultipleModules(context: ModuleAccessContext) {
   if (context.isOwner) return true;
-  const modules = new Set(Object.keys(context.grants).map((code) => code.split(".")[0]).filter((code) => code !== "fundacao"));
-  return modules.size > 1;
+  const departments = new Set(
+    Object.keys(context.grants)
+      .map((code) => code.split(".")[0])
+      .filter((code) => code !== "fundacao")
+      .map((code) => getModuleById(code)?.department ?? code),
+  );
+  return departments.size > 1;
 }
 
+/**
+ * Acesso ao módulo pelas funcionalidades liberadas. Um departamento também abre
+ * pelas áreas que abriga: quem só tem `compras.*` entra pelo Comercial.
+ */
 export function canAccessModule(context: ModuleAccessContext, manifest: ModuleManifest) {
   if (!manifest.enabled) return false;
-  return hasModuleAccess(context, manifest.code);
+  if (hasModuleAccess(context, manifest.code)) return true;
+  return getDepartmentAreas(manifest.id).some(area => area.enabled && hasModuleAccess(context, area.code));
 }
 
+/** Só departamentos e módulos soltos aparecem no menu; as áreas abrem dentro deles. */
 export function getVisibleModules(context: ModuleAccessContext, manifests: readonly ModuleManifest[]) {
-  return manifests.filter(manifest => manifest.menu.enabled && canAccessModule(context, manifest));
+  return manifests.filter(manifest => !manifest.department && manifest.menu.enabled && canAccessModule(context, manifest));
 }
 
 export function getCatalogModules(context: ModuleAccessContext, manifests: readonly ModuleManifest[]) {
-  if (context.isOwner) return [...manifests];
-  return manifests.filter(manifest => canAccessModule(context, manifest));
+  const topLevel = manifests.filter(manifest => !manifest.department);
+  if (context.isOwner) return topLevel;
+  return topLevel.filter(manifest => canAccessModule(context, manifest));
 }

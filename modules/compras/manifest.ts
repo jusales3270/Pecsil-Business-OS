@@ -16,7 +16,11 @@ export const comprasModuleManifest = defineModule({
   tone: "success",
   progress: 100,
   enabled: true,
-  menu: { enabled: true, order: 30 },
+  // Compras é uma área do departamento Comercial: não aparece sozinho no menu,
+  // abre dentro dele. As funcionalidades (`compras.*`), os eventos e o RLS
+  // continuam exatamente os mesmos — nada de renomear código já concedido.
+  department: "comercial",
+  menu: { enabled: false, order: 30 },
   access: {
     entryPermission: COMPRAS_PERMISSIONS.view,
     permissions: Object.values(COMPRAS_PERMISSIONS),

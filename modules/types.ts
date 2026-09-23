@@ -18,6 +18,13 @@ export type ModuleManifest = {
   tone: ModuleTone;
   progress: number;
   enabled: boolean;
+  /**
+   * Id do módulo-departamento que abriga este. O módulo continua existindo por
+   * inteiro (manifesto, permissões, runtime); ele só deixa de aparecer sozinho
+   * no menu e passa a ser uma área dentro do departamento.
+   * Ex.: Compras tem `department: "comercial"`.
+   */
+  department?: string;
   menu: {
     enabled: boolean;
     order: number;

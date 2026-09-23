@@ -1,6 +1,7 @@
 import { plannedModuleManifests } from "./planned";
 import { rhModuleManifest } from "./rh/manifest";
 import { financeModuleManifest } from "./financeiro/manifest";
+import { comercialModuleManifest } from "./comercial/manifest";
 import { comprasModuleManifest } from "./compras/manifest";
 import { portariaModuleManifest } from "./portaria/manifest";
 import { producaoModuleManifest } from "./producao/manifest";
@@ -18,12 +19,22 @@ function createRegistry(manifests: readonly ModuleManifest[]) {
     routes.add(manifest.route);
   }
 
+  // Um departamento precisa existir e não pode ser, ele mesmo, área de outro:
+  // a navegação só desce um nível.
+  for (const manifest of manifests) {
+    if (!manifest.department) continue;
+    const parent = manifests.find(candidate => candidate.id === manifest.department);
+    if (!parent) throw new Error(`Departamento inexistente em ${manifest.id}: ${manifest.department}`);
+    if (parent.department) throw new Error(`Departamento aninhado em ${manifest.id}: ${parent.id}`);
+  }
+
   return Object.freeze([...manifests].sort((a, b) => a.menu.order - b.menu.order || a.name.localeCompare(b.name)));
 }
 
 export const moduleRegistry = createRegistry([
   rhModuleManifest,
   financeModuleManifest,
+  comercialModuleManifest,
   comprasModuleManifest,
   portariaModuleManifest,
   producaoModuleManifest,
@@ -33,4 +44,9 @@ export const moduleRegistry = createRegistry([
 
 export function getModuleById(moduleId: string) {
   return moduleRegistry.find(module => module.id === moduleId);
+}
+
+/** Áreas que vivem dentro de um departamento (ex.: Compras dentro do Comercial). */
+export function getDepartmentAreas(departmentId: string) {
+  return moduleRegistry.filter(module => module.department === departmentId);
 }

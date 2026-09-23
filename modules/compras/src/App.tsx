@@ -11,7 +11,7 @@ import HistoricoPage from '@/pages/HistoricoPage';
 import { Toaster } from '@/components/ui/sonner';
 import { hasMultipleModules, type ModuleAccessContext } from '@/modules/access';
 import type { Page } from '@/types';
-import { availableViews, comprasCaps, tabsFor } from './lib/access';
+import { availableViews, comprasCaps, currentView, tabsFor } from './lib/access';
 import { useModuleNav } from '@/lib/module-nav-context';
 import './compras.css';
 
@@ -19,9 +19,15 @@ interface ComprasAppProps {
   access: ModuleAccessContext;
   onExit: () => void;
   notify?: (message: string) => void;
+  /**
+   * Aberto como área de um departamento (Comercial): quem desenha o menu
+   * lateral é a casca do departamento, que já junta as abas do Compras às
+   * do CRM. Aqui só não registramos a navegação de novo.
+   */
+  embedded?: boolean;
 }
 
-export default function ComprasApp({ access, onExit }: ComprasAppProps) {
+export default function ComprasApp({ access, onExit, embedded = false }: ComprasAppProps) {
   const { user, currentPage, fetchInitialData, login, setPage, setCaps } = useStore();
   const { registerNav } = useModuleNav();
 
@@ -39,11 +45,13 @@ export default function ComprasApp({ access, onExit }: ComprasAppProps) {
   // sempre o do usuário logado.
   useEffect(() => {
     if (!views.length) return;
-    const role = user && views.includes(user.role) ? user.role : views[0];
+    const role = currentView(views, user?.role);
+    if (!role) return;
     if (!user || user.role !== role || user.name !== access.name) login(role, access.name);
   }, [views, user, login, access.name]);
 
   useEffect(() => {
+    if (embedded) return;
     registerNav({
       moduleId: 'compras',
       moduleName: 'Compras',
@@ -52,7 +60,7 @@ export default function ComprasApp({ access, onExit }: ComprasAppProps) {
       onSelect: (id) => setPage(id as Page),
     });
     return () => registerNav(null);
-  }, [tabs, currentPage, registerNav, setPage]);
+  }, [embedded, tabs, currentPage, registerNav, setPage]);
 
   useEffect(() => {
     fetchInitialData();

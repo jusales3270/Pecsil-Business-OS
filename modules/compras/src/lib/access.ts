@@ -23,6 +23,15 @@ export function availableViews(caps: ComprasCaps): UserRole[] {
 
 export const VIEW_LABEL: Record<UserRole, string> = { ORCAMENTISTA: 'Orçamentista', GESTOR: 'Gestor' };
 
+/**
+ * Visão em uso: mantém a escolhida enquanto ela for permitida; senão, a
+ * primeira liberada. O Compras e a casca do Comercial precisam chegar à mesma
+ * resposta, senão o menu mostra abas de uma visão e a tela abre em outra.
+ */
+export function currentView(views: UserRole[], role: UserRole | undefined): UserRole | undefined {
+  return role && views.includes(role) ? role : views[0];
+}
+
 /** Abas da visão atual, só as liberadas. */
 export function tabsFor(role: UserRole | undefined, caps: ComprasCaps): { page: Page; label: string; icon: string }[] {
   const tabs: { page: Page; label: string; icon: string; show: boolean }[] = role === 'GESTOR'

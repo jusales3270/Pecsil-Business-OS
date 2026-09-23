@@ -8,12 +8,28 @@ export interface ModuleNavItem {
   icon?: string;
 }
 
+/**
+ * Área de um módulo-departamento (ex.: CRM e Compras dentro do Comercial).
+ * A barra lateral desenha as áreas recuadas sob o módulo, e as seções da área
+ * aberta recuadas sob ela.
+ */
+export interface ModuleNavArea {
+  id: string;
+  label: string;
+  icon?: string;
+}
+
 export interface ModuleNavState {
   moduleId: string;
   moduleName: string;
+  /** Seções da área aberta (ou do módulo inteiro, quando não há áreas). */
   items: ModuleNavItem[];
   activeId: string;
   onSelect: (id: string) => void;
+  /** Só departamento manda áreas; módulo comum continua como sempre foi. */
+  areas?: ModuleNavArea[];
+  activeAreaId?: string;
+  onSelectArea?: (id: string) => void;
 }
 
 interface ModuleNavContextType {
@@ -26,9 +42,21 @@ export const ModuleNavContext = createContext<ModuleNavContextType>({
   registerNav: () => {},
 });
 
+/** Duas listas são iguais quando têm os mesmos itens, na mesma ordem. */
+function mesmaLista(
+  a: readonly { id: string; label: string; icon?: string }[] | undefined,
+  b: readonly { id: string; label: string; icon?: string }[] | undefined,
+) {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((item, i) => item.id === b[i]?.id && item.label === b[i]?.label && item.icon === b[i]?.icon);
+}
+
 export function ModuleNavProvider({ children }: { children: React.ReactNode }) {
   const [navState, setNavState] = useState<ModuleNavState | null>(null);
 
+  // Só troca o estado quando o conteúdo muda de verdade. Sem isso, cada render
+  // do módulo registraria um objeto novo e a plataforma entraria em laço.
   const registerNav = useCallback((state: ModuleNavState | null) => {
     setNavState(prev => {
       if (!prev && !state) return null;
@@ -37,8 +65,9 @@ export function ModuleNavProvider({ children }: { children: React.ReactNode }) {
         state &&
         prev.moduleId === state.moduleId &&
         prev.activeId === state.activeId &&
-        prev.items.length === state.items.length &&
-        prev.items.every((it, i) => it.id === state.items[i]?.id && it.label === state.items[i]?.label && it.icon === state.items[i]?.icon)
+        prev.activeAreaId === state.activeAreaId &&
+        mesmaLista(prev.items, state.items) &&
+        mesmaLista(prev.areas, state.areas)
       ) {
         return prev;
       }
