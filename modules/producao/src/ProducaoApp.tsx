@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { ModuleRuntimeProps } from "@/modules/runtime";
 import { useModuleNav } from "@/lib/module-nav-context";
 import { canUseFeature, hasMultipleModules } from "@/modules/access";
@@ -62,21 +62,37 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
     refetch,
   } = useProducaoDashboard(30);
 
+  // `onEvent` muda de identidade a cada render da casca da plataforma; numa
+  // referência, ele deixa de ser motivo para registrar o menu de novo.
+  const onEventRef = useRef(onEvent);
+  useEffect(() => {
+    onEventRef.current = onEvent;
+  });
+
+  const navItems = useMemo(
+    () => allowedSections.map(([label, icon]) => ({ id: label, label, icon })),
+    [allowedSections],
+  );
+
   // Registro de subitens na barra lateral do Business OS
   useEffect(() => {
     registerNav({
       moduleId: "producao",
       moduleName: "Produção",
-      items: allowedSections.map(([label, icon]) => ({ id: label, label, icon })),
+      items: navItems,
       activeId: section,
       onSelect: (id) => {
         setSection(id as ProducaoSection);
-        onEvent(`Navegou para seção ${id}`, "Produção");
+        onEventRef.current(`Navegou para seção ${id}`, "Produção");
       },
     });
+  }, [section, registerNav, navItems]);
 
-    return () => registerNav(null);
-  }, [section, registerNav, onEvent, allowedSections]);
+  // Limpar só ao sair do módulo. Limpar a cada mudança de dependência zerava a
+  // navegação e derrubava a comparação de igualdade do provedor: o registro
+  // seguinte entrava sempre como estado novo, e isso virava laço de
+  // renderização ("Maximum update depth exceeded").
+  useEffect(() => () => registerNav(null), [registerNav]);
 
   if (loading) {
     return (
