@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Fragment, useEffect, useMemo, useState } from "react";
 import { Button, Card, Status } from "../../packages/design-system";
 import {
   ACCESS_CATALOG,
+  ACCESS_DEPARTMENTS,
   levelLabel,
   levelRank,
   type AccessGrants,
@@ -244,11 +245,18 @@ function AccessChecklist({ grants, onChange }: { grants: AccessGrants; onChange:
 
   return (
     <div className="access-checklist">
-      {ACCESS_CATALOG.map((module) => {
+      {ACCESS_CATALOG.map((module, index) => {
         const marked = module.features.filter((feature) => grants[feature.code]).length;
         const all = marked === module.features.length;
+        // Primeiro módulo de um departamento abre o bloco com o nome dele.
+        const department =
+          module.department && ACCESS_CATALOG[index - 1]?.department !== module.department
+            ? ACCESS_DEPARTMENTS[module.department]
+            : null;
         return (
-          <section key={module.code} className={`access-module${marked ? " on" : ""}`}>
+          <Fragment key={module.code}>
+            {department && <p className="access-department">{department}</p>}
+            <section className={`access-module${marked ? " on" : ""}${module.department ? " in-department" : ""}`}>
             <header>
               <label className="access-check">
                 <input
@@ -312,7 +320,8 @@ function AccessChecklist({ grants, onChange }: { grants: AccessGrants; onChange:
                 })}
               </ul>
             )}
-          </section>
+            </section>
+          </Fragment>
         );
       })}
     </div>

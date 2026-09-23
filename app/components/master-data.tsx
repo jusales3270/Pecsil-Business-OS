@@ -2,6 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Card, Status } from "../../packages/design-system";
+import { formatTaxId, plural, send } from "./cadastros-utils";
+import { CustomersPanel } from "./customers-panel";
 
 type Supplier = {
   id: string;
@@ -15,46 +17,36 @@ type Supplier = {
 type CostCenter = { id: string; code: string; name: string; active: boolean; departmentId: string | null; department: string | null };
 type Department = { id: string; name: string };
 
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
-
-function formatTaxId(digits: string | null) {
-  if (!digits) return null;
-  if (digits.length === 14) return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-  if (digits.length === 11) return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
-  return digits;
-}
-
-async function send(url: string, method: string, body: unknown) {
-  const response = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  if (response.ok) return null;
-  const data = await response.json().catch(() => ({}));
-  return data.error ?? "Não foi possível salvar.";
-}
+const MASTER_TABS = ["Fornecedores", "Clientes", "Centros de custo"] as const;
+type MasterTab = (typeof MASTER_TABS)[number];
 
 /**
- * Cadastros mestres: fornecedores e centros de custo usados por todos os
- * módulos. Os fornecedores nascem sozinhos quando alguém lança uma cotação,
- * compra ou título; aqui se corrige nome/CNPJ e se unificam duplicados.
+ * Cadastros mestres usados por todos os módulos. Fornecedor e centro de custo
+ * servem a Compras e Financeiro; cliente serve ao Financeiro e ao CRM. O
+ * fornecedor nasce sozinho de um lançamento; o cliente é cadastrado aqui (e,
+ * quando o CRM estiver ligado, pelo e-mail que chega).
  */
 export function MasterDataView({ notify }: { notify: (message: string) => void }) {
-  const [tab, setTab] = useState<"Fornecedores" | "Centros de custo">("Fornecedores");
+  const [tab, setTab] = useState<MasterTab>("Fornecedores");
   return (
     <>
       <div className="page-head">
         <div>
           <p className="eyebrow">FUNDAÇÃO · CADASTROS MESTRES</p>
           <h1>Cadastros</h1>
-          <p>Um só cadastro de fornecedores e de centros de custo para Compras, Financeiro e os próximos módulos.</p>
+          <p>Um só cadastro de fornecedores, clientes e centros de custo para Compras, Financeiro, Comercial e os próximos módulos.</p>
         </div>
       </div>
       <div className="section-tabs" role="tablist">
-        {(["Fornecedores", "Centros de custo"] as const).map((item) => (
+        {MASTER_TABS.map((item) => (
           <button role="tab" aria-selected={tab === item} className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>
             {item}
           </button>
         ))}
       </div>
-      {tab === "Fornecedores" ? <SuppliersTab notify={notify} /> : <CostCentersTab notify={notify} />}
+      {tab === "Fornecedores" && <SuppliersTab notify={notify} />}
+      {tab === "Clientes" && <CustomersPanel notify={notify} />}
+      {tab === "Centros de custo" && <CostCentersTab notify={notify} />}
     </>
   );
 }
@@ -304,6 +296,12 @@ function MergeForm({
   );
 }
 
+/**
+ * Clientes. Ao contrário do fornecedor, o cliente não nasce de lançamento
+ * nenhum hoje: o Financeiro não tem títulos a receber lançados. Por isso a
+ * aba começa vazia e o cadastro é manual — e cada cliente guarda os e-mails
+ * por onde ele escreve, que é como o CRM vai reconhecer o remetente.
+ */
 function CostCentersTab({ notify }: { notify: (message: string) => void }) {
   const [centers, setCenters] = useState<CostCenter[] | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);

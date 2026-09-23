@@ -5123,6 +5123,17 @@ button.holiday-row:hover {
   background: var(--bg-surface);
 }
 .access-module.on { border-color: var(--border); }
+/* Departamento: o nome abre o bloco e os módulos dele ficam recuados. */
+.access-department {
+  margin-top: var(--sp-2);
+  padding: 0 var(--sp-1);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.access-module.in-department { margin-left: var(--sp-4); }
 .access-module > header {
   display: flex;
   align-items: center;
@@ -5474,6 +5485,40 @@ button.holiday-row:hover {
 .md-main small { font-size: var(--fs-xs); color: var(--text-muted); overflow-wrap: anywhere; }
 .md-usage { font-size: var(--fs-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .md-actions { display: inline-flex; gap: var(--sp-2); }
+
+/* E-mails conhecidos do cliente, dentro do formulário de cadastro. */
+.md-emails { display: flex; flex-direction: column; gap: var(--sp-2); }
+.md-emails-title {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+}
+.md-emails > small { font-size: var(--fs-xs); color: var(--text-muted); }
+.md-email-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.md-email-row b { font-size: var(--fs-sm); color: var(--text-primary); overflow-wrap: anywhere; }
+.md-email-row > button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.md-email-row > button:hover:not(:disabled) { color: var(--accent-red); border-color: var(--edge-red); }
+.md-email-add { display: flex; gap: var(--sp-2); align-items: center; }
+.md-email-add > input { flex: 1 1 auto; min-width: 0; }
 .access-employee-list > button.selected { background: var(--bg-subtle); box-shadow: inset 3px 0 0 var(--accent-blue); }
 
 .event-filters { justify-content: flex-start; }

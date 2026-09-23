@@ -24,8 +24,19 @@ export interface AccessFeature {
 export interface AccessModule {
   code: string;
   label: string;
+  /**
+   * Departamento que abriga o módulo na tela de acessos (ex.: Compras dentro do
+   * Comercial). É só organização visual: os códigos das funcionalidades, o seed
+   * do banco e o RLS não mudam.
+   */
+  department?: string;
   features: readonly AccessFeature[];
 }
+
+/** Departamentos que agrupam módulos no menu e no credenciamento. */
+export const ACCESS_DEPARTMENTS: Record<string, string> = {
+  comercial: "Comercial",
+};
 
 export const LEVEL_LABELS: Record<AccessLevel, string> = {
   ver: "Ver",
@@ -67,8 +78,21 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     ],
   },
   {
+    code: "comercial",
+    label: "CRM",
+    department: "comercial",
+    features: [
+      { code: "comercial.caixa", label: "Caixa de entrada", description: "E-mails recebidos e a classificação de cada um; operar corrige a classificação e abre o card.", levels: VER_OPERAR },
+      { code: "comercial.funil", label: "Funil", description: "Cards de pedido e atendimento por etapa; operar move, responde e fecha.", levels: VER_OPERAR },
+      { code: "comercial.clientes", label: "Clientes", description: "Cadastro de clientes e os e-mails de cada um; operar edita.", levels: VER_OPERAR },
+      { code: "comercial.cobranca", label: "Cobrança", description: "Títulos a receber vencidos e a régua de avisos; aprovar é quem dispara o e-mail ao cliente.", levels: TODOS },
+      { code: "comercial.conexao", label: "Conexão de e-mail", description: "Situação da leitura das caixas de e-mail (última sincronização e erros).", levels: VER },
+    ],
+  },
+  {
     code: "compras",
     label: "Compras",
+    department: "comercial",
     features: [
       { code: "compras.cotacoes", label: "Cotações", description: "Lançar e acompanhar cotações.", levels: VER_OPERAR },
       { code: "compras.aprovacoes", label: "Aprovações", description: "Cotações pendentes e histórico de decisões; aprovar decide.", levels: ["ver", "aprovar"] },
