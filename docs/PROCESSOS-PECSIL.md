@@ -60,6 +60,30 @@ ou vem antes?
 **Perguntas em aberto:** o bloqueio de acesso deve ser automático no desligamento, ou
 passar por confirmação? A Portaria precisa de lista de colaboradores ativos?
 
+## Cadeia 3 — Pedido do cliente até o recebimento (RASCUNHO, a confirmar)
+
+Hoje esta cadeia **não existe como processo**: quem faz tudo é o diretor de
+operações, pelo e-mail e pelo WhatsApp pessoal dele. É a razão de existir o
+departamento Comercial no sistema.
+
+| Passo | Departamento | O que acontece | Evento | Situação no sistema |
+|---|---|---|---|---|
+| 1 | Comercial | Cliente escreve para `comercial@` | `comercial.email.recebido` | ✅ registrado (quando a conexão estiver ligada) |
+| 2 | Comercial | O e-mail é classificado: pedido, cobrança, dúvida ou outro | `comercial.email.classificado` | ✅ registrado (Jev, com revisão humana) |
+| 3 | Comercial | Vira card no funil e alguém assume | *(a definir)* | ⏳ etapa 5 do módulo |
+| 4 | Comercial → Produção | Pedido aprovado vira OS no Forja | *(a definir)* | ❌ hoje é o diretor que lança no Forja |
+| 5 | Financeiro | Título a receber é lançado | `financeiro.titulo.criado` | ⚠️ existe a tela, mas **não há nenhum título a receber lançado** |
+| 6 | Comercial | Cobrança: aviso ao cliente sobre o que venceu | `comercial.cobranca.enviada` | ⏳ etapa 6 do módulo |
+| 7 | Financeiro | Recebimento | `financeiro.titulo.baixado` | ✅ registrado |
+
+**Perguntas em aberto:**
+- Quem vai operar o Comercial? Hoje não existe a função na empresa.
+- O pedido do cliente vira OS no Forja por quem, e com qual confirmação?
+- O título a receber nasce da OS do Forja (que já guarda preço unitário, valor
+  total, PO do cliente e valor recebido) ou é lançado à mão no Financeiro?
+- A régua de cobrança (1º aviso, 2º, 3º) tem quantos dias, e quem aprova o envio?
+- O WhatsApp do diretor continua sendo canal? Se sim, o que entra no sistema?
+
 ## Lacunas identificadas
 
 - **Almoxarifado/Estoque:** peça central da Cadeia 1; hoje só "planejado" no catálogo.
