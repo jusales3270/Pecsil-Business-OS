@@ -967,6 +967,89 @@
   gap: 2px;
 }
 
+/* --- Submenu do departamento ---------------------------------------------- */
+/* Comercial › CRM › seções: a árvore fica na própria lista de módulos, recuada
+   um nível por vez, e aparece em qualquer largura de tela (ao contrário do
+   bloco `.sidebar-module-nav`, que é só do celular). */
+
+.sidebar-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 var(--sp-2);
+}
+
+.sidebar nav button.sidebar-area,
+.sidebar nav button.sidebar-section {
+  position: relative;
+  min-height: 38px;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+/* O traço vertical mostra que a linha pende do item de cima. */
+.sidebar nav button.sidebar-area::before,
+.sidebar nav button.sidebar-section::before {
+  content: "";
+  position: absolute;
+  left: var(--sp-4);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-subtle);
+}
+
+.sidebar nav button.sidebar-area {
+  padding-left: calc(var(--sp-4) + var(--sp-3));
+}
+
+.sidebar nav button.sidebar-section {
+  padding-left: calc(var(--sp-4) + var(--sp-5));
+  min-height: 34px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+}
+
+.sidebar nav button.sidebar-section::before {
+  left: calc(var(--sp-4) + var(--sp-4));
+}
+
+.sidebar nav button.sidebar-area > svg,
+.sidebar nav button.sidebar-section > svg {
+  flex-shrink: 0;
+}
+
+/* Área aberta: só destaque de texto. O preenchimento fica reservado para a
+   SEÇÃO aberta, que é a tela em que a pessoa está — dois blocos cheios
+   empilhados viram uma mancha só e a hierarquia some. */
+.sidebar nav button.sidebar-area.active {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.sidebar nav button.sidebar-area.active::before {
+  background: var(--accent-blue);
+  width: 2px;
+}
+
+.sidebar nav button.sidebar-section.active {
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  border-color: var(--edge-blue);
+  font-weight: var(--fw-semibold);
+}
+
+.sidebar nav button.sidebar-area.active > svg,
+.sidebar nav button.sidebar-section.active > svg {
+  color: var(--accent-blue);
+}
+
+/* Barra recolhida mostra só os ícones dos módulos: a árvore não cabe. */
+.app-shell.collapsed .sidebar-tree {
+  display: none;
+}
+
 .sidebar nav button.sidebar-subitem,
 .sidebar-subitem {
   display: flex !important;

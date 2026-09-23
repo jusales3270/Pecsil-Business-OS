@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Button, Card, Kpi, KpiGrid, Status, ThemeToggle } from "../packages/design-system";
 import type { FoundationSummary, OrganizationData, Person } from "../lib/data/foundation";
 import { useFoundationData } from "../lib/data/use-foundation-data";
@@ -46,7 +46,7 @@ const headerCopy: Record<View, [string, string]> = {
   "Módulos": ["Módulos", "Catálogo de domínios e estado de cada um"],
   "Pessoas e Acessos": ["Pessoas e acessos", "Usuários e o que cada um pode acessar"],
   "Estrutura": ["Estrutura empresarial", "Empresa, unidades, departamentos, equipes e cargos"],
-  "Cadastros": ["Cadastros", "Fornecedores e centros de custo usados por todos os módulos"],
+  "Cadastros": ["Cadastros", "Fornecedores, clientes e centros de custo usados por todos os módulos"],
   "Eventos": ["Eventos", "O que acontece em cada módulo, em ordem"],
   "Permissões e Segurança": ["Permissões e segurança", "O que cada usuário acessa e como o banco isola os dados"],
   "Busca Corporativa": ["Busca corporativa", "Pessoas, estruturas, documentos e eventos autorizados"],
@@ -94,6 +94,7 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
     settings: <><circle cx="12" cy="12" r="3"/><path d="M19 13.5v-3l-2-.7-.7-1.7.9-1.9-2.1-2.1-1.9.9-1.7-.7-.7-2h-3l-.7 2-1.7.7-1.9-.9-2.1 2.1.9 1.9-.7 1.7-2 .7v3l2 .7.7 1.7-.9 1.9 2.1 2.1 1.9-.9 1.7.7.7 2h3l.7-2 1.7-.7 1.9.9 2.1-2.1-.9-1.9.7-1.7Z"/></>,
     search: <><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></>, plus: <path d="M12 5v14M5 12h14"/>, arrow: <path d="m9 18 6-6-6-6"/>,
     cart: <><path d="M3 4h2l2 12h10l3-8H6"/><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></>,
+    handshake: <><path d="m11 7 2-2 5 4h3v7h-2l-4 4-3-3"/><path d="M3 9h3l4-4 3 3-3 3 2 2"/><path d="m7 15 2 2"/></>,
     factory: <><path d="M3 21V9l6 3V8l6 4V4h6v17z"/><path d="M7 17h2M12 17h2M17 17h2"/></>,
     box: <><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="M3 8v9l9 5 9-5V8M12 13v9"/></>,
     check: <><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></>, chart: <><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7"/></>,
@@ -307,6 +308,8 @@ function HomeContent() {
   const [view,setView]=useState<View>("Visão Geral"); const [mobile,setMobile]=useState(false); const [toast,setToast]=useState(""); const [globalQuery,setGlobalQuery]=useState("");
   const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const [activeModuleId,setActiveModuleId]=useState<string | null>(null);
+  // Área dentro do departamento (ex.: "compras" dentro de "comercial").
+  const [moduleArea,setModuleArea]=useState<string | null>(null);
   const [accountMenu,setAccountMenu]=useState(false);
   const [deniedTarget,setDeniedTarget]=useState<string | null>(null);
   const [operationalEvents,setOperationalEvents]=useState<OperationalEvent[]>([]);
@@ -344,11 +347,15 @@ function HomeContent() {
     const requested = params.get("module");
     const shortcut = requested ? getModuleById(requested) : undefined;
     if (shortcut) {
+      // Atalho antigo de uma área (`/?module=compras`) abre o departamento dela.
+      const department = shortcut.department ? getModuleById(shortcut.department) : undefined;
       const allowed = canAccessModule(access, shortcut);
-      setActiveModuleId(allowed ? shortcut.id : null);
+      setActiveModuleId(allowed ? (department ? department.id : shortcut.id) : null);
+      setModuleArea(allowed && department ? shortcut.id : null);
       setDeniedTarget(allowed ? null : shortcut.name);
     } else if (!isExecutive && targetedModule) {
       setActiveModuleId(targetedModule);
+      setModuleArea(null);
       setDeniedTarget(null);
     }
     setRoutedInitialModule(true);
@@ -370,10 +377,19 @@ function HomeContent() {
       }
     }
     const permission=viewPermissions[v];
-    if((OWNER_ONLY_VIEWS.includes(v)&&!isOwner)||(permission&&!hasPermission(access,permission))){setDeniedTarget(v);setActiveModuleId(null);setMobile(false);return}
-    setDeniedTarget(null);setActiveModuleId(null);setView(v);setMobile(false);
+    if((OWNER_ONLY_VIEWS.includes(v)&&!isOwner)||(permission&&!hasPermission(access,permission))){setDeniedTarget(v);setActiveModuleId(null);setModuleArea(null);setMobile(false);return}
+    setDeniedTarget(null);setActiveModuleId(null);setModuleArea(null);setView(v);setMobile(false);
   };
-  const openModule=(moduleId:string)=>{const manifest=getModuleById(moduleId);if(!manifest||!canAccessModule(access,manifest)){setDeniedTarget(manifest?.name??"Módulo");setActiveModuleId(null);setMobile(false);return}setDeniedTarget(null);setActiveModuleId(moduleId);setMobile(false)};
+  // Abrir uma área (ex.: Compras) é abrir o departamento dela já naquela área.
+  const openModule=(moduleId:string)=>{
+    const manifest=getModuleById(moduleId);
+    if(!manifest||!canAccessModule(access,manifest)){setDeniedTarget(manifest?.name??"Módulo");setActiveModuleId(null);setMobile(false);return}
+    const department=manifest.department?getModuleById(manifest.department):undefined;
+    setDeniedTarget(null);
+    setActiveModuleId(department?department.id:manifest.id);
+    setModuleArea(department?manifest.id:null);
+    setMobile(false);
+  };
   const handleModuleExit = () => {
     if (isExecutive) {
       change("Módulos");
@@ -398,7 +414,7 @@ function HomeContent() {
         <button className="close-menu" onClick={()=>setMobile(false)} aria-label="Fechar menu"><Icon name="close"/></button>
       </div>
       <nav>
-        {activeModule && navState && navState.items && navState.items.length > 0 && (
+        {activeModule && !navState?.areas && navState && navState.items && navState.items.length > 0 && (
           <div className="sidebar-module-nav">
             <p>Seções · {activeModule.name}</p>
             <div className="sidebar-subitem-list">
@@ -424,7 +440,38 @@ function HomeContent() {
           {nav.slice(0,2).map(n=><button key={n.label} title={n.label} aria-label={n.label} className={!activeModuleId&&!deniedTarget&&view===n.label?"active":""} onClick={()=>change(n.label)}><Icon name={n.icon}/><span>{n.label}</span></button>)}
         </>}
         {visibleModules.length>0&&<><p>Módulos</p>
-          {visibleModules.map(module=><button key={module.id} title={module.name} aria-label={module.name} className={activeModuleId===module.id?"active":""} onClick={()=>openModule(module.id)}><Icon name={module.icon}/><span>{module.name}</span></button>)}
+          {visibleModules.map(module=>{
+            // Departamento aberto: as áreas (e as seções da área aberta) viram
+            // submenu recuado aqui mesmo, em qualquer largura de tela.
+            const arvore = activeModuleId===module.id && navState?.areas?.length ? navState : null;
+            return <Fragment key={module.id}>
+              <button title={module.name} aria-label={module.name} className={activeModuleId===module.id?"active":""} onClick={()=>openModule(module.id)}><Icon name={module.icon}/><span>{module.name}</span></button>
+              {arvore&&<div className="sidebar-tree">
+                {arvore.areas!.map(area=><Fragment key={area.id}>
+                  <button
+                    type="button"
+                    className={`sidebar-area ${arvore.activeAreaId===area.id?"active":""}`}
+                    aria-current={arvore.activeAreaId===area.id?"true":undefined}
+                    onClick={()=>{arvore.onSelectArea?.(area.id);setMobile(false)}}
+                  >
+                    {area.icon&&<Icon name={area.icon} size={18}/>}
+                    <span>{area.label}</span>
+                  </button>
+                  {arvore.activeAreaId===area.id&&arvore.items.map(item=>
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`sidebar-section ${arvore.activeId===item.id?"active":""}`}
+                      onClick={()=>{arvore.onSelect(item.id);setMobile(false)}}
+                    >
+                      {item.icon&&<Icon name={item.icon} size={16}/>}
+                      <span>{item.label}</span>
+                    </button>
+                  )}
+                </Fragment>)}
+              </div>}
+            </Fragment>;
+          })}
         </>}
         {foundationNav.length>0&&<><p>Fundação</p>
           {foundationNav.map(n=><button key={n.label} title={n.label} aria-label={n.label} className={!activeModuleId&&!deniedTarget&&view===n.label?"active":""} onClick={()=>change(n.label)}><Icon name={n.icon}/><span>{n.label}</span>{n.label==="Notificações"&&operationalEvents.length>0&&<i>{operationalEvents.length}</i>}</button>)}
@@ -456,7 +503,7 @@ function HomeContent() {
           {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{canInstall && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar aplicativo</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
         </div>
       </header>
-      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={snapshot.loadedAt} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access}):view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Documentos"?<DocumentsView/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
+      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={snapshot.loadedAt} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined}):view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Documentos"?<DocumentsView/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
       <nav className="mobile-bottom-nav" aria-label="Navegação rápida móvel">
         <button
           type="button"

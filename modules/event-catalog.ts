@@ -17,6 +17,7 @@ export interface EventType {
 }
 
 export const EVENT_MODULES: Record<string, string> = {
+  comercial: "Comercial",
   compras: "Compras",
   rh: "Recursos Humanos",
   financeiro: "Financeiro",
@@ -26,6 +27,12 @@ export const EVENT_MODULES: Record<string, string> = {
 };
 
 export const EVENT_CATALOG: readonly EventType[] = [
+  { type: "comercial.email.recebido", module: "comercial", label: "E-mail recebido", description: "Mensagem registrada numa das caixas monitoradas." },
+  { type: "comercial.email.classificado", module: "comercial", label: "E-mail classificado", description: "O e-mail foi classificado (pedido, cobrança, dúvida ou outro) pelo Jev ou por uma pessoa." },
+  { type: "comercial.card.criado", module: "comercial", label: "Card criado", description: "Um pedido, cobrança ou dúvida entrou no funil." },
+  { type: "comercial.card.movido", module: "comercial", label: "Card movido", description: "O card mudou de etapa no funil." },
+  { type: "comercial.card.ganho", module: "comercial", label: "Card ganho", description: "O card foi fechado como ganho." },
+  { type: "comercial.card.perdido", module: "comercial", label: "Card perdido", description: "O card foi fechado como perdido, com motivo." },
   { type: "compras.cotacao.criada", module: "compras", label: "Cotação lançada", description: "Uma cotação entrou para aprovação." },
   { type: "compras.cotacao.aprovada", module: "compras", label: "Cotação aprovada", description: "A cotação foi aprovada (total ou parcialmente)." },
   { type: "compras.cotacao.rejeitada", module: "compras", label: "Cotação rejeitada", description: "A cotação foi rejeitada." },
@@ -49,6 +56,8 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "acesso.usuario.validade_alterada", module: "acesso", label: "Validade alterada", description: "Prazo de acesso de terceiro mudou." },
   { type: "cadastros.fornecedor.criado", module: "cadastros", label: "Fornecedor cadastrado", description: "Novo fornecedor no cadastro mestre." },
   { type: "cadastros.fornecedor.unificado", module: "cadastros", label: "Fornecedores unificados", description: "Dois cadastros do mesmo fornecedor viraram um." },
+  { type: "cadastros.cliente.criado", module: "cadastros", label: "Cliente cadastrado", description: "Novo cliente no cadastro mestre." },
+  { type: "cadastros.cliente.unificado", module: "cadastros", label: "Clientes unificados", description: "Dois cadastros do mesmo cliente viraram um." },
   { type: "cadastros.centro_custo.criado", module: "cadastros", label: "Centro de custo criado", description: "Novo centro de custo." },
   { type: "cadastros.centro_custo.desativado", module: "cadastros", label: "Centro de custo desativado", description: "Centro de custo fora de uso." },
 ];

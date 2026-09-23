@@ -1,0 +1,218 @@
+/* Departamento Comercial. O CRM ainda não tem telas: o que existe aqui é o
+   aviso de construção, que precisa ficar legível no claro e no escuro. */
+
+.comercial-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Quem navega o departamento é a árvore da barra lateral (Comercial › CRM ›
+   seções). A área ocupa a tela toda, sem seletor nenhum por cima. */
+.comercial-area {
+  min-width: 0;
+}
+
+.comercial-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  width: 100%;
+  padding-bottom: var(--sp-8);
+}
+
+/* --- Funil em Kanban ------------------------------------------------------- */
+/* O quadro rola na horizontal; cada coluna rola na vertical por conta própria.
+   No celular a coluna ocupa quase a largura da tela, uma de cada vez. */
+
+.funil-quadro {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: var(--sp-3);
+  scroll-snap-type: x proximity;
+}
+
+.funil-coluna {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  scroll-snap-align: start;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.funil-coluna.alvo {
+  border-color: var(--accent-blue);
+  background: var(--tint-blue);
+}
+
+.funil-coluna.fechada {
+  background: transparent;
+}
+
+.funil-coluna > header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.funil-coluna > header b {
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+}
+
+.funil-coluna > header small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.funil-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-height: 60px;
+  max-height: 58vh;
+  overflow-y: auto;
+}
+
+.funil-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  cursor: grab;
+}
+
+.funil-card.arrastando {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.funil-card > b {
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.funil-card > small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.funil-card-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.funil-card-meta b {
+  font-size: var(--fs-sm);
+  color: var(--accent-green);
+}
+
+.funil-card-meta small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.funil-card-motivo {
+  color: var(--accent-red) !important;
+}
+
+.funil-mover {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--sp-2);
+}
+
+.funil-mover > span {
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.funil-mover select {
+  width: 100%;
+  min-height: 34px;
+  font-size: var(--fs-xs);
+}
+
+.funil-vazia {
+  margin: 0;
+  padding: var(--sp-4) 0;
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+@media (max-width: 860px) {
+  .funil-coluna {
+    flex-basis: min(85vw, 320px);
+  }
+  .funil-cards {
+    max-height: none;
+  }
+}
+
+.comercial-pendencias {
+  margin: var(--sp-2) 0 0;
+  padding-left: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.comercial-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-8) var(--sp-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  text-align: center;
+}
+
+.comercial-empty small {
+  max-width: 52ch;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.comercial-empty button {
+  margin-top: var(--sp-3);
+  padding: 10px var(--sp-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.comercial-empty button:hover {
+  background: var(--bg-hover);
+}
