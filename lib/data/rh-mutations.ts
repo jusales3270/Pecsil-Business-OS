@@ -38,20 +38,25 @@ export async function applyRhMutation(mutation: RhMutation): Promise<{ ok: true 
 
   if (mutation.entity === "absence") {
     // O CHECK da tabela exige decided_at preenchido quando aprovado/reprovado.
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("rh_absences")
       .update({ status: mutation.decision, decided_at: now, decided_by_profile_id: profileId })
-      .eq("id", mutation.id);
+      .eq("id", mutation.id)
+      .select("id");
     if (error) throw error;
+    // Zero linhas = a RLS filtrou (sem permissão), não sucesso.
+    if (!data?.length) throw new Error("RH_MUTATION_DENIED");
     return { ok: true };
   }
 
   if (mutation.entity === "benefit_request") {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("rh_benefit_requests")
       .update({ status: mutation.decision, decided_at: now, decided_by_profile_id: profileId })
-      .eq("id", mutation.id);
+      .eq("id", mutation.id)
+      .select("id");
     if (error) throw error;
+    if (!data?.length) throw new Error("RH_MUTATION_DENIED");
     return { ok: true };
   }
 
@@ -80,11 +85,13 @@ export async function applyRhMutation(mutation: RhMutation): Promise<{ ok: true 
   }
 
   // SST: marcar como conforme encerra a pendência e zera o risco.
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("rh_sst_records")
     .update({ status: "compliant", risk: "regular", completed_at: now })
-    .eq("id", mutation.id);
+    .eq("id", mutation.id)
+    .select("id");
   if (error) throw error;
+  if (!data?.length) throw new Error("RH_MUTATION_DENIED");
   return { ok: true };
 }
 

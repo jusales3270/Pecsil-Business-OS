@@ -61,9 +61,13 @@ export async function PATCH(request: Request) {
     if (error instanceof Error && error.message === "RH_MUTATION_DENIED") {
       return NextResponse.json({ error:"RH_MUTATION_DENIED" }, { status:403 });
     }
-    // Recusa da RLS aparece como erro do PostgREST — sem permissão de decisão.
+    // Só 42501 é recusa de permissão. Qualquer outro erro do banco (gatilho,
+    // restrição, coluna) é falha de gravação: dizer "sem permissão" aqui
+    // escondeu por dias um gatilho quebrado que impedia aprovar férias.
+    const code = (error as { code?: string } | null)?.code;
+    if (code === "42501") return NextResponse.json({ error:"RH_MUTATION_DENIED" }, { status:403 });
     console.error("Falha na decisão do RH", error);
-    return NextResponse.json({ error:"RH_MUTATION_DENIED" }, { status:403 });
+    return NextResponse.json({ error:"RH_MUTATION_FAILED" }, { status:500 });
   }
 }
 
