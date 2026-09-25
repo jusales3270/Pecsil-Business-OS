@@ -28,10 +28,12 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
   if (profileResult.error) throw profileResult.error;
   const organizationId = profileResult.data.organization_id as string;
 
+  const ABSENCE_FIELDS = "id,absence_type,start_date,end_date,days,hours,day_part,status,has_conflict,reason,requested_at,employees(full_name),departments(name),units(name)";
   const [
     employeesResult,
     activeEmployeesResult,
     absencesResult,
+    openAbsencesResult,
     pendingAbsencesResult,
     vacationResult,
     plansResult,
@@ -46,15 +48,26 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
       .eq("organization_id", organizationId),
     supabase.from("employees").select("id", { count:"exact", head:true })
       .eq("organization_id", organizationId).eq("active", true),
+    // Movimentações recentes (inclui o histórico importado)…
     supabase
       .from("rh_absences")
-      .select("id,absence_type,start_date,end_date,days,status,has_conflict,reason,requested_at,employees(full_name),departments(name),units(name)")
+      .select(ABSENCE_FIELDS)
       .eq("organization_id", organizationId)
       .order("start_date", { ascending:false })
       .limit(20),
+    // …e, à parte, TODAS as que aguardam decisão: o histórico não pode
+    // empurrar uma solicitação pendente para fora da tela.
+    supabase
+      .from("rh_absences")
+      .select(ABSENCE_FIELDS)
+      .eq("organization_id", organizationId)
+      .in("status", ["pending", "under_review"])
+      .order("requested_at", { ascending:false })
+      .limit(200),
     supabase.from("rh_absences").select("id", { count:"exact", head:true })
       .eq("organization_id", organizationId).in("status", ["pending", "under_review"]),
-    supabase.from("rh_vacation_balances").select("scheduled_days")
+    supabase.from("rh_vacation_balances")
+      .select("entitled_days,taken_days,scheduled_days,pecuniary_days,expires_at")
       .eq("organization_id", organizationId),
     supabase
       .from("rh_benefit_plans")
@@ -91,7 +104,7 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
   ]);
 
   const failed = [
-    employeesResult, activeEmployeesResult, absencesResult, pendingAbsencesResult,
+    employeesResult, activeEmployeesResult, absencesResult, openAbsencesResult, pendingAbsencesResult,
     vacationResult, plansResult, enrollmentsResult, benefitRequestsResult, sstResult,
     sstAlertsResult, departmentsResult, documentsResult,
   ].find(result => result.error);
@@ -100,7 +113,12 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
   const benefitRequests = ((benefitRequestsResult.data ?? []) as unknown as Row[]).map(toBenefitRequest);
   const documents = ((documentsResult.data ?? []) as unknown as Row[]).map(toDocument);
 
-  const absences = ((absencesResult.data ?? []) as unknown as Row[]).map(toAbsence);
+  const openAbsences = ((openAbsencesResult.data ?? []) as unknown as Row[]).map(toAbsence);
+  const openIds = new Set(openAbsences.map(absence => absence.id));
+  const absences = [
+    ...openAbsences,
+    ...((absencesResult.data ?? []) as unknown as Row[]).map(toAbsence).filter(absence => !openIds.has(absence.id)),
+  ];
   const sstRecords = ((sstResult.data ?? []) as unknown as Row[]).map(toSstRecord);
 
   // Membros por plano, contados a partir das adesões ativas.
@@ -114,8 +132,17 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
   const benefitPlans = ((plansResult.data ?? []) as unknown as Row[])
     .map(row => toBenefitPlan(row, membersByPlan[String(row.id)] ?? 0, eligible));
 
-  const scheduledVacationDays = (vacationResult.data ?? [])
-    .reduce((sum, row) => sum + number((row as Row).scheduled_days), 0);
+  const balances = (vacationResult.data ?? []) as unknown as Row[];
+  const scheduledVacationDays = balances.reduce((sum, row) => sum + number(row.scheduled_days), 0);
+  // Período com saldo = direito menos gozado, programado e abono. O concessivo
+  // (expires_at) é o prazo da empresa para conceder; passou, paga em dobro.
+  const today = new Date().toISOString().slice(0, 10);
+  const in60 = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
+  const withBalance = balances.filter(row =>
+    row.expires_at &&
+    number(row.entitled_days) - number(row.taken_days) - number(row.scheduled_days) - number(row.pecuniary_days) > 0);
+  const vacationsOverdue = withBalance.filter(row => String(row.expires_at) < today).length;
+  const vacationsDueSoon = withBalance.filter(row => String(row.expires_at) >= today && String(row.expires_at) <= in60).length;
   const benefitMonthlyCost = benefitPlans.reduce((sum, plan) => sum + plan.monthlyCost, 0);
 
   // Distribuição por departamento, a partir dos colaboradores ativos reais.
@@ -146,6 +173,8 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
       activeEmployees: activeEmployeesResult.count ?? 0,
       pendingAbsences: pendingAbsencesResult.count ?? 0,
       scheduledVacationDays,
+      vacationsDueSoon,
+      vacationsOverdue,
       sstAlerts: sstAlertsResult.count ?? 0,
       benefitMonthlyCost,
     },
@@ -170,6 +199,8 @@ function toAbsence(row: Row): RhAbsence {
     startDate: String(row.start_date),
     endDate: String(row.end_date),
     days: number(row.days),
+    hours: row.hours == null ? null : number(row.hours),
+    dayPart: row.day_part === "manha" || row.day_part === "tarde" ? row.day_part : null,
     status: row.status as RhAbsence["status"],
     hasConflict: Boolean(row.has_conflict),
     reason: row.reason ? String(row.reason) : null,

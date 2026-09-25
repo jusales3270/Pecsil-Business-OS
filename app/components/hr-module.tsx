@@ -9,6 +9,7 @@ import { useModuleNav } from "../../lib/module-nav-context";
 import type { RhAbsence, RhBenefitPlan, RhBenefitRequest, RhDocument, RhEmployeeOption, RhSnapshot, RhSstRecord } from "../../lib/data/rh";
 import { getRhDocumentUrl, uploadRhDocument } from "../../lib/data/rh-documents-client";
 import { HolidaysSection } from "./hr-holidays";
+import { PpeSection, usePpeData } from "./hr-epi";
 
 const sections = [
   ["Painel", "grid"],
@@ -168,10 +169,13 @@ type AbsenceRecord = {
   sourceId?: string;
   employee: string;
   initials: string;
-  type: "Férias" | "Banco de horas" | "Atestado médico" | "Licença";
+  type: AbsenceLabel;
   start: string;
   end: string;
   days: number;
+  /** Ausência em horas ou meio período: `days` fica 0. */
+  hours: number | null;
+  dayPart: "manha" | "tarde" | null;
   status: AbsenceStatus;
   unit: string;
   department: string;
@@ -262,9 +266,30 @@ export function HrModule({
 
 type PendingItem = { key: string; title: string; meta: string; type: string; tone: "attention" | "danger" | "info"; icon: string; section: HrSection };
 
-const absenceTypeLabel: Record<RhAbsence["type"], string> = {
+const absenceTypeLabel = {
   vacation: "Férias", time_bank: "Banco de horas", medical_certificate: "Atestado médico", leave: "Licença",
-};
+  attendance_statement: "Consulta ou exame", family_care: "Acompanhamento de familiar",
+  occupational_exam: "Exame ocupacional", legal_leave: "Ausência legal", justified_absence: "Ausência justificada",
+  inss_leave: "Afastamento INSS", work_accident: "Acidente de trabalho", maternity_leave: "Licença-maternidade",
+} as const satisfies Record<RhAbsence["type"], string>;
+type AbsenceLabel = (typeof absenceTypeLabel)[RhAbsence["type"]];
+/** Tipos de saúde: só estes podem ter dado clínico. */
+const HEALTH_ABSENCES: ReadonlySet<AbsenceLabel> = new Set<AbsenceLabel>([
+  "Atestado médico", "Consulta ou exame", "Acompanhamento de familiar", "Exame ocupacional",
+  "Afastamento INSS", "Acidente de trabalho", "Licença-maternidade",
+]);
+
+/** "3 dias", "1h50", "Manhã". Em horas, os minutos saem do decimal (1,83 → 1h50). */
+function durationLabel(record: { days: number; hours: number | null; dayPart: "manha" | "tarde" | null }) {
+  if (record.hours != null) {
+    const total = Math.round(record.hours * 60);
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    return h ? `${h}h${m ? String(m).padStart(2, "0") : ""}` : `${m} min`;
+  }
+  if (record.dayPart) return record.dayPart === "manha" ? "Manhã" : "Tarde";
+  return `${record.days} ${record.days === 1 ? "dia" : "dias"}`;
+}
 const sstCategoryLabel: Record<RhSstRecord["category"], string> = {
   exam: "Exame", training: "Treinamento", ppe: "EPI", incident: "Ocorrência",
 };
@@ -278,7 +303,7 @@ function buildPendingItems(rh: RhSnapshot): PendingItem[] {
     items.push({
       key: `abs-${absence.id}`,
       title: `${absenceTypeLabel[absence.type]} · ${absence.employeeName}`,
-      meta: `${absence.days} ${absence.days === 1 ? "dia" : "dias"}${absence.hasConflict ? " · conflito identificado" : ""}`,
+      meta: `${durationLabel(absence)}${absence.hasConflict ? " · conflito identificado" : ""}`,
       type: "Férias e ausências",
       tone: absence.hasConflict ? "danger" : "attention",
       icon: "calendar",
@@ -325,12 +350,10 @@ async function sendRhMutation(body: Record<string, unknown>): Promise<boolean> {
 const initialsOf = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase() ?? "").join("") || "–";
 
-const absenceTypePt: Record<RhAbsence["type"], AbsenceRecord["type"]> = {
-  vacation: "Férias", time_bank: "Banco de horas", medical_certificate: "Atestado médico", leave: "Licença",
-};
-const absenceTypeEnum: Record<AbsenceRecord["type"], RhAbsence["type"]> = {
-  "Férias": "vacation", "Banco de horas": "time_bank", "Atestado médico": "medical_certificate", "Licença": "leave",
-};
+const absenceTypePt: Record<RhAbsence["type"], AbsenceRecord["type"]> = absenceTypeLabel;
+const absenceTypeEnum = Object.fromEntries(
+  Object.entries(absenceTypeLabel).map(([code, label]) => [label, code]),
+) as Record<AbsenceRecord["type"], RhAbsence["type"]>;
 const absenceStatusPt: Record<RhAbsence["status"], AbsenceStatus> = {
   pending: "Pendente", under_review: "Em análise", approved: "Aprovada", rejected: "Reprovada", registered: "Registrado",
 };
@@ -345,6 +368,8 @@ function toAbsenceRecord(absence: RhAbsence, index: number): AbsenceRecord {
     start: absence.startDate,
     end: absence.endDate,
     days: absence.days,
+    hours: absence.hours,
+    dayPart: absence.dayPart,
     status: absenceStatusPt[absence.status],
     unit: absence.unit ?? "—",
     department: absence.department ?? "—",
@@ -701,19 +726,19 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
 
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · AUSÊNCIAS</p><h1>Férias e ausências</h1><p>Solicitações, saldos, aprovações e conflitos de equipe em uma única visão.</p></div>{canCreate && <Button onClick={() => setCreating(true)}><HrIcon name="plus"/> Nova solicitação</Button>}</div>
-    <KpiGrid><HrStat value={String(rh.summary.scheduledVacationDays)} label="Férias programadas" meta="Dias no período" icon="calendar" tone="blue"/><HrStat value={String(pending)} label="Em aprovação" meta="Aguardando decisão" icon="clock" tone="orange"/><HrStat value={String(records.filter(r => r.type === "Atestado médico" || r.type === "Licença").length)} label="Afastamentos" meta="Atestados e licenças" icon="heart" tone="purple"/><HrStat value={String(conflicts)} label="Conflitos de equipe" meta={conflicts ? "Exigem avaliação" : "Planejamento saudável"} icon={conflicts ? "alert" : "check"} tone={conflicts ? "orange" : "green"}/></KpiGrid>
+    <KpiGrid><HrStat value={String(rh.summary.scheduledVacationDays)} label="Férias programadas" meta="Dias no período" icon="calendar" tone="blue"/><HrStat value={String(pending)} label="Em aprovação" meta="Aguardando decisão" icon="clock" tone="orange"/><HrStat value={String(rh.summary.vacationsOverdue + rh.summary.vacationsDueSoon)} label="Férias a vencer" meta={rh.summary.vacationsOverdue ? `${rh.summary.vacationsOverdue} com concessivo vencido` : "Concessivo em até 60 dias"} icon="alert" tone={rh.summary.vacationsOverdue ? "orange" : "purple"}/><HrStat value={String(conflicts)} label="Conflitos de equipe" meta={conflicts ? "Exigem avaliação" : "Planejamento saudável"} icon={conflicts ? "alert" : "check"} tone={conflicts ? "orange" : "green"}/></KpiGrid>
     <div className="absence-tabs" role="tablist">{(["Solicitações","Calendário","Políticas"] as const).map(item => <button role="tab" aria-selected={tab === item} className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}{item === "Solicitações" && <i>{pending}</i>}</button>)}</div>
-    {tab === "Solicitações" && <Card className="absence-card"><div className="absence-toolbar"><div><p className="eyebrow">FLUXO DE APROVAÇÃO</p><h2>Solicitações recentes</h2></div><label><span>Status</span><select value={status} onChange={event => setStatus(event.target.value)} aria-label="Filtrar solicitações por status"><option>Todos os status</option><option>Pendente</option><option>Em análise</option><option>Aprovada</option><option>Registrado</option><option>Reprovada</option></select></label></div><div className="absence-table"><div className="absence-table-head"><span>Colaborador</span><span>Tipo e período</span><span>Duração</span><span>Situação</span><span/></div>{filtered.map(record => <button onClick={() => setSelected(record)} key={record.id}><span className="absence-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department} · {record.unit}</small></span></span><span><b>{record.type}</b><small>{formatPeriod(record.start,record.end)}</small></span><span><b>{record.days} {record.days === 1 ? "dia" : "dias"}</b>{record.conflict ? <small className="conflict-label">⚠ Conflito identificado</small> : <small>Sem conflito</small>}</span><Status tone={absenceTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!filtered.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhuma solicitação encontrada</b><small>Altere o filtro de situação.</small></div>}</div></Card>}
+    {tab === "Solicitações" && <Card className="absence-card"><div className="absence-toolbar"><div><p className="eyebrow">FLUXO DE APROVAÇÃO</p><h2>Solicitações recentes</h2></div><label><span>Status</span><select value={status} onChange={event => setStatus(event.target.value)} aria-label="Filtrar solicitações por status"><option>Todos os status</option><option>Pendente</option><option>Em análise</option><option>Aprovada</option><option>Registrado</option><option>Reprovada</option></select></label></div><div className="absence-table"><div className="absence-table-head"><span>Colaborador</span><span>Tipo e período</span><span>Duração</span><span>Situação</span><span/></div>{filtered.map(record => <button onClick={() => setSelected(record)} key={record.id}><span className="absence-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department} · {record.unit}</small></span></span><span><b>{record.type}</b><small>{formatPeriod(record.start,record.end)}</small></span><span><b>{durationLabel(record)}</b>{record.conflict ? <small className="conflict-label">⚠ Conflito identificado</small> : <small>Sem conflito</small>}</span><Status tone={absenceTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!filtered.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhuma solicitação encontrada</b><small>Altere o filtro de situação.</small></div>}</div></Card>}
     {tab === "Calendário" && <AbsenceCalendar records={records} onSelect={setSelected}/>} 
     {tab === "Políticas" && <AbsencePolicies/>}
-    {selected && <AbsenceDrawer record={selected} canApprove={canApprove} onClose={() => setSelected(null)} onDecision={decide}/>} 
+    {selected && <AbsenceDrawer record={selected} canApprove={canApprove} canSeeClinical={canUseFeature(access, "rh.clinico")} onClose={() => setSelected(null)} onDecision={decide}/>} 
     {creating && <AbsenceForm nextId={Math.max(0, ...records.map(record => record.id)) + 1} employees={rh.source === "supabase" ? rh.employees : []} onClose={() => setCreating(false)} onSave={createRequest}/>}
   </>;
 }
 
 function AbsenceCalendar({ records, onSelect }: { records: AbsenceRecord[]; onSelect: (record: AbsenceRecord) => void }) {
   const visible = records.filter(record => record.status !== "Reprovada");
-  return <Card className="absence-calendar"><div className="card-head"><div><p className="eyebrow">PLANEJAMENTO DE EQUIPE</p><h2>Calendário consolidado</h2><p>Julho a setembro de 2026</p></div><Status tone="info">{visible.length} movimentações</Status></div><div className="calendar-scale"><span>Colaborador</span><div><b>Julho</b><b>Agosto</b><b>Setembro</b></div></div><div className="calendar-rows">{visible.map(record => { const month = Number(record.start.slice(5,7)); const left = month === 7 ? 3 : month === 8 ? 35 : 68; const width = Math.max(7,Math.min(29,record.days * 1.4)); return <button key={record.id} onClick={() => onSelect(record)}><span><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department}</small></span></span><em><i className={record.conflict ? "conflict" : ""} style={{left:`${left}%`,width:`${width}%`}} title={`${record.type} · ${record.days} ${record.days === 1 ? "dia" : "dias"}${record.conflict ? " · exige avaliação de conflito" : ""}`}/></em></button>; })}</div><div className="calendar-legend"><span><i/> Programação regular</span><span><i className="conflict"/> Exige avaliação de conflito</span></div></Card>;
+  return <Card className="absence-calendar"><div className="card-head"><div><p className="eyebrow">PLANEJAMENTO DE EQUIPE</p><h2>Calendário consolidado</h2><p>Julho a setembro de 2026</p></div><Status tone="info">{visible.length} movimentações</Status></div><div className="calendar-scale"><span>Colaborador</span><div><b>Julho</b><b>Agosto</b><b>Setembro</b></div></div><div className="calendar-rows">{visible.map(record => { const month = Number(record.start.slice(5,7)); const left = month === 7 ? 3 : month === 8 ? 35 : 68; const width = Math.max(7,Math.min(29,record.days * 1.4)); return <button key={record.id} onClick={() => onSelect(record)}><span><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department}</small></span></span><em><i className={record.conflict ? "conflict" : ""} style={{left:`${left}%`,width:`${width}%`}} title={`${record.type} · ${durationLabel(record)}${record.conflict ? " · exige avaliação de conflito" : ""}`}/></em></button>; })}</div><div className="calendar-legend"><span><i/> Programação regular</span><span><i className="conflict"/> Exige avaliação de conflito</span></div></Card>;
 }
 
 function AbsencePolicies() {
@@ -726,9 +751,44 @@ function AbsencePolicies() {
   return <div className="absence-policy-grid">{policies.map(([title,rule,description,icon]) => <Card key={title}><span><HrIcon name={icon}/></span><h2>{title}</h2><strong>{rule}</strong><p>{description}</p><button>Ver política completa <HrIcon name="arrow"/></button></Card>)}</div>;
 }
 
-function AbsenceDrawer({ record, canApprove, onClose, onDecision }: { record: AbsenceRecord; canApprove: boolean; onClose: () => void; onDecision: (decision: "Aprovada" | "Reprovada") => void }) {
+type AbsenceClinicalData = { cidCodes: string[]; diagnosis: string | null; note: string | null };
+
+/** Diagnóstico, CID e observação clínica. Só é montado para quem tem
+ *  `rh.clinico`; para os outros o bloco nem existe na página, e a rota
+ *  (e a RLS) recusam de novo. Buscado a cada abertura, nunca guardado. */
+function AbsenceClinical({ absenceId }: { absenceId: string }) {
+  const [state, setState] = useState<{ id: string; data: AbsenceClinicalData | null; failed: boolean } | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/rh/ausencias/${absenceId}/clinico`, { cache: "no-store" })
+      .then(async response => {
+        if (!response.ok) throw new Error(String(response.status));
+        return (await response.json()) as AbsenceClinicalData | null;
+      })
+      .then(data => { if (active) setState({ id: absenceId, data, failed: false }); })
+      .catch(() => { if (active) setState({ id: absenceId, data: null, failed: true }); });
+    return () => { active = false; };
+  }, [absenceId]);
+  const current = state?.id === absenceId ? state : null;
+  const rows: [string, string][] = current?.data
+    ? [
+        ["CID", current.data.cidCodes.length ? current.data.cidCodes.join(" · ") : "Não informado"],
+        ["Registro original", current.data.diagnosis ?? "—"],
+        ...(current.data.note ? [["Observação", current.data.note] as [string, string]] : []),
+      ]
+    : [];
+  return <section className="absence-clinical" aria-label="Dados clínicos">
+    <h3><HrIcon name="shield"/> Dados clínicos <small>Confidencial · LGPD</small></h3>
+    {!current && <p className="absence-clinical-empty">Carregando…</p>}
+    {current?.failed && <p className="absence-clinical-empty">Não foi possível carregar os dados clínicos.</p>}
+    {current && !current.failed && !current.data && <p className="absence-clinical-empty">Sem dado clínico registrado.</p>}
+    {rows.length > 0 && <dl>{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
+  </section>;
+}
+
+function AbsenceDrawer({ record, canApprove, canSeeClinical, onClose, onDecision }: { record: AbsenceRecord; canApprove: boolean; canSeeClinical: boolean; onClose: () => void; onDecision: (decision: "Aprovada" | "Reprovada") => void }) {
   const actionable = record.status === "Pendente" || record.status === "Em análise";
-  return <div className="employee-layer" onMouseDown={onClose}><aside className="absence-drawer" onMouseDown={event => event.stopPropagation()} aria-label={`Solicitação de ${record.employee}`}><header><button onClick={onClose} aria-label="Fechar solicitação"><HrIcon name="close"/></button><span><HrIcon name={record.type === "Atestado médico" ? "heart" : "calendar"}/></span><div><p className="eyebrow">SOLICITAÇÃO #{String(record.id).padStart(4,"0")}</p><h2>{record.type}</h2><p>{record.employee} · {record.department}</p></div><Status tone={absenceTone(record.status)}>{record.status}</Status></header><div className="absence-drawer-content">{record.conflict && <div className="absence-conflict"><HrIcon name="alert"/><span><b>Conflito de planejamento</b><small>{record.conflict}</small></span></div>}<section className="absence-period"><div><small>Início</small><strong>{formatDate(record.start)}</strong></div><HrIcon name="arrow"/><div><small>Término</small><strong>{formatDate(record.end)}</strong></div><span><b>{record.days}</b><small>{record.days === 1 ? "dia" : "dias"}</small></span></section><section className="absence-balance"><div><span><b>Saldo antes da solicitação</b><small>Período aquisitivo atual</small></span><strong>{record.balance} dias</strong></div><i><em style={{width:`${Math.min(100,(record.balance/30)*100)}%`}}/></i><p>Saldo projetado após aprovação: <b>{Math.max(0,record.balance-record.days)} dias</b></p></section><DetailGroup title="Informações" rows={[["Colaborador",record.employee],["Unidade",record.unit],["Motivo ou observação",record.reason],["Solicitado em",record.requestedAt]]}/><section className="absence-workflow"><h3>Histórico da solicitação</h3><div><i>✓</i><span><b>Solicitação registrada</b><small>{record.requestedAt}</small></span></div><div><i>{actionable ? "2" : "✓"}</i><span><b>{actionable ? "Aguardando decisão" : `Solicitação ${record.status.toLowerCase()}`}</b><small>{actionable ? "Gestor e RH foram notificados" : "Movimentação registrada no histórico"}</small></span></div></section></div>{canApprove && actionable && <footer><button className="absence-reject" onClick={() => onDecision("Reprovada")}><HrIcon name="close"/> Reprovar</button><Button onClick={() => onDecision("Aprovada")}><HrIcon name="check"/> Aprovar solicitação</Button></footer>}</aside></div>;
+  return <div className="employee-layer" onMouseDown={onClose}><aside className="absence-drawer" onMouseDown={event => event.stopPropagation()} aria-label={`Solicitação de ${record.employee}`}><header><button onClick={onClose} aria-label="Fechar solicitação"><HrIcon name="close"/></button><span><HrIcon name={record.type === "Atestado médico" ? "heart" : "calendar"}/></span><div><p className="eyebrow">SOLICITAÇÃO #{String(record.id).padStart(4,"0")}</p><h2>{record.type}</h2><p>{record.employee} · {record.department}</p></div><Status tone={absenceTone(record.status)}>{record.status}</Status></header><div className="absence-drawer-content">{record.conflict && <div className="absence-conflict"><HrIcon name="alert"/><span><b>Conflito de planejamento</b><small>{record.conflict}</small></span></div>}<section className="absence-period"><div><small>Início</small><strong>{formatDate(record.start)}</strong></div><HrIcon name="arrow"/><div><small>Término</small><strong>{formatDate(record.end)}</strong></div>{record.hours != null || record.dayPart ? <span><b>{durationLabel(record)}</b><small>{record.hours != null ? "em horas" : "meio período"}</small></span> : <span><b>{record.days}</b><small>{record.days === 1 ? "dia" : "dias"}</small></span>}</section>{record.type === "Férias" && actionable && <section className="absence-balance"><div><span><b>Saldo antes da solicitação</b><small>Período aquisitivo atual</small></span><strong>{record.balance} dias</strong></div><i><em style={{width:`${Math.min(100,(record.balance/30)*100)}%`}}/></i><p>Saldo projetado após aprovação: <b>{Math.max(0,record.balance-record.days)} dias</b></p></section>}<DetailGroup title="Informações" rows={[["Colaborador",record.employee],["Unidade",record.unit],["Motivo ou observação",record.reason],["Solicitado em",record.requestedAt]]}/>{canSeeClinical && record.sourceId && HEALTH_ABSENCES.has(record.type) && <AbsenceClinical absenceId={record.sourceId}/>}<section className="absence-workflow"><h3>Histórico da solicitação</h3><div><i>✓</i><span><b>Solicitação registrada</b><small>{record.requestedAt}</small></span></div><div><i>{actionable ? "2" : "✓"}</i><span><b>{actionable ? "Aguardando decisão" : `Solicitação ${record.status.toLowerCase()}`}</b><small>{actionable ? "Gestor e RH foram notificados" : "Movimentação registrada no histórico"}</small></span></div></section></div>{canApprove && actionable && <footer><button className="absence-reject" onClick={() => onDecision("Reprovada")}><HrIcon name="close"/> Reprovar</button><Button onClick={() => onDecision("Aprovada")}><HrIcon name="check"/> Aprovar solicitação</Button></footer>}</aside></div>;
 }
 
 function AbsenceForm({ nextId, employees, onClose, onSave }: { nextId: number; employees: RhEmployeeOption[]; onClose: () => void; onSave: (record: AbsenceRecord, employeeId?: string) => void }) {
@@ -747,7 +807,7 @@ function AbsenceForm({ nextId, employees, onClose, onSave }: { nextId: number; e
     event.preventDefault();
     if (!valid || !chosen) return;
     onSave({
-      id:nextId, employee:chosen.name, initials:initialsOf(chosen.name), type, start, end, days,
+      id:nextId, employee:chosen.name, initials:initialsOf(chosen.name), type, start, end, days, hours:null, dayPart:null,
       status:"Pendente", unit:chosen.unit ?? "—", department:chosen.department ?? "—",
       requestedAt:"Hoje · agora", reason, balance:30, conflict:null,
     }, persists ? chosen.id : undefined);
@@ -861,6 +921,9 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
   const [status,setStatus]=useState("Todos os status");
   const canManage=canUseFeature(access,"rh.sst","operar");
   const canApprove=canUseFeature(access,"rh.sst","aprovar");
+  // Ficha de EPI: vem de rota própria, fora do snapshot do RH.
+  const ppe=usePpeData(rh.source==="supabase");
+  const ppeUnsigned=ppe.status==="ready"?ppe.deliveries.filter(delivery=>!delivery.signedOn).length:0;
   const alerts=records.filter(record=>["Vencido","A vencer","Em análise"].includes(record.status)).length;
   const filtered=status==="Todos os status"?records:records.filter(record=>record.status===status);
   const categoryMap:Record<Exclude<typeof tab,"Prioridades">,SstRecord["category"]>={"Exames":"Exame","Treinamentos":"Treinamento","EPIs":"EPI","Ocorrências":"Ocorrência"};
@@ -927,10 +990,11 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
   };
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · SST</p><h1>Saúde e segurança</h1><p>Exames, treinamentos, EPIs, ocorrências e obrigações organizados por risco e vencimento.</p></div>{canManage&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Novo registro</Button>}</div>
-    <KpiGrid><HrStat value={String(records.filter(r => r.category === "Exame" && (r.status === "A vencer" || r.status === "Vencido")).length)} label="Exames a vencer" meta="Vencidos ou na janela" icon="heart" tone="orange"/><HrStat value={String(records.filter(r => r.category === "Treinamento").length)} label="Treinamentos" meta="No período" icon="shield" tone="blue"/><HrStat value={String(records.filter(r => r.risk === "Crítico").length)} label="Pendências críticas" meta="Exigem tratamento" icon="alert" tone="red"/><HrStat value={records.length ? `${Math.round((records.filter(r => r.status === "Conforme").length / records.length) * 100)}%` : "—"} label="Conformidade" meta="Registros conformes" icon="check" tone="green"/></KpiGrid>
-    <div className="sst-tabs" role="tablist">{(["Prioridades","Exames","Treinamentos","EPIs","Ocorrências"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Prioridades"&&<i>{alerts}</i>}</button>)}</div>
-    {tab==="Prioridades"&&<div className="sst-overview"><SstRecordTable title="Prioridades de SST" eyebrow="VENCIMENTOS E PENDÊNCIAS" records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/><Card className="sst-health-card"><p className="eyebrow">CONFORMIDADE</p><h2>Saúde dos registros</h2><div className="sst-score"><strong>96%</strong><span><i style={{width:"96%"}}/></span></div><ul><li><i>✓</i><span><b>ASOs vinculados</b><small>236 de 246 colaboradores ativos</small></span></li><li><i>✓</i><span><b>Treinamentos controlados</b><small>Validades e certificados mapeados</small></span></li><li className="warning"><i>!</i><span><b>{alerts} pendências abertas</b><small>Tratamento por risco e vencimento</small></span></li></ul><div className="sst-risk-legend"><span><i className="critical"/> Crítico</span><span><i className="attention"/> Atenção</span><span><i className="regular"/> Regular</span></div></Card></div>}
-    {tab!=="Prioridades"&&<SstRecordTable title={`Gestão de ${tab.toLowerCase()}`} eyebrow={`SST · ${tab.toUpperCase()}`} records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/>} 
+    {tab!=="EPIs"&&<KpiGrid><HrStat value={String(records.filter(r => r.category === "Exame" && (r.status === "A vencer" || r.status === "Vencido")).length)} label="Exames a vencer" meta="Vencidos ou na janela" icon="heart" tone="orange"/><HrStat value={String(records.filter(r => r.category === "Treinamento").length)} label="Treinamentos" meta="No período" icon="shield" tone="blue"/><HrStat value={String(records.filter(r => r.risk === "Crítico").length)} label="Pendências críticas" meta="Exigem tratamento" icon="alert" tone="red"/><HrStat value={records.length ? `${Math.round((records.filter(r => r.status === "Conforme").length / records.length) * 100)}%` : "—"} label="Conformidade" meta="Registros conformes" icon="check" tone="green"/></KpiGrid>}
+    <div className="sst-tabs" role="tablist">{(["Prioridades","Exames","Treinamentos","EPIs","Ocorrências"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Prioridades"&&<i>{alerts+ppeUnsigned}</i>}</button>)}</div>
+    {tab==="Prioridades"&&<div className="sst-overview"><SstRecordTable title="Prioridades de SST" eyebrow="VENCIMENTOS E PENDÊNCIAS" records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/><Card className="sst-health-card"><p className="eyebrow">CONFORMIDADE</p><h2>Saúde dos registros</h2><div className="sst-score"><strong>96%</strong><span><i style={{width:"96%"}}/></span></div><ul><li><i>✓</i><span><b>ASOs vinculados</b><small>236 de 246 colaboradores ativos</small></span></li><li><i>✓</i><span><b>Treinamentos controlados</b><small>Validades e certificados mapeados</small></span></li><li className="warning"><i>!</i><span><b>{alerts} pendências abertas</b><small>Tratamento por risco e vencimento</small></span></li>{ppeUnsigned>0&&<li className="warning"><i>!</i><span><b>{ppeUnsigned} {ppeUnsigned===1?"entrega de EPI sem assinatura":"entregas de EPI sem assinatura"}</b><small>Recebimento a comprovar (NR-6) · aba EPIs</small></span></li>}</ul><div className="sst-risk-legend"><span><i className="critical"/> Crítico</span><span><i className="attention"/> Atenção</span><span><i className="regular"/> Regular</span></div></Card></div>}
+    {tab==="EPIs"&&<PpeSection state={rh.source==="supabase"?ppe:{status:"ready",deliveries:[]}}/>}
+    {tab!=="Prioridades"&&tab!=="EPIs"&&<SstRecordTable title={`Gestão de ${tab.toLowerCase()}`} eyebrow={`SST · ${tab.toUpperCase()}`} records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/>} 
     {selected&&<SstDrawer record={selected} canApprove={canApprove} canManage={canManage} onClose={()=>setSelected(null)} onConclude={conclude} onEdit={()=>setEditing(selected)}/>}
     {editing&&<SstEditForm record={editing} onClose={()=>setEditing(null)} onSave={saveEdit}/>}
     {creating&&<SstForm nextId={Math.max(0,...records.map(record=>record.id))+1} employees={rh.source==="supabase"?rh.employees:[]} onClose={()=>setCreating(false)} onSave={createRecord}/>}

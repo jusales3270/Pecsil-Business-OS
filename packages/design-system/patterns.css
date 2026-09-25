@@ -4119,6 +4119,129 @@ label > select,
   color: var(--accent-green);
 }
 
+/* --- Dado clínico da ausência (só para quem tem rh.clinico) --------------- */
+.absence-clinical {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  min-width: 0;
+}
+.absence-clinical > h3 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+}
+.absence-clinical > h3 > svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+.absence-clinical > h3 > small {
+  margin-left: auto;
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.absence-clinical dd {
+  overflow-wrap: anywhere;
+}
+.absence-clinical dl > div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.absence-clinical-empty {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/* --- Ficha de EPI (gaveta) ------------------------------------------------- */
+.ppe-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.ppe-summary > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ppe-summary small,
+.ppe-item > h3 > small {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ppe-summary b {
+  font-size: var(--fs-md, var(--fs-sm));
+  color: var(--text-primary);
+}
+.ppe-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.ppe-item > h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.ppe-item > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+.ppe-item li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--border-subtle);
+}
+.ppe-item li:first-child {
+  border-top: 0;
+}
+.ppe-item li > span {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+.ppe-item li small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.ppe-item li .ppe-unsigned {
+  color: var(--accent-amber, var(--text-secondary));
+  font-weight: var(--fw-semibold);
+}
+
 /* --- Faixas de estatística em 3 colunas ------------------------------------ */
 .journey-day-summary,
 .benefit-drawer-stats {

@@ -13,7 +13,7 @@ import {
 import { pruneDashboard } from "../lib/forja/forja-session.ts";
 
 // O catálogo é semeado pela migração de acesso e ampliado pelas seguintes.
-const migration = ["202609190001_user_access.sql", "202609210001_module_events.sql", "202609220001_comercial_clientes.sql"]
+const migration = ["202609190001_user_access.sql", "202609210001_module_events.sql", "202609220001_comercial_clientes.sql", "202609250001_rh_historico.sql"]
   .map((name) => readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), "utf8"))
   .join("\n");
 

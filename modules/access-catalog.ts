@@ -59,6 +59,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "rh.feriados", label: "Feriados", description: "Calendário de feriados; operar edita.", levels: VER_OPERAR },
       { code: "rh.beneficios", label: "Benefícios", description: "Planos, participantes e solicitações; aprovar decide as solicitações.", levels: TODOS },
       { code: "rh.sst", label: "Saúde e segurança", description: "Exames, treinamentos, EPIs e ocorrências; registros confidenciais só em aprovar.", levels: TODOS },
+      { code: "rh.clinico", label: "Dados clínicos", description: "Diagnóstico, CID e observação clínica dos afastamentos. Dado sensível: libere só a quem precisa; operar corrige.", levels: VER_OPERAR },
       { code: "rh.documentos", label: "Documentos", description: "Documentos dos colaboradores; documentos sensíveis só em aprovar.", levels: TODOS },
       { code: "rh.relatorios", label: "Relatórios", description: "Relatórios do RH.", levels: VER },
       { code: "rh.homologacao", label: "Homologação", description: "Critérios e evidências de homologação do módulo.", levels: VER_OPERAR },

@@ -39,6 +39,8 @@ const CASES = [
   { name: "só Cotações (ver)", grants: { "compras.cotacoes": "ver" } },
   { name: "só Eventos (ver)", grants: { "fundacao.eventos": "ver" } },
   { name: "só Funil (ver)", grants: { "comercial.funil": "ver" } },
+  { name: "só Dados clínicos (ver)", grants: { "rh.clinico": "ver" } },
+  { name: "só SST (ver)", grants: { "rh.sst": "ver" } },
 ];
 
 const { data: org } = await admin.from("organizations").select("id").limit(1).single();
@@ -71,8 +73,14 @@ try {
     titlesReceivable: await total(admin, "finance_titles", (q) => q.eq("direction", "receivable")),
     stages: await total(admin, "crm_stages"),
     cards: await total(admin, "crm_cards"),
+    absences: await total(admin, "rh_absences"),
+    clinical: await total(admin, "rh_absence_clinical"),
+    ppe: await total(admin, "rh_ppe_deliveries"),
   };
   console.log("Referência (service role):", reference);
+  // Sem dado clínico no banco, "não vê nada" passaria por vazio: verde falso.
+  check("referência", "há dado clínico para testar o isolamento", reference.clinical > 0, reference.clinical);
+  check("referência", "há entrega de EPI para testar o acesso", reference.ppe > 0, reference.ppe);
 
   for (const scenario of CASES) {
     const email = `matriz.${randomBytes(4).toString("hex")}@pecsil-teste.local`;
@@ -142,6 +150,32 @@ try {
       const quote = await client.from("cotacoes").insert({ organization_id: org.id, fornecedor: "Teste matriz", divisao: "USINAGEM", status: "PENDENTE", user_id: "1" });
       check(n, "não cria cotação com Ver", Boolean(quote.error), quote.error?.code);
     }
+    // Dado clínico: só com rh.clinico, e escrever exige operar.
+    const veClinico = "rh.clinico" in scenario.grants;
+    const clinicos = await total(client, "rh_absence_clinical");
+    check(n, veClinico ? "vê o dado clínico" : "não vê o dado clínico",
+      clinicos === (veClinico ? reference.clinical : 0), clinicos);
+    if ("rh.ferias" in scenario.grants) {
+      check(n, "vê as ausências (sem o clínico)", (await total(client, "rh_absences")) === reference.absences, await total(client, "rh_absences"));
+    }
+    if (veClinico) {
+      const { data: umClinico } = await admin.from("rh_absence_clinical").select("id, note").limit(1).single();
+      await client.from("rh_absence_clinical").update({ note: "ALTERADO PELA MATRIZ" }).eq("id", umClinico.id);
+      const { data: clinicoDepois } = await admin.from("rh_absence_clinical").select("note").eq("id", umClinico.id).single();
+      check(n, "não altera dado clínico com Ver", clinicoDepois.note === umClinico.note, clinicoDepois.note === umClinico.note ? "mantido" : "ALTERADO");
+    }
+
+    // Ficha de EPI: lê com rh.sst; gravar exige operar.
+    const veEpi = "rh.sst" in scenario.grants;
+    const entregas = await total(client, "rh_ppe_deliveries");
+    check(n, veEpi ? "vê as entregas de EPI" : "não vê entregas de EPI", entregas === (veEpi ? reference.ppe : 0), entregas);
+    if (veEpi) {
+      const { data: umaEntrega } = await admin.from("rh_ppe_deliveries").select("id, quantity").limit(1).single();
+      await client.from("rh_ppe_deliveries").update({ quantity: umaEntrega.quantity + 99 }).eq("id", umaEntrega.id);
+      const { data: depoisEpi } = await admin.from("rh_ppe_deliveries").select("quantity").eq("id", umaEntrega.id).single();
+      check(n, "não altera entrega de EPI com Ver", depoisEpi.quantity === umaEntrega.quantity, depoisEpi.quantity === umaEntrega.quantity ? "mantida" : "ALTERADA");
+    }
+
     // Funil do CRM: quem só VÊ não cria nem move card.
     const veFunil = "comercial.funil" in scenario.grants;
     const etapas = await total(client, "crm_stages");
@@ -181,6 +215,46 @@ try {
     check(n, "não unifica fornecedores sem Cadastros", Boolean(merge.error), merge.error?.code);
 
     await client.auth.signOut();
+  }
+
+  // --- Colaborador: lê a própria ausência, não o clínico dela ----------------
+  {
+    const n = "colaborador sem permissão";
+    const { data: comClinico } = await admin
+      .from("rh_absence_clinical")
+      .select("rh_absences!inner(employee_id, employees!inner(profile_id))")
+      .is("rh_absences.employees.profile_id", null)
+      .limit(1)
+      .maybeSingle();
+    const employeeId = comClinico?.rh_absences?.employee_id;
+    check(n, "há colaborador sem login com dado clínico para o teste", Boolean(employeeId), employeeId ? "sim" : "NÃO");
+    if (employeeId) {
+      const email = `matriz.${randomBytes(4).toString("hex")}@pecsil-teste.local`;
+      const password = randomBytes(18).toString("base64url") + "!9a";
+      const { data: authUser, error: authError } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+      if (authError) throw authError;
+      const { data: profile, error: profileError } = await admin
+        .from("profiles")
+        .insert({ user_id: authUser.user.id, organization_id: org.id, email, full_name: "Matriz colaborador", status: "active" })
+        .select("id")
+        .single();
+      created.push({ userId: authUser.user.id, profileId: profile?.id, employeeId });
+      if (profileError) throw profileError;
+      // Vínculo temporário: desfeito no finally.
+      await admin.from("employees").update({ profile_id: profile.id }).eq("id", employeeId);
+
+      const client = createClient(URL_BASE, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, opts);
+      const { error: loginError } = await client.auth.signInWithPassword({ email, password });
+      if (loginError) throw loginError;
+      const proprias = await total(admin, "rh_absences", (q) => q.eq("employee_id", employeeId));
+      const vistas = await total(client, "rh_absences");
+      check(n, "vê só as próprias ausências", vistas === proprias && proprias > 0, `${vistas} de ${proprias}`);
+      check(n, "não vê o clínico das próprias ausências", (await total(client, "rh_absence_clinical")) === 0, await total(client, "rh_absence_clinical"));
+      const minhasEntregas = await total(admin, "rh_ppe_deliveries", (q) => q.eq("employee_id", employeeId));
+      const entregasVistas = await total(client, "rh_ppe_deliveries");
+      check(n, "vê só a própria ficha de EPI", entregasVistas === minhasEntregas, `${entregasVistas} de ${minhasEntregas}`);
+      await client.auth.signOut();
+    }
   }
 
   // --- Terceiro: validade vale no banco -------------------------------------
@@ -227,7 +301,8 @@ try {
     await client.auth.signOut();
   }
 } finally {
-  for (const { userId, profileId } of created) {
+  for (const { userId, profileId, employeeId } of created) {
+    if (employeeId) await admin.from("employees").update({ profile_id: null }).eq("id", employeeId);
     if (profileId) await admin.from("module_events").delete().eq("entity_id", profileId);
     if (profileId) await admin.from("profiles").delete().eq("id", profileId);
     await admin.auth.admin.deleteUser(userId);

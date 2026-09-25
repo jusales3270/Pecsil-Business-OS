@@ -10,7 +10,10 @@
 // planos de benefício e registros de SST não-clínicos.
 // ============================================================================
 
-export type RhAbsenceType = "vacation" | "time_bank" | "medical_certificate" | "leave";
+export type RhAbsenceType =
+  | "vacation" | "time_bank" | "medical_certificate" | "leave"
+  | "attendance_statement" | "family_care" | "occupational_exam" | "legal_leave"
+  | "justified_absence" | "inss_leave" | "work_accident" | "maternity_leave";
 export type RhAbsenceStatus =
   | "pending" | "under_review" | "approved" | "rejected" | "registered";
 
@@ -23,6 +26,10 @@ export type RhAbsence = {
   startDate: string;
   endDate: string;
   days: number;
+  /** Ausência em horas (days = 0). */
+  hours: number | null;
+  /** Ausência de meio período (days = 0). */
+  dayPart: "manha" | "tarde" | null;
   status: RhAbsenceStatus;
   hasConflict: boolean;
   reason: string | null;
@@ -112,6 +119,10 @@ export type RhSummary = {
   activeEmployees: number;
   pendingAbsences: number;
   scheduledVacationDays: number;
+  /** Períodos com saldo cujo concessivo vence nos próximos 60 dias. */
+  vacationsDueSoon: number;
+  /** Períodos com saldo e concessivo já vencido (férias em dobro). */
+  vacationsOverdue: number;
   sstAlerts: number;
   benefitMonthlyCost: number;
 };
@@ -141,6 +152,8 @@ export const demoRhSnapshot: RhSnapshot = {
     activeEmployees: 0,
     pendingAbsences: 0,
     scheduledVacationDays: 0,
+    vacationsDueSoon: 0,
+    vacationsOverdue: 0,
     sstAlerts: 0,
     benefitMonthlyCost: 0,
   },
