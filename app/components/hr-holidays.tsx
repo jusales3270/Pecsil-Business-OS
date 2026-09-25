@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Kpi, KpiGrid, Status } from "../../packages/design-system";
+import { Button, Card, DetailRows, Kpi, KpiGrid, Modal, Status, type DetailRow } from "../../packages/design-system";
 import {
   businessDaysInYear,
   HOLIDAY_SCOPES,
@@ -77,6 +77,34 @@ export function HolidaysSection({ notify }: { notify?: (message: string) => void
   const next = holidays.find(h => h.date >= today);
   const onWeekdays = holidays.filter(h => h.dayOff && ![0, 6].includes(isoWeekday(h.date))).length;
   const pending = holidays.filter(h => h.pendingReview).length;
+  const [detail, setDetail] = useState<{ title: string; subtitle: string; rows: DetailRow[]; empty: string } | null>(null);
+  const holidayRow = (h: RhHoliday): DetailRow => ({
+    key: h.id,
+    title: h.name,
+    subtitle: `${WEEKDAYS_LONG[isoWeekday(h.date)]}${h.location ? ` · ${h.location}` : ""}${h.dayOff ? "" : " · sem folga"}`,
+    status: { tone: scopeTone[h.scope], label: holidayScopeLabel[h.scope] },
+    meta: formatLong(h.date),
+  });
+  const openAll = () => setDetail({ title: `Feriados de ${year}`, subtitle: `${holidays.length} datas no calendário`, rows: holidays.map(holidayRow), empty: "Nenhum feriado cadastrado." });
+  const openWeekdays = () => setDetail({
+    title: "Feriados em dias úteis", subtitle: "Folgas que caem de segunda a sexta e tiram dia útil do ano",
+    rows: holidays.filter(h => h.dayOff && ![0, 6].includes(isoWeekday(h.date))).map(holidayRow), empty: "Nenhum feriado cai em dia útil.",
+  });
+  const openBusinessDays = () => {
+    const rows: DetailRow[] = MONTHS.map((name, index) => {
+      let weekdays = 0;
+      for (let day = new Date(Date.UTC(year, index, 1)); day.getUTCMonth() === index; day.setUTCDate(day.getUTCDate() + 1)) {
+        if (day.getUTCDay() !== 0 && day.getUTCDay() !== 6) weekdays++;
+      }
+      const off = holidays.filter(h => h.dayOff && isoParts(h.date).month === index + 1 && ![0, 6].includes(isoWeekday(h.date))).length;
+      return { key: name, title: name, subtitle: off ? `${weekdays} dias de seg–sex, menos ${off} ${off === 1 ? "feriado" : "feriados"}` : `${weekdays} dias de seg–sex`, meta: String(weekdays - off) };
+    });
+    setDetail({ title: `Dias úteis em ${year}`, subtitle: `${businessDaysInYear(year, holidays)} no ano, mês a mês`, rows, empty: "" });
+  };
+  const openUpcoming = () => setDetail({
+    title: "Próximos feriados", subtitle: "Do mais próximo ao último do ano",
+    rows: holidays.filter(h => h.date >= today).map(holidayRow), empty: "Não há mais feriados neste ano.",
+  });
 
   const openDay = (iso: string) => {
     if (!canEdit) return;
@@ -131,11 +159,12 @@ export function HolidaysSection({ notify }: { notify?: (message: string) => void
       )}
 
       <KpiGrid>
-        <Kpi label="Feriados no ano" value={String(holidays.length)} caption={`${holidays.filter(h => h.scope === "nacional").length} nacionais`} tone="blue"/>
-        <Kpi label="Em dias úteis" value={String(onWeekdays)} caption="Folgas de segunda a sexta" tone="amber"/>
-        <Kpi label="Dias úteis no ano" value={String(businessDaysInYear(year, holidays))} caption="Seg–sex menos feriados" tone="green"/>
-        <Kpi label="Próximo feriado" value={next ? formatLong(next.date) : "—"} caption={next ? next.name : "Sem feriados restantes"} tone="purple"/>
+        <Kpi label="Feriados no ano" value={String(holidays.length)} caption={`${holidays.filter(h => h.scope === "nacional").length} nacionais`} tone="blue" onOpen={openAll}/>
+        <Kpi label="Em dias úteis" value={String(onWeekdays)} caption="Folgas de segunda a sexta" tone="amber" onOpen={openWeekdays}/>
+        <Kpi label="Dias úteis no ano" value={String(businessDaysInYear(year, holidays))} caption="Seg–sex menos feriados" tone="green" onOpen={openBusinessDays}/>
+        <Kpi label="Próximo feriado" value={next ? formatLong(next.date) : "—"} caption={next ? next.name : "Sem feriados restantes"} tone="purple" onOpen={openUpcoming}/>
       </KpiGrid>
+      {detail && <Modal eyebrow="RH · CALENDÁRIO" title={detail.title} subtitle={detail.subtitle} onClose={() => setDetail(null)}><DetailRows rows={detail.rows} empty={detail.empty}/></Modal>}
 
       <Card className="holiday-calendar-card">
         <div className="card-head">

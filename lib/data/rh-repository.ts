@@ -43,6 +43,7 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     sstAlertsResult,
     departmentsResult,
     documentsResult,
+    upcomingVacationsResult,
   ] = await Promise.all([
     supabase.from("employees").select("id", { count:"exact", head:true })
       .eq("organization_id", organizationId),
@@ -67,7 +68,7 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     supabase.from("rh_absences").select("id", { count:"exact", head:true })
       .eq("organization_id", organizationId).in("status", ["pending", "under_review"]),
     supabase.from("rh_vacation_balances")
-      .select("entitled_days,taken_days,scheduled_days,pecuniary_days,expires_at")
+      .select("entitled_days,taken_days,scheduled_days,pecuniary_days,acquisition_start,acquisition_end,expires_at,employees(full_name,departments(name))")
       .eq("organization_id", organizationId),
     supabase
       .from("rh_benefit_plans")
@@ -88,9 +89,14 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
       .select("id,category,title,due_date,status,risk,note,clinical_confidential,employees(full_name),departments(name),units(name)")
       .eq("organization_id", organizationId)
       .order("due_date", { ascending:true, nullsFirst:false })
-      .limit(20),
-    supabase.from("rh_sst_records").select("id", { count:"exact", head:true })
-      .eq("organization_id", organizationId).in("status", ["due_soon", "overdue"]),
+      // Os indicadores de SST (conformidade, exames a vencer) são contados
+      // sobre esta lista: ela precisa ser o conjunto, não uma amostra.
+      .limit(1000),
+    supabase.from("rh_sst_records")
+      .select("id,category,title,due_date,status,risk,note,clinical_confidential,employees(full_name),departments(name),units(name)", { count:"exact" })
+      .eq("organization_id", organizationId).in("status", ["due_soon", "overdue"])
+      .order("due_date", { ascending:true, nullsFirst:false })
+      .limit(200),
     supabase.from("employees").select("id,full_name,departments(name),units(name)")
       .eq("organization_id", organizationId).eq("active", true).order("full_name"),
     supabase
@@ -101,12 +107,21 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
       .eq("active", true)
       .order("updated_at", { ascending:false })
       .limit(50),
+    supabase
+      .from("rh_absences")
+      .select("id,start_date,end_date,days,employees(full_name,departments(name))")
+      .eq("organization_id", organizationId)
+      .eq("absence_type", "vacation")
+      .in("status", ["registered", "approved"])
+      .gt("start_date", new Date().toISOString().slice(0, 10))
+      .order("start_date")
+      .limit(200),
   ]);
 
   const failed = [
     employeesResult, activeEmployeesResult, absencesResult, openAbsencesResult, pendingAbsencesResult,
     vacationResult, plansResult, enrollmentsResult, benefitRequestsResult, sstResult,
-    sstAlertsResult, departmentsResult, documentsResult,
+    sstAlertsResult, departmentsResult, documentsResult, upcomingVacationsResult,
   ].find(result => result.error);
   if (failed?.error) throw failed.error;
 
@@ -133,7 +148,20 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     .map(row => toBenefitPlan(row, membersByPlan[String(row.id)] ?? 0, eligible));
 
   const balances = (vacationResult.data ?? []) as unknown as Row[];
-  const scheduledVacationDays = balances.reduce((sum, row) => sum + number(row.scheduled_days), 0);
+  // Férias programadas = os gozos futuros registrados ou aprovados; o número
+  // do indicador é a soma exata da lista que o detalhe mostra.
+  const upcomingVacations = ((upcomingVacationsResult.data ?? []) as unknown as Row[]).map(row => {
+    const employee = (Array.isArray(row.employees) ? row.employees[0] : row.employees) as Row | null;
+    return {
+      id: String(row.id),
+      employeeName: employee ? String(employee.full_name) : "Não informado",
+      department: employee ? relationName(employee.departments) : null,
+      startDate: String(row.start_date),
+      endDate: String(row.end_date),
+      days: number(row.days),
+    };
+  });
+  const scheduledVacationDays = upcomingVacations.reduce((sum, row) => sum + row.days, 0);
   // Período com saldo = direito menos gozado, programado e abono. O concessivo
   // (expires_at) é o prazo da empresa para conceder; passou, paga em dobro.
   const today = new Date().toISOString().slice(0, 10);
@@ -141,8 +169,23 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
   const withBalance = balances.filter(row =>
     row.expires_at &&
     number(row.entitled_days) - number(row.taken_days) - number(row.scheduled_days) - number(row.pecuniary_days) > 0);
-  const vacationsOverdue = withBalance.filter(row => String(row.expires_at) < today).length;
-  const vacationsDueSoon = withBalance.filter(row => String(row.expires_at) >= today && String(row.expires_at) <= in60).length;
+  const vacationAlerts = withBalance
+    .filter(row => String(row.expires_at) <= in60)
+    .map(row => {
+      const employee = (Array.isArray(row.employees) ? row.employees[0] : row.employees) as Row | null;
+      return {
+        employeeName: employee ? String(employee.full_name) : "Não informado",
+        department: employee ? relationName(employee.departments) : null,
+        acquisitionStart: String(row.acquisition_start),
+        acquisitionEnd: String(row.acquisition_end),
+        expiresAt: String(row.expires_at),
+        remainingDays: number(row.entitled_days) - number(row.taken_days) - number(row.scheduled_days) - number(row.pecuniary_days),
+        overdue: String(row.expires_at) < today,
+      };
+    })
+    .sort((a, b) => a.expiresAt.localeCompare(b.expiresAt));
+  const vacationsOverdue = vacationAlerts.filter(alert => alert.overdue).length;
+  const vacationsDueSoon = vacationAlerts.length - vacationsOverdue;
   const benefitMonthlyCost = benefitPlans.reduce((sum, plan) => sum + plan.monthlyCost, 0);
 
   // Distribuição por departamento, a partir dos colaboradores ativos reais.
@@ -182,6 +225,9 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     benefitPlans,
     benefitRequests,
     sstRecords,
+    sstAlertList: ((sstAlertsResult.data ?? []) as unknown as Row[]).map(toSstRecord),
+    vacationAlerts,
+    upcomingVacations,
     documents,
     departmentShares,
     employees,

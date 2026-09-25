@@ -124,6 +124,41 @@
   border-radius: var(--radius-lg);
 }
 
+/* Cartão que abre o detalhe do que o número conta. */
+button.ds-kpi.is-clickable {
+  position: relative;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+button.ds-kpi.is-clickable:hover {
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgb(0 0 0 / 0.08));
+}
+button.ds-kpi.is-clickable:active {
+  transform: translateY(1px);
+}
+button.ds-kpi.is-clickable:focus-visible {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: var(--shadow-focus);
+}
+.ds-kpi-more {
+  position: absolute;
+  right: var(--sp-2);
+  bottom: var(--sp-2);
+  color: var(--text-muted);
+  opacity: 0.6;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+button.ds-kpi.is-clickable:hover .ds-kpi-more,
+button.ds-kpi.is-clickable:focus-visible .ds-kpi-more {
+  opacity: 1;
+}
+
 .ds-kpi-text {
   display: flex;
   flex-direction: column;
@@ -5703,4 +5738,151 @@ button.holiday-row:hover {
   .event-filters > label { flex: 1 1 140px; }
   .event-filters select { min-width: 0; width: 100%; }
   .event-filters > .ds-status { margin-left: 0; }
+}
+
+
+/* ============================================================================
+   Popup de detalhe (Modal)
+   ============================================================================ */
+.ds-modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(2px);
+}
+.ds-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: min(80vh, 720px);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg, 0 20px 40px rgb(0 0 0 / 0.2));
+  overflow: hidden;
+}
+.ds-modal > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-6);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.ds-modal > header > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.ds-modal > header h2 {
+  font-size: var(--fs-lg, 18px);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+.ds-modal > header p:not(.eyebrow) {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.ds-modal > header > button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.ds-modal > header > button:focus-visible {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: var(--shadow-focus);
+}
+.ds-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-3) var(--sp-6) var(--sp-5);
+}
+.ds-detail-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ds-detail-rows > li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.ds-detail-rows > li:last-child {
+  border-bottom: 0;
+}
+.ds-detail-rows > li > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ds-detail-rows b {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.ds-detail-rows small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.ds-detail-rows em {
+  flex: 0 0 auto;
+  font-style: normal;
+  font-size: var(--fs-sm);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  text-align: right;
+}
+.ds-detail-rows .ds-status {
+  flex: 0 0 auto;
+}
+.ds-detail-note {
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.ds-detail-empty {
+  padding: var(--sp-5) 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  text-align: center;
+}
+@media (max-width: 480px) {
+  .ds-modal-layer {
+    place-items: end stretch;
+    padding: 0;
+  }
+  .ds-modal {
+    width: 100%;
+    max-height: 85vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .ds-modal > header,
+  .ds-modal-body {
+    padding-left: var(--sp-4);
+    padding-right: var(--sp-4);
+  }
+  .ds-detail-rows > li {
+    flex-wrap: wrap;
+  }
 }

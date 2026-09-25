@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FoundationSummary, Person } from "../../lib/data/foundation";
 import { canUseFeature, hasMultipleModules, type ModuleAccessContext } from "../../modules";
-import { Button, Card, Kpi, KpiGrid, Segmented, Status } from "../../packages/design-system";
+import { Button, Card, DetailRows, Kpi, KpiGrid, Modal, Segmented, Status, type DetailRow } from "../../packages/design-system";
 import { useRhData } from "../../lib/data/use-rh-data";
 import { useModuleNav } from "../../lib/module-nav-context";
 import type { RhAbsence, RhBenefitPlan, RhBenefitRequest, RhDocument, RhEmployeeOption, RhSnapshot, RhSstRecord } from "../../lib/data/rh";
@@ -343,8 +343,17 @@ async function sendRhMutation(body: Record<string, unknown>): Promise<boolean> {
   });
   if (response.status === 409) return false; // modo demonstrativo
   if (response.status === 401) { throw new Error("UNAUTHENTICATED"); }
-  if (!response.ok) throw new Error("RH_MUTATION_DENIED");
+  if (response.status === 403) throw new Error("RH_MUTATION_DENIED");
+  if (!response.ok) throw new Error("RH_MUTATION_FAILED");
   return true;
+}
+
+/** Mensagem da falha de uma decisão: permissão é uma coisa, erro de gravação é outra. */
+function mutationFailure(error: unknown, who: string, what: string) {
+  const code = error instanceof Error ? error.message : "";
+  if (code === "UNAUTHENTICATED") return `${who}: sua sessão expirou. Entre novamente para ${what}.`;
+  if (code === "RH_MUTATION_DENIED") return `${who}: você não tem permissão para ${what}.`;
+  return `${who}: não foi possível ${what} agora. Nada foi alterado; tente de novo.`;
 }
 
 const initialsOf = (name: string) =>
@@ -488,13 +497,44 @@ function toBenefitUiPlan(plan: RhBenefitPlan, index: number): BenefitPlan {
 function HrDashboard({ people, summary, rh, setSection, notify, access, canCreate, requestCreate }: { people: Person[]; summary: FoundationSummary; rh: RhSnapshot; setSection: (section: HrSection) => void; notify: (message: string) => void; access: ModuleAccessContext; canCreate: boolean; requestCreate: () => void }) {
   // Pendências reais: ausências aguardando decisão + SST vencido/a vencer.
   const pending = buildPendingItems(rh);
+  const [detail, setDetail] = useState<KpiDetail | null>(null);
+  const openEmployees = () => setDetail({
+    eyebrow: "RH · COLABORADORES", title: "Colaboradores ativos",
+    subtitle: `${rh.summary.activeEmployees} ativos de ${rh.summary.employees} no cadastro`,
+    rows: rh.employees.map(e => ({ key: e.id, title: e.name, subtitle: [e.department, e.unit].filter(Boolean).join(" · ") || undefined })),
+    empty: "Nenhum colaborador ativo no cadastro.",
+  });
+  const openPendingAbsences = () => setDetail({
+    eyebrow: "RH · AUSÊNCIAS", title: "Ausências pendentes", subtitle: "Aguardando decisão do RH ou do gestor",
+    rows: rh.absences.filter(a => a.status === "pending" || a.status === "under_review").map(a => ({
+      key: a.id, title: a.employeeName, subtitle: `${absenceTypeLabel[a.type]} · ${formatPeriod(a.startDate, a.endDate)}`,
+      status: { tone: "attention", label: a.status === "pending" ? "Pendente" : "Em análise" }, meta: durationLabel(a),
+    })),
+    empty: "Nenhuma ausência aguardando decisão.",
+  });
+  const openScheduledVacations = () => setDetail({
+    eyebrow: "RH · FÉRIAS", title: "Férias programadas",
+    subtitle: `${plural(rh.upcomingVacations.length, "gozo", "gozos")} a partir de amanhã · ${plural(rh.summary.scheduledVacationDays, "dia", "dias")} no total`,
+    rows: rh.upcomingVacations.map(v => ({ key: v.id, title: v.employeeName, subtitle: `${formatPeriod(v.startDate, v.endDate)}${v.department ? ` · ${v.department}` : ""}`, meta: plural(v.days, "dia", "dias") })),
+    empty: "Nenhuma férias programada.",
+  });
+  const openSstAlerts = () => setDetail({
+    eyebrow: "RH · SST", title: "Alertas de SST", subtitle: "Obrigações vencidas ou dentro da janela de vencimento",
+    rows: rh.sstAlertList.map(r => ({
+      key: r.id, title: r.employeeName, subtitle: `${sstCategoryLabel[r.category]} · ${r.title}`,
+      status: { tone: r.status === "overdue" ? "danger" : "attention", label: r.status === "overdue" ? "Vencido" : "A vencer" },
+      meta: r.dueDate ? formatDate(r.dueDate) : "—",
+    })),
+    empty: "Nenhuma obrigação de SST vencida ou a vencer.",
+  });
   return <>
+    {detail && <KpiDetailModal detail={detail} onClose={() => setDetail(null)}/>}
     <div className="page-head hr-page-head"><div><p className="eyebrow">RECURSOS HUMANOS · {access.role.toUpperCase()}</p><h1>Gestão de pessoas</h1><p>{`Indicadores e rotinas liberados para você em ${access.scopeLabel}.`}</p></div>{canCreate&&<Button onClick={() => { requestCreate(); setSection("Colaboradores"); }}><HrIcon name="plus"/> Novo colaborador</Button>}</div>
     <KpiGrid>
-      <HrStat value={String(rh.summary.employees)} label="Colaboradores" meta={`${rh.summary.activeEmployees} ativos`} icon="users" tone="blue"/>
-      <HrStat value={String(rh.summary.pendingAbsences)} label="Ausências pendentes" meta="Aguardando decisão" icon="clock" tone="orange"/>
-      <HrStat value={String(rh.summary.scheduledVacationDays)} label="Férias programadas" meta="Dias no período" icon="calendar" tone="purple"/>
-      <HrStat value={String(rh.summary.sstAlerts)} label="Alertas de SST" meta="Vencidos ou a vencer" icon="shield" tone="red"/>
+      <HrStat value={String(rh.summary.employees)} label="Colaboradores" meta={`${rh.summary.activeEmployees} ativos`} icon="users" tone="blue" onOpen={openEmployees}/>
+      <HrStat value={String(rh.summary.pendingAbsences)} label="Ausências pendentes" meta="Aguardando decisão" icon="clock" tone="orange" onOpen={openPendingAbsences}/>
+      <HrStat value={String(rh.summary.scheduledVacationDays)} label="Férias programadas" meta="Dias no período" icon="calendar" tone="purple" onOpen={openScheduledVacations}/>
+      <HrStat value={String(rh.summary.sstAlerts)} label="Alertas de SST" meta="Vencidos ou a vencer" icon="shield" tone="red" onOpen={openSstAlerts}/>
     </KpiGrid>
     <div className="hr-dashboard-grid">
       <Card className="hr-pending-card"><div className="card-head"><div><p className="eyebrow">CENTRAL DE PENDÊNCIAS</p><h2>Ações que exigem atenção</h2><p>Demandas consolidadas das rotinas de RH.</p></div><Status tone={pending.length ? "attention" : "success"}>{pending.length ? `${pending.length} ${pending.length === 1 ? "pendência" : "pendências"}` : "Sem pendências"}</Status></div><div className="hr-pending-list">{pending.length ? pending.map(item => <button key={item.key} onClick={() => { setSection(item.section); notify(`${item.title}: aberto para tratamento.`); }}><span className="hr-list-icon"><HrIcon name={item.icon}/></span><span><b>{item.title}</b><small>{item.meta}</small></span><Status tone={item.tone}>{item.type}</Status><HrIcon name="arrow"/></button>) : <div className="hr-empty"><HrIcon name="check" size={26}/><b>Nenhuma pendência</b><small>Ausências e SST em dia.</small></div>}</div></Card>
@@ -667,6 +707,40 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
   const pending = records.filter(record => record.status === "Pendente" || record.status === "Em análise").length;
   const conflicts = records.filter(record => record.conflict && ["Pendente","Em análise","Aprovada"].includes(record.status)).length;
   const filtered = status === "Todos os status" ? records : records.filter(record => record.status === status);
+  const [detail, setDetail] = useState<KpiDetail | null>(null);
+  const openScheduled = () => setDetail({
+    eyebrow: "RH · FÉRIAS", title: "Férias programadas",
+    subtitle: `${plural(rh.upcomingVacations.length, "gozo", "gozos")} a partir de amanhã · ${plural(rh.summary.scheduledVacationDays, "dia", "dias")} no total`,
+    rows: rh.upcomingVacations.map(v => ({ key: v.id, title: v.employeeName, subtitle: `${formatPeriod(v.startDate, v.endDate)}${v.department ? ` · ${v.department}` : ""}`, meta: plural(v.days, "dia", "dias") })),
+    empty: "Nenhuma férias programada.",
+  });
+  const openPending = () => setDetail({
+    eyebrow: "RH · AUSÊNCIAS", title: "Em aprovação", subtitle: "Solicitações aguardando decisão",
+    rows: records.filter(r => r.status === "Pendente" || r.status === "Em análise").map(r => ({
+      key: String(r.id), title: r.employee, subtitle: `${r.type} · ${formatPeriod(r.start, r.end)}`,
+      status: { tone: "attention", label: r.status }, meta: durationLabel(r),
+    })),
+    empty: "Nenhuma solicitação aguardando decisão.",
+  });
+  const openExpiring = () => setDetail({
+    eyebrow: "RH · FÉRIAS", title: "Férias a vencer",
+    subtitle: "Períodos com saldo cujo prazo de concessão (12 meses após o aquisitivo) venceu ou vence em até 60 dias",
+    note: rh.summary.vacationsOverdue ? "Concessivo vencido: pela CLT (art. 137), as férias passam a ser devidas em dobro. Confira se não há gozo que deixou de ser lançado." : undefined,
+    rows: rh.vacationAlerts.map((a, i) => ({
+      key: `${a.employeeName}-${a.acquisitionStart}-${i}`, title: a.employeeName,
+      subtitle: `Aquisitivo ${formatPeriod(a.acquisitionStart, a.acquisitionEnd)} · saldo ${plural(a.remainingDays, "dia", "dias")}`,
+      status: { tone: a.overdue ? "danger" : "attention", label: a.overdue ? "Vencido" : "Vence" },
+      meta: formatDate(a.expiresAt),
+    })),
+    empty: "Nenhum período com concessivo vencido ou vencendo.",
+  });
+  const openConflicts = () => setDetail({
+    eyebrow: "RH · AUSÊNCIAS", title: "Conflitos de equipe", subtitle: "Movimentações que coincidem com outras ausências da mesma equipe",
+    rows: records.filter(r => r.conflict && ["Pendente","Em análise","Aprovada"].includes(r.status)).map(r => ({
+      key: String(r.id), title: r.employee, subtitle: `${r.type} · ${formatPeriod(r.start, r.end)} · ${r.department}`, status: { tone: "attention", label: r.status },
+    })),
+    empty: "Nenhum conflito de planejamento.",
+  });
 
   const decide = async (decision: "Aprovada" | "Reprovada") => {
     if (!selected) return;
@@ -682,11 +756,11 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
       notify(persisted
         ? `${target.employee}: solicitação ${decision.toLowerCase()} e registrada no banco.`
         : `${target.employee}: solicitação ${decision.toLowerCase()} nos dados demonstrativos.`);
-    } catch {
+    } catch (error) {
       // Reverte a decisão otimista quando o servidor recusa (sem permissão) ou falha.
       setRecords(current => current.map(record => record.id === target.id ? target : record));
       setSelected(target);
-      notify(`${target.employee}: não foi possível registrar a decisão. Verifique suas permissões.`);
+      notify(mutationFailure(error, `${target.employee}`, "decidir esta solicitação"));
     }
   };
 
@@ -726,7 +800,8 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
 
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · AUSÊNCIAS</p><h1>Férias e ausências</h1><p>Solicitações, saldos, aprovações e conflitos de equipe em uma única visão.</p></div>{canCreate && <Button onClick={() => setCreating(true)}><HrIcon name="plus"/> Nova solicitação</Button>}</div>
-    <KpiGrid><HrStat value={String(rh.summary.scheduledVacationDays)} label="Férias programadas" meta="Dias no período" icon="calendar" tone="blue"/><HrStat value={String(pending)} label="Em aprovação" meta="Aguardando decisão" icon="clock" tone="orange"/><HrStat value={String(rh.summary.vacationsOverdue + rh.summary.vacationsDueSoon)} label="Férias a vencer" meta={rh.summary.vacationsOverdue ? `${rh.summary.vacationsOverdue} com concessivo vencido` : "Concessivo em até 60 dias"} icon="alert" tone={rh.summary.vacationsOverdue ? "orange" : "purple"}/><HrStat value={String(conflicts)} label="Conflitos de equipe" meta={conflicts ? "Exigem avaliação" : "Planejamento saudável"} icon={conflicts ? "alert" : "check"} tone={conflicts ? "orange" : "green"}/></KpiGrid>
+    {detail && <KpiDetailModal detail={detail} onClose={() => setDetail(null)}/>}
+    <KpiGrid><HrStat value={String(rh.summary.scheduledVacationDays)} label="Férias programadas" meta="Dias no período" icon="calendar" tone="blue" onOpen={openScheduled}/><HrStat value={String(pending)} label="Em aprovação" meta="Aguardando decisão" icon="clock" tone="orange" onOpen={openPending}/><HrStat value={String(rh.summary.vacationsOverdue + rh.summary.vacationsDueSoon)} label="Férias a vencer" meta={rh.summary.vacationsOverdue ? `${rh.summary.vacationsOverdue} com concessivo vencido` : "Concessivo em até 60 dias"} icon="alert" tone={rh.summary.vacationsOverdue ? "orange" : "purple"} onOpen={openExpiring}/><HrStat value={String(conflicts)} label="Conflitos de equipe" meta={conflicts ? "Exigem avaliação" : "Planejamento saudável"} icon={conflicts ? "alert" : "check"} tone={conflicts ? "orange" : "green"} onOpen={openConflicts}/></KpiGrid>
     <div className="absence-tabs" role="tablist">{(["Solicitações","Calendário","Políticas"] as const).map(item => <button role="tab" aria-selected={tab === item} className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}{item === "Solicitações" && <i>{pending}</i>}</button>)}</div>
     {tab === "Solicitações" && <Card className="absence-card"><div className="absence-toolbar"><div><p className="eyebrow">FLUXO DE APROVAÇÃO</p><h2>Solicitações recentes</h2></div><label><span>Status</span><select value={status} onChange={event => setStatus(event.target.value)} aria-label="Filtrar solicitações por status"><option>Todos os status</option><option>Pendente</option><option>Em análise</option><option>Aprovada</option><option>Registrado</option><option>Reprovada</option></select></label></div><div className="absence-table"><div className="absence-table-head"><span>Colaborador</span><span>Tipo e período</span><span>Duração</span><span>Situação</span><span/></div>{filtered.map(record => <button onClick={() => setSelected(record)} key={record.id}><span className="absence-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department} · {record.unit}</small></span></span><span><b>{record.type}</b><small>{formatPeriod(record.start,record.end)}</small></span><span><b>{durationLabel(record)}</b>{record.conflict ? <small className="conflict-label">⚠ Conflito identificado</small> : <small>Sem conflito</small>}</span><Status tone={absenceTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!filtered.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhuma solicitação encontrada</b><small>Altere o filtro de situação.</small></div>}</div></Card>}
     {tab === "Calendário" && <AbsenceCalendar records={records} onSelect={setSelected}/>} 
@@ -831,6 +906,17 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
   const canApprove = canUseFeature(access,"rh.beneficios","aprovar");
   const pending = requests.filter(request=>request.status==="Pendente"||request.status==="Em análise").length;
   const totalCost = plans.reduce((sum,plan)=>sum+plan.monthlyCost,0);
+  const [detail,setDetail]=useState<KpiDetail|null>(null);
+  const openPlans=()=>setDetail({eyebrow:"RH · BENEFÍCIOS",title:"Benefícios ativos",subtitle:"Catálogo corporativo",
+    rows:plans.map(p=>({key:String(p.id),title:p.name,subtitle:`${p.category} · ${p.provider}`,meta:`${p.members}/${p.eligible}`,status:{tone:p.status==="Ativo"?"success":"attention",label:p.status}})),
+    note:plans.length?"À direita: participantes / elegíveis.":undefined,empty:"Nenhum benefício cadastrado."});
+  const openEligible=()=>setDetail({eyebrow:"RH · BENEFÍCIOS",title:"Elegíveis",subtitle:"Colaboradores ativos, base de elegibilidade dos planos",
+    rows:rh.employees.map(e=>({key:e.id,title:e.name,subtitle:[e.department,e.unit].filter(Boolean).join(" · ")||undefined})),empty:"Nenhum colaborador ativo."});
+  const openRequests=()=>setDetail({eyebrow:"RH · BENEFÍCIOS",title:"Em aprovação",subtitle:"Solicitações de benefício aguardando decisão",
+    rows:requests.filter(r=>r.status==="Pendente"||r.status==="Em análise").map(r=>({key:String(r.id),title:r.employee,subtitle:`${r.action} · ${r.plan}`,status:{tone:"attention",label:r.status},meta:formatDate(r.effectiveDate)})),
+    empty:"Nenhuma solicitação aguardando decisão."});
+  const openCost=()=>setDetail({eyebrow:"RH · BENEFÍCIOS",title:"Custo estimado",subtitle:`${formatCurrency(totalCost)} por mês, somando os planos`,
+    rows:[...plans].sort((a,b)=>b.monthlyCost-a.monthlyCost).map(p=>({key:String(p.id),title:p.name,subtitle:`${p.members} participantes · ${p.provider}`,meta:formatCurrency(p.monthlyCost)})),empty:"Nenhum custo cadastrado."});
   const filteredRequests = requestStatus === "Todos os status" ? requests : requests.filter(request=>request.status===requestStatus);
   const decide = async (status:"Aprovada"|"Reprovada") => {
     if(!selectedRequest)return;
@@ -841,9 +927,9 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
     try{
       const persisted=target.sourceId?await sendRhMutation({entity:"benefit_request",id:target.sourceId,decision:status==="Aprovada"?"approved":"rejected"}):false;
       notify(persisted?`${target.employee}: solicitação de benefício ${status.toLowerCase()} no banco.`:`${target.employee}: solicitação de benefício ${status.toLowerCase()} (demonstrativo).`);
-    }catch{
+    }catch(error){
       setRequests(current=>current.map(request=>request.id===target.id?target:request));setSelectedRequest(target);
-      notify(`${target.employee}: não foi possível registrar a decisão. Verifique suas permissões.`);
+      notify(mutationFailure(error, `${target.employee}`, "decidir esta solicitação"));
     }
   };
   const planIdByName = (name:string) => rh.source==="supabase" ? rh.benefitPlans.find(plan=>plan.name===name)?.id : undefined;
@@ -869,7 +955,7 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
   };
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · BENEFÍCIOS</p><h1>Benefícios</h1><p>Planos, elegibilidade, adesões, custos estimados e solicitações em uma única visão.</p></div>{canManage&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Nova movimentação</Button>}</div>
-    <KpiGrid><HrStat value={String(plans.length)} label="Benefícios ativos" meta="Catálogo corporativo" icon="heart" tone="blue"/><HrStat value={String(rh.source === "supabase" ? rh.summary.activeEmployees : summary.activeEmployees)} label="Elegíveis" meta="Colaboradores ativos" icon="users" tone="green"/><HrStat value={String(pending)} label="Em aprovação" meta="Solicitações pendentes" icon="clock" tone="orange"/><HrStat value={totalCost >= 1000 ? `R$ ${Math.round(totalCost/1000)} mil` : `R$ ${totalCost}`} label="Custo estimado" meta="Competência mensal" icon="chart" tone="purple"/></KpiGrid>
+    <KpiGrid><HrStat value={String(plans.length)} label="Benefícios ativos" meta="Catálogo corporativo" icon="heart" tone="blue" onOpen={openPlans}/><HrStat value={String(rh.source === "supabase" ? rh.summary.activeEmployees : summary.activeEmployees)} label="Elegíveis" meta="Colaboradores ativos" icon="users" tone="green" onOpen={openEligible}/><HrStat value={String(pending)} label="Em aprovação" meta="Solicitações pendentes" icon="clock" tone="orange" onOpen={openRequests}/><HrStat value={totalCost >= 1000 ? `R$ ${Math.round(totalCost/1000)} mil` : `R$ ${totalCost}`} label="Custo estimado" meta="Competência mensal" icon="chart" tone="purple" onOpen={openCost}/></KpiGrid>{detail&&<KpiDetailModal detail={detail} onClose={()=>setDetail(null)}/>}
     <div className="benefit-tabs" role="tablist">{(["Visão geral","Participantes","Solicitações","Políticas"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Solicitações"&&<i>{pending}</i>}</button>)}</div>
     {tab==="Visão geral"&&<div className="benefit-plan-grid">{plans.map(plan=><Card key={plan.id}><span className={`benefit-plan-icon category-${plan.id}`}><HrIcon name={plan.icon}/></span><Status tone={plan.status==="Ativo"?"success":"attention"}>{plan.status}</Status><p className="eyebrow">{plan.category.toUpperCase()}</p><h2>{plan.name}</h2><div className="benefit-coverage"><span><b>{plan.members}</b><small>participantes</small></span><span><b>{Math.round(plan.members/plan.eligible*100)}%</b><small>dos elegíveis</small></span></div><div className="benefit-progress"><i><em style={{width:`${plan.members/plan.eligible*100}%`}}/></i><small>{plan.eligible-plan.members} elegíveis ainda não aderiram</small></div><footer><span><small>Custo mensal estimado</small><b>{formatCurrency(plan.monthlyCost)}</b></span><button onClick={()=>setSelectedPlan(plan)}>Ver gestão <HrIcon name="arrow"/></button></footer></Card>)}</div>}
     {tab==="Participantes"&&<BenefitParticipants plans={plans} notify={notify}/>} 
@@ -924,6 +1010,12 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
   // Ficha de EPI: vem de rota própria, fora do snapshot do RH.
   const ppe=usePpeData(rh.source==="supabase");
   const ppeUnsigned=ppe.status==="ready"?ppe.deliveries.filter(delivery=>!delivery.signedOn).length:0;
+  const [detail,setDetail]=useState<KpiDetail|null>(null);
+  const sstRows=(list:SstRecord[])=>list.map(r=>({key:String(r.id),title:r.employee,subtitle:`${r.category} · ${r.title}`,status:{tone:sstTone(r.status),label:r.status},meta:r.dueDate?formatDate(r.dueDate):"—"}));
+  const openExams=()=>setDetail({eyebrow:"RH · SST",title:"Exames a vencer",subtitle:"Exames vencidos ou dentro da janela de vencimento",rows:sstRows(records.filter(r=>r.category==="Exame"&&(r.status==="A vencer"||r.status==="Vencido"))),empty:"Nenhum exame vencido ou a vencer."});
+  const openTrainings=()=>setDetail({eyebrow:"RH · SST",title:"Treinamentos",subtitle:"Treinamentos registrados no período",rows:sstRows(records.filter(r=>r.category==="Treinamento")),empty:"Nenhum treinamento registrado."});
+  const openCritical=()=>setDetail({eyebrow:"RH · SST",title:"Pendências críticas",subtitle:"Registros de risco crítico que exigem tratamento",rows:sstRows(records.filter(r=>r.risk==="Crítico")),empty:"Nenhuma pendência crítica."});
+  const openCompliance=()=>setDetail({eyebrow:"RH · SST",title:"Conformidade",subtitle:records.length?`${records.filter(r=>r.status==="Conforme").length} de ${records.length} registros conformes · abaixo, os que ainda não estão`:"Sem registros",rows:sstRows(records.filter(r=>r.status!=="Conforme")),empty:"Todos os registros estão conformes."});
   const alerts=records.filter(record=>["Vencido","A vencer","Em análise"].includes(record.status)).length;
   const filtered=status==="Todos os status"?records:records.filter(record=>record.status===status);
   const categoryMap:Record<Exclude<typeof tab,"Prioridades">,SstRecord["category"]>={"Exames":"Exame","Treinamentos":"Treinamento","EPIs":"EPI","Ocorrências":"Ocorrência"};
@@ -936,9 +1028,9 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
     try{
       const persisted=target.sourceId?await sendRhMutation({entity:"sst",id:target.sourceId,action:"mark_compliant"}):false;
       notify(persisted?`${target.employee}: registro de SST conforme, gravado no banco.`:`${target.employee}: registro de SST marcado como conforme (demonstrativo).`);
-    }catch{
+    }catch(error){
       setRecords(current=>current.map(record=>record.id===target.id?target:record));setSelected(target);
-      notify(`${target.employee}: não foi possível tratar o registro. Verifique suas permissões.`);
+      notify(mutationFailure(error, `${target.employee}`, "concluir este registro"));
     }
   };
   const sstCategoryEnum:Record<SstRecord["category"],RhSstRecord["category"]>={"Exame":"exam","Treinamento":"training","EPI":"ppe","Ocorrência":"incident"};
@@ -964,10 +1056,10 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
       }});
       if(!gravou)throw new Error("RH_MUTATION_DENIED");
       notify(`${antes.employee}: registro de SST atualizado no banco.`);
-    }catch{
+    }catch(error){
       setRecords(current=>current.map(record=>record.id===antes.id?antes:record));
       if(selected?.id===antes.id)setSelected(antes);
-      notify(`${antes.employee}: não foi possível salvar a alteração. Verifique suas permissões.`);
+      notify(mutationFailure(error, `${antes.employee}`, "salvar esta alteração"));
     }
   };
   const createRecord=async(record:SstRecord,employeeId?:string)=>{
@@ -990,7 +1082,7 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
   };
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · SST</p><h1>Saúde e segurança</h1><p>Exames, treinamentos, EPIs, ocorrências e obrigações organizados por risco e vencimento.</p></div>{canManage&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Novo registro</Button>}</div>
-    {tab!=="EPIs"&&<KpiGrid><HrStat value={String(records.filter(r => r.category === "Exame" && (r.status === "A vencer" || r.status === "Vencido")).length)} label="Exames a vencer" meta="Vencidos ou na janela" icon="heart" tone="orange"/><HrStat value={String(records.filter(r => r.category === "Treinamento").length)} label="Treinamentos" meta="No período" icon="shield" tone="blue"/><HrStat value={String(records.filter(r => r.risk === "Crítico").length)} label="Pendências críticas" meta="Exigem tratamento" icon="alert" tone="red"/><HrStat value={records.length ? `${Math.round((records.filter(r => r.status === "Conforme").length / records.length) * 100)}%` : "—"} label="Conformidade" meta="Registros conformes" icon="check" tone="green"/></KpiGrid>}
+    {tab!=="EPIs"&&<KpiGrid><HrStat value={String(records.filter(r => r.category === "Exame" && (r.status === "A vencer" || r.status === "Vencido")).length)} label="Exames a vencer" meta="Vencidos ou na janela" icon="heart" tone="orange" onOpen={openExams}/><HrStat value={String(records.filter(r => r.category === "Treinamento").length)} label="Treinamentos" meta="No período" icon="shield" tone="blue" onOpen={openTrainings}/><HrStat value={String(records.filter(r => r.risk === "Crítico").length)} label="Pendências críticas" meta="Exigem tratamento" icon="alert" tone="red" onOpen={openCritical}/><HrStat value={records.length ? `${Math.round((records.filter(r => r.status === "Conforme").length / records.length) * 100)}%` : "—"} label="Conformidade" meta="Registros conformes" icon="check" tone="green" onOpen={openCompliance}/></KpiGrid>}{detail&&<KpiDetailModal detail={detail} onClose={()=>setDetail(null)}/>}
     <div className="sst-tabs" role="tablist">{(["Prioridades","Exames","Treinamentos","EPIs","Ocorrências"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Prioridades"&&<i>{alerts+ppeUnsigned}</i>}</button>)}</div>
     {tab==="Prioridades"&&<div className="sst-overview"><SstRecordTable title="Prioridades de SST" eyebrow="VENCIMENTOS E PENDÊNCIAS" records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/><Card className="sst-health-card"><p className="eyebrow">CONFORMIDADE</p><h2>Saúde dos registros</h2><div className="sst-score"><strong>96%</strong><span><i style={{width:"96%"}}/></span></div><ul><li><i>✓</i><span><b>ASOs vinculados</b><small>236 de 246 colaboradores ativos</small></span></li><li><i>✓</i><span><b>Treinamentos controlados</b><small>Validades e certificados mapeados</small></span></li><li className="warning"><i>!</i><span><b>{alerts} pendências abertas</b><small>Tratamento por risco e vencimento</small></span></li>{ppeUnsigned>0&&<li className="warning"><i>!</i><span><b>{ppeUnsigned} {ppeUnsigned===1?"entrega de EPI sem assinatura":"entregas de EPI sem assinatura"}</b><small>Recebimento a comprovar (NR-6) · aba EPIs</small></span></li>}</ul><div className="sst-risk-legend"><span><i className="critical"/> Crítico</span><span><i className="attention"/> Atenção</span><span><i className="regular"/> Regular</span></div></Card></div>}
     {tab==="EPIs"&&<PpeSection state={rh.source==="supabase"?ppe:{status:"ready",deliveries:[]}}/>}
@@ -1033,13 +1125,40 @@ function SstEditForm({record,onClose,onSave}:{record:SstRecord;onClose:()=>void;
     <div className="sst-form-fields">
       <label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as SstRecord["category"])}><option>Exame</option><option>Treinamento</option><option>EPI</option><option>Ocorrência</option></select></label>
       <label><span>Risco *</span><select value={risk} onChange={event=>setRisk(event.target.value as SstRecord["risk"])}><option>Crítico</option><option>Atenção</option><option>Regular</option></select></label>
-      <label className="field-wide"><span>Obrigação ou registro *</span><input value={title} onChange={event=>setTitle(event.target.value)}/></label>
+      <ObligationField category={category} value={title} onChange={setTitle}/>
       <label className="field-wide"><span>Vencimento ou prazo</span><input type="date" value={dueDate} onChange={event=>setDueDate(event.target.value)}/></label>
       <label className="field-wide"><span>Observação operacional</span><textarea value={note} onChange={event=>setNote(event.target.value)} placeholder="Somente o necessário ao acompanhamento..."/></label>
       <div className="sst-form-note field-wide"><HrIcon name="lock"/><span><b>Não inclua diagnóstico ou resultado clínico</b><small>Esta tela é de controle da obrigação, não do conteúdo médico.</small></span></div>
     </div>
     <footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid||busy}>{busy?"Salvando…":"Salvar alterações"} <HrIcon name="check"/></Button></footer>
   </form></div>;
+}
+
+/** Tipos de ASO previstos na NR-7 (PCMSO). */
+const ASO_OPTIONS = ["ASO admissional", "ASO periódico", "ASO de retorno ao trabalho", "ASO de mudança de riscos ocupacionais", "ASO demissional"];
+const OTHER_OBLIGATION = "__outro";
+
+/** "Obrigação ou registro": para exame, lista os ASOs da NR-7 com a opção
+ *  "Outro exame"; nas demais categorias, texto livre. */
+function ObligationField({ category, value, onChange }: { category: SstRecord["category"]; value: string; onChange: (value: string) => void }) {
+  const [forcedOther, setForcedOther] = useState(false);
+  if (category !== "Exame") {
+    return <label className="field-wide"><span>Obrigação ou registro *</span><input value={value} onChange={event => onChange(event.target.value)}/></label>;
+  }
+  const isPreset = ASO_OPTIONS.includes(value) && !forcedOther;
+  return <>
+    <label className="field-wide"><span>Obrigação ou registro *</span>
+      <select value={isPreset ? value : OTHER_OBLIGATION} onChange={event => {
+        const next = event.target.value;
+        if (next === OTHER_OBLIGATION) { setForcedOther(true); onChange(""); }
+        else { setForcedOther(false); onChange(next); }
+      }}>
+        {ASO_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+        <option value={OTHER_OBLIGATION}>Outro exame</option>
+      </select>
+    </label>
+    {!isPreset && <label className="field-wide"><span>Descreva o exame *</span><input value={value} onChange={event => onChange(event.target.value)} placeholder="Ex.: audiometria complementar"/></label>}
+  </>;
 }
 
 function SstForm({nextId,employees,onClose,onSave}:{nextId:number;employees:RhEmployeeOption[];onClose:()=>void;onSave:(record:SstRecord,employeeId?:string)=>void}){
@@ -1053,7 +1172,7 @@ function SstForm({nextId,employees,onClose,onSave}:{nextId:number;employees:RhEm
   const chosen=options.find(option=>option.id===employeeId)??options[0];
   const valid=Boolean(chosen&&title&&dueDate&&note);
   const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid||!chosen)return;onSave({id:nextId,employee:chosen.name,initials:initialsOf(chosen.name),department:chosen.department??"—",unit:chosen.unit??"—",category,title,dueDate,status:"Programado",risk:"Atenção",document:"Documento pendente",note,sensitive:category==="Exame"||category==="Ocorrência"},persists?chosen.id:undefined)};
-  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="sst-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · SST</p><h2>Novo registro</h2><p>Cadastre uma obrigação ocupacional sem expor conteúdo clínico.</p></div><button type="button" onClick={onClose} aria-label="Fechar novo registro de SST"><HrIcon name="close"/></button></header><div className="sst-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label><label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as SstRecord["category"])}><option>Exame</option><option>Treinamento</option><option>EPI</option><option>Ocorrência</option></select></label><label><span>Obrigação ou registro *</span><input value={title} onChange={event=>setTitle(event.target.value)}/></label><label className="field-wide"><span>Vencimento ou prazo *</span><input type="date" value={dueDate} onChange={event=>setDueDate(event.target.value)}/></label><label className="field-wide"><span>Observação operacional *</span><textarea value={note} onChange={event=>setNote(event.target.value)} placeholder="Descreva somente informações necessárias ao acompanhamento..."/></label><div className="sst-form-note field-wide"><HrIcon name="lock"/><span><b>Não inclua diagnóstico ou resultado clínico</b><small>{persists?"O registro será gravado no banco; anexos clínicos terão armazenamento e permissão próprios.":"Registro demonstrativo enquanto não há conexão."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Salvar registro <HrIcon name="check"/></Button></footer></form></div>}
+  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="sst-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · SST</p><h2>Novo registro</h2><p>Cadastre uma obrigação ocupacional sem expor conteúdo clínico.</p></div><button type="button" onClick={onClose} aria-label="Fechar novo registro de SST"><HrIcon name="close"/></button></header><div className="sst-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label><label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as SstRecord["category"])}><option>Exame</option><option>Treinamento</option><option>EPI</option><option>Ocorrência</option></select></label><ObligationField category={category} value={title} onChange={setTitle}/><label className="field-wide"><span>Vencimento ou prazo *</span><input type="date" value={dueDate} onChange={event=>setDueDate(event.target.value)}/></label><label className="field-wide"><span>Observação operacional *</span><textarea value={note} onChange={event=>setNote(event.target.value)} placeholder="Descreva somente informações necessárias ao acompanhamento..."/></label><div className="sst-form-note field-wide"><HrIcon name="lock"/><span><b>Não inclua diagnóstico ou resultado clínico</b><small>{persists?"O registro será gravado no banco; anexos clínicos terão armazenamento e permissão próprios.":"Registro demonstrativo enquanto não há conexão."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Salvar registro <HrIcon name="check"/></Button></footer></form></div>}
 
 function sstDueLabel(record:SstRecord){if(record.status==="Vencido")return"Prazo ultrapassado";if(record.status==="Conforme")return"Validade vigente";if(record.status==="Programado")return"Atividade agendada";return"Dentro da janela de atenção"}
 function sstTone(status:SstStatus):"success"|"attention"|"info"|"neutral"{return status==="Conforme"?"success":status==="Vencido"||status==="A vencer"?"attention":status==="Programado"?"info":"neutral"}
@@ -1070,6 +1189,9 @@ function DocumentsSection({ notify, access, rh }: { notify: (message: string) =>
   const canCreate=canUseFeature(access,"rh.documentos","operar");
   const canApprove=canUseFeature(access,"rh.documentos","aprovar");
   const visible=records.filter(record=>!record.sensitive||canApprove);
+  const [detail,setDetail]=useState<KpiDetail|null>(null);
+  const docRows=(list:HrDocumentRecord[])=>list.map(d=>({key:String(d.id),title:d.title,subtitle:`${d.employee} · ${d.category}`,status:{tone:d.status==="Válido"?"success" as const:"attention" as const,label:d.status},meta:d.validUntil?formatDate(d.validUntil):undefined}));
+  const openDocs=(title:string,subtitle:string,list:HrDocumentRecord[],empty:string)=>setDetail({eyebrow:"RH · DOCUMENTOS",title,subtitle,rows:docRows(list),empty});
   const filtered=visible.filter(record=>`${record.employee} ${record.title} ${record.fileName}`.toLowerCase().includes(query.toLowerCase())&&(status==="Todos os status"||record.status===status)&&(category==="Todas as categorias"||record.category===category)&&(tab!=="Assinaturas"||record.signature==="Assinatura pendente"));
   const categories=Array.from(new Set(records.map(record=>record.category))).map(name=>({name,count:records.filter(record=>record.category===name).length,pending:records.filter(record=>record.category===name&&record.status!=="Válido").length}));
   const updateStatus=(record:HrDocumentRecord,next:HrDocumentStatus)=>{setRecords(current=>current.map(item=>item.id===record.id?{...item,status:next,signature:next==="Válido"&&item.signature==="Assinatura pendente"?"Assinado":item.signature,updatedAt:"Agora · demonstração local"}:item));setSelected(null);notify(`${record.title}: situação alterada para ${next}.`)};
@@ -1095,7 +1217,7 @@ function DocumentsSection({ notify, access, rh }: { notify: (message: string) =>
   };
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · DOCUMENTOS</p><h1>Central de documentos</h1><p>Controle de arquivos funcionais, versões, validades e assinaturas conforme o escopo autorizado.</p></div>{canCreate&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Adicionar documento</Button>}</div>
-    <div className="hr-stats doc-stats"><HrStat value={String(visible.length)} label="Documentos visíveis" meta="Conforme seu escopo" icon="file" tone="blue"/><HrStat value={String(visible.filter(item=>item.status==="Pendente").length)} label="Pendentes" meta="Aguardam conferência" icon="alert" tone="orange"/><HrStat value={String(visible.filter(item=>item.status==="A vencer"||item.status==="Expirado").length)} label="Validades" meta="Exigem atenção" icon="calendar" tone="purple"/><HrStat value={String(visible.filter(item=>item.signature==="Assinatura pendente").length)} label="Assinaturas" meta="Aguardando aceite" icon="edit" tone="green"/></div>
+    <div className="hr-stats doc-stats"><HrStat value={String(visible.length)} label="Documentos visíveis" meta="Conforme seu escopo" icon="file" tone="blue" onOpen={()=>openDocs("Documentos visíveis","Conforme o seu escopo de acesso",visible,"Nenhum documento visível.")}/><HrStat value={String(visible.filter(item=>item.status==="Pendente").length)} label="Pendentes" meta="Aguardam conferência" icon="alert" tone="orange" onOpen={()=>openDocs("Pendentes","Documentos aguardando conferência",visible.filter(item=>item.status==="Pendente"),"Nenhum documento pendente.")}/><HrStat value={String(visible.filter(item=>item.status==="A vencer"||item.status==="Expirado").length)} label="Validades" meta="Exigem atenção" icon="calendar" tone="purple" onOpen={()=>openDocs("Validades","Documentos a vencer ou expirados",visible.filter(item=>item.status==="A vencer"||item.status==="Expirado"),"Nenhum documento a vencer.")}/><HrStat value={String(visible.filter(item=>item.signature==="Assinatura pendente").length)} label="Assinaturas" meta="Aguardando aceite" icon="edit" tone="green" onOpen={()=>openDocs("Assinaturas pendentes","Documentos aguardando aceite do colaborador",visible.filter(item=>item.signature==="Assinatura pendente"),"Nenhuma assinatura pendente.")}/></div>{detail&&<KpiDetailModal detail={detail} onClose={()=>setDetail(null)}/>}
     <div className="doc-tabs" role="tablist">{(["Documentos","Assinaturas","Categorias"] as const).map(item=><button key={item} role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item}{item==="Assinaturas"&&<i>{visible.filter(record=>record.signature==="Assinatura pendente").length}</i>}</button>)}</div>
     {tab!=="Categorias"&&<Card className="doc-card"><div className="doc-toolbar"><label className="doc-search"><HrIcon name="search"/><input aria-label="Buscar documentos" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar colaborador ou documento..."/></label><select aria-label="Filtrar categoria" value={category} onChange={event=>setCategory(event.target.value)}><option>Todas as categorias</option>{categories.map(item=><option key={item.name}>{item.name}</option>)}</select><select aria-label="Filtrar status" value={status} onChange={event=>setStatus(event.target.value)}><option>Todos os status</option><option>Válido</option><option>Pendente</option><option>A vencer</option><option>Expirado</option><option>Reprovado</option></select></div><div className="doc-table"><div className="doc-table-head"><span>Colaborador</span><span>Documento</span><span>Validade</span><span>Assinatura</span><span>Situação</span><span/></div>{filtered.map(record=><button key={record.id} onClick={()=>setSelected(record)}><span className="doc-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department}</small></span></span><span><b>{record.title}</b><small>{record.category} · v{record.version}</small></span><span><b>{record.validUntil?formatDate(record.validUntil):"Sem validade"}</b><small>{record.updatedAt}</small></span><span><b>{record.signature}</b><small>{record.fileName}</small></span><Status tone={documentTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!filtered.length&&<div className="hr-empty"><HrIcon name="search"/><b>Nenhum documento encontrado</b><small>Ajuste os filtros para ampliar a consulta.</small></div>}</div></Card>}
     {tab==="Categorias"&&<div className="doc-category-grid">{categories.map(item=><Card key={item.name}><span><HrIcon name="folder"/></span><div><h2>{item.name}</h2><p>{item.count} documentos demonstrativos</p><small>{item.pending?`${item.pending} exigem atenção`:"Categoria regular"}</small></div><Status tone={item.pending?"attention":"success"}>{item.pending?"Atenção":"Regular"}</Status></Card>)}</div>}
@@ -1169,13 +1291,25 @@ function HrEmpty({ icon = "search", title, description }: { icon?: string; title
 
 /** Indicador do RH. Delega ao KPI do Design System — sem ícone e sem barra
  *  colorida: o número é o protagonista do cartão. */
-function HrStat({ value, label, meta, tone }: { value: string; label: string; meta: string; icon?: string; tone: string }) {
+function HrStat({ value, label, meta, tone, onOpen }: { value: string; label: string; meta: string; icon?: string; tone: string; onOpen?: () => void }) {
   const map: Record<string, "blue" | "green" | "amber" | "red" | "purple" | "teal"> = {
     blue: "blue", green: "green", orange: "amber", amber: "amber",
     red: "red", purple: "purple", teal: "teal",
   };
-  return <Kpi label={label} caption={meta} value={value} tone={map[tone] ?? "blue"}/>;
+  return <Kpi label={label} caption={meta} value={value} tone={map[tone] ?? "blue"} onOpen={onOpen}/>;
 }
+
+/** O que um quadro de visão geral conta, para o popup de detalhe. */
+export type KpiDetail = { eyebrow: string; title: string; subtitle?: string; note?: string; rows: DetailRow[]; empty: string };
+
+export function KpiDetailModal({ detail, onClose }: { detail: KpiDetail; onClose: () => void }) {
+  return <Modal eyebrow={detail.eyebrow} title={detail.title} subtitle={detail.subtitle} onClose={onClose}>
+    {detail.note && <p className="ds-detail-note">{detail.note}</p>}
+    <DetailRows rows={detail.rows} empty={detail.empty}/>
+  </Modal>;
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 function HrIcon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, React.ReactNode> = {

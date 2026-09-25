@@ -98,12 +98,15 @@ export function Kpi({
   value,
   unit,
   tone = "neutral",
+  onOpen,
 }: {
   label: ReactNode;
   caption?: ReactNode;
   value: ReactNode;
   unit?: ReactNode;
   tone?: Tone;
+  /** Quando existe, o cartão vira botão e abre o detalhe do que o número conta. */
+  onOpen?: () => void;
 }) {
   // O número fica ao lado do rótulo enquanto couber. Valores longos (moeda por
   // extenso, por exemplo) passam a ocupar a própria linha e diminuem — sem
@@ -112,8 +115,8 @@ export function Kpi({
   const length = String(value).length;
   const layout = length > 8 ? "stacked" : length > 5 ? "tight" : "";
 
-  return (
-    <article className={`ds-kpi ${tone} ${layout}`}>
+  const content = (
+    <>
       <div className="ds-kpi-text">
         <span className="ds-kpi-label">{label}</span>
         {caption ? <span className="ds-kpi-caption">{caption}</span> : null}
@@ -122,8 +125,17 @@ export function Kpi({
         <strong>{value}</strong>
         {unit ? <span>{unit}</span> : null}
       </div>
-    </article>
+    </>
   );
+  if (onOpen) {
+    return (
+      <button type="button" className={`ds-kpi ${tone} ${layout} is-clickable`} onClick={onOpen} aria-haspopup="dialog">
+        {content}
+        <svg className="ds-kpi-more" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m9 18 6-6-6-6" /></svg>
+      </button>
+    );
+  }
+  return <article className={`ds-kpi ${tone} ${layout}`}>{content}</article>;
 }
 
 /* --- Callout --------------------------------------------------------------- */

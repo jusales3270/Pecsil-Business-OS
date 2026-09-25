@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Card, Kpi, KpiGrid, Status } from "../../packages/design-system";
+import { Card, DetailRows, Kpi, KpiGrid, Modal, Status, type DetailRow } from "../../packages/design-system";
 
 /**
  * Ficha de EPI (NR-6): o que foi entregue a cada colaborador, com CA,
@@ -80,6 +80,7 @@ export function PpeSection({ state }: { state: PpeState }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"Todos" | "Sem assinatura">("Todos");
   const [selected, setSelected] = useState<EmployeePpe | null>(null);
+  const [detail, setDetail] = useState<{ title: string; subtitle: string; rows: DetailRow[]; empty: string } | null>(null);
 
   const deliveries = useMemo(() => (state.status === "ready" ? state.deliveries : []), [state]);
   const people = useMemo(() => groupByEmployee(deliveries), [deliveries]);
@@ -87,6 +88,43 @@ export function PpeSection({ state }: { state: PpeState }) {
   const recent = deliveries.filter((d) => d.deliveredOn >= since).length;
   const unsigned = deliveries.filter((d) => !d.signedOn).length;
   const itemsWithoutCa = new Set(deliveries.filter((d) => !d.caNumber).map((d) => d.itemId)).size;
+
+  const deliveryRow = (d: PpeDelivery): DetailRow => ({
+    key: d.id,
+    title: d.employeeName,
+    subtitle: `${d.itemName}${d.caNumber && !d.itemName.includes(d.caNumber) ? ` · CA ${d.caNumber}` : ""} · ${d.quantity} ${d.quantity === 1 ? "unidade" : "unidades"}`,
+    meta: formatDate(d.deliveredOn),
+  });
+  const openRecent = () => setDetail({
+    title: "Entregas em 30 dias", subtitle: `Desde ${formatDate(since)}, da mais recente para a mais antiga`,
+    rows: deliveries.filter((d) => d.deliveredOn >= since).map(deliveryRow), empty: "Nenhuma entrega nos últimos 30 dias.",
+  });
+  const openUnsigned = () => setDetail({
+    title: "Entregas sem assinatura", subtitle: "Recebimento ainda não comprovado pelo colaborador (NR-6)",
+    rows: deliveries.filter((d) => !d.signedOn).map(deliveryRow), empty: "Todas as entregas estão assinadas.",
+  });
+  const openPeople = () => setDetail({
+    title: "Colaboradores com ficha", subtitle: "Quem tem ao menos uma entrega registrada",
+    rows: [...people].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")).map((p) => ({
+      key: p.employeeId, title: p.name, subtitle: `${p.department ?? "—"} · última entrega ${formatDate(p.last.deliveredOn)}`,
+      meta: `${p.deliveries.length}`,
+      status: p.unsigned ? { tone: "attention", label: `${p.unsigned} sem assinatura` } : undefined,
+    })),
+    empty: "Nenhum colaborador com entrega registrada.",
+  });
+  const openWithoutCa = () => {
+    const byItem = new Map<string, PpeDelivery[]>();
+    for (const d of deliveries.filter((d) => !d.caNumber)) byItem.set(d.itemId, [...(byItem.get(d.itemId) ?? []), d]);
+    setDetail({
+      title: "Itens sem CA", subtitle: "EPI entregue sem número de Certificado de Aprovação informado",
+      rows: [...byItem.values()].map((list) => ({
+        key: list[0].itemId, title: list[0].itemName,
+        subtitle: `Entregue a ${[...new Set(list.map((d) => d.employeeName))].join(", ")}`,
+        meta: `${list.length} ${list.length === 1 ? "entrega" : "entregas"}`,
+      })),
+      empty: "Todos os itens entregues têm CA.",
+    });
+  };
 
   const needle = query.trim().toLocaleLowerCase("pt-BR");
   const visible = people
@@ -102,11 +140,12 @@ export function PpeSection({ state }: { state: PpeState }) {
 
   return <>
     <KpiGrid>
-      <Kpi label="Entregas em 30 dias" value={String(recent)} caption={`${deliveries.length} no histórico`} tone="blue"/>
-      <Kpi label="Sem assinatura" value={String(unsigned)} caption={unsigned ? "Recebimento a comprovar" : "Todas comprovadas"} tone={unsigned ? "amber" : "green"}/>
-      <Kpi label="Colaboradores com ficha" value={String(people.length)} caption="Com ao menos uma entrega" tone="teal"/>
-      <Kpi label="Itens sem CA" value={String(itemsWithoutCa)} caption={itemsWithoutCa ? "Sem certificado informado" : "Todos com CA"} tone={itemsWithoutCa ? "amber" : "green"}/>
+      <Kpi label="Entregas em 30 dias" value={String(recent)} caption={`${deliveries.length} no histórico`} tone="blue" onOpen={openRecent}/>
+      <Kpi label="Sem assinatura" value={String(unsigned)} caption={unsigned ? "Recebimento a comprovar" : "Todas comprovadas"} tone={unsigned ? "amber" : "green"} onOpen={openUnsigned}/>
+      <Kpi label="Colaboradores com ficha" value={String(people.length)} caption="Com ao menos uma entrega" tone="teal" onOpen={openPeople}/>
+      <Kpi label="Itens sem CA" value={String(itemsWithoutCa)} caption={itemsWithoutCa ? "Sem certificado informado" : "Todos com CA"} tone={itemsWithoutCa ? "amber" : "green"} onOpen={openWithoutCa}/>
     </KpiGrid>
+    {detail && <Modal eyebrow="SST · EPI" title={detail.title} subtitle={detail.subtitle} onClose={() => setDetail(null)}><DetailRows rows={detail.rows} empty={detail.empty}/></Modal>}
     <Card className="absence-card">
       <div className="absence-toolbar">
         <div><p className="eyebrow">NR-6 · FICHA DE EPI</p><h2>Entregas por colaborador</h2></div>

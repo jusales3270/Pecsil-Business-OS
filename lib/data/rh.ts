@@ -127,6 +127,27 @@ export type RhSummary = {
   benefitMonthlyCost: number;
 };
 
+/** Período aquisitivo com saldo e concessivo vencido ou vencendo em 60 dias. */
+export type RhVacationAlert = {
+  employeeName: string;
+  department: string | null;
+  acquisitionStart: string;
+  acquisitionEnd: string;
+  expiresAt: string;
+  remainingDays: number;
+  overdue: boolean;
+};
+
+/** Gozo de férias futuro, registrado ou aprovado. */
+export type RhUpcomingVacation = {
+  id: string;
+  employeeName: string;
+  department: string | null;
+  startDate: string;
+  endDate: string;
+  days: number;
+};
+
 export type RhSnapshot = {
   source: "demo" | "supabase";
   organizationId: string | null;
@@ -135,6 +156,10 @@ export type RhSnapshot = {
   benefitPlans: RhBenefitPlan[];
   benefitRequests: RhBenefitRequest[];
   sstRecords: RhSstRecord[];
+  /** SST vencido ou a vencer — a lista que o indicador conta. */
+  sstAlertList: RhSstRecord[];
+  vacationAlerts: RhVacationAlert[];
+  upcomingVacations: RhUpcomingVacation[];
   documents: RhDocument[];
   departmentShares: RhDepartmentShare[];
   employees: RhEmployeeOption[];
@@ -161,6 +186,9 @@ export const demoRhSnapshot: RhSnapshot = {
   benefitPlans: [],
   benefitRequests: [],
   sstRecords: [],
+  sstAlertList: [],
+  vacationAlerts: [],
+  upcomingVacations: [],
   documents: [],
   departmentShares: [],
   employees: [],
