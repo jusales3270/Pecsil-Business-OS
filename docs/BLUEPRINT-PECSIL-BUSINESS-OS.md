@@ -211,6 +211,11 @@ Objetivo: fonte única da verdade para a diretoria. Cruzamentos como
 **Regra de ouro:** um KPI tem uma definição só. Dois departamentos não apresentam
 números diferentes para o mesmo conceito.
 
+**Caminho definido (25/09/2026):** a primeira entrega da camada analítica é **custo
+real por OS e margem por cliente e artigo**, com a OS como fio comum entre os
+módulos. Decisões pendentes, etapas e critérios de aceite em
+[PLANO-CUSTO-MARGEM.md](PLANO-CUSTO-MARGEM.md).
+
 ---
 
 ### Fase 6 — SARA (antes "Jarvis Business")

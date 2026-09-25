@@ -241,17 +241,23 @@ fluxo · limites iniciais · aceite · depende de**.
 
 ### Etapa 8: Motivos de parada e defeito (Produção)
 
-- **Objetivo:** padronizar os motivos em texto livre para gerar Pareto e
-  indicadores confiáveis.
-- **Dados:** paradas e defeitos vêm do **Forja** (`lib/forja/client.ts`), não do
-  nosso banco. A classificação fica numa tabela nossa, `producao_motivo_classificacao`
-  (id do registro no Forja, categoria, confiança, confirmado_por), sem alterar o Forja.
-- **Decisão necessária antes de começar:** a **taxonomia** de motivos
-  (ex.: mecânica, elétrica, falta de material, setup, qualidade do molde, falta de
-  operador, outro), definida com a Produção. **Sem ela, a etapa não começa.**
-- **Pergunta:** `choice:motivo = "Qual a causa desta parada?"` entre as categorias
-  da taxonomia.
-- **Envia:** o texto do motivo e a máquina/setor. **Não envia:** nome do operador.
+- **Objetivo:** dar causa confiável às paradas para gerar Pareto e indicadores.
+- **Dados:** paradas vêm do **Forja** (`lib/forja/client.ts`), não do nosso banco.
+  **Correção (25/09/2026):** o Forja **já tem motivos catalogados**
+  (`motivos_parada`: código, nome, planejada ou não), e cada parada aponta para um
+  deles. O Jev **não** reclassifica o que já tem motivo; atua só em dois casos:
+  1. paradas registradas no motivo genérico ("outro") com texto em `observacoes`:
+     sugerir o motivo do catálogo;
+  2. agrupar os motivos do catálogo na taxonomia de causa-raiz, se ela for mais ampla
+     que o catálogo (ex.: vários motivos elétricos → "elétrica").
+
+  A sugestão fica numa tabela nossa, `producao_motivo_classificacao` (id da parada
+  no Forja, motivo sugerido, confiança, confirmado_por), sem alterar o Forja.
+- **Decisão necessária antes de começar:** se a taxonomia de causa-raiz é o próprio
+  catálogo do Forja ou uma camada acima dele, definida com a Produção.
+- **Pergunta:** `choice:motivo = "Qual o motivo desta parada?"` entre os motivos
+  ativos do catálogo do Forja.
+- **Envia:** o texto da observação e a máquina/setor. **Não envia:** nome do operador.
 - **Fluxo:** classificação em lote (histórico) com relatório → conferência pelo
   líder de produção → gráficos passam a usar a categoria confirmada; os novos
   registros entram na fila.
@@ -291,7 +297,7 @@ A ordem segue a prontidão dos dados e o risco:
 | 1 | Unificação de cadastros | dado real (69 fornecedores), risco baixo, limpa a base de tudo | sim, após a 0 |
 | 2 | Catálogo de EPI | dado real (34 itens), resolve os itens sem CA | sim, após a 0 |
 | 3 | Equivalência em cotações (etapa 7) | dado real (191 cotações), aproveita a unificação | sim, após a 1 |
-| 4 | Motivos de parada (etapa 8) | valor alto para a Produção | **não**: taxonomia + campo no Forja |
+| 4 | Motivos de parada (etapa 8) | valor alto para a Produção | **parcial**: o catálogo já existe no Forja; falta decidir a taxonomia de causa-raiz |
 | 5 | Classificação de gastos (etapa 3) | ganho grande no Financeiro | **não**: Financeiro em uso (hoje 1 título) |
 | 6 | Conciliação (etapa 4) | depende da classificação | **não**: extratos importados |
 | 7 | Pedidos por e-mail (etapa 5) | depende do CRM | **não**: Microsoft 365 |
@@ -331,3 +337,4 @@ ser feito.
 | Data | Etapa | Decisão | Quem |
 |---|---|---|---|
 | 25/09/2026 | todas | Plano criado; ordem e regras aprovadas para execução | Proprietário |
+| 25/09/2026 | 8 | Motivos de parada já são catalogados no Forja; a etapa passa a tratar só paradas no motivo genérico com observação e o agrupamento por causa-raiz | Claude, conferido no schema do Forja |
