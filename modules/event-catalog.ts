@@ -24,6 +24,7 @@ export const EVENT_MODULES: Record<string, string> = {
   portaria: "Portaria & Acesso",
   acesso: "Acessos",
   cadastros: "Cadastros",
+  producao: "Produção",
 };
 
 export const EVENT_CATALOG: readonly EventType[] = [
@@ -39,6 +40,9 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "compras.cotacao.reaberta", module: "compras", label: "Cotação reaberta", description: "A cotação voltou para aprovação." },
   { type: "compras.cotacao.comprada", module: "compras", label: "Cotação comprada", description: "A cotação virou compra." },
   { type: "compras.compra.registrada", module: "compras", label: "Compra registrada", description: "Compra efetivada com nota fiscal." },
+  { type: "producao.os.aberta", module: "producao", label: "OS aberta", description: "Uma OS do Forja passou a existir no Business OS." },
+  { type: "producao.os.status", module: "producao", label: "OS mudou de situação", description: "A OS mudou de status no Forja (em produção, finalizada, atrasada…)." },
+  { type: "producao.os.faturada", module: "producao", label: "OS faturada", description: "A OS recebeu número de nota fiscal." },
   { type: "rh.colaborador.admitido", module: "rh", label: "Colaborador cadastrado", description: "Novo colaborador no quadro." },
   { type: "rh.colaborador.desligado", module: "rh", label: "Colaborador desligado", description: "O colaborador deixou o quadro." },
   { type: "rh.colaborador.reativado", module: "rh", label: "Colaborador reativado", description: "O colaborador voltou ao quadro." },

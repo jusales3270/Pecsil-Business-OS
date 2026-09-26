@@ -41,6 +41,7 @@ const CASES = [
   { name: "só Funil (ver)", grants: { "comercial.funil": "ver" } },
   { name: "só Dados clínicos (ver)", grants: { "rh.clinico": "ver" } },
   { name: "só SST (ver)", grants: { "rh.sst": "ver" } },
+  { name: "só OS da Produção (ver)", grants: { "producao.os": "ver" } },
 ];
 
 const { data: org } = await admin.from("organizations").select("id").limit(1).single();
@@ -76,11 +77,14 @@ try {
     absences: await total(admin, "rh_absences"),
     clinical: await total(admin, "rh_absence_clinical"),
     ppe: await total(admin, "rh_ppe_deliveries"),
+    orders: await total(admin, "production_orders"),
+    orderValues: await total(admin, "production_order_financials"),
   };
   console.log("Referência (service role):", reference);
   // Sem dado clínico no banco, "não vê nada" passaria por vazio: verde falso.
   check("referência", "há dado clínico para testar o isolamento", reference.clinical > 0, reference.clinical);
   check("referência", "há entrega de EPI para testar o acesso", reference.ppe > 0, reference.ppe);
+  check("referência", "há OS espelhada, com valores, para testar o acesso", reference.orders > 0 && reference.orderValues > 0, `${reference.orders}/${reference.orderValues}`);
 
   for (const scenario of CASES) {
     const email = `matriz.${randomBytes(4).toString("hex")}@pecsil-teste.local`;
@@ -174,6 +178,21 @@ try {
       await client.from("rh_ppe_deliveries").update({ quantity: umaEntrega.quantity + 99 }).eq("id", umaEntrega.id);
       const { data: depoisEpi } = await admin.from("rh_ppe_deliveries").select("quantity").eq("id", umaEntrega.id).single();
       check(n, "não altera entrega de EPI com Ver", depoisEpi.quantity === umaEntrega.quantity, depoisEpi.quantity === umaEntrega.quantity ? "mantida" : "ALTERADA");
+    }
+
+    // Espelho das OS: a OS para Produção, Financeiro e Comercial; o preço só
+    // para Financeiro e Comercial; ninguém grava pela sessão.
+    const veOs = ["producao.os", "financeiro.receber", "comercial.cobranca", "comercial.funil"].some((f) => f in scenario.grants);
+    const veValores = ["financeiro.receber", "comercial.cobranca", "comercial.funil"].some((f) => f in scenario.grants);
+    const osVistas = await total(client, "production_orders");
+    check(n, veOs ? "vê as OS espelhadas" : "não vê OS espelhadas", osVistas === (veOs ? reference.orders : 0), osVistas);
+    const valoresVistos = await total(client, "production_order_financials");
+    check(n, veValores ? "vê os valores das OS" : "não vê os valores das OS", valoresVistos === (veValores ? reference.orderValues : 0), valoresVistos);
+    if (veOs) {
+      const { data: umaOs } = await admin.from("production_orders").select("id, status").limit(1).single();
+      await client.from("production_orders").update({ status: "ALTERADO_PELA_MATRIZ" }).eq("id", umaOs.id);
+      const { data: osDepois } = await admin.from("production_orders").select("status").eq("id", umaOs.id).single();
+      check(n, "não altera o espelho das OS", osDepois.status === umaOs.status, osDepois.status === umaOs.status ? "mantida" : "ALTERADA");
     }
 
     // Funil do CRM: quem só VÊ não cria nem move card.

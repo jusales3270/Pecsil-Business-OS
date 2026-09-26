@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ForjaConnectionStatus } from '../types';
 import { Button, Callout, Panel, SectionLabel, Status } from '../../../../packages/design-system';
+import { EspelhoOSPanel } from './EspelhoOSPanel';
 
 interface Props {
   status: ForjaConnectionStatus;
@@ -33,7 +34,7 @@ export function ConfiguracaoConexaoSection({ status, geradoEm, onTestPing, isTes
         <div>
           <p className="eyebrow">INTEGRAÇÕES · FORJA</p>
           <h1>Conexão com o Forja</h1>
-          <p>O Business OS lê o painel de produção do Forja pela rede interna do servidor. Nada é gravado no Forja.</p>
+          <p>O Business OS lê o painel de produção e espelha as OS do Forja pela rede interna do servidor. Nada é gravado no Forja.</p>
         </div>
         <Status tone={status.online ? 'success' : 'attention'}>{rotuloModo[status.modo]}</Status>
       </div>
@@ -63,6 +64,8 @@ export function ConfiguracaoConexaoSection({ status, geradoEm, onTestPing, isTes
           ))}
         </div>
       </Panel>
+
+      <EspelhoOSPanel />
     </div>
   );
 }

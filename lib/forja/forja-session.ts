@@ -96,14 +96,20 @@ export function createForjaSession({
     return login();
   }
 
-  async function fetchDashboard(): Promise<ForjaDashboardResult> {
-    let response = await transport({ method: "GET", path: "/api/dashboard", token: await validToken() });
+  /** GET autenticado, com um novo login quando o Forja recusa o token. */
+  async function authorizedGet(path: string): Promise<ForjaResponse> {
+    let response = await transport({ method: "GET", path, token: await validToken() });
     if (response.status === 401) {
       // Token revogado ou chave do Forja trocada: um novo login resolve.
       token = null;
-      response = await transport({ method: "GET", path: "/api/dashboard", token: await validToken() });
+      response = await transport({ method: "GET", path, token: await validToken() });
     }
     if (response.status === 401) throw new ForjaError("AUTH_FAILED", "O Forja recusou o token da conta de integração.");
+    return response;
+  }
+
+  async function fetchDashboard(): Promise<ForjaDashboardResult> {
+    const response = await authorizedGet("/api/dashboard");
     if (response.status === 403) {
       throw new ForjaError("FORBIDDEN_MODULE", "A conta de integração não tem o módulo Painel de Produção no Forja.");
     }
@@ -112,6 +118,18 @@ export function createForjaSession({
   }
 
   return {
+    /**
+     * Leitura genérica de uma rota do Forja (ex.: `/api/os`), sem cache.
+     * Devolve o `data` da resposta; 403 vira FORBIDDEN_MODULE.
+     */
+    async getData(path: string): Promise<unknown> {
+      const response = await authorizedGet(path);
+      if (response.status === 403) {
+        throw new ForjaError("FORBIDDEN_MODULE", `A conta de integração não tem acesso a ${path} no Forja.`);
+      }
+      if (response.status !== 200) throw new ForjaError("BAD_RESPONSE", `O Forja respondeu ${response.status} em ${path}.`);
+      return record(response.body).data;
+    },
     /** Painel do Forja, com cache curto e chamadas simultâneas agrupadas. */
     async getDashboard(): Promise<ForjaDashboardResult> {
       if (cache && now() - cache.fetchedAt < cacheMs) return cache;
