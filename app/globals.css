@@ -9,6 +9,7 @@
      shell    → barra lateral, cabeçalho, conteúdo
      patterns → vocabulário de produto: KPI, painel, callout, tabela, gráfico
      login    → tela de login
+     report   → relatórios A4 (PDF) gerados pela plataforma
 
    Estilo novo vai para patterns.css (ou login.css para a tela de login).
    ============================================================================ */
@@ -19,4 +20,5 @@
 @import "../packages/design-system/base.css";
 @import "../packages/design-system/shell.css";
 @import "../packages/design-system/patterns.css";
+@import "../packages/design-system/report.css";
 @import "../packages/design-system/login.css";

@@ -42,6 +42,7 @@ const CASES = [
   { name: "só Dados clínicos (ver)", grants: { "rh.clinico": "ver" } },
   { name: "só SST (ver)", grants: { "rh.sst": "ver" } },
   { name: "só OS da Produção (ver)", grants: { "producao.os": "ver" } },
+  { name: "só Terceiros do RH (ver)", grants: { "rh.terceiros": "ver" } },
 ];
 
 const { data: org } = await admin.from("organizations").select("id").limit(1).single();
@@ -79,12 +80,14 @@ try {
     ppe: await total(admin, "rh_ppe_deliveries"),
     orders: await total(admin, "production_orders"),
     orderValues: await total(admin, "production_order_financials"),
+    terceiros: await total(admin, "terceiros"),
   };
   console.log("Referência (service role):", reference);
   // Sem dado clínico no banco, "não vê nada" passaria por vazio: verde falso.
   check("referência", "há dado clínico para testar o isolamento", reference.clinical > 0, reference.clinical);
   check("referência", "há entrega de EPI para testar o acesso", reference.ppe > 0, reference.ppe);
   check("referência", "há OS espelhada, com valores, para testar o acesso", reference.orders > 0 && reference.orderValues > 0, `${reference.orders}/${reference.orderValues}`);
+  check("referência", "há apontamentos de terceiros para testar o acesso", reference.terceiros > 0, reference.terceiros);
 
   for (const scenario of CASES) {
     const email = `matriz.${randomBytes(4).toString("hex")}@pecsil-teste.local`;
@@ -193,6 +196,20 @@ try {
       await client.from("production_orders").update({ status: "ALTERADO_PELA_MATRIZ" }).eq("id", umaOs.id);
       const { data: osDepois } = await admin.from("production_orders").select("status").eq("id", umaOs.id).single();
       check(n, "não altera o espelho das OS", osDepois.status === umaOs.status, osDepois.status === umaOs.status ? "mantida" : "ALTERADA");
+    }
+
+    // Terceiros: a Portaria aponta; o RH (rh.terceiros) só lê.
+    const veTerceiros = "rh.terceiros" in scenario.grants || "portaria.terceiros" in scenario.grants;
+    const terceirosVistos = await total(client, "terceiros");
+    check(n, veTerceiros ? "vê os apontamentos de terceiros" : "não vê apontamentos de terceiros", terceirosVistos === (veTerceiros ? reference.terceiros : 0), terceirosVistos);
+    if ("rh.terceiros" in scenario.grants) {
+      const { data: umTerceiro } = await admin.from("terceiros").select("id, nome").limit(1).single();
+      await client.from("terceiros").update({ nome: "ALTERADO PELA MATRIZ" }).eq("id", umTerceiro.id);
+      await client.from("terceiros").delete().eq("id", umTerceiro.id);
+      const { data: terceiroDepois } = await admin.from("terceiros").select("nome").eq("id", umTerceiro.id).maybeSingle();
+      check(n, "não altera nem apaga apontamento da Portaria", terceiroDepois?.nome === umTerceiro.nome, terceiroDepois ? (terceiroDepois.nome === umTerceiro.nome ? "mantido" : "ALTERADO") : "APAGADO");
+      const novo = await client.from("terceiros").insert({ organization_id: org.id, nome: "Matriz", data: "2099-01-01", hora_entrada: "2099-01-01T07:00:00.000Z" });
+      check(n, "não cria apontamento", Boolean(novo.error), novo.error?.code);
     }
 
     // Funil do CRM: quem só VÊ não cria nem move card.
