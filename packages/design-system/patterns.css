@@ -5886,3 +5886,181 @@ button.holiday-row:hover {
     flex-wrap: wrap;
   }
 }
+
+
+/* ============================================================================
+   RH › Terceiros (acompanhamento dos apontamentos da Portaria)
+   Linhas só de leitura: mesmo visual da tabela de ausências, sem botão.
+   ============================================================================ */
+.terceiros-table > .absence-table-head,
+.terceiros-table > .terceiros-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 2fr) repeat(3, minmax(90px, 1fr));
+  align-items: center;
+  gap: var(--sp-4);
+}
+.terceiros-table > .terceiros-row {
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.terceiros-table > .terceiros-row > :first-child {
+  min-width: 0;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.terceiros-table > .terceiros-row > .ds-status {
+  justify-self: start;
+}
+.terceiros-date {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+/* RH › Colaboradores: CLT ou Terceiros (mesmo desenho de Usinagem/Fundição em Compras) */
+.hr-kind-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+.hr-kind-tabs > button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.hr-kind-tabs > button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.hr-kind-tabs > button.active {
+  background: var(--tint-blue);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  box-shadow: var(--shadow-sm);
+}
+.hr-kind-tabs > button:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+.terceiros-date input {
+  height: 40px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+@media (max-width: 720px) {
+  /* A regra de grade acima vence o "display: none" genérico dos cabeçalhos. */
+  .terceiros-table > .absence-table-head {
+    display: none;
+  }
+  .terceiros-table > .terceiros-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--sp-2) var(--sp-3);
+    padding: var(--sp-3);
+  }
+  .terceiros-table > .terceiros-row > :first-child {
+    grid-column: 1 / -1;
+  }
+  /* Sem cabeçalho, cada valor leva o próprio rótulo. */
+  .terceiros-table > .terceiros-row > [data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+  }
+}
+
+/* Cartão que abre um relatório em PDF (RH › Relatórios). Bloco próprio, e
+   não .ds-card: o cartão genérico transforma botões filhos em linhas de lista. */
+.report-launch-card {
+  padding: var(--sp-6);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+}
+.report-launch {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  flex: 1 1 360px;
+  min-width: 0;
+}
+.report-launch h2 {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  margin-bottom: var(--sp-1);
+}
+.report-launch p:not(.eyebrow) {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.report-launch-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+}
+.report-launch-actions {
+  display: flex;
+  align-items: flex-end;
+  flex: 0 1 auto;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.report-launch-actions label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.report-launch-actions select {
+  height: 40px;
+  min-width: 190px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+@media (max-width: 720px) {
+  .report-launch-card {
+    padding: var(--sp-4);
+  }
+  .report-launch-actions,
+  .report-launch-actions label,
+  .report-launch-actions select,
+  .report-launch-actions .ds-button {
+    width: 100%;
+  }
+}

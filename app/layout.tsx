@@ -30,12 +30,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.png", type: "image/png" },
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.png?v=2", type: "image/png" },
+      { url: "/favicon.ico?v=2", sizes: "any" },
+      { url: "/favicon.svg?v=2", type: "image/svg+xml" },
     ],
-    shortcut: "/favicon.png",
-    apple: "/icons/apple-touch-icon.png",
+    shortcut: "/favicon.png?v=2",
+    apple: "/icons/apple-touch-icon.png?v=2",
   },
 };
 
@@ -59,9 +59,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.png" type="image/png" />
-        <link rel="shortcut icon" href="/favicon.png" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="icon" href="/favicon.png?v=2" type="image/png" />
+        <link rel="shortcut icon" href="/favicon.png?v=2" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=2" />
         {/* Aplica o tema salvo antes da primeira pintura, para a página não
             nascer clara e piscar para escura. Precisa ser síncrono. */}
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />

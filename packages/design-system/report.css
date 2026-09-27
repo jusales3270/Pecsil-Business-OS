@@ -1,0 +1,214 @@
+/* ============================================================================
+   Relatórios da plataforma (documento A4 para impressão e PDF)
+
+   Todo relatório gerado pela plataforma usa este modelo: logo da PecSil no
+   cabeçalho, tipografia (Geist) e cores dos tokens do tema claro, rodapé com
+   a origem e a numeração de páginas. O documento é sempre claro, mesmo com o
+   tema escuro ativo: a página fixa data-theme="light" (ver report-layout.tsx).
+   ============================================================================ */
+
+@page {
+  size: A4;
+  margin: 14mm 14mm 16mm;
+  @bottom-left {
+    content: "PecSil Business OS · documento gerado pela plataforma";
+    font-family: var(--font-sans);
+    font-size: 7.5pt;
+    color: #848c99;
+  }
+  @bottom-right {
+    content: "Página " counter(page) " de " counter(pages);
+    font-family: var(--font-sans);
+    font-size: 7.5pt;
+    color: #848c99;
+  }
+}
+
+.report-doc {
+  --report-ink: var(--text-primary);
+  --report-muted: var(--text-muted);
+  --report-line: var(--border);
+  --report-head: var(--accent-blue);
+  --report-band: var(--tint-blue);
+  --report-total: var(--tint-green);
+  min-height: 100vh;
+  background: var(--bg-subtle);
+  color: var(--report-ink);
+  font-family: var(--font-sans);
+  font-size: 10pt;
+  line-height: 1.4;
+}
+
+/* Barra de ações: só na tela */
+.report-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-5);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+.report-toolbar > div {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.report-toolbar p {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+/* A folha na tela imita o A4 */
+.report-sheet {
+  width: min(210mm, 100%);
+  margin: var(--sp-5) auto;
+  padding: 14mm;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.report-section + .report-section {
+  margin-top: 10mm;
+}
+
+.report-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8mm;
+  padding-bottom: 4mm;
+  margin-bottom: 6mm;
+  border-bottom: 1.5px solid var(--report-head);
+}
+.report-header img {
+  height: 12mm;
+  width: auto;
+  flex-shrink: 0;
+}
+.report-header h1 {
+  font-size: 15pt;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  text-align: right;
+}
+.report-header p {
+  font-size: 9pt;
+  color: var(--report-muted);
+  text-align: right;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+  font-variant-numeric: tabular-nums;
+}
+/* Faixa com o nome (colaborador, resumo): fica no <thead> para repetir em
+   cada página quando a tabela continua na folha seguinte. */
+.report-table thead tr.report-band th {
+  padding: 2.5mm 3mm;
+  font-size: 10.5pt;
+  font-weight: 600;
+  text-align: left;
+  background: var(--report-band);
+  color: var(--report-ink);
+  border: 1px solid var(--report-line);
+}
+.report-table caption {
+  caption-side: top;
+  text-align: left;
+  padding: 2.5mm 3mm;
+  font-size: 10.5pt;
+  font-weight: 600;
+  background: var(--report-band);
+  border: 1px solid var(--report-line);
+  border-bottom: 0;
+}
+.report-table th {
+  padding: 2mm 3mm;
+  background: var(--report-head);
+  color: #fff;
+  font-weight: 600;
+  font-size: 8.5pt;
+  text-align: center;
+}
+.report-table td {
+  padding: 1.6mm 3mm;
+  border: 1px solid var(--report-line);
+  text-align: center;
+}
+.report-table td.report-left,
+.report-table th.report-left {
+  text-align: left;
+}
+.report-table tr.report-total td {
+  background: var(--report-total);
+  font-weight: 600;
+}
+.report-table tbody tr:nth-child(even) td {
+  background: #fafbfc;
+}
+.report-note {
+  margin-top: 3mm;
+  font-size: 8pt;
+  color: var(--report-muted);
+}
+.report-empty {
+  padding: 12mm 0;
+  text-align: center;
+  color: var(--report-muted);
+}
+
+@media (max-width: 760px) {
+  .report-sheet {
+    padding: 6mm;
+  }
+  .report-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .report-header h1,
+  .report-header p {
+    text-align: left;
+  }
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+  .report-doc {
+    background: #fff;
+    min-height: 0;
+  }
+  .report-toolbar {
+    display: none;
+  }
+  .report-sheet {
+    width: auto;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  /* Cada bloco (pessoa, resumo) começa numa folha nova, como no modelo. */
+  .report-section + .report-section {
+    margin-top: 0;
+    break-before: page;
+  }
+  .report-table thead {
+    display: table-header-group;
+  }
+  .report-table tr {
+    break-inside: avoid;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

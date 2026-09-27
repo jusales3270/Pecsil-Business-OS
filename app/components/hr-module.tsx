@@ -10,6 +10,7 @@ import type { RhAbsence, RhBenefitPlan, RhBenefitRequest, RhDocument, RhEmployee
 import { getRhDocumentUrl, uploadRhDocument } from "../../lib/data/rh-documents-client";
 import { HolidaysSection } from "./hr-holidays";
 import { PpeSection, usePpeData } from "./hr-epi";
+import { TerceirosSection } from "./hr-terceiros";
 
 const sections = [
   ["Painel", "grid"],
@@ -221,8 +222,14 @@ export function HrModule({
   // o que causava outro render — laço "Maximum update depth exceeded".
   const accessibleSections = useMemo(() => sections.filter(([label]) => {
     const feature = SECTION_FEATURE[label];
+    // Colaboradores reúne CLT e Terceiros: aparece para quem vê qualquer um dos dois.
+    if (label === "Colaboradores") return canUseFeature(access, "rh.colaboradores") || canUseFeature(access, "rh.terceiros");
     return !feature || canUseFeature(access, feature);
   }), [access]);
+  const canSeeClt = canUseFeature(access, "rh.colaboradores");
+  const canSeeTerceiros = canUseFeature(access, "rh.terceiros");
+  const [peopleKind, setPeopleKind] = useState<"CLT" | "Terceiros">(canSeeClt ? "CLT" : "Terceiros");
+  const kind = !canSeeClt ? "Terceiros" : !canSeeTerceiros ? "CLT" : peopleKind;
   const canCreate = canUseFeature(access, "rh.colaboradores", "operar");
   const track=(message:string)=>{notify(message);onEvent(message)};
   const { registerNav } = useModuleNav();
@@ -250,8 +257,10 @@ export function HrModule({
     <div className="hr-workspace">
         <>
           {section === "Painel" && <HrDashboard people={employees} summary={summary} rh={rh} setSection={setSection} notify={track} access={access} canCreate={canCreate} requestCreate={() => setCreateRequested(value => value + 1)}/>}
-          {section === "Colaboradores" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} persists={rh.source === "supabase"} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
-          {section === "Ponto e jornada" && <JourneySection notify={track} access={access}/>} 
+          {section === "Colaboradores" && canSeeClt && canSeeTerceiros && <PeopleKindTabs value={kind} onChange={setPeopleKind}/>}
+          {section === "Colaboradores" && kind === "CLT" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} persists={rh.source === "supabase"} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
+          {section === "Colaboradores" && kind === "Terceiros" && <TerceirosSection/>}
+          {section === "Ponto e jornada" && <JourneySection notify={track} access={access}/>}
           {section === "Férias e ausências" && <AbsenceSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Feriados" && <HolidaysSection notify={track}/>}
           {section === "Benefícios" && <BenefitsSection key={rh.loadedAt} summary={summary} notify={track} access={access} rh={rh}/>}
@@ -1245,12 +1254,38 @@ function DocumentForm({nextId,employees,persists,onClose,onSave}:{nextId:number;
 
 function documentTone(status:HrDocumentStatus):"success"|"attention"|"info"|"neutral"{return status==="Válido"?"success":status==="A vencer"||status==="Expirado"?"attention":status==="Pendente"?"info":"neutral"}
 
+/** Últimos 12 meses ("AAAA-MM"), do mais recente para o mais antigo. */
+function ultimosMeses(): { value: string; label: string }[] {
+  const nomes = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  const hoje = new Date();
+  return Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    return { value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: `${nomes[d.getMonth()]} de ${d.getFullYear()}` };
+  });
+}
+
 function ReportsSection({ access }: { notify: (message: string) => void; access: ModuleAccessContext }) {
-  // Os indicadores dependem de ponto, benefícios e SST com dados reais.
-  void access;
+  const podeTerceiros = canUseFeature(access, "rh.terceiros");
+  const [meses] = useState(ultimosMeses);
+  // Fechamento: por padrão, o mês anterior.
+  const [mes, setMes] = useState(() => meses[1]?.value ?? meses[0].value);
   return <>
     <div className="page-head hr-page-head report-page-head"><div><p className="eyebrow">RH · INTELIGÊNCIA</p><h1>Relatórios e indicadores</h1><p>Leitura gerencial das pessoas, rotinas e riscos do seu escopo.</p></div></div>
-    <HrEmpty icon="chart" title="Nenhum indicador disponível" description="Os relatórios serão gerados a partir do ponto, dos benefícios e da SST, quando essas rotinas tiverem registros reais."/>
+    {podeTerceiros && <section className="report-launch-card">
+      <div className="report-launch">
+        <span className="report-launch-icon"><HrIcon name="file"/></span>
+        <div>
+          <p className="eyebrow">FECHAMENTO MENSAL</p>
+          <h2>Relatório de terceiros</h2>
+          <p>Horas de cada terceiro no mês, somadas a partir dos apontamentos da Portaria, para enviar ao Financeiro. Sai em PDF com a identidade da PecSil.</p>
+        </div>
+      </div>
+      <div className="report-launch-actions">
+        <label><span>Mês</span><select value={mes} onChange={event => setMes(event.target.value)} aria-label="Mês do relatório">{meses.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}</select></label>
+        <Button onClick={() => window.open(`/relatorios/terceiros?mes=${mes}`, "_blank", "noopener")}><HrIcon name="file"/> Gerar relatório</Button>
+      </div>
+    </section>}
+    {!podeTerceiros && <HrEmpty icon="chart" title="Nenhum indicador disponível" description="Os relatórios serão gerados a partir do ponto, dos benefícios e da SST, quando essas rotinas tiverem registros reais."/>}
   </>;
 }
 function HomologationSection({notify,access}:{notify:(message:string)=>void;access:ModuleAccessContext}){
@@ -1310,6 +1345,14 @@ export function KpiDetailModal({ detail, onClose }: { detail: KpiDetail; onClose
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** CLT (cadastro de colaboradores) ou Terceiros (apontamentos da Portaria), como Usinagem/Fundição em Compras. */
+function PeopleKindTabs({ value, onChange }: { value: "CLT" | "Terceiros"; onChange: (value: "CLT" | "Terceiros") => void }) {
+  const kinds = [["CLT", "users"], ["Terceiros", "card"]] as const;
+  return <div className="hr-kind-tabs" role="tablist" aria-label="Tipo de colaborador">
+    {kinds.map(([label, icon]) => <button key={label} type="button" role="tab" aria-selected={value === label} className={value === label ? "active" : ""} onClick={() => onChange(label)}><HrIcon name={icon} size={18}/>{label}</button>)}
+  </div>;
+}
 
 function HrIcon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, React.ReactNode> = {
