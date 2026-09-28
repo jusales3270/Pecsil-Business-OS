@@ -46,7 +46,7 @@ export default function Sidebar({ onClose, isOwner, onExit }: SidebarProps) {
       {/* Header */}
       <div className="p-5 border-b border-slate-100 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src="/pecsil-logo.png" alt="Pecsil Logo" className="h-8 object-contain" />
+          <img src="/pecsil-logo.png?v=2" alt="Pecsil Logo" className="h-8 object-contain" />
           <div>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Módulo Compras</p>
           </div>
