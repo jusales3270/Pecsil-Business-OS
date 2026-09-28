@@ -1392,3 +1392,27 @@
   }
   .update-notice > div { flex: 1 1 60%; }
 }
+
+/* Chamada visual: a faixa se destaca do painel e o botão Atualizar pulsa. */
+.update-notice {
+  border: 1.5px solid var(--accent-blue);
+  background: linear-gradient(0deg, var(--tint-blue), var(--tint-blue)), var(--bg-surface);
+  box-shadow: 0 12px 32px rgb(37 99 235 / 0.22), var(--shadow-lg, 0 10px 30px rgb(0 0 0 / 0.15));
+}
+.update-notice b { color: var(--accent-blue); }
+.update-notice-dot { animation: update-notice-blink 1.2s ease-in-out infinite; }
+.update-notice .ds-button {
+  animation: update-notice-pulse 1.6s ease-out infinite;
+}
+.update-notice .ds-button:hover,
+.update-notice .ds-button:disabled { animation: none; }
+@keyframes update-notice-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(37 99 235 / 0.55); transform: scale(1); }
+  50% { transform: scale(1.04); }
+  70% { box-shadow: 0 0 0 12px rgb(37 99 235 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(37 99 235 / 0); transform: scale(1); }
+}
+@keyframes update-notice-blink {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 4px var(--tint-blue); }
+  50% { opacity: 0.45; box-shadow: 0 0 0 7px var(--tint-blue); }
+}
