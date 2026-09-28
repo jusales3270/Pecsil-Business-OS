@@ -350,11 +350,12 @@ async function sendRhMutation(body: Record<string, unknown>): Promise<boolean> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (response.status === 409) return false; // modo demonstrativo
-  if (response.status === 401) { throw new Error("UNAUTHENTICATED"); }
+  if (response.ok) return true;
+  const code = ((await response.json().catch(() => ({}))) as { error?: string }).error;
+  if (code === "DEMO_MODE") return false; // modo demonstrativo
+  if (response.status === 401) throw new Error("UNAUTHENTICATED");
   if (response.status === 403) throw new Error("RH_MUTATION_DENIED");
-  if (!response.ok) throw new Error("RH_MUTATION_FAILED");
-  return true;
+  throw new Error(code || "RH_MUTATION_FAILED");
 }
 
 /** Mensagem da falha de uma decisão: permissão é uma coisa, erro de gravação é outra. */
@@ -362,6 +363,9 @@ function mutationFailure(error: unknown, who: string, what: string) {
   const code = error instanceof Error ? error.message : "";
   if (code === "UNAUTHENTICATED") return `${who}: sua sessão expirou. Entre novamente para ${what}.`;
   if (code === "RH_MUTATION_DENIED") return `${who}: você não tem permissão para ${what}.`;
+  if (code === "RH_INVALID") return `${who}: confira as datas e os campos obrigatórios. Nada foi alterado.`;
+  if (code === "RH_CONFIRMATION") return `${who}: o nome digitado não confere. Nada foi excluído.`;
+  if (code === "RH_EMPLOYEE_HAS_ACCOUNT") return `${who}: tem conta de acesso à plataforma. Exclua o usuário em Pessoas e Acessos antes de excluir o cadastro.`;
   return `${who}: não foi possível ${what} agora. Nada foi alterado; tente de novo.`;
 }
 
@@ -564,12 +568,41 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
   const visiblePeople = unit === "Todas as unidades" ? people : people.filter(person => person.unit === unit);
 
   const saveEmployee = async (employee: EmployeeRecord, isNew: boolean) => {
-    setPeople(current => isNew ? [employee, ...current] : current.map(item => editing && personKey(item) === personKey(editing) ? employee : item));
+    const before = editing;
+    setPeople(current => isNew ? [employee, ...current] : current.map(item => before && personKey(item) === personKey(before) ? employee : item));
     setCreating(false);
     onCreateHandled();
     setEditing(null);
     setSelected(employee);
-    // Só a criação persiste por ora; edição segue local (v1).
+    // Edição de colaborador real: grava no banco (nome, matrícula, e-mail,
+    // admissão, demissão e lotação). Reverte se o servidor recusar.
+    if (persists && !isNew && employee.id) {
+      try {
+        await sendRhMutation({
+          entity: "employee", id: employee.id, action: "update",
+          changes: {
+            fullName: employee.name,
+            employeeNumber: employee.registration,
+            corporateEmail: employee.email || null,
+            admissionDate: employee.admissionDate || null,
+            terminationDate: employee.terminationDate || null,
+            departmentName: employee.department || null,
+            unitName: employee.unit || null,
+            positionName: employee.role || null,
+          },
+        });
+        notify(employee.terminationDate
+          ? `${employee.name}: demissão registrada em ${formatDate(employee.terminationDate)}.`
+          : `Cadastro de ${employee.name} atualizado no banco.`);
+      } catch (error) {
+        if (before) {
+          setPeople(current => current.map(item => personKey(item) === personKey(employee) ? before : item));
+          setSelected(before);
+        }
+        notify(mutationFailure(error, employee.name, "salvar o cadastro"));
+      }
+      return;
+    }
     if (persists && isNew) {
       try {
         const response = await fetch("/api/rh", {
@@ -599,6 +632,14 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
     notify(isNew ? `${employee.name} foi incluído nos dados demonstrativos.` : `Cadastro de ${employee.name} atualizado.`);
   };
 
+  const [deleting, setDeleting] = useState<EmployeeRecord | null>(null);
+  const removeEmployee = (employee: EmployeeRecord) => {
+    setPeople(current => current.filter(item => personKey(item) !== personKey(employee)));
+    setDeleting(null);
+    setSelected(null);
+    notify(`${employee.name}: cadastro excluído.`);
+  };
+
   const changeStatus = (status: Person["status"]) => {
     if (!selected) return;
     const updated = { ...selected, status };
@@ -617,29 +658,82 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
         : <Card><span><HrIcon name="file"/></span><div><strong>{allPeople.filter(person => person.documentStatus === "Pendente").length}</strong><small>cadastros pendentes</small></div></Card>}
     </div>
     <Card className="hr-table-card"><div className="hr-tools"><label><HrIcon name="search"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, matrícula, cargo ou departamento..."/></label><select value={unit} onChange={event => setUnit(event.target.value)} aria-label="Filtrar unidade"><option>Todas as unidades</option>{Array.from(new Set(allPeople.map(person => person.unit))).sort().map(name => <option key={name}>{name}</option>)}</select><button onClick={() => { setQuery(""); setUnit("Todas as unidades"); }}><HrIcon name="filter"/> Limpar filtros</button></div><div className="hr-people-table"><div className="hr-table-header"><span>Colaborador</span><span>Cargo</span><span>Departamento</span><span>Status</span><span/></div>{visiblePeople.map(person => <button key={personKey(person)} onClick={() => setSelected(person)}><span className="hr-person"><i>{person.initials}</i><span><b>{person.name}</b><small>Matrícula {person.registration}{person.email ? ` · ${person.email}` : ""}</small></span></span><span><b>{person.role}</b><small>{person.unit}</small></span><span>{person.department}</span><Status tone={person.status === "Ativo" ? "success" : person.status === "Pendente" ? "info" : "neutral"}>{person.status}</Status><HrIcon name="arrow"/></button>)}{!visiblePeople.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhum colaborador encontrado</b><small>Ajuste a busca ou a unidade selecionada.</small></div>}</div></Card>
-    {selected && <EmployeeDrawer employee={selected} canEdit={canCreate} onClose={() => setSelected(null)} onEdit={() => { setEditing(selected); setSelected(null); }} onStatus={changeStatus}/>} 
+    {selected && <EmployeeDrawer employee={selected} canEdit={canCreate} onClose={() => setSelected(null)} onEdit={() => { setEditing(selected); setSelected(null); }} onStatus={changeStatus} onDelete={persists && selected.id ? () => { setDeleting(selected); setSelected(null); } : undefined}/>}
+    {deleting && <EmployeeDeleteDialog employee={deleting} onClose={() => setDeleting(null)} onDeleted={() => removeEmployee(deleting)}/>} 
     {(creating || editing) && <EmployeeForm employee={editing} nextRegistration={String(allPeople.length + 1).padStart(4,"0")} units={Array.from(new Set(allPeople.map(person => person.unit).filter(Boolean))).sort()} departments={Array.from(new Set(allPeople.map(person => person.department).filter(Boolean))).sort()} onClose={() => { setCreating(false); setEditing(null); onCreateHandled(); }} onSave={saveEmployee}/>} 
   </>;
 }
 
-function EmployeeDrawer({ employee, canEdit, onClose, onEdit, onStatus }: { employee: EmployeeRecord; canEdit: boolean; onClose: () => void; onEdit: () => void; onStatus: (status: Person["status"]) => void }) {
+function EmployeeDrawer({ employee, canEdit, onClose, onEdit, onStatus, onDelete }: { employee: EmployeeRecord; canEdit: boolean; onClose: () => void; onEdit: () => void; onStatus: (status: Person["status"]) => void; onDelete?: () => void }) {
   const [tab, setTab] = useState<"Resumo" | "Vínculo" | "Documentos" | "Histórico">("Resumo");
   const admission = employee.admissionDate ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${employee.admissionDate}T12:00:00Z`)) : "Não informada";
+  const termination = employee.terminationDate ? formatDate(employee.terminationDate) : null;
   return <div className="employee-layer" onMouseDown={onClose}>
     <aside className="employee-drawer" onMouseDown={event => event.stopPropagation()} aria-label={`Ficha de ${employee.name}`}>
       <header><button onClick={onClose} aria-label="Fechar ficha"><HrIcon name="close"/></button><span className="employee-avatar">{employee.initials}</span><div><p className="eyebrow">FICHA DO COLABORADOR</p><h2>{employee.name}</h2><p>{employee.role} · {employee.department}</p></div><Status tone={employee.status === "Ativo" ? "success" : employee.status === "Pendente" ? "info" : "neutral"}>{employee.status}</Status></header>
       <nav className="employee-tabs" aria-label="Seções da ficha">{(["Resumo","Vínculo","Documentos","Histórico"] as const).map(item => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</nav>
       <div className="employee-detail-content">
-        {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div><div><small>Admissão</small><strong>{admission}</strong></div></section><DetailGroup title="Contato" rows={[["E-mail corporativo",employee.email || "Não informado"],["Telefone",employee.phone],["CPF",employee.cpf]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/></>}
+        {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div><div><small>Admissão</small><strong>{admission}</strong></div>{termination && <div><small>Demissão</small><strong>{termination}</strong></div>}</section><DetailGroup title="Contato" rows={[["E-mail corporativo",employee.email || "Não informado"],["Telefone",employee.phone],["CPF",employee.cpf]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/></>}
         {tab === "Vínculo" && <><DetailGroup title="Dados contratuais" rows={[["Tipo de contrato",employee.contractType],["Cargo",employee.role],["Gestor responsável",employee.manager],["Jornada",employee.schedule]]}/><div className="employee-callout"><HrIcon name="shield"/><span><b>Escopo protegido</b><small>Alterações de vínculo serão registradas na auditoria quando o banco estiver conectado.</small></span></div></>}
         {tab === "Documentos" && employee.id && <div className="employee-callout"><HrIcon name="file"/><span><b>Documentos em RH › Documentos</b><small>Arquivos, validades e assinaturas deste colaborador são controlados na central de documentos do RH, conforme o seu escopo.</small></span></div>}
         {tab === "Documentos" && !employee.id && <><div className={`employee-document-health ${employee.documentStatus === "Completo" ? "complete" : "pending"}`}><HrIcon name={employee.documentStatus === "Completo" ? "check" : "alert"}/><span><b>Cadastro documental {employee.documentStatus.toLowerCase()}</b><small>{employee.documentStatus === "Completo" ? "Documentos obrigatórios conferidos." : "Existem documentos que exigem conferência."}</small></span></div>{[["Documento de identidade","Conferido"],["Contrato de trabalho","Assinado"],["Comprovante de residência",employee.documentStatus === "Completo" ? "Conferido" : "Pendente"],["ASO admissional","Válido"]].map(([name,status]) => <div className="employee-document-row" key={name}><span><HrIcon name="file"/></span><div><b>{name}</b><small>Arquivo protegido</small></div><Status tone={status === "Pendente" ? "attention" : "success"}>{status}</Status></div>)}</>}
-        {tab === "Histórico" && employee.id && <div className="employee-history"><div><i>1</i><span><b>Admissão</b><small>{admission}</small></span></div><div><i>2</i><span><b>Cadastro importado da folha</b><small>Matrícula {employee.registration}</small></span></div></div>}
+        {tab === "Histórico" && employee.id && <div className="employee-history"><div><i>1</i><span><b>Admissão</b><small>{admission}</small></span></div><div><i>2</i><span><b>Cadastro importado da folha</b><small>Matrícula {employee.registration}</small></span></div>{termination && <div><i>3</i><span><b>Demissão</b><small>{termination}</small></span></div>}</div>}
         {tab === "Histórico" && !employee.id && <div className="employee-history">{[["Cadastro funcional revisado","Hoje · RH"],["Perfil de acesso vinculado",employee.profile],["Admissão registrada",admission]].map(([title,meta],index) => <div key={title}><i>{index + 1}</i><span><b>{title}</b><small>{meta}</small></span></div>)}</div>}
       </div>
-      {canEdit && <footer><Button variant="secondary" onClick={onEdit}><HrIcon name="edit"/> Editar cadastro</Button><select value={employee.status} onChange={event => onStatus(event.target.value as Person["status"])} aria-label="Alterar situação do vínculo"><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select></footer>}
+      {canEdit && <footer>{onDelete ? <button type="button" className="absence-reject drawer-delete" onClick={onDelete}><HrIcon name="close"/> Excluir cadastro</button> : <select value={employee.status} onChange={event => onStatus(event.target.value as Person["status"])} aria-label="Alterar situação do vínculo"><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select>}<Button variant="secondary" onClick={onEdit}><HrIcon name="edit"/> Editar cadastro</Button></footer>}
     </aside>
   </div>;
+}
+
+/**
+ * Exclusão definitiva do cadastro. Mostra antes o histórico que vai junto
+ * (férias, SST, EPI…) e recomenda registrar a demissão para ex-colaboradores,
+ * que guarda tudo. Exige digitar o nome. Quem tem conta de acesso não é
+ * excluído aqui (a conta ficaria sem cadastro).
+ */
+function EmployeeDeleteDialog({ employee, onClose, onDeleted }: { employee: EmployeeRecord; onClose: () => void; onDeleted: () => void }) {
+  const [info, setInfo] = useState<{ hasAccount: boolean; items: { label: string; count: number }[] } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/rh/colaboradores/${employee.id}`, { cache: "no-store" })
+      .then(async response => { if (!response.ok) throw new Error(String(response.status)); return response.json(); })
+      .then(data => { if (active) setInfo(data); })
+      .catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, [employee.id]);
+  const plain = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  const confirmed = plain(confirmName) === plain(employee.name);
+  const remove = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await sendRhMutation({ entity: "employee", id: employee.id, action: "delete", confirmName });
+      onDeleted();
+    } catch (err) {
+      setError(mutationFailure(err, employee.name, "excluir o cadastro"));
+      setBusy(false);
+    }
+  };
+  return <Modal eyebrow="RH · EXCLUIR CADASTRO" title={`Excluir ${employee.name}?`} subtitle="A exclusão é definitiva e não pode ser desfeita." onClose={onClose}>
+    <div className="employee-delete">
+      {!info && !failed && <p className="employee-delete-muted">Conferindo o histórico do colaborador…</p>}
+      {failed && <p className="employee-delete-alert">Não foi possível conferir o histórico agora. Tente de novo em instantes.</p>}
+      {info?.hasAccount && <p className="employee-delete-alert"><b>Este colaborador tem conta de acesso à plataforma.</b> Exclua o usuário em Pessoas e Acessos antes de excluir o cadastro.</p>}
+      {info && !info.hasAccount && <>
+        {info.items.length > 0
+          ? <div className="employee-delete-alert"><b>Será apagado junto com o cadastro:</b><ul>{info.items.map(item => <li key={item.label}>{item.count} {item.label}</li>)}</ul></div>
+          : <p className="employee-delete-muted">Nenhum histórico ligado a este cadastro.</p>}
+        <p className="employee-delete-tip"><HrIcon name="alert"/><span>Se a pessoa saiu da empresa, <b>não exclua</b>: use <b>Editar cadastro › Data de demissão</b>. O cadastro fica como &ldquo;Desligado&rdquo; e o histórico continua guardado.</span></p>
+        <label className="employee-delete-confirm"><span>Para confirmar, digite o nome do colaborador</span><input value={confirmName} onChange={event => setConfirmName(event.target.value)} placeholder={employee.name} autoComplete="off"/></label>
+      </>}
+      {error && <p className="employee-delete-alert">{error}</p>}
+      <footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><button type="button" className="absence-reject" disabled={!info || info.hasAccount || !confirmed || busy} onClick={remove}><HrIcon name="close"/> {busy ? "Excluindo…" : "Excluir definitivamente"}</button></footer>
+    </div>
+  </Modal>;
 }
 
 function DetailGroup({ title, rows }: { title: string; rows: string[][] }) {
@@ -669,12 +763,15 @@ function EmployeeForm({ employee, nextRegistration, units, departments, onClose,
     documentStatus: "Pendente",
   });
   const update = (field: keyof EmployeeRecord, value: string) => setForm(current => ({ ...current, [field]: value }));
-  const canAdvance = step === 1 ? Boolean(form.name && form.cpf && form.phone) : step === 2 ? Boolean(form.registration && form.admissionDate && form.unit && form.department && form.role) : Boolean(form.email);
+  const terminationValid = !form.terminationDate || !form.admissionDate || form.terminationDate >= form.admissionDate;
+  const canAdvance = step === 1 ? Boolean(form.name && form.cpf && form.phone) : step === 2 ? Boolean(form.registration && form.admissionDate && form.unit && form.department && form.role && terminationValid) : Boolean(form.email);
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (step < 3) { if (canAdvance) setStep(value => value + 1); return; }
     const initials = form.name.split(/\s+/).filter(Boolean).slice(0,2).map(part => part[0]).join("").toUpperCase();
-    onSave({ ...form, initials }, isNew);
+    const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    const status = form.terminationDate && form.terminationDate <= hoje ? "Desligado" : form.status === "Desligado" ? "Ativo" : form.status;
+    onSave({ ...form, initials, status, terminationDate: form.terminationDate || null }, isNew);
   };
   return <div className="employee-layer form-layer" onMouseDown={onClose}>
     <form className="employee-form" onSubmit={submit} onMouseDown={event => event.stopPropagation()}>
@@ -682,7 +779,7 @@ function EmployeeForm({ employee, nextRegistration, units, departments, onClose,
       <div className="employee-stepper">{([[1,"Dados pessoais"],[2,"Vínculo"],[3,"Contato e acesso"]] as [number, string][]).map(([number,label]) => <span className={step >= number ? "active" : ""} key={label}><i>{step > number ? "✓" : number}</i><b>{label}</b></span>)}</div>
       <div className="employee-fields">
         {step === 1 && <><label className="field-wide"><span>Nome completo *</span><input autoFocus value={form.name} onChange={event => update("name",event.target.value)} placeholder="Nome civil do colaborador"/></label><label><span>CPF *</span><input value={form.cpf} onChange={event => update("cpf",event.target.value)} placeholder="000.000.000-00"/></label><label><span>Telefone *</span><input value={form.phone} onChange={event => update("phone",event.target.value)} placeholder="(00) 00000-0000"/></label></>}
-        {step === 2 && <><label><span>Matrícula *</span><input value={form.registration} onChange={event => update("registration",event.target.value)}/></label><label><span>Data de admissão *</span><input type="date" value={form.admissionDate} onChange={event => update("admissionDate",event.target.value)}/></label><label><span>Unidade *</span><select value={form.unit} onChange={event => update("unit",event.target.value)}>{units.map(name => <option key={name}>{name}</option>)}</select></label><label><span>Departamento *</span><select value={form.department} onChange={event => update("department",event.target.value)}>{departments.map(name => <option key={name}>{name}</option>)}</select></label><label className="field-wide"><span>Cargo *</span><input value={form.role} onChange={event => update("role",event.target.value)} placeholder="Ex.: Analista de Recursos Humanos"/></label><label><span>Tipo de contrato</span><select value={form.contractType} onChange={event => update("contractType",event.target.value)}><option>CLT</option><option>Temporário</option><option>Estágio</option><option>Aprendiz</option><option>Terceirizado</option><option>Sócio-administrador</option></select></label><label><span>Jornada</span><select value={form.schedule} onChange={event => update("schedule",event.target.value)}><option>Administrativo</option><option>Turno A</option><option>Turno B</option><option>Turno C</option><option>Executiva</option></select></label></>}
+        {step === 2 && <><label><span>Matrícula *</span><input value={form.registration} onChange={event => update("registration",event.target.value)}/></label><label><span>Data de admissão *</span><input type="date" value={form.admissionDate} onChange={event => update("admissionDate",event.target.value)}/></label>{!isNew && <label><span>Data de demissão</span><input type="date" min={form.admissionDate || undefined} value={form.terminationDate ?? ""} onChange={event => update("terminationDate",event.target.value)}/><small className="field-hint">Preencha quando o colaborador for desligado. O cadastro e o histórico ficam guardados.</small></label>}<label><span>Unidade *</span><select value={form.unit} onChange={event => update("unit",event.target.value)}>{units.map(name => <option key={name}>{name}</option>)}</select></label><label><span>Departamento *</span><select value={form.department} onChange={event => update("department",event.target.value)}>{departments.map(name => <option key={name}>{name}</option>)}</select></label><label className="field-wide"><span>Cargo *</span><input value={form.role} onChange={event => update("role",event.target.value)} placeholder="Ex.: Analista de Recursos Humanos"/></label><label><span>Tipo de contrato</span><select value={form.contractType} onChange={event => update("contractType",event.target.value)}><option>CLT</option><option>Temporário</option><option>Estágio</option><option>Aprendiz</option><option>Terceirizado</option><option>Sócio-administrador</option></select></label><label><span>Jornada</span><select value={form.schedule} onChange={event => update("schedule",event.target.value)}><option>Administrativo</option><option>Turno A</option><option>Turno B</option><option>Turno C</option><option>Executiva</option></select></label></>}
         {step === 3 && <><label className="field-wide"><span>E-mail corporativo *</span><input type="email" value={form.email} onChange={event => update("email",event.target.value)} placeholder="nome.sobrenome@pecsil.com.br"/></label><label><span>Equipe</span><input value={form.team} onChange={event => update("team",event.target.value)} placeholder="Equipe de trabalho"/></label><label><span>Gestor responsável</span><input value={form.manager} onChange={event => update("manager",event.target.value)} placeholder="Nome do gestor"/></label><label><span>Situação inicial</span><select value={form.status} onChange={event => update("status",event.target.value)}><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select></label><label><span>Documentação</span><select value={form.documentStatus} onChange={event => update("documentStatus",event.target.value)}><option>Pendente</option><option>Completo</option></select></label><div className="employee-form-note field-wide"><HrIcon name="lock"/><span><b>Acesso separado do vínculo</b><small>O perfil de usuário será concedido pela área de Pessoas e Acessos, respeitando as credenciais da plataforma.</small></span></div></>}
       </div>
       <footer><button type="button" className="employee-cancel" onClick={step === 1 ? onClose : () => setStep(value => value - 1)}>{step === 1 ? "Cancelar" : "Voltar"}</button><Button type="submit" disabled={!canAdvance}>{step < 3 ? "Continuar" : isNew ? "Concluir cadastro" : "Salvar alterações"} <HrIcon name={step < 3 ? "arrow" : "check"}/></Button></footer>
@@ -709,6 +806,8 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
   );
   const [selected, setSelected] = useState<AbsenceRecord | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editingAbsence, setEditingAbsence] = useState<AbsenceRecord | null>(null);
+  const [deletingAbsence, setDeletingAbsence] = useState<AbsenceRecord | null>(null);
   const [tab, setTab] = useState<"Solicitações" | "Calendário" | "Políticas">("Solicitações");
   const [status, setStatus] = useState("Todos os status");
   const canCreate = canUseFeature(access, "rh.ferias", "operar");
@@ -773,6 +872,39 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
     }
   };
 
+  // Corrigir uma ausência já lançada (tipo, datas, motivo). Reverte se recusar.
+  const updateRequest = async (updated: AbsenceRecord) => {
+    const before = records.find(record => record.id === updated.id);
+    setEditingAbsence(null);
+    setRecords(current => current.map(record => record.id === updated.id ? updated : record));
+    setSelected(updated);
+    if (!updated.sourceId) { notify(`${updated.employee}: alteração aplicada nos dados demonstrativos.`); return; }
+    try {
+      await sendRhMutation({
+        entity: "absence", id: updated.sourceId, action: "update",
+        changes: { absenceType: absenceTypeEnum[updated.type], startDate: updated.start, endDate: updated.end, days: updated.days, reason: updated.reason === "—" ? null : updated.reason },
+      });
+      notify(`${updated.employee}: ${updated.type.toLowerCase()} atualizada no banco.`);
+    } catch (error) {
+      if (before) { setRecords(current => current.map(record => record.id === before.id ? before : record)); setSelected(before); }
+      notify(mutationFailure(error, updated.employee, "editar esta movimentação"));
+    }
+  };
+
+  const deleteRequest = async (target: AbsenceRecord) => {
+    setDeletingAbsence(null);
+    setSelected(null);
+    setRecords(current => current.filter(record => record.id !== target.id));
+    if (!target.sourceId) { notify(`${target.employee}: movimentação removida dos dados demonstrativos.`); return; }
+    try {
+      await sendRhMutation({ entity: "absence", id: target.sourceId, action: "delete" });
+      notify(`${target.employee}: ${target.type.toLowerCase()} de ${formatPeriod(target.start, target.end)} excluída.`);
+    } catch (error) {
+      setRecords(current => [target, ...current]);
+      notify(mutationFailure(error, target.employee, "excluir esta movimentação"));
+    }
+  };
+
   const createRequest = async (request: AbsenceRecord, employeeId?: string) => {
     setRecords(current => [request, ...current]);
     setCreating(false);
@@ -815,8 +947,15 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
     {tab === "Solicitações" && <Card className="absence-card"><div className="absence-toolbar"><div><p className="eyebrow">FLUXO DE APROVAÇÃO</p><h2>Solicitações recentes</h2></div><label><span>Status</span><select value={status} onChange={event => setStatus(event.target.value)} aria-label="Filtrar solicitações por status"><option>Todos os status</option><option>Pendente</option><option>Em análise</option><option>Aprovada</option><option>Registrado</option><option>Reprovada</option></select></label></div><div className="absence-table"><div className="absence-table-head"><span>Colaborador</span><span>Tipo e período</span><span>Duração</span><span>Situação</span><span/></div>{filtered.map(record => <button onClick={() => setSelected(record)} key={record.id}><span className="absence-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department} · {record.unit}</small></span></span><span><b>{record.type}</b><small>{formatPeriod(record.start,record.end)}</small></span><span><b>{durationLabel(record)}</b>{record.conflict ? <small className="conflict-label">⚠ Conflito identificado</small> : <small>Sem conflito</small>}</span><Status tone={absenceTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!filtered.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhuma solicitação encontrada</b><small>Altere o filtro de situação.</small></div>}</div></Card>}
     {tab === "Calendário" && <AbsenceCalendar records={records} onSelect={setSelected}/>} 
     {tab === "Políticas" && <AbsencePolicies/>}
-    {selected && <AbsenceDrawer record={selected} canApprove={canApprove} canSeeClinical={canUseFeature(access, "rh.clinico")} onClose={() => setSelected(null)} onDecision={decide}/>} 
+    {selected && <AbsenceDrawer record={selected} canApprove={canApprove} canSeeClinical={canUseFeature(access, "rh.clinico")} onClose={() => setSelected(null)} onDecision={decide} onEdit={canApprove ? () => { setEditingAbsence(selected); setSelected(null); } : undefined} onDelete={canApprove ? () => { setDeletingAbsence(selected); setSelected(null); } : undefined}/>} 
     {creating && <AbsenceForm nextId={Math.max(0, ...records.map(record => record.id)) + 1} employees={rh.source === "supabase" ? rh.employees : []} onClose={() => setCreating(false)} onSave={createRequest}/>}
+    {editingAbsence && <AbsenceForm nextId={editingAbsence.id} employees={[]} editing={editingAbsence} onClose={() => setEditingAbsence(null)} onSave={record => updateRequest(record)}/>}
+    {deletingAbsence && <Modal eyebrow="RH · EXCLUIR MOVIMENTAÇÃO" title={`Excluir ${deletingAbsence.type.toLowerCase()}?`} subtitle={`${deletingAbsence.employee} · ${formatPeriod(deletingAbsence.start, deletingAbsence.end)} · ${durationLabel(deletingAbsence)}`} onClose={() => setDeletingAbsence(null)}>
+      <div className="employee-delete">
+        <p className="employee-delete-muted">A movimentação sai da lista e do calendário. A exclusão fica registrada na auditoria.{HEALTH_ABSENCES.has(deletingAbsence.type) ? " O dado clínico ligado a ela também é apagado." : ""}</p>
+        <footer><button type="button" className="employee-cancel" onClick={() => setDeletingAbsence(null)}>Cancelar</button><button type="button" className="absence-reject" onClick={() => deleteRequest(deletingAbsence)}><HrIcon name="close"/> Excluir movimentação</button></footer>
+      </div>
+    </Modal>}
   </>;
 }
 
@@ -870,25 +1009,34 @@ function AbsenceClinical({ absenceId }: { absenceId: string }) {
   </section>;
 }
 
-function AbsenceDrawer({ record, canApprove, canSeeClinical, onClose, onDecision }: { record: AbsenceRecord; canApprove: boolean; canSeeClinical: boolean; onClose: () => void; onDecision: (decision: "Aprovada" | "Reprovada") => void }) {
+function AbsenceDrawer({ record, canApprove, canSeeClinical, onClose, onDecision, onEdit, onDelete }: { record: AbsenceRecord; canApprove: boolean; canSeeClinical: boolean; onClose: () => void; onDecision: (decision: "Aprovada" | "Reprovada") => void; onEdit?: () => void; onDelete?: () => void }) {
   const actionable = record.status === "Pendente" || record.status === "Em análise";
-  return <div className="employee-layer" onMouseDown={onClose}><aside className="absence-drawer" onMouseDown={event => event.stopPropagation()} aria-label={`Solicitação de ${record.employee}`}><header><button onClick={onClose} aria-label="Fechar solicitação"><HrIcon name="close"/></button><span><HrIcon name={record.type === "Atestado médico" ? "heart" : "calendar"}/></span><div><p className="eyebrow">SOLICITAÇÃO #{String(record.id).padStart(4,"0")}</p><h2>{record.type}</h2><p>{record.employee} · {record.department}</p></div><Status tone={absenceTone(record.status)}>{record.status}</Status></header><div className="absence-drawer-content">{record.conflict && <div className="absence-conflict"><HrIcon name="alert"/><span><b>Conflito de planejamento</b><small>{record.conflict}</small></span></div>}<section className="absence-period"><div><small>Início</small><strong>{formatDate(record.start)}</strong></div><HrIcon name="arrow"/><div><small>Término</small><strong>{formatDate(record.end)}</strong></div>{record.hours != null || record.dayPart ? <span><b>{durationLabel(record)}</b><small>{record.hours != null ? "em horas" : "meio período"}</small></span> : <span><b>{record.days}</b><small>{record.days === 1 ? "dia" : "dias"}</small></span>}</section>{record.type === "Férias" && actionable && <section className="absence-balance"><div><span><b>Saldo antes da solicitação</b><small>Período aquisitivo atual</small></span><strong>{record.balance} dias</strong></div><i><em style={{width:`${Math.min(100,(record.balance/30)*100)}%`}}/></i><p>Saldo projetado após aprovação: <b>{Math.max(0,record.balance-record.days)} dias</b></p></section>}<DetailGroup title="Informações" rows={[["Colaborador",record.employee],["Unidade",record.unit],["Motivo ou observação",record.reason],["Solicitado em",record.requestedAt]]}/>{canSeeClinical && record.sourceId && HEALTH_ABSENCES.has(record.type) && <AbsenceClinical absenceId={record.sourceId}/>}<section className="absence-workflow"><h3>Histórico da solicitação</h3><div><i>✓</i><span><b>Solicitação registrada</b><small>{record.requestedAt}</small></span></div><div><i>{actionable ? "2" : "✓"}</i><span><b>{actionable ? "Aguardando decisão" : `Solicitação ${record.status.toLowerCase()}`}</b><small>{actionable ? "Gestor e RH foram notificados" : "Movimentação registrada no histórico"}</small></span></div></section></div>{canApprove && actionable && <footer><button className="absence-reject" onClick={() => onDecision("Reprovada")}><HrIcon name="close"/> Reprovar</button><Button onClick={() => onDecision("Aprovada")}><HrIcon name="check"/> Aprovar solicitação</Button></footer>}</aside></div>;
+  return <div className="employee-layer" onMouseDown={onClose}><aside className="absence-drawer" onMouseDown={event => event.stopPropagation()} aria-label={`Solicitação de ${record.employee}`}><header><button onClick={onClose} aria-label="Fechar solicitação"><HrIcon name="close"/></button><span><HrIcon name={record.type === "Atestado médico" ? "heart" : "calendar"}/></span><div><p className="eyebrow">SOLICITAÇÃO #{String(record.id).padStart(4,"0")}</p><h2>{record.type}</h2><p>{record.employee} · {record.department}</p></div><Status tone={absenceTone(record.status)}>{record.status}</Status></header><div className="absence-drawer-content">{record.conflict && <div className="absence-conflict"><HrIcon name="alert"/><span><b>Conflito de planejamento</b><small>{record.conflict}</small></span></div>}<section className="absence-period"><div><small>Início</small><strong>{formatDate(record.start)}</strong></div><HrIcon name="arrow"/><div><small>Término</small><strong>{formatDate(record.end)}</strong></div>{record.hours != null || record.dayPart ? <span><b>{durationLabel(record)}</b><small>{record.hours != null ? "em horas" : "meio período"}</small></span> : <span><b>{record.days}</b><small>{record.days === 1 ? "dia" : "dias"}</small></span>}</section>{record.type === "Férias" && actionable && <section className="absence-balance"><div><span><b>Saldo antes da solicitação</b><small>Período aquisitivo atual</small></span><strong>{record.balance} dias</strong></div><i><em style={{width:`${Math.min(100,(record.balance/30)*100)}%`}}/></i><p>Saldo projetado após aprovação: <b>{Math.max(0,record.balance-record.days)} dias</b></p></section>}<DetailGroup title="Informações" rows={[["Colaborador",record.employee],["Unidade",record.unit],["Motivo ou observação",record.reason],["Solicitado em",record.requestedAt]]}/>{canSeeClinical && record.sourceId && HEALTH_ABSENCES.has(record.type) && <AbsenceClinical absenceId={record.sourceId}/>}<section className="absence-workflow"><h3>Histórico da solicitação</h3><div><i>✓</i><span><b>Solicitação registrada</b><small>{record.requestedAt}</small></span></div><div><i>{actionable ? "2" : "✓"}</i><span><b>{actionable ? "Aguardando decisão" : `Solicitação ${record.status === "Registrado" ? "registrada" : record.status.toLowerCase()}`}</b><small>{actionable ? "Gestor e RH foram notificados" : "Movimentação registrada no histórico"}</small></span></div></section></div>{canApprove && actionable && <footer><button className="absence-reject" onClick={() => onDecision("Reprovada")}><HrIcon name="close"/> Reprovar</button><Button onClick={() => onDecision("Aprovada")}><HrIcon name="check"/> Aprovar solicitação</Button></footer>}{(onEdit || onDelete) && <footer className="absence-drawer-manage">{onDelete && <button className="absence-reject drawer-delete" onClick={onDelete}><HrIcon name="close"/> Excluir</button>}{onEdit && <Button variant="secondary" onClick={onEdit}><HrIcon name="edit"/> Editar</Button>}</footer>}</aside></div>;
 }
 
-function AbsenceForm({ nextId, employees, onClose, onSave }: { nextId: number; employees: RhEmployeeOption[]; onClose: () => void; onSave: (record: AbsenceRecord, employeeId?: string) => void }) {
+function AbsenceForm({ nextId, employees, editing, onClose, onSave }: { nextId: number; employees: RhEmployeeOption[]; editing?: AbsenceRecord; onClose: () => void; onSave: (record: AbsenceRecord, employeeId?: string) => void }) {
   // Só colaboradores reais: sem sessão a lista fica vazia e o formulário avisa.
   const options = employees;
   const persists = employees.length > 0;
   const [employeeId,setEmployeeId] = useState(options[0]?.id ?? "");
-  const [type,setType] = useState<AbsenceRecord["type"]>("Férias");
-  const [start,setStart] = useState("");
-  const [end,setEnd] = useState("");
-  const [reason,setReason] = useState("");
+  const [type,setType] = useState<AbsenceRecord["type"]>(editing?.type ?? "Férias");
+  const [start,setStart] = useState(editing?.start ?? "");
+  const [end,setEnd] = useState(editing?.end ?? "");
+  const [reason,setReason] = useState(editing && editing.reason !== "—" ? editing.reason : "");
   const chosen = options.find(option => option.id === employeeId) ?? options[0];
-  const days = start && end ? Math.max(1,Math.round((new Date(`${end}T12:00:00`).getTime()-new Date(`${start}T12:00:00`).getTime())/86400000)+1) : 0;
-  const valid = Boolean(chosen && start && end && reason && days > 0 && end >= start);
+  // Ausência em horas ou meio período mantém a duração; em dias, vem das datas.
+  const partial = Boolean(editing && (editing.hours != null || editing.dayPart));
+  const days = partial ? 0 : start && end ? Math.max(1,Math.round((new Date(`${end}T12:00:00`).getTime()-new Date(`${start}T12:00:00`).getTime())/86400000)+1) : 0;
+  const valid = editing
+    ? Boolean(start && end && end >= start && (partial || days > 0))
+    : Boolean(chosen && start && end && reason && days > 0 && end >= start);
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
+    if (editing) {
+      if (!valid) return;
+      onSave({ ...editing, type, start, end, days, reason: reason.trim() || "—" });
+      return;
+    }
     if (!valid || !chosen) return;
     onSave({
       id:nextId, employee:chosen.name, initials:initialsOf(chosen.name), type, start, end, days, hours:null, dayPart:null,
@@ -896,7 +1044,9 @@ function AbsenceForm({ nextId, employees, onClose, onSave }: { nextId: number; e
       requestedAt:"Hoje · agora", reason, balance:30, conflict:null,
     }, persists ? chosen.id : undefined);
   };
-  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="absence-form" onSubmit={submit} onMouseDown={event => event.stopPropagation()}><header><div><p className="eyebrow">RH · NOVA MOVIMENTAÇÃO</p><h2>Nova solicitação</h2><p>Registre férias, compensações, atestados ou licenças.</p></div><button type="button" onClick={onClose} aria-label="Fechar nova solicitação"><HrIcon name="close"/></button></header><div className="absence-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event => setEmployeeId(event.target.value)}>{options.map(option => <option key={option.id} value={option.id}>{option.name}{option.department ? ` · ${option.department}` : ""}</option>)}</select></label><label><span>Tipo de movimentação *</span><select value={type} onChange={event => setType(event.target.value as AbsenceRecord["type"])}><option>Férias</option><option>Banco de horas</option><option>Atestado médico</option><option>Licença</option></select></label><label><span>Unidade</span><div className="absence-readonly">{chosen?.unit ?? "—"}</div></label><label><span>Data inicial *</span><input type="date" value={start} onChange={event => setStart(event.target.value)}/></label><label><span>Data final *</span><input type="date" min={start} value={end} onChange={event => setEnd(event.target.value)}/></label><label className="field-wide"><span>Motivo ou observação *</span><textarea value={reason} onChange={event => setReason(event.target.value)} placeholder="Descreva a solicitação para o fluxo de aprovação..."/></label>{days > 0 && <div className="absence-preview field-wide"><HrIcon name="calendar"/><span><b>{days} {days === 1 ? "dia solicitado" : "dias solicitados"}</b><small>{persists ? "Será registrado no banco" : "Registro demonstrativo"}</small></span></div>}</div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Enviar para aprovação <HrIcon name="arrow"/></Button></footer></form></div>;
+  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="absence-form" onSubmit={submit} onMouseDown={event => event.stopPropagation()}><header><div><p className="eyebrow">{editing ? "RH · EDITAR MOVIMENTAÇÃO" : "RH · NOVA MOVIMENTAÇÃO"}</p><h2>{editing ? `Editar ${editing.type.toLowerCase()}` : "Nova solicitação"}</h2><p>{editing ? `${editing.employee} · ${editing.department}` : "Registre férias, compensações, atestados ou licenças."}</p></div><button type="button" onClick={onClose} aria-label={editing ? "Fechar edição" : "Fechar nova solicitação"}><HrIcon name="close"/></button></header><div className="absence-form-fields">{editing
+    ? <label className="field-wide"><span>Colaborador</span><div className="absence-readonly">{editing.employee}</div></label>
+    : <label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event => setEmployeeId(event.target.value)}>{options.map(option => <option key={option.id} value={option.id}>{option.name}{option.department ? ` · ${option.department}` : ""}</option>)}</select></label>}<label><span>Tipo de movimentação *</span><select value={type} onChange={event => setType(event.target.value as AbsenceRecord["type"])}>{editing ? (Object.values(absenceTypeLabel) as AbsenceRecord["type"][]).map(label => <option key={label}>{label}</option>) : <><option>Férias</option><option>Banco de horas</option><option>Atestado médico</option><option>Licença</option></>}</select></label><label><span>Unidade</span><div className="absence-readonly">{editing ? editing.unit : chosen?.unit ?? "—"}</div></label><label><span>Data inicial *</span><input type="date" value={start} onChange={event => setStart(event.target.value)}/></label><label><span>Data final *</span><input type="date" min={start} value={end} onChange={event => setEnd(event.target.value)}/></label><label className="field-wide"><span>{editing ? "Motivo ou observação" : "Motivo ou observação *"}</span><textarea value={reason} onChange={event => setReason(event.target.value)} placeholder="Descreva a solicitação para o fluxo de aprovação..."/></label>{(days > 0 || partial) && <div className="absence-preview field-wide"><HrIcon name="calendar"/><span><b>{partial && editing ? durationLabel(editing) : `${days} ${days === 1 ? (editing ? "dia" : "dia solicitado") : (editing ? "dias" : "dias solicitados")}`}</b><small>{editing ? (editing.sourceId ? "A alteração será gravada no banco" : "Registro demonstrativo") : persists ? "Será registrado no banco" : "Registro demonstrativo"}</small></span></div>}</div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>{editing ? <>Salvar alterações <HrIcon name="check"/></> : <>Enviar para aprovação <HrIcon name="arrow"/></>}</Button></footer></form></div>;
 }
 
 function formatDate(value: string) { if (!value || !/^\d{4}-\d{2}-\d{2}/.test(value)) return value || "—"; const date = new Date(`${value}T12:00:00Z`); return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("pt-BR",{timeZone:"UTC"}).format(date); }

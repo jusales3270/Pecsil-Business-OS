@@ -330,10 +330,11 @@ export default function Topbar({ onExit, canExit, canSwitch }: TopbarProps) {
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                            {new Date(n.createdAt).toLocaleDateString('pt-BR')} às{' '}
+                            {new Date(n.createdAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às{' '}
                             {new Date(n.createdAt).toLocaleTimeString('pt-BR', {
                               hour: '2-digit',
                               minute: '2-digit',
+                              timeZone: 'America/Sao_Paulo',
                             })}
                           </span>
                           {!n.lida && (

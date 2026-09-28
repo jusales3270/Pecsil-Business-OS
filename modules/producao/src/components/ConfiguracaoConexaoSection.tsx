@@ -24,7 +24,7 @@ export function ConfiguracaoConexaoSection({ status, geradoEm, onTestPing, isTes
     ['Origem dos dados', status.endpoint],
     ['Autenticação', 'Conta de integração do Business OS no Forja (papel Chefe)'],
     ['Latência da última leitura', status.latenciaMs !== undefined ? `${status.latenciaMs} ms` : '—'],
-    ['Dado gerado pelo Forja em', temDado ? new Date(geradoEm).toLocaleString('pt-BR') : '—'],
+    ['Dado gerado pelo Forja em', temDado ? new Date(geradoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—'],
     ['Atualização', 'A cada 30 segundos, com cache de 15 segundos no servidor'],
   ];
 

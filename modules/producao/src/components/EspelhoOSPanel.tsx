@@ -32,7 +32,7 @@ type Estado = { status: 'loading' } | { status: 'error' } | { status: 'ready'; d
 /** Mais que isso sem rodada aplicada com sucesso = a tarefa agendada parou. */
 const ATRASO_MIN = 30;
 
-const quando = (iso: string | null) => (iso ? new Date(iso).toLocaleString('pt-BR') : '—');
+const quando = (iso: string | null) => (iso ? new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—');
 
 export function EspelhoOSPanel() {
   const [estado, setEstado] = useState<Estado>({ status: 'loading' });

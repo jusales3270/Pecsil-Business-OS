@@ -46,7 +46,7 @@ export async function getSupabaseFoundationSnapshot(): Promise<FoundationSnapsho
     positionsResult,
   ] = await Promise.all([
     supabase.from("organizations").select("id,display_name").eq("id", organizationId).single(),
-    supabase.from("employees").select("id,profile_id,full_name,corporate_email,active,employee_number,admission_date,profiles!employees_profile_id_fkey(email,status),positions(name),departments(name),teams(name),units(name)").eq("organization_id", organizationId).order("full_name").limit(500),
+    supabase.from("employees").select("id,profile_id,full_name,corporate_email,active,employee_number,admission_date,termination_date,profiles!employees_profile_id_fkey(email,status),positions(name),departments(name),teams(name),units(name)").eq("organization_id", organizationId).order("full_name").limit(500),
     supabase.from("employees").select("id", { count:"exact", head:true }).eq("organization_id", organizationId),
     supabase.from("employees").select("id", { count:"exact", head:true }).eq("organization_id", organizationId).eq("active", true),
     supabase.from("profiles").select("id", { count:"exact", head:true }).eq("organization_id", organizationId),
@@ -101,9 +101,12 @@ function toPerson(row: Row): Person {
     department: relationName(row.departments, "Sem departamento"),
     unit: relationName(row.units, "Sem unidade"),
     profile: row.profile_id || profile.email ? "Conta vinculada" : "Sem conta de acesso",
-    status: accountStatus(profile.status, Boolean(row.active)),
+    status: row.termination_date && String(row.termination_date) <= hojeSaoPaulo()
+      ? "Desligado"
+      : accountStatus(profile.status, Boolean(row.active)),
     registration: row.employee_number ? String(row.employee_number) : undefined,
     admissionDate: row.admission_date ? String(row.admission_date) : null,
+    terminationDate: row.termination_date ? String(row.termination_date) : null,
     team: relation(row.teams).name ? String(relation(row.teams).name) : null,
   };
 }
@@ -137,6 +140,8 @@ function relationName(value: unknown, fallback: string) {
 function initials(name: string) {
   return name.split(/\s+/).slice(0,2).map(part => part[0]?.toUpperCase()).join("") || "--";
 }
+
+const hojeSaoPaulo = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
 function accountStatus(value: unknown, active: boolean): PersonStatus {
   if (!active || value === "blocked" || value === "disabled") return "Bloqueado";

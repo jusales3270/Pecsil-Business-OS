@@ -83,7 +83,7 @@ export function TerceirosSection() {
 
     {ehHoje && estado.status === "ready" && (
       <Card className="absence-card">
-        <div className="absence-toolbar"><div><p className="eyebrow">AGORA</p><h2>Na fábrica</h2></div>{lidoEm && <Status tone="info">Atualizado às {lidoEm.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</Status>}</div>
+        <div className="absence-toolbar"><div><p className="eyebrow">AGORA</p><h2>Na fábrica</h2></div>{lidoEm && <Status tone="info">Atualizado às {lidoEm.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}</Status>}</div>
         <div className="absence-table terceiros-table">
           <div className="absence-table-head"><span>Terceiro</span><span>Entrada</span><span>Dentro há</span><span>Situação</span></div>
           {dentro.map((a) => {

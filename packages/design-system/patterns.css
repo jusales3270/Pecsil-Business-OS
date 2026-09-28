@@ -6083,3 +6083,68 @@ button.holiday-row:hover {
     width: 100%;
   }
 }
+
+/* --- RH: excluir cadastro / movimentação ----------------------------------- */
+/* Excluir fica à esquerda do rodapé, longe de Editar/Aprovar. */
+.employee-layer > aside > footer > .drawer-delete { margin-right: auto; }
+.employee-layer > aside > footer.absence-drawer-manage { padding-top: var(--sp-3); padding-bottom: var(--sp-3); }
+
+.employee-fields label > .field-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}
+
+.employee-delete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.employee-delete-muted { font-size: var(--fs-sm); color: var(--text-secondary); }
+.employee-delete-alert {
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--edge-red);
+  border-radius: var(--radius-md);
+  background: var(--tint-red);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+}
+.employee-delete-alert ul { margin-top: var(--sp-2); padding-left: var(--sp-5); list-style: disc; }
+.employee-delete-alert li { color: var(--text-secondary); }
+.employee-delete-tip {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--edge-amber, var(--border));
+  border-radius: var(--radius-md);
+  background: var(--tint-amber);
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+}
+.employee-delete-tip > svg { flex-shrink: 0; width: 18px; height: 18px; color: var(--accent-amber); margin-top: 1px; }
+.employee-delete-confirm { display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text-secondary); }
+.employee-delete-confirm input { height: 40px; padding: 0 var(--sp-3); font-size: var(--fs-sm); }
+.employee-delete > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.employee-delete > footer > button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 40px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+.employee-delete > footer > button > svg { width: 16px; height: 16px; }
+.employee-delete > footer > .absence-reject { border-color: var(--accent-red); background: var(--accent-red); color: #fff; }
+.employee-delete > footer > .absence-reject:hover:not(:disabled) { filter: brightness(0.92); }
+.employee-delete > footer > .absence-reject:disabled { opacity: 0.45; }

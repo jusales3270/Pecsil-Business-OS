@@ -60,7 +60,7 @@ export function ReportHeader({ title, subtitle, generatedAt }: { title: string; 
       <div>
         <h1>{title}</h1>
         <p>{subtitle}</p>
-        <p>Gerado em {generatedAt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</p>
+        <p>Gerado em {generatedAt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" })}</p>
       </div>
     </header>
   );

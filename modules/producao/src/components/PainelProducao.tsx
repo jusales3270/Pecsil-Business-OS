@@ -37,7 +37,7 @@ export function PainelProducao({
     card?: KanbanCard;
   } | null>(null);
 
-  const horaFormatada = new Date(data.geradoEm).toLocaleTimeString('pt-BR');
+  const horaFormatada = new Date(data.geradoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const { carteira, historico } = data.indicadores;
   const gargalosAtivos = data.gargalos.filter((g) => g.operacoes > 0 || g.horasPlanejadas > 0);
 
@@ -374,7 +374,7 @@ export function PainelProducao({
                             {os.quantidadeTotal}
                           </td>
                           <td style={{ padding: '8px 4px', textAlign: 'right' }}>
-                            {new Date(os.prazoEntrega).toLocaleDateString('pt-BR')}
+                            {String(os.prazoEntrega).slice(0, 10).split('-').reverse().join('/')}
                           </td>
                         </tr>
                       ))}

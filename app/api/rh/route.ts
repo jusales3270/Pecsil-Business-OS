@@ -61,6 +61,15 @@ export async function PATCH(request: Request) {
     if (error instanceof Error && error.message === "RH_MUTATION_DENIED") {
       return NextResponse.json({ error:"RH_MUTATION_DENIED" }, { status:403 });
     }
+    if (error instanceof Error && error.message === "RH_INVALID") {
+      return NextResponse.json({ error:"RH_INVALID" }, { status:400 });
+    }
+    if (error instanceof Error && error.message === "RH_CONFIRMATION") {
+      return NextResponse.json({ error:"RH_CONFIRMATION" }, { status:400 });
+    }
+    if (error instanceof Error && error.message === "RH_EMPLOYEE_HAS_ACCOUNT") {
+      return NextResponse.json({ error:"RH_EMPLOYEE_HAS_ACCOUNT" }, { status:409 });
+    }
     // Só 42501 é recusa de permissão. Qualquer outro erro do banco (gatilho,
     // restrição, coluna) é falha de gravação: dizer "sem permissão" aqui
     // escondeu por dias um gatilho quebrado que impedia aprovar férias.
