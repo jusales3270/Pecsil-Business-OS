@@ -41,6 +41,9 @@ export type FinanceBankAccount = {
   active: boolean;
 };
 
+export type FinanceCostCenter = { id: string; code: string | null; name: string };
+export type FinanceChartAccount = { id: string; code: string; name: string; type: string; allowsPosting: boolean };
+
 export type FinanceSummary = {
   availableBalance: number;
   payableOpen: number;
@@ -55,6 +58,8 @@ export type FinanceSnapshot = {
   summary: FinanceSummary;
   titles: FinanceTitle[];
   bankAccounts: FinanceBankAccount[];
+  costCenters: FinanceCostCenter[];
+  chartAccounts: FinanceChartAccount[];
   loadedAt: string;
 };
 
@@ -71,6 +76,8 @@ export const demoFinanceSnapshot: FinanceSnapshot = {
   },
   titles: [],
   bankAccounts: [],
+  costCenters: [],
+  chartAccounts: [],
   loadedAt: new Date(0).toISOString(),
 };
 

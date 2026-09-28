@@ -16,12 +16,22 @@ test("financeiro: ações críticas respeitam permissões", () => {
   assert.match(source, /canUseFeature\(access,"financeiro\.receber","aprovar"\)/);
 });
 
-test("financeiro: cria, aprova, liquida, recebe e concilia em modo demonstrativo", () => {
+test("financeiro: cria, aprova, liquida, recebe e avisa conciliação pendente", () => {
   assert.match(source, /Nova conta a pagar/);
   assert.match(source, /Aprovar/);
   assert.match(source, /Pagar/);
   assert.match(source, /Receber/);
-  assert.match(source, /Conciliar agora/);
+  assert.match(source, /Conciliação pendente/);
+});
+
+test("financeiro: nenhum dado inventado no módulo (só o que está no banco)", () => {
+  // Títulos, contas bancárias, centros e saldos fictícios que existiam na
+  // versão demonstrativa não podem voltar para a tela.
+  for (const falso of [/Aços Boituva/, /TechMold/, /Cristal Forte/, /Vidros Nacional/, /Banco do Brasil · 4521/, /842350/, /126840/, /R\$ 382\.400/, /initialPayables/, /initialReceivables/]) {
+    assert.doesNotMatch(source, falso);
+  }
+  assert.match(source, /Nenhuma conta bancária cadastrada/);
+  assert.match(source, /Nenhum centro de custo cadastrado/);
 });
 
 test("financeiro: homologação cobre critérios, alçadas, evidências e decisão final", () => {
