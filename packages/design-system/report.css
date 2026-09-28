@@ -153,6 +153,11 @@
 .report-table tbody tr:nth-child(even) td {
   background: #fafbfc;
 }
+/* Passagem fora da soma (sem saída ou não contabilizada pela Portaria). */
+.report-table tbody tr.report-muted td {
+  color: var(--report-muted);
+  font-style: italic;
+}
 .report-note {
   margin-top: 3mm;
   font-size: 8pt;

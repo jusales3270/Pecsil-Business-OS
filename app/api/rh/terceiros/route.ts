@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
  * (`portaria.terceiros`); o RH lê com `rh.terceiros` (RLS `terceiros_read_rh`).
  *
  *   ?data=AAAA-MM-DD  apontamentos do dia (painel "na fábrica agora")
- *   ?mes=AAAA-MM      relatório do mês, com as horas somadas como registradas
+ *   ?mes=AAAA-MM      relatório do mês, com os minutos que a Portaria calculou
  */
 export async function GET(request: Request) {
   const guard = await requireFeature("rh.terceiros");
@@ -24,12 +24,12 @@ export async function GET(request: Request) {
 
   const linhas: TerceiroApontamento[] = [];
   for (let from = 0; ; from += 1000) {
-    let query = guard.supabase.from("terceiros").select("id, nome, data, hora_entrada, hora_saida").order("data").order("hora_entrada");
+    let query = guard.supabase.from("terceiros").select("id, nome, data, hora_entrada, hora_saida, minutos_trabalhados").order("data").order("hora_entrada");
     query = data ? query.eq("data", data) : query.like("data", `${mes}-%`);
     const { data: page, error } = await query.range(from, from + 999);
     if (error) return dbError(error);
     for (const r of page ?? []) {
-      linhas.push({ id: String(r.id), nome: String(r.nome ?? ""), data: String(r.data), entrada: String(r.hora_entrada ?? ""), saida: r.hora_saida ? String(r.hora_saida) : null });
+      linhas.push({ id: String(r.id), nome: String(r.nome ?? ""), data: String(r.data), entrada: String(r.hora_entrada ?? ""), saida: r.hora_saida ? String(r.hora_saida) : null, minutos: typeof r.minutos_trabalhados === "number" ? r.minutos_trabalhados : null });
     }
     if (!page || page.length < 1000) break;
   }

@@ -2,8 +2,14 @@
  * Horas dos terceiros a partir dos apontamentos da Portaria (lógica pura).
  *
  * Regra combinada com o proprietário (27/09/2026): o RH NÃO interpreta nem
- * corrige os apontamentos. Cada passagem vale o que a Portaria registrou
- * (saída − entrada) e as horas da pessoa são a soma simples das passagens.
+ * corrige os apontamentos; soma as horas como a Portaria registrou.
+ *
+ * A Portaria calcula os minutos de cada passagem no momento da saída e grava
+ * em `minutos_trabalhados`. Quando a saída é registrada em outro dia (alguém
+ * esqueceu de fechar), ela não calcula: a passagem fica sem minutos e fica
+ * fora da soma — é assim que o controle e a planilha da própria Portaria
+ * fazem (agosto/2026: 317 passagens, 2201h32, igual ao relatório de
+ * referência). O RH mostra essas passagens, marcadas, e não as soma.
  *
  * A Portaria grava a hora como texto ISO com um "Z" que não é fuso de verdade
  * ("2026-08-24T08:37:00.000Z" significa 08:37 na fábrica). Por isso a hora é
@@ -17,15 +23,21 @@ export type TerceiroApontamento = {
   data: string;
   entrada: string;
   saida: string | null;
+  /** Minutos calculados pela Portaria (`minutos_trabalhados`); null quando não calculou. */
+  minutos: number | null;
 };
+
+export type SituacaoPassagem = "contabilizada" | "sem-saida" | "nao-contabilizada";
 
 export type LinhaRelatorio = {
   data: string;
   dia: string;
   entrada: string;
+  /** "HH:MM", ou "dd/mm HH:MM" quando a saída foi registrada em outro dia. */
   saida: string | null;
-  /** null quando ainda não há saída registrada. */
+  /** Minutos que entram na soma; null quando a passagem não conta. */
   minutos: number | null;
+  situacao: SituacaoPassagem;
 };
 
 export type PessoaRelatorio = { nome: string; linhas: LinhaRelatorio[]; totalMinutos: number };
@@ -37,6 +49,7 @@ export type RelatorioTerceiros = {
   pessoas: PessoaRelatorio[];
   totalMinutos: number;
   semSaida: number;
+  naoContabilizadas: number;
 };
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -64,6 +77,22 @@ export function formatarHoras(minutos: number): string {
   return `${h}h${String(m).padStart(2, "0")}`;
 }
 
+/** Situação da passagem e os minutos que entram na soma, pela regra da Portaria. */
+export function contabilizar(a: Pick<TerceiroApontamento, "saida" | "minutos">): { situacao: SituacaoPassagem; minutos: number | null } {
+  if (!horaDoApontamento(a.saida)) return { situacao: "sem-saida", minutos: null };
+  if (a.minutos !== null && a.minutos > 0) return { situacao: "contabilizada", minutos: a.minutos };
+  return { situacao: "nao-contabilizada", minutos: null };
+}
+
+/** Saída para exibir: só a hora, ou "dd/mm HH:MM" quando foi em outro dia. */
+export function saidaParaExibir(a: Pick<TerceiroApontamento, "data" | "saida">): string | null {
+  const hora = horaDoApontamento(a.saida);
+  if (!hora) return null;
+  const dia = String(a.saida).match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  if (dia && `${dia[1]}-${dia[2]}-${dia[3]}` !== a.data) return `${dia[3]}/${dia[2]} ${hora}`;
+  return hora;
+}
+
 export function diaDaSemana(data: string): string {
   const [y, m, d] = data.split("-").map(Number);
   return DIAS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
@@ -84,14 +113,15 @@ export function limitesDoMes(mes: string): { inicio: string; fim: string } {
 export function montarRelatorio(mes: string, apontamentos: TerceiroApontamento[]): RelatorioTerceiros {
   const porPessoa = new Map<string, LinhaRelatorio[]>();
   let semSaida = 0;
+  let naoContabilizadas = 0;
   for (const a of apontamentos) {
     const entrada = horaDoApontamento(a.entrada);
     if (!entrada) continue;
-    const saida = horaDoApontamento(a.saida);
-    const minutos = minutosDaPassagem(entrada, saida);
-    if (minutos === null) semSaida += 1;
+    const { situacao, minutos } = contabilizar(a);
+    if (situacao === "sem-saida") semSaida += 1;
+    if (situacao === "nao-contabilizada") naoContabilizadas += 1;
     const nome = a.nome.trim();
-    porPessoa.set(nome, [...(porPessoa.get(nome) ?? []), { data: a.data, dia: diaDaSemana(a.data), entrada, saida, minutos }]);
+    porPessoa.set(nome, [...(porPessoa.get(nome) ?? []), { data: a.data, dia: diaDaSemana(a.data), entrada, saida: saidaParaExibir(a), minutos, situacao }]);
   }
   const pessoas = [...porPessoa.entries()]
     .map(([nome, linhas]) => {
@@ -100,7 +130,7 @@ export function montarRelatorio(mes: string, apontamentos: TerceiroApontamento[]
     })
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   const { inicio, fim } = limitesDoMes(mes);
-  return { mes, inicio, fim, pessoas, totalMinutos: pessoas.reduce((s, p) => s + p.totalMinutos, 0), semSaida };
+  return { mes, inicio, fim, pessoas, totalMinutos: pessoas.reduce((s, p) => s + p.totalMinutos, 0), semSaida, naoContabilizadas };
 }
 
 /** Quem está na fábrica agora: entrada no dia sem saída registrada. */
