@@ -1045,6 +1045,40 @@
   color: var(--accent-blue);
 }
 
+/* Seção direta do módulo (sem área no meio, ex.: Portaria › Terceiros): é a
+   tela aberta, então leva o preenchimento de seção ativa. */
+.sidebar nav button.sidebar-area.sidebar-leaf.active {
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  border-color: var(--edge-blue);
+}
+
+/* Contador ao lado da seção (Visitas 887, Terceiros na fábrica 5). */
+.sidebar nav button > i.sidebar-count {
+  margin-left: auto;
+  min-width: 22px;
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar nav button > i.sidebar-count.sidebar-count-alert {
+  background: var(--tint-amber);
+  color: var(--accent-amber);
+}
+
+.sidebar nav button.active > i.sidebar-count:not(.sidebar-count-alert) {
+  background: var(--bg-surface);
+  color: var(--accent-blue);
+}
+
 /* Barra recolhida mostra só os ícones dos módulos: a árvore não cabe. */
 .app-shell.collapsed .sidebar-tree {
   display: none;

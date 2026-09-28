@@ -139,6 +139,7 @@ async function run() {
         : [{ numero: "", valor: 0 }]),
     descricao: v.descricao || "",
     fotoBase64: v.foto_base64 || undefined,
+    createdAt: v.created_at,
   }));
 
   const formattedFrota = (frota || []).map((v) => ({
@@ -158,6 +159,7 @@ async function run() {
       : (v.nota_fiscal && v.nota_fiscal !== ""
         ? [{ numero: v.nota_fiscal, valor: Number(v.valor_nfe || 0) }]
         : [{ numero: "", valor: 0 }]),
+    createdAt: v.created_at,
   }));
 
   const formattedTerceiros = terceiros.map((t) => ({
@@ -169,6 +171,8 @@ async function run() {
     // Minutos calculados pela própria Portaria na saída; vazio quando ela
     // não calculou (saída registrada em outro dia). Não recalcular aqui.
     minutosTrabalhados: t.minutos_trabalhados ?? null,
+    // A Portaria ordena as listas por created_at: preservar o original.
+    createdAt: t.created_at,
   }));
 
   const snapshot = {

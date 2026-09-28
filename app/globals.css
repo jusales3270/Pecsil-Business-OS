@@ -15,6 +15,44 @@
    ============================================================================ */
 
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* Tailwind dos módulos migrados de apps shadcn (Portaria).
+   O app oficial usa Tailwind 3 com tema shadcn: `bg-primary`, `border-input`,
+   `rounded-lg` = 10px… Aqui esses nomes apontam para variáveis --pt-* que só
+   existem dentro da Portaria (portaria.css). Fora dela a variável não existe
+   e a classe continua sem efeito — o Compras, que também usa `text-primary`,
+   não muda. Raio e sombra têm o padrão do Tailwind 4 como reserva.
+   `dark:` segue a classe `.dark` (como no app), não o sistema operacional. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-background: var(--pt-background);
+  --color-foreground: var(--pt-foreground);
+  --color-card: var(--pt-card);
+  --color-card-foreground: var(--pt-card-foreground);
+  --color-popover: var(--pt-popover);
+  --color-popover-foreground: var(--pt-popover-foreground);
+  --color-primary: var(--pt-primary);
+  --color-primary-foreground: var(--pt-primary-foreground);
+  --color-secondary: var(--pt-secondary);
+  --color-secondary-foreground: var(--pt-secondary-foreground);
+  --color-muted: var(--pt-muted);
+  --color-muted-foreground: var(--pt-muted-foreground);
+  --color-accent: var(--pt-accent);
+  --color-accent-foreground: var(--pt-accent-foreground);
+  --color-destructive: var(--pt-destructive);
+  --color-destructive-foreground: var(--pt-destructive-foreground);
+  --color-border: var(--pt-border);
+  --color-input: var(--pt-input);
+  --color-ring: var(--pt-ring);
+  --radius-xs: var(--pt-radius-xs, 0.125rem);
+  --radius-sm: var(--pt-radius-sm, 0.25rem);
+  --radius-md: var(--pt-radius-md, 0.375rem);
+  --radius-lg: var(--pt-radius-lg, 0.5rem);
+  --radius-xl: var(--pt-radius-xl, 0.75rem);
+  --shadow-sm: var(--pt-shadow-sm, 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1));
+}
 
 @import "../packages/design-system/tokens.css";
 @import "../packages/design-system/base.css";

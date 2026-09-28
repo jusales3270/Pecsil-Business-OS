@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Users, Car, CalendarDays, Search, Plus, Trash2, Edit3,
   LogIn, FileText, MapPin, Clock,
-  Filter, Download, Truck, ChevronDown, ChevronRight, ChevronLeft,
+  Filter, Download, Truck, ChevronDown, ChevronRight,
   Phone, CreditCard, UserCircle, X, Check, AlertTriangle, Menu, BarChart3,
   CheckCircle2, LogOut, RefreshCw, Settings, Package
 } from 'lucide-react';
@@ -12,7 +12,7 @@ import './portaria.css';
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { ScrollArea } from "./components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "./components/ui/scroll-area";
 import { Badge } from "./components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
@@ -51,26 +51,6 @@ function App({ onExit }: { onExit?: () => void } = {}) {
   const { user, perfil, loading: authLoading, signOut } = useAuth();
   const [paginaAtiva, setPaginaAtiva] = useState<PaginaAtiva>('dashboard');
   const { registerNav } = useModuleNav();
-
-  useEffect(() => {
-    const items = [
-      { id: 'dashboard', label: 'Painel Geral', icon: 'grid' },
-      ...(podePortaria(perfil, 'visitas') ? [{ id: 'visitas', label: 'Visitas', icon: 'users' }] : []),
-      ...(podePortaria(perfil, 'terceiros') ? [{ id: 'terceiros', label: 'Terceiros', icon: 'briefcase' }] : []),
-      ...(podePortaria(perfil, 'recebidos') ? [{ id: 'recebidos', label: 'Recebidos', icon: 'box' }] : []),
-      ...(podePortaria(perfil, 'veiculos') ? [{ id: 'veiculos', label: 'Veículos', icon: 'truck' }] : []),
-      ...(perfil?.role === 'super_admin' ? [{ id: 'usuarios', label: 'Usuários', icon: 'key' }] : []),
-      { id: 'configuracoes', label: 'Configurações', icon: 'settings' },
-    ];
-    registerNav({
-      moduleId: 'portaria',
-      moduleName: 'Portaria',
-      items,
-      activeId: paginaAtiva,
-      onSelect: (id) => setPaginaAtiva(id as PaginaAtiva),
-    });
-    return () => registerNav(null);
-  }, [paginaAtiva, perfil, registerNav]);
   const [busca, setBusca] = useState('');
   const [filtroResponsavel, setFiltroResponsavel] = useState('todos');
   const [filtroDescricao, setFiltroDescricao] = useState('todos');
@@ -79,7 +59,6 @@ function App({ onExit }: { onExit?: () => void } = {}) {
   const [modalVeiculoAberto, setModalVeiculoAberto] = useState(false);
   const [visitaEditando, setVisitaEditando] = useState<Visita | null>(null);
   const [veiculoEditando, setVeiculoEditando] = useState<ControleVeiculo | null>(null);
-  const [menuAberto, setMenuAberto] = useState(false);
   const [modalNFsAberto, setModalNFsAberto] = useState(false);
   const [filtroPeriodoNF, setFiltroPeriodoNF] = useState<'dia' | 'semana' | 'mes' | 'todos'>('dia');
   const [modalKPIAtivo, setModalKPIAtivo] = useState<'visitas_hoje' | 'em_andamento' | 'entregas' | 'tecnicas' | null>(null);
@@ -528,6 +507,31 @@ function App({ onExit }: { onExit?: () => void } = {}) {
   const frotaEmTransito = veiculos.filter((v) => v.horarioSaida && !v.horarioRetorno).length;
   const totalKmRodados = veiculos.reduce((acc, v) => acc + Math.max(0, v.kmRodados || 0), 0);
   const totalRegistrosFrota = veiculos.length;
+
+  // O menu lateral do app vira submenu da Portaria na barra lateral da
+  // plataforma (mesmos itens, na mesma ordem, com os mesmos contadores).
+  useEffect(() => {
+    const items = [
+      { id: 'dashboard', label: 'Dashboard', icon: 'chart' },
+      ...(podePortaria(perfil, 'visitas') ? [{ id: 'visitas', label: 'Visitas', icon: 'users', badge: visitas.length }] : []),
+      ...(podePortaria(perfil, 'terceiros') ? [{ id: 'terceiros', label: 'Terceiros', icon: 'team', ...(terceirosAtivos.length > 0 ? { badge: terceirosAtivos.length, badgeTone: 'attention' as const } : {}) }] : []),
+      ...(podePortaria(perfil, 'recebidos') ? [{ id: 'recebidos', label: 'Recebidos', icon: 'box', badge: recebidos.length }] : []),
+      ...(podePortaria(perfil, 'veiculos') ? [{ id: 'veiculos', label: 'Frota', icon: 'truck', badge: veiculos.length }] : []),
+      ...(perfil?.role === 'super_admin' ? [{ id: 'usuarios', label: 'Gerenciar Usuários', icon: 'key' }] : []),
+      { id: 'configuracoes', label: 'Configurações', icon: 'settings' },
+    ];
+    registerNav({
+      moduleId: 'portaria',
+      moduleName: 'Portaria',
+      items,
+      activeId: paginaAtiva,
+      onSelect: (id) => setPaginaAtiva(id as PaginaAtiva),
+      sidebarTree: true,
+    });
+  }, [paginaAtiva, perfil, registerNav, visitas.length, terceirosAtivos.length, recebidos.length, veiculos.length]);
+
+  // Sai do módulo: some o submenu.
+  useEffect(() => () => registerNav(null), [registerNav]);
 
   // Helper: filtra veículos por período
   const filtrarPorPeriodo = (lista: ControleVeiculo[], periodo: 'dia' | 'semana' | 'mes') => {
@@ -1189,7 +1193,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
   const renderDashboard = () => (
     <div className="space-y-6">
       {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <Card
           className={`border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-all ${isAdmin ? 'cursor-pointer hover:border-l-emerald-600 active:scale-[0.98]' : ''
             }`}
@@ -1405,6 +1409,48 @@ function App({ onExit }: { onExit?: () => void } = {}) {
         </Card>
 
       </div>{/* fim grid lado a lado */}
+      {/* Resumo — era o rodapé do menu lateral do app; o menu virou submenu
+          da barra lateral da plataforma e o resumo veio para cá. */}
+      <Card className="shadow-sm">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Resumo</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500" />Entregas</span>
+                  <span className="font-semibold text-gray-900">{totalEntregas}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500" />Visitas</span>
+                  <span className="font-semibold text-gray-900">{totalVisitasGerais}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-purple-500" />Técnicas</span>
+                  <span className="font-semibold text-gray-900">{totalVisitasTecnicas}</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Frota</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-teal-500" />Registros</span>
+                  <span className="font-semibold text-gray-900">{totalRegistrosFrota}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500" />Em trânsito</span>
+                  <span className="font-semibold text-gray-900">{frotaEmTransito}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-400" />KM total</span>
+                  <span className="font-semibold text-gray-900">{totalKmRodados}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 
@@ -1413,6 +1459,8 @@ function App({ onExit }: { onExit?: () => void } = {}) {
       {/* Filtros */}
       <Card className="shadow-sm">
         <CardContent className="pt-6">
+          {/* 3 colunas até telas bem largas: dentro da plataforma a área útil é
+              ~300px menor que no app, e em 5 colunas os filtros se sobrepõem. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1579,6 +1627,8 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 </tbody>
               </table>
             </div>
+            <ScrollBar orientation="horizontal" className="h-1.5 bg-slate-100/10" />
+            <ScrollBar orientation="vertical" className="w-1.5 bg-slate-100/10" />
           </ScrollArea>
         </CardContent>
       </Card>
@@ -1671,6 +1721,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 ))}
               </tbody>
             </table>
+            <ScrollBar orientation="vertical" className="w-1.5 bg-slate-100/10" />
           </ScrollArea>
         </CardContent>
       </Card>
@@ -1682,7 +1733,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
       {/* Filtros */}
       <Card className="shadow-sm">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -1774,6 +1825,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 ))}
               </tbody>
             </table>
+            <ScrollBar orientation="vertical" className="w-1.5 bg-slate-100/10" />
           </ScrollArea>
         </CardContent>
       </Card>
@@ -1785,7 +1837,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
       {/* Filtros */}
       <Card className="shadow-sm">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -1896,147 +1948,9 @@ function App({ onExit }: { onExit?: () => void } = {}) {
 
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <div className="flex gap-6">
-          {/* Sidebar Navigation */}
-          <aside className={`${menuAberto ? 'block' : 'hidden'} lg:block w-64 flex-shrink-0`}>
-            <nav className="space-y-1 sticky top-24">
-              <button
-                onClick={() => { setPaginaAtiva('dashboard'); setMenuAberto(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${paginaAtiva === 'dashboard'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                  : 'text-gray-600 hover:bg-gray-200'
-                  }`}
-              >
-                <BarChart3 className="w-5 h-5" />
-                Dashboard
-              </button>
-              {podePortaria(perfil, 'visitas') && (<button
-                onClick={() => { setPaginaAtiva('visitas'); setMenuAberto(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${paginaAtiva === 'visitas'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                  : 'text-gray-600 hover:bg-gray-200'
-                  }`}
-              >
-                <Users className="w-5 h-5" />
-                Visitas
-                <Badge className={`ml-auto ${paginaAtiva === 'visitas' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-800'}`}>{visitas.length}</Badge>
-              </button>)}
-              {podePortaria(perfil, 'terceiros') && (<button
-                onClick={() => { setPaginaAtiva('terceiros'); setMenuAberto(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${paginaAtiva === 'terceiros'
-                  ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                  : 'text-gray-600 hover:bg-gray-200'
-                  }`}
-              >
-                <Users className="w-5 h-5" />
-                Terceiros
-                {terceirosAtivos.length > 0 && (
-                  <Badge className={`ml-auto ${paginaAtiva === 'terceiros' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-700'}`}>{terceirosAtivos.length}</Badge>
-                )}
-              </button>)}
-              {podePortaria(perfil, 'recebidos') && (<button
-                onClick={() => { setPaginaAtiva('recebidos'); setMenuAberto(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${paginaAtiva === 'recebidos'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                  : 'text-gray-600 hover:bg-gray-200'
-                  }`}
-              >
-                <Package className="w-5 h-5" />
-                Recebidos
-                <Badge className={`ml-auto ${paginaAtiva === 'recebidos' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-800'}`}>{recebidos.length}</Badge>
-              </button>)}
-              {podePortaria(perfil, 'veiculos') && (<button
-                onClick={() => { setPaginaAtiva('veiculos'); setMenuAberto(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${paginaAtiva === 'veiculos'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                  : 'text-gray-600 hover:bg-gray-200'
-                  }`}
-              >
-                <Car className="w-5 h-5" />
-                Frota
-                <Badge className={`ml-auto ${paginaAtiva === 'veiculos' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-800'}`}>{veiculos.length}</Badge>
-              </button>)}
-
-              {perfil?.role === 'super_admin' && (
-                <button
-                  onClick={() => { setPaginaAtiva('usuarios'); setMenuAberto(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${paginaAtiva === 'usuarios'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                    : 'text-gray-600 hover:bg-gray-200'
-                    }`}
-                >
-                  <Users className="w-5 h-5" />
-                  Gerenciar Usuários
-                </button>
-              )}
-
-              <button
-                onClick={() => { setPaginaAtiva('configuracoes'); setMenuAberto(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${paginaAtiva === 'configuracoes'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                  : 'text-gray-600 hover:bg-gray-200'
-                  }`}
-              >
-                <Settings className="w-5 h-5" />
-                Configurações
-              </button>
-
-              <Separator className="my-4" />
-
-              <div className="px-4 py-2">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Resumo</p>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-blue-500" />
-                      Entregas
-                    </span>
-                    <span className="font-semibold text-gray-900">{totalEntregas}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500" />
-                      Visitas
-                    </span>
-                    <span className="font-semibold text-gray-900">{totalVisitasGerais}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-purple-500" />
-                      Técnicas
-                    </span>
-                    <span className="font-semibold text-gray-900">{totalVisitasTecnicas}</span>
-                  </div>
-                  <Separator className="my-1" />
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-3 mb-2">Frota</p>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-teal-500" />
-                      Registros
-                    </span>
-                    <span className="font-semibold text-gray-900">{totalRegistrosFrota}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-amber-500" />
-                      Em trânsito
-                    </span>
-                    <span className="font-semibold text-gray-900">{frotaEmTransito}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-blue-400" />
-                      KM total
-                    </span>
-                    <span className="font-semibold text-gray-900">{totalKmRodados}</span>
-                  </div>
-                </div>
-              </div>
-            </nav>
-          </aside>
-
-          {/* Conteúdo Principal */}
-          <main className="flex-1 min-w-0">
+        {/* O menu lateral do app virou submenu da Portaria na barra lateral da
+            plataforma (ver registerNav); o conteúdo usa a largura toda. */}
+        <main className="min-w-0">
             {carregando ? (
               <div className="flex flex-col items-center justify-center h-full py-40 gap-4 text-gray-400">
                 <RefreshCw className="w-10 h-10 animate-spin text-blue-400" />
@@ -2068,8 +1982,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 {paginaAtiva === 'configuracoes' && <Configuracoes />}
               </>
             )}
-          </main>
-        </div>
+        </main>
       </div>
 
       {/* Modal - Registrar Entrada Terceiro */}
@@ -2113,7 +2026,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
 
       {/* Modal - Nova Visita */}
       <Dialog open={modalVisitaAberto} onOpenChange={setModalVisitaAberto}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {visitaEditando ? <Edit3 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
@@ -2370,7 +2283,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
 
       {/* Modal - Novo Veículo */}
       <Dialog open={modalVeiculoAberto} onOpenChange={setModalVeiculoAberto}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {veiculoEditando ? <Edit3 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
@@ -2584,7 +2497,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
 
       {/* Modal de Detalhes da Visita */}
       <Dialog open={!!visitaDetalhes} onOpenChange={() => setVisitaDetalhes(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl border-b pb-4">
               <UserCircle className="w-6 h-6 text-blue-500" />
@@ -2699,7 +2612,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
 
       {/* Modal de Detalhes de NFs de Entrada (apenas para Admin) */}
       <Dialog open={modalNFsAberto} onOpenChange={setModalNFsAberto}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[min(72rem,calc(100vw-4rem))] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl border-b pb-4">
               <CreditCard className="w-6 h-6 text-rose-500" />
@@ -2763,7 +2676,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
 
             {/* Listagem */}
             <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-              <div className="overflow-x-auto max-h-[40vh] overflow-y-auto pr-1">
+              <div className="overflow-x-auto max-h-[40vh] sm:max-h-[calc(90vh-21rem)] overflow-y-auto pr-1">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-gray-50 z-10">
                     <tr className="bg-gray-50 border-b border-gray-200 text-gray-600">
@@ -2812,7 +2725,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
 
       {/* Modal de Detalhes de Visitas / Entregas de KPIs (apenas para Admin) */}
       <Dialog open={modalKPIAtivo !== null} onOpenChange={(open) => !open && setModalKPIAtivo(null)}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[min(72rem,calc(100vw-4rem))] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl border-b pb-4">
               {modalKPIAtivo === 'visitas_hoje' && <CalendarDays className="w-6 h-6 text-emerald-500" />}
@@ -2879,7 +2792,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
 
             {/* Listagem */}
             <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-              <div className="overflow-x-auto max-h-[40vh] overflow-y-auto pr-1">
+              <div className="overflow-x-auto max-h-[40vh] sm:max-h-[calc(90vh-21rem)] overflow-y-auto pr-1">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-gray-50 z-10">
                     <tr className="bg-gray-50 border-b border-gray-200 text-gray-600">
@@ -2943,7 +2856,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
 
       {/* Modal de Detalhamento KM por Veículo */}
       <Dialog open={modalKmFrotaAberto} onOpenChange={(open) => { if (!open) { setModalKmFrotaAberto(false); setVeiculoExpandido(null); } }}>
-        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[min(72rem,calc(100vw-4rem))] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl border-b pb-4">
               <Truck className="w-6 h-6 text-blue-500" />
@@ -2997,7 +2910,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
 
             {/* Listagem de veículos */}
             <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-              <div className="overflow-x-auto max-h-[50vh] overflow-y-auto">
+              <div className="overflow-x-auto max-h-[50vh] sm:max-h-[calc(90vh-21rem)] overflow-y-auto">
                 {kmPorVeiculo.length === 0 ? (
                   <div className="py-12 text-center text-gray-400 font-medium">
                     Nenhum registro de frota encontrado no período.
@@ -3089,7 +3002,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
 
       {/* Modal - Registrar Recebimento (Recebidos) */}
       <Dialog open={modalRecebidoAberto} onOpenChange={setModalRecebidoAberto}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-5 h-5" />
@@ -3196,7 +3109,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
 
       {/* Modal de Detalhes do Recebido */}
       <Dialog open={!!recebidoDetalhes} onOpenChange={() => setRecebidoDetalhes(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl border-b pb-4">
               <Package className="w-6 h-6 text-blue-500" />

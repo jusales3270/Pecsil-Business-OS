@@ -1,14 +1,17 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { lazySupabaseBrowserClient } from '../../../../lib/supabase/lazy-browser-client';
-import { visitasIniciais, veiculosIniciais, terceirosIniciais, recebidosIniciais } from '../data/dados';
 
-// Cliente compartilhado do Pecsil Business OS: carrega a sessão do usuário
-// logado, passa pelo gateway `/sb` e respeita o RLS com a identidade real.
+// Camada de dados idêntica à do app oficial (controle-acesso-pecsil). A única
+// diferença é o cliente: o do Business OS carrega a sessão do usuário logado,
+// passa pelo gateway `/sb` e respeita o RLS com a identidade real.
+//
+// Sem cópia local no navegador: se o banco recusar uma gravação, a função
+// devolve null (ou lança), e a tela põe a operação na fila offline para
+// tentar de novo — exatamente como o app oficial faz.
 export const supabase = lazySupabaseBrowserClient;
 
 // A service role nunca chega ao navegador. A administração de usuários fica em
-// "Pessoas e Acessos" do Business OS; as telas legadas da Portaria que dependem
-// deste cliente exibem o aviso de chave ausente.
+// "Pessoas e Acessos" do Business OS.
 export const supabaseAdmin: SupabaseClient | null = null;
 
 // ─── VISITANTES (Reconhecimento Facial) ───────────────────────────────────────
@@ -89,62 +92,40 @@ export async function salvarVisitante(
 // ─── VISITAS ──────────────────────────────────────────────────────────────────
 
 export async function fetchVisitas() {
-  try {
-    const { data, error } = await supabase
-      .from('visitas')
-      .select('id, data, empresa, visitante, horario_entrada, horario_saida, documento, contato, responsavel, placa_veiculo, notas_fiscais, nota_fiscal, valor_nfe, descricao, created_at')
-      .order('created_at', { ascending: false });
-
-    if (!error && data && data.length > 0) {
-      const parsed = data.map((v: Record<string, unknown>) => ({
-        id: v.id as string,
-        data: v.data as string,
-        empresa: (v.empresa as string) || '',
-        visitante: (v.visitante as string) || '',
-        horarioEntrada: (v.horario_entrada as string) || '',
-        horarioSaida: (v.horario_saida as string) || '',
-        documento: (v.documento as string) || '',
-        contato: (v.contato as string) || '',
-        responsavel: (v.responsavel as string) || '',
-        placaVeiculo: (v.placa_veiculo as string) || '-',
-        notasFiscais: Array.isArray(v.notas_fiscais) && v.notas_fiscais.length > 0
-          ? v.notas_fiscais as { numero: string; valor: number }[]
-          : (v.nota_fiscal && v.nota_fiscal !== '-'
-            ? [{ numero: v.nota_fiscal as string, valor: (v.valor_nfe as number) || 0 }]
-            : [{ numero: '', valor: 0 }]),
-        descricao: (v.descricao as string) || '',
-        fotoBase64: undefined,
-      }));
-      if (typeof window !== 'undefined') {
-        try { localStorage.setItem('portaria_visitas', JSON.stringify(parsed)); } catch { /* ignore */ }
-      }
-      return parsed;
-    }
-  } catch (err) {
-    console.warn('[Portaria] Conexão remota a visitas indisponível, usando fallback local.');
-  }
-
-  if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem('portaria_visitas');
-    if (cached) {
-      try { return JSON.parse(cached); } catch { /* ignore */ }
-    }
-  }
-  return visitasIniciais;
+  const { data, error } = await supabase
+    .from('visitas')
+    .select('id, data, empresa, visitante, horario_entrada, horario_saida, documento, contato, responsavel, placa_veiculo, notas_fiscais, nota_fiscal, valor_nfe, descricao, created_at')
+    .order('created_at', { ascending: false });
+  if (error) { console.error('Erro ao carregar visitas:', error); return []; }
+  return (data || []).map((v: Record<string, unknown>) => ({
+    id: v.id as string,
+    data: v.data as string,
+    empresa: (v.empresa as string) || '',
+    visitante: (v.visitante as string) || '',
+    horarioEntrada: (v.horario_entrada as string) || '',
+    horarioSaida: (v.horario_saida as string) || '',
+    documento: (v.documento as string) || '',
+    contato: (v.contato as string) || '',
+    responsavel: (v.responsavel as string) || '',
+    placaVeiculo: (v.placa_veiculo as string) || '-',
+    notasFiscais: Array.isArray(v.notas_fiscais) && v.notas_fiscais.length > 0
+      ? v.notas_fiscais as { numero: string; valor: number }[]
+      : (v.nota_fiscal && v.nota_fiscal !== '-'
+        ? [{ numero: v.nota_fiscal as string, valor: (v.valor_nfe as number) || 0 }]
+        : [{ numero: '', valor: 0 }]),
+    descricao: (v.descricao as string) || '',
+    fotoBase64: undefined, // foto carregada sob demanda (ver fetchFotoVisita)
+  }));
 }
 
 export async function fetchFotoVisita(id: string): Promise<string | undefined> {
-  try {
-    const { data, error } = await supabase
-      .from('visitas')
-      .select('foto_base64')
-      .eq('id', id)
-      .single();
-    if (error) return undefined;
-    return (data?.foto_base64 as string) || undefined;
-  } catch {
-    return undefined;
-  }
+  const { data, error } = await supabase
+    .from('visitas')
+    .select('foto_base64')
+    .eq('id', id)
+    .single();
+  if (error) { console.error('Erro ao carregar foto da visita:', error); return undefined; }
+  return (data?.foto_base64 as string) || undefined;
 }
 
 export async function inserirVisita(visita: {
@@ -154,26 +135,22 @@ export async function inserirVisita(visita: {
   notasFiscais: { numero: string; valor: number }[];
   descricao: string; fotoBase64?: string;
 }): Promise<string | null> {
-  try {
-    const { data, error } = await supabase.from('visitas').insert([{
-      data: visita.data,
-      empresa: visita.empresa,
-      visitante: visita.visitante,
-      horario_entrada: visita.horarioEntrada || null,
-      horario_saida: visita.horarioSaida || null,
-      documento: visita.documento,
-      contato: visita.contato,
-      responsavel: visita.responsavel,
-      placa_veiculo: visita.placaVeiculo,
-      notas_fiscais: visita.notasFiscais,
-      descricao: visita.descricao,
-      foto_base64: visita.fotoBase64 || null,
-    }]).select('id').single();
-    if (!error && data?.id) return data.id;
-  } catch (err) {
-    console.warn('[Portaria] Erro ao sincronizar visita no Supabase, registrando localmente:', err);
-  }
-  return `temp-vis-${Date.now()}`;
+  const { data, error } = await supabase.from('visitas').insert([{
+    data: visita.data,
+    empresa: visita.empresa,
+    visitante: visita.visitante,
+    horario_entrada: visita.horarioEntrada || null,
+    horario_saida: visita.horarioSaida || null,
+    documento: visita.documento,
+    contato: visita.contato,
+    responsavel: visita.responsavel,
+    placa_veiculo: visita.placaVeiculo,
+    notas_fiscais: visita.notasFiscais,
+    descricao: visita.descricao,
+    foto_base64: visita.fotoBase64 || null,
+  }]).select('id').single();
+  if (error) { console.error('Erro ao inserir visita:', JSON.stringify(error)); return null; }
+  return data?.id ?? null;
 }
 
 export async function atualizarVisitaDb(v: {
@@ -183,90 +160,60 @@ export async function atualizarVisitaDb(v: {
   notasFiscais: { numero: string; valor: number }[];
   descricao: string;
 }) {
-  try {
-    const { error } = await supabase.from('visitas').update({
-      data: v.data,
-      empresa: v.empresa,
-      visitante: v.visitante,
-      horario_entrada: v.horarioEntrada || null,
-      documento: v.documento,
-      contato: v.contato,
-      responsavel: v.responsavel,
-      placa_veiculo: v.placaVeiculo,
-      notas_fiscais: v.notasFiscais,
-      descricao: v.descricao,
-    }).eq('id', v.id);
-    if (error) console.warn('[Portaria] Atualização remota de visita pendente de sync:', error.message);
-  } catch (err) {
-    console.warn('[Portaria] Erro ao atualizar visita:', err);
-  }
+  const { error } = await supabase.from('visitas').update({
+    data: v.data,
+    empresa: v.empresa,
+    visitante: v.visitante,
+    horario_entrada: v.horarioEntrada || null,
+    documento: v.documento,
+    contato: v.contato,
+    responsavel: v.responsavel,
+    placa_veiculo: v.placaVeiculo,
+    notas_fiscais: v.notasFiscais,
+    descricao: v.descricao,
+  }).eq('id', v.id);
+  if (error) throw error;
 }
 
 export async function encerrarVisitaDb(id: string, horarioSaida: string) {
-  try {
-    const { error } = await supabase
-      .from('visitas')
-      .update({ horario_saida: horarioSaida })
-      .eq('id', id);
-    if (error) console.warn('[Portaria] Encerramento remoto pendente de sync:', error.message);
-  } catch (err) {
-    console.warn('[Portaria] Erro ao encerrar visita:', err);
-  }
+  const { error } = await supabase
+    .from('visitas')
+    .update({ horario_saida: horarioSaida })
+    .eq('id', id);
+  if (error) throw error;
 }
 
 export async function excluirVisitaDb(id: string) {
-  try {
-    const { error } = await supabase.from('visitas').delete().eq('id', id);
-    if (error) console.warn('[Portaria] Exclusão remota pendente de sync:', error.message);
-  } catch (err) {
-    console.warn('[Portaria] Erro ao excluir visita:', err);
-  }
+  const { error } = await supabase.from('visitas').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── FROTA ────────────────────────────────────────────────────────────────────
 
 export async function fetchFrota() {
-  try {
-    const { data, error } = await supabase
-      .from('frota')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!error && data && data.length > 0) {
-      const parsed = data.map((v: Record<string, unknown>) => ({
-        id: v.id as string,
-        data: v.data as string,
-        motorista: (v.responsavel as string) || '',
-        veiculo: (v.veiculo as string) || '',
-        horarioSaida: (v.horario_saida as string) || '',
-        dataRetorno: (v.data_retorno as string) || '',
-        horarioRetorno: (v.horario_retorno as string) || '',
-        kmRodados: Math.max(0, (v.km_rodados as number) || 0),
-        kmSaida: (v.km_saida as number) || 0,
-        kmEntrada: (v.km_entrada as number) || 0,
-        destino: (v.destino as string) || '',
-        notasFiscais: Array.isArray(v.notas_fiscais) && v.notas_fiscais.length > 0
-          ? v.notas_fiscais as { numero: string; valor: number }[]
-          : (v.nota_fiscal && v.nota_fiscal !== ''
-            ? [{ numero: v.nota_fiscal as string, valor: (v.valor_nfe as number) || 0 }]
-            : [{ numero: '', valor: 0 }]),
-      }));
-      if (typeof window !== 'undefined') {
-        try { localStorage.setItem('portaria_frota', JSON.stringify(parsed)); } catch { /* ignore */ }
-      }
-      return parsed;
-    }
-  } catch (err) {
-    console.warn('[Portaria] Conexão remota a frota indisponível, usando fallback local.');
-  }
-
-  if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem('portaria_frota');
-    if (cached) {
-      try { return JSON.parse(cached); } catch { /* ignore */ }
-    }
-  }
-  return veiculosIniciais;
+  const { data, error } = await supabase
+    .from('frota')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) { console.error('Erro ao carregar frota:', error); return []; }
+  return (data || []).map((v: Record<string, unknown>) => ({
+    id: v.id as string,
+    data: v.data as string,
+    motorista: v.responsavel as string,
+    veiculo: v.veiculo as string,
+    horarioSaida: v.horario_saida as string || '',
+    dataRetorno: v.data_retorno as string || '',
+    horarioRetorno: v.horario_retorno as string || '',
+    kmRodados: Math.max(0, v.km_rodados as number || 0),
+    kmSaida: v.km_saida as number || 0,
+    kmEntrada: v.km_entrada as number || 0,
+    destino: v.destino as string,
+    notasFiscais: Array.isArray(v.notas_fiscais) && v.notas_fiscais.length > 0
+      ? v.notas_fiscais as { numero: string; valor: number }[]
+      : (v.nota_fiscal && v.nota_fiscal !== ''
+        ? [{ numero: v.nota_fiscal as string, valor: (v.valor_nfe as number) || 0 }]
+        : [{ numero: '', valor: 0 }]),
+  }));
 }
 
 export async function inserirVeiculo(v: {
@@ -275,25 +222,24 @@ export async function inserirVeiculo(v: {
   kmRodados: number; kmSaida: number; kmEntrada: number; destino: string;
   notasFiscais: { numero: string; valor: number }[];
 }): Promise<string | null> {
-  try {
-    const { data, error } = await supabase.from('frota').insert([{
-      data: v.data,
-      responsavel: v.motorista,
-      veiculo: v.veiculo,
-      horario_saida: v.horarioSaida || null,
-      data_retorno: v.dataRetorno || null,
-      horario_retorno: v.horarioRetorno || null,
-      km_rodados: Math.max(0, v.kmRodados || 0),
-      km_saida: v.kmSaida,
-      km_entrada: v.kmEntrada,
-      destino: v.destino,
-      notas_fiscais: v.notasFiscais,
-    }]).select('id').single();
-    if (!error && data?.id) return data.id;
-  } catch (err) {
-    console.warn('[Portaria] Erro ao sincronizar veículo no Supabase, registrando localmente:', err);
+  const { data, error } = await supabase.from('frota').insert([{
+    data: v.data,
+    responsavel: v.motorista,
+    veiculo: v.veiculo,
+    horario_saida: v.horarioSaida || null,
+    data_retorno: v.dataRetorno || null,
+    horario_retorno: v.horarioRetorno || null,
+    km_rodados: Math.max(0, v.kmRodados || 0),
+    km_saida: v.kmSaida,
+    km_entrada: v.kmEntrada,
+    destino: v.destino,
+    notas_fiscais: v.notasFiscais,
+  }]).select('id').single();
+  if (error) {
+    console.error('Erro ao inserir veículo — código:', error.code, '— mensagem:', error.message, '— detalhes:', error.details, '— hint:', error.hint);
+    return null;
   }
-  return `temp-frota-${Date.now()}`;
+  return data?.id ?? null;
 }
 
 export async function atualizarVeiculoDb(v: {
@@ -302,69 +248,43 @@ export async function atualizarVeiculoDb(v: {
   kmRodados: number; kmSaida: number; kmEntrada: number; destino: string;
   notasFiscais: { numero: string; valor: number }[];
 }) {
-  try {
-    const { error } = await supabase.from('frota').update({
-      data: v.data,
-      responsavel: v.motorista,
-      veiculo: v.veiculo,
-      horario_saida: v.horarioSaida || null,
-      data_retorno: v.dataRetorno || null,
-      horario_retorno: v.horarioRetorno || null,
-      km_rodados: Math.max(0, v.kmRodados || 0),
-      km_saida: v.kmSaida,
-      km_entrada: v.kmEntrada,
-      destino: v.destino,
-      notas_fiscais: v.notasFiscais,
-    }).eq('id', v.id);
-    if (error) console.warn('[Portaria] Atualização remota de frota pendente:', error.message);
-  } catch (err) {
-    console.warn('[Portaria] Erro ao atualizar veículo:', err);
-  }
+  const { error } = await supabase.from('frota').update({
+    data: v.data,
+    responsavel: v.motorista,
+    veiculo: v.veiculo,
+    horario_saida: v.horarioSaida || null,
+    data_retorno: v.dataRetorno || null,
+    horario_retorno: v.horarioRetorno || null,
+    km_rodados: Math.max(0, v.kmRodados || 0),
+    km_saida: v.kmSaida,
+    km_entrada: v.kmEntrada,
+    destino: v.destino,
+    notas_fiscais: v.notasFiscais,
+  }).eq('id', v.id);
+  if (error) throw error;
 }
 
 export async function excluirVeiculoDb(id: string) {
-  try {
-    const { error } = await supabase.from('frota').delete().eq('id', id);
-    if (error) console.warn('[Portaria] Exclusão remota de frota pendente:', error.message);
-  } catch (err) {
-    console.warn('[Portaria] Erro ao excluir veículo:', err);
-  }
+  const { error } = await supabase.from('frota').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── TERCEIROS ────────────────────────────────────────────────────────────────
 
 export async function fetchTerceiros() {
-  try {
-    const { data, error } = await supabase
-      .from('terceiros')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!error && data && data.length > 0) {
-      const parsed = data.map((t: Record<string, unknown>) => ({
-        id: t.id as string,
-        nome: t.nome as string,
-        data: t.data as string,
-        horaEntrada: t.hora_entrada as string,
-        horaSaida: (t.hora_saida as string) || undefined,
-        minutosTrabalhados: (t.minutos_trabalhados as number) || undefined,
-      }));
-      if (typeof window !== 'undefined') {
-        try { localStorage.setItem('portaria_terceiros', JSON.stringify(parsed)); } catch { /* ignore */ }
-      }
-      return parsed;
-    }
-  } catch (err) {
-    console.warn('[Portaria] Conexão remota a terceiros indisponível, usando fallback local.');
-  }
-
-  if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem('portaria_terceiros');
-    if (cached) {
-      try { return JSON.parse(cached); } catch { /* ignore */ }
-    }
-  }
-  return terceirosIniciais;
+  const { data, error } = await supabase
+    .from('terceiros')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) { console.error('Erro ao carregar terceiros:', error); return []; }
+  return (data || []).map((t: Record<string, unknown>) => ({
+    id: t.id as string,
+    nome: t.nome as string,
+    data: t.data as string,
+    horaEntrada: t.hora_entrada as string,
+    horaSaida: (t.hora_saida as string) || undefined,
+    minutosTrabalhados: (t.minutos_trabalhados as number) || undefined,
+  }));
 }
 
 export async function inserirTerceiro(t: {
@@ -372,89 +292,55 @@ export async function inserirTerceiro(t: {
   data: string;
   horaEntrada: string;
 }): Promise<string | null> {
-  try {
-    const { data, error } = await supabase.from('terceiros').insert([{
-      nome: t.nome,
-      data: t.data,
-      hora_entrada: t.horaEntrada,
-    }]).select('id').single();
-    if (!error && data?.id) return data.id;
-  } catch (err) {
-    console.warn('[Portaria] Erro ao sincronizar terceiro no Supabase, registrando localmente:', err);
-  }
-  return `temp-terc-${Date.now()}`;
+  const { data, error } = await supabase.from('terceiros').insert([{
+    nome: t.nome,
+    data: t.data,
+    hora_entrada: t.horaEntrada,
+  }]).select('id').single();
+  if (error) { console.error('Erro ao inserir terceiro:', error.message); return null; }
+  return data?.id ?? null;
 }
 
 export async function encerrarTerceiroDb(id: string, horaSaida: string, minutosTrabalhados: number) {
-  try {
-    const { error } = await supabase.from('terceiros').update({
-      hora_saida: horaSaida,
-      minutos_trabalhados: minutosTrabalhados,
-    }).eq('id', id);
-    if (error) console.warn('[Portaria] Encerramento de terceiro pendente de sync:', error.message);
-  } catch (err) {
-    console.warn('[Portaria] Erro ao encerrar terceiro:', err);
-  }
+  const { error } = await supabase.from('terceiros').update({
+    hora_saida: horaSaida,
+    minutos_trabalhados: minutosTrabalhados,
+  }).eq('id', id);
+  if (error) throw error;
 }
 
 export async function excluirTerceiroDb(id: string) {
-  try {
-    const { error } = await supabase.from('terceiros').delete().eq('id', id);
-    if (error) console.warn('[Portaria] Exclusão de terceiro pendente de sync:', error.message);
-  } catch (err) {
-    console.warn('[Portaria] Erro ao excluir terceiro:', err);
-  }
+  const { error } = await supabase.from('terceiros').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── RECEBIDOS ────────────────────────────────────────────────────────────────
 
 export async function fetchRecebidos() {
-  try {
-    const { data, error } = await supabase
-      .from('encomendas')
-      .select('id, data, hora_registro, remetente, destinatario, descricao, created_at')
-      .order('created_at', { ascending: false });
-
-    if (!error && data && data.length > 0) {
-      const parsed = data.map((e: Record<string, any>) => ({
-        id: e.id as string,
-        data: e.data as string,
-        horaRegistro: e.hora_registro as string,
-        remetente: (e.remetente as string) || '',
-        destinatario: (e.destinatario as string) || '',
-        descricao: (e.descricao as string) || '',
-        fotoBase64: undefined,
-      }));
-      if (typeof window !== 'undefined') {
-        try { localStorage.setItem('portaria_recebidos', JSON.stringify(parsed)); } catch { /* ignore */ }
-      }
-      return parsed;
-    }
-  } catch (err) {
-    console.warn('[Portaria] Conexão remota a recebidos indisponível, usando fallback local.');
-  }
-
-  if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem('portaria_recebidos');
-    if (cached) {
-      try { return JSON.parse(cached); } catch { /* ignore */ }
-    }
-  }
-  return recebidosIniciais;
+  const { data, error } = await supabase
+    .from('encomendas')
+    .select('id, data, hora_registro, remetente, destinatario, descricao, created_at')
+    .order('created_at', { ascending: false });
+  if (error) { console.error('Erro ao carregar recebidos:', error); return []; }
+  return (data || []).map((e: Record<string, any>) => ({
+    id: e.id as string,
+    data: e.data as string,
+    horaRegistro: e.hora_registro as string,
+    remetente: (e.remetente as string) || '',
+    destinatario: (e.destinatario as string) || '',
+    descricao: (e.descricao as string) || '',
+    fotoBase64: undefined, // foto carregada sob demanda (ver fetchFotoRecebido)
+  }));
 }
 
 export async function fetchFotoRecebido(id: string): Promise<string | undefined> {
-  try {
-    const { data, error } = await supabase
-      .from('encomendas')
-      .select('foto_base64')
-      .eq('id', id)
-      .single();
-    if (error) return undefined;
-    return (data?.foto_base64 as string) || undefined;
-  } catch {
-    return undefined;
-  }
+  const { data, error } = await supabase
+    .from('encomendas')
+    .select('foto_base64')
+    .eq('id', id)
+    .single();
+  if (error) { console.error('Erro ao carregar foto do recebido:', error); return undefined; }
+  return (data?.foto_base64 as string) || undefined;
 }
 
 export async function inserirRecebido(recebido: {
@@ -465,28 +351,20 @@ export async function inserirRecebido(recebido: {
   descricao: string;
   fotoBase64?: string;
 }): Promise<string | null> {
-  try {
-    const { data, error } = await supabase.from('encomendas').insert([{
-      data: recebido.data,
-      hora_registro: recebido.horaRegistro,
-      remetente: recebido.remetente,
-      destinatario: recebido.destinatario,
-      descricao: recebido.descricao,
-      foto_base64: recebido.fotoBase64 || null,
-    }]).select('id').single();
-    if (!error && data?.id) return data.id;
-  } catch (err) {
-    console.warn('[Portaria] Erro ao sincronizar recebido no Supabase, registrando localmente:', err);
-  }
-  return `temp-rec-${Date.now()}`;
+  const { data, error } = await supabase.from('encomendas').insert([{
+    data: recebido.data,
+    hora_registro: recebido.horaRegistro,
+    remetente: recebido.remetente,
+    destinatario: recebido.destinatario,
+    descricao: recebido.descricao,
+    foto_base64: recebido.fotoBase64 || null,
+  }]).select('id').single();
+  if (error) { console.error('Erro ao inserir recebido:', JSON.stringify(error)); return null; }
+  return data?.id ?? null;
 }
 
 export async function excluirRecebidoDb(id: string) {
-  try {
-    const { error } = await supabase.from('encomendas').delete().eq('id', id);
-    if (error) console.warn('[Portaria] Exclusão de recebido pendente de sync:', error.message);
-  } catch (err) {
-    console.warn('[Portaria] Erro ao excluir recebido:', err);
-  }
+  const { error } = await supabase.from('encomendas').delete().eq('id', id);
+  if (error) throw error;
 }
 

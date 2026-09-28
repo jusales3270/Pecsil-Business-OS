@@ -21,6 +21,7 @@ import {
   inserirRecebido,
   excluirRecebidoDb,
 } from './supabase';
+import { compactarFila, resolverAlvo } from './offlineQueueCore';
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -138,17 +139,35 @@ export async function processQueue(): Promise<{
   processedCount: number;
   failedCount: number;
 }> {
-  const queue = getQueue();
-  if (queue.length === 0) return { idMappings: [], processedCount: 0, failedCount: 0 };
+  const original = getQueue();
+  if (original.length === 0) return { idMappings: [], processedCount: 0, failedCount: 0 };
+
+  // Criado e excluído antes de chegar ao banco: não grava nada.
+  const { fila: queue, descartadas } = compactarFila(original);
+  if (descartadas.length) {
+    console.log(`[OfflineQueue] ${descartadas.length} operação(ões) de registros criados e excluídos offline descartadas (efeito nulo).`);
+  }
 
   console.log(`[OfflineQueue] Processando ${queue.length} operação(ões) pendentes...`);
 
   const idMappings: IdMapping[] = [];
+  const idsReais = new Map<string, string>();
+  const criacoesPendentes = new Set(queue.filter((op) => op.type.startsWith('insert_') && op.tempId).map((op) => op.tempId as string));
   const remaining: PendingOperation[] = [];
   let processedCount = 0;
   let failedCount = 0;
 
-  for (const op of queue) {
+  for (const queued of queue) {
+    // Encerrar/editar/excluir um registro criado offline: usa o id real
+    // quando a criação já foi gravada; espera se ainda está pendente.
+    const alvo = resolverAlvo(queued, idsReais, criacoesPendentes);
+    if (alvo.acao === 'aguardar') { remaining.push(queued); continue; }
+    if (alvo.acao === 'orfa') {
+      failedCount++;
+      console.error(`[OfflineQueue] ✗ Descartada: ${queued.type} aponta para registro provisório inexistente`, queued.id);
+      continue;
+    }
+    const op: PendingOperation = { ...queued, payload: alvo.payload };
     try {
       const result = await executeOperation(op);
 
@@ -156,6 +175,8 @@ export async function processQueue(): Promise<{
         processedCount++;
         if (result.realId && op.tempId) {
           idMappings.push({ tempId: op.tempId, realId: result.realId });
+          idsReais.set(op.tempId, result.realId);
+          criacoesPendentes.delete(op.tempId);
         }
         console.log(`[OfflineQueue] ✓ Operação processada: ${op.type}`, op.id);
       } else {

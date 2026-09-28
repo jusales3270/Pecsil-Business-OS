@@ -102,6 +102,17 @@ export function useOnlineStatus(
     }
   }, []);
 
+  // Ao abrir a página com conexão, envia o que ficou na fila. Sem isso, uma
+  // fila salva num dia anterior só era enviada quando a conexão caísse e
+  // voltasse — e o aviso de pendências ficava para sempre.
+  useEffect(() => {
+    let ativo = true;
+    checkRealConnectivity().then((online) => {
+      if (ativo && online) syncQueue();
+    });
+    return () => { ativo = false; };
+  }, [checkRealConnectivity, syncQueue]);
+
   // Monitora eventos de online/offline do navegador
   useEffect(() => {
     const handleOnline = async () => {
