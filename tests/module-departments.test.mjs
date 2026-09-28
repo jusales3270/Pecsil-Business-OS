@@ -3,7 +3,7 @@ import test from "node:test";
 import "./ts-resolver.mjs";
 
 const { moduleRegistry, getDepartmentAreas, getModuleById } = await import("../modules/registry.ts");
-const { canAccessModule, getCatalogModules, getVisibleModules, hasMultipleModules } = await import("../modules/access.ts");
+const { canAccessModule, getCatalogModules, getVisibleModules } = await import("../modules/access.ts");
 
 /** Contexto mínimo de acesso: só o que essas funções leem. */
 const usuario = (grants) => ({ isOwner: false, grants, permissions: [], scopes: [] });
@@ -44,11 +44,4 @@ test("o menu e o catálogo não listam áreas soltas", () => {
 test("quem não tem nada do Comercial não abre o departamento", () => {
   const portaria = usuario({ "portaria.visitas": "operar" });
   assert.equal(canAccessModule(portaria, comercial), false);
-});
-
-test("áreas do mesmo departamento não contam como dois módulos", () => {
-  // Só Compras: não há para onde trocar, o atalho de saída não aparece.
-  assert.equal(hasMultipleModules(usuario({ "compras.cotacoes": "operar" })), false);
-  // Compras + RH: dois departamentos, o atalho aparece.
-  assert.equal(hasMultipleModules(usuario({ "compras.cotacoes": "operar", "rh.ferias": "ver" })), true);
 });

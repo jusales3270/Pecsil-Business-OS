@@ -1,6 +1,6 @@
 import type { ModuleManifest, ModuleScope } from "./types";
 import { hasAnyPermission, hasPermission } from "./access-policy";
-import { getDepartmentAreas, getModuleById } from "./registry";
+import { getDepartmentAreas } from "./registry";
 import { hasFeature, hasModuleAccess, type AccessGrants, type AccessLevel } from "./access-catalog";
 
 export type ModuleAccessContext = {
@@ -45,22 +45,6 @@ export { hasAnyPermission, hasPermission };
 
 export function canUseFeature(context: ModuleAccessContext, code: string, level: AccessLevel = "ver") {
   return hasFeature(context, code, level);
-}
-
-/**
- * Mostra o atalho de volta ao ecossistema: o proprietário, ou quem tem mais de
- * um DEPARTAMENTO liberado. Áreas do mesmo departamento (Compras dentro do
- * Comercial) contam como um só — quem só tem Compras não precisa de troca.
- */
-export function hasMultipleModules(context: ModuleAccessContext) {
-  if (context.isOwner) return true;
-  const departments = new Set(
-    Object.keys(context.grants)
-      .map((code) => code.split(".")[0])
-      .filter((code) => code !== "fundacao")
-      .map((code) => getModuleById(code)?.department ?? code),
-  );
-  return departments.size > 1;
 }
 
 /**

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { FoundationSummary, Person } from "../../lib/data/foundation";
-import { canUseFeature, hasMultipleModules, type ModuleAccessContext } from "../../modules";
+import { canUseFeature, type ModuleAccessContext } from "../../modules";
 import { Button, Card, DetailRows, Kpi, KpiGrid, Modal, Segmented, Status, type DetailRow } from "../../packages/design-system";
 import { useRhData } from "../../lib/data/use-rh-data";
 import { useModuleNav } from "../../lib/module-nav-context";
@@ -246,7 +246,7 @@ export function HrModule({
     return () => registerNav(null);
   }, [accessibleSections, section, registerNav]);
 
-  const isOwner = hasMultipleModules(access);
+  const isOwner = access.isOwner;
 
   return <div className="ds-module-body">
     <div className="ds-module-bar">
