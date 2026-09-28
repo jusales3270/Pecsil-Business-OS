@@ -6155,3 +6155,27 @@ button.holiday-row:hover {
 .employee-document-row > div > b { font-size: var(--fs-sm); }
 .employee-document-row > div > small { font-size: var(--fs-xs); color: var(--text-muted); }
 .employee-document-row > .ds-button { flex-shrink: 0; }
+
+/* --- Financeiro: estado vazio (sem dado, nunca número inventado) ----------- */
+.finance-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-6) var(--sp-4);
+  text-align: center;
+}
+.finance-empty > b { font-size: var(--fs-sm); color: var(--text-primary); }
+.finance-empty > small { font-size: var(--fs-xs); color: var(--text-muted); max-width: 420px; }
+.finance-table .finance-empty { grid-column: 1 / -1; }
+.finance-empty-card { padding: var(--sp-5); }
+.finance-readonly {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 var(--sp-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}

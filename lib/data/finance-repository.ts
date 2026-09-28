@@ -23,7 +23,7 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
   if (profileResult.error) throw profileResult.error;
   const organizationId = profileResult.data.organization_id as string;
 
-  const [titlesResult, banksResult, entriesResult, approvalsResult] = await Promise.all([
+  const [titlesResult, banksResult, entriesResult, approvalsResult, centersResult, accountsResult] = await Promise.all([
     supabase
       .from("finance_titles")
       .select("id,direction,counterparty_name,document_number,description,issue_date,original_amount,status,finance_cost_centers(name),finance_chart_accounts(name),finance_installments(id,installment_number,due_date,amount,settled_amount,status)")
@@ -43,9 +43,21 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
       .select("id", { count:"exact", head:true })
       .eq("organization_id", organizationId)
       .eq("status", "pending"),
+    supabase
+      .from("finance_cost_centers")
+      .select("id,code,name")
+      .eq("organization_id", organizationId)
+      .eq("active", true)
+      .order("name"),
+    supabase
+      .from("finance_chart_accounts")
+      .select("id,code,name,account_type,allows_posting")
+      .eq("organization_id", organizationId)
+      .eq("active", true)
+      .order("code"),
   ]);
 
-  const failed = [titlesResult, banksResult, entriesResult, approvalsResult].find(result => result.error);
+  const failed = [titlesResult, banksResult, entriesResult, approvalsResult, centersResult, accountsResult].find(result => result.error);
   if (failed?.error) throw failed.error;
 
   const titles = ((titlesResult.data ?? []) as unknown as Row[]).map(toTitle);
@@ -68,6 +80,10 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
     },
     titles,
     bankAccounts: banks,
+    costCenters: ((centersResult.data ?? []) as Row[]).map(row => ({ id: String(row.id), code: row.code ? String(row.code) : null, name: String(row.name) })),
+    chartAccounts: ((accountsResult.data ?? []) as Row[]).map(row => ({
+      id: String(row.id), code: String(row.code ?? ""), name: String(row.name), type: String(row.account_type ?? ""), allowsPosting: Boolean(row.allows_posting),
+    })),
     loadedAt: new Date().toISOString(),
   };
 }
