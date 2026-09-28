@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "../../../../../lib/supabase/admin";
 import { authorize, replaceGrants, writeAudit } from "../../../../../lib/auth/admin-users";
-import { endOfDayBrasilia, isAccessExpired, normalizeGrants } from "../../../../../modules/access-catalog";
+import { endOfDayBrasilia, isAccessExpired, isJobTitle, normalizeGrants } from "../../../../../modules/access-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +16,8 @@ type PatchBody = {
   /** Só para terceiros: empresa prestadora e validade (AAAA-MM-DD ou null). */
   companyName?: string;
   accessExpiresAt?: string | null;
+  /** Só para o administrativo: diretor, gerente, assistente ou estagiário. */
+  jobTitle?: string;
   status?: string;
   password?: string;
 };
@@ -43,7 +45,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   // 404 (e não 403) de propósito: não confirmar perfis de outras organizações.
   const { data: target } = await admin
     .from("profiles")
-    .select("id, user_id, email, full_name, status, organization_id, is_owner, account_type, company_name, access_expires_at")
+    .select("id, user_id, email, full_name, status, organization_id, is_owner, account_type, company_name, job_title, access_expires_at")
     .eq("id", targetId)
     .maybeSingle();
   if (!target || target.organization_id !== orgId) {
@@ -116,6 +118,26 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     applied.push("thirdParty");
   }
 
+  // --- Cargo do administrativo ------------------------------------------------
+  if (body.jobTitle !== undefined) {
+    if (target.account_type !== "administrativo") {
+      return NextResponse.json({ error: "Cargo é só do administrativo." }, { status: 400 });
+    }
+    if (!isJobTitle(body.jobTitle)) return NextResponse.json({ error: "Cargo inválido." }, { status: 400 });
+    const { error } = await admin.from("profiles").update({ job_title: body.jobTitle }).eq("id", targetId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await writeAudit(admin, {
+      orgId,
+      actorProfileId,
+      actorUserId,
+      eventType: "core.access.user.job_title_change",
+      entityType: "profile",
+      entityId: targetId,
+      metadata: { email: target.email, before: target.job_title, after: body.jobTitle },
+    });
+    applied.push("jobTitle");
+  }
+
   // --- Situação ----------------------------------------------------------------
   if (body.status !== undefined) {
     if (!STATUSES.includes(body.status as Status)) {
@@ -169,23 +191,69 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 }
 
 /**
- * Desativação (soft delete).
- *
- * Nunca apaga o perfil: `profiles.id` é referenciado por `audit_logs`,
- * `employees`, `documents` e pelos campos `*_by_profile_id` — apagar
- * reescreveria a trilha de auditoria. Desativar encerra o acesso do mesmo jeito.
+ * Exclusão definitiva do usuário: apaga o login e o perfil. As permissões,
+ * papéis e notificações vão junto; a ficha do RH fica sem acesso vinculado e
+ * pode ganhar um novo. A trilha (audit_logs, module_events) não perde o autor:
+ * guarda o id sem chave estrangeira, e este evento registra nome e e-mail.
+ * Exige digitar o e-mail do usuário (confirmEmail), como as outras ações
+ * destrutivas. Para só tirar o acesso, mantendo o cadastro, use "Desativado".
  */
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await authorize();
   if ("error" in auth) return auth.error;
+  const { orgId, profileId: actorProfileId, userId: actorUserId } = auth;
   const { id: targetId } = await context.params;
 
-  return PATCH(
-    new Request(request.url, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "disabled" }),
-    }),
-    { params: Promise.resolve({ id: targetId }) },
-  );
+  let body: { confirmEmail?: string };
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
+
+  const admin = createSupabaseAdminClient();
+  const { data: target } = await admin
+    .from("profiles")
+    .select("id, user_id, email, full_name, organization_id, is_owner, account_type, company_name, job_title")
+    .eq("id", targetId)
+    .maybeSingle();
+  if (!target || target.organization_id !== orgId) {
+    return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
+  }
+  if (target.is_owner) {
+    return NextResponse.json({ error: "O proprietário não pode ser excluído." }, { status: 403 });
+  }
+  if (targetId === actorProfileId) {
+    return NextResponse.json({ error: "Você não pode excluir o próprio usuário." }, { status: 409 });
+  }
+  if ((body.confirmEmail ?? "").trim().toLowerCase() !== String(target.email).toLowerCase()) {
+    return NextResponse.json({ error: "Digite o e-mail do usuário para confirmar a exclusão." }, { status: 400 });
+  }
+
+  const { data: employee } = await admin.from("employees").select("id").eq("profile_id", targetId).maybeSingle();
+
+  // Apagar o login apaga o perfil em cascata (profiles.user_id → auth.users).
+  const { error } = await admin.auth.admin.deleteUser(target.user_id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await writeAudit(admin, {
+    orgId,
+    actorProfileId,
+    actorUserId,
+    eventType: "core.access.user.delete",
+    entityType: "profile",
+    entityId: targetId,
+    riskLevel: "sensitive",
+    metadata: {
+      email: target.email,
+      fullName: target.full_name,
+      userId: target.user_id,
+      accountType: target.account_type,
+      companyName: target.company_name,
+      jobTitle: target.job_title,
+      employeeId: employee?.id ?? null,
+    },
+  });
+
+  return NextResponse.json({ id: targetId, deleted: true });
 }

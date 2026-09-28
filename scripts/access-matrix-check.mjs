@@ -192,10 +192,18 @@ try {
     const valoresVistos = await total(client, "production_order_financials");
     check(n, veValores ? "vê os valores das OS" : "não vê os valores das OS", valoresVistos === (veValores ? reference.orderValues : 0), valoresVistos);
     if (veOs) {
-      const { data: umaOs } = await admin.from("production_orders").select("id, status").limit(1).single();
-      await client.from("production_orders").update({ status: "ALTERADO_PELA_MATRIZ" }).eq("id", umaOs.id);
-      const { data: osDepois } = await admin.from("production_orders").select("status").eq("id", umaOs.id).single();
-      check(n, "não altera o espelho das OS", osDepois.status === umaOs.status, osDepois.status === umaOs.status ? "mantida" : "ALTERADA");
+      const { data: umaOs } = await admin.from("production_orders").select("id, status").limit(1).maybeSingle();
+      if (umaOs) {
+        await client.from("production_orders").update({ status: "ALTERADO_PELA_MATRIZ" }).eq("id", umaOs.id);
+        const { data: osDepois } = await admin.from("production_orders").select("status").eq("id", umaOs.id).single();
+        check(n, "não altera o espelho das OS", osDepois.status === umaOs.status, osDepois.status === umaOs.status ? "mantida" : "ALTERADA");
+      } else {
+        // Espelho ainda vazio (sincronização desligada): prova pela inserção.
+        const { error: insertError } = await client.from("production_orders").insert({ external_id: "MATRIZ-TESTE", code: "MATRIZ", status: "ABERTA" });
+        const { count } = await admin.from("production_orders").select("id", { count: "exact", head: true }).eq("external_id", "MATRIZ-TESTE");
+        if (count) await admin.from("production_orders").delete().eq("external_id", "MATRIZ-TESTE");
+        check(n, "não grava no espelho das OS", Boolean(insertError) && !count, insertError?.code ?? "GRAVOU");
+      }
     }
 
     // Terceiros: a Portaria aponta; o RH (rh.terceiros) só lê.
@@ -334,6 +342,37 @@ try {
 
     await admin.from("profiles").update({ access_expires_at: future }).eq("id", profile.id);
     check(n, "renovado: volta a ver visitas", (await total(client, "visitas")) === reference.visitas, await total(client, "visitas"));
+    await client.auth.signOut();
+  }
+
+  // --- Administrativo: cargo obrigatório e protegido --------------------------
+  {
+    const n = "administrativo";
+    const email = `matriz.${randomBytes(4).toString("hex")}@pecsil-teste.local`;
+    const password = randomBytes(18).toString("base64url") + "!9a";
+    const { data: authUser, error: authError } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    if (authError) throw authError;
+    const base = { user_id: authUser.user.id, organization_id: org.id, email, full_name: "Matriz administrativo", status: "active", account_type: "administrativo" };
+    const { error: semCargo } = await admin.from("profiles").insert(base);
+    check(n, "não nasce sem cargo", Boolean(semCargo), semCargo?.code ?? "gravou");
+    const { error: cargoInvalido } = await admin.from("profiles").insert({ ...base, job_title: "presidente" });
+    check(n, "não aceita cargo fora da lista", Boolean(cargoInvalido), cargoInvalido?.code ?? "gravou");
+    const { data: profile, error: profileError } = await admin.from("profiles").insert({ ...base, job_title: "assistente" }).select("id").single();
+    created.push({ userId: authUser.user.id, profileId: profile?.id });
+    if (profileError) throw profileError;
+    await admin.from("user_feature_grants").insert({
+      organization_id: org.id, profile_id: profile.id, feature_code: "portaria.visitas", level: "ver", granted_by: owner.id,
+    });
+    const client = createClient(URL_BASE, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, opts);
+    const { error: loginError } = await client.auth.signInWithPassword({ email, password });
+    if (loginError) throw loginError;
+
+    check(n, "vê o que foi liberado (visitas)", (await total(client, "visitas")) === reference.visitas, await total(client, "visitas"));
+    check(n, "não vê o que não foi liberado (frota)", (await total(client, "frota")) === 0, await total(client, "frota"));
+
+    await client.from("profiles").update({ job_title: "diretor", account_type: "colaborador" }).eq("id", profile.id);
+    const { data: after } = await admin.from("profiles").select("job_title, account_type").eq("id", profile.id).single();
+    check(n, "não muda o próprio cargo nem o tipo", after.job_title === "assistente" && after.account_type === "administrativo", `${after.account_type} · ${after.job_title}`);
     await client.auth.signOut();
   }
 } finally {
