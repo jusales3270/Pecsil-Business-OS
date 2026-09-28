@@ -6148,3 +6148,10 @@ button.holiday-row:hover {
 .employee-delete > footer > .absence-reject { border-color: var(--accent-red); background: var(--accent-red); color: #fff; }
 .employee-delete > footer > .absence-reject:hover:not(:disabled) { filter: brightness(0.92); }
 .employee-delete > footer > .absence-reject:disabled { opacity: 0.45; }
+
+/* Aba Documentos da ficha: lista com Visualizar. */
+.employee-documents { display: flex; flex-direction: column; }
+.employee-documents > .employee-document-row:first-child { border-top: 0; }
+.employee-document-row > div > b { font-size: var(--fs-sm); }
+.employee-document-row > div > small { font-size: var(--fs-xs); color: var(--text-muted); }
+.employee-document-row > .ds-button { flex-shrink: 0; }

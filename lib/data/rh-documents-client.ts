@@ -53,3 +53,41 @@ export async function getRhDocumentUrl(objectPath: string): Promise<string> {
   if (error) throw error;
   return data.signedUrl;
 }
+
+export type RhEmployeeDocument = {
+  id: string;
+  title: string;
+  category: string;
+  version: string;
+  objectPath: string;
+  reviewDueAt: string | null;
+  updatedAt: string;
+  sensitive: boolean;
+};
+
+/**
+ * Documentos de um colaborador, para a aba Documentos da ficha. A leitura é
+ * do banco, com a sessão do usuário: a mesma regra da central de documentos
+ * (`documents_read`: rh.documentos; confidenciais só com o nível exigido).
+ */
+export async function listRhEmployeeDocuments(employeeId: string): Promise<RhEmployeeDocument[]> {
+  const supabase = createSupabaseBrowserClient();
+  const { data, error } = await supabase
+    .from("documents")
+    .select("id,title,category,version,object_path,review_due_at,classification,updated_at")
+    .eq("employee_id", employeeId)
+    .eq("module_code", "rh")
+    .eq("active", true)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    title: String(row.title),
+    category: String(row.category ?? "—"),
+    version: String(row.version ?? "1"),
+    objectPath: row.object_path ? String(row.object_path) : "",
+    reviewDueAt: row.review_due_at ? String(row.review_due_at) : null,
+    updatedAt: new Date(String(row.updated_at)).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+    sensitive: row.classification === "confidential" || row.classification === "restricted",
+  }));
+}

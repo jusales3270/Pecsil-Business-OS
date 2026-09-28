@@ -7,7 +7,7 @@ import { Button, Card, DetailRows, Kpi, KpiGrid, Modal, Segmented, Status, type 
 import { useRhData } from "../../lib/data/use-rh-data";
 import { useModuleNav } from "../../lib/module-nav-context";
 import type { RhAbsence, RhBenefitPlan, RhBenefitRequest, RhDocument, RhEmployeeOption, RhSnapshot, RhSstRecord } from "../../lib/data/rh";
-import { getRhDocumentUrl, uploadRhDocument } from "../../lib/data/rh-documents-client";
+import { getRhDocumentUrl, listRhEmployeeDocuments, uploadRhDocument, type RhEmployeeDocument } from "../../lib/data/rh-documents-client";
 import { HolidaysSection } from "./hr-holidays";
 import { PpeSection, usePpeData } from "./hr-epi";
 import { TerceirosSection } from "./hr-terceiros";
@@ -258,7 +258,7 @@ export function HrModule({
         <>
           {section === "Painel" && <HrDashboard people={employees} summary={summary} rh={rh} setSection={setSection} notify={track} access={access} canCreate={canCreate} requestCreate={() => setCreateRequested(value => value + 1)}/>}
           {section === "Colaboradores" && canSeeClt && canSeeTerceiros && <PeopleKindTabs value={kind} onChange={setPeopleKind}/>}
-          {section === "Colaboradores" && kind === "CLT" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} persists={rh.source === "supabase"} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
+          {section === "Colaboradores" && kind === "CLT" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} canViewDocs={canUseFeature(access, "rh.documentos")} persists={rh.source === "supabase"} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
           {section === "Colaboradores" && kind === "Terceiros" && <TerceirosSection/>}
           {section === "Ponto e jornada" && <JourneySection notify={track} access={access}/>}
           {section === "Férias e ausências" && <AbsenceSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
@@ -560,7 +560,7 @@ function HrDashboard({ people, summary, rh, setSection, notify, access, canCreat
   </>;
 }
 
-function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, canCreate, persists, createRequested, onCreateHandled }: { people: EmployeeRecord[]; allPeople: EmployeeRecord[]; setPeople: React.Dispatch<React.SetStateAction<EmployeeRecord[]>>; query: string; setQuery: (value: string) => void; notify: (message: string) => void; canCreate: boolean; persists: boolean; createRequested: number; onCreateHandled: () => void }) {
+function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, canCreate, canViewDocs, persists, createRequested, onCreateHandled }: { people: EmployeeRecord[]; allPeople: EmployeeRecord[]; setPeople: React.Dispatch<React.SetStateAction<EmployeeRecord[]>>; query: string; setQuery: (value: string) => void; notify: (message: string) => void; canCreate: boolean; canViewDocs: boolean; persists: boolean; createRequested: number; onCreateHandled: () => void }) {
   const [selected, setSelected] = useState<EmployeeRecord | null>(null);
   const [editing, setEditing] = useState<EmployeeRecord | null>(null);
   const [creating, setCreating] = useState(createRequested > 0 && canCreate);
@@ -658,13 +658,13 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
         : <Card><span><HrIcon name="file"/></span><div><strong>{allPeople.filter(person => person.documentStatus === "Pendente").length}</strong><small>cadastros pendentes</small></div></Card>}
     </div>
     <Card className="hr-table-card"><div className="hr-tools"><label><HrIcon name="search"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, matrícula, cargo ou departamento..."/></label><select value={unit} onChange={event => setUnit(event.target.value)} aria-label="Filtrar unidade"><option>Todas as unidades</option>{Array.from(new Set(allPeople.map(person => person.unit))).sort().map(name => <option key={name}>{name}</option>)}</select><button onClick={() => { setQuery(""); setUnit("Todas as unidades"); }}><HrIcon name="filter"/> Limpar filtros</button></div><div className="hr-people-table"><div className="hr-table-header"><span>Colaborador</span><span>Cargo</span><span>Departamento</span><span>Status</span><span/></div>{visiblePeople.map(person => <button key={personKey(person)} onClick={() => setSelected(person)}><span className="hr-person"><i>{person.initials}</i><span><b>{person.name}</b><small>Matrícula {person.registration}{person.email ? ` · ${person.email}` : ""}</small></span></span><span><b>{person.role}</b><small>{person.unit}</small></span><span>{person.department}</span><Status tone={person.status === "Ativo" ? "success" : person.status === "Pendente" ? "info" : "neutral"}>{person.status}</Status><HrIcon name="arrow"/></button>)}{!visiblePeople.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhum colaborador encontrado</b><small>Ajuste a busca ou a unidade selecionada.</small></div>}</div></Card>
-    {selected && <EmployeeDrawer employee={selected} canEdit={canCreate} onClose={() => setSelected(null)} onEdit={() => { setEditing(selected); setSelected(null); }} onStatus={changeStatus} onDelete={persists && selected.id ? () => { setDeleting(selected); setSelected(null); } : undefined}/>}
+    {selected && <EmployeeDrawer employee={selected} canEdit={canCreate} canViewDocs={canViewDocs} notify={notify} onClose={() => setSelected(null)} onEdit={() => { setEditing(selected); setSelected(null); }} onStatus={changeStatus} onDelete={persists && selected.id ? () => { setDeleting(selected); setSelected(null); } : undefined}/>}
     {deleting && <EmployeeDeleteDialog employee={deleting} onClose={() => setDeleting(null)} onDeleted={() => removeEmployee(deleting)}/>} 
     {(creating || editing) && <EmployeeForm employee={editing} nextRegistration={String(allPeople.length + 1).padStart(4,"0")} units={Array.from(new Set(allPeople.map(person => person.unit).filter(Boolean))).sort()} departments={Array.from(new Set(allPeople.map(person => person.department).filter(Boolean))).sort()} onClose={() => { setCreating(false); setEditing(null); onCreateHandled(); }} onSave={saveEmployee}/>} 
   </>;
 }
 
-function EmployeeDrawer({ employee, canEdit, onClose, onEdit, onStatus, onDelete }: { employee: EmployeeRecord; canEdit: boolean; onClose: () => void; onEdit: () => void; onStatus: (status: Person["status"]) => void; onDelete?: () => void }) {
+function EmployeeDrawer({ employee, canEdit, canViewDocs, notify, onClose, onEdit, onStatus, onDelete }: { employee: EmployeeRecord; canEdit: boolean; canViewDocs: boolean; notify: (message: string) => void; onClose: () => void; onEdit: () => void; onStatus: (status: Person["status"]) => void; onDelete?: () => void }) {
   const [tab, setTab] = useState<"Resumo" | "Vínculo" | "Documentos" | "Histórico">("Resumo");
   const admission = employee.admissionDate ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${employee.admissionDate}T12:00:00Z`)) : "Não informada";
   const termination = employee.terminationDate ? formatDate(employee.terminationDate) : null;
@@ -675,7 +675,7 @@ function EmployeeDrawer({ employee, canEdit, onClose, onEdit, onStatus, onDelete
       <div className="employee-detail-content">
         {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div><div><small>Admissão</small><strong>{admission}</strong></div>{termination && <div><small>Demissão</small><strong>{termination}</strong></div>}</section><DetailGroup title="Contato" rows={[["E-mail",employee.email || "Não informado"],["Telefone",employee.phone],["CPF",employee.cpf]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/></>}
         {tab === "Vínculo" && <><DetailGroup title="Dados contratuais" rows={[["Tipo de contrato",employee.contractType],["Cargo",employee.role],["Gestor responsável",employee.manager],["Jornada",employee.schedule]]}/><div className="employee-callout"><HrIcon name="shield"/><span><b>Escopo protegido</b><small>Alterações de vínculo serão registradas na auditoria quando o banco estiver conectado.</small></span></div></>}
-        {tab === "Documentos" && employee.id && <div className="employee-callout"><HrIcon name="file"/><span><b>Documentos em RH › Documentos</b><small>Arquivos, validades e assinaturas deste colaborador são controlados na central de documentos do RH, conforme o seu escopo.</small></span></div>}
+        {tab === "Documentos" && employee.id && <EmployeeDocuments employeeId={employee.id} canView={canViewDocs} notify={notify}/>}
         {tab === "Documentos" && !employee.id && <><div className={`employee-document-health ${employee.documentStatus === "Completo" ? "complete" : "pending"}`}><HrIcon name={employee.documentStatus === "Completo" ? "check" : "alert"}/><span><b>Cadastro documental {employee.documentStatus.toLowerCase()}</b><small>{employee.documentStatus === "Completo" ? "Documentos obrigatórios conferidos." : "Existem documentos que exigem conferência."}</small></span></div>{[["Documento de identidade","Conferido"],["Contrato de trabalho","Assinado"],["Comprovante de residência",employee.documentStatus === "Completo" ? "Conferido" : "Pendente"],["ASO admissional","Válido"]].map(([name,status]) => <div className="employee-document-row" key={name}><span><HrIcon name="file"/></span><div><b>{name}</b><small>Arquivo protegido</small></div><Status tone={status === "Pendente" ? "attention" : "success"}>{status}</Status></div>)}</>}
         {tab === "Histórico" && employee.id && <div className="employee-history"><div><i>1</i><span><b>Admissão</b><small>{admission}</small></span></div><div><i>2</i><span><b>Cadastro importado da folha</b><small>Matrícula {employee.registration}</small></span></div>{termination && <div><i>3</i><span><b>Demissão</b><small>{termination}</small></span></div>}</div>}
         {tab === "Histórico" && !employee.id && <div className="employee-history">{[["Cadastro funcional revisado","Hoje · RH"],["Perfil de acesso vinculado",employee.profile],["Admissão registrada",admission]].map(([title,meta],index) => <div key={title}><i>{index + 1}</i><span><b>{title}</b><small>{meta}</small></span></div>)}</div>}
@@ -683,6 +683,36 @@ function EmployeeDrawer({ employee, canEdit, onClose, onEdit, onStatus, onDelete
       {canEdit && <footer>{onDelete ? <button type="button" className="absence-reject drawer-delete" onClick={onDelete}><HrIcon name="close"/> Excluir cadastro</button> : <select value={employee.status} onChange={event => onStatus(event.target.value as Person["status"])} aria-label="Alterar situação do vínculo"><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select>}<Button variant="secondary" onClick={onEdit}><HrIcon name="edit"/> Editar cadastro</Button></footer>}
     </aside>
   </div>;
+}
+
+/** Aba Documentos da ficha: os documentos do colaborador, com Visualizar
+ *  (mesmo link temporário da central de documentos). Lidos direto do banco,
+ *  com a regra de acesso da central. */
+function EmployeeDocuments({ employeeId, canView, notify }: { employeeId: string; canView: boolean; notify: (message: string) => void }) {
+  const [state, setState] = useState<{ id: string; docs: RhEmployeeDocument[] | null; failed: boolean } | null>(null);
+  useEffect(() => {
+    if (!canView) return;
+    let active = true;
+    listRhEmployeeDocuments(employeeId)
+      .then(docs => { if (active) setState({ id: employeeId, docs, failed: false }); })
+      .catch(() => { if (active) setState({ id: employeeId, docs: null, failed: true }); });
+    return () => { active = false; };
+  }, [employeeId, canView]);
+  if (!canView) return <div className="employee-callout"><HrIcon name="lock"/><span><b>Sem acesso aos documentos</b><small>Os documentos do RH exigem a permissão Recursos Humanos › Documentos.</small></span></div>;
+  const current = state?.id === employeeId ? state : null;
+  if (!current) return <p className="employee-delete-muted">Carregando documentos…</p>;
+  if (current.failed) return <p className="employee-delete-muted">Não foi possível carregar os documentos agora.</p>;
+  if (!current.docs?.length) return <div className="hr-empty"><HrIcon name="file"/><b>Nenhum documento</b><small>Documentos deste colaborador aparecem aqui quando forem adicionados em RH › Documentos.</small></div>;
+  const open = async (doc: RhEmployeeDocument) => {
+    if (!doc.objectPath) { notify(`${doc.title}: documento sem arquivo anexado.`); return; }
+    try { window.open(await getRhDocumentUrl(doc.objectPath), "_blank", "noopener"); }
+    catch { notify(`${doc.title}: não foi possível abrir o documento agora.`); }
+  };
+  return <div className="employee-documents">{current.docs.map(doc => <div className="employee-document-row" key={doc.id}>
+    <span><HrIcon name={doc.sensitive ? "lock" : "file"}/></span>
+    <div><b>{doc.title}</b><small>{[doc.category, `v${doc.version}`, doc.reviewDueAt ? `Validade ${formatDate(doc.reviewDueAt)}` : null, `Atualizado em ${doc.updatedAt}`].filter(Boolean).join(" · ")}</small></div>
+    <Button variant="secondary" compact onClick={() => open(doc)} disabled={!doc.objectPath}><HrIcon name="eye"/> Visualizar</Button>
+  </div>)}</div>;
 }
 
 /**
@@ -1521,6 +1551,7 @@ function HrIcon({ name, size = 20 }: { name: string; size?: number }) {
     bus:<><rect x="5" y="3" width="14" height="16" rx="3"/><path d="M8 19v2M16 19v2M8 7h8M7 14h.01M17 14h.01"/></>,
     card:<><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></>,
     folder:<path d="M3 6h7l2 2h9v11H3z"/>,
+    eye:<><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name]}</svg>;
 }
