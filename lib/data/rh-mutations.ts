@@ -37,6 +37,9 @@ export type RhEmployeeEdit = {
   departmentName: string | null;
   unitName: string | null;
   positionName: string | null;
+  /** Dados pessoais (tabela protegida). Ausente = não mexe; CPF só com 11 dígitos. */
+  cpf?: string | null;
+  phone?: string | null;
 };
 
 export type RhMutation =
@@ -364,6 +367,8 @@ export type RhEmployeeDraft = {
   departmentName: string | null;
   unitName: string | null;
   positionName: string | null;
+  cpf?: string | null;
+  phone?: string | null;
 };
 
 // Cadastra um colaborador na Fundação (tabela employees). A RLS
@@ -416,6 +421,13 @@ export async function createRhEmployee(draft: RhEmployeeDraft): Promise<{ id: st
     .select("id")
     .single();
   if (error) throw error;
+  try {
+    await savePersonalData(supabase, organizationId, String(data.id), { cpf: draft.cpf, phone: draft.phone });
+  } catch (personalError) {
+    // Não deixa o cadastro pela metade (colaborador sem o CPF que foi digitado).
+    await supabase.from("employees").delete().eq("id", String(data.id));
+    throw personalError;
+  }
   return { id: String(data.id) };
 }
 
@@ -465,7 +477,41 @@ async function updateRhEmployee(supabase: ServerClient, id: string, c: RhEmploye
   const { data, error } = await supabase.from("employees").update(changes).eq("id", id).select("id");
   if (error) throw error;
   if (!data?.length) throw new Error("RH_MUTATION_DENIED");
+  await savePersonalData(supabase, organizationId, id, { cpf: c.cpf, phone: c.phone });
   return { ok: true };
+}
+
+/** CPF só com os 11 dígitos; qualquer outra coisa é recusada. */
+function normalizeCpf(value: string | null | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  const digits = (value ?? "").replace(/\D/g, "");
+  if (!digits) return undefined;
+  if (digits.length !== 11) throw new Error("RH_INVALID");
+  return digits;
+}
+
+// Grava CPF e telefone na tabela de dados pessoais (RLS: rh.colaboradores em
+// "operar"). Só os campos informados; um campo ausente não apaga o que existe.
+async function savePersonalData(
+  supabase: ServerClient,
+  organizationId: string,
+  employeeId: string,
+  input: { cpf?: string | null; phone?: string | null },
+) {
+  const cpf = normalizeCpf(input.cpf);
+  const phone = input.phone === undefined ? undefined : input.phone?.trim() || null;
+  const changes: Record<string, unknown> = {};
+  if (cpf !== undefined) changes.cpf = cpf;
+  if (phone !== undefined) changes.phone = phone;
+  if (!Object.keys(changes).length) return;
+  const { error } = await supabase
+    .from("rh_employee_personal_data")
+    .upsert({ employee_id: employeeId, organization_id: organizationId, ...changes }, { onConflict: "employee_id" });
+  if (error) {
+    // CPF já usado por outro colaborador (unique organization_id+cpf).
+    if ((error as { code?: string }).code === "23505") throw new Error("RH_CPF_DUPLICADO");
+    throw error;
+  }
 }
 
 /** O que é apagado junto com o cadastro (tabelas ligadas em cascata). */

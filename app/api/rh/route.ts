@@ -67,6 +67,9 @@ export async function PATCH(request: Request) {
     if (error instanceof Error && error.message === "RH_CONFIRMATION") {
       return NextResponse.json({ error:"RH_CONFIRMATION" }, { status:400 });
     }
+    if (error instanceof Error && error.message === "RH_CPF_DUPLICADO") {
+      return NextResponse.json({ error:"RH_CPF_DUPLICADO" }, { status:409 });
+    }
     if (error instanceof Error && error.message === "RH_EMPLOYEE_HAS_ACCOUNT") {
       return NextResponse.json({ error:"RH_EMPLOYEE_HAS_ACCOUNT" }, { status:409 });
     }
@@ -136,6 +139,13 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof Error && error.message === "UNAUTHENTICATED") {
       return NextResponse.json({ error:"UNAUTHENTICATED" }, { status:401 });
+    }
+    if (error instanceof Error && (error.message === "RH_CPF_DUPLICADO" || error.message === "RH_INVALID")) {
+      return NextResponse.json({ error:error.message }, { status: error.message === "RH_INVALID" ? 400 : 409 });
+    }
+    // Matrícula já usada (employees_organization_id_employee_number_key).
+    if ((error as { code?: string } | null)?.code === "23505") {
+      return NextResponse.json({ error:"RH_MATRICULA_DUPLICADA" }, { status:409 });
     }
     console.error("Falha ao criar registro de RH", error);
     return NextResponse.json({ error:"RH_CREATE_DENIED" }, { status:403 });
