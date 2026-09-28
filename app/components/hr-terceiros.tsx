@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, Kpi, KpiGrid, Status } from "../../packages/design-system";
-import { formatarData, formatarHoras, horaDoApontamento, minutosDaPassagem, naFabrica, type TerceiroApontamento } from "../../lib/rh/terceiros-core";
+import { contabilizar, formatarData, formatarHoras, horaDoApontamento, minutosDaPassagem, naFabrica, saidaParaExibir, type TerceiroApontamento } from "../../lib/rh/terceiros-core";
 
 /**
  * RH › Terceiros: acompanhamento de quem está na fábrica, com base nos
@@ -55,10 +55,8 @@ export function TerceirosSection() {
   const apontamentos = estado.status === "ready" ? estado.apontamentos : [];
   const dentro = ehHoje ? naFabrica(apontamentos) : [];
   const pessoas = new Set(apontamentos.map((a) => a.nome.trim())).size;
-  const minutosDoDia = apontamentos.reduce((soma, a) => {
-    const entrada = horaDoApontamento(a.entrada);
-    return soma + (entrada ? minutosDaPassagem(entrada, horaDoApontamento(a.saida)) ?? 0 : 0);
-  }, 0);
+  // Como a Portaria calculou: passagem sem minutos (sem saída ou saída em outro dia) não soma.
+  const minutosDoDia = apontamentos.reduce((soma, a) => soma + (contabilizar(a).minutos ?? 0), 0);
   const lidoEm = estado.status === "ready" ? estado.lidoEm : null;
 
   return <>
@@ -78,7 +76,7 @@ export function TerceirosSection() {
       <Kpi label="Na fábrica agora" value={ehHoje ? String(dentro.length) : "—"} caption={ehHoje ? "Entraram e ainda não saíram" : "Só no dia de hoje"} tone="blue" />
       <Kpi label="Pessoas no dia" value={String(pessoas)} caption={formatarData(data)} tone="teal" />
       <Kpi label="Passagens" value={String(apontamentos.length)} caption="Entradas registradas" tone="purple" />
-      <Kpi label="Horas no dia" value={formatarHoras(minutosDoDia)} caption="Somente passagens com saída" tone="green" />
+      <Kpi label="Horas no dia" value={formatarHoras(minutosDoDia)} caption="Como a Portaria calculou" tone="green" />
     </KpiGrid>
 
     {estado.status === "error" && <Card className="absence-card"><div className="hr-empty"><b>{estado.mensagem}</b></div></Card>}
@@ -109,13 +107,16 @@ export function TerceirosSection() {
         {estado.status === "loading" && <div className="hr-empty"><b>Carregando…</b></div>}
         {apontamentos.map((a) => {
           const entrada = horaDoApontamento(a.entrada) ?? "—";
-          const saida = horaDoApontamento(a.saida);
-          const minutos = entrada !== "—" ? minutosDaPassagem(entrada, saida) : null;
+          const { situacao, minutos } = contabilizar(a);
           return <div className="terceiros-row" key={a.id}>
             <span><b>{a.nome}</b></span>
             <span data-label="Entrada">{entrada}</span>
-            <span data-label="Saída">{saida ?? "—"}</span>
-            <span data-label="Horas">{minutos === null ? <Status tone="success">Na fábrica</Status> : formatarHoras(minutos)}</span>
+            <span data-label="Saída">{saidaParaExibir(a) ?? "—"}</span>
+            <span data-label="Horas">{situacao === "contabilizada" && minutos !== null
+              ? formatarHoras(minutos)
+              : situacao === "sem-saida"
+                ? (ehHoje ? <Status tone="success">Na fábrica</Status> : <Status tone="attention">Sem saída</Status>)
+                : <Status tone="attention">Não contabilizada</Status>}</span>
           </div>;
         })}
         {estado.status === "ready" && !apontamentos.length && <div className="hr-empty"><b>Nenhum apontamento neste dia</b><small>A Portaria não registrou entradas de terceiros.</small></div>}

@@ -80,12 +80,12 @@ function RelatorioTerceirosPage() {
             </thead>
             <tbody>
               {pessoa.linhas.map((linha, i) => (
-                <tr key={`${linha.data}-${linha.entrada}-${i}`}>
+                <tr key={`${linha.data}-${linha.entrada}-${i}`} className={linha.situacao === "contabilizada" ? undefined : "report-muted"}>
                   <td>{formatarData(linha.data)}</td>
                   <td>{linha.dia}</td>
                   <td>{linha.entrada}</td>
                   <td>{linha.saida ?? "—"}</td>
-                  <td>{linha.minutos === null ? "em aberto" : formatarHoras(linha.minutos)}</td>
+                  <td>{linha.minutos !== null ? formatarHoras(linha.minutos) : linha.situacao === "sem-saida" ? "sem saída" : "não contabilizada*"}</td>
                 </tr>
               ))}
               <tr className="report-total">
@@ -113,8 +113,9 @@ function RelatorioTerceirosPage() {
             </tbody>
           </table>
           <p className="report-note">
-            Horas somadas a partir dos apontamentos de entrada e saída da Portaria, exatamente como registrados.
-            {relatorio.semSaida > 0 && ` ${relatorio.semSaida} ${relatorio.semSaida === 1 ? "passagem ainda está" : "passagens ainda estão"} sem saída e não entraram na soma.`}
+            Horas somadas como a Portaria calculou em cada passagem, sem correção.
+            {relatorio.naoContabilizadas > 0 && ` * ${relatorio.naoContabilizadas} ${relatorio.naoContabilizadas === 1 ? "passagem teve" : "passagens tiveram"} a saída registrada em outro dia; a Portaria não calcula essas horas e elas não entram na soma.`}
+            {relatorio.semSaida > 0 && ` ${relatorio.semSaida} ${relatorio.semSaida === 1 ? "passagem está" : "passagens estão"} sem saída e não entraram na soma.`}
           </p>
         </section>
       )}

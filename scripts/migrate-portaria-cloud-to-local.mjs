@@ -4,20 +4,32 @@
  * Pecsil Business OS — Migração de Dados: Portaria Cloud ➔ Business OS
  *
  * Extrai visitantes (com biometria facial), visitas, frota, terceiros e
- * encomendas do projeto Supabase Cloud da Portaria e armazena localmente
- * em dados-migrados.json e atualiza dados.ts para hidratação completa.
+ * encomendas do projeto Supabase Cloud da Portaria para um snapshot JSON,
+ * que scripts/import-portaria-json.mjs grava no banco da PecSil.
+ *
+ * O snapshot tem biometria e dados pessoais: fica FORA do repositório
+ * (padrão ~/.config/pecsil/portaria-snapshot.json, permissão 600).
+ *
+ * Chave: PORTARIA_CLOUD_KEY no ambiente ou o arquivo
+ * ~/.config/pecsil/portaria-cloud-key (permissão 600).
+ * Uso: node scripts/migrate-portaria-cloud-to-local.mjs [--out <arquivo>]
  * ============================================================================
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
 const CLOUD_URL = process.env.PORTARIA_CLOUD_URL || "https://hukhlzcrjbtqseszfxyq.supabase.co";
-const CLOUD_KEY = process.env.PORTARIA_CLOUD_KEY;
+const KEY_FILE = resolve(process.env.HOME || "", ".config/pecsil/portaria-cloud-key");
+const CLOUD_KEY = process.env.PORTARIA_CLOUD_KEY || (existsSync(KEY_FILE) ? readFileSync(KEY_FILE, "utf8").trim() : "");
+const outArg = process.argv.indexOf("--out");
+const OUTPUT = outArg !== -1 && process.argv[outArg + 1]
+  ? resolve(process.argv[outArg + 1])
+  : resolve(process.env.HOME || "", ".config/pecsil/portaria-snapshot.json");
 
 if (!CLOUD_KEY) {
-  console.error("❌ Defina PORTARIA_CLOUD_KEY no ambiente (a chave nunca fica no código).");
+  console.error(`❌ Defina PORTARIA_CLOUD_KEY ou salve a chave em ${KEY_FILE} (a chave nunca fica no código).`);
   process.exit(1);
 }
 
@@ -28,12 +40,20 @@ console.log(`Origem (Cloud): ${CLOUD_URL}`);
 
 const cloud = createClient(CLOUD_URL, CLOUD_KEY, { auth: { persistSession: false } });
 
+/** Lê a tabela inteira: o PostgREST devolve no máximo 1000 linhas por vez. */
+async function readAll(table) {
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await cloud.from(table).select("*").order("id").range(from, from + 999);
+    if (error) return { data: null, error };
+    rows.push(...data);
+    if (data.length < 1000) return { data: rows, error: null };
+  }
+}
+
 async function run() {
   console.log("\n1. Extraindo Visitantes (Biometria Facial)...");
-  const { data: visitantes, error: vErr } = await cloud
-    .from("visitantes")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const { data: visitantes, error: vErr } = await readAll("visitantes");
 
   if (vErr) {
     console.error("❌ Erro ao extrair visitantes:", vErr.message);
@@ -42,10 +62,7 @@ async function run() {
   }
 
   console.log("\n2. Extraindo Histórico de Visitas...");
-  const { data: visitas, error: visErr } = await cloud
-    .from("visitas")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const { data: visitas, error: visErr } = await readAll("visitas");
 
   if (visErr) {
     console.error("❌ Erro ao extrair visitas:", visErr.message);
@@ -54,10 +71,7 @@ async function run() {
   }
 
   console.log("\n3. Extraindo Controle de Frota...");
-  const { data: frota, error: fErr } = await cloud
-    .from("frota")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const { data: frota, error: fErr } = await readAll("frota");
 
   if (fErr) {
     console.error("❌ Erro ao extrair frota:", fErr.message);
@@ -66,7 +80,8 @@ async function run() {
   }
 
   console.log("\n4. Extraindo Prestadores Terceiros...");
-  const { data: terceirosCloud } = await cloud.from("terceiros").select("*");
+  const { data: terceirosCloud, error: tErr } = await readAll("terceiros");
+  if (tErr) console.error("❌ Erro ao extrair terceiros:", tErr.message);
   let terceiros = terceirosCloud || [];
 
   // Se a tabela em nuvem estiver vazia, carrega o arquivo de backup CSV mais recente
@@ -101,7 +116,7 @@ async function run() {
   }
 
   console.log("\n5. Extraindo Encomendas / Recebidos...");
-  const { data: encomendasCloud } = await cloud.from("encomendas").select("*");
+  const { data: encomendasCloud } = await readAll("encomendas");
   const encomendas = encomendasCloud || [];
   console.log(`✓ Encomendas extraídas: ${encomendas.length}`);
 
@@ -151,7 +166,9 @@ async function run() {
     data: t.data,
     horaEntrada: t.hora_entrada,
     horaSaida: t.hora_saida || undefined,
-    minutosTrabalhados: t.minutos_trabalhados || 0,
+    // Minutos calculados pela própria Portaria na saída; vazio quando ela
+    // não calculou (saída registrada em outro dia). Não recalcular aqui.
+    minutosTrabalhados: t.minutos_trabalhados ?? null,
   }));
 
   const snapshot = {
@@ -163,9 +180,14 @@ async function run() {
     migratedAt: new Date().toISOString(),
   };
 
-  const outputPath = resolve("modules/portaria/src/data/dados-migrados.json");
-  writeFileSync(outputPath, JSON.stringify(snapshot, null, 2), "utf8");
-  console.log(`\n💾 Snapshot consolidado gravado em: ${outputPath}`);
+  if ([vErr, visErr, fErr, tErr].some(Boolean)) {
+    console.error("\n❌ Extração incompleta: nenhum snapshot gravado.");
+    process.exit(1);
+  }
+  mkdirSync(dirname(OUTPUT), { recursive: true });
+  writeFileSync(OUTPUT, JSON.stringify(snapshot), { encoding: "utf8", mode: 0o600 });
+  chmodSync(OUTPUT, 0o600);
+  console.log(`\n💾 Snapshot gravado em: ${OUTPUT} (permissão 600)`);
 
   console.log("\n==========================================================");
   console.log("📊 RESUMO TOTAL DA MIGRAÇÃO");

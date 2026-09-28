@@ -3,12 +3,18 @@
  * ============================================================================
  * Pecsil Business OS — Importação do histórico da Portaria para o banco
  *
- * Lê o snapshot extraído do Supabase Cloud (modules/portaria/src/data/
- * dados-migrados.json) e grava em visitantes, visitas, frota, terceiros e
- * encomendas do Supabase da Pecsil, vinculando tudo à organização.
+ * Lê o snapshot extraído do Supabase Cloud por migrate-portaria-cloud-to-local
+ * (padrão ~/.config/pecsil/portaria-snapshot.json, fora do repositório) e
+ * grava em visitantes, visitas, frota, terceiros e encomendas do Supabase da
+ * Pecsil, vinculando tudo à organização.
  *
  * Idempotente: upsert por `id`. IDs que não são UUID (terceiros vindos do CSV,
  * "terc-csv-N") viram um UUID determinístico — rodar de novo não duplica.
+ *
+ * Terceiros: o histórico até 02/09 entrou pela planilha da Portaria, com ids
+ * próprios. Quando o snapshot traz o mesmo apontamento (nome, dia e hora de
+ * entrada) com o id original da nuvem, a linha da planilha é substituída
+ * pela original, que traz os minutos calculados pela Portaria.
  *
  * Uso (simulação por padrão; nada é gravado sem --apply):
  *   node scripts/import-portaria-json.mjs
@@ -18,6 +24,7 @@
  *   --url <url>     Supabase de destino (padrão: SUPABASE_INTERNAL_URL ou
  *                   NEXT_PUBLIC_SUPABASE_URL do ambiente/.env.local)
  *   --org-id <id>   Organização (obrigatório se houver mais de uma)
+ *   --in <arquivo>  Snapshot (padrão ~/.config/pecsil/portaria-snapshot.json)
  * Requer SUPABASE_SERVICE_ROLE_KEY.
  * ============================================================================
  */
@@ -66,7 +73,27 @@ function stableUuid(table, id) {
 
 const nf = list => (Array.isArray(list) ? list.filter(n => n && (n.numero || Number(n.valor) > 0)) : []);
 
-const snapshot = JSON.parse(readFileSync(resolve("modules/portaria/src/data/dados-migrados.json"), "utf8"));
+const snapshotPath = resolve(getArg("--in") || resolve(process.env.HOME || "", ".config/pecsil/portaria-snapshot.json"));
+if (!existsSync(snapshotPath)) {
+  console.error(`❌ Snapshot não encontrado: ${snapshotPath}. Rode antes scripts/migrate-portaria-cloud-to-local.mjs.`);
+  process.exit(1);
+}
+const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
+
+/** Mesmo apontamento de terceiro: nome (sem acento/caixa), dia e hora de entrada. */
+const hhmm = value => (String(value ?? "").match(/(?:T|^)(\d{2}:\d{2})/) || [])[1] ?? "";
+const plain = value => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+const terceiroKey = row => `${plain(row.nome)}|${row.data}|${hhmm(row.hora_entrada)}`;
+
+async function readAll(table, columns) {
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db.from(table).select(columns).order("id").range(from, from + 999);
+    if (error) throw new Error(`${table}: ${error.message}`);
+    rows.push(...data);
+    if (data.length < 1000) return rows;
+  }
+}
 
 const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
@@ -133,7 +160,8 @@ function buildRows(organizationId) {
       data: t.data,
       hora_entrada: t.horaEntrada || "",
       hora_saida: t.horaSaida || null,
-      minutos_trabalhados: Number(t.minutosTrabalhados || 0),
+      // Minutos da própria Portaria; vazio quando ela não calculou.
+      minutos_trabalhados: t.minutosTrabalhados === null || t.minutosTrabalhados === undefined ? null : Number(t.minutosTrabalhados),
     })),
     encomendas: (snapshot.encomendas ?? []).map(e => ({
       id: stableUuid("encomendas", e.id),
@@ -184,10 +212,24 @@ async function run() {
       failures++;
       continue;
     }
-    if (!apply) {
-      console.log(`• ${table.padEnd(11)} ${String(rows.length).padStart(5)} no snapshot · ${before} já no banco`);
-      continue;
+    const existing = await readAll(table, table === "terceiros" ? "id, nome, data, hora_entrada" : "id");
+    const existingIds = new Set(existing.map(row => row.id));
+    const snapshotIds = new Set(rows.map(row => row.id));
+    // Linhas da planilha que o snapshot traz com o id original: substituir.
+    let replaced = [];
+    if (table === "terceiros") {
+      const snapshotKeys = new Set(rows.map(terceiroKey));
+      replaced = existing.filter(row => !snapshotIds.has(row.id) && snapshotKeys.has(terceiroKey(row))).map(row => row.id);
     }
+    const replacedKeys = new Set(existing.filter(row => replaced.includes(row.id)).map(terceiroKey));
+    const updates = rows.filter(row => existingIds.has(row.id)).length;
+    const inserts = rows.length - updates;
+    const reallyNew = table === "terceiros" ? rows.filter(row => !existingIds.has(row.id) && !replacedKeys.has(terceiroKey(row))).length : inserts;
+    const onlyInDb = existing.filter(row => !snapshotIds.has(row.id) && !replaced.includes(row.id)).length;
+    console.log(`• ${table.padEnd(11)} snapshot ${String(rows.length).padStart(5)} · banco ${before} · novos ${reallyNew} · atualizados ${updates}` +
+      (replaced.length ? ` · planilha substituída pelo original ${replaced.length}` : "") +
+      (onlyInDb ? ` · só no banco (mantidos) ${onlyInDb}` : ""));
+    if (!apply) continue;
     let written = 0;
     for (const batch of batches(rows)) {
       const { error } = await db.from(table).upsert(batch, { onConflict: "id" });
@@ -197,6 +239,16 @@ async function run() {
         break;
       }
       written += batch.length;
+    }
+    if (replaced.length && written === rows.length) {
+      for (let i = 0; i < replaced.length; i += 200) {
+        const { error } = await db.from(table).delete().in("id", replaced.slice(i, i + 200));
+        if (error) {
+          console.error(`❌ ${table}: falha ao remover linhas da planilha — ${error.message}`);
+          failures++;
+          break;
+        }
+      }
     }
     const { count: after } = await db.from(table).select("id", { count: "exact", head: true });
     console.log(`✓ ${table.padEnd(11)} ${written}/${rows.length} gravados · banco: ${before} → ${after}`);
