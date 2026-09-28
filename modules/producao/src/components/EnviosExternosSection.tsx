@@ -6,7 +6,10 @@ interface Props {
   data: DashboardData;
 }
 
-const dataCurta = (valor: string) => (valor ? new Date(valor).toLocaleDateString('pt-BR') : '—');
+const dataCurta = (valor: string) => (valor ? new Date(valor).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—');
+// Prazo é um dia do calendário: vem do Forja como meia-noite UTC; mostrado no
+// fuso de Brasília viraria o dia anterior. Usa só a parte da data.
+const dataDoPrazo = (valor: string) => (/^\d{4}-\d{2}-\d{2}/.test(valor ?? '') ? valor.slice(0, 10).split('-').reverse().join('/') : dataCurta(valor));
 
 /** Lotes fora da fábrica (metalização externa), do mais antigo para o mais recente. */
 export function EnviosExternosSection({ data }: Props) {
@@ -81,7 +84,7 @@ export function EnviosExternosSection({ data }: Props) {
                     </td>
                     <td data-label="Prazo da OS" className="num">
                       <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 6 }}>
-                        {dataCurta(envio.prazoEntrega)}
+                        {dataDoPrazo(envio.prazoEntrega)}
                         {envio.diasAtePrazo < 0 && (
                           <Status tone="danger">{Math.abs(envio.diasAtePrazo)}d atraso</Status>
                         )}

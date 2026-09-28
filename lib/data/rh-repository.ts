@@ -322,7 +322,7 @@ function formatDateTime(value: unknown): string {
   if (!value) return "—";
   const date = new Date(String(value));
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle:"medium", timeStyle:"short" }).format(date);
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle:"medium", timeStyle:"short", timeZone:"America/Sao_Paulo" }).format(date);
 }
 
 function relationName(value: unknown): string | null {

@@ -345,6 +345,30 @@ try {
     await client.auth.signOut();
   }
 
+  // --- Férias: excluir ausência só com rh.ferias em "aprovar" -----------------
+  {
+    const n = "excluir ausência";
+    const { data: alvo } = await admin.from("employees").select("id").eq("organization_id", org.id).limit(1).single();
+    const nova = async () => (await admin.from("rh_absences").insert({ organization_id: org.id, employee_id: alvo.id, absence_type: "vacation", start_date: "2030-01-07", end_date: "2030-01-08", days: 2, status: "registered", reason: "matriz" }).select("id").single()).data.id;
+    for (const nivel of ["operar", "aprovar"]) {
+      const email = `matriz.${randomBytes(4).toString("hex")}@pecsil-teste.local`;
+      const password = randomBytes(18).toString("base64url") + "!9a";
+      const { data: authUser } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+      const { data: profile } = await admin.from("profiles").insert({ user_id: authUser.user.id, organization_id: org.id, email, full_name: `Matriz férias ${nivel}`, status: "active" }).select("id").single();
+      created.push({ userId: authUser.user.id, profileId: profile.id });
+      await admin.from("user_feature_grants").insert({ organization_id: org.id, profile_id: profile.id, feature_code: "rh.ferias", level: nivel, granted_by: owner.id });
+      const client = createClient(URL_BASE, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, opts);
+      await client.auth.signInWithPassword({ email, password });
+      const id = await nova();
+      const { data: apagadas } = await client.from("rh_absences").delete().eq("id", id).select("id");
+      const existe = Boolean((await admin.from("rh_absences").select("id").eq("id", id).maybeSingle()).data);
+      if (existe) await admin.from("rh_absences").delete().eq("id", id);
+      await admin.from("audit_logs").delete().eq("entity_id", id);
+      check(n, nivel === "aprovar" ? "com aprovar: exclui" : "com operar: não exclui", nivel === "aprovar" ? !existe && apagadas?.length === 1 : existe, existe ? "mantida" : "excluída");
+      await client.auth.signOut();
+    }
+  }
+
   // --- Administrativo: cargo obrigatório e protegido --------------------------
   {
     const n = "administrativo";

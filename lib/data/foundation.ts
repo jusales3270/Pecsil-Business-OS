@@ -1,4 +1,4 @@
-export type PersonStatus = "Ativo" | "Pendente" | "Bloqueado";
+export type PersonStatus = "Ativo" | "Pendente" | "Bloqueado" | "Desligado";
 
 export type Person = {
   initials: string;
@@ -13,6 +13,8 @@ export type Person = {
   id?: string;
   registration?: string;
   admissionDate?: string | null;
+  /** Demissão registrada no cadastro (vínculo encerrado a partir desta data). */
+  terminationDate?: string | null;
   team?: string | null;
 };
 

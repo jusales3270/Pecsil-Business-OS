@@ -993,14 +993,19 @@ export function formatCurrency(value: number): string {
   return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// Datas no horário de Brasília. Data sem hora ("2026-09-28") é um dia do
+// calendário: lida ao meio-dia, para não virar o dia anterior (meia-noite UTC
+// = 21h do dia anterior em Brasília).
 export function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('pt-BR');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [y, m, day] = dateStr.split('-');
+    return `${day}/${m}/${y}`;
+  }
+  return new Date(dateStr).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 }
 
 export function formatDateTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleString('pt-BR');
+  return new Date(dateStr).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 }
 
 export function formatCurrencyInput(val: string): string {

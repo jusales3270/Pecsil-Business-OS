@@ -139,7 +139,7 @@ export function OrdensServicoSection({ data }: Props) {
                       {os.quantidadeTotal}
                     </td>
                     <td style={{ padding: '10px 8px', textAlign: 'right' }}>
-                      {new Date(os.prazoEntrega).toLocaleDateString('pt-BR')}
+                      {String(os.prazoEntrega).slice(0, 10).split('-').reverse().join('/')}
                     </td>
                   </tr>
                 ))

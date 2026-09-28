@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createSupabaseAdminClient } from "../supabase/admin";
 import { createSupabaseServerClient } from "../supabase/server";
 
 // Mutações de decisão do RH, executadas com a sessão do usuário. Toda a
@@ -15,8 +16,35 @@ export type RhSstEdit = {
   note?: string | null;
 };
 
+/** Edição de uma ausência já lançada (quem aprova férias pode corrigir). */
+export type RhAbsenceEdit = {
+  absenceType: string;
+  startDate: string;
+  endDate: string;
+  /** Em dias; 0 quando a ausência é em horas ou meio período. */
+  days: number;
+  reason: string | null;
+};
+
+/** Edição do cadastro do colaborador (tabela employees). */
+export type RhEmployeeEdit = {
+  fullName: string;
+  employeeNumber: string;
+  corporateEmail: string | null;
+  admissionDate: string | null;
+  /** Demissão: preenchida, o vínculo fica inativo a partir desta data. */
+  terminationDate: string | null;
+  departmentName: string | null;
+  unitName: string | null;
+  positionName: string | null;
+};
+
 export type RhMutation =
   | { entity: "absence"; id: string; decision: "approved" | "rejected" }
+  | { entity: "absence"; id: string; action: "update"; changes: RhAbsenceEdit }
+  | { entity: "absence"; id: string; action: "delete" }
+  | { entity: "employee"; id: string; action: "update"; changes: RhEmployeeEdit }
+  | { entity: "employee"; id: string; action: "delete"; confirmName: string }
   | { entity: "benefit_request"; id: string; decision: "approved" | "rejected" }
   | { entity: "sst"; id: string; action: "mark_compliant" }
   | { entity: "sst"; id: string; action: "update"; changes: RhSstEdit };
@@ -36,7 +64,37 @@ export async function applyRhMutation(mutation: RhMutation): Promise<{ ok: true 
   const profileId = profileResult.data.id as string;
   const now = new Date().toISOString();
 
-  if (mutation.entity === "absence") {
+  if (mutation.entity === "absence" && "action" in mutation && mutation.action === "update") {
+    const c = mutation.changes;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(c.startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(c.endDate) || c.endDate < c.startDate) {
+      throw new Error("RH_INVALID");
+    }
+    const { data, error } = await supabase
+      .from("rh_absences")
+      .update({ absence_type: c.absenceType, start_date: c.startDate, end_date: c.endDate, days: c.days, reason: c.reason })
+      .eq("id", mutation.id)
+      .select("id");
+    if (error) throw error;
+    if (!data?.length) throw new Error("RH_MUTATION_DENIED");
+    return { ok: true };
+  }
+
+  if (mutation.entity === "absence" && "action" in mutation && mutation.action === "delete") {
+    // rh_absences_delete: rh.ferias em "aprovar". O gatilho de auditoria
+    // registra a exclusão; o dado clínico da ausência vai junto (cascata).
+    const { data, error } = await supabase.from("rh_absences").delete().eq("id", mutation.id).select("id");
+    if (error) throw error;
+    if (!data?.length) throw new Error("RH_MUTATION_DENIED");
+    return { ok: true };
+  }
+
+  if (mutation.entity === "employee") {
+    return mutation.action === "update"
+      ? updateRhEmployee(supabase, mutation.id, mutation.changes)
+      : deleteRhEmployee(supabase, { id: mutation.id, confirmName: mutation.confirmName, profileId, userId: authData.user.id });
+  }
+
+  if (mutation.entity === "absence" && "decision" in mutation) {
     // O CHECK da tabela exige decided_at preenchido quando aprovado/reprovado.
     const { data, error } = await supabase
       .from("rh_absences")
@@ -359,4 +417,119 @@ export async function createRhEmployee(draft: RhEmployeeDraft): Promise<{ id: st
     .single();
   if (error) throw error;
   return { id: String(data.id) };
+}
+
+type ServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+const hojeSaoPaulo = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+
+async function lookupByName(supabase: ServerClient, organizationId: string, table: string, name: string | null): Promise<string | null> {
+  if (!name) return null;
+  const { data } = await supabase.from(table).select("id").eq("organization_id", organizationId).eq("name", name).limit(1).maybeSingle();
+  return data ? String(data.id) : null;
+}
+
+// Edita o cadastro. A RLS (employees_manage: rh.colaboradores em "operar")
+// decide. Com demissão até hoje, o vínculo fica inativo; sem demissão (ou
+// com data futura, ex.: aviso prévio), segue ativo.
+async function updateRhEmployee(supabase: ServerClient, id: string, c: RhEmployeeEdit): Promise<{ ok: true }> {
+  const date = (value: string | null) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null);
+  const admission = date(c.admissionDate);
+  const termination = date(c.terminationDate);
+  if (!c.fullName.trim() || !c.employeeNumber.trim()) throw new Error("RH_INVALID");
+  if (admission && termination && termination < admission) throw new Error("RH_INVALID");
+
+  const { data: current, error: readError } = await supabase.from("employees").select("organization_id").eq("id", id).maybeSingle();
+  if (readError) throw readError;
+  if (!current) throw new Error("RH_MUTATION_DENIED");
+  const organizationId = String(current.organization_id);
+  const [departmentId, unitId, positionId] = await Promise.all([
+    lookupByName(supabase, organizationId, "departments", c.departmentName),
+    lookupByName(supabase, organizationId, "units", c.unitName),
+    lookupByName(supabase, organizationId, "positions", c.positionName),
+  ]);
+
+  const changes: Record<string, unknown> = {
+    full_name: c.fullName.trim(),
+    employee_number: c.employeeNumber.trim(),
+    corporate_email: c.corporateEmail?.trim() || null,
+    admission_date: admission,
+    termination_date: termination,
+    active: !termination || termination > hojeSaoPaulo(),
+  };
+  // Nome que não existe no cadastro da estrutura não apaga o vínculo atual.
+  if (departmentId) changes.department_id = departmentId;
+  if (unitId) changes.unit_id = unitId;
+  if (positionId) changes.position_id = positionId;
+
+  const { data, error } = await supabase.from("employees").update(changes).eq("id", id).select("id");
+  if (error) throw error;
+  if (!data?.length) throw new Error("RH_MUTATION_DENIED");
+  return { ok: true };
+}
+
+/** O que é apagado junto com o cadastro (tabelas ligadas em cascata). */
+export const EMPLOYEE_HISTORY_TABLES = {
+  rh_absences: "férias e ausências",
+  rh_vacation_balances: "períodos de férias",
+  rh_sst_records: "registros de SST",
+  rh_ppe_deliveries: "entregas de EPI",
+  rh_benefit_enrollments: "benefícios",
+  rh_benefit_requests: "solicitações de benefício",
+  rh_journey_records: "registros de jornada",
+} as const;
+
+/**
+ * Quanto histórico o colaborador tem. Só depois de a sessão do usuário
+ * enxergar o colaborador (RLS); a contagem usa a service role para não
+ * subestimar tabelas que o usuário não lê (ex.: EPI).
+ */
+export async function getRhEmployeeHistory(id: string): Promise<{ name: string; hasAccount: boolean; counts: Record<string, number> }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData.user) throw new Error("UNAUTHENTICATED");
+  const { data: employee, error } = await supabase.from("employees").select("id, organization_id, full_name, profile_id").eq("id", id).maybeSingle();
+  if (error) throw error;
+  if (!employee) throw new Error("RH_MUTATION_DENIED");
+  const admin = createSupabaseAdminClient();
+  const counts: Record<string, number> = {};
+  await Promise.all(Object.keys(EMPLOYEE_HISTORY_TABLES).map(async (table) => {
+    const { count } = await admin.from(table).select("id", { count: "exact", head: true }).eq("employee_id", id).eq("organization_id", employee.organization_id);
+    counts[table] = count ?? 0;
+  }));
+  return { name: String(employee.full_name), hasAccount: Boolean(employee.profile_id), counts };
+}
+
+// Exclui o cadastro. Exige digitar o nome. Quem tem conta de acesso não é
+// excluído aqui (a conta ficaria órfã): primeiro exclua o usuário em Pessoas
+// e Acessos. O histórico ligado vai junto — por isso a tela mostra antes o
+// que será apagado e recomenda registrar a demissão para ex-colaboradores.
+async function deleteRhEmployee(
+  supabase: ServerClient,
+  { id, confirmName, profileId, userId }: { id: string; confirmName: string; profileId: string; userId: string },
+): Promise<{ ok: true }> {
+  const history = await getRhEmployeeHistory(id);
+  const norm = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  if (norm(confirmName) !== norm(history.name)) throw new Error("RH_CONFIRMATION");
+  if (history.hasAccount) throw new Error("RH_EMPLOYEE_HAS_ACCOUNT");
+
+  const { data: employee } = await supabase.from("employees").select("organization_id, employee_number, admission_date, termination_date").eq("id", id).maybeSingle();
+  const { data, error } = await supabase.from("employees").delete().eq("id", id).select("id");
+  if (error) throw error;
+  if (!data?.length) throw new Error("RH_MUTATION_DENIED");
+
+  const admin = createSupabaseAdminClient();
+  const { error: auditError } = await admin.from("audit_logs").insert({
+    organization_id: employee?.organization_id ?? null,
+    actor_user_id: userId,
+    actor_profile_id: profileId,
+    module_code: "rh",
+    event_type: "employees.delete",
+    entity_type: "employees",
+    entity_id: id,
+    risk_level: "high",
+    metadata: { fullName: history.name, employeeNumber: employee?.employee_number ?? null, admissionDate: employee?.admission_date ?? null, terminationDate: employee?.termination_date ?? null, removed: history.counts },
+  });
+  if (auditError) console.error("Falha ao registrar a exclusão do colaborador na auditoria:", auditError.message);
+  return { ok: true };
 }
