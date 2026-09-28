@@ -32,18 +32,22 @@ export async function uploadRhDocument(
   const upload = await supabase.storage.from(BUCKET).upload(objectPath, file, { upsert: false });
   if (upload.error) throw upload.error;
 
-  const response = await fetch("/api/rh", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ entity: "document", objectPath, ...meta }),
-  });
-  if (response.status === 401) { throw new Error("UNAUTHENTICATED"); }
-  if (!response.ok) {
+  // Qualquer falha depois do envio (recusa, sessão, rede) remove o arquivo:
+  // antes, uma falha de rede deixava o arquivo solto no armazenamento.
+  try {
+    const response = await fetch("/api/rh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entity: "document", objectPath, ...meta }),
+    });
+    if (response.status === 401) throw new Error("UNAUTHENTICATED");
+    if (!response.ok) throw new Error("RH_DOC_DENIED");
+    const { id } = (await response.json()) as { id: string };
+    return { id, objectPath };
+  } catch (error) {
     await supabase.storage.from(BUCKET).remove([objectPath]).catch(() => {});
-    throw new Error("RH_DOC_DENIED");
+    throw error;
   }
-  const { id } = (await response.json()) as { id: string };
-  return { id, objectPath };
 }
 
 /** URL assinada de curta duração para visualizar/baixar um documento. */
@@ -90,4 +94,37 @@ export async function listRhEmployeeDocuments(employeeId: string): Promise<RhEmp
     updatedAt: new Date(String(row.updated_at)).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
     sensitive: row.classification === "confidential" || row.classification === "restricted",
   }));
+}
+
+/**
+ * Exclui um documento: o registro e o arquivo. RLS: `documents_manage` e
+ * `rh_docs_objects_delete` exigem rh.documentos em "operar". Registro
+ * primeiro — se a RLS recusar, o arquivo fica intacto.
+ */
+export async function deleteRhDocument(id: string, objectPath: string): Promise<void> {
+  const supabase = createSupabaseBrowserClient();
+  const { data, error } = await supabase.from("documents").delete().eq("id", id).select("id");
+  if (error) throw error;
+  if (!data?.length) throw new Error("RH_MUTATION_DENIED");
+  if (objectPath) await supabase.storage.from(BUCKET).remove([objectPath]).catch(() => {});
+}
+
+export type RhPersonalData = { cpf: string | null; phone: string | null; visible: boolean };
+
+/**
+ * CPF e telefone do colaborador (tabela protegida). Sem permissão, a RLS não
+ * devolve a linha: `visible` = false e a ficha mostra "Restrito ao RH".
+ */
+export async function getRhEmployeePersonalData(employeeId: string): Promise<RhPersonalData> {
+  const supabase = createSupabaseBrowserClient();
+  const { data, error } = await supabase.from("rh_employee_personal_data").select("cpf, phone").eq("employee_id", employeeId).maybeSingle();
+  if (error) throw error;
+  if (!data) return { cpf: null, phone: null, visible: false };
+  return { cpf: data.cpf ? String(data.cpf) : null, phone: data.phone ? String(data.phone) : null, visible: true };
+}
+
+/** 12345678901 → 123.456.789-01 */
+export function formatCpf(cpf: string | null): string {
+  const d = (cpf ?? "").replace(/\D/g, "");
+  return d.length === 11 ? `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}` : cpf ?? "";
 }

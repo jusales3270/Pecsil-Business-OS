@@ -7,7 +7,7 @@ import { Button, Card, DetailRows, Kpi, KpiGrid, Modal, Segmented, Status, type 
 import { useRhData } from "../../lib/data/use-rh-data";
 import { useModuleNav } from "../../lib/module-nav-context";
 import type { RhAbsence, RhBenefitPlan, RhBenefitRequest, RhDocument, RhEmployeeOption, RhSnapshot, RhSstRecord } from "../../lib/data/rh";
-import { getRhDocumentUrl, listRhEmployeeDocuments, uploadRhDocument, type RhEmployeeDocument } from "../../lib/data/rh-documents-client";
+import { deleteRhDocument, formatCpf, getRhDocumentUrl, getRhEmployeePersonalData, listRhEmployeeDocuments, uploadRhDocument, type RhEmployeeDocument, type RhPersonalData } from "../../lib/data/rh-documents-client";
 import { HolidaysSection } from "./hr-holidays";
 import { PpeSection, usePpeData } from "./hr-epi";
 import { TerceirosSection } from "./hr-terceiros";
@@ -60,8 +60,9 @@ function toEmployee(person: Person): EmployeeRecord {
     return {
       ...person,
       registration: person.registration ?? "—",
-      cpf: "Restrito ao RH",
-      phone: "Não informado",
+      // CPF e telefone vêm da tabela protegida, lidos ao abrir a ficha.
+      cpf: "",
+      phone: "",
       admissionDate: person.admissionDate ?? "",
       contractType: "Não informado",
       manager: "Não informado",
@@ -365,6 +366,7 @@ function mutationFailure(error: unknown, who: string, what: string) {
   if (code === "RH_MUTATION_DENIED") return `${who}: você não tem permissão para ${what}.`;
   if (code === "RH_INVALID") return `${who}: confira as datas e os campos obrigatórios. Nada foi alterado.`;
   if (code === "RH_CONFIRMATION") return `${who}: o nome digitado não confere. Nada foi excluído.`;
+  if (code === "RH_CPF_DUPLICADO") return `${who}: este CPF já está no cadastro de outro colaborador. Nada foi alterado.`;
   if (code === "RH_EMPLOYEE_HAS_ACCOUNT") return `${who}: tem conta de acesso à plataforma. Exclua o usuário em Pessoas e Acessos antes de excluir o cadastro.`;
   return `${who}: não foi possível ${what} agora. Nada foi alterado; tente de novo.`;
 }
@@ -589,6 +591,9 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
             departmentName: employee.department || null,
             unitName: employee.unit || null,
             positionName: employee.role || null,
+            // Vazio = não mexe no que já está gravado.
+            cpf: employee.cpf || undefined,
+            phone: employee.phone || undefined,
           },
         });
         notify(employee.terminationDate
@@ -617,15 +622,27 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
             departmentName: employee.department || null,
             unitName: employee.unit || null,
             positionName: employee.role || null,
+            cpf: employee.cpf || null,
+            phone: employee.phone || null,
           }),
         });
         if (response.status === 401) throw new Error("UNAUTHENTICATED");
-        if (!response.ok) throw new Error("RH_CREATE_DENIED");
+        if (!response.ok) throw new Error(((await response.json().catch(() => ({}))) as { error?: string }).error || "RH_CREATE_DENIED");
+        const { id } = (await response.json()) as { id: string };
+        // O item da lista passa a ter o id do banco (editar e excluir funcionam sem recarregar).
+        setPeople(current => current.map(item => item === employee ? { ...employee, id } : item));
+        setSelected(current => current === employee ? { ...employee, id } : current);
         notify(`${employee.name} foi cadastrado no banco.`);
-      } catch {
-        setPeople(current => current.filter(item => item.registration !== employee.registration));
+      } catch (error) {
+        // Remove só o item recém-incluído (antes removia pela matrícula e podia
+        // tirar da lista o colaborador que já existia com a mesma matrícula).
+        setPeople(current => current.filter(item => item !== employee));
         setSelected(null);
-        notify(`${employee.name}: não foi possível cadastrar. Verifique suas permissões.`);
+        const code = error instanceof Error ? error.message : "";
+        notify(code === "RH_MATRICULA_DUPLICADA" ? `${employee.name}: a matrícula ${employee.registration} já é de outro colaborador. Nada foi cadastrado.`
+          : code === "RH_CPF_DUPLICADO" ? `${employee.name}: este CPF já está no cadastro de outro colaborador. Nada foi cadastrado.`
+          : code === "RH_INVALID" ? `${employee.name}: CPF inválido (precisa ter 11 dígitos). Nada foi cadastrado.`
+          : `${employee.name}: não foi possível cadastrar. Verifique suas permissões.`);
       }
       return;
     }
@@ -658,14 +675,26 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
         : <Card><span><HrIcon name="file"/></span><div><strong>{allPeople.filter(person => person.documentStatus === "Pendente").length}</strong><small>cadastros pendentes</small></div></Card>}
     </div>
     <Card className="hr-table-card"><div className="hr-tools"><label><HrIcon name="search"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, matrícula, cargo ou departamento..."/></label><select value={unit} onChange={event => setUnit(event.target.value)} aria-label="Filtrar unidade"><option>Todas as unidades</option>{Array.from(new Set(allPeople.map(person => person.unit))).sort().map(name => <option key={name}>{name}</option>)}</select><button onClick={() => { setQuery(""); setUnit("Todas as unidades"); }}><HrIcon name="filter"/> Limpar filtros</button></div><div className="hr-people-table"><div className="hr-table-header"><span>Colaborador</span><span>Cargo</span><span>Departamento</span><span>Status</span><span/></div>{visiblePeople.map(person => <button key={personKey(person)} onClick={() => setSelected(person)}><span className="hr-person"><i>{person.initials}</i><span><b>{person.name}</b><small>Matrícula {person.registration}{person.email ? ` · ${person.email}` : ""}</small></span></span><span><b>{person.role}</b><small>{person.unit}</small></span><span>{person.department}</span><Status tone={person.status === "Ativo" ? "success" : person.status === "Pendente" ? "info" : "neutral"}>{person.status}</Status><HrIcon name="arrow"/></button>)}{!visiblePeople.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhum colaborador encontrado</b><small>Ajuste a busca ou a unidade selecionada.</small></div>}</div></Card>
-    {selected && <EmployeeDrawer employee={selected} canEdit={canCreate} canViewDocs={canViewDocs} notify={notify} onClose={() => setSelected(null)} onEdit={() => { setEditing(selected); setSelected(null); }} onStatus={changeStatus} onDelete={persists && selected.id ? () => { setDeleting(selected); setSelected(null); } : undefined}/>}
+    {selected && <EmployeeDrawer employee={selected} canEdit={canCreate} canViewDocs={canViewDocs} notify={notify} onClose={() => setSelected(null)} onEdit={(withPersonal) => { setEditing(withPersonal); setSelected(null); }} onStatus={changeStatus} onDelete={persists && selected.id ? () => { setDeleting(selected); setSelected(null); } : undefined}/>}
     {deleting && <EmployeeDeleteDialog employee={deleting} onClose={() => setDeleting(null)} onDeleted={() => removeEmployee(deleting)}/>} 
     {(creating || editing) && <EmployeeForm employee={editing} nextRegistration={String(allPeople.length + 1).padStart(4,"0")} units={Array.from(new Set(allPeople.map(person => person.unit).filter(Boolean))).sort()} departments={Array.from(new Set(allPeople.map(person => person.department).filter(Boolean))).sort()} onClose={() => { setCreating(false); setEditing(null); onCreateHandled(); }} onSave={saveEmployee}/>} 
   </>;
 }
 
-function EmployeeDrawer({ employee, canEdit, canViewDocs, notify, onClose, onEdit, onStatus, onDelete }: { employee: EmployeeRecord; canEdit: boolean; canViewDocs: boolean; notify: (message: string) => void; onClose: () => void; onEdit: () => void; onStatus: (status: Person["status"]) => void; onDelete?: () => void }) {
+function EmployeeDrawer({ employee, canEdit, canViewDocs, notify, onClose, onEdit, onStatus, onDelete }: { employee: EmployeeRecord; canEdit: boolean; canViewDocs: boolean; notify: (message: string) => void; onClose: () => void; onEdit: (withPersonal: EmployeeRecord) => void; onStatus: (status: Person["status"]) => void; onDelete?: () => void }) {
   const [tab, setTab] = useState<"Resumo" | "Vínculo" | "Documentos" | "Histórico">("Resumo");
+  // CPF e telefone: tabela protegida, lida ao abrir a ficha (só quem pode).
+  const [personal, setPersonal] = useState<{ id: string; data: RhPersonalData } | null>(null);
+  useEffect(() => {
+    if (!employee.id || !canEdit) return;
+    let active = true;
+    getRhEmployeePersonalData(employee.id).then(data => { if (active) setPersonal({ id: employee.id!, data }); }).catch(() => {});
+    return () => { active = false; };
+  }, [employee.id, canEdit]);
+  const pd = personal && personal.id === employee.id ? personal.data : null;
+  const cpfShown = !employee.id ? (employee.cpf || "Não informado") : !canEdit ? "Restrito ao RH" : !pd ? "Carregando…" : pd.cpf ? formatCpf(pd.cpf) : "Não informado";
+  const phoneShown = !employee.id ? (employee.phone || "Não informado") : !canEdit ? "Restrito ao RH" : !pd ? "Carregando…" : pd.phone || "Não informado";
+  const editWithPersonal = () => onEdit(employee.id ? { ...employee, cpf: pd?.cpf ? formatCpf(pd.cpf) : "", phone: pd?.phone ?? "" } : employee);
   const admission = employee.admissionDate ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${employee.admissionDate}T12:00:00Z`)) : "Não informada";
   const termination = employee.terminationDate ? formatDate(employee.terminationDate) : null;
   return <div className="employee-layer" onMouseDown={onClose}>
@@ -673,14 +702,14 @@ function EmployeeDrawer({ employee, canEdit, canViewDocs, notify, onClose, onEdi
       <header><button onClick={onClose} aria-label="Fechar ficha"><HrIcon name="close"/></button><span className="employee-avatar">{employee.initials}</span><div><p className="eyebrow">FICHA DO COLABORADOR</p><h2>{employee.name}</h2><p>{employee.role} · {employee.department}</p></div><Status tone={employee.status === "Ativo" ? "success" : employee.status === "Pendente" ? "info" : "neutral"}>{employee.status}</Status></header>
       <nav className="employee-tabs" aria-label="Seções da ficha">{(["Resumo","Vínculo","Documentos","Histórico"] as const).map(item => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</nav>
       <div className="employee-detail-content">
-        {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div><div><small>Admissão</small><strong>{admission}</strong></div>{termination && <div><small>Demissão</small><strong>{termination}</strong></div>}</section><DetailGroup title="Contato" rows={[["E-mail",employee.email || "Não informado"],["Telefone",employee.phone],["CPF",employee.cpf]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/></>}
+        {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div><div><small>Admissão</small><strong>{admission}</strong></div>{termination && <div><small>Demissão</small><strong>{termination}</strong></div>}</section><DetailGroup title="Contato" rows={[["E-mail",employee.email || "Não informado"],["Telefone",phoneShown],["CPF",cpfShown]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/></>}
         {tab === "Vínculo" && <><DetailGroup title="Dados contratuais" rows={[["Tipo de contrato",employee.contractType],["Cargo",employee.role],["Gestor responsável",employee.manager],["Jornada",employee.schedule]]}/><div className="employee-callout"><HrIcon name="shield"/><span><b>Escopo protegido</b><small>Alterações de vínculo serão registradas na auditoria quando o banco estiver conectado.</small></span></div></>}
         {tab === "Documentos" && employee.id && <EmployeeDocuments employeeId={employee.id} canView={canViewDocs} notify={notify}/>}
         {tab === "Documentos" && !employee.id && <><div className={`employee-document-health ${employee.documentStatus === "Completo" ? "complete" : "pending"}`}><HrIcon name={employee.documentStatus === "Completo" ? "check" : "alert"}/><span><b>Cadastro documental {employee.documentStatus.toLowerCase()}</b><small>{employee.documentStatus === "Completo" ? "Documentos obrigatórios conferidos." : "Existem documentos que exigem conferência."}</small></span></div>{[["Documento de identidade","Conferido"],["Contrato de trabalho","Assinado"],["Comprovante de residência",employee.documentStatus === "Completo" ? "Conferido" : "Pendente"],["ASO admissional","Válido"]].map(([name,status]) => <div className="employee-document-row" key={name}><span><HrIcon name="file"/></span><div><b>{name}</b><small>Arquivo protegido</small></div><Status tone={status === "Pendente" ? "attention" : "success"}>{status}</Status></div>)}</>}
         {tab === "Histórico" && employee.id && <div className="employee-history"><div><i>1</i><span><b>Admissão</b><small>{admission}</small></span></div><div><i>2</i><span><b>Cadastro importado da folha</b><small>Matrícula {employee.registration}</small></span></div>{termination && <div><i>3</i><span><b>Demissão</b><small>{termination}</small></span></div>}</div>}
         {tab === "Histórico" && !employee.id && <div className="employee-history">{[["Cadastro funcional revisado","Hoje · RH"],["Perfil de acesso vinculado",employee.profile],["Admissão registrada",admission]].map(([title,meta],index) => <div key={title}><i>{index + 1}</i><span><b>{title}</b><small>{meta}</small></span></div>)}</div>}
       </div>
-      {canEdit && <footer>{onDelete ? <button type="button" className="absence-reject drawer-delete" onClick={onDelete}><HrIcon name="close"/> Excluir cadastro</button> : <select value={employee.status} onChange={event => onStatus(event.target.value as Person["status"])} aria-label="Alterar situação do vínculo"><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select>}<Button variant="secondary" onClick={onEdit}><HrIcon name="edit"/> Editar cadastro</Button></footer>}
+      {canEdit && <footer>{onDelete ? <button type="button" className="absence-reject drawer-delete" onClick={onDelete}><HrIcon name="close"/> Excluir cadastro</button> : <select value={employee.status} onChange={event => onStatus(event.target.value as Person["status"])} aria-label="Alterar situação do vínculo"><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select>}<Button variant="secondary" onClick={editWithPersonal}><HrIcon name="edit"/> Editar cadastro</Button></footer>}
     </aside>
   </div>;
 }
@@ -794,7 +823,9 @@ function EmployeeForm({ employee, nextRegistration, units, departments, onClose,
   });
   const update = (field: keyof EmployeeRecord, value: string) => setForm(current => ({ ...current, [field]: value }));
   const terminationValid = !form.terminationDate || !form.admissionDate || form.terminationDate >= form.admissionDate;
-  const canAdvance = step === 1 ? Boolean(form.name && form.cpf && form.phone) : step === 2 ? Boolean(form.registration && form.admissionDate && form.unit && form.department && form.role && terminationValid) : Boolean(form.email);
+  const cpfDigits = form.cpf.replace(/\D/g, "");
+  const cpfOk = cpfDigits.length === 11 || (!isNew && !cpfDigits);
+  const canAdvance = step === 1 ? Boolean(form.name && cpfOk && (form.phone || !isNew)) : step === 2 ? Boolean(form.registration && form.admissionDate && form.unit && form.department && form.role && terminationValid) : Boolean(form.email);
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (step < 3) { if (canAdvance) setStep(value => value + 1); return; }
@@ -808,7 +839,7 @@ function EmployeeForm({ employee, nextRegistration, units, departments, onClose,
       <header><div><p className="eyebrow">RH · CADASTRO FUNCIONAL</p><h2>{isNew ? "Novo colaborador" : "Editar colaborador"}</h2><p>{isNew ? "Inclua os dados essenciais para iniciar o vínculo." : `Atualize a ficha de ${employee.name}.`}</p></div><button type="button" onClick={onClose} aria-label="Fechar formulário"><HrIcon name="close"/></button></header>
       <div className="employee-stepper">{([[1,"Dados pessoais"],[2,"Vínculo"],[3,"Contato e acesso"]] as [number, string][]).map(([number,label]) => <span className={step >= number ? "active" : ""} key={label}><i>{step > number ? "✓" : number}</i><b>{label}</b></span>)}</div>
       <div className="employee-fields">
-        {step === 1 && <><label className="field-wide"><span>Nome completo *</span><input autoFocus value={form.name} onChange={event => update("name",event.target.value)} placeholder="Nome civil do colaborador"/></label><label><span>CPF *</span><input value={form.cpf} onChange={event => update("cpf",event.target.value)} placeholder="000.000.000-00"/></label><label><span>Telefone *</span><input value={form.phone} onChange={event => update("phone",event.target.value)} placeholder="(00) 00000-0000"/></label></>}
+        {step === 1 && <><label className="field-wide"><span>Nome completo *</span><input autoFocus value={form.name} onChange={event => update("name",event.target.value)} placeholder="Nome civil do colaborador"/></label><label><span>{isNew ? "CPF *" : "CPF"}</span><input value={form.cpf} onChange={event => update("cpf",event.target.value)} placeholder="000.000.000-00" inputMode="numeric"/>{form.cpf && !cpfOk && <small className="field-hint">O CPF precisa ter 11 dígitos.</small>}</label><label><span>{isNew ? "Telefone *" : "Telefone"}</span><input value={form.phone} onChange={event => update("phone",event.target.value)} placeholder="(00) 00000-0000"/></label></>}
         {step === 2 && <><label><span>Matrícula *</span><input value={form.registration} onChange={event => update("registration",event.target.value)}/></label><label><span>Data de admissão *</span><input type="date" value={form.admissionDate} onChange={event => update("admissionDate",event.target.value)}/></label>{!isNew && <label><span>Data de demissão</span><input type="date" min={form.admissionDate || undefined} value={form.terminationDate ?? ""} onChange={event => update("terminationDate",event.target.value)}/><small className="field-hint">Preencha quando o colaborador for desligado. O cadastro e o histórico ficam guardados.</small></label>}<label><span>Unidade *</span><select value={form.unit} onChange={event => update("unit",event.target.value)}>{units.map(name => <option key={name}>{name}</option>)}</select></label><label><span>Departamento *</span><select value={form.department} onChange={event => update("department",event.target.value)}>{departments.map(name => <option key={name}>{name}</option>)}</select></label><label className="field-wide"><span>Cargo *</span><input value={form.role} onChange={event => update("role",event.target.value)} placeholder="Ex.: Analista de Recursos Humanos"/></label><label><span>Tipo de contrato</span><select value={form.contractType} onChange={event => update("contractType",event.target.value)}><option>CLT</option><option>Temporário</option><option>Estágio</option><option>Aprendiz</option><option>Terceirizado</option><option>Sócio-administrador</option></select></label><label><span>Jornada</span><select value={form.schedule} onChange={event => update("schedule",event.target.value)}><option>Administrativo</option><option>Turno A</option><option>Turno B</option><option>Turno C</option><option>Executiva</option></select></label></>}
         {step === 3 && <><label className="field-wide"><span>E-mail *</span><input type="email" value={form.email} onChange={event => update("email",event.target.value)} placeholder="nome@exemplo.com"/></label><label><span>Equipe</span><input value={form.team} onChange={event => update("team",event.target.value)} placeholder="Equipe de trabalho"/></label><label><span>Gestor responsável</span><input value={form.manager} onChange={event => update("manager",event.target.value)} placeholder="Nome do gestor"/></label><label><span>Situação inicial</span><select value={form.status} onChange={event => update("status",event.target.value)}><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select></label><label><span>Documentação</span><select value={form.documentStatus} onChange={event => update("documentStatus",event.target.value)}><option>Pendente</option><option>Completo</option></select></label><div className="employee-form-note field-wide"><HrIcon name="lock"/><span><b>Acesso separado do vínculo</b><small>O perfil de usuário será concedido pela área de Pessoas e Acessos, respeitando as credenciais da plataforma.</small></span></div></>}
       </div>
@@ -1375,6 +1406,8 @@ function DocumentsSection({ notify, access, rh }: { notify: (message: string) =>
   const [category,setCategory]=useState("Todas as categorias");
   const [selected,setSelected]=useState<HrDocumentRecord|null>(null);
   const [creating,setCreating]=useState(false);
+  const [deletingDoc,setDeletingDoc]=useState<HrDocumentRecord|null>(null);
+  const [deletingBusy,setDeletingBusy]=useState(false);
   const canCreate=canUseFeature(access,"rh.documentos","operar");
   const canApprove=canUseFeature(access,"rh.documentos","aprovar");
   const visible=records.filter(record=>!record.sensitive||canApprove);
@@ -1399,6 +1432,18 @@ function DocumentsSection({ notify, access, rh }: { notify: (message: string) =>
     setRecords(current=>[record,...current]);setCreating(false);
     notify(`${record.title}: documento registrado em modo demonstrativo.`);
   };
+  const removeDocument=async(record:HrDocumentRecord)=>{
+    if(!record.sourceId){setRecords(current=>current.filter(item=>item.id!==record.id));setDeletingDoc(null);return;}
+    setDeletingBusy(true);
+    try{
+      await deleteRhDocument(record.sourceId,record.objectPath??"");
+      setRecords(current=>current.filter(item=>item.id!==record.id));
+      setDeletingDoc(null);
+      notify(`${record.title} de ${record.employee}: documento excluído.`);
+    }catch(error){
+      notify(mutationFailure(error,record.employee,"excluir este documento"));
+    }finally{setDeletingBusy(false)}
+  };
   const openDocument=async(record:HrDocumentRecord)=>{
     if(!record.objectPath){notify("Documento demonstrativo — sem arquivo para abrir.");return;}
     try{ window.open(await getRhDocumentUrl(record.objectPath),"_blank","noopener"); }
@@ -1411,14 +1456,20 @@ function DocumentsSection({ notify, access, rh }: { notify: (message: string) =>
     {tab!=="Categorias"&&<Card className="doc-card"><div className="doc-toolbar"><label className="doc-search"><HrIcon name="search"/><input aria-label="Buscar documentos" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar colaborador ou documento..."/></label><select aria-label="Filtrar categoria" value={category} onChange={event=>setCategory(event.target.value)}><option>Todas as categorias</option>{categories.map(item=><option key={item.name}>{item.name}</option>)}</select><select aria-label="Filtrar status" value={status} onChange={event=>setStatus(event.target.value)}><option>Todos os status</option><option>Válido</option><option>Pendente</option><option>A vencer</option><option>Expirado</option><option>Reprovado</option></select></div><div className="doc-table"><div className="doc-table-head"><span>Colaborador</span><span>Documento</span><span>Validade</span><span>Assinatura</span><span>Situação</span><span/></div>{filtered.map(record=><button key={record.id} onClick={()=>setSelected(record)}><span className="doc-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department}</small></span></span><span><b>{record.title}</b><small>{record.category} · v{record.version}</small></span><span><b>{record.validUntil?formatDate(record.validUntil):"Sem validade"}</b><small>{record.updatedAt}</small></span><span><b>{record.signature}</b><small>{record.fileName}</small></span><Status tone={documentTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!filtered.length&&<div className="hr-empty"><HrIcon name="search"/><b>Nenhum documento encontrado</b><small>Ajuste os filtros para ampliar a consulta.</small></div>}</div></Card>}
     {tab==="Categorias"&&<div className="doc-category-grid">{categories.map(item=><Card key={item.name}><span><HrIcon name="folder"/></span><div><h2>{item.name}</h2><p>{item.count} documentos demonstrativos</p><small>{item.pending?`${item.pending} exigem atenção`:"Categoria regular"}</small></div><Status tone={item.pending?"attention":"success"}>{item.pending?"Atenção":"Regular"}</Status></Card>)}</div>}
     <div className="doc-security"><HrIcon name="lock"/><span><b>Privacidade aplicada por escopo</b><small>Documentos sensíveis só aparecem para perfis autorizados. O conteúdo real será versionado, auditado e protegido quando o Supabase for conectado.</small></span></div>
-    {selected&&<DocumentDrawer record={selected} canApprove={canApprove} onClose={()=>setSelected(null)} onStatus={next=>updateStatus(selected,next)} onOpen={()=>openDocument(selected)}/>}
+    {selected&&<DocumentDrawer record={selected} canApprove={canApprove} onClose={()=>setSelected(null)} onStatus={next=>updateStatus(selected,next)} onOpen={()=>openDocument(selected)} onDelete={canCreate?()=>{setDeletingDoc(selected);setSelected(null)}:undefined}/>}
+    {deletingDoc&&<Modal eyebrow="RH · EXCLUIR DOCUMENTO" title={`Excluir ${deletingDoc.title}?`} subtitle={`${deletingDoc.employee} · ${deletingDoc.category} · ${deletingDoc.fileName}`} onClose={()=>setDeletingDoc(null)}>
+      <div className="employee-delete"><p className="employee-delete-muted">O registro e o arquivo são apagados. Não dá para desfazer.</p><footer><button type="button" className="employee-cancel" onClick={()=>setDeletingDoc(null)}>Cancelar</button><button type="button" className="absence-reject" disabled={deletingBusy} onClick={()=>removeDocument(deletingDoc)}><HrIcon name="close"/> {deletingBusy?"Excluindo…":"Excluir documento"}</button></footer></div>
+    </Modal>}
     {creating&&<DocumentForm nextId={Math.max(0,...records.map(record=>record.id))+1} employees={persists?rh.employees:[]} persists={persists} onClose={()=>setCreating(false)} onSave={createRecord}/>}
   </>;
 }
 
-function DocumentDrawer({record,canApprove,onClose,onStatus,onOpen}:{record:HrDocumentRecord;canApprove:boolean;onClose:()=>void;onStatus:(status:HrDocumentStatus)=>void;onOpen:()=>void}){return <div className="employee-layer" onMouseDown={onClose}><aside className="doc-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Documento ${record.title}`}><header><button onClick={onClose} aria-label="Fechar documento"><HrIcon name="close"/></button><span><HrIcon name="file"/></span><div><p className="eyebrow">{record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={documentTone(record.status)}>{record.status}</Status></header><div className="doc-drawer-content">{record.signature==="Assinatura pendente"&&<div className="doc-warning"><HrIcon name="edit"/><span><b>Assinatura aguardando aceite</b><small>O colaborador verá esta pendência somente em sua área pessoal.</small></span></div>}<DetailGroup title="Dados do documento" rows={[["Arquivo",record.fileName],["Versão",`v${record.version}`],["Validade",record.validUntil?formatDate(record.validUntil):"Sem validade"],["Assinatura",record.signature],["Última atualização",record.updatedAt]]}/>{record.objectPath&&<Button variant="secondary" onClick={onOpen}><HrIcon name="eye"/> Visualizar documento</Button>}{record.sensitive&&<section className="doc-sensitive"><HrIcon name="lock"/><span><b>Documento sensível</b><small>Visualização e ações dependem de permissão específica e serão registradas na auditoria central.</small></span></section>}<section className="absence-workflow"><h3>Histórico de versões</h3><div><i>✓</i><span><b>Versão {record.version} registrada</b><small>{record.updatedAt}</small></span></div><div><i>{record.status==="Válido"?"✓":"2"}</i><span><b>{record.status==="Válido"?"Conferência concluída":"Aguardando conferência"}</b><small>{record.objectPath?"Documento armazenado com segurança":"Fluxo demonstrativo do RH"}</small></span></div></section></div>{canApprove&&record.status!=="Válido"&&<footer><button className="doc-reject" onClick={()=>onStatus("Reprovado")}>Reprovar</button><Button onClick={()=>onStatus("Válido")}><HrIcon name="check"/> Aprovar documento</Button></footer>}</aside></div>}
+function DocumentDrawer({record,canApprove,onClose,onStatus,onOpen,onDelete}:{record:HrDocumentRecord;canApprove:boolean;onClose:()=>void;onStatus:(status:HrDocumentStatus)=>void;onOpen:()=>void;onDelete?:()=>void}){return <div className="employee-layer" onMouseDown={onClose}><aside className="doc-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Documento ${record.title}`}><header><button onClick={onClose} aria-label="Fechar documento"><HrIcon name="close"/></button><span><HrIcon name="file"/></span><div><p className="eyebrow">{record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={documentTone(record.status)}>{record.status}</Status></header><div className="doc-drawer-content">{record.signature==="Assinatura pendente"&&<div className="doc-warning"><HrIcon name="edit"/><span><b>Assinatura aguardando aceite</b><small>O colaborador verá esta pendência somente em sua área pessoal.</small></span></div>}<DetailGroup title="Dados do documento" rows={[["Arquivo",record.fileName],["Versão",`v${record.version}`],["Validade",record.validUntil?formatDate(record.validUntil):"Sem validade"],["Assinatura",record.signature],["Última atualização",record.updatedAt]]}/>{record.objectPath&&<Button variant="secondary" onClick={onOpen}><HrIcon name="eye"/> Visualizar documento</Button>}{record.sensitive&&<section className="doc-sensitive"><HrIcon name="lock"/><span><b>Documento sensível</b><small>Visualização e ações dependem de permissão específica e serão registradas na auditoria central.</small></span></section>}<section className="absence-workflow"><h3>Histórico de versões</h3><div><i>✓</i><span><b>Versão {record.version} registrada</b><small>{record.updatedAt}</small></span></div><div><i>{record.status==="Válido"?"✓":"2"}</i><span><b>{record.status==="Válido"?"Conferência concluída":"Aguardando conferência"}</b><small>{record.objectPath?"Documento armazenado com segurança":"Fluxo demonstrativo do RH"}</small></span></div></section></div>{canApprove&&record.status!=="Válido"&&<footer><button className="doc-reject" onClick={()=>onStatus("Reprovado")}>Reprovar</button><Button onClick={()=>onStatus("Válido")}><HrIcon name="check"/> Aprovar documento</Button></footer>}{onDelete&&<footer className="absence-drawer-manage"><button className="doc-reject drawer-delete" onClick={onDelete}><HrIcon name="close"/> Excluir documento</button></footer>}</aside></div>}
 
-function DocumentForm({nextId,employees,persists,onClose,onSave}:{nextId:number;employees:RhEmployeeOption[];persists:boolean;onClose:()=>void;onSave:(record:HrDocumentRecord,file?:File,employeeId?:string)=>void}){
+function DocumentForm({nextId,employees,persists,onClose,onSave}:{nextId:number;employees:RhEmployeeOption[];persists:boolean;onClose:()=>void;onSave:(record:HrDocumentRecord,file?:File,employeeId?:string)=>Promise<void>|void}){
+  // Trava o envio enquanto o arquivo sobe: antes, cada clique a mais gravava
+  // outra cópia do mesmo documento (RG do mesmo colaborador 3 e 5 vezes).
+  const[busy,setBusy]=useState(false);
   const options=employees;
   const[employeeId,setEmployeeId]=useState(options[0]?.id??"");
   const[category,setCategory]=useState<HrDocumentRecord["category"]>("Admissional");
@@ -1429,8 +1480,8 @@ function DocumentForm({nextId,employees,persists,onClose,onSave}:{nextId:number;
   const chosen=options.find(option=>option.id===employeeId)??options[0];
   // Em modo real o arquivo é obrigatório (vai ao Storage); em demo, opcional.
   const valid=Boolean(chosen&&title&&(persists?file:true));
-  const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid||!chosen)return;onSave({id:nextId,employee:chosen.name,initials:initialsOf(chosen.name),department:chosen.department??"—",category,title,fileName:file?.name??"documento",version:1,validUntil:validUntil||null,status:"Pendente",signature:category==="Contrato e termo"||category==="Férias e ausência"?"Assinatura pendente":"Não exigida",sensitive,updatedAt:"Agora"},file??undefined,persists?chosen.id:undefined)};
-  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="doc-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · DOCUMENTOS</p><h2>Adicionar documento</h2><p>{persists?"Envie o arquivo para o armazenamento privado do RH.":"Registro demonstrativo enquanto não há conexão."}</p></div><button type="button" onClick={onClose} aria-label="Fechar formulário"><HrIcon name="close"/></button></header><div className="doc-form-fields"><label><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label><label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as HrDocumentRecord["category"])}><option>Admissional</option><option>Contrato e termo</option><option>Férias e ausência</option><option>Saúde ocupacional</option><option>Treinamento</option></select></label><label className="field-wide"><span>Título do documento *</span><input value={title} onChange={event=>setTitle(event.target.value)} placeholder="Ex.: Termo de alteração contratual"/></label><label className="field-wide"><span>Arquivo {persists?"*":"(opcional)"}</span><input type="file" onChange={event=>setFile(event.target.files?.[0]??null)}/></label><label><span>Validade</span><input type="date" value={validUntil} onChange={event=>setValidUntil(event.target.value)}/></label><label className="doc-check"><input type="checkbox" checked={sensitive} onChange={event=>setSensitive(event.target.checked)}/><span>Conteúdo sensível</span></label><div className="doc-form-note field-wide"><HrIcon name="lock"/><span><b>{persists?"Armazenamento privado com RLS":"Envio demonstrativo nesta fase"}</b><small>{persists?"O arquivo vai para o bucket rh-documents, acessível só por URL assinada a quem tem permissão.":"O arquivo não é armazenado sem conexão com o Supabase."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>{persists?"Enviar documento":"Registrar documento"} <HrIcon name="check"/></Button></footer></form></div>}
+  const submit=async(event:React.FormEvent)=>{event.preventDefault();if(!valid||!chosen||busy)return;setBusy(true);try{await onSave({id:nextId,employee:chosen.name,initials:initialsOf(chosen.name),department:chosen.department??"—",category,title,fileName:file?.name??"documento",version:1,validUntil:validUntil||null,status:"Pendente",signature:category==="Contrato e termo"||category==="Férias e ausência"?"Assinatura pendente":"Não exigida",sensitive,updatedAt:"Agora"},file??undefined,persists?chosen.id:undefined)}finally{setBusy(false)}};
+  return <div className="employee-layer form-layer" onMouseDown={onClose}><form className="doc-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · DOCUMENTOS</p><h2>Adicionar documento</h2><p>{persists?"Envie o arquivo para o armazenamento privado do RH.":"Registro demonstrativo enquanto não há conexão."}</p></div><button type="button" onClick={onClose} aria-label="Fechar formulário"><HrIcon name="close"/></button></header><div className="doc-form-fields"><label><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label><label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as HrDocumentRecord["category"])}><option>Admissional</option><option>Contrato e termo</option><option>Férias e ausência</option><option>Saúde ocupacional</option><option>Treinamento</option></select></label><label className="field-wide"><span>Título do documento *</span><input value={title} onChange={event=>setTitle(event.target.value)} placeholder="Ex.: Termo de alteração contratual"/></label><label className="field-wide"><span>Arquivo {persists?"*":"(opcional)"}</span><input type="file" onChange={event=>setFile(event.target.files?.[0]??null)}/></label><label><span>Validade</span><input type="date" value={validUntil} onChange={event=>setValidUntil(event.target.value)}/></label><label className="doc-check"><input type="checkbox" checked={sensitive} onChange={event=>setSensitive(event.target.checked)}/><span>Conteúdo sensível</span></label><div className="doc-form-note field-wide"><HrIcon name="lock"/><span><b>{persists?"Armazenamento privado com RLS":"Envio demonstrativo nesta fase"}</b><small>{persists?"O arquivo vai para o bucket rh-documents, acessível só por URL assinada a quem tem permissão.":"O arquivo não é armazenado sem conexão com o Supabase."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid||busy}>{busy?"Enviando…":persists?"Enviar documento":"Registrar documento"} <HrIcon name="check"/></Button></footer></form></div>}
 
 function documentTone(status:HrDocumentStatus):"success"|"attention"|"info"|"neutral"{return status==="Válido"?"success":status==="A vencer"||status==="Expirado"?"attention":status==="Pendente"?"info":"neutral"}
 
