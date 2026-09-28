@@ -2625,6 +2625,25 @@ i.info                 { background: var(--accent-blue); }
 }
 .user-admin-note b { font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
 .user-admin-note small { font-size: var(--fs-xs); color: var(--text-muted); }
+/* Exclusão definitiva: bloco separado, em vermelho, no fim do gerenciar. */
+.user-admin-danger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid color-mix(in srgb, var(--accent-red) 35%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--tint-red);
+}
+.user-admin-danger > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.user-admin-danger b { font-size: var(--fs-sm); color: var(--accent-red); }
+.user-admin-danger small { font-size: var(--fs-xs); color: var(--text-secondary); }
+.user-admin-danger .ds-button.danger { color: var(--accent-red); border-color: var(--accent-red); flex-shrink: 0; }
+.user-admin-danger .ds-button.danger:disabled { opacity: 0.5; }
+@media (max-width: 720px) {
+  .user-admin-danger { flex-direction: column; align-items: stretch; }
+}
 .user-admin-error {
   grid-column: 1 / -1;
   font-size: var(--fs-sm);
@@ -5518,7 +5537,7 @@ button.holiday-row:hover {
 /* Novo usuário: colaborador da PecSil ou terceiro. */
 .access-kind {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sp-2);
 }
 .access-kind > button {

@@ -238,8 +238,23 @@ export function derivePermissions(grants: AccessGrants): string[] {
   return [...permissions].sort();
 }
 
-/** Tipo da conta: colaborador (ficha no RH) ou terceiro (prestador externo). */
-export type AccountType = "colaborador" | "terceiro";
+/** Tipo da conta: colaborador (ficha no RH), terceiro (prestador externo) ou administrativo (pelo cargo). */
+export type AccountType = "colaborador" | "terceiro" | "administrativo";
+
+export const ACCOUNT_TYPES: readonly AccountType[] = ["colaborador", "terceiro", "administrativo"];
+
+/** Cargos do administrativo. Espelha `profiles_job_title_check` do banco. */
+export const JOB_TITLES = {
+  diretor: "Diretor",
+  gerente: "Gerente",
+  assistente: "Assistente",
+  estagiario: "Estagiário",
+} as const;
+
+export type JobTitle = keyof typeof JOB_TITLES;
+
+export const isJobTitle = (value: unknown): value is JobTitle =>
+  typeof value === "string" && Object.prototype.hasOwnProperty.call(JOB_TITLES, value);
 
 /**
  * O acesso venceu? Sem data, nunca vence. Espelha `current_profile_id()` do

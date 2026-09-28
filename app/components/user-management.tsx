@@ -5,11 +5,14 @@ import { Button, Card, Status } from "../../packages/design-system";
 import {
   ACCESS_CATALOG,
   ACCESS_DEPARTMENTS,
+  JOB_TITLES,
   levelLabel,
   levelRank,
   type AccessGrants,
   type AccessLevel,
   type AccessModule,
+  type AccountType,
+  type JobTitle,
 } from "../../modules/access-catalog";
 
 type AdminUser = {
@@ -18,8 +21,9 @@ type AdminUser = {
   email: string;
   status: string;
   isOwner: boolean;
-  accountType: "colaborador" | "terceiro";
+  accountType: AccountType;
   companyName: string | null;
+  jobTitle: JobTitle | null;
   accessExpiresAt: string | null;
   expired: boolean;
   employee: { id: string; name: string; registration: string | null; department: string | null } | null;
@@ -206,9 +210,10 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
   );
 }
 
-/** Coluna "Vínculo": ficha do RH, ou terceiro com a empresa e a validade. */
+/** Coluna "Vínculo": ficha do RH, terceiro com a empresa e a validade, ou cargo do administrativo. */
 function linkLabel(user: AdminUser) {
   if (user.isOwner) return "—";
+  if (user.accountType === "administrativo") return `Administrativo · ${user.jobTitle ? JOB_TITLES[user.jobTitle] : "cargo não informado"}`;
   if (user.accountType === "terceiro") {
     const until = user.accessExpiresAt ? ` · ${user.expired ? "expirou" : "até"} ${brDate(user.accessExpiresAt)}` : "";
     return `Terceiro · ${user.companyName ?? "empresa não informada"}${until}`;
@@ -408,8 +413,9 @@ function CreateUserForm({
   onClose: () => void;
   onCreated: (name: string) => void;
 }) {
-  const [kind, setKind] = useState<"colaborador" | "terceiro">("colaborador");
+  const [kind, setKind] = useState<AccountType>("colaborador");
   const [fullName, setFullName] = useState("");
+  const [jobTitle, setJobTitle] = useState<JobTitle | "">("");
   const [companyName, setCompanyName] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
@@ -447,6 +453,8 @@ function CreateUserForm({
   const missing = [
     kind === "colaborador" && !employee && "escolher o colaborador (passo 1)",
     kind === "terceiro" && !fullName.trim() && "nome do terceiro",
+    kind === "administrativo" && !fullName.trim() && "nome completo",
+    kind === "administrativo" && !jobTitle && "cargo",
     kind === "terceiro" && !companyName.trim() && "empresa prestadora",
     !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) && "e-mail de login válido",
     password.length < 8 && "senha com pelo menos 8 caracteres",
@@ -466,6 +474,8 @@ function CreateUserForm({
     setError("");
     const payload = kind === "colaborador"
       ? { kind, employeeId: employee?.id, email: email.trim(), password, grants }
+      : kind === "administrativo"
+      ? { kind, fullName: fullName.trim(), jobTitle, email: email.trim(), password, grants }
       : { kind, fullName: fullName.trim(), companyName: companyName.trim(), accessExpiresAt: expiresAt || null, email: email.trim(), password, grants };
     const response = await fetch("/api/admin/users", {
       method: "POST",
@@ -485,7 +495,7 @@ function CreateUserForm({
           <div>
             <p className="eyebrow">PESSOAS E ACESSOS · NOVO USUÁRIO</p>
             <h2>Novo usuário</h2>
-            <p>Diga quem é (colaborador da PecSil ou terceiro), defina a senha inicial e marque o que a pessoa poderá acessar.</p>
+            <p>Diga quem é (colaborador da PecSil, administrativo ou terceiro), defina a senha inicial e marque o que a pessoa poderá acessar.</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar">
             ✕
@@ -498,6 +508,7 @@ function CreateUserForm({
             <div className="access-kind" role="radiogroup" aria-label="Tipo de usuário">
               {([
                 ["colaborador", "Colaborador da PecSil", "Está no quadro do RH"],
+                ["administrativo", "Administrativo", "Diretor, gerente, assistente ou estagiário"],
                 ["terceiro", "Terceiro", "Prestador de fora do quadro"],
               ] as const).map(([value, label, hint]) => (
                 <button
@@ -513,7 +524,23 @@ function CreateUserForm({
                 </button>
               ))}
             </div>
-            {kind === "terceiro" ? (
+            {kind === "administrativo" ? (
+              <div className="access-third-party">
+                <label>
+                  <span>Nome completo *</span>
+                  <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ex.: Maria Oliveira" />
+                </label>
+                <label>
+                  <span>Cargo *</span>
+                  <select value={jobTitle} onChange={(e) => setJobTitle(e.target.value as JobTitle | "")}>
+                    <option value="">Escolha o cargo</option>
+                    {(Object.entries(JOB_TITLES) as [JobTitle, string][]).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : kind === "terceiro" ? (
               <div className="access-third-party">
                 <label>
                   <span>Nome completo *</span>
@@ -618,6 +645,7 @@ function EditUserDrawer({
   const [grants, setGrants] = useState<AccessGrants>(user.grants);
   const [checklistKey, setChecklistKey] = useState(0);
   const [companyName, setCompanyName] = useState(user.companyName ?? "");
+  const [jobTitle, setJobTitle] = useState<JobTitle | "">(user.jobTitle ?? "");
   const [expiresAt, setExpiresAt] = useState(inputDate(user.accessExpiresAt));
   const [status, setStatus] = useState(user.status);
   const [password, setPassword] = useState("");
@@ -641,6 +669,21 @@ function EditUserDrawer({
     if (response.ok) return onSaved(message);
     const data = await response.json().catch(() => ({}));
     setError(data.error ?? "Não foi possível aplicar a alteração.");
+  }
+
+  async function remove() {
+    if (!window.confirm(`Excluir ${user.fullName} de vez? O login e as permissões serão apagados. Não dá para desfazer.`)) return;
+    setBusy(true);
+    setError("");
+    const response = await fetch(`/api/admin/users/${user.id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmEmail: confirm.trim() }),
+    });
+    setBusy(false);
+    if (response.ok) return onSaved(`${user.fullName} foi excluído.`);
+    const data = await response.json().catch(() => ({}));
+    setError(data.error ?? "Não foi possível excluir o usuário.");
   }
 
   return (
@@ -686,6 +729,31 @@ function EditUserDrawer({
               </div>
             </div>
           )}
+          {user.accountType === "administrativo" && (
+            <div className="field-wide access-step">
+              <span className="access-step-title">Dados do administrativo</span>
+              <div className="access-third-party">
+                <label>
+                  <span>Cargo *</span>
+                  <select value={jobTitle} onChange={(e) => setJobTitle(e.target.value as JobTitle | "")}>
+                    <option value="">Escolha o cargo</option>
+                    {(Object.entries(JOB_TITLES) as [JobTitle, string][]).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="user-admin-actions">
+                <Button
+                  variant="secondary"
+                  disabled={busy || !jobTitle || jobTitle === user.jobTitle}
+                  onClick={() => send({ jobTitle }, `Cargo de ${user.fullName} atualizado.`)}
+                >
+                  Salvar cargo
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="field-wide access-step">
             <span className="access-step-title">Acessos</span>
             <CopyFrom
@@ -718,7 +786,7 @@ function EditUserDrawer({
           <PasswordField label="Definir nova senha" value={password} onChange={setPassword} />
 
           <label className="field-wide">
-            <span>Para bloquear, desativar ou trocar a senha, digite o e-mail do usuário</span>
+            <span>Para bloquear, desativar, trocar a senha ou excluir, digite o e-mail do usuário</span>
             <input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={user.email} />
           </label>
 
@@ -736,6 +804,16 @@ function EditUserDrawer({
               onClick={() => send({ password }, `Senha de ${user.fullName} redefinida.`)}
             >
               Redefinir senha
+            </Button>
+          </div>
+
+          <div className="user-admin-danger field-wide">
+            <span>
+              <b>Excluir usuário</b>
+              <small>Apaga o login e as permissões de vez. O histórico do que a pessoa fez continua registrado. Para só tirar o acesso, use a situação Desativado.</small>
+            </span>
+            <Button variant="secondary" className="danger" disabled={busy || !confirmed} onClick={remove}>
+              Excluir usuário
             </Button>
           </div>
 

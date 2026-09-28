@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 import { authorize, replaceGrants, writeAudit } from "../../../../lib/auth/admin-users";
-import { endOfDayBrasilia, isAccessExpired, normalizeGrants, type AccessGrants, type AccountType } from "../../../../modules/access-catalog";
+import { ACCOUNT_TYPES, endOfDayBrasilia, isAccessExpired, isJobTitle, normalizeGrants, type AccessGrants, type AccountType, type JobTitle } from "../../../../modules/access-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,7 @@ export type AdminUser = {
   isOwner: boolean;
   accountType: AccountType;
   companyName: string | null;
+  jobTitle: JobTitle | null;
   accessExpiresAt: string | null;
   expired: boolean;
   employee: { id: string; name: string; registration: string | null; department: string | null } | null;
@@ -32,7 +33,7 @@ export async function GET() {
 
   const admin = createSupabaseAdminClient();
   const [profilesResult, grantsResult, employeesResult] = await Promise.all([
-    admin.from("profiles").select("id, full_name, email, status, is_owner, account_type, company_name, access_expires_at").eq("organization_id", auth.orgId).order("full_name"),
+    admin.from("profiles").select("id, full_name, email, status, is_owner, account_type, company_name, job_title, access_expires_at").eq("organization_id", auth.orgId).order("full_name"),
     admin.from("user_feature_grants").select("profile_id, feature_code, level").eq("organization_id", auth.orgId),
     admin
       .from("employees")
@@ -59,8 +60,9 @@ export async function GET() {
       email: profile.email,
       status: profile.status,
       isOwner: profile.is_owner === true,
-      accountType: profile.account_type === "terceiro" ? "terceiro" : "colaborador",
+      accountType: ACCOUNT_TYPES.includes(profile.account_type) ? profile.account_type : "colaborador",
       companyName: profile.company_name ?? null,
+      jobTitle: isJobTitle(profile.job_title) ? profile.job_title : null,
       accessExpiresAt: profile.access_expires_at ?? null,
       expired: isAccessExpired(profile.access_expires_at),
       employee: employee
@@ -83,6 +85,7 @@ type CreateBody = {
   employeeId?: string;
   fullName?: string;
   companyName?: string;
+  jobTitle?: string;
   accessExpiresAt?: string | null;
   email?: string;
   password?: string;
@@ -91,7 +94,8 @@ type CreateBody = {
 
 /**
  * Cria um acesso: de um COLABORADOR (vinculado à ficha do RH) ou de um
- * TERCEIRO (prestador de fora do quadro, com a empresa e validade opcional).
+ * TERCEIRO (prestador de fora do quadro, com a empresa e validade opcional) ou
+ * do ADMINISTRATIVO (nome e cargo: diretor, gerente, assistente, estagiário).
  * Em qualquer falha, desfaz o que já criou.
  */
 export async function POST(request: Request) {
@@ -106,7 +110,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  const kind: AccountType = body.kind === "terceiro" ? "terceiro" : "colaborador";
+  const kind: AccountType = body.kind && ACCOUNT_TYPES.includes(body.kind) ? body.kind : "colaborador";
   const email = body.email?.trim().toLowerCase() ?? "";
   const password = body.password ?? "";
   const grants = normalizeGrants(body.grants);
@@ -123,10 +127,11 @@ export async function POST(request: Request) {
 
   const admin = createSupabaseAdminClient();
 
-  // Quem é: colaborador (nome vem da ficha) ou terceiro (dados informados).
+  // Quem é: colaborador (nome vem da ficha), terceiro ou administrativo (dados informados).
   let fullName: string;
   let employeeId: string | null = null;
   let companyName: string | null = null;
+  let jobTitle: JobTitle | null = null;
   let accessExpiresAt: string | null = null;
 
   if (kind === "colaborador") {
@@ -143,6 +148,11 @@ export async function POST(request: Request) {
     }
     fullName = String(employee.full_name);
     employeeId = String(employee.id);
+  } else if (kind === "administrativo") {
+    fullName = body.fullName?.trim() ?? "";
+    if (!fullName) return NextResponse.json({ error: "Informe o nome completo." }, { status: 400 });
+    if (!isJobTitle(body.jobTitle)) return NextResponse.json({ error: "Escolha o cargo." }, { status: 400 });
+    jobTitle = body.jobTitle;
   } else {
     fullName = body.fullName?.trim() ?? "";
     companyName = body.companyName?.trim() ?? "";
@@ -182,6 +192,7 @@ export async function POST(request: Request) {
       status: "active",
       account_type: kind,
       company_name: companyName,
+      job_title: jobTitle,
       access_expires_at: accessExpiresAt,
     })
     .select("id")
@@ -225,7 +236,7 @@ export async function POST(request: Request) {
     entityType: "profile",
     entityId: profile.id,
     riskLevel: "sensitive",
-    metadata: { email, fullName, accountType: kind, employeeId, companyName, accessExpiresAt, grants },
+    metadata: { email, fullName, accountType: kind, employeeId, companyName, jobTitle, accessExpiresAt, grants },
   });
 
   return NextResponse.json({ id: profile.id, email, fullName }, { status: 201 });
