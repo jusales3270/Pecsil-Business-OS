@@ -46,3 +46,8 @@ tsconfig.tsbuildinfo
 # Vídeo original de 66MB fora do repo; o login usa a versão comprimida
 # public/pecsil-login.mp4 (~1,4MB), servida pela CDN da Vercel.
 public/pecsil-video.mp4
+
+# Cópias de dados da Portaria (biometria e dados pessoais) nunca entram no git.
+# A extração grava em ~/.config/pecsil/portaria-snapshot.json.
+modules/portaria/src/data/*.json
+*portaria-snapshot*.json
