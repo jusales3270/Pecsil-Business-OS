@@ -1331,3 +1331,64 @@
   :root:not([data-theme="light"]) .brand-logo.light { display: none; }
   :root:not([data-theme="light"]) .brand-logo.dark { display: block; }
 }
+
+/* --- Aviso "Nova versão disponível" ---------------------------------------- */
+/* Faixa flutuante no rodapé. Vale no navegador e no app instalado
+   (computador e celular): ver app/components/update-notice.tsx. */
+.update-notice {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--sp-5) + var(--sab, 0px));
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: max-content;
+  max-width: calc(100vw - 2 * var(--sp-4));
+  padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);
+  border: 1px solid var(--edge-blue);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg, 0 10px 30px rgb(0 0 0 / 0.15));
+  animation: update-notice-in 0.25s var(--ease, ease-out);
+}
+.update-notice > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.update-notice b { font-size: var(--fs-sm); }
+.update-notice small { font-size: var(--fs-xs); color: var(--text-muted); }
+.update-notice-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-blue);
+  box-shadow: 0 0 0 4px var(--tint-blue);
+}
+.update-notice-later {
+  flex-shrink: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+.update-notice-later:hover { background: var(--bg-hover); color: var(--text-primary); }
+.update-notice .ds-button { flex-shrink: 0; }
+@keyframes update-notice-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (max-width: 860px) {
+  /* Acima da barra de navegação inferior do celular. */
+  .update-notice {
+    bottom: calc(var(--shell-bottom-nav-h) + var(--sab, 0px) + var(--sp-3));
+    width: calc(100vw - 2 * var(--sp-3));
+    flex-wrap: wrap;
+  }
+  .update-notice > div { flex: 1 1 60%; }
+}

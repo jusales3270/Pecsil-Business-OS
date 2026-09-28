@@ -22,6 +22,11 @@ self.addEventListener('install', (event) => {
   );
 });
 
+// O aviso "Nova versão disponível" pede para a versão nova assumir na hora.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
