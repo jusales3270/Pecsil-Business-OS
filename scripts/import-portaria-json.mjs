@@ -137,6 +137,7 @@ function buildRows(organizationId) {
       notas_fiscais: nf(v.notasFiscais),
       descricao: v.descricao ?? "",
       foto_base64: v.fotoBase64 || null,
+      created_at: v.createdAt ?? undefined,
     })),
     frota: (snapshot.frota ?? []).map(v => ({
       id: stableUuid("frota", v.id),
@@ -152,6 +153,7 @@ function buildRows(organizationId) {
       km_entrada: Number(v.kmEntrada || 0),
       destino: v.destino ?? "",
       notas_fiscais: nf(v.notasFiscais),
+      created_at: v.createdAt ?? undefined,
     })),
     terceiros: (snapshot.terceiros ?? []).map(t => ({
       id: stableUuid("terceiros", t.id),
@@ -162,6 +164,8 @@ function buildRows(organizationId) {
       hora_saida: t.horaSaida || null,
       // Minutos da própria Portaria; vazio quando ela não calculou.
       minutos_trabalhados: t.minutosTrabalhados === null || t.minutosTrabalhados === undefined ? null : Number(t.minutosTrabalhados),
+      // A Portaria ordena as listas por created_at: preservar o original.
+      created_at: t.createdAt ?? undefined,
     })),
     encomendas: (snapshot.encomendas ?? []).map(e => ({
       id: stableUuid("encomendas", e.id),
@@ -172,6 +176,7 @@ function buildRows(organizationId) {
       destinatario: e.destinatario ?? "",
       descricao: e.descricao ?? "",
       foto_base64: e.foto_base64 ?? e.fotoBase64 ?? null,
+      created_at: e.created_at ?? undefined,
     })),
   };
 }

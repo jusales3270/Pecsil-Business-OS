@@ -6,6 +6,10 @@ export interface ModuleNavItem {
   id: string;
   label: string;
   icon?: string;
+  /** Contador ao lado do item (ex.: Terceiros na fábrica). */
+  badge?: string | number;
+  /** Tom do contador: "attention" destaca (âmbar), o padrão é neutro. */
+  badgeTone?: "neutral" | "attention";
 }
 
 /**
@@ -26,6 +30,12 @@ export interface ModuleNavState {
   items: ModuleNavItem[];
   activeId: string;
   onSelect: (id: string) => void;
+  /**
+   * As seções viram submenu em árvore sob o módulo, na barra lateral, em
+   * qualquer largura de tela (em vez do bloco só de celular). Usado por
+   * módulos que antes tinham menu lateral próprio (Portaria).
+   */
+  sidebarTree?: boolean;
   /** Só departamento manda áreas; módulo comum continua como sempre foi. */
   areas?: ModuleNavArea[];
   activeAreaId?: string;
@@ -44,12 +54,13 @@ export const ModuleNavContext = createContext<ModuleNavContextType>({
 
 /** Duas listas são iguais quando têm os mesmos itens, na mesma ordem. */
 function mesmaLista(
-  a: readonly { id: string; label: string; icon?: string }[] | undefined,
-  b: readonly { id: string; label: string; icon?: string }[] | undefined,
+  a: readonly ModuleNavItem[] | undefined,
+  b: readonly ModuleNavItem[] | undefined,
 ) {
   if (a === b) return true;
   if (!a || !b || a.length !== b.length) return false;
-  return a.every((item, i) => item.id === b[i]?.id && item.label === b[i]?.label && item.icon === b[i]?.icon);
+  return a.every((item, i) => item.id === b[i]?.id && item.label === b[i]?.label && item.icon === b[i]?.icon
+    && item.badge === b[i]?.badge && item.badgeTone === b[i]?.badgeTone);
 }
 
 export function ModuleNavProvider({ children }: { children: React.ReactNode }) {
@@ -66,6 +77,7 @@ export function ModuleNavProvider({ children }: { children: React.ReactNode }) {
         prev.moduleId === state.moduleId &&
         prev.activeId === state.activeId &&
         prev.activeAreaId === state.activeAreaId &&
+        prev.sidebarTree === state.sidebarTree &&
         mesmaLista(prev.items, state.items) &&
         mesmaLista(prev.areas, state.areas)
       ) {

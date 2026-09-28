@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Lock, Mail, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, AlertTriangle } from 'lucide-react';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -29,8 +29,8 @@ export function Login() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center mx-auto mb-4 border border-blue-200 shadow-xs">
-            <ShieldCheck className="w-9 h-9" />
+          <div className="mx-auto mb-6">
+            <img src="/logo-pecsil.png" alt="Pecsil Logo" className="h-16 object-contain mx-auto" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Sistema de Controle</h1>
           <p className="text-gray-500 mt-2">Faça login para acessar o painel</p>

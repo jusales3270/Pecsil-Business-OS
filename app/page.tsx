@@ -414,7 +414,7 @@ function HomeContent() {
         <button className="close-menu" onClick={()=>setMobile(false)} aria-label="Fechar menu"><Icon name="close"/></button>
       </div>
       <nav>
-        {activeModule && !navState?.areas && navState && navState.items && navState.items.length > 0 && (
+        {activeModule && !navState?.areas && !navState?.sidebarTree && navState && navState.items && navState.items.length > 0 && (
           <div className="sidebar-module-nav">
             <p>Seções · {activeModule.name}</p>
             <div className="sidebar-subitem-list">
@@ -444,8 +444,25 @@ function HomeContent() {
             // Departamento aberto: as áreas (e as seções da área aberta) viram
             // submenu recuado aqui mesmo, em qualquer largura de tela.
             const arvore = activeModuleId===module.id && navState?.areas?.length ? navState : null;
+            // Módulo com menu próprio (Portaria): as seções viram submenu aqui.
+            const secoes = activeModuleId===module.id && !navState?.areas?.length && navState?.sidebarTree && navState.items.length ? navState : null;
             return <Fragment key={module.id}>
               <button title={module.name} aria-label={module.name} className={activeModuleId===module.id?"active":""} onClick={()=>openModule(module.id)}><Icon name={module.icon}/><span>{module.name}</span></button>
+              {secoes&&<div className="sidebar-tree">
+                {secoes.items.map(item=>
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`sidebar-area sidebar-leaf ${secoes.activeId===item.id?"active":""}`}
+                    aria-current={secoes.activeId===item.id?"page":undefined}
+                    onClick={()=>{secoes.onSelect(item.id);setMobile(false)}}
+                  >
+                    {item.icon&&<Icon name={item.icon} size={18}/>}
+                    <span>{item.label}</span>
+                    {item.badge!==undefined&&<i className={`sidebar-count ${item.badgeTone==="attention"?"sidebar-count-alert":""}`}>{item.badge}</i>}
+                  </button>
+                )}
+              </div>}
               {arvore&&<div className="sidebar-tree">
                 {arvore.areas!.map(area=><Fragment key={area.id}>
                   <button
