@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { UpdateNotice } from "./update-notice";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -150,6 +151,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+
+      <UpdateNotice />
 
       {/* Instruções de instalação para plataformas sem prompt nativo (iOS e Safari do Mac) */}
       {activeGuide && (
