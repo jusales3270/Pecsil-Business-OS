@@ -33,7 +33,7 @@ export default function ComprasApp({ access, onExit, embedded = false }: Compras
 
   // O que a pessoa pode fazer vem das funcionalidades liberadas pelo proprietário.
   const caps = useMemo(() => comprasCaps(access), [access]);
-  const views = useMemo(() => availableViews(caps), [caps]);
+  const views = useMemo(() => availableViews(caps, access), [caps, access]);
   const tabs = useMemo(() => tabsFor(user?.role, caps), [user?.role, caps]);
   const canExit = access.isOwner;
 

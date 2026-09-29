@@ -1,7 +1,7 @@
 import type { ModuleManifest, ModuleScope } from "./types";
 import { hasAnyPermission, hasPermission } from "./access-policy";
 import { getDepartmentAreas } from "./registry";
-import { hasFeature, hasModuleAccess, type AccessGrants, type AccessLevel } from "./access-catalog";
+import { hasFeature, hasModuleAccess, type AccessGrants, type AccessLevel, type JobTitle } from "./access-catalog";
 
 export type ModuleAccessContext = {
   userId: string;
@@ -13,6 +13,8 @@ export type ModuleAccessContext = {
   scopeLabel: string;
   /** Proprietário: acesso total e exclusivo a Pessoas e Acessos. */
   isOwner: boolean;
+  /** Cargo do administrativo (diretor, gerente…); nulo para os demais tipos de conta. */
+  jobTitle?: JobTitle | null;
   /** Funcionalidades liberadas ao usuário, com o nível (ver/operar/aprovar). */
   grants: AccessGrants;
   /** Formato antigo (`modulo.acao`), derivado de `grants`. */
@@ -36,6 +38,7 @@ export const demoOwnerAccess: ModuleAccessContext = {
   roleCode: null,
   scopeLabel: "Escopo não carregado",
   isOwner: false,
+  jobTitle: null,
   grants: {},
   permissions: [],
   scopes: [],
