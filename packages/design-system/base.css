@@ -103,7 +103,6 @@ body {
 
   /* --- Controles nativos ----------------------------------------------------- */
 
-  button,
   input,
   select,
   textarea {
@@ -111,7 +110,13 @@ body {
     color: inherit;
   }
 
-  button {
+  /* No Compras (Tailwind), o botão é desenhado pelas classes: esta regra fica
+     fora das camadas do Tailwind e venceria `bg-green-50`, `text-red-600`,
+     `p-2`… — aprovar e rejeitar saíam pretos e o sino sumia sob o contador.
+     Lá vale o reset do próprio Tailwind. `:where` mantém a especificidade de
+     `button`, para as classes do Design System continuarem vencendo. */
+  button:where(:not(.compras-app-root button)) {
+    font: inherit;
     cursor: pointer;
     background: none;
     border: none;

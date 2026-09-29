@@ -202,14 +202,14 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
                               <button
                                 type="button"
                                 onClick={() => handleDecidirItem(p.id, 'APROVADO')}
-                                className="px-2 py-1 rounded bg-[#e8f5e9] text-[#2e7d32] hover:bg-[#c8e6c9] text-[10px] font-semibold transition-colors"
+                                className="px-3 py-1.5 rounded-md bg-[#e8f5e9] text-green-700 border border-green-200 hover:bg-green-100 text-xs font-semibold transition-colors"
                               >
                                 ✓ Aprovar Item
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDecidirItem(p.id, 'REJEITADO')}
-                                className="px-2 py-1 rounded bg-[#ffebee] text-[#c62828] hover:bg-[#ffcdd2] text-[10px] font-semibold transition-colors"
+                                className="px-3 py-1.5 rounded-md bg-[#ffebee] text-red-700 border border-red-200 hover:bg-red-100 text-xs font-semibold transition-colors"
                               >
                                 ✗ Rejeitar Item
                               </button>
