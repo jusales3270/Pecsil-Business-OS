@@ -22,7 +22,7 @@ import type { Visita, ControleVeiculo, RegistroTerceiro, Recebido } from "./type
 import { RESPONSAVEIS, MOTORISTAS, DESCRICOES, VEICULOS, TERCEIROS, DESTINATARIOS } from "./types";
 import { CameraCapture } from "./components/CameraCapture";
 import { extractFaceDescriptor, base64ToImage } from "./lib/faceApi";
-import { buscarVisitantePorFace, buscarVisitantesPorNome, salvarVisitante, fetchVisitas, fetchFotoVisita, fetchFrota, inserirVisita, atualizarVisitaDb, encerrarVisitaDb, excluirVisitaDb, inserirVeiculo, atualizarVeiculoDb, excluirVeiculoDb, fetchTerceiros, inserirTerceiro, encerrarTerceiroDb, excluirTerceiroDb, fetchRecebidos, fetchFotoRecebido, inserirRecebido, excluirRecebidoDb } from "./lib/supabase"; import { gerenciaAlgumaArea, podePortaria, useAuth } from "./contexts/AuthContext";
+import { buscarVisitantePorFace, type CandidatoFacial, buscarVisitantesPorNome, salvarVisitante, fetchVisitas, fetchFotoVisita, fetchFrota, inserirVisita, atualizarVisitaDb, encerrarVisitaDb, excluirVisitaDb, inserirVeiculo, atualizarVeiculoDb, excluirVeiculoDb, fetchTerceiros, inserirTerceiro, encerrarTerceiroDb, excluirTerceiroDb, fetchRecebidos, fetchFotoRecebido, inserirRecebido, excluirRecebidoDb } from "./lib/supabase"; import { gerenciaAlgumaArea, podePortaria, useAuth } from "./contexts/AuthContext";
 import { Login } from "./pages/Login";
 import { Configuracoes } from "./pages/Configuracoes";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
@@ -144,6 +144,11 @@ function App({ onExit }: { onExit?: () => void } = {}) {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [isExtractingFace, setIsExtractingFace] = useState(false);
   const [identificacaoModo, setIdentificacaoModo] = useState(false);
+  // Foto da BUSCA: só na memória desta tela, para a pré-visualização. Nunca é
+  // gravada — só a foto de cadastro vai para o banco.
+  const [fotoBusca, setFotoBusca] = useState<string | undefined>(undefined);
+  // Mais de um rosto parecido: a pessoa escolhe quem é (ou cadastra como novo).
+  const [candidatosFace, setCandidatosFace] = useState<{ lista: CandidatoFacial[]; foto: string; descriptor: Float32Array } | null>(null);
   const [visitaDetalhes, setVisitaDetalhes] = useState<Visita | null>(null);
   const [fotoDetalhe, setFotoDetalhe] = useState<string | undefined>(undefined);
   const [carregandoFoto, setCarregandoFoto] = useState(false);
@@ -155,7 +160,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
     let ativo = true;
     setCarregandoFoto(true);
     setFotoDetalhe(undefined);
-    fetchFotoVisita(visitaDetalhes.id)
+    fetchFotoVisita(visitaDetalhes.id, visitaDetalhes.visitante)
       .then((foto) => { if (ativo) setFotoDetalhe(foto); })
       .finally(() => { if (ativo) setCarregandoFoto(false); });
     return () => { ativo = false; };
@@ -585,25 +590,21 @@ function App({ onExit }: { onExit?: () => void } = {}) {
       const descriptor = await extractFaceDescriptor(img);
 
       if (identificacaoModo && descriptor) {
-        // Modo identificação: procurar na base via Supabase (RPC match_visitantes)
-        const melhorMatch = await buscarVisitantePorFace(descriptor);
-
-        if (melhorMatch) {
-          // Auto preencher o formulário
-          setFormVisita(prev => ({
-            ...prev,
-            visitante: melhorMatch.nome,
-            empresa: melhorMatch.empresa,
-            documento: melhorMatch.documento,
-            contato: melhorMatch.contato,
-            fotoBase64: base64Image,
-            faceDescriptor: descriptor
-          }));
-          alert(`Visitante identificado: ${melhorMatch.nome}. Similaridade: ${(melhorMatch.similarity * 100).toFixed(1)}%`);
+        // Busca: compara a assinatura com os cadastros (RPC match_visitantes).
+        const candidatos = await buscarVisitantePorFace(descriptor);
+        if (candidatos === null) {
+          alert('Não foi possível buscar agora. Preencha o cadastro ou tente de novo.');
+        } else if (candidatos.length === 0) {
+          usarFotoComoCadastro(base64Image, descriptor);
+          alert('Visitante não encontrado. Esta foto será usada no cadastro dele.');
+        } else if (candidatos.length === 1 || candidatos[1].distance - candidatos[0].distance > 0.05) {
+          preencherComCandidato(candidatos[0], base64Image);
         } else {
-          alert('Visitante não encontrado na base de dados. Por favor, preencha o cadastro.');
-          setFormVisita(prev => ({ ...prev, fotoBase64: base64Image, faceDescriptor: descriptor }));
+          setCandidatosFace({ lista: candidatos, foto: base64Image, descriptor });
         }
+      } else if (identificacaoModo) {
+        // Busca sem rosto detectado: nada é guardado, pede outra foto.
+        alert('Rosto não detectado. Tire outra foto, de frente e com boa luz.');
       } else {
         // Modo cadastro normal
         setFormVisita(prev => ({ ...prev, fotoBase64: base64Image, faceDescriptor: descriptor || undefined }));
@@ -618,6 +619,30 @@ function App({ onExit }: { onExit?: () => void } = {}) {
       setIsExtractingFace(false);
       setIdentificacaoModo(false);
     }
+  };
+
+  /** Visitante reconhecido: preenche com o cadastro. A foto da busca não é guardada. */
+  const preencherComCandidato = (c: CandidatoFacial, foto: string) => {
+    setCandidatosFace(null);
+    setFotoBusca(foto);
+    setFormVisita(prev => ({
+      ...prev,
+      visitante: c.nome,
+      empresa: c.empresa,
+      documento: c.documento,
+      contato: c.contato,
+      // Sem foto nem assinatura: a visita de retorno não grava imagem e não
+      // mexe no rosto do cadastro.
+      fotoBase64: undefined,
+      faceDescriptor: undefined,
+    }));
+  };
+
+  /** Não encontrado (ou "nenhuma destas"): a foto vira a foto de cadastro. */
+  const usarFotoComoCadastro = (foto: string, descriptor: Float32Array) => {
+    setCandidatosFace(null);
+    setFotoBusca(undefined);
+    setFormVisita(prev => ({ ...prev, fotoBase64: foto, faceDescriptor: descriptor }));
   };
 
   const adicionarVisita = async () => {
@@ -754,6 +779,8 @@ function App({ onExit }: { onExit?: () => void } = {}) {
       notasFiscais: [{ numero: '', valor: 0 }],
       descricao: 'Visita',
     });
+    setFotoBusca(undefined);
+    setCandidatosFace(null);
     setVisitaEditando(null);
   };
 
@@ -2038,7 +2065,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
             <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <Label className="text-sm font-semibold text-gray-700">Identificação Facial</Label>
-                {!visitaEditando && !formVisita.fotoBase64 && !cameraOpen && (
+                {!visitaEditando && !formVisita.fotoBase64 && !fotoBusca && !candidatosFace && !cameraOpen && (
                   <Button
                     type="button"
                     variant="outline"
@@ -2055,6 +2082,40 @@ function App({ onExit }: { onExit?: () => void } = {}) {
                 <div className="flex flex-col items-center justify-center p-8 text-center text-gray-500">
                   <RefreshCw className="w-8 h-8 animate-spin text-blue-500 mb-4" />
                   <p>Analisando rosto e buscando no banco de dados...</p>
+                </div>
+              ) : candidatosFace ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-16 rounded-lg overflow-hidden border flex-shrink-0">
+                      <img src={candidatosFace.foto} alt="Foto da busca" className="w-full h-full object-cover" />
+                    </div>
+                    <p className="text-sm text-gray-700">Encontramos mais de uma pessoa parecida. <b>É uma destas?</b></p>
+                  </div>
+                  {candidatosFace.lista.map((c) => (
+                    <Button key={c.id} type="button" variant="outline" className="justify-between h-auto py-2" onClick={() => preencherComCandidato(c, candidatosFace.foto)}>
+                      <span className="text-left">
+                        <span className="block font-medium">{c.nome}</span>
+                        <span className="block text-xs text-gray-500">{c.empresa || 'Sem empresa'}{c.documento ? ` · ${c.documento}` : ''}</span>
+                      </span>
+                      <span className="text-xs text-gray-500">{Math.round(Math.max(0, 1 - c.distance / 0.9) * 100)}% parecido</span>
+                    </Button>
+                  ))}
+                  <Button type="button" variant="ghost" className="text-gray-600" onClick={() => usarFotoComoCadastro(candidatosFace.foto, candidatosFace.descriptor)}>
+                    Nenhuma — cadastrar como visitante novo
+                  </Button>
+                </div>
+              ) : fotoBusca && !visitaEditando ? (
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-24 rounded-lg overflow-hidden border">
+                    <img src={fotoBusca} alt="Foto da busca" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm text-green-700 font-medium">Visitante identificado: {formVisita.visitante}</p>
+                    <p className="text-xs text-gray-500">Foto usada só para identificar — não é guardada.</p>
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setFotoBusca(undefined); setFormVisita(prev => ({ ...prev, visitante: '', empresa: '', documento: '', contato: '' })); }}>
+                      Não é essa pessoa
+                    </Button>
+                  </div>
                 </div>
               ) : cameraOpen ? (
                 <CameraCapture

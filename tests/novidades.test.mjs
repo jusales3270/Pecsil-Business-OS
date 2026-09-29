@@ -20,3 +20,17 @@ test("mostra só o que a versão aberta ainda não tem", () => {
   assert.deepEqual(novidadesNovas(NOVIDADES, velha).map((n) => n.id), [NOVIDADES[0].id]);
   assert.deepEqual(novidadesNovas(NOVIDADES, NOVIDADES), []);
 });
+
+test("cada pessoa só vê as novidades dos módulos a que tem acesso", async () => {
+  const { novidadesPara } = await import("../lib/novidades.ts");
+  const lista = [
+    { id: "a", data: "2026-10-01", area: "Financeiro", modulos: ["financeiro"], titulo: "F", itens: ["x"] },
+    { id: "b", data: "2026-10-01", area: "Compras", modulos: ["compras"], titulo: "C", itens: ["x"] },
+    { id: "c", data: "2026-10-01", area: "Plataforma", titulo: "P", itens: ["x"] },
+  ];
+  const ids = (acesso) => novidadesPara(lista, acesso).map((n) => n.id);
+  assert.deepEqual(ids({ isOwner: false, grants: { "rh.ferias": "aprovar" } }), ["c"], "RH: só a da plataforma");
+  assert.deepEqual(ids({ isOwner: false, grants: { "compras.cotacoes": "operar" } }), ["b", "c"]);
+  assert.deepEqual(ids({ isOwner: true, grants: {} }), ["a", "b", "c"], "proprietário vê tudo");
+  for (const n of NOVIDADES) for (const m of n.modulos ?? []) assert.match(m, /^[a-z]+$/, `${n.id}: código de módulo`);
+});
