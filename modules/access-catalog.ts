@@ -99,6 +99,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "compras.cotacoes", label: "Cotações", description: "Lançar e acompanhar cotações.", levels: VER_OPERAR },
       { code: "compras.aprovacoes", label: "Aprovações", description: "Cotações pendentes e histórico de decisões; aprovar decide.", levels: ["ver", "aprovar"] },
       { code: "compras.realizadas", label: "Compras realizadas", description: "Compras efetivadas; operar registra a compra com NF.", levels: VER_OPERAR },
+      { code: "compras.fornecedores", label: "Fornecedores", description: "Cadastro e histórico de compras por fornecedor; operar cadastra, edita e unifica.", levels: VER_OPERAR },
     ],
   },
   {

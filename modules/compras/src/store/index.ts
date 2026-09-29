@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 const ROLE_INBOX: Record<UserRole, number> = { ORCAMENTISTA: 1, GESTOR: 2 };
 
 const NO_CAPS: ComprasCaps = {
-  verCotacoes: false, cotar: false, verAprovacoes: false, aprovar: false, verRealizadas: false, comprar: false,
+  verCotacoes: false, cotar: false, verAprovacoes: false, aprovar: false, verRealizadas: false, comprar: false, verFornecedores: false, editarFornecedores: false,
 };
 
 const seedCotacoes: Cotacao[] = [];
@@ -221,6 +221,7 @@ export const useStore = create<AppState>((set, get) => ({
         return {
           id: Number(c.id),
           fornecedor: c.fornecedor,
+          supplierId: c.supplier_id ?? null,
           divisao: c.divisao || 'USINAGEM',
           status: c.status,
           userId: isNaN(Number(c.user_id)) ? 1 : Number(c.user_id),
@@ -258,6 +259,7 @@ export const useStore = create<AppState>((set, get) => ({
         id: Number(c.id),
         cotacaoId: Number(c.cotacao_id),
         fornecedor: c.fornecedor,
+        supplierId: c.supplier_id ?? null,
         produto: c.produto,
         quantidade: Number(c.quantidade),
         unidade: c.unidade,

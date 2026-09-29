@@ -13,6 +13,8 @@ export interface ComprasCaps {
   aprovar: boolean;
   verRealizadas: boolean;
   comprar: boolean;
+  verFornecedores: boolean;
+  editarFornecedores: boolean;
 }
 
 /**
@@ -48,6 +50,8 @@ export interface CotacaoProduto {
 export interface Cotacao {
   id: number;
   fornecedor: string;
+  /** Fornecedor do cadastro (suppliers.id), resolvido pelo banco a partir do nome. */
+  supplierId?: string | null;
   produtos?: CotacaoProduto[];
   // Campos raízes opcionais para compatibilidade retroativa
   produto?: string;
@@ -73,6 +77,7 @@ export interface Compra {
   id: number;
   cotacaoId: number;
   fornecedor: string;
+  supplierId?: string | null;
   produto: string;
   quantidade: number;
   unidade: string;
@@ -138,4 +143,5 @@ export type Page =
   | 'compras'
   | 'pendentes'
   | 'historico'
+  | 'fornecedores'
   | 'icms';
