@@ -20,6 +20,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-09-29-portaria-facial",
+    data: "2026-09-29",
+    area: "Portaria",
+    titulo: "Reconhecimento facial corrigido",
+    itens: [
+      "Buscar Visitante (Auto-preencher) volta a reconhecer a pessoa da foto e preenche nome, empresa, documento e contato.",
+      "Quando o rosto parece com mais de uma pessoa, a tela pergunta \"É uma destas?\" para você escolher.",
+      "A foto tirada só para buscar não é mais guardada; só a foto de cadastro de quem vem pela primeira vez.",
+    ],
+  },
+  {
     id: "2026-09-29-novidades",
     data: "2026-09-29",
     area: "Plataforma",

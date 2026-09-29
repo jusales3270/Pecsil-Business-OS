@@ -16,15 +16,30 @@ export const supabaseAdmin: SupabaseClient | null = null;
 
 // ─── VISITANTES (Reconhecimento Facial) ───────────────────────────────────────
 
-export async function buscarVisitantePorFace(descriptor: Float32Array) {
-  const vectorArray = Array.from(descriptor);
+export type CandidatoFacial = {
+  id: string;
+  nome: string;
+  empresa: string;
+  documento: string;
+  contato: string;
+  /** Distância entre as assinaturas: 0 = idêntico; acima de 0,45 não é a mesma pessoa. */
+  distance: number;
+  similarity: number;
+};
+
+/**
+ * Candidatos pelo rosto, do mais parecido ao menos. A foto da busca não é
+ * guardada em lugar nenhum: só a assinatura vai ao banco, para comparar.
+ * Limite 0,45 medido nos cadastros reais (ver migração 202609290003).
+ */
+export async function buscarVisitantePorFace(descriptor: Float32Array): Promise<CandidatoFacial[] | null> {
   const { data, error } = await supabase.rpc('match_visitantes', {
-    query_embedding: vectorArray,
-    match_threshold: 0.5,
-    match_count: 1
+    query_embedding: Array.from(descriptor),
+    match_threshold: 0.45,
+    match_count: 3
   });
-  if (error) { console.error('Erro na busca vetorial:', error); return null; }
-  return data && data.length > 0 ? data[0] : null;
+  if (error) { console.error('Erro na busca facial:', error); return null; }
+  return (data as CandidatoFacial[]) || [];
 }
 
 export async function buscarVisitantesPorNome(nome: string) {
@@ -118,14 +133,25 @@ export async function fetchVisitas() {
   }));
 }
 
-export async function fetchFotoVisita(id: string): Promise<string | undefined> {
+export async function fetchFotoVisita(id: string, visitante?: string): Promise<string | undefined> {
   const { data, error } = await supabase
     .from('visitas')
     .select('foto_base64')
     .eq('id', id)
     .single();
   if (error) { console.error('Erro ao carregar foto da visita:', error); return undefined; }
-  return (data?.foto_base64 as string) || undefined;
+  if (data?.foto_base64) return data.foto_base64 as string;
+  // Visita de retorno não guarda foto: mostra a foto de cadastro do visitante.
+  if (!visitante) return undefined;
+  const { data: cadastro } = await supabase
+    .from('visitas')
+    .select('foto_base64')
+    .eq('visitante', visitante)
+    .not('foto_base64', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (cadastro?.foto_base64 as string) || undefined;
 }
 
 export async function inserirVisita(visita: {
