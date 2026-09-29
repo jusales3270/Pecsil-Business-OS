@@ -993,6 +993,23 @@ export function formatCurrency(value: number): string {
   return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+/** 2 casas normalmente; a 3ª só aparece quando o milésimo existe (17,90 / 17,905). */
+function formatPrecise(value: number): string {
+  return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`;
+}
+
+export function formatUnitPrice(value: number): string {
+  return formatPrecise(value);
+}
+
+/**
+ * Totais de cotação e compra: seguem a precisão do valor unitário, mostrando a 3ª casa
+ * apenas quando ela existe. Dashboard e Histórico continuam em formatCurrency.
+ */
+export function formatAmount(value: number): string {
+  return formatPrecise(value);
+}
+
 // Datas no horário de Brasília. Data sem hora ("2026-09-28") é um dia do
 // calendário: lida ao meio-dia, para não virar o dia anterior (meia-noite UTC
 // = 21h do dia anterior em Brasília).
@@ -1008,26 +1025,51 @@ export function formatDateTime(dateStr: string): string {
   return new Date(dateStr).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 }
 
-export function formatCurrencyInput(val: string): string {
-  // Remove all non-digits
-  const digits = val.replace(/\D/g, '');
-  if (!digits) return '0,00';
+/**
+ * Sanitiza o que o usuário digita num campo de preço, sem reposicionar a vírgula.
+ * O usuário digita o número como fala: "17,90" continua 17,90 e "17,905" continua 17,905.
+ * Aceita dígitos e uma única vírgula, com no máximo `decimals` casas depois dela.
+ */
+export function formatCurrencyInput(val: string, decimals: number = 3): string {
+  if (!val) return '';
 
-  // Parse to integer
-  const num = parseInt(digits, 10);
-  // Convert to cents
-  const value = num / 100;
+  // Só dígitos e separadores sobrevivem; o ponto do teclado numérico vale como vírgula
+  let clean = val.replace(/[^\d.,]/g, '').replace(/\./g, ',');
 
-  // Format with thousand separators (.) and decimal separator (,)
-  return value.toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
+  // Vírgulas repetidas de tecla presa contam como uma só
+  clean = clean.replace(/,{2,}/g, ',');
+
+  // A última vírgula é a decimal; as anteriores eram separadores de milhar ("1,234," -> "1234,")
+  const lastComma = clean.lastIndexOf(',');
+  if (lastComma !== -1) {
+    const intPart = clean.slice(0, lastComma).replace(/,/g, '');
+    const decPart = clean.slice(lastComma + 1).slice(0, decimals);
+    clean = `${intPart},${decPart}`;
+  }
+
+  // Remove zeros à esquerda ("017" -> "17"), preservando "0" e "0,..."
+  return clean.replace(/^0+(?=\d)/, '');
+}
+
+/**
+ * Completa o valor digitado ao sair do campo: "17" -> "17,00", "17,9" -> "17,90".
+ * A 3ª casa é preservada quando foi digitada ("17,905" continua "17,905").
+ * Campo vazio continua vazio — a validação de cada modal é quem acusa o erro.
+ */
+export function normalizeCurrencyInput(val: string, minDecimals: number = 2, maxDecimals: number = 3): string {
+  const clean = formatCurrencyInput(val, maxDecimals);
+  if (!clean) return '';
+
+  const [rawInt, rawDec = ''] = clean.split(',');
+  const intPart = rawInt || '0';
+  const decPart = rawDec.padEnd(minDecimals, '0');
+
+  return `${intPart},${decPart}`;
 }
 
 export function parseCurrencyInput(val: string): number {
   if (!val) return 0;
-  // Convert masked string (e.g. "1.234,56") to float (1234.56)
+  // Convert masked string (e.g. "1.234,567" ou "17,905") to float
   const clean = val.replace(/\./g, '').replace(',', '.');
   const num = parseFloat(clean);
   return isNaN(num) ? 0 : num;

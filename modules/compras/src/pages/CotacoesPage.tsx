@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useStore, formatCurrency, isProductFullyPurchased, getStatusDisplay, calcularTotalPendente } from '@/store';
+import { useStore, formatAmount, isProductFullyPurchased, getStatusDisplay, calcularTotalPendente } from '@/store';
 import type { Cotacao } from '@/types';
 import {
   Plus,
@@ -327,7 +327,7 @@ export default function CotacoesPage() {
                     </td>
                     <td className="py-3 px-4 text-right text-[#212121]">{formatProdutosQtd(getFilteredProdutos(c, statusFilter), c.id, c.status !== 'COMPRADO' ? compras : undefined)}</td>
                     <td className="py-3 px-4 text-right font-medium text-primary">
-                      {formatCurrency(
+                      {formatAmount(
                         c.status === 'COMPRADO'
                           ? calcularTotalProdutos(getFilteredProdutos(c, statusFilter))
                           : calcularTotalPendente(c)
@@ -409,7 +409,7 @@ export default function CotacoesPage() {
               <div className="flex items-center justify-between text-xs text-[#757575] mb-3">
                 <span>{formatProdutosQtd(getFilteredProdutos(c, statusFilter), c.id, c.status !== 'COMPRADO' ? compras : undefined)}</span>
                 <span className="font-semibold text-primary">
-                  {formatCurrency(
+                  {formatAmount(
                     c.status === 'COMPRADO'
                       ? calcularTotalProdutos(getFilteredProdutos(c, statusFilter))
                       : calcularTotalPendente(c)

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useStore, formatCurrency, formatCurrencyInput, parseCurrencyInput } from '@/store';
+import { useStore, formatAmount, formatUnitPrice, formatCurrencyInput, normalizeCurrencyInput, parseCurrencyInput } from '@/store';
 import type { Cotacao, Divisao, CotacaoProduto } from '@/types';
 import { X, Cog, Flame, Plus, Trash2, Edit, Lock, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -69,7 +69,7 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
     setEditingProductId('new-' + Date.now());
     setProductForm({
       produto: '',
-      valorUnit: '0,00',
+      valorUnit: '',
       quantidade: '',
       unidade: 'un',
       icms: '0',
@@ -84,7 +84,7 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
     setEditingProductId(p.id);
     setProductForm({
       produto: p.produto,
-      valorUnit: formatCurrencyInput(String((p.valorUnit * 100).toFixed(0))),
+      valorUnit: normalizeCurrencyInput(String(p.valorUnit || 0)),
       quantidade: String(p.quantidade),
       unidade: p.unidade,
       icms: String(p.icms),
@@ -386,14 +386,14 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
                             </span>
                           </p>
                           <p className="text-[10px] text-[#757575] mt-0.5">
-                            {p.quantidade} {p.unidade} &times; {formatCurrency(p.valorUnit)}
+                            {p.quantidade} {p.unidade} &times; {formatUnitPrice(p.valorUnit)}
                             {p.icms > 0 && ` | ICMS: ${p.icms}%`}
                             {p.ipi > 0 && ` | IPI: ${p.ipi}%`}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-green-700 text-sm flex-shrink-0 line-through opacity-60">
-                            {formatCurrency(itemTotal)}
+                            {formatAmount(itemTotal)}
                           </span>
                           <Lock size={13} className="text-green-600/50" />
                         </div>
@@ -432,7 +432,7 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
                           {displayIdx}. {p.produto}
                         </p>
                         <p className="text-[10px] text-[#757575] mt-0.5">
-                          {p.quantidade} {p.unidade} &times; {formatCurrency(p.valorUnit)}
+                          {p.quantidade} {p.unidade} &times; {formatUnitPrice(p.valorUnit)}
                           {p.icms > 0 && ` | ICMS: ${p.icms}%`}
                           {p.ipi > 0 && ` | IPI: ${p.ipi}%`}
                           {p.obs && ` | ${p.obs}`}
@@ -440,7 +440,7 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="font-bold text-primary text-sm flex-shrink-0">
-                          {formatCurrency(itemTotal)}
+                          {formatAmount(itemTotal)}
                         </span>
                         <div className="flex gap-1">
                           <button
@@ -511,11 +511,15 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
                     </label>
                     <input
                       type="text"
-                      inputMode="numeric"
+                      inputMode="decimal"
                       value={productForm.valorUnit}
                       onChange={e => {
-                        const masked = formatCurrencyInput(e.target.value);
+                        const masked = formatCurrencyInput(e.target.value, 3);
                         setProductForm(f => ({ ...f, valorUnit: masked }));
+                      }}
+                      onBlur={e => {
+                        const normalized = normalizeCurrencyInput(e.target.value);
+                        setProductForm(f => ({ ...f, valorUnit: normalized }));
                       }}
                       placeholder="0,00"
                       className={`w-full px-3 py-2 rounded-lg border text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
@@ -625,7 +629,7 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
                       const ip = parseFloat(productForm.ipi) || 0;
                       const bruto = v * q;
                       const total = bruto + bruto * (ip / 100);
-                      return formatCurrency(total);
+                      return formatAmount(total);
                     })()}
                   </span>
                 </div>
@@ -657,16 +661,16 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
               <p className="text-xs font-medium text-[#757575] mb-2">Resumo Geral do Orçamento</p>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                 <span className="text-[#757575]">
-                  Bruto: <strong className="text-[#212121]">{formatCurrency(bd.bruto)}</strong>
+                  Bruto: <strong className="text-[#212121]">{formatAmount(bd.bruto)}</strong>
                 </span>
                 <span className="text-[#757575]">
-                  ICMS: <strong className="text-[#212121]">{formatCurrency(bd.icms)}</strong>
+                  ICMS: <strong className="text-[#212121]">{formatAmount(bd.icms)}</strong>
                 </span>
                 <span className="text-[#757575]">
-                  IPI: <strong className="text-[#212121]">{formatCurrency(bd.ipi)}</strong>
+                  IPI: <strong className="text-[#212121]">{formatAmount(bd.ipi)}</strong>
                 </span>
                 <span className="text-lg font-bold text-primary ml-auto">
-                  Total: {formatCurrency(bd.total)}
+                  Total: {formatAmount(bd.total)}
                 </span>
               </div>
             </div>
