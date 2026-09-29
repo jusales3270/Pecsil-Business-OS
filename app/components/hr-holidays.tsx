@@ -282,7 +282,7 @@ function HolidayForm({ editing, onClose, onSaved }: { editing: Editing; onClose:
     }
   };
 
-  return <div className="form-layer" onMouseDown={onClose}>
+  return <div className="form-layer">
     <form className="holiday-form" onSubmit={submit} onMouseDown={event => event.stopPropagation()} aria-label={existing ? "Editar feriado" : "Novo feriado"}>
       <header>
         <div>

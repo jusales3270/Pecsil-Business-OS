@@ -331,7 +331,7 @@ export function PainelProducao({
 
       {/* Modal de Detalhe Nativo do Business OS */}
       {modal && (
-        <div className="producao-modal-overlay" onClick={() => setModal(null)}>
+        <div className="producao-modal-overlay">
           <div className="producao-modal-box" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 'var(--sp-3)' }}>
               <h2 style={{ fontSize: 'var(--fs-lg)', fontWeight: 'var(--fw-bold)', margin: 0, color: 'var(--text-primary)' }}>

@@ -212,7 +212,7 @@ function NovaCaixaForm({ onClose, onSaved }: { onClose: () => void; onSaved: (en
   }
 
   return (
-    <div className="employee-layer form-layer" onMouseDown={onClose}>
+    <div className="employee-layer form-layer">
       <form className="user-admin-form" onSubmit={enviar} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <div>

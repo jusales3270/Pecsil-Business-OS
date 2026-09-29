@@ -231,7 +231,7 @@ function CustomerForm({
   }
 
   return (
-    <div className="employee-layer form-layer" onMouseDown={onClose}>
+    <div className="employee-layer form-layer">
       <form className="user-admin-form" onSubmit={enviar} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <div>
@@ -336,7 +336,7 @@ function RemoveCustomerForm({
   }
 
   return (
-    <div className="employee-layer form-layer" onMouseDown={onClose}>
+    <div className="employee-layer form-layer">
       <form className="user-admin-form" onSubmit={excluir} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <div>
@@ -405,7 +405,7 @@ function MergeCustomerForm({
   }
 
   return (
-    <div className="employee-layer form-layer" onMouseDown={onClose}>
+    <div className="employee-layer form-layer">
       <form className="user-admin-form" onSubmit={enviar} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <div>

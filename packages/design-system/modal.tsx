@@ -38,7 +38,7 @@ export function Modal({
     };
   }, []);
   return (
-    <div className="ds-modal-layer" onMouseDown={onClose}>
+    <div className="ds-modal-layer">
       <section className="ds-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(event) => event.stopPropagation()}>
         <header>
           <div>

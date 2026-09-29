@@ -489,7 +489,7 @@ function CreateUserForm({
   }
 
   return (
-    <div className="employee-layer form-layer" onMouseDown={onClose}>
+    <div className="employee-layer form-layer">
       <form className="user-admin-form access-form" onSubmit={submit} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <div>
@@ -687,7 +687,7 @@ function EditUserDrawer({
   }
 
   return (
-    <div className="employee-layer form-layer" onMouseDown={onClose}>
+    <div className="employee-layer form-layer">
       <form className="user-admin-form access-form" onSubmit={(e) => e.preventDefault()} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <div>
