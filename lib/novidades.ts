@@ -27,6 +27,16 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-09-29-janelas-centrais",
+    data: "2026-09-29",
+    area: "Plataforma",
+    titulo: "Janelas que não fecham sozinhas",
+    itens: [
+      "Fichas, detalhes e cadastros (RH, Financeiro, Compras, Portaria e demais) abrem no centro da tela.",
+      "Clicar fora da janela não fecha mais: nada do que está sendo digitado se perde. Para fechar, use o X, Cancelar ou a tecla Esc.",
+    ],
+  },
+  {
     id: "2026-09-29-rh-sst-validade",
     data: "2026-09-29",
     area: "RH",

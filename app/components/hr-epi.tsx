@@ -180,7 +180,7 @@ function PpeDrawer({ person, onClose }: { person: EmployeePpe; onClose: () => vo
   for (const delivery of person.deliveries) byItem.set(delivery.itemId, [...(byItem.get(delivery.itemId) ?? []), delivery]);
   const items = [...byItem.values()].sort((a, b) => b[0].deliveredOn.localeCompare(a[0].deliveredOn));
 
-  return <div className="employee-layer" onMouseDown={onClose}>
+  return <div className="employee-layer">
     <aside className="sst-drawer" onMouseDown={(event) => event.stopPropagation()} aria-label={`Ficha de EPI de ${person.name}`}>
       <header>
         <button onClick={onClose} aria-label="Fechar ficha de EPI"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden><path d="m6 6 12 12M18 6 6 18"/></svg></button>

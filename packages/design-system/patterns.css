@@ -6188,3 +6188,38 @@ button.holiday-row:hover {
 .sst-situacao-calculada > span { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--text-secondary); }
 .sst-situacao-calculada > div { display: flex; align-items: center; gap: var(--sp-2); min-height: 40px; }
 .sst-situacao-calculada > small { color: var(--text-muted); font-size: var(--fs-xs); }
+
+/* ============================================================================
+   Janelas de detalhe e cadastro: POPUP CENTRAL que só fecha no X
+   ----------------------------------------------------------------------------
+   Pedido do dono (29/09/2026): os painéis que abriam na lateral fechavam ao
+   menor clique fora e perdiam o que estava sendo digitado. Agora abrem no
+   centro, como a Nova Cotação, e o clique no fundo não fecha (o
+   onMouseDown do fundo foi retirado em todos os módulos). Fecha no X, em
+   Cancelar/Fechar ou com Esc. No celular continuam em tela cheia (regra do
+   bloco de mobile acima, com !important).
+   ============================================================================ */
+.employee-layer:has(> aside),
+.finance-layer:has(> .finance-detail) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5);
+}
+
+.employee-layer > aside,
+.finance-layer > .finance-detail {
+  width: min(760px, 100%);
+  flex: 0 1 760px;
+  height: auto;
+  max-height: calc(100dvh - 2 * var(--sp-5));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg, 0 20px 40px rgb(0 0 0 / 0.25));
+  animation: popup-in var(--dur-base) var(--ease);
+}
+
+@keyframes popup-in {
+  from { transform: translateY(8px) scale(0.985); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}

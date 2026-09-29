@@ -436,9 +436,10 @@ function FornecedorPainel({
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
-      <div className="h-full w-full max-w-4xl overflow-y-auto bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 z-10 border-b border-black/[0.08] bg-white px-6 py-4">
+    {/* Janela central: só fecha no X (clique fora não fecha — não se perde o que foi digitado). */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-xl bg-white shadow-2xl" role="dialog" aria-modal="true">
+        <div className="sticky top-0 z-10 rounded-t-xl border-b border-black/[0.08] bg-white px-6 py-4">
           <div className="flex items-start gap-3">
             <div className="rounded-lg bg-[#e3f2fd] p-2 text-blue-700"><Building2 size={20} /></div>
             <div className="min-w-0 flex-1">
@@ -728,8 +729,8 @@ function NovoFornecedor({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" role="dialog" aria-modal="true">
         <h3 className="text-lg font-semibold text-[#212121] mb-1">Novo fornecedor</h3>
         <p className="text-sm text-[#757575] mb-4">Os demais dados (contato, endereço, prazo) ficam na aba Cadastro.</p>
         <div className="space-y-3">

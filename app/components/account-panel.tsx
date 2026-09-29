@@ -115,7 +115,7 @@ export function AccountPanel({
   }
 
   return (
-    <div className="employee-layer form-layer" onMouseDown={onClose}>
+    <div className="employee-layer form-layer">
       <form
         className="user-admin-form account-form"
         onSubmit={(event) => event.preventDefault()}

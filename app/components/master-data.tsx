@@ -181,7 +181,7 @@ function SupplierForm({ supplier, onClose, onSaved }: { supplier: Supplier; onCl
   }
 
   return (
-    <div className="employee-layer form-layer" onMouseDown={onClose}>
+    <div className="employee-layer form-layer">
       <form className="user-admin-form" onSubmit={submit} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <div>
@@ -247,7 +247,7 @@ function MergeForm({
   }
 
   return (
-    <div className="employee-layer form-layer" onMouseDown={onClose}>
+    <div className="employee-layer form-layer">
       <form className="user-admin-form" onSubmit={submit} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <div>
@@ -416,7 +416,7 @@ function CostCenterForm({
   }
 
   return (
-    <div className="employee-layer form-layer" onMouseDown={onClose}>
+    <div className="employee-layer form-layer">
       <form className="user-admin-form" onSubmit={submit} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <div>
