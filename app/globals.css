@@ -23,8 +23,18 @@
    existem dentro da Portaria (portaria.css). Fora dela a variável não existe
    e a classe continua sem efeito — o Compras, que também usa `text-primary`,
    não muda. Raio e sombra têm o padrão do Tailwind 4 como reserva.
-   `dark:` segue a classe `.dark` (como no app), não o sistema operacional. */
-@custom-variant dark (&:where(.dark, .dark *));
+   `dark:` segue o tema da PLATAFORMA: a escolha no botão (data-theme) ou,
+   sem escolha, a preferência do sistema — o mesmo critério dos tokens. */
+@custom-variant dark {
+  &:where(.dark, .dark *, [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   --color-background: var(--pt-background);
