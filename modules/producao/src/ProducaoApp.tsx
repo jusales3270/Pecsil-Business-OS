@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { ModuleRuntimeProps } from "@/modules/runtime";
 import { useModuleNav } from "@/lib/module-nav-context";
-import { canUseFeature, hasMultipleModules } from "@/modules/access";
+import { canUseFeature } from "@/modules/access";
 import { Button, Segmented, Status } from "../../../packages/design-system";
 import { useProducaoDashboard } from "./hooks/useProducaoDashboard";
 import { PainelProducao } from "./components/PainelProducao";
@@ -102,7 +102,7 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
     );
   }
 
-  const isOwner = hasMultipleModules(access);
+  const isOwner = access.isOwner;
 
   const semConexao = !status.online;
 

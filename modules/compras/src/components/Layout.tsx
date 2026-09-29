@@ -4,7 +4,7 @@ import Topbar from './Topbar';
 
 interface LayoutProps {
   children: React.ReactNode;
-  /** Mostra "Ecossistema": proprietário ou quem tem mais de um módulo. */
+  /** Mostra "Ecossistema": só o proprietário. */
   canExit?: boolean;
   /** Alterna entre as visões Orçamentista e Gestor: quem tem as duas. */
   canSwitch?: boolean;

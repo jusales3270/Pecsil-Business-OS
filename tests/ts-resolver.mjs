@@ -12,9 +12,17 @@ import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const EXTENSOES = [".ts", ".tsx", "/index.ts", "/index.tsx"];
+/** Atalho `@/` do tsconfig: a raiz do projeto (ex.: `@/modules/access`). */
+const RAIZ = new URL("../", import.meta.url);
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    if (specifier.startsWith("@/")) {
+      for (const extensao of EXTENSOES) {
+        const candidato = new URL(specifier.slice(2) + extensao, RAIZ);
+        if (existsSync(fileURLToPath(candidato))) return { url: candidato.href, shortCircuit: true };
+      }
+    }
     if (specifier.startsWith(".") && !/\.[a-z]+$/i.test(specifier)) {
       for (const extensao of EXTENSOES) {
         const candidato = new URL(specifier + extensao, context.parentURL);

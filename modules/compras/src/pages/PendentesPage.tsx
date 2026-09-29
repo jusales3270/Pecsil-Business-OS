@@ -229,7 +229,7 @@ export default function PendentesPage() {
                         <div className="flex items-center gap-2">
                           {c.fornecedor}
                           {isHighValue && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-400 text-primary">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-400 text-[#212121]">
                               Alto Valor
                             </span>
                           )}
@@ -252,17 +252,19 @@ export default function PendentesPage() {
                           </button>
                           <button
                             onClick={() => handleApprove(c)}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-green-600 hover:bg-green-50 transition-colors"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#e8f5e9] text-green-700 hover:bg-green-100 transition-colors"
                             title="Aprovar"
+                            aria-label="Aprovar"
                           >
-                            <CheckCircle size={14} />
+                            <CheckCircle size={17} />
                           </button>
                           <button
                             onClick={() => { setRejectModal(c); setRejectReason(''); setRejectError(''); }}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-red-600 hover:bg-red-50 transition-colors"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#ffebee] text-red-700 hover:bg-red-100 transition-colors"
                             title="Rejeitar"
+                            aria-label="Rejeitar"
                           >
-                            <XCircle size={14} />
+                            <XCircle size={17} />
                           </button>
                         </div>
                       </td>
@@ -291,7 +293,7 @@ export default function PendentesPage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-[#757575]">#{c.id}</span>
                   {isHighValue && (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-400 text-primary">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-400 text-[#212121]">
                       Alto Valor
                     </span>
                   )}
@@ -312,13 +314,13 @@ export default function PendentesPage() {
                   </button>
                   <button
                     onClick={() => handleApprove(c)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-[#e8f5e9] text-green-700 hover:bg-green-100 font-semibold"
                   >
                     <CheckCircle size={13} /> Aprovar
                   </button>
                   <button
                     onClick={() => { setRejectModal(c); setRejectReason(''); setRejectError(''); }}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-[#ffebee] text-red-700 hover:bg-red-100 font-semibold"
                   >
                     <XCircle size={13} /> Rejeitar
                   </button>

@@ -13,12 +13,20 @@ export function comprasCaps(access: ModuleAccessContext): ComprasCaps {
   };
 }
 
-/** Visões disponíveis: compras (cotações/realizadas) e aprovação. */
-export function availableViews(caps: ComprasCaps): UserRole[] {
+/**
+ * Visões disponíveis: compras (cotações/realizadas) e aprovação.
+ *
+ * No administrativo, a visão segue o cargo: o diretor aprova, então vê só a de
+ * Gestor; gerente, assistente e estagiário cotam, então veem só a de
+ * Orçamentista. O proprietário e as contas sem cargo seguem as funcionalidades
+ * liberadas (e podem alternar quando têm as duas).
+ */
+export function availableViews(caps: ComprasCaps, access?: Pick<ModuleAccessContext, 'isOwner' | 'jobTitle'>): UserRole[] {
   const views: UserRole[] = [];
   if (caps.verCotacoes || caps.verRealizadas) views.push('ORCAMENTISTA');
   if (caps.verAprovacoes) views.push('GESTOR');
-  return views;
+  if (access?.isOwner || !access?.jobTitle || !views.length) return views;
+  return access.jobTitle === 'diretor' ? ['GESTOR'] : ['ORCAMENTISTA'];
 }
 
 export const VIEW_LABEL: Record<UserRole, string> = { ORCAMENTISTA: 'Orçamentista', GESTOR: 'Gestor' };

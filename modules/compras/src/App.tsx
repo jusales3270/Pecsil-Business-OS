@@ -9,7 +9,7 @@ import ComprasPage from '@/pages/ComprasPage';
 import PendentesPage from '@/pages/PendentesPage';
 import HistoricoPage from '@/pages/HistoricoPage';
 import { Toaster } from '@/components/ui/sonner';
-import { hasMultipleModules, type ModuleAccessContext } from '@/modules/access';
+import { type ModuleAccessContext } from '@/modules/access';
 import type { Page } from '@/types';
 import { availableViews, comprasCaps, currentView, tabsFor } from './lib/access';
 import { useModuleNav } from '@/lib/module-nav-context';
@@ -33,9 +33,9 @@ export default function ComprasApp({ access, onExit, embedded = false }: Compras
 
   // O que a pessoa pode fazer vem das funcionalidades liberadas pelo proprietário.
   const caps = useMemo(() => comprasCaps(access), [access]);
-  const views = useMemo(() => availableViews(caps), [caps]);
+  const views = useMemo(() => availableViews(caps, access), [caps, access]);
   const tabs = useMemo(() => tabsFor(user?.role, caps), [user?.role, caps]);
-  const canExit = hasMultipleModules(access);
+  const canExit = access.isOwner;
 
   useEffect(() => {
     setCaps(caps);

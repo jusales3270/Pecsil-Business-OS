@@ -1,5 +1,5 @@
 export { moduleRegistry, getModuleById } from "./registry";
-export { canAccessModule, canUseFeature, hasMultipleModules, demoOwnerAccess, getCatalogModules, getVisibleModules, hasAnyPermission, hasPermission } from "./access";
+export { canAccessModule, canUseFeature, demoOwnerAccess, getCatalogModules, getVisibleModules, hasAnyPermission, hasPermission } from "./access";
 export type { ModuleAccessContext } from "./access";
 export { renderModuleComponent } from "./runtime";
 export type { ModuleRuntimeProps } from "./runtime";

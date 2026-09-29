@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { getSupabaseConfigStatus } from "../../../lib/supabase/config";
-import { derivePermissions, isAccessExpired } from "../../../modules/access-catalog";
+import { derivePermissions, isAccessExpired, isJobTitle } from "../../../modules/access-catalog";
 import { readSessionAccess } from "../../../lib/auth/session-access";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +45,7 @@ export async function GET() {
   const BASE_COLUMNS = "id, full_name, email, status, organization_id, access_expires_at";
   let { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select(`${BASE_COLUMNS}, avatar_path`)
+    .select(`${BASE_COLUMNS}, avatar_path, job_title`)
     .eq("user_id", auth.user.id)
     .maybeSingle<ProfileRow>();
 
@@ -96,6 +96,7 @@ export async function GET() {
     roleCode: isOwner ? "owner" : null,
     scopeLabel: "Pecsil Molds for Glass",
     isOwner,
+    jobTitle: isJobTitle(profile.job_title) ? profile.job_title : null,
     grants,
     // O Proprietário recebe curinga: tem tudo, inclusive módulos futuros.
     permissions: isOwner ? ["*"] : derivePermissions(grants),
@@ -112,6 +113,7 @@ type ProfileRow = {
   organization_id: string;
   access_expires_at?: string | null;
   avatar_path?: string | null;
+  job_title?: string | null;
 };
 
 function initialsOf(fullName: string) {

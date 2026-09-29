@@ -1,7 +1,7 @@
 import type { ModuleManifest, ModuleScope } from "./types";
 import { hasAnyPermission, hasPermission } from "./access-policy";
-import { getDepartmentAreas, getModuleById } from "./registry";
-import { hasFeature, hasModuleAccess, type AccessGrants, type AccessLevel } from "./access-catalog";
+import { getDepartmentAreas } from "./registry";
+import { hasFeature, hasModuleAccess, type AccessGrants, type AccessLevel, type JobTitle } from "./access-catalog";
 
 export type ModuleAccessContext = {
   userId: string;
@@ -13,6 +13,8 @@ export type ModuleAccessContext = {
   scopeLabel: string;
   /** Proprietário: acesso total e exclusivo a Pessoas e Acessos. */
   isOwner: boolean;
+  /** Cargo do administrativo (diretor, gerente…); nulo para os demais tipos de conta. */
+  jobTitle?: JobTitle | null;
   /** Funcionalidades liberadas ao usuário, com o nível (ver/operar/aprovar). */
   grants: AccessGrants;
   /** Formato antigo (`modulo.acao`), derivado de `grants`. */
@@ -36,6 +38,7 @@ export const demoOwnerAccess: ModuleAccessContext = {
   roleCode: null,
   scopeLabel: "Escopo não carregado",
   isOwner: false,
+  jobTitle: null,
   grants: {},
   permissions: [],
   scopes: [],
@@ -45,22 +48,6 @@ export { hasAnyPermission, hasPermission };
 
 export function canUseFeature(context: ModuleAccessContext, code: string, level: AccessLevel = "ver") {
   return hasFeature(context, code, level);
-}
-
-/**
- * Mostra o atalho de volta ao ecossistema: o proprietário, ou quem tem mais de
- * um DEPARTAMENTO liberado. Áreas do mesmo departamento (Compras dentro do
- * Comercial) contam como um só — quem só tem Compras não precisa de troca.
- */
-export function hasMultipleModules(context: ModuleAccessContext) {
-  if (context.isOwner) return true;
-  const departments = new Set(
-    Object.keys(context.grants)
-      .map((code) => code.split(".")[0])
-      .filter((code) => code !== "fundacao")
-      .map((code) => getModuleById(code)?.department ?? code),
-  );
-  return departments.size > 1;
 }
 
 /**

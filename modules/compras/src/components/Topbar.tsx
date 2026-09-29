@@ -168,7 +168,7 @@ export default function Topbar({ onExit, canExit, canSwitch }: TopbarProps) {
           >
             <Bell size={18} />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+              <span className="absolute -top-1 -right-2.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                 {unreadCount}
               </span>
             )}

@@ -7,6 +7,12 @@
   background-color: var(--bg-canvas);
   color: var(--text-primary);
   min-height: 100dvh;
+  /* `bg-primary`, `text-primary`, `ring-primary`… apontam para --pt-primary
+     (globals.css). O app original usava o azul hsl(221 83% 53%); aqui é o azul
+     da plataforma, que já tem a versão do modo escuro. Sem isto o botão
+     "Nova Cotação" e o de salvar ficavam brancos sobre branco. */
+  --pt-primary: var(--accent-blue);
+  --pt-primary-foreground: #fff;
 }
 
 /* ============================================================================
@@ -44,6 +50,7 @@
 /* Fundos de canvas e containers da aplicação */
 :root[data-theme="dark"] .compras-app-root .bg-\[\#f5f5f5\],
 :root[data-theme="dark"] .compras-app-root .bg-\[\#f8fafc\],
+:root[data-theme="dark"] .compras-app-root .bg-\[\#f8f9fa\],
 :root[data-theme="dark"] .compras-app-root .bg-slate-50,
 :root[data-theme="dark"] .compras-app-root .bg-gray-50 {
   background-color: var(--bg-canvas) !important;
@@ -52,6 +59,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .compras-app-root .bg-\[\#f5f5f5\],
   :root:not([data-theme="light"]) .compras-app-root .bg-\[\#f8fafc\],
+  :root:not([data-theme="light"]) .compras-app-root .bg-\[\#f8f9fa\],
   :root:not([data-theme="light"]) .compras-app-root .bg-slate-50,
   :root:not([data-theme="light"]) .compras-app-root .bg-gray-50 {
     background-color: var(--bg-canvas) !important;
@@ -278,14 +286,17 @@
 }
 
 /* Badges e selos semânticos (Pendente, Aprovado, Rejeitado, Comprado) */
+:root[data-theme="dark"] .compras-app-root .bg-orange-50,
 :root[data-theme="dark"] .compras-app-root .bg-\[\#fff3e0\] {
   background-color: var(--tint-amber) !important;
   border-color: var(--edge-amber) !important;
 }
+:root[data-theme="dark"] .compras-app-root .text-orange-700,
 :root[data-theme="dark"] .compras-app-root .text-\[\#e65100\] {
   color: var(--accent-amber) !important;
 }
 
+:root[data-theme="dark"] .compras-app-root .bg-green-50,
 :root[data-theme="dark"] .compras-app-root .bg-\[\#e8f5e9\],
 :root[data-theme="dark"] .compras-app-root .bg-green-100 {
   background-color: var(--tint-green) !important;
@@ -296,6 +307,7 @@
   color: var(--accent-green) !important;
 }
 
+:root[data-theme="dark"] .compras-app-root .bg-red-50,
 :root[data-theme="dark"] .compras-app-root .bg-\[\#ffebee\],
 :root[data-theme="dark"] .compras-app-root .bg-red-100 {
   background-color: var(--tint-red) !important;
@@ -306,6 +318,7 @@
   color: var(--accent-red) !important;
 }
 
+:root[data-theme="dark"] .compras-app-root .bg-blue-50,
 :root[data-theme="dark"] .compras-app-root .bg-\[\#e3f2fd\],
 :root[data-theme="dark"] .compras-app-root .bg-blue-100 {
   background-color: var(--tint-blue) !important;
@@ -317,13 +330,16 @@
 }
 
 @media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root .bg-orange-50,
   :root:not([data-theme="light"]) .compras-app-root .bg-\[\#fff3e0\] {
     background-color: var(--tint-amber) !important;
     border-color: var(--edge-amber) !important;
   }
+  :root:not([data-theme="light"]) .compras-app-root .text-orange-700,
   :root:not([data-theme="light"]) .compras-app-root .text-\[\#e65100\] {
     color: var(--accent-amber) !important;
   }
+  :root:not([data-theme="light"]) .compras-app-root .bg-green-50,
   :root:not([data-theme="light"]) .compras-app-root .bg-\[\#e8f5e9\],
   :root:not([data-theme="light"]) .compras-app-root .bg-green-100 {
     background-color: var(--tint-green) !important;
@@ -333,6 +349,7 @@
   :root:not([data-theme="light"]) .compras-app-root .text-green-700 {
     color: var(--accent-green) !important;
   }
+  :root:not([data-theme="light"]) .compras-app-root .bg-red-50,
   :root:not([data-theme="light"]) .compras-app-root .bg-\[\#ffebee\],
   :root:not([data-theme="light"]) .compras-app-root .bg-red-100 {
     background-color: var(--tint-red) !important;
@@ -342,6 +359,7 @@
   :root:not([data-theme="light"]) .compras-app-root .text-red-700 {
     color: var(--accent-red) !important;
   }
+  :root:not([data-theme="light"]) .compras-app-root .bg-blue-50,
   :root:not([data-theme="light"]) .compras-app-root .bg-\[\#e3f2fd\],
   :root:not([data-theme="light"]) .compras-app-root .bg-blue-100 {
     background-color: var(--tint-blue) !important;
