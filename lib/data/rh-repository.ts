@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseServerClient } from "../supabase/server";
+import { situacaoSst } from "../rh/sst-situacao";
 import type {
   RhAbsence,
   RhBenefitPlan,
@@ -40,7 +41,6 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     enrollmentsResult,
     benefitRequestsResult,
     sstResult,
-    sstAlertsResult,
     departmentsResult,
     documentsResult,
     upcomingVacationsResult,
@@ -92,11 +92,6 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
       // Os indicadores de SST (conformidade, exames a vencer) são contados
       // sobre esta lista: ela precisa ser o conjunto, não uma amostra.
       .limit(1000),
-    supabase.from("rh_sst_records")
-      .select("id,category,title,due_date,status,risk,note,clinical_confidential,employees(full_name),departments(name),units(name)", { count:"exact" })
-      .eq("organization_id", organizationId).in("status", ["due_soon", "overdue"])
-      .order("due_date", { ascending:true, nullsFirst:false })
-      .limit(200),
     supabase.from("employees").select("id,full_name,departments(name),units(name)")
       .eq("organization_id", organizationId).eq("active", true).order("full_name"),
     supabase
@@ -121,7 +116,7 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
   const failed = [
     employeesResult, activeEmployeesResult, absencesResult, openAbsencesResult, pendingAbsencesResult,
     vacationResult, plansResult, enrollmentsResult, benefitRequestsResult, sstResult,
-    sstAlertsResult, departmentsResult, documentsResult, upcomingVacationsResult,
+    departmentsResult, documentsResult, upcomingVacationsResult,
   ].find(result => result.error);
   if (failed?.error) throw failed.error;
 
@@ -135,6 +130,7 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     ...((absencesResult.data ?? []) as unknown as Row[]).map(toAbsence).filter(absence => !openIds.has(absence.id)),
   ];
   const sstRecords = ((sstResult.data ?? []) as unknown as Row[]).map(toSstRecord);
+  const sstAlertList = sstRecords.filter((record) => record.status === "due_soon" || record.status === "overdue");
 
   // Membros por plano, contados a partir das adesões ativas.
   const enrollments = (enrollmentsResult.data ?? []) as unknown as Row[];
@@ -218,14 +214,16 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
       scheduledVacationDays,
       vacationsDueSoon,
       vacationsOverdue,
-      sstAlerts: sstAlertsResult.count ?? 0,
+      // Situação calculada pelo vencimento (lib/rh/sst-situacao.ts): o alerta
+      // sai da lista completa, não do status que ficou gravado.
+      sstAlerts: sstAlertList.length,
       benefitMonthlyCost,
     },
     absences,
     benefitPlans,
     benefitRequests,
     sstRecords,
-    sstAlertList: ((sstAlertsResult.data ?? []) as unknown as Row[]).map(toSstRecord),
+    sstAlertList: sstAlertList.slice(0, 200),
     vacationAlerts,
     upcomingVacations,
     documents,
@@ -303,7 +301,7 @@ function toBenefitRequest(row: Row): RhBenefitRequest {
 }
 
 function toSstRecord(row: Row): RhSstRecord {
-  return {
+  const base: RhSstRecord = {
     id: String(row.id),
     employeeName: relationName(row.employees) ?? "Não informado",
     department: relationName(row.departments),
@@ -316,6 +314,8 @@ function toSstRecord(row: Row): RhSstRecord {
     note: row.note ? String(row.note) : null,
     sensitive: Boolean(row.clinical_confidential),
   };
+  // Exames e treinamentos: a situação vem da data de vencimento, hoje.
+  return { ...base, ...situacaoSst(base) };
 }
 
 function formatDateTime(value: unknown): string {
