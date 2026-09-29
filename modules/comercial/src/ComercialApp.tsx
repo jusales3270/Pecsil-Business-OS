@@ -6,6 +6,9 @@ import { useModuleNav, type ModuleNavArea, type ModuleNavItem } from "@/lib/modu
 import { hasFeature, hasModuleAccess } from "@/modules/access-catalog";
 import { Status } from "../../../packages/design-system";
 import ComprasApp from "../../compras/src/App";
+import { useStore as useComprasStore } from "../../compras/src/store";
+import { availableViews, comprasCaps, currentView, tabsFor } from "../../compras/src/lib/access";
+import type { Page as ComprasPage } from "../../compras/src/types";
 import { CustomersPanel } from "../../../app/components/customers-panel";
 import { ConexaoSection } from "./components/ConexaoSection";
 import { FunilBoard } from "./components/FunilBoard";
@@ -16,8 +19,8 @@ import "./comercial.css";
  *
  * O Comercial não tem tela própria: ele abriga áreas. Hoje abriga o CRM e o
  * Compras (o módulo `compras`, inteiro, apenas embutido). Esta casca registra a
- * árvore do menu — Comercial › CRM › seções, e Comercial › Compras — que a
- * barra lateral desenha. A tela não repete essa navegação em seletor nenhum.
+ * árvore do menu — Comercial › CRM › seções, e Comercial › Compras › abas do
+ * Compras (Dashboard, Cotações, …, Fornecedores) — que a barra lateral desenha.
  */
 
 type Area = "crm" | "compras";
@@ -53,8 +56,19 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
   });
   const [crmSection, setCrmSection] = useState<CrmSection>(() => secoesCrm[0]?.id ?? "caixa");
 
-  // Áreas do departamento, na barra lateral. O Compras é folha aqui: as abas
-  // dele continuam na barra própria do módulo, como sempre foram.
+  // Abas do Compras, as mesmas da barra do topo dele (mesmas regras de visão e
+  // permissão). Menu e barra mexem no mesmo `currentPage`, então andam juntos.
+  const comprasUser = useComprasStore((s) => s.user);
+  const comprasPage = useComprasStore((s) => s.currentPage);
+  const setComprasPage = useComprasStore((s) => s.setPage);
+  const comprasTabs = useMemo(() => {
+    if (!podeCompras) return [];
+    const caps = comprasCaps(access);
+    const view = currentView(availableViews(caps, access), comprasUser?.role);
+    return tabsFor(view, caps);
+  }, [podeCompras, access, comprasUser?.role]);
+
+  // Áreas do departamento, na barra lateral.
   const areas = useMemo<ModuleNavArea[]>(
     () => [
       ...(podeCrm ? [{ id: "crm", label: "CRM", icon: "inbox" }] : []),
@@ -64,8 +78,11 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
   );
 
   const items = useMemo<ModuleNavItem[]>(
-    () => (area === "crm" ? secoesCrm.map(({ id, label, icon }) => ({ id, label, icon })) : []),
-    [area, secoesCrm],
+    () =>
+      area === "crm"
+        ? secoesCrm.map(({ id, label, icon }) => ({ id, label, icon }))
+        : comprasTabs.map(({ page, label, icon }) => ({ id: page, label, icon })),
+    [area, secoesCrm, comprasTabs],
   );
 
   // `onEvent` muda de identidade a cada render da casca da plataforma; guardá-lo
@@ -83,14 +100,18 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
       activeAreaId: area,
       onSelectArea: (id) => setArea(id as Area),
       items,
-      activeId: crmSection,
+      activeId: area === "crm" ? crmSection : comprasPage,
       onSelect: (id) => {
+        if (area === "compras") {
+          setComprasPage(id as ComprasPage);
+          return;
+        }
         setArea("crm");
         setCrmSection(id as CrmSection);
         onEventRef.current(`Navegou para ${id} no CRM`, "Comercial");
       },
     });
-  }, [registerNav, areas, items, area, crmSection]);
+  }, [registerNav, areas, items, area, crmSection, comprasPage, setComprasPage]);
 
   // Limpar só ao sair do módulo. Limpar a cada mudança de dependência zeraria a
   // navegação e derrubaria a comparação de igualdade do provedor — o registro
@@ -98,8 +119,8 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
   useEffect(() => () => registerNav(null), [registerNav]);
 
   // A navegação do departamento é a árvore na barra lateral (Comercial › CRM ›
-  // seções). A tela não repete isso em seletor nenhum; dentro de Compras, quem
-  // manda continua sendo a barra própria do Compras.
+  // seções, e Comercial › Compras › abas). Dentro de Compras, a barra própria
+  // do módulo continua no topo, ligada ao mesmo estado do menu.
   if (area === "compras") {
     return (
       <div className="comercial-shell">
