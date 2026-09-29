@@ -27,6 +27,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-09-29-rh-sst-validade",
+    data: "2026-09-29",
+    area: "RH",
+    modulos: ["rh"],
+    titulo: "Exames e treinamentos mudam de situação sozinhos",
+    itens: [
+      "A situação de ASOs e treinamentos agora sai da data de vencimento, sem precisar ajustar à mão.",
+      "Vence em até 60 dias: A vencer · Atenção (mostra quantos dias faltam). Vencido: Crítico. Mais de 60 dias: Conforme · Regular.",
+      "Para renovar, use \"Registrar nova validade\" no registro e informe a nova data.",
+    ],
+  },
+  {
     id: "2026-09-29-portaria-facial",
     data: "2026-09-29",
     area: "Portaria",

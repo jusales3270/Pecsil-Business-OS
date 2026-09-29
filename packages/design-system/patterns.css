@@ -6182,3 +6182,9 @@ button.holiday-row:hover {
   font-size: var(--fs-sm);
   color: var(--text-muted);
 }
+
+/* RH › SST: situação calculada pelo vencimento (no lugar do campo Risco). */
+.sst-situacao-calculada { display: flex; flex-direction: column; gap: var(--sp-1); }
+.sst-situacao-calculada > span { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--text-secondary); }
+.sst-situacao-calculada > div { display: flex; align-items: center; gap: var(--sp-2); min-height: 40px; }
+.sst-situacao-calculada > small { color: var(--text-muted); font-size: var(--fs-xs); }
