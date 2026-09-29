@@ -1416,3 +1416,42 @@
   0%, 100% { opacity: 1; box-shadow: 0 0 0 4px var(--tint-blue); }
   50% { opacity: 0.45; box-shadow: 0 0 0 7px var(--tint-blue); }
 }
+
+/* Janela "O que há de novo" (ao clicar em Atualizar): app/components/update-notice.tsx. */
+.novidades-modal { width: min(600px, 100%); }
+.novidades-item + .novidades-item {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border-subtle);
+}
+.novidades-area {
+  display: inline-block;
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius-pill);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+.novidades-item h3 {
+  margin: var(--sp-2) 0 var(--sp-2);
+  font-size: var(--fs-md, 15px);
+}
+.novidades-item ul {
+  margin: 0;
+  padding-left: var(--sp-5);
+  list-style: disc;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.novidades-item li + li { margin-top: var(--sp-1); }
+.novidades-vazio { color: var(--text-secondary); font-size: var(--fs-sm); }
+.novidades-acoes {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-6);
+  border-top: 1px solid var(--border-subtle);
+}
