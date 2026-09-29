@@ -2,20 +2,7 @@
    Pecsil Business OS — Módulo Produção (Design System Nativo)
    ============================================================================ */
 
-/* Efeito de seleção e hover azulado idêntico à sidebar */
-.ds-module-bar .ds-segmented button:hover {
-  background: var(--tint-blue) !important;
-  color: var(--accent-blue) !important;
-  border-color: var(--edge-blue) !important;
-}
-
-.ds-module-bar .ds-segmented button.active {
-  background: var(--tint-blue) !important;
-  color: var(--accent-blue) !important;
-  border-color: var(--edge-blue) !important;
-  font-weight: var(--fw-semibold) !important;
-  box-shadow: var(--shadow-sm) !important;
-}
+/* Abas (.ds-segmented): o destaque da aba ativa é o padrão do Design System. */
 
 .ds-module-bar .ds-button:hover {
   background: var(--tint-blue) !important;

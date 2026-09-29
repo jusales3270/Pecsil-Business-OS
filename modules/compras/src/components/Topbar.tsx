@@ -133,10 +133,11 @@ export default function Topbar({ onExit, canExit, canSwitch }: TopbarProps) {
               key={tab.page}
               type="button"
               onClick={() => setPage(tab.page)}
+              aria-current={isActive ? 'page' : undefined}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                 isActive
-                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-xs border border-[var(--border)] font-semibold'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+                  ? 'bg-[var(--tint-blue)] text-[var(--accent-blue)] shadow-xs border border-[var(--accent-blue)] ring-1 ring-[var(--accent-blue)]'
+                  : 'border border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
               }`}
             >
               {tab.label}

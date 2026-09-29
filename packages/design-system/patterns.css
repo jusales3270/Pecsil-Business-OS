@@ -606,18 +606,20 @@ button.ds-kpi.is-clickable:focus-visible .ds-kpi-more {
     box-shadow var(--dur-fast) var(--ease);
 }
 
-.ds-segmented button:hover {
-  background: var(--tint-blue);
-  color: var(--accent-blue);
-  border-color: var(--edge-blue);
+/* Aba ativa, padrão da plataforma (Compras, RH, Financeiro, Produção,
+   Fundação): fundo azul-claro, texto azul e contorno azul forte — quem olha
+   sabe na hora em que aba está. O hover é neutro, para não parecer ativo. */
+.ds-segmented button:hover:not(.active) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .ds-segmented button.active {
   background: var(--tint-blue);
   color: var(--accent-blue);
-  border-color: var(--edge-blue);
+  border-color: var(--accent-blue);
   font-weight: var(--fw-semibold);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 0 0 1px var(--accent-blue), var(--shadow-sm);
 }
 
 .ds-segmented button:focus-visible {
@@ -673,7 +675,7 @@ button.ds-kpi.is-clickable:focus-visible .ds-kpi-more {
 .notification-filter button,
 .search-filter-row > div button {
   padding: var(--sp-2) var(--sp-4);
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
@@ -703,10 +705,11 @@ button.ds-kpi.is-clickable:focus-visible .ds-kpi-more {
 .finance-homologation-tabs button.active,
 .notification-filter button.active,
 .search-filter-row > div button.active {
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  background: var(--tint-blue);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
   font-weight: var(--fw-semibold);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 0 0 1px var(--accent-blue), var(--shadow-sm);
 }
 
 .section-tabs button::after {
@@ -5970,7 +5973,7 @@ button.holiday-row:hover {
   background: var(--tint-blue);
   border-color: var(--accent-blue);
   color: var(--accent-blue);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 0 0 1px var(--accent-blue), var(--shadow-sm);
 }
 .hr-kind-tabs > button:focus-visible {
   outline: 2px solid var(--accent-blue);
