@@ -64,8 +64,9 @@ const buscar = () =>
     .then(async (res) => ({ ok: res.ok, body: await res.json().catch(() => ({})) }))
     .catch(() => ({ ok: false, body: { error: 'Falha ao carregar.' } }));
 
-const inputCls =
-  'w-full px-3 py-2 rounded-lg border border-black/[0.08] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-[#f5f5f5] disabled:text-[#757575]';
+const fieldCls =
+  'px-3 py-2 rounded-lg border border-black/[0.08] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-[#f5f5f5] disabled:text-[#757575]';
+const inputCls = `w-full ${fieldCls}`;
 
 export default function FornecedoresPage() {
   const { cotacoes, compras, fetchInitialData } = useStore();
@@ -228,12 +229,12 @@ export default function FornecedoresPage() {
             className={`${inputCls} pl-9`}
           />
         </div>
-        <select value={divisao} onChange={(e) => setDivisao(e.target.value)} className={`${inputCls} w-auto`}>
+        <select value={divisao} onChange={(e) => setDivisao(e.target.value)} className={fieldCls}>
           <option value="">Todas as divisões</option>
           <option value="USINAGEM">Usinagem</option>
           <option value="FUNDICAO">Fundição</option>
         </select>
-        <select value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} className={`${inputCls} w-auto`}>
+        <select value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} className={fieldCls}>
           <option value="total">Maior total comprado</option>
           <option value="ultima">Compra mais recente</option>
           <option value="nome">Nome (A–Z)</option>
