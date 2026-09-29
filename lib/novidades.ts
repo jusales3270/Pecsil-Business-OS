@@ -5,7 +5,12 @@
  * escrita para quem usa a plataforma (sem termo técnico). O `id` nunca muda:
  * o app aberto compara os ids que já conhece com os da versão nova no
  * servidor, e mostra só o que é novo para aquela pessoa.
+ *
+ * `modulos` diz a quem interessa: só quem tem acesso a um desses módulos vê
+ * a novidade (quem é do RH não é avisado do Financeiro). Sem `modulos`, vale
+ * para todos (mudança da plataforma inteira).
  */
+import { hasModuleAccess, type AccessGrants } from "../modules/access-catalog";
 
 export type Novidade = {
   /** Único e estável (ex.: "2026-09-29-sugestoes"). */
@@ -14,6 +19,8 @@ export type Novidade = {
   data: string;
   /** Onde mudou (ex.: "Compras", "RH", "Plataforma"). */
   area: string;
+  /** Códigos dos módulos a quem interessa (ex.: ["compras"]). Vazio: todos. */
+  modulos?: string[];
   titulo: string;
   itens: string[];
 };
@@ -23,6 +30,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-09-29-portaria-facial",
     data: "2026-09-29",
     area: "Portaria",
+    modulos: ["portaria"],
     titulo: "Reconhecimento facial corrigido",
     itens: [
       "Buscar Visitante (Auto-preencher) volta a reconhecer a pessoa da foto e preenche nome, empresa, documento e contato.",
@@ -43,6 +51,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-09-29-sugestoes",
     data: "2026-09-29",
     area: "Compras",
+    modulos: ["compras"],
     titulo: "Sugestões ao digitar fornecedor e produto",
     itens: [
       "Na cotação, a partir da 2ª letra o campo Fornecedor sugere os fornecedores cadastrados; nomes antigos já unificados levam ao nome certo.",
@@ -55,6 +64,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-09-29-fornecedores",
     data: "2026-09-29",
     area: "Compras",
+    modulos: ["compras"],
     titulo: "Fornecedores: cadastro e histórico de compras",
     itens: [
       "Nova aba Fornecedores dentro de Compras (também no menu lateral), com total comprado, compras, cotações e última compra de cada fornecedor.",
@@ -66,6 +76,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-09-29-compras-oficial",
     data: "2026-09-29",
     area: "Compras",
+    modulos: ["compras"],
     titulo: "Compras oficial na plataforma",
     itens: [
       "Todas as cotações e compras do app antigo foram trazidas para cá; o Compras oficial agora é este.",
@@ -91,4 +102,11 @@ export const NOVIDADES: Novidade[] = [
 export function novidadesNovas(doServidor: readonly Novidade[], conhecidas: readonly Novidade[]): Novidade[] {
   const ids = new Set(conhecidas.map((n) => n.id));
   return doServidor.filter((n) => !ids.has(n.id));
+}
+
+export type AcessoNovidades = { isOwner: boolean; grants: AccessGrants };
+
+/** Só o que interessa a esta pessoa: novidades dos módulos a que ela tem acesso. */
+export function novidadesPara(lista: readonly Novidade[], acesso: AcessoNovidades): Novidade[] {
+  return lista.filter((n) => !n.modulos?.length || n.modulos.some((m) => hasModuleAccess(acesso, m)));
 }
