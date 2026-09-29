@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { useStore, formatCurrency, formatDate, formatUnitPrice, calcularTotal } from '@/store';
 import type { Cotacao } from '@/types';
 import DetalhesCotacaoModal from '@/components/DetalhesCotacaoModal';
+import SugestaoInput from '@/components/SugestaoInput';
+import type { Suggestion } from '../../../../lib/compras/sugestoes-core';
 import { priceHistory } from '../../../../lib/compras/fornecedores-core';
 
 type Summary = {
@@ -320,6 +322,11 @@ export default function FornecedoresPage() {
 
       {novo && (
         <NovoFornecedor
+          existentes={suppliers}
+          onExisting={(id) => {
+            setNovo(false);
+            setSelecionadoId(id);
+          }}
           onClose={() => setNovo(false)}
           onCreated={async (id) => {
             setNovo(false);
@@ -674,7 +681,29 @@ function Vazio({ texto }: { texto: string }) {
    Novo fornecedor
    ------------------------------------------------------------------------- */
 
-function NovoFornecedor({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => Promise<void> }) {
+function NovoFornecedor({
+  existentes,
+  onExisting,
+  onClose,
+  onCreated,
+}: {
+  existentes: Supplier[];
+  onExisting: (id: string) => void;
+  onClose: () => void;
+  onCreated: (id: string) => Promise<void>;
+}) {
+  // O que já existe aparece ao digitar: escolher abre o cadastro em vez de duplicar.
+  const sugestoes = useMemo<Suggestion[]>(
+    () =>
+      existentes.map((f) => ({
+        value: f.name,
+        alsoMatches: f.aliases,
+        weight: f.summary.compras,
+        hint: `Já cadastrado · ${f.summary.compras} compra${f.summary.compras === 1 ? '' : 's'}${f.active ? '' : ' · inativo'} — abrir`,
+        meta: { id: f.id },
+      })),
+    [existentes],
+  );
   const [nome, setNome] = useState('');
   const [doc, setDoc] = useState('');
   const [erro, setErro] = useState('');
@@ -706,7 +735,15 @@ function NovoFornecedor({ onClose, onCreated }: { onClose: () => void; onCreated
         <div className="space-y-3">
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-[#757575]">Nome *</span>
-            <input className={inputCls} value={nome} onChange={(e) => setNome(e.target.value)} autoFocus />
+            <SugestaoInput
+              value={nome}
+              onChange={setNome}
+              onPick={(s) => onExisting(String((s.meta as { id: string }).id))}
+              suggestions={sugestoes}
+              label="Já cadastrados"
+              className={inputCls}
+              autoFocus
+            />
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-[#757575]">CNPJ / CPF</span>

@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useStore, formatAmount, formatUnitPrice, formatCurrencyInput, normalizeCurrencyInput, parseCurrencyInput } from '@/store';
 import type { Cotacao, Divisao, CotacaoProduto } from '@/types';
 import { X, Cog, Flame, Plus, Trash2, Edit, Lock, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import SugestaoInput from '@/components/SugestaoInput';
+import { useSugestoesCompras } from '@/hooks/useSugestoesCompras';
 
 interface Props {
   cotacao: Cotacao | null;
@@ -13,9 +15,12 @@ const UNIDADES = ['kg', 'un', 'l', 'm', 'cx', 'ton'];
 
 export default function CotacaoModal({ cotacao, onClose }: Props) {
   const { user, addCotacao, updateCotacao, currentDivisao } = useStore();
+  const { fornecedores: sugestoesFornecedor, supplierIdPorNome, produtosPara } = useSugestoesCompras();
 
   const [fornecedor, setFornecedor] = useState('');
   const [divisao, setDivisao] = useState<Divisao>(currentDivisao as Divisao);
+  // Produtos já comprados deste fornecedor aparecem primeiro nas sugestões.
+  const sugestoesProduto = useMemo(() => produtosPara(supplierIdPorNome(fornecedor)), [produtosPara, supplierIdPorNome, fornecedor]);
   const [produtos, setProdutos] = useState<CotacaoProduto[]>([]);
   // Approved/purchased items are stored separately and shown as read-only
   const [approvedProdutos, setApprovedProdutos] = useState<CotacaoProduto[]>([]);
@@ -336,11 +341,12 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
             <label className="flex items-center gap-1.5 text-sm font-medium text-[#212121] mb-1.5">
               Fornecedor <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
+            <SugestaoInput
               value={fornecedor}
-              onChange={e => setFornecedor(e.target.value)}
-              placeholder="Nome do fornecedor"
+              onChange={setFornecedor}
+              suggestions={sugestoesFornecedor}
+              label="Fornecedores cadastrados"
+              placeholder="Digite para buscar nos fornecedores cadastrados"
               className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
                 errors.fornecedor ? 'border-red-400 focus:border-red-400' : 'border-black/[0.08] focus:border-primary'
               }`}
@@ -492,11 +498,16 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
                     <label className="flex items-center gap-1.5 text-xs font-medium text-[#212121] mb-1">
                       Produto / Descrição <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
+                    <SugestaoInput
                       value={productForm.produto}
-                      onChange={e => setProductForm(f => ({ ...f, produto: e.target.value }))}
-                      placeholder="Descrição do produto"
+                      onChange={v => setProductForm(f => ({ ...f, produto: v }))}
+                      onPick={s => {
+                        const unidade = (s.meta as { unidade?: string | null } | undefined)?.unidade;
+                        if (unidade && UNIDADES.includes(unidade)) setProductForm(f => ({ ...f, unidade }));
+                      }}
+                      suggestions={sugestoesProduto}
+                      label="Produtos do histórico"
+                      placeholder="Digite para buscar no histórico de produtos"
                       className={`w-full px-3 py-2 rounded-lg border text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
                         productErrors.produto ? 'border-red-400 focus:border-red-400' : 'border-black/[0.08] focus:border-primary'
                       }`}
