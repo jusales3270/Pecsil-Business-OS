@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStore, formatCurrency, formatDate, formatDateTime, isProductFullyPurchased, calcularTotalRestante, getStatusDisplay, calcularTotalPendente } from '@/store';
+import { useStore, formatAmount, formatUnitPrice, formatDate, formatDateTime, isProductFullyPurchased, calcularTotalRestante, getStatusDisplay, calcularTotalPendente } from '@/store';
 import type { Cotacao, StatusProduto } from '@/types';
 import { X, ShoppingCart, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -159,12 +159,12 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
                         )}
                       </div>
                       <span className={`font-bold text-xs flex-shrink-0 ${isPurchased ? 'text-blue-600 line-through' : isRejected ? 'text-red-600 line-through' : 'text-primary'}`}>
-                        {formatCurrency(itemTotal)}
+                        {formatAmount(itemTotal)}
                       </span>
                     </div>
                     <div className={`grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] ${isPurchased ? 'text-blue-700/80' : isRejected ? 'text-red-700/80' : 'text-[#757575]'}`}>
                       <div>Qtd: <strong className={isPurchased ? 'text-blue-900' : isRejected ? 'text-red-900' : 'text-[#212121]'}>{p.quantidade} {p.unidade}</strong></div>
-                      <div>Unitário: <strong className={isPurchased ? 'text-blue-900' : isRejected ? 'text-red-900' : 'text-[#212121]'}>{formatCurrency(p.valorUnit)}</strong></div>
+                      <div>Unitário: <strong className={isPurchased ? 'text-blue-900' : isRejected ? 'text-red-900' : 'text-[#212121]'}>{formatUnitPrice(p.valorUnit)}</strong></div>
                       <div>ICMS: <strong className={isPurchased ? 'text-blue-900' : isRejected ? 'text-red-900' : 'text-[#212121]'}>{p.icms}%</strong></div>
                       <div>IPI: <strong className={isPurchased ? 'text-blue-900' : isRejected ? 'text-red-900' : 'text-[#212121]'}>{p.ipi}%</strong></div>
                     </div>
@@ -182,13 +182,13 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
                     {isPurchased && (
                       <div className="mt-1 bg-blue-100/50 border border-blue-200 rounded p-2 text-[10px] text-blue-800 font-medium flex items-center gap-1.5">
                         <CheckCircle size={12} className="text-blue-600 flex-shrink-0" />
-                        Item já comprado — o valor de {formatCurrency(itemTotal)} foi descontado do total restante desta cotação.
+                        Item já comprado — o valor de {formatAmount(itemTotal)} foi descontado do total restante desta cotação.
                       </div>
                     )}
 
                     {isRejected && (
                       <div className="mt-1 bg-red-100/50 border border-red-200 rounded p-2 text-[10px] text-red-800 font-medium">
-                        ⚠️ **Item Rejeitado**: O valor de {formatCurrency(itemTotal)} (impostos inclusos) foi **desconsiderado** do total geral deste orçamento.
+                        ⚠️ **Item Rejeitado**: O valor de {formatAmount(itemTotal)} (impostos inclusos) foi **desconsiderado** do total geral deste orçamento.
                       </div>
                     )}
 
@@ -264,10 +264,10 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
           <div className="p-3 bg-[#f8f9fa] rounded-lg border border-black/[0.08]">
             <p className="text-xs text-[#757575] uppercase mb-1 font-semibold">Total Geral do Orçamento</p>
             <div className="flex flex-wrap items-center gap-4 text-xs">
-              <span className="text-[#757575]">Bruto: <strong className="text-[#212121]">{formatCurrency(bruto)}</strong></span>
-              <span className="text-[#757575]">ICMS: <strong className="text-[#212121]">{formatCurrency(icms)}</strong></span>
-              <span className="text-[#757575]">IPI: <strong className="text-[#212121]">{formatCurrency(ipi)}</strong></span>
-              <span className="text-lg font-bold text-primary ml-auto">{formatCurrency(total)}</span>
+              <span className="text-[#757575]">Bruto: <strong className="text-[#212121]">{formatAmount(bruto)}</strong></span>
+              <span className="text-[#757575]">ICMS: <strong className="text-[#212121]">{formatAmount(icms)}</strong></span>
+              <span className="text-[#757575]">IPI: <strong className="text-[#212121]">{formatAmount(ipi)}</strong></span>
+              <span className="text-lg font-bold text-primary ml-auto">{formatAmount(total)}</span>
             </div>
             {/* Total Pendente - when some items have been decided */}
             {(() => {
@@ -279,7 +279,7 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
                     <span className="text-xs text-amber-700 font-semibold uppercase flex items-center gap-1.5">
                       ⏳ Total Pendente (itens sem decisão)
                     </span>
-                    <span className="text-lg font-bold text-amber-700">{formatCurrency(totalPend)}</span>
+                    <span className="text-lg font-bold text-amber-700">{formatAmount(totalPend)}</span>
                   </div>
                 );
               }
@@ -291,7 +291,7 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
                   <CheckCircle size={13} />
                   Total Restante (sem itens comprados)
                 </span>
-                <span className="text-lg font-bold text-blue-700">{formatCurrency(totalRestante)}</span>
+                <span className="text-lg font-bold text-blue-700">{formatAmount(totalRestante)}</span>
               </div>
             )}
           </div>

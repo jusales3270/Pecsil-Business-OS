@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStore, calcularTotal, formatCurrency, formatCurrencyInput, parseCurrencyInput, isProductFullyPurchased } from '@/store';
+import { useStore, calcularTotal, formatAmount, formatUnitPrice, formatCurrencyInput, normalizeCurrencyInput, parseCurrencyInput, isProductFullyPurchased } from '@/store';
 import type { Cotacao } from '@/types';
 import { X, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -54,7 +54,7 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
     quantidadeAprovada: p.quantidade,
     valorUnitAprovado: p.valorUnit,
     quantidadeComprada: String(p.quantidade),
-    valorUnitFinal: formatCurrencyInput(String((p.valorUnit * 100).toFixed(0))),
+    valorUnitFinal: normalizeCurrencyInput(String(p.valorUnit || 0)),
     selected: true,
   }));
 
@@ -66,7 +66,7 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
   };
 
   const handleUpdateItem = (id: string, field: 'quantidadeComprada' | 'valorUnitFinal', value: string) => {
-    const updatedValue = field === 'valorUnitFinal' ? formatCurrencyInput(value) : value;
+    const updatedValue = field === 'valorUnitFinal' ? formatCurrencyInput(value, 3) : value;
     setItems(prev => prev.map(item => item.id === id ? { ...item, [field]: updatedValue } : item));
     // Clear error for this item
     if (errors[id]) {
@@ -76,6 +76,12 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
         return next;
       });
     }
+  };
+
+  const handleBlurValorUnit = (id: string) => {
+    setItems(prev => prev.map(item =>
+      item.id === id ? { ...item, valorUnitFinal: normalizeCurrencyInput(item.valorUnitFinal) } : item
+    ));
   };
 
   // Calculate totals
@@ -148,7 +154,7 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
         });
       }));
 
-      toast.success(`Compra(s) registrada(s)! Total: ${formatCurrency(overallTotalCalculado)}`);
+      toast.success(`Compra(s) registrada(s)! Total: ${formatAmount(overallTotalCalculado)}`);
       onClose();
     } catch (err) {
       console.error(err);
@@ -180,7 +186,7 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
             </div>
             <div>
               <span className="text-[#757575]">Total Aprovado:</span>{' '}
-              <span className="font-bold text-primary">{formatCurrency(overallTotalAprovado)}</span>
+              <span className="font-bold text-primary">{formatAmount(overallTotalAprovado)}</span>
             </div>
           </div>
 
@@ -241,11 +247,11 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
                         <p className="font-semibold text-xs text-[#212121] truncate">{item.produto}</p>
                         <p className="text-[10px] text-[#757575] mt-0.5">
                           Aprovado: {item.quantidadeAprovada} {item.unidade} &times;{' '}
-                          {formatCurrency(item.valorUnitAprovado)}
+                          {formatUnitPrice(item.valorUnitAprovado)}
                         </p>
                       </div>
                       <div className="text-right text-xs font-bold text-[#212121] flex-shrink-0">
-                        {formatCurrency(itemSubtotal)}
+                        {formatAmount(itemSubtotal)}
                       </div>
                     </div>
 
@@ -274,9 +280,11 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
                           </label>
                           <input
                             type="text"
-                            inputMode="numeric"
+                            inputMode="decimal"
+                            placeholder="0,00"
                             value={item.valorUnitFinal}
                             onChange={e => handleUpdateItem(item.id, 'valorUnitFinal', e.target.value)}
+                            onBlur={() => handleBlurValorUnit(item.id)}
                             className={`w-full px-2.5 py-1.5 rounded border text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 ${
                               errorText && errorText.includes('Preço')
                                 ? 'border-red-400 focus:border-red-400'
@@ -313,7 +321,7 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
           {/* Total Preview */}
           <div className="p-3 bg-[#e8f5e9]/30 rounded-lg border border-[#2e7d32]/20 flex items-center justify-between">
             <span className="text-xs font-semibold text-[#2e7d32] uppercase">Total da Compra</span>
-            <span className="text-lg font-bold text-primary">{formatCurrency(overallTotalCalculado)}</span>
+            <span className="text-lg font-bold text-primary">{formatAmount(overallTotalCalculado)}</span>
           </div>
         </div>
 

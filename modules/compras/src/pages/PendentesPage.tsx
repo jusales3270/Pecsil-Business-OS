@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useStore, calcularTotal, formatCurrency, formatCotacaoProdutosDesc, formatCotacaoProdutosQtd } from '@/store';
+import { useStore, calcularTotal, formatCurrency, formatAmount, formatCotacaoProdutosDesc, formatCotacaoProdutosQtd } from '@/store';
 import type { Cotacao } from '@/types';
 import { Eye, CheckCircle, XCircle, Scale, Search, Calendar, FilterX } from 'lucide-react';
 import { toast } from 'sonner';
@@ -191,7 +191,7 @@ export default function PendentesPage() {
           </div>
           <div>
             <p className="text-xl md:text-2xl font-bold">
-              {formatCurrency(totalPendente)} — {pendentes.length} {pendentes.length === 1 ? 'cotação' : 'cotações'} aguardando aprovação
+              {formatAmount(totalPendente)} — {pendentes.length} {pendentes.length === 1 ? 'cotação' : 'cotações'} aguardando aprovação
             </p>
             <p className="text-sm text-white/70 mt-1">Cotações pendentes precisam de sua decisão</p>
           </div>
@@ -239,7 +239,7 @@ export default function PendentesPage() {
                         {formatCotacaoProdutosDesc(c)}
                       </td>
                       <td className="py-3 px-4 text-right text-[#212121]">{formatCotacaoProdutosQtd(c)}</td>
-                      <td className="py-3 px-4 text-right font-medium text-primary">{formatCurrency(total)}</td>
+                      <td className="py-3 px-4 text-right font-medium text-primary">{formatAmount(total)}</td>
                       <td className="py-3 px-4 text-[#757575]">{c.prazo}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1">
@@ -303,7 +303,7 @@ export default function PendentesPage() {
                 <div className="flex items-center justify-between text-xs text-[#757575] mb-3">
                   <span>{formatCotacaoProdutosQtd(c)}</span>
                   <span>{c.prazo}</span>
-                  <span className="font-semibold text-primary">{formatCurrency(total)}</span>
+                  <span className="font-semibold text-primary">{formatAmount(total)}</span>
                 </div>
                 <div className="flex items-center gap-2 pt-3 border-t border-black/[0.06]">
                   <button
@@ -348,7 +348,7 @@ export default function PendentesPage() {
               Esta cotação tem valor acima de <strong>{formatCurrency(5000)}</strong>.
             </p>
             <p className="text-sm text-[#212121] font-medium mb-4">
-              {confirmModal.fornecedor} — {formatCurrency(calcularTotal(confirmModal))}
+              {confirmModal.fornecedor} — {formatAmount(calcularTotal(confirmModal))}
             </p>
             <div className="flex items-center gap-3">
               <button
