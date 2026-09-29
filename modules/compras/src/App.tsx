@@ -8,6 +8,7 @@ import CotacoesPage from '@/pages/CotacoesPage';
 import ComprasPage from '@/pages/ComprasPage';
 import PendentesPage from '@/pages/PendentesPage';
 import HistoricoPage from '@/pages/HistoricoPage';
+import FornecedoresPage from '@/pages/FornecedoresPage';
 import { Toaster } from '@/components/ui/sonner';
 import { type ModuleAccessContext } from '@/modules/access';
 import type { Page } from '@/types';
@@ -81,6 +82,8 @@ export default function ComprasApp({ access, onExit, embedded = false }: Compras
         return <ComprasPage />;
       case 'pendentes':
         return <PendentesPage />;
+      case 'fornecedores':
+        return <FornecedoresPage />;
       case 'historico':
         return <HistoricoPage />;
       default:

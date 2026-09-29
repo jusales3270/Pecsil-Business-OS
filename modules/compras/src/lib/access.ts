@@ -10,6 +10,8 @@ export function comprasCaps(access: ModuleAccessContext): ComprasCaps {
     aprovar: canUseFeature(access, 'compras.aprovacoes', 'aprovar'),
     verRealizadas: canUseFeature(access, 'compras.realizadas'),
     comprar: canUseFeature(access, 'compras.realizadas', 'operar'),
+    verFornecedores: canUseFeature(access, 'compras.fornecedores') || canUseFeature(access, 'fundacao.cadastros'),
+    editarFornecedores: canUseFeature(access, 'compras.fornecedores', 'operar') || canUseFeature(access, 'fundacao.cadastros', 'operar'),
   };
 }
 
@@ -48,11 +50,13 @@ export function tabsFor(role: UserRole | undefined, caps: ComprasCaps): { page: 
         { page: 'pendentes', label: 'Pendentes de Aprovação', icon: 'clock', show: caps.verAprovacoes },
         { page: 'historico', label: 'Histórico de Decisões', icon: 'check', show: caps.verAprovacoes },
         { page: 'compras', label: 'Compras', icon: 'cart', show: caps.verRealizadas },
+        { page: 'fornecedores', label: 'Fornecedores', icon: 'factory', show: caps.verFornecedores },
       ]
     : [
         { page: 'dashboard', label: 'Dashboard', icon: 'grid', show: true },
         { page: 'cotacoes', label: 'Minhas Cotações', icon: 'file', show: caps.verCotacoes },
         { page: 'compras', label: 'Compras Realizadas', icon: 'cart', show: caps.verRealizadas },
+        { page: 'fornecedores', label: 'Fornecedores', icon: 'factory', show: caps.verFornecedores },
       ];
   return tabs.filter((tab) => tab.show).map(({ page, label, icon }) => ({ page, label, icon }));
 }
