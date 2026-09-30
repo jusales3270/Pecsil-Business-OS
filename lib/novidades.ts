@@ -27,6 +27,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-09-30-financeiro-contas-a-receber",
+    data: "2026-09-30",
+    area: "Financeiro",
+    modulos: ["financeiro"],
+    titulo: "Contas a receber por cliente, com previsão separada",
+    itens: [
+      "Contas a receber agrupado por cliente, com total em aberto, vencido e a vencer de cada grupo.",
+      "Duas abas: A receber (nota emitida) e Previsões (orçamento sem nota ou duplicata já antecipada). Previsão não entra no total, no painel nem no fluxo de caixa.",
+      "Busca por cliente, documento, histórico ou conta; filtros de situação e de grupo.",
+      "Cada título abre com histórico, observação e a conta do plano (ou o rateio, quando são duas contas). Quem tem permissão confirma o recebimento ou cancela o título ali mesmo.",
+      "A situação Vencido sai da data de vencimento, sem precisar ajustar à mão.",
+    ],
+  },
+  {
     id: "2026-09-30-financeiro-plano-de-contas",
     data: "2026-09-30",
     area: "Financeiro",

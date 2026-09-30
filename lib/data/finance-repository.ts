@@ -26,9 +26,11 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
   const [titlesResult, banksResult, entriesResult, approvalsResult, centersResult, accountsResult] = await Promise.all([
     supabase
       .from("finance_titles")
-      .select("id,direction,counterparty_name,document_number,description,issue_date,original_amount,status,finance_cost_centers(name),finance_chart_accounts(name),finance_installments(id,installment_number,due_date,amount,settled_amount,status)")
+      .select("id,direction,counterparty_name,counterparty_group,document_number,document_type,description,notes,issue_date,original_amount,status,is_forecast,review_reason,source_module,finance_cost_centers(name),finance_chart_accounts(code,name),finance_installments(id,installment_number,due_date,amount,settled_amount,status),finance_title_allocations(amount,finance_chart_accounts(code,name))")
       .eq("organization_id", organizationId)
-      .order("issue_date", { ascending:false }),
+      .order("issue_date", { ascending:false })
+      // O padrão da API corta em 1000 linhas; o contas a receber sozinho passa de 600.
+      .range(0, 9999),
     supabase
       .from("finance_bank_accounts")
       .select("id,bank_name,bank_code,branch,account_number,opening_balance,active")
@@ -74,7 +76,8 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
     summary: {
       availableBalance: banks.reduce((sum, bank) => sum + bank.balance, 0) + entryBalance,
       payableOpen: openAmount(titles.filter(title => title.direction === "payable")),
-      receivableOpen: openAmount(titles.filter(title => title.direction === "receivable")),
+      receivableOpen: openAmount(titles.filter(title => title.direction === "receivable" && !title.isForecast)),
+      receivableForecast: openAmount(titles.filter(title => title.direction === "receivable" && title.isForecast)),
       pendingApprovals: approvalsResult.count ?? 0,
       unreconciledEntries: entries.filter(row => row.reconciliation_status === "pending").length,
     },
@@ -99,8 +102,18 @@ function toTitle(row: Row): FinanceTitle {
     originalAmount: number(row.original_amount),
     status: row.status as FinanceTitle["status"],
     costCenter: relationName(row.finance_cost_centers),
-    chartAccount: relationName(row.finance_chart_accounts),
+    chartAccount: accountLabel(row.finance_chart_accounts),
     installments: relationList(row.finance_installments).map(toInstallment),
+    isForecast: Boolean(row.is_forecast),
+    group: row.counterparty_group ? String(row.counterparty_group) : null,
+    documentType: row.document_type ? String(row.document_type) : null,
+    notes: row.notes ? String(row.notes) : null,
+    reviewReason: row.review_reason ? String(row.review_reason) : null,
+    source: row.source_module ? String(row.source_module) : null,
+    allocations: relationList(row.finance_title_allocations).map(allocation => {
+      const account = (Array.isArray(allocation.finance_chart_accounts) ? allocation.finance_chart_accounts[0] : allocation.finance_chart_accounts) as Row | null;
+      return { code: account?.code ? String(account.code) : null, name: String(account?.name ?? ""), amount: number(allocation.amount) };
+    }),
   };
 }
 
@@ -128,7 +141,7 @@ function toBankAccount(row: Row): FinanceBankAccount {
 }
 
 function openAmount(titles: FinanceTitle[]) {
-  return titles.reduce((sum, title) => sum + title.installments.reduce(
+  return titles.filter(title => title.status !== "cancelled").reduce((sum, title) => sum + title.installments.reduce(
     (subtotal, installment) => subtotal + Math.max(0, installment.amount - installment.settledAmount),
     0,
   ), 0);
@@ -137,6 +150,14 @@ function openAmount(titles: FinanceTitle[]) {
 function relationList(value: unknown): Row[] {
   if (Array.isArray(value)) return value as Row[];
   return [];
+}
+
+/** "01.01.001 VENDAS DE MOLDES": o código é como a equipe reconhece a conta. */
+function accountLabel(value: unknown): string | null {
+  const row = Array.isArray(value) ? value[0] : value;
+  if (!row || typeof row !== "object") return null;
+  const account = row as Row;
+  return account.code ? `${account.code} ${account.name}` : String(account.name ?? "");
 }
 
 function relationName(value: unknown): string | null {

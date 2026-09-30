@@ -51,6 +51,8 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "financeiro.titulo.criado", module: "financeiro", label: "Título criado", description: "Conta a pagar ou a receber lançada." },
   { type: "financeiro.titulo.aprovado", module: "financeiro", label: "Título aprovado", description: "Título aprovado para pagamento ou cobrança." },
   { type: "financeiro.titulo.baixado", module: "financeiro", label: "Título quitado", description: "Pagamento ou recebimento concluído." },
+  { type: "financeiro.titulo.cancelado", module: "financeiro", label: "Título cancelado", description: "Título a pagar ou a receber cancelado." },
+  { type: "financeiro.carga.concluida", module: "financeiro", label: "Carga concluída", description: "Títulos do sistema antigo carregados de uma vez." },
   { type: "financeiro.conta.criada", module: "financeiro", label: "Conta criada", description: "Conta incluída no plano de contas." },
   { type: "financeiro.conta.alterada", module: "financeiro", label: "Conta alterada", description: "Nome, código, tipo ou situação de uma conta do plano alterados." },
   { type: "financeiro.conta.movida", module: "financeiro", label: "Conta movida", description: "Conta levada para outro grupo do plano, com novo código." },

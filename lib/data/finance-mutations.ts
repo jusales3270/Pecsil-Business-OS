@@ -71,26 +71,12 @@ export async function createFinanceTitle(draft: FinanceTitleDraft) {
       .from("finance_chart_accounts")
       .select("id")
       .eq("organization_id", organizationId)
-      .ilike("name", category)
+      .ilike("name", category.replace(/^\d{2,3}(\.\d{2,3}){0,2}\s+/, ""))
+      .limit(1)
       .maybeSingle();
 
-    if (existingCa) {
-      chartAccountId = existingCa.id;
-    } else {
-      const code = `${draft.direction === "receivable" ? "1" : "2"}.${Date.now().toString().slice(-4)}`;
-      const { data: newCa } = await supabase
-        .from("finance_chart_accounts")
-        .insert({
-          organization_id: organizationId,
-          name: category,
-          code,
-          account_type: draft.direction === "receivable" ? "revenue" : "expense",
-          active: true,
-        })
-        .select("id")
-        .maybeSingle();
-      if (newCa) chartAccountId = newCa.id;
-    }
+    // A conta sai do plano de contas; lançamento não cria conta (quem cria é o Plano de contas).
+    if (existingCa) chartAccountId = existingCa.id;
   }
 
   const issueDate = draft.issueDate || new Date().toISOString().slice(0, 10);
@@ -143,39 +129,68 @@ export async function applyFinanceMutation(mutation: FinanceMutation) {
   if (authError || !authData.user) throw new Error("UNAUTHENTICATED");
 
   if (mutation.type === "approve") {
-    const { error } = await supabase
+    const { data: changed, error } = await supabase
       .from("finance_titles")
       .update({ status: "approved", approved_at: new Date().toISOString() })
-      .eq("id", mutation.titleId);
+      .eq("id", mutation.titleId)
+      .select("id");
     if (error) throw error;
+    denyIfUntouched(changed);
     return { success: true };
   }
 
   if (mutation.type === "settle") {
     // Settle title and installment
-    const { error: titleError } = await supabase
+    const { data: changed, error: titleError } = await supabase
       .from("finance_titles")
       .update({ status: "settled" })
-      .eq("id", mutation.titleId);
+      .eq("id", mutation.titleId)
+      .select("id");
     if (titleError) throw titleError;
+    denyIfUntouched(changed);
 
-    const { error: instError } = await supabase
+    // A parcela quitada guarda o valor recebido: é dele que sai o "em aberto".
+    const { data: open, error: readError } = await supabase
       .from("finance_installments")
-      .update({ status: "settled" })
-      .eq("title_id", mutation.titleId);
-    if (instError) throw instError;
+      .select("id, amount")
+      .eq("title_id", mutation.titleId)
+      .neq("status", "cancelled");
+    if (readError) throw readError;
+    for (const installment of open ?? []) {
+      const { error: instError } = await supabase
+        .from("finance_installments")
+        .update({ status: "settled", settled_amount: installment.amount })
+        .eq("id", installment.id);
+      if (instError) throw instError;
+    }
 
     return { success: true };
   }
 
   if (mutation.type === "cancel") {
-    const { error } = await supabase
+    const { data: changed, error } = await supabase
       .from("finance_titles")
       .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
-      .eq("id", mutation.titleId);
+      .eq("id", mutation.titleId)
+      .select("id");
     if (error) throw error;
+    denyIfUntouched(changed);
+    const { error: instError } = await supabase
+      .from("finance_installments")
+      .update({ status: "cancelled" })
+      .eq("title_id", mutation.titleId)
+      .neq("status", "settled");
+    if (instError) throw instError;
     return { success: true };
   }
 
   throw new Error("MUTATION_TYPE_UNSUPPORTED");
+}
+
+/**
+ * Sem permissão, o banco não devolve erro: só não altera linha nenhuma. Tratar
+ * isso como sucesso faria a tela dizer "feito" sem nada ter mudado.
+ */
+function denyIfUntouched(rows: unknown[] | null) {
+  if (!rows?.length) throw new Error("FORBIDDEN_OR_NOT_FOUND");
 }
