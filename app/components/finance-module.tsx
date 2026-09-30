@@ -5,10 +5,12 @@ import { Button, Callout, Card, Donut, Kpi, KpiGrid, Legend, Segmented, Status }
 import { canUseFeature, type ModuleAccessContext } from "../../modules";
 import type { FinanceSnapshot, FinanceTitle } from "../../lib/data/finance";
 import { useModuleNav } from "../../lib/module-nav-context";
+import { FinanceChart } from "./finance-chart";
 
 const sections = [
   ["Painel", "grid"], ["Contas a pagar", "payable"], ["Contas a receber", "receivable"],
   ["Fluxo de caixa", "chart"], ["Bancos e conciliação", "bank"], ["Centros de custo", "cost"],
+  ["Plano de contas", "report"],
   ["Relatórios", "report"], ["Homologação", "check"],
 ] as const;
 type FinanceSection = (typeof sections)[number][0];
@@ -19,6 +21,7 @@ const SECTION_FEATURE: Partial<Record<FinanceSection, string>> = {
   "Fluxo de caixa": "financeiro.fluxo",
   "Bancos e conciliação": "financeiro.bancos",
   "Centros de custo": "financeiro.centros",
+  "Plano de contas": "financeiro.plano",
   "Relatórios": "financeiro.relatorios",
   "Homologação": "financeiro.homologacao",
 };
@@ -234,7 +237,7 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
     track("Conta a receber: recebimento confirmado.");
   }
 
-  const render=()=>section==="Painel"?<Dashboard payables={payables} receivables={receivables} snapshot={snapshot} setSection={setSection} access={access}/>:section==="Contas a pagar"?<Payables data={payables} onUpdateStatus={handleUpdatePayableStatus} canCreate={canCreatePayable} canApprove={canApprovePayable} canSettle={canApprovePayable} openCreate={()=>setModal("payable")} inspect={setSelected} track={track}/>:section==="Contas a receber"?<Receivables data={receivables} onReceive={handleReceive} canCreate={canCreateReceivable} canSettle={canSettleReceivable} openCreate={()=>setModal("receivable")} inspect={setSelected} track={track}/>:section==="Fluxo de caixa"?<CashFlow payables={payables} receivables={receivables}/>:section==="Bancos e conciliação"?<Banks accounts={snapshot?.bankAccounts??[]} unreconciled={snapshot?.summary.unreconciledEntries??0}/>:section==="Centros de custo"?<CostCenters centers={snapshot?.costCenters??[]} payables={payables}/>:section==="Relatórios"?<Reports open={(title)=>{setSelected({id:0,customer:title,document:"",category:"",due:"",value:0,received:0,status:"Em aberto"});setModal("report")}}/>:<Homologation values={homologation} setValues={setHomologation} track={track}/>;
+  const render=()=>section==="Painel"?<Dashboard payables={payables} receivables={receivables} snapshot={snapshot} setSection={setSection} access={access}/>:section==="Contas a pagar"?<Payables data={payables} onUpdateStatus={handleUpdatePayableStatus} canCreate={canCreatePayable} canApprove={canApprovePayable} canSettle={canApprovePayable} openCreate={()=>setModal("payable")} inspect={setSelected} track={track}/>:section==="Contas a receber"?<Receivables data={receivables} onReceive={handleReceive} canCreate={canCreateReceivable} canSettle={canSettleReceivable} openCreate={()=>setModal("receivable")} inspect={setSelected} track={track}/>:section==="Fluxo de caixa"?<CashFlow payables={payables} receivables={receivables}/>:section==="Bancos e conciliação"?<Banks accounts={snapshot?.bankAccounts??[]} unreconciled={snapshot?.summary.unreconciledEntries??0}/>:section==="Centros de custo"?<CostCenters centers={snapshot?.costCenters??[]} payables={payables}/>:section==="Plano de contas"?<FinanceChart notify={track}/>:section==="Relatórios"?<Reports open={(title)=>{setSelected({id:0,customer:title,document:"",category:"",due:"",value:0,received:0,status:"Em aberto"});setModal("report")}}/>:<Homologation values={homologation} setValues={setHomologation} track={track}/>;
   const isOwner = access.isOwner;
 
   return <div className="finance-module">

@@ -75,6 +75,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "financeiro.fluxo", label: "Fluxo de caixa", description: "Projeção de entradas e saídas.", levels: VER },
       { code: "financeiro.bancos", label: "Bancos e conciliação", description: "Contas bancárias e extratos; operar importa e concilia.", levels: VER_OPERAR },
       { code: "financeiro.centros", label: "Centros de custo", description: "Centros de custo; operar cadastra.", levels: VER_OPERAR },
+      { code: "financeiro.plano", label: "Plano de contas", description: "Plano de contas; operar inclui, edita, move e exclui contas.", levels: VER_OPERAR },
       { code: "financeiro.relatorios", label: "Relatórios", description: "Relatórios financeiros e exportação.", levels: VER },
       { code: "financeiro.homologacao", label: "Homologação", description: "Plano de contas, alçadas e critérios de homologação.", levels: VER_OPERAR },
     ],

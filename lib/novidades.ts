@@ -27,6 +27,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-09-30-financeiro-plano-de-contas",
+    data: "2026-09-30",
+    area: "Financeiro",
+    modulos: ["financeiro"],
+    titulo: "Plano de contas",
+    itens: [
+      "Nova seção Plano de contas no Financeiro, com as 318 contas do sistema atual e os mesmos códigos.",
+      "Busca por código ou nome, grupos que abrem e fecham e o tipo de cada conta (receita, custo, despesa, investimento, repasse).",
+      "Quem tem permissão inclui, edita, inativa e exclui contas.",
+      "Para realocar, segure a conta e arraste até o grupo: ela assume o próximo código daquele grupo, e as outras contas não mudam.",
+    ],
+  },
+  {
     id: "2026-09-29-janelas-centrais",
     data: "2026-09-29",
     area: "Plataforma",
