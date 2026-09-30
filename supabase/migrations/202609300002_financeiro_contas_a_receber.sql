@@ -36,6 +36,15 @@ create unique index if not exists idx_finance_titles_legacy_key
 create index if not exists idx_finance_titles_forecast
   on public.finance_titles(organization_id, direction, is_forecast);
 
+-- Documento único: a regra antiga (um número por direção na empresa inteira)
+-- barrava o mundo real — dois clientes ou fornecedores com a mesma numeração de
+-- nota. Passa a valer por cliente/fornecedor, e a carga do sistema antigo fica
+-- de fora (lá o mesmo documento se repete em parcelas e relançamentos).
+drop index if exists public.uq_finance_title_document;
+create unique index uq_finance_title_document
+  on public.finance_titles(organization_id, direction, lower(counterparty_name), document_number)
+  where document_number is not null and coalesce(source_module, '') <> 'legado';
+
 -- --- Rateio por conta do plano -------------------------------------------------
 create table if not exists public.finance_title_allocations (
   id uuid primary key default gen_random_uuid(),
@@ -129,10 +138,56 @@ begin
     perform public.emit_module_event(new.organization_id, 'financeiro', 'financeiro.titulo.cancelado', 'titulo', new.id::text,
       format('Título %s cancelado · %s · R$ %s', kind, new.counterparty_name, public.brl(new.original_amount)),
       jsonb_build_object('direction', new.direction, 'amount', new.original_amount));
+  elsif new.original_amount is distinct from old.original_amount
+     or new.counterparty_name is distinct from old.counterparty_name
+     or new.document_number is distinct from old.document_number
+     or new.chart_account_id is distinct from old.chart_account_id
+     or new.is_forecast is distinct from old.is_forecast then
+    perform public.emit_module_event(new.organization_id, 'financeiro', 'financeiro.titulo.alterado', 'titulo', new.id::text,
+      format('Título %s alterado · %s · R$ %s', kind, new.counterparty_name, public.brl(new.original_amount)),
+      jsonb_build_object('direction', new.direction, 'amount', new.original_amount, 'previous_amount', old.original_amount,
+        'previous_counterparty', old.counterparty_name, 'forecast', new.is_forecast));
   end if;
   return new;
 end;
 $$;
+
+-- O gatilho só disparava na troca de situação; a edição (valor, cliente, conta…)
+-- também vai para a trilha.
+drop trigger if exists finance_titles_events on public.finance_titles;
+create trigger finance_titles_events after insert or update on public.finance_titles
+for each row execute function public.events_financeiro_titulo();
+
+-- --- Excluir título -------------------------------------------------------------
+-- Editar é de quem opera; excluir apaga o registro (parcelas e rateio juntos) e
+-- fica com quem aprova. A exclusão deixa o que foi apagado na trilha.
+drop policy if exists finance_titles_remove on public.finance_titles;
+create policy finance_titles_remove on public.finance_titles for delete to authenticated
+using (organization_id = public.current_organization_id() and public.has_feature(public.finance_direction_feature(direction), 'aprovar'));
+grant delete on public.finance_titles to authenticated;
+
+create or replace function public.events_financeiro_titulo_excluido()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if current_setting('pecsil.carga_em_lote', true) = '1' then
+    return old;
+  end if;
+  perform public.emit_module_event(old.organization_id, 'financeiro', 'financeiro.titulo.excluido', 'titulo', old.id::text,
+    format('Título %s excluído · %s · R$ %s', case old.direction when 'payable' then 'a pagar' else 'a receber' end,
+      old.counterparty_name, public.brl(old.original_amount)),
+    jsonb_build_object('direction', old.direction, 'amount', old.original_amount, 'document', old.document_number,
+      'description', old.description, 'forecast', old.is_forecast, 'status', old.status, 'source_module', old.source_module));
+  return old;
+end;
+$$;
+
+drop trigger if exists finance_titles_events_delete on public.finance_titles;
+create trigger finance_titles_events_delete after delete on public.finance_titles
+for each row execute function public.events_financeiro_titulo_excluido();
 
 -- --- Carga do contas a receber do sistema antigo -------------------------------
 -- p_titles: lista de objetos

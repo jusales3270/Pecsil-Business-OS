@@ -37,6 +37,7 @@ export const NOVIDADES: Novidade[] = [
       "Duas abas: A receber (nota emitida) e Previsões (orçamento sem nota ou duplicata já antecipada). Previsão não entra no total, no painel nem no fluxo de caixa.",
       "Busca por cliente, documento, histórico ou conta; filtros de situação e de grupo.",
       "Cada título abre com histórico, observação e a conta do plano (ou o rateio, quando são duas contas). Quem tem permissão confirma o recebimento ou cancela o título ali mesmo.",
+      "Todo título pode ser editado (cliente, valor, vencimento, conta, observação, previsão) por quem opera, e excluído por quem aprova.",
       "A situação Vencido sai da data de vencimento, sem precisar ajustar à mão.",
     ],
   },

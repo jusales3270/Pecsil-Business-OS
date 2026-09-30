@@ -26,7 +26,7 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
   const [titlesResult, banksResult, entriesResult, approvalsResult, centersResult, accountsResult] = await Promise.all([
     supabase
       .from("finance_titles")
-      .select("id,direction,counterparty_name,counterparty_group,document_number,document_type,description,notes,issue_date,original_amount,status,is_forecast,review_reason,source_module,finance_cost_centers(name),finance_chart_accounts(code,name),finance_installments(id,installment_number,due_date,amount,settled_amount,status),finance_title_allocations(amount,finance_chart_accounts(code,name))")
+      .select("id,direction,counterparty_name,counterparty_group,document_number,document_type,description,notes,issue_date,original_amount,status,chart_account_id,is_forecast,review_reason,source_module,finance_cost_centers(name),finance_chart_accounts(code,name),finance_installments(id,installment_number,due_date,amount,settled_amount,status),finance_title_allocations(amount,finance_chart_accounts(code,name))")
       .eq("organization_id", organizationId)
       .order("issue_date", { ascending:false })
       // O padrão da API corta em 1000 linhas; o contas a receber sozinho passa de 600.
@@ -103,6 +103,7 @@ function toTitle(row: Row): FinanceTitle {
     status: row.status as FinanceTitle["status"],
     costCenter: relationName(row.finance_cost_centers),
     chartAccount: accountLabel(row.finance_chart_accounts),
+    chartAccountId: row.chart_account_id ? String(row.chart_account_id) : null,
     installments: relationList(row.finance_installments).map(toInstallment),
     isForecast: Boolean(row.is_forecast),
     group: row.counterparty_group ? String(row.counterparty_group) : null,

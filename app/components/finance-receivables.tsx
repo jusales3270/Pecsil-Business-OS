@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../packages/design-system";
-import type { FinanceTitle } from "../../lib/data/finance";
+import type { FinanceChartAccount, FinanceTitle } from "../../lib/data/finance";
 import { agruparRecebiveis, resumoRecebiveis, situacaoRecebivel, type SituacaoRecebivel } from "../../lib/finance/recebiveis-core";
 
 /**
@@ -33,8 +33,12 @@ function Seta({ aberto }: { aberto: boolean }) {
   return <svg className={aberto ? "aberto" : ""} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m9 18 6-6-6-6" /></svg>;
 }
 
-export function FinanceReceivables({ titles, canCreate, canSettle, openCreate, onReceive, onCancel }: {
+export function FinanceReceivables({ titles, accounts, canCreate, canSettle, openCreate, onReceive, onCancel, onChanged }: {
   titles: FinanceTitle[];
+  /** Contas do plano, para a edição do título. */
+  accounts: FinanceChartAccount[];
+  /** Depois de editar ou excluir: recarrega os títulos e avisa. */
+  onChanged: (message: string) => Promise<void> | void;
   canCreate: boolean;
   canSettle: boolean;
   openCreate: () => void;
@@ -178,32 +182,67 @@ export function FinanceReceivables({ titles, canCreate, canSettle, openCreate, o
         })}
       </div>
 
-      {titulo && <Detalhe titulo={titulo} hoje={today} canSettle={canSettle} onClose={() => setSelecionado(null)} onReceive={onReceive} onCancel={onCancel} />}
+      {titulo && <Detalhe key={titulo.id} titulo={titulo} hoje={today} accounts={accounts} canEdit={canCreate} canSettle={canSettle} onClose={() => setSelecionado(null)} onReceive={onReceive} onCancel={onCancel} onChanged={onChanged} />}
     </>
   );
 }
 
-function Detalhe({ titulo, hoje: today, canSettle, onClose, onReceive, onCancel }: {
+async function chamar(url: string, method: string, body?: unknown): Promise<string | null> {
+  try {
+    const res = await fetch(url, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+    if (res.ok) return null;
+    const data = await res.json().catch(() => ({}));
+    return data.error === "FORBIDDEN" ? "Sem permissão para esta alteração." : data.error || "Não foi possível concluir.";
+  } catch {
+    return "Sem conexão com o servidor.";
+  }
+}
+
+const TIPOS = ["BOL", "DEP", "TRA", "DIN"];
+
+function Detalhe({ titulo, hoje: today, accounts, canEdit, canSettle, onClose, onReceive, onCancel, onChanged }: {
   titulo: FinanceTitle;
   hoje: string;
+  accounts: FinanceChartAccount[];
+  canEdit: boolean;
   canSettle: boolean;
   onClose: () => void;
   onReceive: (id: string) => Promise<void> | void;
   onCancel: (id: string) => Promise<void> | void;
+  onChanged: (message: string) => Promise<void> | void;
 }) {
-  const [confirmar, setConfirmar] = useState<"receber" | "cancelar" | null>(null);
+  const [modo, setModo] = useState<"ver" | "editar">("ver");
+  const [confirmar, setConfirmar] = useState<"receber" | "cancelar" | "excluir" | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState("");
   const situacao = situacaoRecebivel(titulo, today);
   const aberto = situacao === "Em aberto" || situacao === "Vencido" || situacao === "Parcial";
   const recebido = titulo.installments.reduce((acc, parcela) => acc + parcela.settledAmount, 0);
   const executar = async () => {
     setOcupado(true);
+    setErro("");
+    if (confirmar === "excluir") {
+      const falha = await chamar(`/api/finance/titulos/${titulo.id}`, "DELETE");
+      setOcupado(false);
+      if (falha) { setErro(falha); return; }
+      await onChanged(`Conta a receber excluída: ${titulo.counterparty} · ${money(titulo.originalAmount)}.`);
+      onClose();
+      return;
+    }
     await (confirmar === "receber" ? onReceive(titulo.id) : onCancel(titulo.id));
     setOcupado(false);
     onClose();
   };
+  const cabecalho = { eyebrow: titulo.isForecast ? "Previsão de recebimento" : "Conta a receber", title: titulo.counterparty, subtitle: titulo.group && titulo.group !== titulo.counterparty ? `Grupo ${titulo.group}` : undefined };
+  if (modo === "editar") {
+    return (
+      <Modal {...cabecalho} eyebrow="Editar conta a receber" onClose={onClose}>
+        <Edicao titulo={titulo} accounts={accounts} onVoltar={() => setModo("ver")} onSalvo={async () => { await onChanged(`Conta a receber alterada: ${titulo.counterparty}.`); setModo("ver"); }} />
+      </Modal>
+    );
+  }
   return (
-    <Modal eyebrow={titulo.isForecast ? "Previsão de recebimento" : "Conta a receber"} title={titulo.counterparty} subtitle={titulo.group && titulo.group !== titulo.counterparty ? `Grupo ${titulo.group}` : undefined} onClose={onClose}>
+    <Modal {...cabecalho} onClose={onClose}>
       <div className="receber-detalhe">
         {titulo.reviewReason && <Callout variant="warning" title="Conferir este lançamento">{titulo.reviewReason}.</Callout>}
         <dl>
@@ -221,20 +260,89 @@ function Detalhe({ titulo, hoje: today, canSettle, onClose, onReceive, onCancel 
           {titulo.notes && <div className="largo"><dt>Observação</dt><dd className="obs">{titulo.notes}</dd></div>}
           {titulo.source === "legado" && <div className="largo"><dt>Origem</dt><dd>Carga do sistema antigo (relatório de 30/09/2026)</dd></div>}
         </dl>
+        {erro && <p className="receber-erro" role="alert">{erro}</p>}
         {confirmar ? (
           <footer>
-            <p>{confirmar === "receber" ? `Confirmar o recebimento integral de ${money(titulo.originalAmount - recebido)}?` : "Cancelar este título? Ele sai do total em aberto e fica em Cancelados."}</p>
-            <Button type="button" variant="secondary" onClick={() => setConfirmar(null)} disabled={ocupado}>Voltar</Button>
-            <Button type="button" className={confirmar === "cancelar" ? "perigo" : "sucesso"} onClick={executar} disabled={ocupado}>{ocupado ? "Gravando…" : confirmar === "receber" ? "Confirmar recebimento" : "Cancelar título"}</Button>
+            <p>{confirmar === "receber" ? `Confirmar o recebimento integral de ${money(titulo.originalAmount - recebido)}?`
+              : confirmar === "cancelar" ? "Cancelar este título? Ele sai do total em aberto e fica em Cancelados."
+              : "Excluir este título? O registro é apagado de vez, com parcela e rateio. Para só tirar do total, prefira Cancelar."}</p>
+            <Button type="button" variant="secondary" onClick={() => { setConfirmar(null); setErro(""); }} disabled={ocupado}>Voltar</Button>
+            <Button type="button" className={confirmar === "receber" ? "sucesso" : "perigo"} onClick={executar} disabled={ocupado}>{ocupado ? "Gravando…" : confirmar === "receber" ? "Confirmar recebimento" : confirmar === "cancelar" ? "Cancelar título" : "Excluir título"}</Button>
           </footer>
         ) : (
           <footer>
-            <Button type="button" variant="secondary" onClick={onClose}>Fechar</Button>
+            {canSettle && <Button type="button" variant="ghost" className="perigo-texto esquerda" onClick={() => setConfirmar("excluir")}>Excluir</Button>}
+            {canEdit && <Button type="button" variant="secondary" onClick={() => setModo("editar")}>Editar</Button>}
             {canSettle && aberto && <Button type="button" variant="secondary" className="perigo-texto" onClick={() => setConfirmar("cancelar")}>Cancelar título</Button>}
             {canSettle && aberto && <Button type="button" className="sucesso" onClick={() => setConfirmar("receber")}>{titulo.isForecast ? "Dar baixa" : "Confirmar recebimento"}</Button>}
+            {!(canSettle && aberto) && <Button type="button" variant="secondary" onClick={onClose}>Fechar</Button>}
           </footer>
         )}
       </div>
     </Modal>
+  );
+}
+
+function Edicao({ titulo, accounts, onVoltar, onSalvo }: { titulo: FinanceTitle; accounts: FinanceChartAccount[]; onVoltar: () => void; onSalvo: () => Promise<void> }) {
+  const [cliente, setCliente] = useState(titulo.counterparty);
+  const [grupo, setGrupo] = useState(titulo.group ?? "");
+  const [documento, setDocumento] = useState(titulo.documentNumber ?? "");
+  const [tipo, setTipo] = useState(titulo.documentType ?? "");
+  const [lancamento, setLancamento] = useState(titulo.issueDate.slice(0, 10));
+  const [vencimento, setVencimento] = useState(titulo.installments[0]?.dueDate.slice(0, 10) ?? "");
+  const [valor, setValor] = useState(titulo.originalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 }));
+  const [conta, setConta] = useState(titulo.chartAccountId ?? "");
+  const [historico, setHistorico] = useState(titulo.description);
+  const [observacao, setObservacao] = useState(titulo.notes ?? "");
+  const [previsao, setPrevisao] = useState(titulo.isForecast);
+  const [conferido, setConferido] = useState(false);
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const contas = accounts.filter((account) => account.allowsPosting || account.id === titulo.chartAccountId);
+  const variasParcelas = titulo.installments.length > 1;
+
+  const salvar = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const numero = Number(valor.replace(/[^0-9,]/g, "").replace(",", "."));
+    if (!cliente.trim()) { setErro("Informe o cliente."); return; }
+    if (!historico.trim()) { setErro("Informe o histórico."); return; }
+    if (!numero || numero <= 0) { setErro("Informe um valor maior que zero."); return; }
+    setSalvando(true);
+    const falha = await chamar(`/api/finance/titulos/${titulo.id}`, "PATCH", {
+      counterparty: cliente, group: grupo, documentNumber: documento, documentType: tipo, issueDate: lancamento,
+      ...(variasParcelas ? {} : { dueDate: vencimento, amount: numero }),
+      ...(conta ? { chartAccountId: conta } : {}), description: historico, notes: observacao, isForecast: previsao, reviewed: conferido,
+    });
+    setSalvando(false);
+    if (falha) { setErro(falha); return; }
+    await onSalvo();
+  };
+
+  return (
+    <form className="receber-form" onSubmit={salvar}>
+      <label className="largo"><span>Cliente *</span><input value={cliente} onChange={(e) => setCliente(e.target.value)} /></label>
+      <label><span>Grupo</span><input value={grupo} onChange={(e) => setGrupo(e.target.value)} placeholder="Apelido do grupo (opcional)" /></label>
+      <label><span>Documento</span><input value={documento} onChange={(e) => setDocumento(e.target.value)} placeholder="NF-parcela" /></label>
+      <label><span>Tipo</span><select value={tipo} onChange={(e) => setTipo(e.target.value)}><option value="">—</option>{[...new Set([...TIPOS, ...(tipo ? [tipo] : [])])].map((t) => <option key={t}>{t}</option>)}</select></label>
+      <label><span>Valor (R$) *</span><input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" disabled={variasParcelas} /></label>
+      <label><span>Lançamento</span><input type="date" value={lancamento} onChange={(e) => setLancamento(e.target.value)} /></label>
+      <label><span>Vencimento</span><input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} disabled={variasParcelas} /></label>
+      <label className="largo"><span>Conta do plano</span>
+        <select value={conta} onChange={(e) => setConta(e.target.value)}>
+          {!conta && <option value="">—</option>}
+          {contas.map((account) => <option key={account.id} value={account.id}>{account.code} {account.name}</option>)}
+        </select>
+        {titulo.allocations.length > 1 && <small>Este título está rateado em {titulo.allocations.length} contas. Trocar a conta ou o valor deixa o título inteiro em uma conta só.</small>}
+      </label>
+      <label className="largo"><span>Histórico *</span><textarea rows={2} value={historico} onChange={(e) => setHistorico(e.target.value)} /></label>
+      <label className="largo"><span>Observação</span><textarea rows={3} value={observacao} onChange={(e) => setObservacao(e.target.value)} /></label>
+      <label className="marca largo"><input type="checkbox" checked={previsao} onChange={(e) => setPrevisao(e.target.checked)} /> Previsão (orçamento sem nota ou duplicata antecipada): fica fora do total a receber</label>
+      {titulo.reviewReason && <label className="marca largo"><input type="checkbox" checked={conferido} onChange={(e) => setConferido(e.target.checked)} /> Já conferi este lançamento: tirar o aviso “revisar”</label>}
+      {erro && <p className="receber-erro largo" role="alert">{erro}</p>}
+      <footer className="largo">
+        <Button type="button" variant="secondary" onClick={onVoltar} disabled={salvando}>Voltar</Button>
+        <Button type="submit" disabled={salvando}>{salvando ? "Salvando…" : "Salvar alterações"}</Button>
+      </footer>
+    </form>
   );
 }

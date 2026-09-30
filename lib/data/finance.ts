@@ -28,6 +28,7 @@ export type FinanceTitle = {
   status: FinanceTitleStatus;
   costCenter: string | null;
   chartAccount: string | null;
+  chartAccountId: string | null;
   installments: FinanceInstallment[];
   /** Previsão (orçamento sem nota ou duplicata já antecipada): fora do "A receber". */
   isForecast: boolean;
