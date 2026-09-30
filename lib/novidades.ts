@@ -27,6 +27,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-09-30-financeiro-contas-a-pagar",
+    data: "2026-09-30",
+    area: "Financeiro",
+    modulos: ["financeiro"],
+    titulo: "Contas a pagar, fluxo de caixa e gasto por conta",
+    itens: [
+      "Contas a pagar por fornecedor, com as abas A pagar, Previsões e Pagas (por mês). Filtros de situação, mês de vencimento e fornecedor.",
+      "Registrar pagamento ou recebimento com data e valor: aceita baixa parcial, e o que passar do valor entra como juros ou tarifa.",
+      "Fluxo de caixa do ano, mês a mês: o que já entrou e saiu, o que está em aberto e as previsões à parte.",
+      "Novo relatório Gasto por conta do plano: custos, despesas e investimentos por mês, pelo rateio de cada título.",
+      "Todo título a pagar pode ser editado por quem opera e excluído por quem aprova.",
+    ],
+  },
+  {
     id: "2026-09-30-financeiro-contas-a-receber",
     data: "2026-09-30",
     area: "Financeiro",

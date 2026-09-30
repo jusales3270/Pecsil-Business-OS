@@ -1,5 +1,5 @@
 /**
- * Regras puras do contas a receber (sem banco): situação do título pelo
+ * Regras puras dos títulos a receber e a pagar (sem banco): situação do título pelo
  * vencimento, totais e agrupamento por cliente. Usadas pela tela, pelo painel e
  * pelo fluxo de caixa — o mesmo cálculo em todo lugar.
  *
@@ -21,7 +21,8 @@ export type Recebivel = {
   installments: readonly RecebivelParcela[];
 };
 
-export type SituacaoRecebivel = "Em aberto" | "Vencido" | "Parcial" | "Recebido" | "Cancelado";
+/** "Recebido" vale para as duas direções: a tela de contas a pagar mostra como "Pago". */
+export type SituacaoRecebivel = "Em aberto" | "Vencido" | "Parcial" | "Recebido" | "Cancelado" | "Em aprovação";
 
 const vencimento = (titulo: Pick<Recebivel, "installments" | "issueDate">) => titulo.installments[0]?.dueDate ?? titulo.issueDate;
 
@@ -39,6 +40,8 @@ export function emAberto(titulo: Pick<Recebivel, "installments" | "originalAmoun
 export function situacaoRecebivel(titulo: Pick<Recebivel, "installments" | "originalAmount" | "status" | "issueDate">, hoje: string): SituacaoRecebivel {
   if (titulo.status === "cancelled") return "Cancelado";
   if (titulo.status === "settled" || emAberto(titulo) <= 0) return "Recebido";
+  // Conta a pagar nova espera aprovação antes de entrar na fila de pagamento.
+  if (titulo.status === "pending_approval" || titulo.status === "draft") return "Em aprovação";
   if (vencimento(titulo) < hoje) return "Vencido";
   return titulo.installments.some((parcela) => parcela.settledAmount > 0) ? "Parcial" : "Em aberto";
 }

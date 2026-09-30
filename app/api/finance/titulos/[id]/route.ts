@@ -123,18 +123,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   return NextResponse.json({ success: true });
 }
 
-/** Excluir um título: apaga o registro com parcelas e rateio. Só quem aprova na direção dele. */
+/** Excluir um título: apaga o registro com parcelas, rateio e baixas. Só quem aprova na direção dele. */
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const found = await load(id);
   if (!found.ok) return found.error;
   const { guard, feature } = found;
   if (!guard.access.can(feature, "aprovar")) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  const { data: removed, error } = await guard.supabase.from("finance_titles").delete().eq("id", id).select("id");
+  // A função apaga as baixas junto (a exclusão direta para no título que já tem baixa).
+  const { error } = await guard.supabase.rpc("finance_delete_title", { p_title: id });
   if (error) {
-    if (error.code === "23503") return NextResponse.json({ error: "Este título tem recebimento registrado em banco. Estorne o recebimento antes de excluir, ou cancele o título." }, { status: 409 });
+    if (error.code === "42501") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
-  if (!removed?.length) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   return NextResponse.json({ success: true });
 }

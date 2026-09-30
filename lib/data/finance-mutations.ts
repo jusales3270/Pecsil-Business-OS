@@ -18,7 +18,7 @@ export type FinanceTitleDraft = {
 
 export type FinanceMutation =
   | { type: "approve"; titleId: string }
-  | { type: "settle"; titleId: string; installmentId?: string; settledAmount?: number }
+  | { type: "settle"; titleId: string; date?: string; amount?: number; notes?: string }
   | { type: "cancel"; titleId: string };
 
 export async function createFinanceTitle(draft: FinanceTitleDraft) {
@@ -120,6 +120,14 @@ export async function createFinanceTitle(draft: FinanceTitleDraft) {
     console.error("Erro ao criar parcela do título:", installmentError.message);
   }
 
+  // O gasto por conta sai do rateio: título de conta única tem uma linha só.
+  if (chartAccountId) {
+    const { error: allocationError } = await supabase
+      .from("finance_title_allocations")
+      .insert({ organization_id: organizationId, title_id: title.id, chart_account_id: chartAccountId, amount: draft.amount });
+    if (allocationError) console.error("Erro ao gravar a conta do título:", allocationError.message);
+  }
+
   return { id: title.id, success: true };
 }
 
@@ -140,30 +148,21 @@ export async function applyFinanceMutation(mutation: FinanceMutation) {
   }
 
   if (mutation.type === "settle") {
-    // Settle title and installment
-    const { data: changed, error: titleError } = await supabase
-      .from("finance_titles")
-      .update({ status: "settled" })
-      .eq("id", mutation.titleId)
-      .select("id");
-    if (titleError) throw titleError;
-    denyIfUntouched(changed);
-
-    // A parcela quitada guarda o valor recebido: é dele que sai o "em aberto".
-    const { data: open, error: readError } = await supabase
-      .from("finance_installments")
-      .select("id, amount")
-      .eq("title_id", mutation.titleId)
-      .neq("status", "cancelled");
-    if (readError) throw readError;
-    for (const installment of open ?? []) {
-      const { error: instError } = await supabase
+    // A baixa entra como registro próprio (data, valor, juros): é dela que saem o
+    // "em aberto" e o fluxo de caixa realizado. Sem valor informado, quita o saldo.
+    let amount = mutation.amount;
+    if (amount === undefined) {
+      const { data: open, error: readError } = await supabase
         .from("finance_installments")
-        .update({ status: "settled", settled_amount: installment.amount })
-        .eq("id", installment.id);
-      if (instError) throw instError;
+        .select("amount, settled_amount, status")
+        .eq("title_id", mutation.titleId);
+      if (readError) throw readError;
+      if (!open?.length) throw new Error("FORBIDDEN_OR_NOT_FOUND");
+      amount = open.filter(row => row.status !== "cancelled").reduce((sum, row) => sum + Number(row.amount) - Number(row.settled_amount), 0);
     }
-
+    const date = mutation.date ?? new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    const { error } = await supabase.rpc("finance_settle_title", { p_title: mutation.titleId, p_date: date, p_amount: Math.round(amount * 100) / 100, p_notes: mutation.notes ?? null });
+    if (error) throw error;
     return { success: true };
   }
 

@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const source = await readFile(new URL("../../../app/components/finance-module.tsx", import.meta.url), "utf8");
+// O módulo e as telas que ele monta (títulos a pagar/receber, fluxo e relatórios).
+const source = (await Promise.all(["finance-module.tsx", "finance-titles.tsx", "finance-reports.tsx"].map((file) =>
+  readFile(new URL(`../../../app/components/${file}`, import.meta.url), "utf8")))).join("\n");
 
 test("financeiro: cobre os domínios operacionais da versão 1", () => {
   for (const domain of ["Contas a pagar", "Contas a receber", "Fluxo de caixa", "Bancos e conciliação", "Centros de custo", "Relatórios", "Homologação"]) {
@@ -19,8 +21,8 @@ test("financeiro: ações críticas respeitam permissões", () => {
 test("financeiro: cria, aprova, liquida, recebe e avisa conciliação pendente", () => {
   assert.match(source, /Nova conta a pagar/);
   assert.match(source, /Aprovar/);
-  assert.match(source, /Pagar/);
-  assert.match(source, /Receber/);
+  assert.match(source, /Registrar pagamento/);
+  assert.match(source, /Confirmar recebimento/);
   assert.match(source, /Conciliação pendente/);
 });
 

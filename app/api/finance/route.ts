@@ -76,6 +76,10 @@ export async function PATCH(request: Request) {
     if (error instanceof Error && error.message === "UNAUTHENTICATED") {
       return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
     }
+    // Regra do banco (valor inválido, título já quitado…): a mensagem vai para a tela.
+    const detail = error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : "";
+    const code = error && typeof error === "object" && "code" in error ? String((error as { code: unknown }).code) : "";
+    if (code === "P0001" && detail) return NextResponse.json({ error: detail }, { status: 400 });
     console.error("Falha na operação financeira", error);
     return NextResponse.json({ error: "FINANCE_MUTATION_DENIED" }, { status: 403 });
   }

@@ -40,6 +40,10 @@ export type FinanceTitle = {
   reviewReason: string | null;
   /** "legado" = veio da carga do sistema antigo. */
   source: string | null;
+  /** Data da última baixa (pagamento ou recebimento), quando houver. */
+  paidAt: string | null;
+  /** Total baixado, com juros e multa, menos desconto. */
+  paidAmount: number;
   /** Rateio por conta do plano (vazio quando o título tem uma conta só). */
   allocations: FinanceAllocation[];
 };
@@ -65,6 +69,8 @@ export type FinanceSummary = {
   receivableOpen: number;
   /** Previsões a receber em aberto — nunca somadas em receivableOpen. */
   receivableForecast: number;
+  /** Previsões a pagar em aberto — nunca somadas em payableOpen. */
+  payableForecast: number;
   pendingApprovals: number;
   unreconciledEntries: number;
 };
@@ -89,6 +95,7 @@ export const demoFinanceSnapshot: FinanceSnapshot = {
     payableOpen: 0,
     receivableOpen: 0,
     receivableForecast: 0,
+    payableForecast: 0,
     pendingApprovals: 0,
     unreconciledEntries: 0,
   },

@@ -34,7 +34,10 @@ import { createClient } from "@supabase/supabase-js";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
-import { conferir, isPlaceholder, legacyKey, parseContasReceber, reviewReasons } from "../lib/finance/contas-receber-parser.ts";
+// O leitor importa outro módulo .ts sem extensão: o gancho abaixo resolve, como nos testes.
+import "../tests/ts-resolver.mjs";
+
+const { conferir, isPlaceholder, legacyKey, parseContasReceber, reviewReasons } = await import("../lib/finance/contas-receber-parser.ts");
 
 const envPath = resolve(process.cwd(), ".env.local");
 const env = { ...process.env };

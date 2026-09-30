@@ -24,13 +24,7 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
   const organizationId = profileResult.data.organization_id as string;
 
   const [titlesResult, banksResult, entriesResult, approvalsResult, centersResult, accountsResult] = await Promise.all([
-    supabase
-      .from("finance_titles")
-      .select("id,direction,counterparty_name,counterparty_group,document_number,document_type,description,notes,issue_date,original_amount,status,chart_account_id,is_forecast,review_reason,source_module,finance_cost_centers(name),finance_chart_accounts(code,name),finance_installments(id,installment_number,due_date,amount,settled_amount,status),finance_title_allocations(amount,finance_chart_accounts(code,name))")
-      .eq("organization_id", organizationId)
-      .order("issue_date", { ascending:false })
-      // O padrão da API corta em 1000 linhas; o contas a receber sozinho passa de 600.
-      .range(0, 9999),
+    readOpenTitles(supabase, organizationId),
     supabase
       .from("finance_bank_accounts")
       .select("id,bank_name,bank_code,branch,account_number,opening_balance,active")
@@ -59,10 +53,10 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
       .order("code"),
   ]);
 
-  const failed = [titlesResult, banksResult, entriesResult, approvalsResult, centersResult, accountsResult].find(result => result.error);
+  const failed = [banksResult, entriesResult, approvalsResult, centersResult, accountsResult].find(result => result.error);
   if (failed?.error) throw failed.error;
 
-  const titles = ((titlesResult.data ?? []) as unknown as Row[]).map(toTitle);
+  const titles = titlesResult;
   const banks = ((banksResult.data ?? []) as unknown as Row[]).map(toBankAccount);
   const entries = (entriesResult.data ?? []) as unknown as Row[];
   const entryBalance = entries.reduce((total, row) => {
@@ -75,7 +69,8 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
     organizationId,
     summary: {
       availableBalance: banks.reduce((sum, bank) => sum + bank.balance, 0) + entryBalance,
-      payableOpen: openAmount(titles.filter(title => title.direction === "payable")),
+      payableOpen: openAmount(titles.filter(title => title.direction === "payable" && !title.isForecast)),
+      payableForecast: openAmount(titles.filter(title => title.direction === "payable" && title.isForecast)),
       receivableOpen: openAmount(titles.filter(title => title.direction === "receivable" && !title.isForecast)),
       receivableForecast: openAmount(titles.filter(title => title.direction === "receivable" && title.isForecast)),
       pendingApprovals: approvalsResult.count ?? 0,
@@ -91,7 +86,56 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
   };
 }
 
+export const TITLE_COLUMNS = "id,direction,counterparty_name,counterparty_group,document_number,document_type,description,notes,issue_date,original_amount,status,chart_account_id,is_forecast,review_reason,source_module,finance_cost_centers(name),finance_chart_accounts(code,name),finance_installments(id,installment_number,due_date,amount,settled_amount,status,finance_settlements(settlement_date,amount,interest,penalty,discount,reversed_at)),finance_title_allocations(amount,finance_chart_accounts(code,name))";
+
+type Client = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+/**
+ * Títulos que ainda pedem ação: tudo menos o quitado. O histórico de pagos e
+ * recebidos (milhares) é buscado por mês, sob demanda — ver `readSettledTitles`.
+ * A API corta a resposta em 1.000 linhas, então lê em páginas.
+ */
+async function readOpenTitles(supabase: Client, organizationId: string): Promise<FinanceTitle[]> {
+  const titles: FinanceTitle[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("finance_titles")
+      .select(TITLE_COLUMNS)
+      .eq("organization_id", organizationId)
+      .neq("status", "settled")
+      .order("issue_date", { ascending: false })
+      .order("id")
+      .range(from, from + 999);
+    if (error) throw error;
+    titles.push(...((data ?? []) as unknown as Row[]).map(toTitle));
+    if ((data ?? []).length < 1000) return titles;
+  }
+}
+
+/** Títulos quitados com baixa dentro do mês (AAAA-MM), de uma direção. */
+export async function readSettledTitles(supabase: Client, direction: "payable" | "receivable", month: string): Promise<FinanceTitle[]> {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const start = `${month}-01`;
+  const end = new Date(Date.UTC(year, monthNumber, 1)).toISOString().slice(0, 10);
+  const titles: FinanceTitle[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("finance_titles")
+      .select(TITLE_COLUMNS.replace("finance_installments(", "finance_installments!inner(").replace("finance_settlements(", "finance_settlements!inner("))
+      .eq("direction", direction)
+      .eq("status", "settled")
+      .gte("finance_installments.finance_settlements.settlement_date", start)
+      .lt("finance_installments.finance_settlements.settlement_date", end)
+      .order("id")
+      .range(from, from + 999);
+    if (error) throw error;
+    titles.push(...((data ?? []) as unknown as Row[]).map(toTitle));
+    if ((data ?? []).length < 1000) return titles;
+  }
+}
+
 function toTitle(row: Row): FinanceTitle {
+  const settlements = relationList(row.finance_installments).flatMap(installment => relationList(installment.finance_settlements)).filter(settlement => !settlement.reversed_at);
   return {
     id: String(row.id),
     direction: row.direction === "receivable" ? "receivable" : "payable",
@@ -111,6 +155,8 @@ function toTitle(row: Row): FinanceTitle {
     notes: row.notes ? String(row.notes) : null,
     reviewReason: row.review_reason ? String(row.review_reason) : null,
     source: row.source_module ? String(row.source_module) : null,
+    paidAt: settlements.map(settlement => String(settlement.settlement_date)).sort().at(-1) ?? null,
+    paidAmount: Math.round(settlements.reduce((sum, settlement) => sum + number(settlement.amount) + number(settlement.interest) + number(settlement.penalty) - number(settlement.discount), 0) * 100) / 100,
     allocations: relationList(row.finance_title_allocations).map(allocation => {
       const account = (Array.isArray(allocation.finance_chart_accounts) ? allocation.finance_chart_accounts[0] : allocation.finance_chart_accounts) as Row | null;
       return { code: account?.code ? String(account.code) : null, name: String(account?.name ?? ""), amount: number(allocation.amount) };
