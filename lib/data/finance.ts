@@ -28,8 +28,32 @@ export type FinanceTitle = {
   status: FinanceTitleStatus;
   costCenter: string | null;
   chartAccount: string | null;
+  chartAccountId: string | null;
   installments: FinanceInstallment[];
+  /** Previsão (orçamento sem nota ou duplicata já antecipada): fora do "A receber". */
+  isForecast: boolean;
+  /**
+   * Histórico a conferir: título antigo que o sistema antigo ainda mostrava em
+   * aberto. Fica fora de "A pagar", previsões, painel e fluxo até a equipe decidir.
+   */
+  historical: boolean;
+  /** Apelido do grupo do cliente (ex.: FILIAL VIDROS, O-I / SP). */
+  group: string | null;
+  documentType: string | null;
+  notes: string | null;
+  /** Motivo para a equipe conferir o título; nulo quando não há nada a revisar. */
+  reviewReason: string | null;
+  /** "legado" = veio da carga do sistema antigo. */
+  source: string | null;
+  /** Data da última baixa (pagamento ou recebimento), quando houver. */
+  paidAt: string | null;
+  /** Total baixado, com juros e multa, menos desconto. */
+  paidAmount: number;
+  /** Rateio por conta do plano (vazio quando o título tem uma conta só). */
+  allocations: FinanceAllocation[];
 };
+
+export type FinanceAllocation = { code: string | null; name: string; amount: number };
 
 export type FinanceBankAccount = {
   id: string;
@@ -48,6 +72,10 @@ export type FinanceSummary = {
   availableBalance: number;
   payableOpen: number;
   receivableOpen: number;
+  /** Previsões a receber em aberto — nunca somadas em receivableOpen. */
+  receivableForecast: number;
+  /** Previsões a pagar em aberto — nunca somadas em payableOpen. */
+  payableForecast: number;
   pendingApprovals: number;
   unreconciledEntries: number;
 };
@@ -71,6 +99,8 @@ export const demoFinanceSnapshot: FinanceSnapshot = {
     availableBalance: 0,
     payableOpen: 0,
     receivableOpen: 0,
+    receivableForecast: 0,
+    payableForecast: 0,
     pendingApprovals: 0,
     unreconciledEntries: 0,
   },

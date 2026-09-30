@@ -1,14 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button, Callout, Card, Donut, Kpi, KpiGrid, Legend, Segmented, Status } from "../../packages/design-system";
+import { Button, Callout, Card, Kpi, KpiGrid, Segmented, Status } from "../../packages/design-system";
 import { canUseFeature, type ModuleAccessContext } from "../../modules";
 import type { FinanceSnapshot, FinanceTitle } from "../../lib/data/finance";
 import { useModuleNav } from "../../lib/module-nav-context";
+import { FinanceChart } from "./finance-chart";
+import { FinancePainelGraficos } from "./finance-painel-graficos";
+import { FinanceTitles } from "./finance-titles";
+import { FinanceCashFlow, FinanceExpenseReport } from "./finance-reports";
+import { situacaoRecebivel } from "../../lib/finance/recebiveis-core";
 
 const sections = [
   ["Painel", "grid"], ["Contas a pagar", "payable"], ["Contas a receber", "receivable"],
   ["Fluxo de caixa", "chart"], ["Bancos e conciliação", "bank"], ["Centros de custo", "cost"],
+  ["Plano de contas", "tree"],
   ["Relatórios", "report"], ["Homologação", "check"],
 ] as const;
 type FinanceSection = (typeof sections)[number][0];
@@ -19,6 +25,8 @@ const SECTION_FEATURE: Partial<Record<FinanceSection, string>> = {
   "Fluxo de caixa": "financeiro.fluxo",
   "Bancos e conciliação": "financeiro.bancos",
   "Centros de custo": "financeiro.centros",
+  // Plano de contas: todo mundo do Financeiro consulta (é a lista de contas dos
+  // lançamentos); incluir, editar, mover e excluir exigem financeiro.plano (operar).
   "Relatórios": "financeiro.relatorios",
   "Homologação": "financeiro.homologacao",
 };
@@ -50,12 +58,8 @@ function mapTitleToPayable(title: FinanceTitle): Payable {
 }
 
 function mapTitleToReceivable(title: FinanceTitle): Receivable {
-  const statusMap: Record<string, ReceivableStatus> = {
-    settled: "Recebido",
-    partially_settled: "Parcial",
-    overdue: "Vencido",
-  };
   const received = title.installments.reduce((acc, i) => acc + (i.settledAmount || 0), 0);
+  const situacao = situacaoRecebivel(title, hoje());
   return {
     id: title.id,
     customer: title.counterparty,
@@ -63,8 +67,9 @@ function mapTitleToReceivable(title: FinanceTitle): Receivable {
     category: title.chartAccount || "Receita",
     due: title.installments[0]?.dueDate || title.issueDate,
     value: title.originalAmount,
-    received,
-    status: statusMap[title.status] || "Em aberto",
+    // Título quitado sem valor na parcela (baixa antiga) conta como recebido por inteiro.
+    received: situacao === "Recebido" ? title.originalAmount : received,
+    status: situacao === "Cancelado" ? "Recebido" : situacao === "Em aprovação" ? "Em aberto" : situacao,
   };
 }
 
@@ -88,8 +93,6 @@ const moneyShort=(value:number)=>value>=1_000_000
 const date=(value:string)=>/^\d{4}-\d{2}-\d{2}/.test(value)?value.slice(0,10).split("-").reverse().join("/"):"—";
 const hoje=()=>new Date().toLocaleDateString("en-CA",{timeZone:"America/Sao_Paulo"});
 const plural=(n:number,um:string,varios:string)=>`${n} ${n===1?um:varios}`;
-const MESES=["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
-const tone=(status:string):"success"|"attention"|"danger"|"info"|"neutral"=>status==="Pago"||status==="Recebido"?"success":status==="Vencido"?"danger":status.includes("aprovação")||status==="Parcial"?"attention":status==="Aprovado"?"info":"neutral";
 
 function FIcon({name,size=18}:{name:string;size?:number}){const paths:Record<string,React.ReactNode>={grid:<><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,payable:<><path d="M4 5h16v14H4zM7 9h10M7 13h6"/><path d="m16 16 2 2 3-4"/></>,receivable:<><path d="M4 5h16v14H4zM7 9h10M7 13h6"/><path d="M18 12v6M15 15h6"/></>,chart:<><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7"/></>,bank:<><path d="m3 9 9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 21h18"/></>,cost:<><circle cx="12" cy="12" r="9"/><path d="M12 6v12M16 9c-1-2-7-2-7 1 0 3 7 1 7 5 0 3-6 3-8 1"/></>,report:<><path d="M6 3h9l4 4v14H6zM15 3v5h4M9 12h6M9 16h6"/></>,check:<><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></>,back:<path d="m15 18-6-6 6-6"/>,plus:<path d="M12 5v14M5 12h14"/>,arrow:<path d="m9 18 6-6-6-6"/>,close:<path d="m6 6 12 12M18 6 6 18"/>,search:<><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></>,alert:<><path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5M12 18h.01"/></>};return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name]}</svg>}
 
@@ -118,12 +121,22 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
     registerNav({
       moduleId: "financeiro",
       moduleName: "Financeiro",
+      // Seções também no menu lateral, sob o Financeiro: a barra de cima rola e
+      // esconde as últimas abas quando não cabem.
+      sidebarTree: true,
       items: accessibleSections.map(([label, icon]) => ({ id: label, label, icon })),
       activeId: section,
       onSelect: (id) => setSection(id as FinanceSection),
     });
     return () => registerNav(null);
   }, [accessibleSections, section, registerNav]);
+
+  // Seção aberta pelo menu lateral: a barra de cima rola até a aba ativa.
+  useEffect(() => {
+    const bar = document.querySelector<HTMLElement>(".ds-module-bar > .ds-segmented");
+    const ativa = bar?.querySelector<HTMLElement>("button.active");
+    if (bar && ativa) bar.scrollTo({ left: ativa.offsetLeft - (bar.clientWidth - ativa.offsetWidth) / 2, behavior: "smooth" });
+  }, [section]);
 
   async function loadFinanceData(signal?: AbortSignal) {
     try {
@@ -132,8 +145,9 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
       const data = (await res.json()) as FinanceSnapshot;
       if (data && Array.isArray(data.titles)) {
         setSnapshot(data);
-        setPayables(data.titles.filter(t => t.direction === "payable").map(mapTitleToPayable));
-        setReceivables(data.titles.filter(t => t.direction === "receivable").map(mapTitleToReceivable));
+        setPayables(data.titles.filter(t => t.direction === "payable" && !t.isForecast && !t.historical && t.status !== "cancelled").map(mapTitleToPayable));
+        // Painel e fluxo de caixa usam só o que tem nota: previsão e cancelado ficam de fora.
+        setReceivables(data.titles.filter(t => t.direction === "receivable" && !t.isForecast && !t.historical && t.status !== "cancelled").map(mapTitleToReceivable));
       }
     } catch {
       // Sem conexão: as listas ficam como estavam (vazias no início).
@@ -197,44 +211,10 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
     track("Não foi possível salvar a conta a receber. Nada foi gravado; confira sua permissão e tente de novo.");
   }
 
-  async function handleUpdatePayableStatus(id: string | number, status: PayableStatus) {
-    setPayables(current => current.map(x => (x.id === id ? { ...x, status } : x)));
-    if (typeof id === "string") {
-      try {
-        const type = status === "Aprovado" ? "approve" : status === "Pago" ? "settle" : null;
-        if (type) {
-          await fetch("/api/finance", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type, titleId: id }),
-          });
-          await loadFinanceData();
-        }
-      } catch {
-        // local already updated
-      }
-    }
-    track(`Conta a pagar: situação alterada para ${status}.`);
-  }
+  // Depois de qualquer alteração em título (baixa, edição, exclusão…): recarrega e avisa.
+  const reloadAfter=async(message:string)=>{await loadFinanceData();track(message)};
 
-  async function handleReceive(id: string | number) {
-    setReceivables(current => current.map(x => (x.id === id ? { ...x, received: x.value, status: "Recebido" } : x)));
-    if (typeof id === "string") {
-      try {
-        await fetch("/api/finance", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "settle", titleId: id }),
-        });
-        await loadFinanceData();
-      } catch {
-        // local already updated
-      }
-    }
-    track("Conta a receber: recebimento confirmado.");
-  }
-
-  const render=()=>section==="Painel"?<Dashboard payables={payables} receivables={receivables} snapshot={snapshot} setSection={setSection} access={access}/>:section==="Contas a pagar"?<Payables data={payables} onUpdateStatus={handleUpdatePayableStatus} canCreate={canCreatePayable} canApprove={canApprovePayable} canSettle={canApprovePayable} openCreate={()=>setModal("payable")} inspect={setSelected} track={track}/>:section==="Contas a receber"?<Receivables data={receivables} onReceive={handleReceive} canCreate={canCreateReceivable} canSettle={canSettleReceivable} openCreate={()=>setModal("receivable")} inspect={setSelected} track={track}/>:section==="Fluxo de caixa"?<CashFlow payables={payables} receivables={receivables}/>:section==="Bancos e conciliação"?<Banks accounts={snapshot?.bankAccounts??[]} unreconciled={snapshot?.summary.unreconciledEntries??0}/>:section==="Centros de custo"?<CostCenters centers={snapshot?.costCenters??[]} payables={payables}/>:section==="Relatórios"?<Reports open={(title)=>{setSelected({id:0,customer:title,document:"",category:"",due:"",value:0,received:0,status:"Em aberto"});setModal("report")}}/>:<Homologation values={homologation} setValues={setHomologation} track={track}/>;
+  const render=()=>section==="Painel"?<Dashboard payables={payables} receivables={receivables} snapshot={snapshot} setSection={setSection} access={access}/>:section==="Contas a pagar"?<FinanceTitles key="payable" direction="payable" titles={(snapshot?.titles??[]).filter(t=>t.direction==="payable")} accounts={snapshot?.chartAccounts??[]} onChanged={reloadAfter} canCreate={canCreatePayable} canSettle={canApprovePayable} openCreate={()=>setModal("payable")}/>:section==="Contas a receber"?<FinanceTitles key="receivable" direction="receivable" titles={(snapshot?.titles??[]).filter(t=>t.direction==="receivable")} accounts={snapshot?.chartAccounts??[]} onChanged={reloadAfter} canCreate={canCreateReceivable} canSettle={canSettleReceivable} openCreate={()=>setModal("receivable")}/>:section==="Fluxo de caixa"?<FinanceCashFlow/>:section==="Bancos e conciliação"?<Banks accounts={snapshot?.bankAccounts??[]} unreconciled={snapshot?.summary.unreconciledEntries??0}/>:section==="Centros de custo"?<CostCenters centers={snapshot?.costCenters??[]} payables={payables}/>:section==="Plano de contas"?<FinanceChart notify={track}/>:section==="Relatórios"?<Reports canExpense={canUseFeature(access,"financeiro.relatorios")} open={(title)=>{setSelected({id:0,customer:title,document:"",category:"",due:"",value:0,received:0,status:"Em aberto"});setModal("report")}}/>:<Homologation values={homologation} setValues={setHomologation} track={track}/>;
   const isOwner = access.isOwner;
 
   return <div className="finance-module">
@@ -244,7 +224,7 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
       <Status tone="info">{access.scopeLabel}</Status>
     </div>
     <main className="finance-workspace">{render()}</main>
-    {modal==="payable"&&<EntryForm kind="payable" centers={snapshot?.costCenters??[]} accounts={snapshot?.chartAccounts??[]} onClose={()=>setModal(null)} onSave={(entry)=>{void handleSavePayable(entry as Omit<Payable,"id">);setModal(null)}}/>}{modal==="receivable"&&<EntryForm kind="receivable" centers={snapshot?.costCenters??[]} accounts={snapshot?.chartAccounts??[]} onClose={()=>setModal(null)} onSave={(entry)=>{void handleSaveReceivable(entry as Omit<Receivable,"id">);setModal(null)}}/>}{selected&&modal!=="report"&&<Detail item={selected} onClose={()=>setSelected(null)}/>} {modal==="report"&&<ReportDetail title={(selected as Receivable)?.customer??"Relatório financeiro"} snapshot={snapshot} payables={payables} receivables={receivables} onClose={()=>{setModal(null);setSelected(null)}}/>}</div>
+    {modal==="payable"&&<EntryForm kind="payable" centers={snapshot?.costCenters??[]} accounts={snapshot?.chartAccounts??[]} onClose={()=>setModal(null)} onSave={(entry)=>{void handleSavePayable(entry as Omit<Payable,"id">);setModal(null)}}/>}{modal==="receivable"&&<EntryForm kind="receivable" centers={snapshot?.costCenters??[]} accounts={snapshot?.chartAccounts??[]} onClose={()=>setModal(null)} onSave={(entry)=>{void handleSaveReceivable(entry as Omit<Receivable,"id">);setModal(null)}}/>}{modal==="report"&&<ReportDetail title={(selected as Receivable)?.customer??"Relatório financeiro"} snapshot={snapshot} payables={payables} receivables={receivables} onClose={()=>{setModal(null);setSelected(null)}}/>}</div>
 }
 
 function Header({eyebrow,title,description,action,onAction}:{eyebrow:string;title:string;description:string;action?:string;onAction?:()=>void}){return <div className="finance-page-head"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div>{action&&<Button onClick={onAction}><FIcon name="plus"/> {action}</Button>}</div>}
@@ -259,48 +239,30 @@ function Dashboard({payables,receivables,snapshot,setSection,access}:{payables:P
   const banks=snapshot?.bankAccounts.length??0;
   const balance=snapshot?.summary.availableBalance??0;
   const today=hoje();
+  const vencidosPagar=payables.filter(x=>x.status!=="Pago"&&x.due&&x.due<today);
+  const vencidosReceber=receivables.filter(x=>x.status!=="Recebido"&&x.due&&x.due<today);
   // Pendências de verdade: títulos vencidos, aprovações e conciliação.
   const pendencias:[string,string,FinanceSection,"payable"|"receivable"|"bank"][]=[
-    ...payables.filter(x=>x.status!=="Pago"&&x.due&&x.due<today).map(x=>[`Pagamento vencido · ${x.supplier}`,`${money(x.value)} · venceu em ${date(x.due)}`,"Contas a pagar","payable"] as [string,string,FinanceSection,"payable"]),
-    ...receivables.filter(x=>x.status!=="Recebido"&&x.due&&x.due<today).map(x=>[`Título vencido · ${x.customer}`,`${money(x.value-x.received)} · venceu em ${date(x.due)}`,"Contas a receber","receivable"] as [string,string,FinanceSection,"receivable"]),
+    ...(vencidosPagar.length>3?[[`${vencidosPagar.length} contas a pagar vencidas`,`${money(vencidosPagar.reduce((a,x)=>a+x.value,0))} · a mais antiga venceu em ${date(vencidosPagar.map(x=>x.due).sort()[0])}`,"Contas a pagar","payable"] as [string,string,FinanceSection,"payable"]]:vencidosPagar.map(x=>[`Pagamento vencido · ${x.supplier}`,`${money(x.value)} · venceu em ${date(x.due)}`,"Contas a pagar","payable"] as [string,string,FinanceSection,"payable"])),
+    ...(vencidosReceber.length>3?[[`${vencidosReceber.length} títulos a receber vencidos`,`${money(vencidosReceber.reduce((a,x)=>a+x.value-x.received,0))} · o mais antigo venceu em ${date(vencidosReceber.map(x=>x.due).sort()[0])}`,"Contas a receber","receivable"] as [string,string,FinanceSection,"receivable"]]:vencidosReceber.map(x=>[`Título vencido · ${x.customer}`,`${money(x.value-x.received)} · venceu em ${date(x.due)}`,"Contas a receber","receivable"] as [string,string,FinanceSection,"receivable"])),
+    // Histórico do sistema antigo à espera de conferência (fora dos totais acima).
+    ...(["payable","receivable"] as const).flatMap(dir=>{const lista=(snapshot?.titles??[]).filter(t=>t.direction===dir&&t.historical);return lista.length?[[`${plural(lista.length,"título antigo","títulos antigos")} a conferir · ${dir==="payable"?"a pagar":"a receber"}`,`${money(lista.reduce((acc,t)=>acc+t.originalAmount,0))} · em aberto no sistema antigo antes de 2026, fora dos totais · aba Histórico a conferir`,dir==="payable"?"Contas a pagar":"Contas a receber",dir] as [string,string,FinanceSection,"payable"|"receivable"]]:[]}),
     ...((snapshot?.summary.pendingApprovals??0)>0?[["Aprovações pendentes",plural(snapshot!.summary.pendingApprovals,"título aguardando","títulos aguardando"),"Contas a pagar","payable"] as [string,string,FinanceSection,"payable"]]:[]),
     ...((snapshot?.summary.unreconciledEntries??0)>0?[["Conciliação bancária",plural(snapshot!.summary.unreconciledEntries,"lançamento sem correspondência","lançamentos sem correspondência"),"Bancos e conciliação","bank"] as [string,string,FinanceSection,"bank"]]:[]),
   ];
-  const slices=[{label:"A receber",value:receiveOpen,tone:"green" as const},{label:"A pagar",value:payableOpen,tone:"amber" as const}];
   return <><Header eyebrow={`FINANCEIRO · ${access.role.toUpperCase()}`} title="Visão financeira" description={`Caixa, compromissos e recebíveis autorizados para ${access.scopeLabel.toLowerCase()}.`}/>
     <KpiGrid>
       <Metric value={banks?moneyShort(balance):"—"} label="Saldo disponível" meta={banks?plural(banks,"conta bancária","contas bancárias"):"Nenhuma conta bancária cadastrada"} toneName="blue"/>
-      <Metric value={moneyShort(receiveOpen)} label="A receber" meta={plural(receivables.filter(x=>x.status!=="Recebido").length,"título em aberto","títulos em aberto")} toneName="green"/>
-      <Metric value={moneyShort(payableOpen)} label="A pagar" meta={plural(payables.filter(x=>x.status!=="Pago").length,"título em aberto","títulos em aberto")} toneName="amber"/>
+      <Metric value={moneyShort(receiveOpen)} label="A receber" meta={`${plural(receivables.filter(x=>x.status!=="Recebido").length,"título em aberto","títulos em aberto")}${(snapshot?.summary.receivableForecast??0)>0?` · previsões à parte: ${moneyShort(snapshot!.summary.receivableForecast)}`:""}`} toneName="green"/>
+      <Metric value={moneyShort(payableOpen)} label="A pagar" meta={`${plural(payables.filter(x=>x.status!=="Pago").length,"título em aberto","títulos em aberto")}${(snapshot?.summary.payableForecast??0)>0?` · previsões à parte: ${moneyShort(snapshot!.summary.payableForecast)}`:""}`} toneName="amber"/>
       <Metric value={banks?moneyShort(balance+receiveOpen-payableOpen):moneyShort(receiveOpen-payableOpen)} label="Saldo projetado" meta={banks?"Saldo + a receber − a pagar":"A receber − a pagar"} toneName="purple"/>
     </KpiGrid>
-    <div className="finance-dashboard-grid">
-      <Card className="finance-pending"><div className="finance-card-head"><div><p className="eyebrow">CENTRAL FINANCEIRA</p><h2>Ações que exigem atenção</h2><p>Compromissos, cobranças e conciliações pendentes.</p></div><Status tone={pendencias.length?"attention":"success"}>{pendencias.length?plural(pendencias.length,"pendência","pendências"):"Sem pendências"}</Status></div>
+    <FinancePainelGraficos receiveOpen={receiveOpen} payableOpen={payableOpen} podeFluxo={canUseFeature(access,"financeiro.fluxo")||canUseFeature(access,"financeiro.relatorios")} abrirFluxo={()=>setSection("Fluxo de caixa")}/>
+      <Card className="finance-pending fin-pendencias"><div className="finance-card-head"><div><p className="eyebrow">CENTRAL FINANCEIRA</p><h2>Ações que exigem atenção</h2><p>Compromissos, cobranças e conciliações pendentes.</p></div><Status tone={pendencias.length?"attention":"success"}>{pendencias.length?plural(pendencias.length,"pendência","pendências"):"Sem pendências"}</Status></div>
         {pendencias.slice(0,6).map(([title,meta,target,icon])=><button key={title+meta} onClick={()=>setSection(target)}><span><FIcon name={icon}/></span><span><b>{title}</b><small>{meta}</small></span><Status tone={icon==="bank"?"attention":"danger"}>{icon==="bank"?"Conferir":"Prioridade"}</Status><FIcon name="arrow"/></button>)}
         {!pendencias.length&&<div className="finance-empty"><b>Nenhuma pendência</b><small>Títulos vencidos, aprovações e conciliações aparecem aqui.</small></div>}
       </Card>
-      <Card className="finance-position"><p className="eyebrow">EM ABERTO</p><h2>A receber e a pagar</h2>
-        {receiveOpen+payableOpen>0?<><div className="finance-donut"><Donut slices={slices} total={receiveOpen-payableOpen} caption="diferença" size={170}/></div><Legend slices={slices}/><dl><div><dt>A receber</dt><dd>{money(receiveOpen)}</dd></div><div><dt>A pagar</dt><dd>{money(payableOpen)}</dd></div></dl></>
-        :<div className="finance-empty"><b>Sem títulos em aberto</b><small>O gráfico aparece quando houver contas a pagar ou a receber.</small></div>}
-        <button onClick={()=>setSection("Fluxo de caixa")}>Ver fluxo de caixa <FIcon name="arrow"/></button></Card>
-    </div></>}
-function Payables({data,onUpdateStatus,canCreate,canApprove,canSettle,openCreate,inspect,track}:{data:Payable[];onUpdateStatus:(id:string|number,status:PayableStatus)=>void;canCreate:boolean;canApprove:boolean;canSettle:boolean;openCreate:()=>void;inspect:(x:Payable)=>void;track:(m:string)=>void}){const[query,setQuery]=useState("");const[filter,setFilter]=useState("Todos");const visible=useMemo(()=>data.filter(x=>(filter==="Todos"||x.status===filter)&&`${x.supplier} ${x.document} ${x.category}`.toLowerCase().includes(query.toLowerCase())),[data,query,filter]);const update=(id:string|number,status:PayableStatus)=>{onUpdateStatus(id,status)};return <><Header eyebrow="FINANCEIRO · OBRIGAÇÕES" title="Contas a pagar" description="Títulos, vencimentos, aprovações e pagamentos por centro de custo." action={canCreate?"Nova conta":undefined} onAction={openCreate}/><div className="finance-toolbar"><label><FIcon name="search"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar fornecedor, documento ou categoria..."/></label><select value={filter} onChange={e=>setFilter(e.target.value)}><option>Todos</option><option>Pendente</option><option>Em aprovação</option><option>Aprovado</option><option>Pago</option><option>Vencido</option></select></div><Card className="finance-table-card"><div className="finance-table payable"><div className="head"><span>Fornecedor</span><span>Vencimento</span><span>Centro de custo</span><span>Valor</span><span>Situação</span><span/></div>{!visible.length&&<div className="finance-empty"><b>Nenhuma conta a pagar</b><small>{data.length?"Nenhum título com esse filtro.":"Os títulos aparecem aqui quando forem lançados."}</small></div>}{visible.map(x=><div className="row" key={x.id}><button className="title" onClick={()=>inspect(x)}><b>{x.supplier}</b><small>{x.document} · {x.category}</small></button><span>{date(x.due)}</span><span>{x.costCenter}</span><strong>{money(x.value)}</strong><Status tone={tone(x.status)}>{x.status}</Status><span className="actions">{canApprove&&(x.status==="Pendente"||x.status==="Em aprovação")&&<button onClick={()=>update(x.id,"Aprovado")}>Aprovar</button>}{canSettle&&x.status==="Aprovado"&&<button onClick={()=>update(x.id,"Pago")}>Pagar</button>}<button onClick={()=>inspect(x)} aria-label={`Detalhes de ${x.supplier}`}><FIcon name="arrow"/></button></span></div>)}</div></Card></>}
-
-function Receivables({data,onReceive,canCreate,canSettle,openCreate,inspect,track}:{data:Receivable[];onReceive:(id:string|number)=>void;canCreate:boolean;canSettle:boolean;openCreate:()=>void;inspect:(x:Receivable)=>void;track:(m:string)=>void}){const[query,setQuery]=useState("");const visible=data.filter(x=>`${x.customer} ${x.document}`.toLowerCase().includes(query.toLowerCase()));const receive=(id:string|number)=>{onReceive(id)};return <><Header eyebrow="FINANCEIRO · RECEITAS" title="Contas a receber" description="Títulos, recebimentos, inadimplência e acompanhamento de cobrança." action={canCreate?"Novo recebível":undefined} onAction={openCreate}/><div className="finance-toolbar"><label><FIcon name="search"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar cliente ou documento..."/></label>{(()=>{const n=data.filter(x=>x.status!=="Recebido"&&x.due&&x.due<hoje()).length;return n?<Status tone="danger">{plural(n,"título vencido","títulos vencidos")}</Status>:null})()}</div><Card className="finance-table-card"><div className="finance-table receivable"><div className="head"><span>Cliente</span><span>Vencimento</span><span>Valor</span><span>Recebido</span><span>Situação</span><span/></div>{!visible.length&&<div className="finance-empty"><b>Nenhuma conta a receber</b><small>{data.length?"Nenhum título com essa busca.":"Os títulos aparecem aqui quando forem lançados."}</small></div>}{visible.map(x=><div className="row" key={x.id}><button className="title" onClick={()=>inspect(x)}><b>{x.customer}</b><small>{x.document} · {x.category}</small></button><span>{date(x.due)}</span><strong>{money(x.value)}</strong><span>{money(x.received)}</span><Status tone={tone(x.status)}>{x.status}</Status><span className="actions">{canSettle&&x.status!=="Recebido"&&<button onClick={()=>receive(x.id)}>Receber</button>}<button onClick={()=>inspect(x)} aria-label={`Detalhes de ${x.customer}`}><FIcon name="arrow"/></button></span></div>)}</div></Card></>}
-
-function CashFlow({payables,receivables}:{payables:Payable[];receivables:Receivable[]}){
-  // Próximos 6 meses a partir do mês atual, pelo vencimento dos títulos em aberto.
-  const [ano,mes]=hoje().split("-").map(Number);
-  const months=Array.from({length:6},(_,i)=>{const d=new Date(Date.UTC(ano,mes-1+i,1));const key=`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}`;
-    return {m:MESES[d.getUTCMonth()],key,in:receivables.filter(x=>x.status!=="Recebido"&&x.due.startsWith(key)).reduce((a,b)=>a+b.value-b.received,0),out:payables.filter(x=>x.status!=="Pago"&&x.due.startsWith(key)).reduce((a,b)=>a+b.value,0)};});
-  const max=Math.max(1,...months.flatMap(x=>[x.in,x.out]));
-  const vazio=months.every(x=>!x.in&&!x.out);
-  return <><Header eyebrow="FINANCEIRO · TESOURARIA" title="Fluxo de caixa" description="Entradas e saídas previstas pelos vencimentos dos títulos em aberto."/>
-    <KpiGrid><Metric value={moneyShort(receivables.reduce((a,b)=>a+b.received,0))} label="Entradas realizadas" meta="Recebido nos títulos lançados" toneName="green"/><Metric value={moneyShort(payables.filter(x=>x.status==="Pago").reduce((a,b)=>a+b.value,0))} label="Saídas realizadas" meta="Pago nos títulos lançados" toneName="amber"/><Metric value={moneyShort(months.reduce((a,x)=>a+x.in-x.out,0))} label="Resultado previsto" meta="Próximos 6 meses" toneName="blue"/></KpiGrid>
-    <Card className="cash-chart"><div className="finance-card-head"><div><p className="eyebrow">PRÓXIMOS 6 MESES</p><h2>Entradas versus saídas</h2><p>Pelo vencimento dos títulos em aberto.</p></div><div className="legend"><span className="in">Entradas</span><span className="out">Saídas</span></div></div>
-      {vazio?<div className="finance-empty"><b>Sem vencimentos nos próximos 6 meses</b><small>O gráfico aparece quando houver títulos a pagar ou a receber lançados.</small></div>
-      :<div className="cash-bars">{months.map(x=><div key={x.key}><div><i className="in" style={{height:`${Math.round(x.in/max*80)}px`}}/><i className="out" style={{height:`${Math.round(x.out/max*80)}px`}}/></div><b>{x.m}</b><small>{x.in-x.out>=0?"+":"−"}{money(Math.abs(x.in-x.out)).replace(",00","")}</small></div>)}</div>}
-    </Card></>}
+    </>}
 function Banks({accounts,unreconciled}:{accounts:FinanceSnapshot["bankAccounts"];unreconciled:number}){
   return <><Header eyebrow="FINANCEIRO · BANCOS" title="Bancos e conciliação" description="Contas bancárias da empresa e conciliação com os lançamentos."/>
     {accounts.length?<div className="bank-grid">{accounts.map(x=><Card key={x.id} className="bank-card"><span><FIcon name="bank"/></span><Status tone={x.active?"success":"neutral"}>{x.active?"Ativa":"Inativa"}</Status><h2>{x.name}</h2><p>Agência {x.branch} · Conta {x.accountNumber}</p><strong>{money(x.balance)}</strong><small>Saldo inicial cadastrado</small></Card>)}</div>
@@ -313,7 +275,13 @@ function CostCenters({centers,payables}:{centers:FinanceSnapshot["costCenters"];
     {centers.length?<div className="cost-grid">{centers.map(c=>{const value=payables.filter(x=>x.costCenter===c.name).reduce((a,b)=>a+b.value,0);const share=`${Math.round(value/total*100)}%`;return <Card key={c.id}><span><FIcon name="cost"/></span>{c.code&&<Status>{c.code}</Status>}<h2>{c.name}</h2><strong>{money(value)}</strong><small>Contas a pagar lançadas · {share} do total</small><div><i style={{width:share}}/></div></Card>})}</div>
     :<Card className="finance-empty-card"><div className="finance-empty"><b>Nenhum centro de custo cadastrado</b><small>Os centros de custo entram junto com o plano de contas da PecSil (decisão D1 do plano de custo e margem).</small></div></Card>}
   </>}
-function Reports({open}:{open:(title:string)=>void}){const reports=[["Posição financeira","Saldos, compromissos e disponibilidades atuais."],["Contas a pagar por vencimento","Agenda financeira e exposição por fornecedor."],["Contas a receber e inadimplência","Recebíveis, atrasos e recuperação de crédito."],["Fluxo de caixa projetado","Entradas e saídas previstas pelos vencimentos."],["Despesas por centro de custo","Realizado por área."],["Conciliação bancária","Correspondências e pendências por conta."]];return <><Header eyebrow="FINANCEIRO · INTELIGÊNCIA" title="Relatórios financeiros" description="Indicadores calculados a partir dos títulos e contas lançados."/><div className="finance-report-grid">{reports.map(([title,desc])=><Card key={title}><span><FIcon name="report"/></span><h2>{title}</h2><p>{desc}</p><button onClick={()=>open(title)}>Abrir relatório <FIcon name="arrow"/></button></Card>)}</div></>}
+function Reports({open,canExpense}:{open:(title:string)=>void;canExpense:boolean}){
+  const [expense,setExpense]=useState(false);
+  const reports=[["Posição financeira","Saldos, compromissos e disponibilidades atuais."],["Contas a pagar por vencimento","Agenda financeira e exposição por fornecedor."],["Contas a receber e inadimplência","Recebíveis, atrasos e recuperação de crédito."],["Fluxo de caixa projetado","Entradas e saídas previstas pelos vencimentos."],["Despesas por centro de custo","Realizado por área."],["Conciliação bancária","Correspondências e pendências por conta."]];
+  if(expense)return <FinanceExpenseReport onBack={()=>setExpense(false)}/>;
+  return <><Header eyebrow="FINANCEIRO · INTELIGÊNCIA" title="Relatórios financeiros" description="Indicadores calculados a partir dos títulos e contas lançados."/><div className="finance-report-grid">
+    {canExpense&&<Card><span><FIcon name="report"/></span><h2>Gasto por conta do plano</h2><p>Custos, despesas e investimentos mês a mês, pelo rateio das contas a pagar.</p><button onClick={()=>setExpense(true)}>Abrir relatório <FIcon name="arrow"/></button></Card>}
+    {reports.map(([title,desc])=><Card key={title}><span><FIcon name="report"/></span><h2>{title}</h2><p>{desc}</p><button onClick={()=>open(title)}>Abrir relatório <FIcon name="arrow"/></button></Card>)}</div></>}
 function Homologation({values,setValues,track}:{values:HomologationItem[];setValues:React.Dispatch<React.SetStateAction<HomologationItem[]>>;track:(m:string)=>void}){
   const [tab,setTab]=useState<"Critérios"|"Alçadas"|"Plano de contas"|"Indicadores"|"Evidências">("Critérios");
   const [evidenceCount,setEvidenceCount]=useState(0);
@@ -372,5 +340,4 @@ function Homologation({values,setValues,track}:{values:HomologationItem[];setVal
 }
 
 function EntryForm({kind,centers,accounts,onClose,onSave}:{kind:"payable"|"receivable";centers:FinanceSnapshot["costCenters"];accounts:FinanceSnapshot["chartAccounts"];onClose:()=>void;onSave:(entry:Omit<Payable,"id">|Omit<Receivable,"id">)=>void}){const[party,setParty]=useState("");const[document,setDocument]=useState("");const[value,setValue]=useState("");const[due,setDue]=useState(hoje);const[category,setCategory]=useState("");const[costCenter,setCostCenter]=useState(centers[0]?.name??"");const postable=accounts.filter(a=>a.allowsPosting);const submit=(e:React.FormEvent)=>{e.preventDefault();const numeric=Number(value.replace(/[^0-9,]/g,"").replace(",","."));if(!party||!document||!numeric)return;if(kind==="payable")onSave({supplier:party,document,category:category||"Outras despesas",costCenter,due,value:numeric,status:"Pendente"});else onSave({customer:party,document,category:category||"Outras receitas",due,value:numeric,received:0,status:"Em aberto"})};return <div className="finance-layer"><form onSubmit={submit} onMouseDown={e=>e.stopPropagation()}><header><div><p className="eyebrow">FINANCEIRO · NOVO LANÇAMENTO</p><h2>{kind==="payable"?"Nova conta a pagar":"Nova conta a receber"}</h2><p>Registre o título com o documento e o vencimento.</p></div><button type="button" onClick={onClose}><FIcon name="close"/></button></header><div className="finance-form-fields"><label><span>{kind==="payable"?"Fornecedor":"Cliente"} *</span><input value={party} onChange={e=>setParty(e.target.value)}/></label><label><span>Documento *</span><input value={document} onChange={e=>setDocument(e.target.value)} placeholder="Ex.: NF 12345"/></label><label><span>Categoria</span>{postable.length?<select value={category} onChange={e=>setCategory(e.target.value)}><option value="">Selecione a conta</option>{postable.map(a=><option key={a.id} value={a.name}>{a.code} · {a.name}</option>)}</select>:<input value={category} onChange={e=>setCategory(e.target.value)} placeholder="Plano de contas ainda não cadastrado"/>}</label>{kind==="payable"&&<label><span>Centro de custo</span>{centers.length?<select value={costCenter} onChange={e=>setCostCenter(e.target.value)}>{centers.map(c=><option key={c.id} value={c.name}>{c.code?`${c.code} · `:""}{c.name}</option>)}</select>:<div className="finance-readonly">Nenhum centro de custo cadastrado</div>}</label>}<label><span>Vencimento *</span><input type="date" value={due} onChange={e=>setDue(e.target.value)}/></label><label><span>Valor *</span><input value={value} onChange={e=>setValue(e.target.value)} placeholder="0,00" inputMode="decimal"/></label></div><footer><button type="button" onClick={onClose}>Cancelar</button><Button type="submit">Salvar lançamento</Button></footer></form></div>}
-function Detail({item,onClose}:{item:Payable|Receivable;onClose:()=>void}){const isPayable="supplier" in item;return <div className="finance-layer"><Card className="finance-detail" onMouseDown={e=>e.stopPropagation()}><header><div><p className="eyebrow">DETALHE DO TÍTULO</p><h2>{isPayable?item.supplier:item.customer}</h2><p>{item.document}</p></div><button onClick={onClose}><FIcon name="close"/></button></header><dl><div><dt>Natureza</dt><dd>{isPayable?"Conta a pagar":"Conta a receber"}</dd></div><div><dt>Categoria</dt><dd>{item.category}</dd></div>{isPayable&&<div><dt>Centro de custo</dt><dd>{item.costCenter||"—"}</dd></div>}<div><dt>Vencimento</dt><dd>{date(item.due)}</dd></div><div><dt>Valor</dt><dd>{money(item.value)}</dd></div>{!isPayable&&<div><dt>Recebido</dt><dd>{money(item.received)}</dd></div>}<div><dt>Situação</dt><dd><Status tone={tone(item.status)}>{item.status}</Status></dd></div></dl></Card></div>}
 function ReportDetail({title,snapshot,payables,receivables,onClose}:{title:string;snapshot:FinanceSnapshot|null;payables:Payable[];receivables:Receivable[];onClose:()=>void}){const payableOpen=payables.filter(x=>x.status!=="Pago").reduce((a,b)=>a+b.value,0);const receiveOpen=receivables.reduce((a,b)=>a+b.value-b.received,0);const banks=snapshot?.bankAccounts.length??0;return <div className="finance-layer"><Card className="finance-detail report" onMouseDown={e=>e.stopPropagation()}><header><div><p className="eyebrow">RELATÓRIO FINANCEIRO</p><h2>{title}</h2><p>Posição em {date(hoje())}</p></div><button onClick={onClose}><FIcon name="close"/></button></header><div className="report-summary"><span><small>Saldo disponível</small><b>{banks?money(snapshot!.summary.availableBalance):"Sem conta bancária"}</b></span><span><small>A receber em aberto</small><b>{money(receiveOpen)}</b></span><span><small>A pagar em aberto</small><b>{money(payableOpen)}</b></span></div><div className="report-placeholder"><FIcon name="chart"/><b>Relatório detalhado ainda não disponível</b><small>Os números acima já são dos títulos e contas lançados. O detalhamento e a exportação entram numa próxima etapa.</small></div></Card></div>}
