@@ -16,7 +16,7 @@ import { agruparRecebiveis, emAberto, resumoRecebiveis, situacaoRecebivel, type 
  */
 
 type Direction = "payable" | "receivable";
-type Aba = "aberto" | "previsoes" | "quitados";
+type Aba = "aberto" | "previsoes" | "historico" | "quitados";
 type Filtro = "Em aberto" | "Vencidos" | "A vencer" | "Em aprovação" | "Revisar" | "Cancelados";
 
 const TEXTO = {
@@ -119,9 +119,11 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
   }, [aba, direction, mesQuitados]);
   const carregandoQuitados = aba === "quitados" && quitados?.chave !== chaveQuitados;
 
-  const reais = useMemo(() => titles.filter((t) => !t.isForecast), [titles]);
-  const previsoes = useMemo(() => titles.filter((t) => t.isForecast), [titles]);
-  const daAba = useMemo(() => (aba === "aberto" ? reais : aba === "previsoes" ? previsoes : quitados?.chave === chaveQuitados ? quitados.titulos : []), [aba, reais, previsoes, quitados, chaveQuitados]);
+  const reais = useMemo(() => titles.filter((t) => !t.isForecast && !t.historical), [titles]);
+  const previsoes = useMemo(() => titles.filter((t) => t.isForecast && !t.historical), [titles]);
+  // Títulos antigos que o sistema antigo ainda mostrava em aberto: à parte, para a equipe conferir.
+  const historico = useMemo(() => titles.filter((t) => t.historical), [titles]);
+  const daAba = useMemo(() => (aba === "aberto" ? reais : aba === "previsoes" ? previsoes : aba === "historico" ? historico : quitados?.chave === chaveQuitados ? quitados.titulos : []), [aba, reais, previsoes, historico, quitados, chaveQuitados]);
   const resumo = useMemo(() => resumoRecebiveis(daAba, today), [daAba, today]);
   const grupos = useMemo(() => [...new Set(daAba.map((t) => t.group ?? t.counterparty))].sort((a, b) => a.localeCompare(b, "pt-BR")), [daAba]);
   const meses = useMemo(() => [...new Set(daAba.filter((t) => EM_ABERTO.includes(situacaoRecebivel(t, today))).map((t) => vencimento(t).slice(0, 7)))].sort(), [daAba, today]);
@@ -191,11 +193,21 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
           ariaLabel="Tipo de título"
           value={aba}
           onChange={trocarAba}
-          options={[{ value: "aberto", label: `${texto.abaAberto} · ${conta(reais)}` }, { value: "previsoes", label: `Previsões · ${conta(previsoes)}` }, { value: "quitados", label: texto.abaQuitados }]}
+          options={[
+            { value: "aberto", label: `${texto.abaAberto} · ${conta(reais)}` },
+            { value: "previsoes", label: `Previsões · ${conta(previsoes)}` },
+            ...(historico.length || aba === "historico" ? [{ value: "historico" as const, label: `Histórico a conferir · ${conta(historico)}` }] : []),
+            { value: "quitados", label: texto.abaQuitados },
+          ]}
         />
       </div>
 
       {aba === "previsoes" && <Callout variant="info" title={texto.previsaoTitulo}>{texto.previsao}</Callout>}
+      {aba === "historico" && (
+        <Callout variant="warning" title="Títulos antigos para conferir com o financeiro">
+          O sistema antigo ainda mostrava estes títulos em aberto, com vencimento anterior a 2026. Muitos provavelmente já foram {texto.quitados} e nunca baixados lá. Eles não entram no total, no painel nem no fluxo de caixa. Para cada um: {texto.baixar.toLowerCase()} (com a data real), cancelar, ou Manter em aberto se a dívida existe mesmo.
+        </Callout>
+      )}
 
       {aba === "quitados" ? (
         <KpiGrid>
@@ -205,9 +217,9 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
         </KpiGrid>
       ) : (
         <KpiGrid>
-          <Kpi label={aba === "aberto" ? "Em aberto" : "Previsto em aberto"} value={moneyShort(resumo.aberto)} caption={plural(resumo.quantidade, "título", "títulos")} tone={aba === "aberto" ? (direction === "payable" ? "amber" : "green") : "purple"} />
-          <Kpi label={aba === "aberto" ? "Vencido" : "Com data já passada"} value={moneyShort(resumo.vencido)} caption={plural(resumo.quantidadeVencida, "título", "títulos")} tone="red" onOpen={() => setFiltro("Vencidos")} />
-          <Kpi label={aba === "aberto" ? "A vencer" : "Com data futura"} value={moneyShort(resumo.aVencer)} caption={resumo.proximo ? `Próximo: ${date(resumo.proximo)}` : "Nenhum vencimento futuro"} tone="blue" onOpen={() => setFiltro("A vencer")} />
+          <Kpi label={aba === "aberto" ? "Em aberto" : aba === "historico" ? "A conferir" : "Previsto em aberto"} value={moneyShort(resumo.aberto)} caption={plural(resumo.quantidade, "título", "títulos")} tone={aba === "aberto" ? (direction === "payable" ? "amber" : "green") : "purple"} />
+          <Kpi label={aba === "aberto" || aba === "historico" ? "Vencido" : "Com data já passada"} value={moneyShort(resumo.vencido)} caption={plural(resumo.quantidadeVencida, "título", "títulos")} tone="red" onOpen={() => setFiltro("Vencidos")} />
+          <Kpi label={aba === "aberto" || aba === "historico" ? "A vencer" : "Com data futura"} value={moneyShort(resumo.aVencer)} caption={resumo.proximo ? `Próximo: ${date(resumo.proximo)}` : "Nenhum vencimento futuro"} tone="blue" onOpen={() => setFiltro("A vencer")} />
           {direction === "payable" && aba === "aberto" && emAprovacao > 0
             ? <Kpi label="Em aprovação" value={String(emAprovacao)} caption="Contas novas aguardando aprovação" tone="amber" onOpen={() => setFiltro("Em aprovação")} />
             : <Kpi label="Para revisar" value={String(resumo.revisar)} caption="Lançamentos que pedem conferência" tone="amber" onOpen={() => setFiltro("Revisar")} />}
@@ -351,7 +363,7 @@ function Detalhe({ direction, titulo, hoje: today, accounts, canEdit, canSettle,
         {titulo.reviewReason && <Callout variant="warning" title="Conferir este lançamento">{titulo.reviewReason}.</Callout>}
         <dl>
           <div><dt>Valor</dt><dd><b>{money(titulo.originalAmount)}</b></dd></div>
-          <div><dt>Situação</dt><dd><Status tone={TONE[situacao]}>{situacao === "Recebido" ? texto.quitado : situacao}</Status>{titulo.isForecast && <Status tone="purple">Previsão</Status>}</dd></div>
+          <div><dt>Situação</dt><dd><Status tone={TONE[situacao]}>{situacao === "Recebido" ? texto.quitado : situacao}</Status>{titulo.isForecast && <Status tone="purple">Previsão</Status>}{titulo.historical && <Status tone="attention">Histórico a conferir</Status>}</dd></div>
           <div><dt>Vencimento</dt><dd>{date(titulo.installments[0]?.dueDate)}</dd></div>
           <div><dt>Lançamento</dt><dd>{date(titulo.issueDate)}</dd></div>
           <div><dt>Documento</dt><dd>{titulo.documentNumber ?? "—"}{titulo.documentType ? ` · ${titulo.documentType}` : ""}</dd></div>
@@ -381,6 +393,7 @@ function Detalhe({ direction, titulo, hoje: today, accounts, canEdit, canSettle,
           <footer>
             {canSettle && <Button type="button" variant="ghost" className="perigo-texto esquerda" onClick={() => setConfirmar("excluir")}>Excluir</Button>}
             {canEdit && <Button type="button" variant="secondary" onClick={() => setModo("editar")}>Editar</Button>}
+            {canEdit && titulo.historical && aberto && <Button type="button" variant="secondary" disabled={ocupado} onClick={() => operar(() => chamar(`/api/finance/titulos/${titulo.id}`, "PATCH", { historical: false }), `Histórico conferido, volta para ${texto.abaAberto}: ${quem}.`)}>Manter em aberto</Button>}
             {canSettle && aberto && <Button type="button" variant="secondary" className="perigo-texto" onClick={() => setConfirmar("cancelar")}>Cancelar título</Button>}
             {canSettle && situacao === "Em aprovação" && <Button type="button" disabled={ocupado} onClick={() => operar(() => chamar("/api/finance", "PATCH", { type: "approve", titleId: titulo.id }), `Conta a pagar aprovada: ${quem}.`)}>Aprovar</Button>}
             {canSettle && aberto && situacao !== "Em aprovação" && <Button type="button" className="sucesso" onClick={() => setModo("baixar")}>{titulo.isForecast ? "Dar baixa" : texto.baixar}</Button>}

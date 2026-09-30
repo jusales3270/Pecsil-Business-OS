@@ -32,6 +32,11 @@ export type FinanceTitle = {
   installments: FinanceInstallment[];
   /** Previsão (orçamento sem nota ou duplicata já antecipada): fora do "A receber". */
   isForecast: boolean;
+  /**
+   * Histórico a conferir: título antigo que o sistema antigo ainda mostrava em
+   * aberto. Fica fora de "A pagar", previsões, painel e fluxo até a equipe decidir.
+   */
+  historical: boolean;
   /** Apelido do grupo do cliente (ex.: FILIAL VIDROS, O-I / SP). */
   group: string | null;
   documentType: string | null;

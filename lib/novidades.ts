@@ -27,6 +27,35 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-09-30-financeiro-historico-pagar",
+    data: "2026-09-30",
+    area: "Financeiro",
+    modulos: ["financeiro"],
+    titulo: "Histórico de contas pagas desde 2016",
+    itens: [
+      "Contas a pagar recebeu o histórico do sistema antigo de 2016 em diante (fornecedores de A até BOL): mais de 10 mil títulos, quase todos já pagos, com data e valor do pagamento.",
+      "Nova aba Histórico a conferir: títulos antigos que o sistema antigo ainda mostrava em aberto. Ficam fora do total a pagar, do painel e do fluxo até a equipe conferir cada um: registrar o pagamento, cancelar ou Manter em aberto.",
+      "Pagamento feito com desconto aparece quitado, com o desconto registrado.",
+    ],
+  },
+  {
+    id: "2026-09-30-financeiro-painel-graficos",
+    data: "2026-09-30",
+    area: "Financeiro",
+    modulos: ["financeiro"],
+    titulo: "Painel do Financeiro com gráficos",
+    itens: [
+      "Novo gráfico de pagamentos, recebimentos e resultado mês a mês, comparado com o ano anterior quando houver lançamentos.",
+      "Gráfico do que está a receber e a pagar por mês de vencimento. Passe o mouse para ver o valor de cada mês.",
+      "Comparação do mês atual com o anterior, com a variação em porcentagem.",
+      "O anel de A receber e a pagar foi redesenhado e o saldo agora cabe dentro dele.",
+      "Ações que exigem atenção agora ficam abaixo dos gráficos.",
+      "As seções do Financeiro (Contas a pagar, Plano de contas, Relatórios…) também aparecem no menu lateral, abaixo de Financeiro.",
+      "A aba Plano de contas aparece para todos do Financeiro, para consulta. Incluir, editar, mover e excluir contas continua com quem tem a permissão Plano de contas.",
+      "O painel e o relatório de gasto por conta abrem rápido com todos os títulos carregados, e o relatório mostra o ano inteiro.",
+    ],
+  },
+  {
     id: "2026-09-30-financeiro-contas-a-pagar",
     data: "2026-09-30",
     area: "Financeiro",

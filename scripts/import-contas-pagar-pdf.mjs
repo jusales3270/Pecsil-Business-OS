@@ -27,7 +27,17 @@
  *   node scripts/import-contas-pagar-pdf.mjs --file "~/Desktop/pagar 2026.pdf" --url http://<supabase>
  *   node scripts/import-contas-pagar-pdf.mjs --file … --url … --apply
  *
- * Opções: --out <pasta> (padrão: ao lado do --file)
+ * Opções:
+ *   --out <pasta>                 onde gravar planilha e resumo (padrão: ao lado do --file)
+ *   --arquivo-cortado             o PDF veio incompleto (ex.: "Página 1 de 6329" com 899
+ *                                 páginas): aceita a falta do Total Geral e deixa de fora
+ *                                 só o grupo que ficou sem bloco de totais
+ *   --historico-antes AAAA-MM-DD  o que continua em aberto no relatório com vencimento
+ *                                 antes desta data entra como "histórico a conferir"
+ *                                 (fora dos totais, aba própria) até a equipe revisar
+ *
+ * Relatório mais completo por cima de uma carga anterior: só entra o que ainda não
+ * está no banco (mesma chave), o que já foi gravado fica como está.
  * Requer SUPABASE_SERVICE_ROLE_KEY e, só para ler o PDF, o pacote pdfjs-dist
  * (não é dependência do app): npm i --no-save pdfjs-dist@4
  * ============================================================================
@@ -36,7 +46,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { LAYOUT_PAGAR, allocationIssue, conferirRelatorio, isPlaceholder, legacyKeyOf, parseRelatorioTitulos, reviewReasons } from "../lib/finance/relatorio-titulos-parser.ts";
 
 const envPath = resolve(process.cwd(), ".env.local");
@@ -64,6 +74,13 @@ if (!file || !existsSync(file)) {
   process.exit(1);
 }
 const outDir = resolve(getArg("--out")?.replace(/^~/, homedir()) ?? dirname(file));
+const cortado = args.includes("--arquivo-cortado");
+const historicoAntes = getArg("--historico-antes");
+if (historicoAntes && !/^\d{4}-\d{2}-\d{2}$/.test(historicoAntes)) {
+  console.error("--historico-antes pede uma data AAAA-MM-DD");
+  process.exit(1);
+}
+const baseName = basename(file).replace(/\.pdf$/i, "").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase();
 
 // --- 1. Texto posicionado do PDF ------------------------------------------------
 let getDocument;
@@ -82,7 +99,14 @@ for (let number = 1; number <= pdf.numPages; number += 1) {
 
 // --- 2. Leitura e conferência com os totais do relatório -------------------------
 const report = parseRelatorioTitulos(pages, LAYOUT_PAGAR);
-const { problems, notices } = conferirRelatorio(report, 1);
+const conferencia = conferirRelatorio(report, 1);
+const notices = conferencia.notices;
+// Arquivo cortado: o último grupo termina sem totais e não há Total Geral. Só esses
+// dois avisos são aceitos; o grupo incompleto fica de fora inteiro.
+const semTotais = report.titles.filter((title) => title.block >= report.groups.length);
+const problems = cortado
+  ? conferencia.problems.filter((problem) => !/sem bloco de totais do grupo|Total Geral não encontrado/.test(problem))
+  : conferencia.problems;
 const brl = (cents) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const sum = (list, field = "cents") => list.reduce((acc, row) => acc + row.title[field], 0);
 
@@ -97,6 +121,7 @@ if (problems.length) {
 const squeeze = (text) => text.replace(/\s+/g, "");
 const seen = new Map();
 const rows = report.titles.map((original) => {
+  const incompleto = semTotais.includes(original);
   // O nome do fornecedor quebra no meio da palavra dentro do título; o do grupo vem inteiro.
   const title = { ...original, party: squeeze(original.party) === squeeze(original.group) ? original.group : original.party };
   const base = legacyKeyOf("cp", title, 0);
@@ -107,26 +132,35 @@ const rows = report.titles.map((original) => {
   // Rateio: diferença de até 2 centavos é arredondamento (ajusta a maior linha); acima disso, a equipe revisa.
   const issue = allocationIssue(title);
   let allocations = title.allocations.filter((allocation) => allocation.code && allocation.cents > 0);
-  if (issue && Math.abs(issue.diff) <= 2) {
+  if (issue && Math.abs(issue.diff) <= 2 && allocations.length) {
     const largest = allocations.reduce((a, b) => (b.cents > a.cents ? b : a));
     allocations = allocations.map((allocation) => (allocation === largest ? { ...allocation, cents: allocation.cents - issue.diff } : allocation));
   } else if (issue) review.push(`Rateio do relatório soma ${brl(issue.allocated)}, não o valor do título`);
-  return { title, allocations, key: legacyKeyOf("cp", title, occurrence), skip: isPlaceholder(title) ? "Valor simbólico (até R$ 1,00)" : null, review };
+  const semFornecedor = !title.party.replace(/\*/g, "").trim();
+  const skip = incompleto ? "Grupo cortado no fim do arquivo (sem totais para conferir)"
+    : isPlaceholder(title) ? "Valor simbólico (até R$ 1,00)"
+    : semFornecedor ? "Sem fornecedor no relatório"
+    : !allocations.length ? "Sem conta do plano no relatório"
+    : null;
+  // Em aberto há muito tempo no sistema antigo: histórico a conferir, fora dos totais.
+  const historical = Boolean(historicoAntes && !title.paid && title.dueDate < historicoAntes);
+  if (historical) review.unshift(`Histórico do sistema antigo: em aberto lá desde ${title.dueDate.split("-").reverse().join("/")}; conferir se foi pago`);
+  return { title, allocations, key: legacyKeyOf("cp", title, occurrence), skip, review, historical };
 });
 const entering = rows.filter((row) => !row.skip);
 const aside = rows.filter((row) => row.skip);
 const paid = entering.filter((row) => row.title.paid);
-const open = entering.filter((row) => !row.title.paid && !row.title.forecast);
-const forecast = entering.filter((row) => !row.title.paid && row.title.forecast);
+const historical = entering.filter((row) => row.historical);
+const open = entering.filter((row) => !row.title.paid && !row.title.forecast && !row.historical);
+const forecast = entering.filter((row) => !row.title.paid && row.title.forecast && !row.historical);
 const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
 const lines = [];
 const say = (text = "") => { lines.push(text); console.log(text); };
 const table = (label, list, field = "cents") => say(`  ${label.padEnd(36)} ${String(list.length).padStart(5)} títulos  ${brl(sum(list, field)).padStart(20)}`);
-const total = report.grand.total;
-
 say(`Conferido com o relatório: ${report.groups.length} blocos dentro da tolerância de 1 centavo por título.`);
-say(`Total Geral impresso: lançado ${brl(total.issued)} · pago ${brl(total.paid)}`);
+if (report.grand) say(`Total Geral impresso: lançado ${brl(report.grand.total.issued)} · pago ${brl(report.grand.total.paid)}`);
+else say(`ARQUIVO CORTADO: sem Total Geral. ${semTotais.length} título(s) do grupo ${semTotais[0]?.group ?? "—"} ficam de fora por não terem totais.`);
 say(`Soma das linhas:      lançado ${brl(report.titles.reduce((a, t) => a + t.cents, 0))} · pago ${brl(report.titles.reduce((a, t) => a + t.paidCents, 0))}`);
 
 say("\n== O que entra ==");
@@ -138,6 +172,8 @@ table("  · a vencer", open.filter((row) => row.title.dueDate >= today));
 table("Previsões (em aberto)", forecast);
 table("  · com data já passada", forecast.filter((row) => row.title.dueDate < today));
 table("  · com data futura", forecast.filter((row) => row.title.dueDate >= today));
+table("Histórico a conferir (em aberto antes de " + (historicoAntes ?? "—") + ")", historical);
+table("  · eram previsão", historical.filter((row) => row.title.forecast));
 table("Total que entra", entering);
 
 const months = [...new Set(entering.map((row) => row.title.dueDate.slice(0, 7)))].sort();
@@ -161,7 +197,7 @@ for (const row of above) say(`  ${row.title.group} · ${row.title.document} · $
 say(`\n== Fica à parte (não entra): ${aside.length} títulos · ${brl(sum(aside))} ==`);
 for (const row of aside) say(`  ${row.title.group} · ${row.title.document || row.title.history.slice(0, 40) || "—"} · venc. ${row.title.dueDate} · ${brl(row.title.cents)} · ${row.skip}`);
 
-const toReview = entering.filter((row) => row.review.length);
+const toReview = entering.filter((row) => row.review.length && !row.historical);
 say(`\n== Entram com aviso "revisar": ${toReview.length} títulos · ${brl(sum(toReview))} ==`);
 for (const row of toReview) say(`  ${row.title.group} · ${row.title.document || row.title.history.slice(0, 40)} · lanç. ${row.title.issueDate} · venc. ${row.title.dueDate} · ${brl(row.title.cents)} · ${row.title.paid ? "pago" : "em aberto"} · ${row.review.join("; ")}`);
 
@@ -209,18 +245,24 @@ say(`\n== Fornecedores: ${parties.length} no relatório · ${parties.length - fr
 const already = await readAll("finance_titles", "legacy_key", (q) => q.eq("organization_id", org.id).like("legacy_key", "cp|%"));
 const loaded = new Set(already.map((row) => row.legacy_key));
 const pending = entering.filter((row) => !loaded.has(row.key));
-say(`\n== Banco: ${loaded.size} título(s) desta carga já gravado(s) · ${pending.length} a gravar ==`);
+const known2 = entering.filter((row) => loaded.has(row.key));
+say(`\n== Banco: ${loaded.size} título(s) do sistema antigo já gravado(s) · ${known2.length} deste arquivo já estão lá (ficam como estão) · ${pending.length} a gravar ==`);
+const tablePending = (label, list, field) => table(label, list.filter((row) => !loaded.has(row.key)), field);
+tablePending("  · pagos", paid);
+tablePending("  · a pagar", open);
+tablePending("  · previsões", forecast);
+tablePending("  · histórico a conferir", historical);
 
-const csv = [["situacao", "fornecedor", "lancamento", "vencimento", "pagamento", "documento", "tipo", "valor", "valor_pago", "previsao", "contas", "historico", "observacao", "revisar"].join(";")];
+const csv = [["situacao", "no_banco", "fornecedor", "lancamento", "vencimento", "pagamento", "documento", "tipo", "valor", "valor_pago", "previsao", "contas", "historico", "observacao", "revisar"].join(";")];
 const cell = (value) => `"${String(value ?? "").replace(/"/g, '""').replace(/\n/g, " | ")}"`;
 const num = (cents) => (cents / 100).toFixed(2).replace(".", ",");
 for (const row of rows) {
   const t = row.title;
-  csv.push([row.skip ? "fica à parte: " + row.skip : t.paid ? "pago" : t.forecast ? "previsão" : "a pagar", t.party, t.issueDate, t.dueDate, t.paidDate ?? "", t.document, t.documentType, num(t.cents), t.paid ? num(t.paidCents) : "", t.forecast ? "sim" : "não",
+  csv.push([row.skip ? "fica à parte: " + row.skip : t.paid ? "pago" : row.historical ? "histórico a conferir" : t.forecast ? "previsão" : "a pagar", loaded.has(row.key) ? "já gravado" : row.skip ? "" : "novo", t.party, t.issueDate, t.dueDate, t.paidDate ?? "", t.document, t.documentType, num(t.cents), t.paid ? num(t.paidCents) : "", t.forecast ? "sim" : "não",
     row.allocations.map((a) => `${a.code} ${num(a.cents)}`).join(" + "), t.history, t.notes, row.review.join("; ")].map(cell).join(";"));
 }
-const csvPath = resolve(outDir, "contas-pagar-carga.csv");
-const reportPath = resolve(outDir, "contas-pagar-carga.txt");
+const csvPath = resolve(outDir, `${baseName}-carga.csv`);
+const reportPath = resolve(outDir, `${baseName}-carga.txt`);
 writeFileSync(csvPath, "﻿" + csv.join("\n"), { mode: 0o600 });
 
 if (!apply) {
@@ -248,6 +290,7 @@ const payload = pending.map((row) => {
     due_date: t.dueDate,
     amount: t.cents / 100,
     forecast: t.forecast,
+    historical: row.historical,
     review_reason: row.review.join("; "),
     paid_date: t.paid ? t.paidDate : null,
     paid_amount: t.paid ? t.paidCents / 100 : null,

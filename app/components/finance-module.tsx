@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button, Callout, Card, Donut, Kpi, KpiGrid, Legend, Segmented, Status } from "../../packages/design-system";
+import { Button, Callout, Card, Kpi, KpiGrid, Segmented, Status } from "../../packages/design-system";
 import { canUseFeature, type ModuleAccessContext } from "../../modules";
 import type { FinanceSnapshot, FinanceTitle } from "../../lib/data/finance";
 import { useModuleNav } from "../../lib/module-nav-context";
 import { FinanceChart } from "./finance-chart";
+import { FinancePainelGraficos } from "./finance-painel-graficos";
 import { FinanceTitles } from "./finance-titles";
 import { FinanceCashFlow, FinanceExpenseReport } from "./finance-reports";
 import { situacaoRecebivel } from "../../lib/finance/recebiveis-core";
@@ -13,7 +14,7 @@ import { situacaoRecebivel } from "../../lib/finance/recebiveis-core";
 const sections = [
   ["Painel", "grid"], ["Contas a pagar", "payable"], ["Contas a receber", "receivable"],
   ["Fluxo de caixa", "chart"], ["Bancos e conciliação", "bank"], ["Centros de custo", "cost"],
-  ["Plano de contas", "report"],
+  ["Plano de contas", "tree"],
   ["Relatórios", "report"], ["Homologação", "check"],
 ] as const;
 type FinanceSection = (typeof sections)[number][0];
@@ -24,7 +25,8 @@ const SECTION_FEATURE: Partial<Record<FinanceSection, string>> = {
   "Fluxo de caixa": "financeiro.fluxo",
   "Bancos e conciliação": "financeiro.bancos",
   "Centros de custo": "financeiro.centros",
-  "Plano de contas": "financeiro.plano",
+  // Plano de contas: todo mundo do Financeiro consulta (é a lista de contas dos
+  // lançamentos); incluir, editar, mover e excluir exigem financeiro.plano (operar).
   "Relatórios": "financeiro.relatorios",
   "Homologação": "financeiro.homologacao",
 };
@@ -119,12 +121,22 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
     registerNav({
       moduleId: "financeiro",
       moduleName: "Financeiro",
+      // Seções também no menu lateral, sob o Financeiro: a barra de cima rola e
+      // esconde as últimas abas quando não cabem.
+      sidebarTree: true,
       items: accessibleSections.map(([label, icon]) => ({ id: label, label, icon })),
       activeId: section,
       onSelect: (id) => setSection(id as FinanceSection),
     });
     return () => registerNav(null);
   }, [accessibleSections, section, registerNav]);
+
+  // Seção aberta pelo menu lateral: a barra de cima rola até a aba ativa.
+  useEffect(() => {
+    const bar = document.querySelector<HTMLElement>(".ds-module-bar > .ds-segmented");
+    const ativa = bar?.querySelector<HTMLElement>("button.active");
+    if (bar && ativa) bar.scrollTo({ left: ativa.offsetLeft - (bar.clientWidth - ativa.offsetWidth) / 2, behavior: "smooth" });
+  }, [section]);
 
   async function loadFinanceData(signal?: AbortSignal) {
     try {
@@ -133,9 +145,9 @@ export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:st
       const data = (await res.json()) as FinanceSnapshot;
       if (data && Array.isArray(data.titles)) {
         setSnapshot(data);
-        setPayables(data.titles.filter(t => t.direction === "payable" && !t.isForecast && t.status !== "cancelled").map(mapTitleToPayable));
+        setPayables(data.titles.filter(t => t.direction === "payable" && !t.isForecast && !t.historical && t.status !== "cancelled").map(mapTitleToPayable));
         // Painel e fluxo de caixa usam só o que tem nota: previsão e cancelado ficam de fora.
-        setReceivables(data.titles.filter(t => t.direction === "receivable" && !t.isForecast && t.status !== "cancelled").map(mapTitleToReceivable));
+        setReceivables(data.titles.filter(t => t.direction === "receivable" && !t.isForecast && !t.historical && t.status !== "cancelled").map(mapTitleToReceivable));
       }
     } catch {
       // Sem conexão: as listas ficam como estavam (vazias no início).
@@ -233,10 +245,11 @@ function Dashboard({payables,receivables,snapshot,setSection,access}:{payables:P
   const pendencias:[string,string,FinanceSection,"payable"|"receivable"|"bank"][]=[
     ...(vencidosPagar.length>3?[[`${vencidosPagar.length} contas a pagar vencidas`,`${money(vencidosPagar.reduce((a,x)=>a+x.value,0))} · a mais antiga venceu em ${date(vencidosPagar.map(x=>x.due).sort()[0])}`,"Contas a pagar","payable"] as [string,string,FinanceSection,"payable"]]:vencidosPagar.map(x=>[`Pagamento vencido · ${x.supplier}`,`${money(x.value)} · venceu em ${date(x.due)}`,"Contas a pagar","payable"] as [string,string,FinanceSection,"payable"])),
     ...(vencidosReceber.length>3?[[`${vencidosReceber.length} títulos a receber vencidos`,`${money(vencidosReceber.reduce((a,x)=>a+x.value-x.received,0))} · o mais antigo venceu em ${date(vencidosReceber.map(x=>x.due).sort()[0])}`,"Contas a receber","receivable"] as [string,string,FinanceSection,"receivable"]]:vencidosReceber.map(x=>[`Título vencido · ${x.customer}`,`${money(x.value-x.received)} · venceu em ${date(x.due)}`,"Contas a receber","receivable"] as [string,string,FinanceSection,"receivable"])),
+    // Histórico do sistema antigo à espera de conferência (fora dos totais acima).
+    ...(["payable","receivable"] as const).flatMap(dir=>{const lista=(snapshot?.titles??[]).filter(t=>t.direction===dir&&t.historical);return lista.length?[[`${plural(lista.length,"título antigo","títulos antigos")} a conferir · ${dir==="payable"?"a pagar":"a receber"}`,`${money(lista.reduce((acc,t)=>acc+t.originalAmount,0))} · em aberto no sistema antigo antes de 2026, fora dos totais · aba Histórico a conferir`,dir==="payable"?"Contas a pagar":"Contas a receber",dir] as [string,string,FinanceSection,"payable"|"receivable"]]:[]}),
     ...((snapshot?.summary.pendingApprovals??0)>0?[["Aprovações pendentes",plural(snapshot!.summary.pendingApprovals,"título aguardando","títulos aguardando"),"Contas a pagar","payable"] as [string,string,FinanceSection,"payable"]]:[]),
     ...((snapshot?.summary.unreconciledEntries??0)>0?[["Conciliação bancária",plural(snapshot!.summary.unreconciledEntries,"lançamento sem correspondência","lançamentos sem correspondência"),"Bancos e conciliação","bank"] as [string,string,FinanceSection,"bank"]]:[]),
   ];
-  const slices=[{label:"A receber",value:receiveOpen,tone:"green" as const},{label:"A pagar",value:payableOpen,tone:"amber" as const}];
   return <><Header eyebrow={`FINANCEIRO · ${access.role.toUpperCase()}`} title="Visão financeira" description={`Caixa, compromissos e recebíveis autorizados para ${access.scopeLabel.toLowerCase()}.`}/>
     <KpiGrid>
       <Metric value={banks?moneyShort(balance):"—"} label="Saldo disponível" meta={banks?plural(banks,"conta bancária","contas bancárias"):"Nenhuma conta bancária cadastrada"} toneName="blue"/>
@@ -244,16 +257,12 @@ function Dashboard({payables,receivables,snapshot,setSection,access}:{payables:P
       <Metric value={moneyShort(payableOpen)} label="A pagar" meta={`${plural(payables.filter(x=>x.status!=="Pago").length,"título em aberto","títulos em aberto")}${(snapshot?.summary.payableForecast??0)>0?` · previsões à parte: ${moneyShort(snapshot!.summary.payableForecast)}`:""}`} toneName="amber"/>
       <Metric value={banks?moneyShort(balance+receiveOpen-payableOpen):moneyShort(receiveOpen-payableOpen)} label="Saldo projetado" meta={banks?"Saldo + a receber − a pagar":"A receber − a pagar"} toneName="purple"/>
     </KpiGrid>
-    <div className="finance-dashboard-grid">
-      <Card className="finance-pending"><div className="finance-card-head"><div><p className="eyebrow">CENTRAL FINANCEIRA</p><h2>Ações que exigem atenção</h2><p>Compromissos, cobranças e conciliações pendentes.</p></div><Status tone={pendencias.length?"attention":"success"}>{pendencias.length?plural(pendencias.length,"pendência","pendências"):"Sem pendências"}</Status></div>
+    <FinancePainelGraficos receiveOpen={receiveOpen} payableOpen={payableOpen} podeFluxo={canUseFeature(access,"financeiro.fluxo")||canUseFeature(access,"financeiro.relatorios")} abrirFluxo={()=>setSection("Fluxo de caixa")}/>
+      <Card className="finance-pending fin-pendencias"><div className="finance-card-head"><div><p className="eyebrow">CENTRAL FINANCEIRA</p><h2>Ações que exigem atenção</h2><p>Compromissos, cobranças e conciliações pendentes.</p></div><Status tone={pendencias.length?"attention":"success"}>{pendencias.length?plural(pendencias.length,"pendência","pendências"):"Sem pendências"}</Status></div>
         {pendencias.slice(0,6).map(([title,meta,target,icon])=><button key={title+meta} onClick={()=>setSection(target)}><span><FIcon name={icon}/></span><span><b>{title}</b><small>{meta}</small></span><Status tone={icon==="bank"?"attention":"danger"}>{icon==="bank"?"Conferir":"Prioridade"}</Status><FIcon name="arrow"/></button>)}
         {!pendencias.length&&<div className="finance-empty"><b>Nenhuma pendência</b><small>Títulos vencidos, aprovações e conciliações aparecem aqui.</small></div>}
       </Card>
-      <Card className="finance-position"><p className="eyebrow">EM ABERTO</p><h2>A receber e a pagar</h2>
-        {receiveOpen+payableOpen>0?<><div className="finance-donut"><Donut slices={slices} total={receiveOpen-payableOpen} caption="diferença" size={170}/></div><Legend slices={slices}/><dl><div><dt>A receber</dt><dd>{money(receiveOpen)}</dd></div><div><dt>A pagar</dt><dd>{money(payableOpen)}</dd></div></dl></>
-        :<div className="finance-empty"><b>Sem títulos em aberto</b><small>O gráfico aparece quando houver contas a pagar ou a receber.</small></div>}
-        <button onClick={()=>setSection("Fluxo de caixa")}>Ver fluxo de caixa <FIcon name="arrow"/></button></Card>
-    </div></>}
+    </>}
 function Banks({accounts,unreconciled}:{accounts:FinanceSnapshot["bankAccounts"];unreconciled:number}){
   return <><Header eyebrow="FINANCEIRO · BANCOS" title="Bancos e conciliação" description="Contas bancárias da empresa e conciliação com os lançamentos."/>
     {accounts.length?<div className="bank-grid">{accounts.map(x=><Card key={x.id} className="bank-card"><span><FIcon name="bank"/></span><Status tone={x.active?"success":"neutral"}>{x.active?"Ativa":"Inativa"}</Status><h2>{x.name}</h2><p>Agência {x.branch} · Conta {x.accountNumber}</p><strong>{money(x.balance)}</strong><small>Saldo inicial cadastrado</small></Card>)}</div>

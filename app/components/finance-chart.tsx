@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Modal, Status } from "../../packages/design-system";
+import { Button, Callout, Modal, Status } from "../../packages/design-system";
 import {
   MANAGEMENT_TYPES,
   MAX_DEPTH,
@@ -233,6 +233,7 @@ export function FinanceChart({ notify }: { notify: (message: string) => void }) 
         </div>
         {canEdit && <Button onClick={() => setJanela({ tipo: "nova", pai: null })}><Icone nome="mais" /> Nova conta</Button>}
       </div>
+      {!loading && !canEdit && !erro && <Callout variant="info" title="Só consulta">Para incluir, editar, mover ou excluir contas, peça ao responsável a permissão Financeiro › Plano de contas, nível operar.</Callout>}
 
       <div className="plano-toolbar">
         <label className="plano-search"><Icone nome="busca" /><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar por código ou nome…" aria-label="Buscar conta" /></label>

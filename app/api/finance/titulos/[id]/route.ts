@@ -15,6 +15,8 @@ type Body = {
   amount?: number;
   chartAccountId?: string;
   isForecast?: boolean;
+  /** false = "Manter em aberto": o histórico conferido volta para o em aberto. */
+  historical?: boolean;
   reviewed?: boolean;
 };
 
@@ -61,6 +63,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     changes.issue_date = body.issueDate;
   }
   if (typeof body.isForecast === "boolean") changes.is_forecast = body.isForecast;
+  if (body.historical === false) { changes.is_historical = false; changes.needs_review = false; changes.review_reason = null; }
   if (body.reviewed) { changes.needs_review = false; changes.review_reason = null; }
 
   const installments = (title.finance_installments ?? []) as { id: string; amount: number; settled_amount: number; status: string }[];

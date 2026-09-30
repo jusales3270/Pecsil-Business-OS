@@ -10,17 +10,17 @@ import { MANAGEMENT_TYPES, type ManagementType } from "../../lib/finance/plano-c
  * milhares de títulos para somar aqui.
  */
 
-const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+export const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const inteiro = (value: number) => Math.round(value).toLocaleString("pt-BR");
-const moneyShort = (value: number) =>
+export const moneyShort = (value: number) =>
   Math.abs(value) >= 1_000_000 ? `R$ ${(value / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} mi`
   : Math.abs(value) >= 10_000 ? `R$ ${(value / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} mil`
   : money(value);
-const anoAtual = () => Number(new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 4));
-const mesAtual = () => Number(new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(5, 7));
+export const anoAtual = () => Number(new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 4));
+export const mesAtual = () => Number(new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(5, 7));
 
-function useAno<T>(url: (ano: number) => string, ano: number, extra = "") {
+export function useAno<T>(url: (ano: number) => string, ano: number, extra = "") {
   const chave = `${ano}|${extra}`;
   const [estado, setEstado] = useState<{ chave: string; dados: T | null; erro: string } | null>(null);
   const endereco = url(ano);
@@ -49,7 +49,7 @@ function Ano({ ano, setAno }: { ano: number; setAno: (ano: number) => void }) {
    Fluxo de caixa
    ------------------------------------------------------------------------- */
 
-type CashRow = { month: number; direction: "payable" | "receivable"; realized: number; open: number; forecast: number };
+export type CashRow = { month: number; direction: "payable" | "receivable"; realized: number; open: number; forecast: number };
 
 export function FinanceCashFlow() {
   const [ano, setAno] = useState(anoAtual);

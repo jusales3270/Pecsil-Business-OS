@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
-import { requireFeature } from "../../../../lib/auth/feature-guard";
+import { requireAnyFeature, requireFeature } from "../../../../lib/auth/feature-guard";
 import { isManagementType, validateCode } from "../../../../lib/finance/plano-contas-core";
 import { CHART_COLUMNS, chartError, toChartAccount, type ChartRow } from "../../../../lib/finance/plano-contas-db";
 
 export const dynamic = "force-dynamic";
 
+/** Quem tem qualquer parte do Financeiro consulta o plano; alterar exige financeiro.plano (operar). */
+const FINANCEIRO = ["financeiro.plano", "financeiro.pagar", "financeiro.receber", "financeiro.fluxo", "financeiro.bancos", "financeiro.centros", "financeiro.relatorios", "financeiro.homologacao"];
+
 /** Plano de contas completo (inclusive inativas), na ordem dos códigos. */
 export async function GET() {
-  const guard = await requireFeature("financeiro.plano");
+  const guard = await requireAnyFeature(FINANCEIRO);
   if ("error" in guard) return guard.error;
   const { data, error } = await guard.supabase.from("finance_chart_accounts").select(CHART_COLUMNS).order("code", { nullsFirst: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

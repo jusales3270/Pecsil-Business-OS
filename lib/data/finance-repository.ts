@@ -69,10 +69,10 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
     organizationId,
     summary: {
       availableBalance: banks.reduce((sum, bank) => sum + bank.balance, 0) + entryBalance,
-      payableOpen: openAmount(titles.filter(title => title.direction === "payable" && !title.isForecast)),
-      payableForecast: openAmount(titles.filter(title => title.direction === "payable" && title.isForecast)),
-      receivableOpen: openAmount(titles.filter(title => title.direction === "receivable" && !title.isForecast)),
-      receivableForecast: openAmount(titles.filter(title => title.direction === "receivable" && title.isForecast)),
+      payableOpen: openAmount(titles.filter(title => title.direction === "payable" && !title.isForecast && !title.historical)),
+      payableForecast: openAmount(titles.filter(title => title.direction === "payable" && title.isForecast && !title.historical)),
+      receivableOpen: openAmount(titles.filter(title => title.direction === "receivable" && !title.isForecast && !title.historical)),
+      receivableForecast: openAmount(titles.filter(title => title.direction === "receivable" && title.isForecast && !title.historical)),
       pendingApprovals: approvalsResult.count ?? 0,
       unreconciledEntries: entries.filter(row => row.reconciliation_status === "pending").length,
     },
@@ -86,7 +86,7 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
   };
 }
 
-export const TITLE_COLUMNS = "id,direction,counterparty_name,counterparty_group,document_number,document_type,description,notes,issue_date,original_amount,status,chart_account_id,is_forecast,review_reason,source_module,finance_cost_centers(name),finance_chart_accounts(code,name),finance_installments(id,installment_number,due_date,amount,settled_amount,status,finance_settlements(settlement_date,amount,interest,penalty,discount,reversed_at)),finance_title_allocations(amount,finance_chart_accounts(code,name))";
+export const TITLE_COLUMNS = "id,direction,counterparty_name,counterparty_group,document_number,document_type,description,notes,issue_date,original_amount,status,chart_account_id,is_forecast,is_historical,review_reason,source_module,finance_cost_centers(name),finance_chart_accounts(code,name),finance_installments(id,installment_number,due_date,amount,settled_amount,status,finance_settlements(settlement_date,amount,interest,penalty,discount,reversed_at)),finance_title_allocations(amount,finance_chart_accounts(code,name))";
 
 type Client = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -150,6 +150,7 @@ function toTitle(row: Row): FinanceTitle {
     chartAccountId: row.chart_account_id ? String(row.chart_account_id) : null,
     installments: relationList(row.finance_installments).map(toInstallment),
     isForecast: Boolean(row.is_forecast),
+    historical: Boolean(row.is_historical),
     group: row.counterparty_group ? String(row.counterparty_group) : null,
     documentType: row.document_type ? String(row.document_type) : null,
     notes: row.notes ? String(row.notes) : null,
