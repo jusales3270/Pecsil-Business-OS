@@ -103,6 +103,8 @@ async function readOpenTitles(supabase: Client, organizationId: string): Promise
       .select(TITLE_COLUMNS)
       .eq("organization_id", organizationId)
       .neq("status", "settled")
+      // Arquivado (passado que não serve para 2026) fica fora das telas e totais.
+      .is("archived_at", null)
       .order("issue_date", { ascending: false })
       .order("id")
       .range(from, from + 999);
@@ -124,6 +126,7 @@ export async function readSettledTitles(supabase: Client, direction: "payable" |
       .select(TITLE_COLUMNS.replace("finance_installments(", "finance_installments!inner(").replace("finance_settlements(", "finance_settlements!inner("))
       .eq("direction", direction)
       .eq("status", "settled")
+      .is("archived_at", null)
       .gte("finance_installments.finance_settlements.settlement_date", start)
       .lt("finance_installments.finance_settlements.settlement_date", end)
       .order("id")
