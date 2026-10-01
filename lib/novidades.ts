@@ -27,6 +27,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-02-financeiro-historico-a-revisar",
+    data: "2026-10-02",
+    area: "Financeiro",
+    modulos: ["financeiro"],
+    titulo: "Contas a pagar enxuto e Histórico a revisar",
+    itens: [
+      "O que foi pago antes de 2026 e não é parcelamento saiu das telas e dos totais. Fica guardado e pode voltar.",
+      "Nova aba Histórico a revisar: cada parcelamento ou financiamento vindo do sistema antigo aparece com o início, as parcelas pagas e as que faltam.",
+      "Em cada um: Aprovar (sobe para o Contas a pagar), Editar (corrige fornecedor, conta e parcelas) ou Excluir (tira do Financeiro).",
+      "Novo filtro de data no Contas a pagar e no Contas a receber: escolha um dia e veja o que vence nele (ou, na aba Pagas/Recebidas, o que foi pago ou recebido naquele dia).",
+    ],
+  },
+  {
     id: "2026-10-01-almoxarifado",
     data: "2026-10-01",
     area: "Almoxarifado",

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../packages/design-system";
 import type { FinanceChartAccount, FinanceTitle } from "../../lib/data/finance";
+import { FinanceRevisao, useRevisaoCount } from "./finance-revisao";
 import { agruparRecebiveis, emAberto, resumoRecebiveis, situacaoRecebivel, type SituacaoRecebivel } from "../../lib/finance/recebiveis-core";
 
 /**
@@ -16,7 +17,7 @@ import { agruparRecebiveis, emAberto, resumoRecebiveis, situacaoRecebivel, type 
  */
 
 type Direction = "payable" | "receivable";
-type Aba = "aberto" | "previsoes" | "historico" | "quitados";
+type Aba = "aberto" | "previsoes" | "revisar" | "quitados";
 type Filtro = "Em aberto" | "Vencidos" | "A vencer" | "Em aprovação" | "Revisar" | "Cancelados";
 
 const TEXTO = {
@@ -90,6 +91,8 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
   const [filtro, setFiltro] = useState<Filtro>("Em aberto");
   const [grupo, setGrupo] = useState("Todos");
   const [mes, setMes] = useState("Todos");
+  // Data específica (AAAA-MM-DD): vencimento nas abas em aberto, data da baixa em Pagas/Recebidas.
+  const [dia, setDia] = useState("");
   const [busca, setBusca] = useState("");
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
   const [selecionado, setSelecionado] = useState<string | null>(null);
@@ -121,9 +124,9 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
 
   const reais = useMemo(() => titles.filter((t) => !t.isForecast && !t.historical), [titles]);
   const previsoes = useMemo(() => titles.filter((t) => t.isForecast && !t.historical), [titles]);
-  // Títulos antigos que o sistema antigo ainda mostrava em aberto: à parte, para a equipe conferir.
-  const historico = useMemo(() => titles.filter((t) => t.historical), [titles]);
-  const daAba = useMemo(() => (aba === "aberto" ? reais : aba === "previsoes" ? previsoes : aba === "historico" ? historico : quitados?.chave === chaveQuitados ? quitados.titulos : []), [aba, reais, previsoes, historico, quitados, chaveQuitados]);
+  // Parcelamentos e lançamentos antigos do sistema antigo: revisados série a série (aba própria).
+  const revisao = useRevisaoCount(direction === "payable");
+  const daAba = useMemo(() => (aba === "aberto" ? reais : aba === "previsoes" ? previsoes : aba === "quitados" && quitados?.chave === chaveQuitados ? quitados.titulos : []), [aba, reais, previsoes, quitados, chaveQuitados]);
   const resumo = useMemo(() => resumoRecebiveis(daAba, today), [daAba, today]);
   const grupos = useMemo(() => [...new Set(daAba.map((t) => t.group ?? t.counterparty))].sort((a, b) => a.localeCompare(b, "pt-BR")), [daAba]);
   const meses = useMemo(() => [...new Set(daAba.filter((t) => EM_ABERTO.includes(situacaoRecebivel(t, today))).map((t) => vencimento(t).slice(0, 7)))].sort(), [daAba, today]);
@@ -145,11 +148,12 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
           : situacao === "Cancelado";
         if (!passa) return false;
         if (mes !== "Todos" && vencimento(t).slice(0, 7) !== mes) return false;
-      }
+        if (dia && vencimento(t) !== dia) return false;
+      } else if (dia && (t.paidAt ?? "").slice(0, 10) !== dia) return false;
       if (grupo !== "Todos" && (t.group ?? t.counterparty) !== grupo) return false;
       return !q || `${t.group ?? ""} ${t.counterparty} ${t.documentNumber ?? ""} ${t.description} ${t.chartAccount ?? ""}`.toLowerCase().includes(q);
     });
-  }, [daAba, aba, filtro, grupo, mes, busca, today]);
+  }, [daAba, aba, filtro, grupo, mes, dia, busca, today]);
 
   // Quitado não tem "em aberto": o total do grupo é o que foi pago/recebido.
   const blocos = useMemo(() => {
@@ -168,7 +172,7 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
     return novo;
   });
   const titulo = selecionado ? daAba.find((t) => t.id === selecionado) ?? titles.find((t) => t.id === selecionado) ?? null : null;
-  const trocarAba = (nova: Aba) => { setAba(nova); setGrupo("Todos"); setMes("Todos"); setFiltro("Em aberto"); setAbertos(new Set()); };
+  const trocarAba = (nova: Aba) => { setAba(nova); setGrupo("Todos"); setMes("Todos"); setDia(""); setFiltro("Em aberto"); setAbertos(new Set()); };
   const alterado = async (mensagem: string) => {
     await onChanged(mensagem);
     if (aba === "quitados") await buscarQuitados(chaveQuitados);
@@ -196,19 +200,16 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
           options={[
             { value: "aberto", label: `${texto.abaAberto} · ${conta(reais)}` },
             { value: "previsoes", label: `Previsões · ${conta(previsoes)}` },
-            ...(historico.length || aba === "historico" ? [{ value: "historico" as const, label: `Histórico a conferir · ${conta(historico)}` }] : []),
+            ...(direction === "payable" && (revisao.total || aba === "revisar") ? [{ value: "revisar" as const, label: `Histórico a revisar · ${revisao.total ?? "…"}` }] : []),
             { value: "quitados", label: texto.abaQuitados },
           ]}
         />
       </div>
 
       {aba === "previsoes" && <Callout variant="info" title={texto.previsaoTitulo}>{texto.previsao}</Callout>}
-      {aba === "historico" && (
-        <Callout variant="warning" title="Títulos antigos para conferir com o financeiro">
-          O sistema antigo ainda mostrava estes títulos em aberto, com vencimento anterior a 2026. Muitos provavelmente já foram {texto.quitados} e nunca baixados lá. Eles não entram no total, no painel nem no fluxo de caixa. Para cada um: {texto.baixar.toLowerCase()} (com a data real), cancelar, ou Manter em aberto se a dívida existe mesmo.
-        </Callout>
-      )}
-
+      {aba === "revisar" ? (
+        <FinanceRevisao accounts={accounts} onChanged={async (mensagem) => { await onChanged(mensagem); await revisao.recarregar(); }} />
+      ) : (<>
       {aba === "quitados" ? (
         <KpiGrid>
           <Kpi label={`${texto.quitado} em ${mesLabel(mesQuitados)}`} value={moneyShort(pagoNoMes)} caption={carregandoQuitados ? "Carregando…" : plural(daAba.length, "título", "títulos")} tone="green" />
@@ -217,9 +218,9 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
         </KpiGrid>
       ) : (
         <KpiGrid>
-          <Kpi label={aba === "aberto" ? "Em aberto" : aba === "historico" ? "A conferir" : "Previsto em aberto"} value={moneyShort(resumo.aberto)} caption={plural(resumo.quantidade, "título", "títulos")} tone={aba === "aberto" ? (direction === "payable" ? "amber" : "green") : "purple"} />
-          <Kpi label={aba === "aberto" || aba === "historico" ? "Vencido" : "Com data já passada"} value={moneyShort(resumo.vencido)} caption={plural(resumo.quantidadeVencida, "título", "títulos")} tone="red" onOpen={() => setFiltro("Vencidos")} />
-          <Kpi label={aba === "aberto" || aba === "historico" ? "A vencer" : "Com data futura"} value={moneyShort(resumo.aVencer)} caption={resumo.proximo ? `Próximo: ${date(resumo.proximo)}` : "Nenhum vencimento futuro"} tone="blue" onOpen={() => setFiltro("A vencer")} />
+          <Kpi label={aba === "aberto" ? "Em aberto" : "Previsto em aberto"} value={moneyShort(resumo.aberto)} caption={plural(resumo.quantidade, "título", "títulos")} tone={aba === "aberto" ? (direction === "payable" ? "amber" : "green") : "purple"} />
+          <Kpi label={aba === "aberto" ? "Vencido" : "Com data já passada"} value={moneyShort(resumo.vencido)} caption={plural(resumo.quantidadeVencida, "título", "títulos")} tone="red" onOpen={() => setFiltro("Vencidos")} />
+          <Kpi label={aba === "aberto" ? "A vencer" : "Com data futura"} value={moneyShort(resumo.aVencer)} caption={resumo.proximo ? `Próximo: ${date(resumo.proximo)}` : "Nenhum vencimento futuro"} tone="blue" onOpen={() => setFiltro("A vencer")} />
           {direction === "payable" && aba === "aberto" && emAprovacao > 0
             ? <Kpi label="Em aprovação" value={String(emAprovacao)} caption="Contas novas aguardando aprovação" tone="amber" onOpen={() => setFiltro("Em aprovação")} />
             : <Kpi label="Para revisar" value={String(resumo.revisar)} caption="Lançamentos que pedem conferência" tone="amber" onOpen={() => setFiltro("Revisar")} />}
@@ -233,7 +234,7 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
         </label>
         {aba === "quitados" ? (
           <label><span>Mês</span>
-            <input type="month" value={mesQuitados} max={today.slice(0, 7)} onChange={(event) => { if (event.target.value) { setMesQuitados(event.target.value); setGrupo("Todos"); } }} aria-label="Mês da baixa" />
+            <input type="month" value={mesQuitados} max={today.slice(0, 7)} onChange={(event) => { if (event.target.value) { setMesQuitados(event.target.value); setGrupo("Todos"); setDia(""); } }} aria-label="Mês da baixa" />
           </label>
         ) : (
           <>
@@ -243,13 +244,25 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
               </select>
             </label>
             <label><span>Vencimento</span>
-              <select value={mes} onChange={(event) => setMes(event.target.value)} aria-label="Mês de vencimento">
+              <select value={mes} onChange={(event) => { setMes(event.target.value); setDia(""); }} aria-label="Mês de vencimento">
                 <option value="Todos">Todos os meses</option>
                 {meses.map((item) => <option key={item} value={item}>{mesLabel(item)}</option>)}
               </select>
             </label>
           </>
         )}
+        <label className="receber-dia"><span>{aba === "quitados" ? `Data ${texto.dataBaixa === "Pagamento" ? "do pagamento" : "do recebimento"}` : "Data de vencimento"}</span>
+          <div className="receber-dia-campo">
+            <input type="date" value={dia} max={aba === "quitados" ? today : undefined} onChange={(event) => {
+              const valor = event.target.value;
+              setDia(valor);
+              if (!valor) return;
+              if (aba === "quitados") { if (valor.slice(0, 7) !== mesQuitados) setMesQuitados(valor.slice(0, 7)); }
+              else setMes("Todos");
+            }} aria-label={aba === "quitados" ? "Data da baixa" : "Data de vencimento"} />
+            {dia && <button type="button" onClick={() => setDia("")} aria-label="Limpar data" title="Limpar data">×</button>}
+          </div>
+        </label>
         <label><span>{texto.Parte}</span>
           <select value={grupo} onChange={(event) => setGrupo(event.target.value)} aria-label={`Filtrar por ${texto.parte}`}>
             <option>Todos</option>
@@ -301,6 +314,8 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
           );
         })}
       </div>
+
+      </>)}
 
       {titulo && <Detalhe key={titulo.id} direction={direction} titulo={titulo} hoje={today} accounts={accounts} canEdit={canCreate} canSettle={canSettle} onClose={() => setSelecionado(null)} onChanged={alterado} />}
     </>
