@@ -96,8 +96,9 @@ const plural=(n:number,um:string,varios:string)=>`${n} ${n===1?um:varios}`;
 
 function FIcon({name,size=18}:{name:string;size?:number}){const paths:Record<string,React.ReactNode>={grid:<><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,payable:<><path d="M4 5h16v14H4zM7 9h10M7 13h6"/><path d="m16 16 2 2 3-4"/></>,receivable:<><path d="M4 5h16v14H4zM7 9h10M7 13h6"/><path d="M18 12v6M15 15h6"/></>,chart:<><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7"/></>,bank:<><path d="m3 9 9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 21h18"/></>,cost:<><circle cx="12" cy="12" r="9"/><path d="M12 6v12M16 9c-1-2-7-2-7 1 0 3 7 1 7 5 0 3-6 3-8 1"/></>,report:<><path d="M6 3h9l4 4v14H6zM15 3v5h4M9 12h6M9 16h6"/></>,check:<><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></>,back:<path d="m15 18-6-6 6-6"/>,plus:<path d="M12 5v14M5 12h14"/>,arrow:<path d="m9 18 6-6-6-6"/>,close:<path d="m6 6 12 12M18 6 6 18"/>,search:<><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></>,alert:<><path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5M12 18h.01"/></>};return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name]}</svg>}
 
-export function FinanceModule({notify,onEvent,onExit,access}:{notify:(message:string)=>void;onEvent:(message:string,module?:string)=>void;onExit:()=>void;access:ModuleAccessContext}){
-  const [section,setSection]=useState<FinanceSection>("Painel");
+export function FinanceModule({notify,onEvent,onExit,access,initialSection}:{notify:(message:string)=>void;onEvent:(message:string,module?:string)=>void;onExit:()=>void;access:ModuleAccessContext;initialSection?:string}){
+  // Aviso "nova conta a pagar" abre direto em Contas a pagar.
+  const [section,setSection]=useState<FinanceSection>(()=>sections.some(([label])=>label===initialSection)?initialSection as FinanceSection:"Painel");
   // Só dados do banco. Sem título, a lista fica vazia (nunca exemplo).
   const [payables,setPayables]=useState<Payable[]>([]);
   const [receivables,setReceivables]=useState<Receivable[]>([]);

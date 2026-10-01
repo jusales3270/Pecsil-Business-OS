@@ -52,6 +52,8 @@ export interface Cotacao {
   fornecedor: string;
   /** Fornecedor do cadastro (suppliers.id), resolvido pelo banco a partir do nome. */
   supplierId?: string | null;
+  /** Pedido de material do Almoxarifado que originou a cotação (material_requests.id). */
+  materialRequestId?: string | null;
   produtos?: CotacaoProduto[];
   // Campos raízes opcionais para compatibilidade retroativa
   produto?: string;
@@ -71,6 +73,19 @@ export interface Cotacao {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+}
+
+/** Pedido de material vindo do Almoxarifado (material_requests). */
+export interface PedidoMaterial {
+  id: string;
+  numero: number;
+  divisao: 'USINAGEM' | 'FUNDICAO' | 'GERAL';
+  urgencia: 'normal' | 'urgente';
+  observacao: string | null;
+  status: 'aberta' | 'em_cotacao' | 'aprovada' | 'rejeitada' | 'comprada' | 'parcial' | 'recebida' | 'cancelada';
+  createdAt: string;
+  solicitante: string | null;
+  itens: { produto: string; quantidade: number; unidade: string; observacao: string | null }[];
 }
 
 export interface Compra {
@@ -144,4 +159,5 @@ export type Page =
   | 'pendentes'
   | 'historico'
   | 'fornecedores'
+  | 'solicitacoes'
   | 'icms';

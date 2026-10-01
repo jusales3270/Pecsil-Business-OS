@@ -6,6 +6,8 @@ import ComercialApp from "./comercial/src/ComercialApp";
 import ComprasApp from "./compras/src/App";
 import PortariaApp from "./portaria/src/PortariaApp";
 import ProducaoApp from "./producao/src/ProducaoApp";
+import AlmoxarifadoApp from "./almoxarifado/src/AlmoxarifadoApp";
+import FiscalApp from "./fiscal/src/FiscalApp";
 import type { ModuleAccessContext } from "./access";
 // module-generator:imports
 
@@ -19,6 +21,8 @@ export type ModuleRuntimeProps = {
    * (ex.: abrir o Comercial já em Compras, vindo do atalho `/?module=compras`).
    */
   initialArea?: string;
+  /** Seção em que o módulo deve abrir (ex.: "Recebimento"), vinda de um aviso ou do endereço `&secao=`. */
+  initialSection?: string;
 };
 
 const moduleComponents: Record<string, ComponentType<ModuleRuntimeProps>> = {
@@ -27,6 +31,8 @@ const moduleComponents: Record<string, ComponentType<ModuleRuntimeProps>> = {
   compras: ComprasApp,
   portaria: PortariaApp,
   producao: ProducaoApp,
+  almoxarifado: AlmoxarifadoApp,
+  fiscal: FiscalApp,
   // module-generator:entries
 };
 

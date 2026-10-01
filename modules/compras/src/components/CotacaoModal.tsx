@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useStore, formatAmount, formatUnitPrice, formatCurrencyInput, normalizeCurrencyInput, parseCurrencyInput } from '@/store';
-import type { Cotacao, Divisao, CotacaoProduto } from '@/types';
+import type { Cotacao, Divisao, CotacaoProduto, PedidoMaterial } from '@/types';
 import { X, Cog, Flame, Plus, Trash2, Edit, Lock, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import SugestaoInput from '@/components/SugestaoInput';
@@ -9,16 +9,20 @@ import { useSugestoesCompras } from '@/hooks/useSugestoesCompras';
 interface Props {
   cotacao: Cotacao | null;
   onClose: () => void;
+  /** Cotação nascendo de um pedido do Almoxarifado: itens à mão e o vínculo gravado. */
+  pedido?: PedidoMaterial | null;
 }
 
 const UNIDADES = ['kg', 'un', 'l', 'm', 'cx', 'ton'];
 
-export default function CotacaoModal({ cotacao, onClose }: Props) {
+export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props) {
   const { user, addCotacao, updateCotacao, currentDivisao } = useStore();
   const { fornecedores: sugestoesFornecedor, supplierIdPorNome, produtosPara } = useSugestoesCompras();
 
   const [fornecedor, setFornecedor] = useState('');
-  const [divisao, setDivisao] = useState<Divisao>(currentDivisao as Divisao);
+  const [divisao, setDivisao] = useState<Divisao>(
+    pedido && (pedido.divisao === 'USINAGEM' || pedido.divisao === 'FUNDICAO') ? pedido.divisao : (currentDivisao as Divisao),
+  );
   // Produtos já comprados deste fornecedor aparecem primeiro nas sugestões.
   const sugestoesProduto = useMemo(() => produtosPara(supplierIdPorNome(fornecedor)), [produtosPara, supplierIdPorNome, fornecedor]);
   const [produtos, setProdutos] = useState<CotacaoProduto[]>([]);
@@ -84,6 +88,23 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
     });
     setProductErrors({});
   };
+
+  // Item do pedido do Almoxarifado: abre o formulário já com produto, quantidade e unidade.
+  const cotarItemDoPedido = (item: PedidoMaterial['itens'][number]) => {
+    setEditingProductId(`new-pedido-${pedido?.itens.indexOf(item) ?? 0}-${produtos.length}`);
+    setProductForm({
+      produto: item.produto,
+      valorUnit: '',
+      quantidade: String(item.quantidade),
+      unidade: UNIDADES.includes(item.unidade.toLowerCase()) ? item.unidade.toLowerCase() : 'un',
+      icms: '0',
+      ipi: '0',
+      prazo: '',
+      obs: item.observacao ?? '',
+    });
+    setProductErrors({});
+  };
+  const jaNoOrcamento = (produto: string) => produtos.some((p) => p.produto.trim().toLowerCase() === produto.trim().toLowerCase());
 
   const handleEditProductClick = (p: CotacaoProduto) => {
     setEditingProductId(p.id);
@@ -212,6 +233,7 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
       fornecedor: fornecedor.trim(),
       divisao,
       produtos,
+      materialRequestId: pedido?.id ?? cotacao?.materialRequestId ?? null,
       // Legacy fields
       produto: firstP.produto,
       valorUnit: firstP.valorUnit,
@@ -353,6 +375,34 @@ export default function CotacaoModal({ cotacao, onClose }: Props) {
             />
             {errors.fornecedor && <p className="text-xs text-red-500 mt-1">{errors.fornecedor}</p>}
           </div>
+
+          {pedido && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-[#212121]">
+                  Pedido do Almoxarifado #{pedido.numero}
+                  {pedido.urgencia === 'urgente' && <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">URGENTE</span>}
+                </p>
+                <span className="text-xs text-[#757575]">{pedido.solicitante ?? 'Almoxarifado'}</span>
+              </div>
+              {pedido.observacao && <p className="text-xs text-[#555]">{pedido.observacao}</p>}
+              <ul className="space-y-1">
+                {pedido.itens.map((item, idx) => {
+                  const feito = jaNoOrcamento(item.produto);
+                  return (
+                    <li key={idx} className="flex items-center justify-between gap-2 text-xs">
+                      <span className={feito ? 'text-[#757575] line-through' : 'text-[#212121]'}>
+                        {item.quantidade.toLocaleString('pt-BR')} {item.unidade} · {item.produto}
+                      </span>
+                      {feito
+                        ? <span className="flex items-center gap-1 text-emerald-700 font-semibold"><CheckCircle size={13} /> no orçamento</span>
+                        : <button type="button" disabled={editingProductId !== null} onClick={() => cotarItemDoPedido(item)} className="rounded-md bg-primary/10 px-2 py-1 font-semibold text-primary hover:bg-primary/20 disabled:opacity-40">Cotar item</button>}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
 
           {/* Seção de Produtos */}
           <div className="border-t border-black/[0.06] pt-4">

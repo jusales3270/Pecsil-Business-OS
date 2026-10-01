@@ -27,6 +27,51 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-01-almoxarifado",
+    data: "2026-10-01",
+    area: "Almoxarifado",
+    modulos: ["almoxarifado"],
+    titulo: "Novo módulo Almoxarifado",
+    itens: [
+      "Peça o material que está faltando direto ao Compras, com urgência quando for o caso. Você acompanha cada passo: em cotação, aprovado, comprado.",
+      "Em A caminho ficam as compras já avisadas. Quando o material chegar, clique em Receber, anexe o XML da nota (ou digite) e confira os itens.",
+      "Ao confirmar, a nota vira conta a pagar para o Financeiro, com os vencimentos certos, e entra no Painel do ICMS. Sem planilha.",
+    ],
+  },
+  {
+    id: "2026-10-01-fiscal-icms",
+    data: "2026-10-01",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    titulo: "Painel do ICMS",
+    itens: [
+      "As notas de entrada do mês com crédito de ICMS e IPI, por centro (Fundição, Usinagem, Administrativo), no lugar da planilha.",
+      "As notas recebidas no Almoxarifado entram sozinhas. As do administrativo e de terceiros entram em Nova nota, com o XML ou digitadas.",
+      "Marque XML, lançamento e autorização em um clique, e registre o livro de apuração do mês.",
+    ],
+  },
+  {
+    id: "2026-10-01-compras-pedidos-almoxarifado",
+    data: "2026-10-01",
+    area: "Compras",
+    modulos: ["compras"],
+    titulo: "Pedidos do Almoxarifado no Compras",
+    itens: [
+      "Nova aba Pedidos do Almoxarifado: o material que está faltando chega aqui, e Cotar abre a cotação já com os itens.",
+      "O Comprar virou Aviso de compra: a nota fiscal não é mais exigida nessa hora, o Almoxarifado lança quando o material chegar.",
+      "Ao dar o aviso de compra, o Financeiro e o Almoxarifado são avisados sozinhos.",
+    ],
+  },
+  {
+    id: "2026-10-01-avisos-no-sino",
+    data: "2026-10-01",
+    area: "Plataforma",
+    titulo: "Avisos no sino",
+    itens: [
+      "O sino do topo mostra os avisos dos fluxos em que você participa, com o número de não lidos. Clique no aviso para ir direto à tela certa.",
+    ],
+  },
+  {
     id: "2026-09-30-financeiro-historico-pagar",
     data: "2026-09-30",
     area: "Financeiro",

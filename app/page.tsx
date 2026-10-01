@@ -14,6 +14,7 @@ import { EventTrailView } from "./components/event-trail";
 import { AccountPanel } from "./components/account-panel";
 import { ACCESS_CATALOG, ACCESS_LEVELS, LEVEL_LABELS, levelRank, type AccessGrants } from "../modules/access-catalog";
 import { usePwa } from "./components/pwa-provider";
+import { useInbox, type InboxItem } from "../lib/use-inbox";
 
 type View = "Visão Geral" | "Módulos" | "Pessoas e Acessos" | "Estrutura" | "Cadastros" | "Eventos" | "Permissões e Segurança" | "Busca Corporativa" | "Documentos" | "Notificações" | "Auditoria" | "Banco e Autenticação" | "Configurações";
 
@@ -261,12 +262,23 @@ function DocumentsView() {
   </>;
 }
 
-function NotificationsView({ events }: { notify:(message:string)=>void; events:OperationalEvent[] }) {
-  // Só eventos reais desta sessão: a lista fixa de alertas saiu.
-  return <><div className="page-head"><div><p className="eyebrow">SERVIÇO CENTRAL</p><h1>Central de notificações</h1><p>Alertas e pendências consolidados dos módulos.</p></div><Status tone={events.length?"attention":"success"}>{events.length?`${events.length} ${events.length===1?"evento":"eventos"}`:"Sem alertas"}</Status></div>
-    {events.length
-      ? <Card className="notification-feed">{events.map(event=><article key={event.id}><span className="notice-main"><span className={`notice-icon ${event.tone}`}><Icon name={event.icon}/></span><span><b>{event.title}</b><small>{event.message}</small><em>{event.module} · {event.time}</em></span></span></article>)}</Card>
-      : <Card className="hr-empty-card"><div className="hr-empty"><Icon name="bell" size={28}/><b>Nenhuma notificação</b><small>Aprovações, vencimentos e alertas dos módulos aparecerão aqui.</small></div></Card>}
+const SEVERITY_TONE: Record<InboxItem["severity"], string> = { info: "info", attention: "attention", critical: "danger", approval: "purple" };
+const SEVERITY_ICON: Record<InboxItem["severity"], string> = { info: "bell", attention: "alert", critical: "alert", approval: "check" };
+const quando = (iso: string) => {
+  const data = new Date(iso);
+  const hoje = new Date();
+  const mesmoDia = data.toDateString() === hoje.toDateString();
+  return mesmoDia ? data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : data.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+};
+
+function NotificationsView({ events, inbox, unread, onOpen, onMarkAll }: { notify:(message:string)=>void; events:OperationalEvent[]; inbox:InboxItem[]; unread:number; onOpen:(item:InboxItem)=>void; onMarkAll:()=>void }) {
+  // Avisos endereçados à pessoa (gravados no banco) e, abaixo, o que aconteceu nesta sessão.
+  return <><div className="page-head"><div><p className="eyebrow">SERVIÇO CENTRAL</p><h1>Central de notificações</h1><p>Avisos dos fluxos em que você participa: cotações, compras, recebimentos e pagamentos.</p></div>
+      <div className="notification-head-actions"><Status tone={unread?"attention":"success"}>{unread?`${unread} ${unread===1?"não lido":"não lidos"}`:"Tudo lido"}</Status>{unread>0&&<Button variant="secondary" compact onClick={onMarkAll}>Marcar todos como lidos</Button>}</div></div>
+    {inbox.length
+      ? <Card className="notification-feed inbox-feed">{inbox.map(item=><button type="button" key={item.id} className={item.read?"lido":"novo"} onClick={()=>onOpen(item)}><span className="notice-main"><span className={`notice-icon ${SEVERITY_TONE[item.severity]}`}><Icon name={SEVERITY_ICON[item.severity]}/></span><span><b>{item.title}</b><small>{item.body}</small><em>{getModuleById(item.module)?.name ?? item.module} · {quando(item.createdAt)}</em></span></span>{!item.read&&<i className="inbox-novo" aria-label="Não lido"/>}{item.actionUrl&&<Icon name="arrow" size={16}/>}</button>)}</Card>
+      : <Card className="hr-empty-card"><div className="hr-empty"><Icon name="bell" size={28}/><b>Nenhum aviso</b><small>Quando um pedido, uma cotação ou um pagamento precisar de você, o aviso chega aqui e no sino.</small></div></Card>}
+    {events.length>0&&<><p className="eyebrow inbox-sessao">NESTA SESSÃO</p><Card className="notification-feed">{events.map(event=><article key={event.id}><span className="notice-main"><span className={`notice-icon ${event.tone}`}><Icon name={event.icon}/></span><span><b>{event.title}</b><small>{event.message}</small><em>{event.module} · {event.time}</em></span></span></article>)}</Card></>}
   </>;
 }
 
@@ -315,11 +327,14 @@ function HomeContent() {
   const [accountMenu,setAccountMenu]=useState(false);
   const [deniedTarget,setDeniedTarget]=useState<string | null>(null);
   const [operationalEvents,setOperationalEvents]=useState<OperationalEvent[]>([]);
+  // Seção pedida por um aviso ou pelo endereço (`&secao=`); `n` remonta o módulo mesmo se já estava aberto.
+  const [moduleSection,setModuleSection]=useState<{secao:string;n:number}|null>(null);
   const { snapshot, loading, error } = useFoundationData();
   // Identidade real do usuário autenticado (papel, permissões e escopo do banco).
   // Enquanto carrega, ou com o Supabase inacessível, cai no contexto demonstrativo.
   const { access, real: realAccess, loading: accessLoading, profile: sessionProfile, reload: reloadIdentity } = useSessionAccess();
   const { canInstall, promptInstall } = usePwa();
+  const inbox = useInbox(realAccess && !accessLoading);
   const [accountPanel,setAccountPanel]=useState(false);
   // Visão executiva (Visão Geral, catálogo de módulos) é do proprietário; os
   // demais entram direto nos módulos liberados a eles.
@@ -347,6 +362,8 @@ function HomeContent() {
       window.history.replaceState(null, "", window.location.pathname);
     }
     const requested = params.get("module");
+    const secao = params.get("secao");
+    if (secao) setModuleSection({ secao, n: 1 });
     const shortcut = requested ? getModuleById(requested) : undefined;
     if (shortcut) {
       // Atalho antigo de uma área (`/?module=compras`) abre o departamento dela.
@@ -383,7 +400,9 @@ function HomeContent() {
     setDeniedTarget(null);setActiveModuleId(null);setModuleArea(null);setView(v);setMobile(false);
   };
   // Abrir uma área (ex.: Compras) é abrir o departamento dela já naquela área.
-  const openModule=(moduleId:string)=>{
+  const openModule=(moduleId:string, secao?:string)=>{
+    // Contador (não relógio): cada pedido de seção remonta o módulo uma vez.
+    setModuleSection(prev=>secao?{secao,n:(prev?.n??0)+1}:null);
     const manifest=getModuleById(moduleId);
     if(!manifest||!canAccessModule(access,manifest)){setDeniedTarget(manifest?.name??"Módulo");setActiveModuleId(null);setMobile(false);return}
     const department=manifest.department?getModuleById(manifest.department):undefined;
@@ -391,6 +410,15 @@ function HomeContent() {
     setActiveModuleId(department?department.id:manifest.id);
     setModuleArea(department?manifest.id:null);
     setMobile(false);
+  };
+  // Aviso clicado: marca como lido e abre o destino (`/?module=almoxarifado&secao=Recebimento`).
+  const openInboxItem=(item:InboxItem)=>{
+    if(!item.read) void inbox.markRead([item.id]);
+    if(!item.actionUrl) return;
+    const params=new URL(item.actionUrl, window.location.origin).searchParams;
+    const target=params.get("module");
+    if(!target) return;
+    openModule(target, params.get("secao") ?? undefined);
   };
   const handleModuleExit = () => {
     if (isExecutive) {
@@ -513,7 +541,7 @@ function HomeContent() {
         <form className="search" onSubmit={e=>{e.preventDefault();openSearch()}}><Icon name="search" size={16}/><input value={globalQuery} onChange={e=>setGlobalQuery(e.target.value)} placeholder="Pessoa, documento, módulo..."/></form>
         {canInstall&&<button className="header-install" onClick={()=>promptInstall()} title="Instalar o Pecsil OS neste dispositivo" aria-label="Instalar aplicativo"><Icon name="download" size={16}/><span>Instalar app</span></button>}
         <ThemeToggle/>
-        {hasPermission(access,"core.notifications.view")&&<button className="header-icon" aria-label="Notificações" onClick={()=>change("Notificações")}><Icon name="bell" size={18}/><i/></button>}
+        {hasPermission(access,"core.notifications.view")&&<button className="header-icon" aria-label={inbox.unread?`Notificações: ${inbox.unread} não lidas`:"Notificações"} onClick={()=>change("Notificações")}><Icon name="bell" size={18}/>{inbox.unread>0&&<i className="count">{inbox.unread>99?"99+":inbox.unread}</i>}</button>}
         <div className="persona-switcher">
           <button className="user-card" onClick={()=>setAccountMenu(value=>!value)} aria-expanded={accountMenu} aria-label={`Conta: ${access.name}, ${access.role}`} title={`${access.name} · ${access.role}`}>
             {sessionProfile.avatarUrl ? <img className="avatar top avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span className="avatar top">{access.initials}</span>}
@@ -522,7 +550,7 @@ function HomeContent() {
           {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{canInstall && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar aplicativo</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
         </div>
       </header>
-      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={snapshot.loadedAt} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined}):view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Documentos"?<DocumentsView/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
+      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={snapshot.loadedAt} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?<Fragment key={`${activeModuleId}-${moduleSection?.n??0}`}>{renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined,initialSection:moduleSection?.secao})}</Fragment>:view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Documentos"?<DocumentsView/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents} inbox={inbox.items} unread={inbox.unread} onOpen={openInboxItem} onMarkAll={()=>void inbox.markRead("all")}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
       <nav className="mobile-bottom-nav" aria-label="Navegação rápida móvel">
         <button
           type="button"
@@ -568,7 +596,7 @@ function HomeContent() {
           aria-label="Alertas"
         >
           <Icon name="bell" size={20} />
-          {operationalEvents.length > 0 && <i className="badge">{operationalEvents.length}</i>}
+          {inbox.unread > 0 && <i className="badge">{inbox.unread > 99 ? "99+" : inbox.unread}</i>}
           <span>Alertas</span>
         </button>
         <button

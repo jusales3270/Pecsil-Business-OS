@@ -129,6 +129,21 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     ],
   },
   {
+    code: "almoxarifado",
+    label: "Almoxarifado",
+    features: [
+      { code: "almoxarifado.solicitacoes", label: "Solicitações", description: "Pedidos de material ao Compras; operar pede e cancela.", levels: VER_OPERAR },
+      { code: "almoxarifado.recebimento", label: "Recebimento", description: "Material a caminho e entrada da nota fiscal; operar confere e lança a nota, que vira conta a pagar.", levels: VER_OPERAR },
+    ],
+  },
+  {
+    code: "fiscal",
+    label: "Fiscal",
+    features: [
+      { code: "fiscal.icms", label: "Painel do ICMS", description: "Notas de entrada do mês, ICMS e IPI por centro e livro de apuração; operar lança notas e marca XML, lançamento e autorização.", levels: VER_OPERAR },
+    ],
+  },
+  {
     code: "fundacao",
     label: "Fundação",
     features: [

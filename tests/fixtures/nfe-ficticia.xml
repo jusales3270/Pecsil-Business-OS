@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- NF-e FICTÍCIA para testes: empresas, CNPJs e valores inventados. -->
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe>
+    <infNFe Id="NFe35261011222333000181550010000123451000012345" versao="4.00">
+      <ide>
+        <natOp>VENDA DE MERCADORIA</natOp>
+        <serie>1</serie>
+        <nNF>12345</nNF>
+        <dhEmi>2026-09-28T10:15:00-03:00</dhEmi>
+      </ide>
+      <emit>
+        <CNPJ>11222333000181</CNPJ>
+        <xNome>FERRAMENTAS EXEMPLO &amp; CIA LTDA</xNome>
+        <xFant>FERRAMENTAS EXEMPLO</xFant>
+        <enderEmit><UF>SP</UF></enderEmit>
+      </emit>
+      <dest><CNPJ>99888777000166</CNPJ><xNome>CLIENTE FICTICIO</xNome></dest>
+      <det nItem="1">
+        <prod>
+          <cProd>BR10</cProd><xProd>BROCA HSS 10MM</xProd><CFOP>5102</CFOP>
+          <uCom>un</uCom><qCom>5.0000</qCom><vUnCom>12.5000000000</vUnCom><vProd>62.50</vProd>
+        </prod>
+        <imposto><ICMS><ICMS00><vBC>62.50</vBC><pICMS>18.00</pICMS><vICMS>11.25</vICMS></ICMS00></ICMS></imposto>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>OL20</cProd><xProd>OLEO DE CORTE SOLUVEL</xProd><CFOP>5102</CFOP>
+          <uCom>L</uCom><qCom>20.0000</qCom><vUnCom>8.0000000000</vUnCom><vProd>160.00</vProd>
+        </prod>
+        <imposto><ICMS><ICMS00><vBC>160.00</vBC><pICMS>18.00</pICMS><vICMS>28.80</vICMS></ICMS00></ICMS></imposto>
+      </det>
+      <total>
+        <ICMSTot>
+          <vBC>222.50</vBC><vICMS>40.05</vICMS><vProd>222.50</vProd><vIPI>11.13</vIPI><vNF>233.63</vNF>
+        </ICMSTot>
+      </total>
+      <cobr>
+        <fat><nFat>12345</nFat><vOrig>233.63</vOrig><vLiq>233.63</vLiq></fat>
+        <dup><nDup>001</nDup><dVenc>2026-10-28</dVenc><vDup>116.82</vDup></dup>
+        <dup><nDup>002</nDup><dVenc>2026-11-27</dVenc><vDup>116.81</vDup></dup>
+      </cobr>
+    </infNFe>
+  </NFe>
+  <protNFe><infProt><chNFe>35261011222333000181550010000123451000012345</chNFe></infProt></protNFe>
+</nfeProc>

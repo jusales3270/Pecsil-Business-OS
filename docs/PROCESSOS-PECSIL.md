@@ -26,28 +26,32 @@ errado (parcial, divergência, cancelamento)? quem precisa ser avisado?
 
 ---
 
-## Cadeia 1 — Compra até o pagamento (RASCUNHO, a confirmar)
+## Cadeia 1 — Compra até o pagamento (DEFINIDA pelo dono em 01/10/2026, implantada)
 
-| Passo | Departamento | O que acontece | Evento | Situação no sistema |
+Três módulos conversando — **Compras → Almoxarifado → Financeiro** — e o ICMS no módulo **Fiscal**.
+Quem é avisado sai da permissão (`notify_feature`), não do nome da pessoa.
+
+| Passo | Quem | Onde | O que acontece | Evento / aviso |
 |---|---|---|---|---|
-| 1 | Compras | Cotação lançada | `compras.cotacao.criada` | ✅ registrado |
-| 2 | Compras (gestor) | Cotação aprovada | `compras.cotacao.aprovada` | ✅ registrado |
-| 3 | Compras → Almoxarifado | Comunicado ao almoxarifado do pedido a receber | *(a definir)* | ❌ não existe — hoje é fora do sistema |
-| 4 | Almoxarifado | Pedido chega, é conferido e recebido | *(a definir, ex.: `estoque.recebimento.confirmado`)* | ❌ **módulo Almoxarifado/Estoque ainda não existe** (planejado) |
-| 5 | Financeiro | Conta a pagar gerada **a partir do recebimento** (não da aprovação) | `financeiro.titulo.criado` | ✅ o título já aceita origem (`source_module`, `source_entity_id`) |
-| 6 | Financeiro | Pagamento | `financeiro.titulo.baixado` | ✅ registrado |
+| 1 | Almoxarife (Henrique) | Almoxarifado › Solicitações | Pede o material que falta (itens, divisão, urgência) | `almoxarifado.solicitacao.criada` · aviso a quem cota (`compras.cotacoes` operar) |
+| 2 | Compras (Kaylane) | Compras › Pedidos do Almoxarifado | "Cotar" abre a cotação ligada ao pedido (`cotacoes.material_request_id`) | `compras.cotacao.criada` · pedido "em cotação" + aviso ao solicitante |
+| 3 | Gestor (Ricardo) | Compras › Pendentes | Aprova ou rejeita | `compras.cotacao.aprovada` · pedido "aprovado"/"rejeitado" + aviso ao solicitante |
+| 4 | Compras (Kaylane) | Compras › Minhas cotações › Comprar | **Aviso de compra** (NF opcional nesta hora) | `compras.compra.registrada` · **previsão** em Contas a pagar + aviso a quem paga e a quem recebe |
+| 5 | Almoxarife | Almoxarifado › A caminho › Receber | Confere e lança a nota (XML da NF-e ou digitada) | `almoxarifado.recebimento.confirmado` · **conta a pagar real** (vencimentos das duplicatas), previsão abatida/apagada, linha no **Painel do ICMS**, aviso a quem paga |
+| 6 | Financeiro (Ana) | Financeiro › Contas a pagar | Paga | `financeiro.titulo.baixado` |
 
-Hoje também existe `compras.compra.registrada` (compra com NF lançada no Compras).
-Falta entender onde ela se encaixa: é o mesmo momento do recebimento no almoxarifado,
-ou vem antes?
+Respostas às perguntas do rascunho:
+- **Comunicado ao almoxarifado:** pelo sistema (aviso no sino e lista "A caminho").
+- **Conferência:** o almoxarife confere o material com a nota; o XML mostra itens e valores ao lado do que foi comprado.
+- **Recebimento parcial:** cada nota gera a sua conta a pagar; a previsão é abatida e o pedido fica "recebido em parte" até o almoxarife marcar "pedido completo".
+- **Divergência:** o almoxarife descreve; a conta entra com "revisar" e o Compras é avisado.
+- **Prazo de pagamento:** da nota (duplicatas do XML); sem duplicata, o vencimento previsto (prazo do fornecedor, ou 30 dias).
+- **Conta do plano:** a mais usada para o fornecedor no histórico; sem histórico, "revisar" para o Financeiro classificar.
+- **Nota sem pedido:** "recebimento avulso" — conta com "revisar" e aviso ao Compras.
 
-**Perguntas em aberto:**
-- Como o comunicado ao almoxarifado é feito hoje (e-mail, papel, WhatsApp)? Quem recebe?
-- Quem confere o recebimento? Confere contra a cotação aprovada (itens, quantidades, preço)?
-- **Recebimento parcial:** gera conta a pagar parcial, ou espera tudo chegar?
-- **Divergência de NF** (preço ou quantidade diferente do aprovado): quem decide?
-- Prazo de pagamento vem de onde: da cotação (condição do fornecedor), da NF ou é padrão?
-- O centro de custo da compra é informado por quem — Compras, na cotação, ou o Financeiro?
+Funções no banco: `almoxarifado_criar_solicitacao`, `almoxarifado_atualizar_solicitacao`,
+`trg_compra_previsao`, `almoxarifado_a_caminho`, `almoxarifado_confirmar_recebimento`
+(migrações `202610010001`–`202610010004`).
 
 ## Cadeia 2 — Desligamento (RASCUNHO, a confirmar)
 
