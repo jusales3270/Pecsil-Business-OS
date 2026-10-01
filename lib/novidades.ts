@@ -36,6 +36,7 @@ export const NOVIDADES: Novidade[] = [
       "O que foi pago antes de 2026 e não é parcelamento saiu das telas e dos totais. Fica guardado e pode voltar.",
       "Nova aba Histórico a revisar: cada parcelamento ou financiamento vindo do sistema antigo aparece com o início, as parcelas pagas e as que faltam.",
       "Em cada um: Aprovar (sobe para o Contas a pagar), Editar (corrige fornecedor, conta e parcelas) ou Excluir (tira do Financeiro).",
+      "Novo filtro de data no Contas a pagar e no Contas a receber: escolha um dia e veja o que vence nele (ou, na aba Pagas/Recebidas, o que foi pago ou recebido naquele dia).",
     ],
   },
   {

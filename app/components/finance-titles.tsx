@@ -91,6 +91,8 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
   const [filtro, setFiltro] = useState<Filtro>("Em aberto");
   const [grupo, setGrupo] = useState("Todos");
   const [mes, setMes] = useState("Todos");
+  // Data específica (AAAA-MM-DD): vencimento nas abas em aberto, data da baixa em Pagas/Recebidas.
+  const [dia, setDia] = useState("");
   const [busca, setBusca] = useState("");
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
   const [selecionado, setSelecionado] = useState<string | null>(null);
@@ -146,11 +148,12 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
           : situacao === "Cancelado";
         if (!passa) return false;
         if (mes !== "Todos" && vencimento(t).slice(0, 7) !== mes) return false;
-      }
+        if (dia && vencimento(t) !== dia) return false;
+      } else if (dia && (t.paidAt ?? "").slice(0, 10) !== dia) return false;
       if (grupo !== "Todos" && (t.group ?? t.counterparty) !== grupo) return false;
       return !q || `${t.group ?? ""} ${t.counterparty} ${t.documentNumber ?? ""} ${t.description} ${t.chartAccount ?? ""}`.toLowerCase().includes(q);
     });
-  }, [daAba, aba, filtro, grupo, mes, busca, today]);
+  }, [daAba, aba, filtro, grupo, mes, dia, busca, today]);
 
   // Quitado não tem "em aberto": o total do grupo é o que foi pago/recebido.
   const blocos = useMemo(() => {
@@ -169,7 +172,7 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
     return novo;
   });
   const titulo = selecionado ? daAba.find((t) => t.id === selecionado) ?? titles.find((t) => t.id === selecionado) ?? null : null;
-  const trocarAba = (nova: Aba) => { setAba(nova); setGrupo("Todos"); setMes("Todos"); setFiltro("Em aberto"); setAbertos(new Set()); };
+  const trocarAba = (nova: Aba) => { setAba(nova); setGrupo("Todos"); setMes("Todos"); setDia(""); setFiltro("Em aberto"); setAbertos(new Set()); };
   const alterado = async (mensagem: string) => {
     await onChanged(mensagem);
     if (aba === "quitados") await buscarQuitados(chaveQuitados);
@@ -231,7 +234,7 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
         </label>
         {aba === "quitados" ? (
           <label><span>Mês</span>
-            <input type="month" value={mesQuitados} max={today.slice(0, 7)} onChange={(event) => { if (event.target.value) { setMesQuitados(event.target.value); setGrupo("Todos"); } }} aria-label="Mês da baixa" />
+            <input type="month" value={mesQuitados} max={today.slice(0, 7)} onChange={(event) => { if (event.target.value) { setMesQuitados(event.target.value); setGrupo("Todos"); setDia(""); } }} aria-label="Mês da baixa" />
           </label>
         ) : (
           <>
@@ -241,13 +244,25 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
               </select>
             </label>
             <label><span>Vencimento</span>
-              <select value={mes} onChange={(event) => setMes(event.target.value)} aria-label="Mês de vencimento">
+              <select value={mes} onChange={(event) => { setMes(event.target.value); setDia(""); }} aria-label="Mês de vencimento">
                 <option value="Todos">Todos os meses</option>
                 {meses.map((item) => <option key={item} value={item}>{mesLabel(item)}</option>)}
               </select>
             </label>
           </>
         )}
+        <label className="receber-dia"><span>{aba === "quitados" ? `Data ${texto.dataBaixa === "Pagamento" ? "do pagamento" : "do recebimento"}` : "Data de vencimento"}</span>
+          <div className="receber-dia-campo">
+            <input type="date" value={dia} max={aba === "quitados" ? today : undefined} onChange={(event) => {
+              const valor = event.target.value;
+              setDia(valor);
+              if (!valor) return;
+              if (aba === "quitados") { if (valor.slice(0, 7) !== mesQuitados) setMesQuitados(valor.slice(0, 7)); }
+              else setMes("Todos");
+            }} aria-label={aba === "quitados" ? "Data da baixa" : "Data de vencimento"} />
+            {dia && <button type="button" onClick={() => setDia("")} aria-label="Limpar data" title="Limpar data">×</button>}
+          </div>
+        </label>
         <label><span>{texto.Parte}</span>
           <select value={grupo} onChange={(event) => setGrupo(event.target.value)} aria-label={`Filtrar por ${texto.parte}`}>
             <option>Todos</option>
