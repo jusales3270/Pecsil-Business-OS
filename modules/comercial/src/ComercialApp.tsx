@@ -36,7 +36,7 @@ const CRM_SECTIONS = [
 
 type CrmSection = (typeof CRM_SECTIONS)[number]["id"];
 
-export default function ComercialApp({ access, onExit, onEvent, notify, initialArea }: ModuleRuntimeProps) {
+export default function ComercialApp({ access, onExit, onEvent, notify, initialArea, initialSection }: ModuleRuntimeProps) {
   const { registerNav } = useModuleNav();
 
   // Só as seções liberadas para esta pessoa. Sem nenhuma, o CRM não aparece.
@@ -125,7 +125,7 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
     return (
       <div className="comercial-shell">
         <div className="comercial-area">
-          <ComprasApp embedded access={access} onExit={onExit} />
+          <ComprasApp embedded access={access} onExit={onExit} initialSection={initialSection} />
         </div>
       </div>
     );

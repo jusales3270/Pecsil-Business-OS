@@ -6758,3 +6758,173 @@ button.holiday-row:hover {
   .fin-linhas-meses span:nth-child(even) { visibility: hidden; }
   .fin-series { padding-left: 0; }
 }
+
+/* ============================================================================
+   Central de notificações: avisos endereçados à pessoa (public.notifications)
+   ============================================================================ */
+.main > header .header-icon > i.count {
+  right: 3px;
+  top: 3px;
+  width: auto;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-width: 2px;
+  border-radius: var(--radius-pill);
+  color: #ffffff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: var(--fw-bold);
+  line-height: 13px;
+  text-align: center;
+}
+.notification-head-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.inbox-feed > button { display: flex; align-items: center; gap: var(--sp-3); width: 100%; padding: var(--sp-3); border: 0; border-radius: var(--radius-sm); background: none; text-align: left; color: inherit; cursor: pointer; }
+.inbox-feed > button:hover { background: var(--bg-hover); }
+.inbox-feed > button > .notice-main { flex: 1; min-width: 0; }
+.inbox-feed > button.lido { opacity: 0.72; }
+.inbox-feed > button.novo b { font-weight: var(--fw-semibold); }
+.inbox-feed > button > svg { color: var(--text-muted); flex: none; }
+.inbox-feed > button > i.inbox-novo { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--accent-blue); }
+.inbox-feed em { font-style: normal; font-size: var(--fs-xs); color: var(--text-muted); }
+.inbox-sessao { margin-top: var(--sp-5); }
+
+/* ============================================================================
+   Almoxarifado: pedidos de material, a caminho, recebimento e recebidos.
+   Blocos próprios (não .ds-card): as regras genéricas do cartão deformam
+   botões, listas e ícones dentro dele.
+   ============================================================================ */
+.almox-modulo { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
+.almox-head { align-items: flex-end; }
+.almox-bloco { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; padding: var(--sp-5); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-surface); box-shadow: var(--shadow-sm); }
+.almox-bloco h2 { margin: 2px 0 0; font-size: var(--fs-lg); color: var(--text-primary); }
+.almox-bloco-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.almox-painel { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--sp-5); align-items: start; }
+.almox-lista { display: flex; flex-direction: column; gap: var(--sp-3); }
+.almox-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--sp-4); }
+.almox-vazio { padding: var(--sp-6) var(--sp-4); border: 1px dashed var(--border); border-radius: var(--radius-md); background: var(--bg-surface); }
+.almox-link { align-self: flex-start; padding: 4px 0; border: 0; background: none; color: var(--accent-blue); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+.almox-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.almox-busca { margin-left: auto; width: min(260px, 100%); height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.almox-mes { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.almox-mes input { height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }
+
+.almox-pedido { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); min-width: 0; }
+.almox-pedido > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
+.almox-pedido-titulo { display: flex; flex-direction: column; gap: 4px; min-width: 0; text-align: left; }
+.almox-pedido-titulo > span { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.almox-pedido-titulo b { font-size: var(--fs-md); color: var(--text-primary); }
+.almox-pedido-titulo small { font-size: var(--fs-xs); color: var(--text-muted); }
+.almox-pedido-itens { display: flex; flex-direction: column; gap: 4px; }
+.almox-pedido-itens p { display: flex; gap: 6px; margin: 0; font-size: var(--fs-sm); color: var(--text-primary); }
+.almox-pedido-itens p b { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.almox-pedido-itens em { font-style: normal; color: var(--text-muted); }
+.almox-pedido-itens em.valor { margin-left: auto; padding-left: var(--sp-3); font-variant-numeric: tabular-nums; color: var(--text-secondary); white-space: nowrap; }
+.almox-obs { margin: 0; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--bg-subtle); font-size: var(--fs-xs); color: var(--text-secondary); }
+.almox-pedido > footer { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding-top: var(--sp-2); border-top: 1px solid var(--border-subtle); }
+.almox-total { display: flex; flex-direction: column; font-size: var(--fs-md); font-weight: 650; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.almox-total small { font-size: var(--fs-xs); font-weight: 500; color: var(--text-muted); }
+.almox-perigo { color: var(--accent-red) !important; margin-left: auto; }
+.almox-perigo-cheio { background: var(--accent-red) !important; border-color: var(--accent-red) !important; }
+
+.almox-tabela { display: flex; flex-direction: column; overflow-x: auto; }
+.almox-tabela > [role="row"] { display: grid; grid-template-columns: 96px minmax(180px, 1.6fr) 100px 90px 120px 110px minmax(150px, 1fr); align-items: center; gap: var(--sp-3); min-width: 900px; padding: 10px var(--sp-2); border: 0; border-top: 1px solid var(--border-subtle); background: none; text-align: left; color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.almox-tabela > .cabeca { border-top: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.almox-tabela > button[role="row"] { cursor: pointer; }
+.almox-tabela > button[role="row"]:hover { background: var(--bg-hover); }
+.almox-tabela .nome { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.almox-tabela .valor { font-variant-numeric: tabular-nums; text-align: right; }
+.almox-tabela .marcas { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* Formulários (pedido, recebimento, cancelamento) */
+/* Janelas de formulário largo (pedido, recebimento, nota do ICMS): até 880px. */
+.ds-modal:has(.almox-form), .ds-modal:has(.almox-detalhe) { width: min(880px, 100%); }
+.almox-form { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.almox-form label > span, .almox-rotulo { display: block; margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.almox-form input:not([type="checkbox"]):not([type="file"]), .almox-form select, .almox-form textarea {
+  width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm);
+}
+.almox-form input[readonly] { background: var(--bg-subtle); color: var(--text-secondary); }
+.almox-form textarea { resize: vertical; }
+.almox-form-linha { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--sp-4); }
+.almox-marca { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--text-primary); cursor: pointer; }
+.almox-marca > span { margin: 0 !important; font-size: var(--fs-sm) !important; font-weight: 500 !important; color: var(--text-primary) !important; }
+.almox-marca input { width: 16px; height: 16px; accent-color: var(--accent-blue); }
+.almox-form > footer { display: flex; justify-content: flex-end; gap: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border-subtle); }
+.almox-erro { margin: 0; padding: 8px 12px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--accent-red) 10%, transparent); color: var(--accent-red); font-size: var(--fs-sm); }
+.almox-itens-form { display: flex; flex-direction: column; gap: 6px; }
+.almox-itens-form > [role="row"] { display: grid; grid-template-columns: minmax(180px, 2fr) 96px 86px minmax(140px, 1.4fr) 36px; gap: 6px; align-items: center; }
+.almox-itens-form > .cabeca span { font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); }
+.almox-icone-botao { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-muted); cursor: pointer; }
+.almox-icone-botao:hover { color: var(--accent-red); border-color: var(--accent-red); }
+.almox-adicionar { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 6px 10px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); background: none; color: var(--accent-blue); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+.almox-campos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); }
+.almox-campos .almox-largo, .almox-form > .almox-largo { grid-column: 1 / -1; }
+.almox-arquivo button { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; padding: var(--sp-6) var(--sp-4); border: 2px dashed var(--border-strong); border-radius: var(--radius-md); background: var(--bg-subtle); color: var(--text-secondary); text-align: center; cursor: pointer; font: inherit; }
+.almox-arquivo button:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+.almox-arquivo b { font-size: var(--fs-md); color: var(--text-primary); }
+.almox-arquivo small { max-width: 460px; font-size: var(--fs-xs); color: var(--text-muted); }
+.almox-nfe-resumo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--accent-green) 10%, transparent); color: var(--text-primary); font-size: var(--fs-sm); }
+.almox-nfe-resumo svg { color: var(--accent-green); }
+.almox-nfe-resumo .almox-link { margin-left: auto; }
+.almox-bloco-interno { padding: var(--sp-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-subtle); }
+.almox-dups { display: flex; flex-direction: column; gap: 6px; }
+.almox-dups > [role="row"] { display: grid; grid-template-columns: 70px 160px minmax(120px, 1fr) 36px; gap: 6px; }
+.almox-dups-rodape { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.almox-dups-rodape .neg { color: var(--accent-red); font-weight: 600; }
+.almox-conferencia { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-4); }
+.almox-item { display: flex; gap: 6px; margin: 0 0 4px; font-size: var(--fs-sm); color: var(--text-primary); }
+.almox-item b { white-space: nowrap; }
+.almox-item em { margin-left: auto; padding-left: 8px; font-style: normal; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.almox-detalhe { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.almox-detalhe dl { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); margin: 0; }
+.almox-detalhe dl .largo { grid-column: 1 / -1; }
+.almox-detalhe dt { font-size: var(--fs-xs); color: var(--text-muted); }
+.almox-detalhe dd { margin: 2px 0 0; font-size: var(--fs-sm); color: var(--text-primary); }
+.almox-detalhe dd.mono { font-family: var(--font-mono); font-size: var(--fs-xs); word-break: break-all; }
+.almox-detalhe > footer { display: flex; justify-content: flex-end; }
+
+@media (max-width: 1100px) { .almox-painel { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 720px) {
+  .almox-form, .almox-detalhe { min-width: 0; }
+  .almox-campos { grid-template-columns: 1fr 1fr; }
+  .almox-itens-form > .cabeca { display: none; }
+  .almox-itens-form > [role="row"] { grid-template-columns: 1fr 80px 76px 36px; }
+  .almox-itens-form > [role="row"] > input:nth-child(4) { grid-column: 1 / -2; }
+  .almox-busca { margin-left: 0; width: 100%; }
+}
+
+/* ============================================================================
+   Fiscal › Painel do ICMS
+   ============================================================================ */
+.icms-modulo { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
+.icms-acoes { display: flex; align-items: flex-end; gap: var(--sp-3); flex-wrap: wrap; }
+.icms-select { height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.icms-centros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); }
+.icms-centros > div { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-sm); background: var(--bg-subtle); }
+.icms-centros small { font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.icms-centros b { font-size: var(--fs-xl); font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.icms-centros span { font-size: var(--fs-xs); color: var(--text-secondary); }
+.icms-tabela { display: flex; flex-direction: column; overflow-x: auto; }
+.icms-tabela > [role="row"] { display: grid; grid-template-columns: 80px minmax(150px, 1.4fr) 64px 104px 92px 84px 96px repeat(6, 40px) 46px; align-items: center; gap: 6px; min-width: 1040px; padding: 8px 6px; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
+.icms-tabela > .cabeca { border-top: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.icms-tabela > .total { font-weight: 650; background: var(--bg-subtle); border-radius: var(--radius-sm); }
+.icms-tabela .r { text-align: right; font-variant-numeric: tabular-nums; }
+.icms-tabela .c { display: flex; justify-content: center; }
+.icms-tabela .nome { display: flex; flex-direction: column; min-width: 0; font-weight: 600; }
+.icms-tabela .nome small { font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icms-marca { width: 26px; height: 26px; padding: 0; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--bg-surface); color: var(--text-on-accent); font-size: 14px; font-weight: 700; line-height: 1; cursor: pointer; }
+.icms-marca.on { background: var(--accent-green); border-color: var(--accent-green); }
+.icms-marca:disabled { cursor: default; opacity: 0.85; }
+.icms-livro { display: flex; flex-direction: column; }
+.icms-livro > [role="row"] { display: grid; grid-template-columns: minmax(220px, 1fr) 130px 130px 140px 80px; align-items: center; gap: var(--sp-3); padding: 8px 6px; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
+.icms-livro > .cabeca { border-top: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+.icms-livro .r { text-align: right; font-variant-numeric: tabular-nums; }
+.icms-livro .c { display: flex; justify-content: center; }
+.almox-link.perigo { color: var(--accent-red); }
+.icms-livro-form { display: grid; grid-template-columns: minmax(200px, 1fr) 130px 130px auto; gap: var(--sp-2); }
+.icms-livro-form input { height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.icms-marcas-form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); }
+.icms-marcas-form .almox-rotulo { flex-basis: 100%; margin: 4px 0 0; }
+@media (max-width: 720px) { .icms-centros { grid-template-columns: 1fr; } .icms-livro-form { grid-template-columns: 1fr 1fr; } .icms-livro-form input:first-child { grid-column: 1 / -1; } }

@@ -9,6 +9,7 @@ import ComprasPage from '@/pages/ComprasPage';
 import PendentesPage from '@/pages/PendentesPage';
 import HistoricoPage from '@/pages/HistoricoPage';
 import FornecedoresPage from '@/pages/FornecedoresPage';
+import SolicitacoesPage from '@/pages/SolicitacoesPage';
 import { Toaster } from '@/components/ui/sonner';
 import { type ModuleAccessContext } from '@/modules/access';
 import type { Page } from '@/types';
@@ -26,9 +27,11 @@ interface ComprasAppProps {
    * do CRM. Aqui só não registramos a navegação de novo.
    */
   embedded?: boolean;
+  /** Aba pedida por um aviso (ex.: "solicitacoes"). */
+  initialSection?: string;
 }
 
-export default function ComprasApp({ access, onExit, embedded = false }: ComprasAppProps) {
+export default function ComprasApp({ access, onExit, embedded = false, initialSection }: ComprasAppProps) {
   const { user, currentPage, fetchInitialData, login, setPage, setCaps } = useStore();
   const { registerNav } = useModuleNav();
 
@@ -41,6 +44,11 @@ export default function ComprasApp({ access, onExit, embedded = false }: Compras
   useEffect(() => {
     setCaps(caps);
   }, [caps, setCaps]);
+
+  // Aviso "pedido de material" abre direto na aba dos pedidos.
+  useEffect(() => {
+    if (initialSection && tabs.some((tab) => tab.page === initialSection)) setPage(initialSection as Page);
+  }, [initialSection, tabs, setPage]);
 
   // Visão inicial: mantém a escolhida se ainda for permitida; o nome exibido é
   // sempre o do usuário logado.
@@ -86,6 +94,8 @@ export default function ComprasApp({ access, onExit, embedded = false }: Compras
         return <FornecedoresPage />;
       case 'historico':
         return <HistoricoPage />;
+      case 'solicitacoes':
+        return <SolicitacoesPage />;
       default:
         return <DashboardPage />;
     }

@@ -5,6 +5,8 @@ import { comercialModuleManifest } from "./comercial/manifest";
 import { comprasModuleManifest } from "./compras/manifest";
 import { portariaModuleManifest } from "./portaria/manifest";
 import { producaoModuleManifest } from "./producao/manifest";
+import { almoxarifadoModuleManifest } from "./almoxarifado/manifest";
+import { fiscalModuleManifest } from "./fiscal/manifest";
 import type { ModuleManifest } from "./types";
 // module-generator:imports
 
@@ -38,6 +40,8 @@ export const moduleRegistry = createRegistry([
   comprasModuleManifest,
   portariaModuleManifest,
   producaoModuleManifest,
+  almoxarifadoModuleManifest,
+  fiscalModuleManifest,
   // module-generator:entries
   ...plannedModuleManifests,
 ]);

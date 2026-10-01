@@ -18,6 +18,5 @@ const planned = (manifest: Pick<ModuleManifest, "id" | "code" | "name" | "short"
 });
 
 export const plannedModuleManifests = [
-  planned({ id:"estoque", code:"estoque", name:"Estoque", short:"ES", description:"Saldos, lotes, movimentações, rastreabilidade e inventário.", route:"/modules/estoque", icon:"box", color:"purple", status:"Planejado" }),
   planned({ id:"qualidade", code:"qualidade", name:"Qualidade", short:"QL", description:"Inspeções, não conformidades, planos de ação e indicadores.", route:"/modules/qualidade", icon:"check", color:"green", status:"Planejado" }),
 ] as const;

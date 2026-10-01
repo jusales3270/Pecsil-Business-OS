@@ -154,7 +154,7 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
         });
       }));
 
-      toast.success(`Compra(s) registrada(s)! Total: ${formatAmount(overallTotalCalculado)}`);
+      toast.success(`Compra avisada! Total: ${formatAmount(overallTotalCalculado)}. Financeiro e Almoxarifado foram avisados.`);
       onClose();
     } catch (err) {
       console.error(err);
@@ -167,7 +167,7 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-[620px] max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.08]">
-          <h2 className="text-lg font-semibold text-[#212121]">Registrar Compra — Cotação #{cotacao.id}</h2>
+          <h2 className="text-lg font-semibold text-[#212121]">Aviso de compra — Cotação #{cotacao.id}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-[#757575] hover:bg-gray-100 transition-colors"
@@ -193,7 +193,7 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
           {/* Common Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
-              <label className="text-xs font-semibold text-[#212121] mb-1.5 block">Número da NF</label>
+              <label className="text-xs font-semibold text-[#212121] mb-1.5 block">Número da NF <span className="font-normal text-[#757575]">(opcional — o Almoxarifado lança na entrega)</span></label>
               <input
                 type="text"
                 value={nf}
@@ -337,7 +337,7 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
             onClick={handleSubmit}
             className="px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors active:scale-[0.98]"
           >
-            Confirmar Compra
+            Confirmar e avisar
           </button>
         </div>
       </div>
