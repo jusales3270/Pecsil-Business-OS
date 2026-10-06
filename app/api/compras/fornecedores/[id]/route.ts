@@ -30,6 +30,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     }
   }
 
+  const newTaxId = typeof result.changes.tax_id === "string" ? result.changes.tax_id : null;
+  if (newTaxId) {
+    const { data: owner } = await guard.supabase
+      .from("suppliers")
+      .select("id, name, active, merged_into")
+      .eq("tax_id", newTaxId)
+      .neq("id", id)
+      .maybeSingle();
+    if (owner) {
+      const aviso = owner.merged_into ? " (já unificado em outro cadastro)" : owner.active ? "" : " (inativo)";
+      return NextResponse.json({ error: `Este CNPJ já está no fornecedor "${owner.name}"${aviso}.` }, { status: 409 });
+    }
+  }
+
   const { data, error } = await guard.supabase.from("suppliers").update(result.changes).eq("id", id).is("merged_into", null).select("id").maybeSingle();
   if (error) return dbError(error);
   if (!data) return NextResponse.json({ error: "Fornecedor não encontrado." }, { status: 404 });
