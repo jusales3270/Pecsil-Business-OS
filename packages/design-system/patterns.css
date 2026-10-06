@@ -6965,3 +6965,73 @@ button.holiday-row:hover {
 .receber-dia-campo input:focus { outline: none; border-color: var(--accent-blue); box-shadow: var(--shadow-focus); }
 .receber-dia-campo button { flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: var(--bg-hover); color: var(--text-secondary); font-size: 15px; line-height: 1; cursor: pointer; }
 .receber-dia-campo button:hover { background: var(--tint-red); color: var(--accent-red); }
+
+/* Bancos e conciliação: contas, extrato importado e candidatos de conciliação. */
+.banco-modulo { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.banco-contas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-3); }
+.banco-conta { display: flex; flex-direction: column; gap: 4px; padding: var(--sp-4) var(--sp-5); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); min-width: 0; }
+.banco-conta > header { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.banco-conta > header b { font-size: var(--fs-md); color: var(--text-primary); }
+.banco-conta small { font-size: var(--fs-xs); color: var(--text-muted); }
+.banco-conta strong { margin-top: 4px; font-size: var(--fs-xl); font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.banco-conta span { font-size: var(--fs-xs); color: var(--text-secondary); }
+.banco-conta .alerta { color: var(--accent-red); }
+.banco-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.banco-filtros select, .banco-data input { height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); color-scheme: light dark; }
+.banco-filtros select:focus, .banco-data input:focus { outline: none; border-color: var(--accent-blue); box-shadow: var(--shadow-focus); }
+.banco-data { display: flex; align-items: center; gap: 6px; }
+.banco-data > span { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.banco-selecao { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); padding: 10px var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--tint-blue); }
+.banco-selecao > span { margin-right: auto; font-size: var(--fs-sm); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.banco-lista { display: flex; flex-direction: column; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); }
+.banco-lista > [role="row"] { display: grid; grid-template-columns: 32px 92px minmax(220px, 1fr) 130px 120px minmax(190px, auto); align-items: center; gap: var(--sp-3); min-width: 860px; padding: 8px var(--sp-4); border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
+.banco-lista > [role="row"].marcado { background: var(--tint-blue); }
+.banco-lista > .cabeca { border-top: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; background: var(--bg-subtle); }
+.banco-lista .r { text-align: right; }
+.banco-lista .desc { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.banco-lista .desc b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.banco-lista .desc small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-xs); color: var(--text-muted); }
+.banco-lista .desc .banco-ligado { color: var(--accent-green); white-space: normal; }
+.banco-chip { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--bg-hover); color: var(--text-secondary); font-style: normal; font-size: var(--fs-micro); font-weight: 600; }
+.banco-valor { font-variant-numeric: tabular-nums; font-weight: 600; }
+.banco-valor.neg { color: var(--accent-red); }
+.banco-valor.pos { color: var(--accent-green); }
+.banco-lista .acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.banco-paginacao { display: flex; align-items: center; justify-content: center; gap: var(--sp-3); font-size: var(--fs-sm); color: var(--text-secondary); }
+.banco-cand { display: flex; flex-direction: column; gap: 6px; }
+.banco-cand h3 { margin: 0; font-size: var(--fs-sm); color: var(--text-primary); }
+.banco-cand h3 small { font-weight: 400; color: var(--text-muted); }
+.banco-nada { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
+.banco-opcao { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: var(--sp-3); padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); cursor: pointer; }
+.banco-opcao.on { border-color: var(--accent-blue); background: var(--tint-blue); }
+.banco-opcao > span { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.banco-opcao b { font-size: var(--fs-sm); color: var(--text-primary); }
+.banco-opcao small { flex-basis: 100%; font-size: var(--fs-xs); color: var(--text-muted); overflow-wrap: anywhere; }
+.banco-opcao strong { font-variant-numeric: tabular-nums; font-size: var(--fs-sm); color: var(--text-primary); }
+.banco-opcao input { width: 16px; height: 16px; margin: 0; }
+.banco-cand { max-height: 34vh; overflow-y: auto; }
+.banco-soma { margin: 0; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.banco-soma.ok { color: var(--accent-green); }
+.banco-soma.falta { color: var(--accent-amber, var(--text-secondary)); }
+.banco-resumo-criar { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--bg-subtle); font-size: var(--fs-xs); color: var(--text-secondary); }
+.banco-resumo-criar b { float: right; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+@media (max-width: 720px) { .banco-selecao > span { flex-basis: 100%; } }
+/* Os quatro filtros de situação não cabem em 390px: rolam por dentro, sem alargar a página. */
+.banco-modulo .almox-filtros { max-width: 100%; min-width: 0; }
+.banco-modulo .ds-segmented { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.banco-modulo .ds-segmented::-webkit-scrollbar { display: none; }
+.banco-modulo .ds-segmented > * { flex: none; }
+/* O formulário do módulo (.almox-form) estiliza `label > span`; as opções de conciliação são labels com conteúdo próprio. */
+.almox-form .banco-opcao > span { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; font-size: var(--fs-sm); font-weight: 400; color: var(--text-primary); }
+/* Celular: cada lançamento vira um cartão (data, nome, valor, situação e ações), sem rolar para o lado. */
+@media (max-width: 720px) {
+  .banco-lista > .cabeca { display: none; }
+  .banco-lista > [role="row"] { grid-template-columns: 28px minmax(0, 1fr) auto; grid-template-areas: "chk desc valor" "chk data sit" "chk acoes acoes"; min-width: 0; gap: 6px var(--sp-3); padding: 12px var(--sp-3); }
+  .banco-lista > [role="row"] > :nth-child(1) { grid-area: chk; align-self: start; }
+  .banco-lista > [role="row"] > :nth-child(2) { grid-area: data; font-size: var(--fs-xs); color: var(--text-muted); }
+  .banco-lista > [role="row"] > :nth-child(3) { grid-area: desc; }
+  .banco-lista > [role="row"] > :nth-child(4) { grid-area: valor; }
+  .banco-lista > [role="row"] > :nth-child(5) { grid-area: sit; justify-self: end; }
+  .banco-lista > [role="row"] > :nth-child(6) { grid-area: acoes; justify-content: flex-start; }
+}
+.almox-form .banco-opcao > span { flex-direction: row; justify-content: flex-start; text-align: left; }
