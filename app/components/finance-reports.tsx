@@ -122,7 +122,7 @@ export function FinanceCashFlow() {
                 <tfoot><tr><th>Total</th><td>{inteiro(soma((m) => m.entra.realized))}</td><td>{inteiro(soma((m) => m.sai.realized))}</td><td>{inteiro(soma((m) => m.realizado))}</td><td>{inteiro(soma((m) => m.entra.open))}</td><td>{inteiro(soma((m) => m.sai.open))}</td><td>{inteiro(soma((m) => m.previsto))}</td><td className="fraco">{inteiro(soma((m) => m.entra.forecast))}</td><td className="fraco">{inteiro(soma((m) => m.sai.forecast))}</td></tr></tfoot>
               </table>
             </div>
-            <p className="fin-nota">Valores em reais, sem centavos. Em aberto inclui o que já venceu e não foi baixado. Não há saldo bancário: as contas e os extratos ainda não estão cadastrados.</p>
+            <p className="fin-nota">Valores em reais, sem centavos. Em aberto inclui o que já venceu e não foi baixado. O realizado vem das baixas lançadas aqui; o saldo da conta no banco e a conferência com o extrato estão em Bancos e conciliação.</p>
           </>}
       </Card>
     </>

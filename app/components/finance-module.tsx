@@ -5,6 +5,7 @@ import { Button, Callout, Card, Kpi, KpiGrid, Segmented, Status } from "../../pa
 import { canUseFeature, type ModuleAccessContext } from "../../modules";
 import type { FinanceSnapshot, FinanceTitle } from "../../lib/data/finance";
 import { useModuleNav } from "../../lib/module-nav-context";
+import { FinanceBancos } from "./finance-bancos";
 import { FinanceChart } from "./finance-chart";
 import { FinancePainelGraficos } from "./finance-painel-graficos";
 import { FinanceTitles } from "./finance-titles";
@@ -215,7 +216,7 @@ export function FinanceModule({notify,onEvent,onExit,access,initialSection}:{not
   // Depois de qualquer alteração em título (baixa, edição, exclusão…): recarrega e avisa.
   const reloadAfter=async(message:string)=>{await loadFinanceData();track(message)};
 
-  const render=()=>section==="Painel"?<Dashboard payables={payables} receivables={receivables} snapshot={snapshot} setSection={setSection} access={access}/>:section==="Contas a pagar"?<FinanceTitles key="payable" direction="payable" titles={(snapshot?.titles??[]).filter(t=>t.direction==="payable")} accounts={snapshot?.chartAccounts??[]} onChanged={reloadAfter} canCreate={canCreatePayable} canSettle={canApprovePayable} openCreate={()=>setModal("payable")}/>:section==="Contas a receber"?<FinanceTitles key="receivable" direction="receivable" titles={(snapshot?.titles??[]).filter(t=>t.direction==="receivable")} accounts={snapshot?.chartAccounts??[]} onChanged={reloadAfter} canCreate={canCreateReceivable} canSettle={canSettleReceivable} openCreate={()=>setModal("receivable")}/>:section==="Fluxo de caixa"?<FinanceCashFlow/>:section==="Bancos e conciliação"?<Banks accounts={snapshot?.bankAccounts??[]} unreconciled={snapshot?.summary.unreconciledEntries??0}/>:section==="Centros de custo"?<CostCenters centers={snapshot?.costCenters??[]} payables={payables}/>:section==="Plano de contas"?<FinanceChart notify={track}/>:section==="Relatórios"?<Reports canExpense={canUseFeature(access,"financeiro.relatorios")} open={(title)=>{setSelected({id:0,customer:title,document:"",category:"",due:"",value:0,received:0,status:"Em aberto"});setModal("report")}}/>:<Homologation values={homologation} setValues={setHomologation} track={track}/>;
+  const render=()=>section==="Painel"?<Dashboard payables={payables} receivables={receivables} snapshot={snapshot} setSection={setSection} access={access}/>:section==="Contas a pagar"?<FinanceTitles key="payable" direction="payable" titles={(snapshot?.titles??[]).filter(t=>t.direction==="payable")} accounts={snapshot?.chartAccounts??[]} onChanged={reloadAfter} canCreate={canCreatePayable} canSettle={canApprovePayable} openCreate={()=>setModal("payable")}/>:section==="Contas a receber"?<FinanceTitles key="receivable" direction="receivable" titles={(snapshot?.titles??[]).filter(t=>t.direction==="receivable")} accounts={snapshot?.chartAccounts??[]} onChanged={reloadAfter} canCreate={canCreateReceivable} canSettle={canSettleReceivable} openCreate={()=>setModal("receivable")}/>:section==="Fluxo de caixa"?<FinanceCashFlow/>:section==="Bancos e conciliação"?<Banks accounts={snapshot?.bankAccounts??[]} onChanged={reloadAfter}/>:section==="Centros de custo"?<CostCenters centers={snapshot?.costCenters??[]} payables={payables}/>:section==="Plano de contas"?<FinanceChart notify={track}/>:section==="Relatórios"?<Reports canExpense={canUseFeature(access,"financeiro.relatorios")} open={(title)=>{setSelected({id:0,customer:title,document:"",category:"",due:"",value:0,received:0,status:"Em aberto"});setModal("report")}}/>:<Homologation values={homologation} setValues={setHomologation} track={track}/>;
   const isOwner = access.isOwner;
 
   return <div className="finance-module">
@@ -264,11 +265,9 @@ function Dashboard({payables,receivables,snapshot,setSection,access}:{payables:P
         {!pendencias.length&&<div className="finance-empty"><b>Nenhuma pendência</b><small>Títulos vencidos, aprovações e conciliações aparecem aqui.</small></div>}
       </Card>
     </>}
-function Banks({accounts,unreconciled}:{accounts:FinanceSnapshot["bankAccounts"];unreconciled:number}){
-  return <><Header eyebrow="FINANCEIRO · BANCOS" title="Bancos e conciliação" description="Contas bancárias da empresa e conciliação com os lançamentos."/>
-    {accounts.length?<div className="bank-grid">{accounts.map(x=><Card key={x.id} className="bank-card"><span><FIcon name="bank"/></span><Status tone={x.active?"success":"neutral"}>{x.active?"Ativa":"Inativa"}</Status><h2>{x.name}</h2><p>Agência {x.branch} · Conta {x.accountNumber}</p><strong>{money(x.balance)}</strong><small>Saldo inicial cadastrado</small></Card>)}</div>
-    :<Card className="finance-empty-card"><div className="finance-empty"><b>Nenhuma conta bancária cadastrada</b><small>As contas bancárias da empresa entram aqui na implantação do Financeiro, com o saldo de abertura.</small></div></Card>}
-    {unreconciled>0&&<Callout variant="warning" title="Conciliação pendente">{plural(unreconciled,"lançamento do extrato ainda não tem correspondência","lançamentos do extrato ainda não têm correspondência")}.</Callout>}
+function Banks({accounts,onChanged}:{accounts:FinanceSnapshot["bankAccounts"];onChanged:(message:string)=>Promise<void>}){
+  return <><Header eyebrow="FINANCEIRO · BANCOS" title="Bancos e conciliação" description="Extrato do banco conferido contra o que está lançado no Financeiro."/>
+    <FinanceBancos accounts={accounts} onChanged={onChanged}/>
   </>}
 function CostCenters({centers,payables}:{centers:FinanceSnapshot["costCenters"];payables:Payable[]}){
   const total=payables.reduce((a,b)=>a+b.value,0)||1;

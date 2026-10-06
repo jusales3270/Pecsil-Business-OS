@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-// O módulo e as telas que ele monta (títulos a pagar/receber, fluxo e relatórios).
-const source = (await Promise.all(["finance-module.tsx", "finance-titles.tsx", "finance-reports.tsx"].map((file) =>
+// O módulo e as telas que ele monta (títulos a pagar/receber, fluxo, relatórios e bancos).
+const source = (await Promise.all(["finance-module.tsx", "finance-titles.tsx", "finance-reports.tsx", "finance-bancos.tsx"].map((file) =>
   readFile(new URL(`../../../app/components/${file}`, import.meta.url), "utf8")))).join("\n");
 
 test("financeiro: cobre os domínios operacionais da versão 1", () => {

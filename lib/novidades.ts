@@ -27,6 +27,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-06-financeiro-bancos-conciliacao",
+    data: "2026-10-06",
+    area: "Financeiro",
+    modulos: ["financeiro"],
+    titulo: "Bancos e conciliação com o extrato do Itaú",
+    itens: [
+      "A aba Bancos e conciliação agora mostra o saldo real da conta e todos os lançamentos do extrato do banco.",
+      "Cada lançamento aparece como A conciliar, Conciliado ou Ignorado. Os que já têm pagamento registrado foram ligados sozinhos quando a data e o valor batem.",
+      "Em cada pendência: Conciliar (escolhe o pagamento certo entre as sugestões), Criar conta (para tarifas, tributos, folha e o que ainda não foi lançado), Ignorar ou Desfazer.",
+      "Nada é ligado sem a sua confirmação. Transferências entre contas da empresa e antecipação de recebíveis ficam à parte e não entram como receita.",
+    ],
+  },
+  {
     id: "2026-10-02-financeiro-historico-a-revisar",
     data: "2026-10-02",
     area: "Financeiro",

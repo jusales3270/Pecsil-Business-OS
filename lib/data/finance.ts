@@ -61,7 +61,13 @@ export type FinanceBankAccount = {
   bankCode: string;
   branch: string;
   accountNumber: string;
+  /** Saldo de abertura + créditos − débitos do extrato importado. */
   balance: number;
+  openingBalance: number;
+  /** Lançamentos do extrato, e quantos ainda esperam conciliação. */
+  entries: number;
+  pending: number;
+  lastEntryDate: string | null;
   active: boolean;
 };
 

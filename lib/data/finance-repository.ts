@@ -30,10 +30,8 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
       .select("id,bank_name,bank_code,branch,account_number,opening_balance,active")
       .eq("organization_id", organizationId)
       .order("bank_name"),
-    supabase
-      .from("finance_bank_entries")
-      .select("amount,direction,reconciliation_status")
-      .eq("organization_id", organizationId),
+    // Soma no banco: o extrato tem milhares de linhas e a leitura direta corta em 1.000.
+    supabase.rpc("finance_bank_overview"),
     supabase
       .from("finance_approval_requests")
       .select("id", { count:"exact", head:true })
@@ -57,24 +55,20 @@ export async function getSupabaseFinanceSnapshot(): Promise<FinanceSnapshot> {
   if (failed?.error) throw failed.error;
 
   const titles = titlesResult;
-  const banks = ((banksResult.data ?? []) as unknown as Row[]).map(toBankAccount);
-  const entries = (entriesResult.data ?? []) as unknown as Row[];
-  const entryBalance = entries.reduce((total, row) => {
-    const amount = number(row.amount);
-    return total + (row.direction === "credit" ? amount : -amount);
-  }, 0);
+  const overview = new Map(((entriesResult.data ?? []) as unknown as Row[]).map(row => [String(row.bank_account_id), row]));
+  const banks = ((banksResult.data ?? []) as unknown as Row[]).map(row => toBankAccount(row, overview.get(String(row.id))));
 
   return {
     source: "supabase",
     organizationId,
     summary: {
-      availableBalance: banks.reduce((sum, bank) => sum + bank.balance, 0) + entryBalance,
+      availableBalance: banks.reduce((sum, bank) => sum + bank.balance, 0),
       payableOpen: openAmount(titles.filter(title => title.direction === "payable" && !title.isForecast && !title.historical)),
       payableForecast: openAmount(titles.filter(title => title.direction === "payable" && title.isForecast && !title.historical)),
       receivableOpen: openAmount(titles.filter(title => title.direction === "receivable" && !title.isForecast && !title.historical)),
       receivableForecast: openAmount(titles.filter(title => title.direction === "receivable" && title.isForecast && !title.historical)),
       pendingApprovals: approvalsResult.count ?? 0,
-      unreconciledEntries: entries.filter(row => row.reconciliation_status === "pending").length,
+      unreconciledEntries: banks.reduce((sum, bank) => sum + bank.pending, 0),
     },
     titles,
     bankAccounts: banks,
@@ -179,14 +173,21 @@ function toInstallment(row: Row): FinanceInstallment {
   };
 }
 
-function toBankAccount(row: Row): FinanceBankAccount {
+function toBankAccount(row: Row, totals?: Row): FinanceBankAccount {
+  const credits = number(totals?.credits);
+  const debits = number(totals?.debits);
   return {
     id: String(row.id),
     name: String(row.bank_name),
     bankCode: String(row.bank_code),
     branch: String(row.branch),
     accountNumber: String(row.account_number),
-    balance: number(row.opening_balance),
+    // Saldo = saldo de abertura + créditos − débitos do extrato importado.
+    balance: number(row.opening_balance) + credits - debits,
+    openingBalance: number(row.opening_balance),
+    entries: number(totals?.entries),
+    pending: number(totals?.pending) + number(totals?.partial),
+    lastEntryDate: totals?.last_date ? String(totals.last_date) : null,
     active: Boolean(row.active),
   };
 }
