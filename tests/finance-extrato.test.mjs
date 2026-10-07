@@ -141,3 +141,64 @@ test("sugerir: valor igual com nome parecido vem primeiro; fora de 3 dias não e
   assert.deepEqual(s.map((x) => x.baixaId), ["B2", "B1"]);
   assert.equal(s[0].motivo, "valor_e_nome");
 });
+
+import { PlanilhaInvalida, centavosPlanilha, lerExtratoSantander } from "../lib/finance/extrato-planilha.ts";
+
+// Planilha fictícia no formato do Santander: mais novo em cima, saldo corrido.
+const planilha = [
+  ["AGENCIA", "0099", "CONTA", "123456789", null],
+  ["", "", "", "", ""],
+  ["Data", "Histórico", "Documento", "Valor (R$)", "Saldo (R$)"],
+  ["03/03/2026", "PIX RECEBIDO  46839106000184", "", 500, 640.5],
+  ["03/03/2026", "TARIFA MENSALIDADE PACOTE SERVICOS  FEVEREIRO / 2026", "", -59.5, 140.5],
+  ["02/03/2026", "PAGAMENTO DE BOLETO OUTROS BANCOS  ACME FERRAMENTAS LT", "0000000000", -100, 200],
+  ["02/03/2026", "OPERACAO DE CAMBIO-CREDITO RESERVA  ", "", 250, 300],
+];
+
+test("Santander: lê agência/conta, inverte a ordem e confere o saldo corrido", () => {
+  const e = lerExtratoSantander(planilha);
+  assert.equal(e.banco, "0033");
+  assert.equal(e.agencia, "0099");
+  assert.equal(e.numeroConta, "12345678");
+  assert.equal(e.digito, "9");
+  assert.equal(e.saldoCorridoDivergente, 0);
+  assert.deepEqual(e.saldoAnterior, { data: "2026-03-01", centavos: 5000 });
+  assert.deepEqual(e.lancamentos.map((l) => [l.data, l.centavos]), [["2026-03-02", 25000], ["2026-03-02", -10000], ["2026-03-03", -5950], ["2026-03-03", 50000]]);
+  assert.deepEqual(e.saldosDiarios, [{ data: "2026-03-02", centavos: 20000 }, { data: "2026-03-03", centavos: 64050 }]);
+  assert.deepEqual(conferirSaldos(e).divergentes, []);
+  assert.equal(conferirSaldos(e).saldoCalculado, 64050);
+});
+
+test("Santander: saldo corrido adulterado é denunciado; planilha sem cabeçalho é recusada", () => {
+  const ruim = planilha.map((l) => [...l]);
+  ruim[5][3] = -101;
+  assert.equal(lerExtratoSantander(ruim).saldoCorridoDivergente, 1);
+  assert.throws(() => lerExtratoSantander([["qualquer coisa"]]), PlanilhaInvalida);
+  assert.equal(centavosPlanilha(-10082.4), -1008240);
+  assert.equal(centavosPlanilha("1.234,56"), 123456);
+});
+
+test("classificar: históricos do Santander", () => {
+  assert.equal(classificarLancamento("PIX RECEBIDO  46839106000184").categoria, "transferencia_interna");
+  assert.equal(classificarLancamento("PIX AGENDADO  PECSIL MOLDES").categoria, "transferencia_interna");
+  assert.equal(classificarLancamento("PIX RECEBIDO  40049874000158").categoria, "recebimento_cliente");
+  assert.equal(classificarLancamento("OPERACAO DE CAMBIO-DEBITO RESERVA").categoria, "cambio");
+  assert.equal(classificarLancamento("IMPOSTO DE RENDA SOBRE OPER CAMBIO").categoria, "tributo");
+  assert.equal(classificarLancamento("PAGAMENTO DARF EM CANAIS INTERNET TRIBUTOS FEDERAI").categoria, "tributo");
+  assert.equal(classificarLancamento("PREST. DE EMPREST. FINANCIAMENTO CONTRATO 290000006190").categoria, "financiamento");
+  assert.equal(classificarLancamento("PRESTACAO CONSORCIO PGTO EVENTUAIS").categoria, "financiamento");
+  assert.equal(classificarLancamento("CONTRATACAO EMPREST/FINANCIAMENTO CNR 0065290000006190").categoria, "emprestimo");
+  assert.equal(classificarLancamento("DEBITO AUT. FAT.CARTAO MASTER CARD FINAL 1234").contaSugerida, "02.14");
+  assert.equal(classificarLancamento("TARIFA MENSALIDADE PACOTE SERVICOS SETEMBRO / 2026").categoria, "tarifa_bancaria");
+  assert.equal(classificarLancamento("RENDIMENTO LIQUIDO DE CONTAMAX 7000 RENDIMENTO LIQUIDO DE CONTAMAX").categoria, "rendimento");
+  const boleto = classificarLancamento("PAGAMENTO DE BOLETO OUTROS BANCOS  COMIL COVER SAND IND E CO");
+  assert.equal(boleto.categoria, "fornecedor");
+  assert.equal(boleto.contraparte, "COMIL COVER SAND IND E CO");
+  assert.equal(classificarLancamento("PAGAMENTO DE TITULO 0065.4907516278").semBeneficiario, true);
+});
+
+test("classificar: PIX enviado só com nome é pagamento (fornecedor)", () => {
+  const c = classificarLancamento("PIX ENVIADO  JBE SEGURANCA LTDA");
+  assert.equal(c.categoria, "fornecedor");
+  assert.equal(c.contraparte, "JBE SEGURANCA LTDA");
+});

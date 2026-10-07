@@ -34,6 +34,8 @@ import { homedir } from "node:os";
 import { basename, dirname, resolve } from "node:path";
 import { conciliarSaidas } from "../lib/finance/conciliacao-match.ts";
 import { ROTULO_CATEGORIA, classificarLancamento } from "../lib/finance/extrato-classificar.ts";
+import { execFileSync } from "node:child_process";
+import { lerExtratoSantander } from "../lib/finance/extrato-planilha.ts";
 import { conferirSaldos, lerOfx } from "../lib/finance/ofx-parser.ts";
 
 const envPath = resolve(process.cwd(), ".env.local");
@@ -61,11 +63,23 @@ if (!file || !existsSync(file)) {
   process.exit(1);
 }
 const outDir = resolve(getArg("--out")?.replace(/^~/, homedir()) ?? dirname(file));
-const nomeBanco = getArg("--banco") ?? "Itaú";
+const nomeBanco = getArg("--banco") ?? (/\.xlsx$/i.test(file) ? "Santander" : "Itaú");
 const brl = (centavos) => (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 // --- 1. Leitura e conferência dos saldos ------------------------------------------
-const extrato = lerOfx(readFileSync(file, "latin1"));
+// Planilha (.xlsx, formato do Santander): lida com o openpyxl do Python, que já está na
+// máquina — o app não precisa de leitor de Excel. O resto (conferência, classificação e
+// conciliação) é o mesmo do OFX.
+function linhasDaPlanilha(caminho) {
+  const py = "import json,sys,openpyxl\nwb=openpyxl.load_workbook(sys.argv[1],data_only=True)\nprint(json.dumps([[c for c in r] for r in wb.worksheets[0].iter_rows(values_only=True)],default=str))";
+  return JSON.parse(execFileSync("python3", ["-c", py, caminho], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }));
+}
+const planilha = /\.xlsx$/i.test(file);
+const extrato = planilha ? lerExtratoSantander(linhasDaPlanilha(file)) : lerOfx(readFileSync(file, "latin1"));
+if (planilha && extrato.saldoCorridoDivergente) {
+  console.error(`\nO saldo corrido da planilha não fecha em ${extrato.saldoCorridoDivergente} linha(s). Nada será gravado.`);
+  process.exit(1);
+}
 const conferencia = conferirSaldos(extrato);
 console.log(`\nExtrato: banco ${extrato.banco} · conta ${extrato.conta} · ${extrato.lancamentos.length} lançamentos · ${extrato.inicio} a ${extrato.fim}`);
 console.log(`Saldos diários conferidos: ${conferencia.dias} · divergentes: ${conferencia.divergentes.length}`);
@@ -195,7 +209,7 @@ if (supabase) {
 }
 
 // --- 5. Relatório local -----------------------------------------------------------
-const stamp = basename(file).replace(/\.ofx$/i, "").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase();
+const stamp = basename(file).replace(/\.(ofx|xlsx)$/i, "").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase();
 const csv = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 const vinculoPorEntrada = new Map(resultado.vinculos.map((v) => [v.entradaId, v]));
 const linhasCsv = [["data", "valor", "categoria", "descricao", "contraparte", "situacao", "nivel", "confianca", "baixas"].join(";")];
@@ -220,7 +234,10 @@ if (orgError) {
   process.exit(1);
 }
 // ACCTID do Itaú = agência (4) + conta (5) + dígito (1). Ex.: 8949040243 → ag. 8949, conta 04024-3.
-const conta = { bank_code: extrato.banco, bank_name: nomeBanco, branch: extrato.conta.slice(0, 4), account_number: extrato.conta.slice(4, -1), account_digit: extrato.conta.slice(-1), account_type: "checking", opening_balance: (extrato.saldoAnterior?.centavos ?? 0) / 100 };
+// A planilha do Santander já traz agência, conta e dígito separados.
+const conta = extrato.agencia
+  ? { bank_code: extrato.banco, bank_name: nomeBanco, branch: extrato.agencia, account_number: extrato.numeroConta, account_digit: extrato.digito, account_type: "checking", opening_balance: (extrato.saldoAnterior?.centavos ?? 0) / 100 }
+  : { bank_code: extrato.banco, bank_name: nomeBanco, branch: extrato.conta.slice(0, 4), account_number: extrato.conta.slice(4, -1), account_digit: extrato.conta.slice(-1), account_type: "checking", opening_balance: (extrato.saldoAnterior?.centavos ?? 0) / 100 };
 
 const payload = lancamentos.map((l) => ({
   external_id: l.externalId,
@@ -228,12 +245,12 @@ const payload = lancamentos.map((l) => ({
   direction: l.centavos > 0 ? "credit" : "debit",
   amount: Math.abs(l.centavos) / 100,
   description: l.descricao,
-  document_number: null,
+  document_number: l.documento ?? null,
   status: SEM_BAIXA.has(l.categoria) ? "ignored" : "pending",
   category: l.categoria,
   counterparty_name: l.contraparte,
   counterparty_tax_id: l.cnpj,
-  raw_payload: { fitid: l.fitid, tipo: l.tipo, memo: l.descricao },
+  raw_payload: { fitid: l.fitid || null, tipo: l.tipo, memo: l.descricao, origem: planilha ? "planilha" : "ofx" },
 }));
 const SIZE = 250;
 let inseridos = 0;
