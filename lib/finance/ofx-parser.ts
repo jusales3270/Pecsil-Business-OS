@@ -18,6 +18,8 @@ export type LancamentoOfx = {
   fitid: string;
   memo: string;
   tipo: string;
+  /** Número do documento, quando o banco informa (planilha do Santander). */
+  documento?: string;
 };
 
 export type SaldoDia = { data: string; centavos: number };
