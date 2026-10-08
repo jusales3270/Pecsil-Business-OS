@@ -380,6 +380,7 @@ type PreviaExtrato = {
   ignorados: number; paraRevisar: number;
   categorias: { rotulo: string; quantidade: number; entradas: number; saidas: number }[];
   envioAnterior: { quando: string; nome: string; quem: string | null } | null;
+  avisos: string[];
 };
 
 const FORMATO: Record<PreviaExtrato["formato"], string> = { ofx: "OFX", planilha: "planilha", pdf: "PDF" };
@@ -392,6 +393,7 @@ function PreviaExtratoView({ p }: { p: PreviaExtrato }) {
         <small>{FORMATO[p.formato]} · {date(p.periodo.inicio)} a {date(p.periodo.fim)} · {plural(p.lancamentos, "lançamento", "lançamentos")}</small>
         {!p.conta.existe && <Status tone="info">Conta nova: será cadastrada</Status>}
       </div>
+      {p.avisos.map((a) => <Callout key={a} variant="warning" title="Atenção ao período do arquivo">{a}</Callout>)}
       {p.envioAnterior && <Callout variant="warning" title="Este arquivo já foi enviado">Em {new Date(p.envioAnterior.quando).toLocaleString("pt-BR")}{p.envioAnterior.quem ? ` por ${p.envioAnterior.quem}` : ""}. O que já está na plataforma não é gravado de novo.</Callout>}
       {p.saldo.confere ? (
         <Callout variant="success" title="Saldos conferidos">
