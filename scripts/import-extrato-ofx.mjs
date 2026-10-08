@@ -66,6 +66,7 @@ if (conf.divergentes.length || extrato.saldoCorridoDivergente) {
   conf.divergentes.slice(0, 20).forEach((d) => console.error(`  - ${d.data}: banco ${brl(d.esperado)} · calculado ${brl(d.calculado)}`));
   process.exit(1);
 }
+for (const a of extrato.avisos ?? []) console.log(`AVISO: ${a}`);
 const dif = extrato.saldoFinal === null ? 0 : extrato.saldoFinal - conf.saldoCalculado;
 console.log(`Saldo final: calculado ${brl(conf.saldoCalculado)}${extrato.saldoFinal === null ? "" : ` · informado ${brl(extrato.saldoFinal)}`}${dif ? ` (diferença do próprio banco: ${brl(dif)})` : ""}`);
 

@@ -279,3 +279,73 @@ test("PDF do Itaú: quebra de linha, palavra com hífen e lançamento que contin
   assert.deepEqual(conferirSaldos(e).divergentes, []);
   assert.equal(pareceExtratoItau([[it(10, 10, "Relatório qualquer")]]), false);
 });
+
+import { lerExtratoBradesco, pareceExtratoBradesco } from "../lib/finance/extrato-bradesco.ts";
+
+const bradesco = [
+  ["", "", "", "", "", ""],
+  ["", "Bradesco Net Empresa", "", "", "", ""],
+  ["Extrato de: Agência: 328  Conta: 6864-0", "", "", "", "", ""],
+  ["Data", "Lançamento", "Dcto.", "Crédito (R$)", "Débito (R$)", "Saldo (R$)"],
+  ["31/12/2025", "SALDO ANTERIOR", "", "", "", "-1.000,00"],
+  ["02/01/2026", "TED-TRANSF ELET DISPON REMET.ACME VIDROS S A", "111", "1.500,00", "", "500,00"],
+  ["02/01/2026", "PAGTO ELETRON  COBRANCA ACME FERRAMENTAS", "222", "", "-200,50", "299,50"],
+  ["03/01/2026", "PIX ENVIADO DES: PECSIL MOLDES         03/01", "333", "", "-99,50", "200,00"],
+  ["Total", "", "", "1.500,00", "-300,00", "200,00"],
+  ["Últimos Lançamentos", "", "", "", "", ""],
+  ["Data", "Lançamento", "Dcto.", "Crédito (R$)", "Débito (R$)", "Saldo (R$)"],
+  ["10/03/2026", "SALDO ANTERIOR", "", "", "", "50,00"],
+  ["10/03/2026", "RENTAB.INVEST FACILCRED*", "444", "0,10", "", "50,10"],
+  ["Total", "", "", "0,10", "0,00", "50,10"],
+];
+
+test("Bradesco: lê o extrato principal, confere o saldo e avisa do período que falta", () => {
+  assert.equal(pareceExtratoBradesco(bradesco), true);
+  const e = lerExtratoBradesco(bradesco);
+  assert.equal(e.banco, "0237");
+  assert.equal(e.agencia, "0328");
+  assert.equal(e.numeroConta, "6864");
+  assert.equal(e.digito, "0");
+  assert.deepEqual(e.saldoAnterior, { data: "2025-12-31", centavos: -100000 });
+  assert.deepEqual(e.lancamentos.map((l) => l.centavos), [150000, -20050, -9950]);
+  assert.equal(e.saldoCorridoDivergente, 0);
+  assert.deepEqual(conferirSaldos(e).divergentes, []);
+  assert.equal(e.avisos.length, 1);
+  assert.match(e.avisos[0], /falta o período/);
+});
+
+test("Bradesco: últimos lançamentos entram quando continuam o saldo", () => {
+  const continua = bradesco.map((l) => [...l]);
+  continua[11][5] = "200,00";
+  continua[12][5] = "200,10";
+  const e = lerExtratoBradesco(continua);
+  assert.equal(e.lancamentos.length, 4);
+  assert.deepEqual(e.avisos, []);
+});
+
+test("classificar: históricos do Bradesco", () => {
+  const ted = classificarLancamento("TED-TRANSF ELET DISPON REMET.AMBEV S A");
+  assert.equal(ted.categoria, "recebimento_cliente");
+  assert.equal(ted.contraparte, "AMBEV S A");
+  const cob = classificarLancamento("PAGTO ELETRON  COBRANCA CMBA INDUSTRIA MECANICA LTDA");
+  assert.equal(cob.categoria, "fornecedor");
+  assert.equal(cob.contraparte, "CMBA INDUSTRIA MECANICA LTDA");
+  const pix = classificarLancamento("PIX ENVIADO DES: JOAO FORNECEDOR LTDA 01/07");
+  assert.equal(pix.categoria, "fornecedor");
+  assert.equal(pix.contraparte, "JOAO FORNECEDOR LTDA");
+  assert.equal(classificarLancamento("PIX ENVIADO DES: PECSIL MOLDES         01/07").categoria, "transferencia_interna");
+  assert.equal(classificarLancamento("TRANSF CC PARA CC PJ PECSIL METALURGICA E FUN").categoria, "transferencia_interna");
+  assert.equal(classificarLancamento("TED D CC HBANK* DEST. PECSIL METALURGICA E").categoria, "transferencia_interna");
+  assert.equal(classificarLancamento("PAGTO ELETRONICO TRIBUTO INTERNET --RECEITA FEDERAL").categoria, "tributo");
+  assert.equal(classificarLancamento("GASTOS CARTAO DE CREDITO").categoria, "cartao_credito");
+  assert.equal(classificarLancamento("ENCARGOS C GARANTIDA IOF CONTR 123").categoria, "financiamento");
+  assert.equal(classificarLancamento("RENTAB.INVEST FACILCRED*").categoria, "rendimento");
+  assert.equal(classificarLancamento("RECEBIMENTO FORNECEDOR WHEATON BRASIL VIDROS").categoria, "recebimento_cliente");
+  assert.equal(classificarLancamento("CHEQUE COMPENSADO").categoria, "saque");
+  assert.equal(classificarLancamento("TARIFA BANCARIA TRANSF PGTO PIX").categoria, "tarifa_bancaria");
+});
+
+test("detectar: .xls antigo (arquivo composto)", () => {
+  const xls = new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0, 0, 0]);
+  assert.equal(tipoDoArquivo(xls), "xls");
+});

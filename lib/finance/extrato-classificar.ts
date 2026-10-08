@@ -84,7 +84,7 @@ function cnpjDe(memo: string): string | null {
 }
 
 const PREFIXOS =
-  /^(BOLETO PAGO|PAGAMENTO DE BOLETO(?: OUTROS BANCOS)?|PAGAMENTOS PIX QR-CODE|PAGAMENTOS TRANSF (?:CC|POUP) ITAU|PAGAMENTOS|PIX ENVIADO|PIX AGENDADO|PIX RECEBIDO(?: PECSIL \d\d\/\d\d)?|PIX DEVOLVIDO|RECEBIMENTOS|DEB AUTOR|TED RECEBIDA(?: [\d.]+)?)\s+/;
+  /^(BOLETO PAGO|PAGTO ELETRON COBRANCA|TRANSF CC PARA CC(?: PJ)?|PIX ENVIADO DES:|PIX RECEBIDO REM:|PIX QR CODE DINAMICO DES:|RECEBIMENTO FORNECEDOR|DEBITO AUTOMATICO|PAGAMENTO DE BOLETO(?: OUTROS BANCOS)?|PAGAMENTOS PIX QR-CODE|PAGAMENTOS TRANSF (?:CC|POUP) ITAU|PAGAMENTOS|PIX ENVIADO|PIX AGENDADO|PIX RECEBIDO(?: PECSIL \d\d\/\d\d)?|PIX DEVOLVIDO|RECEBIMENTOS|DEB AUTOR|TED RECEBIDA(?: [\d.]+)?)\s+/;
 
 /**
  * O Itaú escreve o nome abreviado (12 posições) e logo depois o nome inteiro:
@@ -101,9 +101,12 @@ function semAbreviatura(texto: string): string {
 }
 
 function contraparteDe(descricao: string): string | null {
-  const achou = descricao.match(PREFIXOS);
-  if (!achou) return null;
-  let resto = descricao.slice(achou[0].length);
+  // Bradesco: "TED-TRANSF ELET DISPON REMET.AMBEV S A" (sem espaço depois do ponto).
+  const ted = descricao.match(/^TED-TRANSF ELET DISPON REMET\.\s*(.+)$/);
+  const achou = ted ? null : descricao.match(PREFIXOS);
+  if (!achou && !ted) return null;
+  let resto = ted ? ted[1] : descricao.slice(achou![0].length);
+  resto = resto.replace(/\s+\d{2}\/\d{2}$/, ""); // "PIX ENVIADO DES: FULANO 01/07"
   resto = resto.replace(CNPJ_FORMATADO, " ").replace(CNPJ_SEM_PONTOS, " ");
   resto = espacos(resto.replace(/^\d[\d./]*\s+/, ""));
   resto = semAbreviatura(resto);
@@ -122,19 +125,20 @@ export function classificarLancamento(memo: string, cnpjProprio = CNPJ_PECSIL): 
   if (/^AQUISICAO FORNECEDORES/.test(m)) return como("antecipacao_recebiveis", { contraparte: null });
   if (/^(EMPREST|CONTRATACAO EMPREST)/.test(m)) return como("emprestimo", { contraparte: null, cnpj: null });
   if (/^OPERACAO DE CAMBIO/.test(m)) return como("cambio", { contraparte: null });
-  if (cnpj === cnpjProprio || /PECSIL MOLDES|PECSIL METALURGICA E FUNDICAO/.test(m)) return como("transferencia_interna", { contraparte: null });
+  if (cnpj === cnpjProprio || /PECSIL MOLDES|PECSIL METALURGICA/.test(m)) return como("transferencia_interna", { contraparte: null });
   if (/^SISPAG SALARIOS/.test(m)) return como("folha", { contraparte: null });
-  if (/^SISPAG TRIBUTOS|RECEITA FEDERAL|COORD ADM FINANCEIRA|CEF MATRIZ|INMETRO|^PAGAMENTO DARF|^PGTO TRIBUTOS|^IMPOSTO DE RENDA/.test(m)) return como("tributo");
-  if (/^(PARC FINAME|PARCELA GIRO|PARCIAL GIRO|DEBITO SEGURO|PREST\.? DE EMPREST|PRESTACAO CONSORCIO)/.test(m)) return como("financiamento", { contraparte: null });
-  if (/^DEBITO AUT\.? FAT\.?CARTAO/.test(m)) return como("cartao_credito", { contraparte: null, contaSugerida: "02.14" });
+  if (/^SISPAG TRIBUTOS|RECEITA FEDERAL|COORD ADM FINANCEIRA|CEF MATRIZ|INMETRO|^PAGAMENTO DARF|^PGTO TRIBUTOS|^IMPOSTO DE RENDA|^PAGTO ELETRONICO TRIBUTO|^PARCELAMENTO DE DARF/.test(m)) return como("tributo", { contraparte: null });
+  if (/^(PARC FINAME|PARCELA GIRO|PARCIAL GIRO|DEBITO SEGURO|PREST\.? DE EMPREST|PRESTACAO CONSORCIO|ENCARGOS C GARANTIDA|MORA CONTA GARANTIDA)/.test(m)) return como("financiamento", { contraparte: null });
+  if (/^DEBITO AUT\.? FAT\.?CARTAO|^GASTOS CARTAO DE CREDITO/.test(m)) return como("cartao_credito", { contraparte: null, contaSugerida: "02.14" });
   if (/^IOF/.test(m)) return como("tarifa_bancaria", { contraparte: null, contaSugerida: "02.01.004" });
-  if (/^(TAR |TARIFA |EST TRANSF REGULARIZACAO)/.test(m)) return como("tarifa_bancaria", { contraparte: null, cnpj: null, contaSugerida: "02.01.014" });
-  if (/^REND(IMENTOS)?\b.*\bPAGO APLIC|^RENDIMENTO LIQUIDO/.test(m)) return como("rendimento", { contraparte: null, contaSugerida: "01.02.001" });
+  if (/^(TAR |TARIFA |EST TRANSF REGULARIZACAO|DOC\/TED INTERNET)/.test(m)) return como("tarifa_bancaria", { contraparte: null, cnpj: null, contaSugerida: "02.01.014" });
+  if (/^REND(IMENTOS)?\b.*\bPAGO APLIC|^RENDIMENTO LIQUIDO|^RENTAB\.? ?INVEST/.test(m)) return como("rendimento", { contraparte: null, contaSugerida: "01.02.001" });
   if (/^(RESGATE|INT RESGATE)/.test(m)) return como("aplicacao", { contraparte: null });
-  if (/^SAQ DIN/.test(m)) return como("saque", { contraparte: null });
-  if (/^RECEBIMENTOS/.test(m)) return como("recebimento_cliente");
-  if (/^PIX DEVOLVIDO|^PAGTO ITAU SEGUROS/.test(m)) return como("estorno");
+  if (/^SAQ DIN|^SAQUE CAIXA|^CHEQUE COMPENSADO/.test(m)) return como("saque", { contraparte: null });
+  if (/^RECEBIMENTOS|^RECEBIMENTO FORNECEDOR|^TED-TRANSF ELET DISPON REMET/.test(m)) return como("recebimento_cliente");
+  if (/^PIX DEVOLVIDO|^PAGTO ITAU SEGUROS|^PGTO DEVOLV/.test(m)) return como("estorno");
   if (/^(PIX RECEBIDO|TED RECEBIDA)/.test(m) && !pessoa) return como("recebimento_cliente");
+  if (/^PAGTO ELETRON COBRANCA|^TRANSF CC PARA CC|^DEBITO AUTOMATICO|^PIX QR CODE/.test(m)) return como("fornecedor");
   if (/^SISPAG FORNECEDORES|^PAGAMENTOS A FORNECEDORES|^PAGAMENTO DE TITULO/.test(m)) return como("fornecedor", { contraparte: null, semBeneficiario: true });
   if (/^PAGAMENTO DE BOLETO|^PAGAMENTO DE CARNES|^CONTA DE (AGUA|LUZ|ENERGIA|TELEFONE)/.test(m)) return como("fornecedor");
   if (pessoa) return como("pessoa_fisica");

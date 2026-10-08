@@ -12,7 +12,9 @@ import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { tipoDoArquivo } from "../arquivos/detectar.ts";
 import { textoDoPdf } from "../arquivos/pdf-texto.ts";
-import { lerXlsx } from "../arquivos/xlsx.ts";
+import { lerXls } from "../arquivos/xls.ts";
+import { lerXlsx, type Celula } from "../arquivos/xlsx.ts";
+import { lerExtratoBradesco, pareceExtratoBradesco } from "./extrato-bradesco.ts";
 import { conciliarSaidas, type BaixaMatch, type ResultadoMatch } from "./conciliacao-match.ts";
 import { classificarLancamento, type CategoriaExtrato, type Classificacao } from "./extrato-classificar.ts";
 import { lerExtratoItauPdf, pareceExtratoItau } from "./extrato-itau-pdf.ts";
@@ -34,7 +36,19 @@ export type Extrato = ExtratoOfx & {
   numeroConta?: string;
   digito?: string;
   saldoCorridoDivergente?: number;
+  /** Observações sobre o arquivo (ex.: período faltando entre blocos). */
+  avisos: string[];
 };
+
+/** Planilha (.xls ou .xlsx): descobre de qual banco é pelo conteúdo. */
+function extratoDaPlanilha(linhas: Celula[][]): Extrato {
+  if (pareceExtratoBradesco(linhas)) return { ...lerExtratoBradesco(linhas), formato: "planilha", nomeBanco: "Bradesco" };
+  try {
+    return { ...lerExtratoSantander(linhas), formato: "planilha", nomeBanco: "Santander", avisos: [] };
+  } catch {
+    throw new ExtratoNaoReconhecido("Planilha não reconhecida. Hoje a plataforma lê as planilhas de extrato do Santander e do Bradesco; de outro banco, envie o OFX.");
+  }
+}
 
 /** Lê o arquivo enviado e devolve o extrato, ou explica por que não dá. */
 export async function lerExtratoDoArquivo(dados: Uint8Array): Promise<Extrato> {
@@ -42,23 +56,17 @@ export async function lerExtratoDoArquivo(dados: Uint8Array): Promise<Extrato> {
   if (tipo === "ofx") {
     const e = lerOfx(textoOfx(dados));
     const codigo = e.banco.replace(/\D/g, "").padStart(4, "0");
-    return { ...e, banco: codigo, formato: "ofx", nomeBanco: BANCOS[codigo] ?? `Banco ${codigo}` };
+    return { ...e, banco: codigo, formato: "ofx", nomeBanco: BANCOS[codigo] ?? `Banco ${codigo}`, avisos: [] };
   }
-  if (tipo === "xlsx") {
-    const linhas = lerXlsx(Buffer.from(dados));
-    try {
-      return { ...lerExtratoSantander(linhas), formato: "planilha", nomeBanco: "Santander" };
-    } catch {
-      throw new ExtratoNaoReconhecido("Planilha não reconhecida. Hoje a plataforma lê a planilha de extrato do Santander; de outro banco, envie o OFX.");
-    }
-  }
+  if (tipo === "xlsx") return extratoDaPlanilha(lerXlsx(Buffer.from(dados)));
+  if (tipo === "xls") return extratoDaPlanilha(lerXls(Buffer.from(dados)));
   if (tipo === "pdf") {
     const paginas = await textoDoPdf(dados, 400);
-    if (pareceExtratoItau(paginas)) return { ...lerExtratoItauPdf(paginas), formato: "pdf", nomeBanco: "Itaú" };
+    if (pareceExtratoItau(paginas)) return { ...lerExtratoItauPdf(paginas), formato: "pdf", nomeBanco: "Itaú", avisos: [] };
     throw new ExtratoNaoReconhecido("PDF não reconhecido como extrato. Hoje a plataforma lê o PDF do Itaú (\"Lançamentos do período\"); de outro banco, envie o OFX ou a planilha.");
   }
   if (tipo === "nfe-xml") throw new ExtratoNaoReconhecido("Este arquivo é uma nota fiscal (XML). Envie notas pelo Fiscal ou pelo Almoxarifado.");
-  throw new ExtratoNaoReconhecido("Formato não reconhecido. Envie o extrato em OFX, Excel (.xlsx) ou PDF.");
+  throw new ExtratoNaoReconhecido("Formato não reconhecido. Envie o extrato em OFX, Excel (.xls ou .xlsx) ou PDF.");
 }
 
 /** Conta bancária no formato do cadastro, a partir do que o arquivo informa. */

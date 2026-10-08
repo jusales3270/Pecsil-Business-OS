@@ -112,6 +112,7 @@ export async function POST(request: Request) {
       ignorados,
       paraRevisar: novos.length - ignorados - resultado.vinculos.length,
       categorias: resumoPorCategoria(novos).map((r) => ({ rotulo: ROTULO_CATEGORIA[r.categoria], quantidade: r.quantidade, entradas: r.entradas / 100, saidas: r.saidas / 100 })),
+      avisos: extrato.avisos ?? [],
       envioAnterior: ultimoEnvio ? { quando: ultimoEnvio.created_at, nome: ultimoEnvio.file_name, quem: ultimoEnvio.profiles?.full_name ?? null } : null,
     });
   } catch (e) {
