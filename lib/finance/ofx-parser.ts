@@ -7,8 +7,18 @@
  * banco mistura aos lançamentos NÃO são lançamentos: viram saldo e servem de
  * conferência (`conferirSaldos`). É texto puro; o arquivo nunca sai do servidor.
  *
- * O Itaú grava o arquivo em Windows-1252: leia com `readFileSync(arquivo, "latin1")`.
+ * O cabeçalho do Itaú diz CHARSET 1252, mas o arquivo vem em UTF-8: use
+ * `textoOfx(buffer)`, que tenta UTF-8 e só cai para Windows-1252 se não for.
  */
+
+/** Texto do arquivo OFX: UTF-8 quando válido; senão Windows-1252/latin1. */
+export function textoOfx(dados: Uint8Array): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(dados);
+  } catch {
+    return new TextDecoder("latin1").decode(dados);
+  }
+}
 
 export type LancamentoOfx = {
   /** AAAA-MM-DD */
@@ -26,6 +36,8 @@ export type SaldoDia = { data: string; centavos: number };
 
 export type ExtratoOfx = {
   banco: string;
+  /** BRANCHID do OFX (alguns bancos informam a agência separada da conta). */
+  agenciaOfx?: string;
   conta: string;
   tipoConta: string;
   moeda: string;
@@ -89,6 +101,7 @@ export function lerOfx(texto: string): ExtratoOfx {
   const balanco = texto.match(/<LEDGERBAL>[\s\S]*?<BALAMT>([^\r\n<]*)/i);
   return {
     banco: campo(texto, "BANKID"),
+    agenciaOfx: campo(texto, "BRANCHID") || undefined,
     conta: campo(texto, "ACCTID"),
     tipoConta: campo(texto, "ACCTTYPE"),
     moeda: campo(texto, "CURDEF") || "BRL",

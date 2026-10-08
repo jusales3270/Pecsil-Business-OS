@@ -27,6 +27,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-08-financeiro-enviar-extrato",
+    data: "2026-10-08",
+    area: "Financeiro",
+    modulos: ["financeiro"],
+    titulo: "Enviar extrato direto na plataforma",
+    itens: [
+      "Em Bancos e conciliação, o botão Enviar extrato aceita o OFX de qualquer banco, a planilha do Santander e o PDF do Itaú.",
+      "A plataforma descobre o banco e a conta, confere os saldos de cada dia e mostra o que vai fazer antes de gravar: quantos lançamentos são novos, quantos já se conciliam sozinhos e quantos ficam para revisar.",
+      "Mandar o mesmo arquivo de novo não duplica nada: ela avisa que o arquivo já foi enviado e grava só o que for novo.",
+    ],
+  },
+  {
     id: "2026-10-06-financeiro-bancos-conciliacao",
     data: "2026-10-06",
     area: "Financeiro",

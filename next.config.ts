@@ -7,6 +7,8 @@ import type { NextConfig } from "next";
 const buildVersion = process.env.SOURCE_COMMIT?.slice(0, 12) || new Date().toISOString();
 
 const nextConfig: NextConfig = {
+  // O pdfjs roda no servidor (leitura de extrato e relatório em PDF) e não deve ser empacotado.
+  serverExternalPackages: ["pdfjs-dist"],
   env: {
     NEXT_PUBLIC_APP_VERSION: buildVersion,
   },
