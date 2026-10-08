@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Kpi, KpiGrid, Modal, Segmented, Status } from "../../../packages/design-system";
 import { useModuleNav } from "../../../lib/module-nav-context";
 import { canUseFeature } from "../../access";
 import type { ModuleRuntimeProps } from "../../runtime";
 import { PedidoModal } from "./PedidoModal";
 import { RecebimentoModal } from "./RecebimentoModal";
-import { type ACaminho, DIVISAO, Icone, type Pedido, type Recebido, SITUACAO, chamar, date, hoje, money, qtd } from "./tipos";
+import { type ACaminho, DIVISAO, Icone, type NotaLidaResposta, type Pedido, type Recebido, SITUACAO, chamar, date, hoje, lerNotaArquivo, money, qtd } from "./tipos";
 
 /**
  * Almoxarifado: pede material ao Compras, acompanha a cotação e a compra, e
@@ -45,6 +45,26 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
 
   const [novoPedido, setNovoPedido] = useState(false);
   const [receber, setReceber] = useState<ACaminho | null | "avulso">(null);
+  const [notaInicial, setNotaInicial] = useState<NotaLidaResposta | undefined>(undefined);
+  const [notaLida, setNotaLida] = useState<NotaLidaResposta | null>(null);
+  const [lendoNota, setLendoNota] = useState(false);
+  const arquivoNota = useRef<HTMLInputElement>(null);
+  const enviarNota = async (file: File | undefined) => {
+    if (!file) return;
+    setLendoNota(true);
+    const res = await lerNotaArquivo(file);
+    setLendoNota(false);
+    if (!res.ok) { notify(res.error); return; }
+    if (res.data.jaRecebida) { notify(`Esta nota já foi recebida (recebimento #${res.data.jaRecebida.numero}, ${date(res.data.jaRecebida.em)}).`); return; }
+    setNotaLida(res.data);
+  };
+  const abrirRecebimento = (alvo: ACaminho | "avulso", lida: NotaLidaResposta) => { setNotaLida(null); setNotaInicial(lida); setReceber(alvo); };
+  const botaoEnviarNota = podeReceber ? (
+    <>
+      <input ref={arquivoNota} type="file" accept=".xml,.pdf,text/xml,application/xml,application/pdf" hidden onChange={(e) => { void enviarNota(e.target.files?.[0]); e.target.value = ""; }} />
+      <Button compact onClick={() => arquivoNota.current?.click()} disabled={lendoNota}><Icone nome="nota" size={16} /> {lendoNota ? "Lendo a nota…" : "Enviar nota"}</Button>
+    </>
+  ) : null;
   const [cancelar, setCancelar] = useState<Pedido | null>(null);
   const [detalhe, setDetalhe] = useState<Recebido | null>(null);
 
@@ -167,7 +187,7 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
           </KpiGrid>
           <div className="almox-painel">
             <section className="almox-bloco">
-              <div className="almox-bloco-topo"><div><p className="eyebrow">CHEGANDO</p><h2>Material a caminho</h2></div>{podeReceber && <Button variant="secondary" compact onClick={() => setReceber("avulso")}>Nota sem pedido</Button>}</div>
+              <div className="almox-bloco-topo"><div><p className="eyebrow">CHEGANDO</p><h2>Material a caminho</h2></div>{podeReceber && <div className="almox-acoes-topo">{botaoEnviarNota}<Button variant="secondary" compact onClick={() => setReceber("avulso")}>Nota sem pedido</Button></div>}</div>
               {caminho.length ? <div className="almox-lista">{caminho.slice(0, 4).map(cartaoCaminho)}</div> : vazio("Nada a caminho", "Quando o Compras der o aviso de compra, o material aparece aqui para você receber.")}
               {caminho.length > 4 && <button type="button" className="almox-link" onClick={() => setSecao("A caminho")}>Ver todos ({caminho.length}) ›</button>}
             </section>
@@ -186,7 +206,7 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
       return (
         <>
           {cabecalho("ALMOXARIFADO · RECEBIMENTO", "Material a caminho", "Compras já avisadas. Quando o material chegar, confira e lance a nota: ela vai para o pagamento e para o Painel do ICMS.",
-            podeReceber ? <Button variant="secondary" onClick={() => setReceber("avulso")}><Icone nome="nota" size={16} /> Nota sem pedido</Button> : null)}
+            podeReceber ? <div className="almox-acoes-topo">{botaoEnviarNota}<Button variant="secondary" onClick={() => setReceber("avulso")}><Icone nome="nota" size={16} /> Nota sem pedido</Button></div> : null)}
           {caminho.length ? <div className="almox-grade">{caminho.map(cartaoCaminho)}</div> : vazio("Nada a caminho", "Quando o Compras der o aviso de compra, o material aparece aqui.")}
         </>
       );
@@ -222,7 +242,33 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
     <div className="almox-modulo">
       {conteudo()}
       {novoPedido && <PedidoModal onClose={() => setNovoPedido(false)} onCriado={(numero) => { setNovoPedido(false); setSecao("Solicitações"); void depois(`Pedido #${numero} enviado ao Compras.`); }} />}
-      {receber && <RecebimentoModal compra={receber === "avulso" ? null : receber} onClose={() => setReceber(null)} onFeito={(mensagem) => { setReceber(null); void depois(mensagem); }} />}
+      {receber && <RecebimentoModal compra={receber === "avulso" ? null : receber} inicial={notaInicial} onClose={() => { setReceber(null); setNotaInicial(undefined); }} onFeito={(mensagem) => { setReceber(null); setNotaInicial(undefined); void depois(mensagem); }} />}
+      {notaLida && (
+        <Modal eyebrow="Almoxarifado · enviar nota" title={`NF ${notaLida.nfe.numero}${notaLida.nfe.serie ? `/${notaLida.nfe.serie}` : ""} · ${notaLida.fornecedor?.nome ?? notaLida.nfe.emitente.nome}`} subtitle={`${money(notaLida.nfe.valorNota)} · emitida em ${date(notaLida.nfe.emissao)} · lida do ${notaLida.origem === "pdf" ? "PDF (confira os valores)" : "XML"}`} onClose={() => setNotaLida(null)}>
+          <div className="almox-form">
+            {notaLida.pedidos.length ? (
+              <>
+                <p>{notaLida.pedidos.length === 1 ? "Esta nota combina com o pedido abaixo." : "Esta nota combina com estes pedidos. Escolha o certo:"}</p>
+                <div className="almox-nota-pedidos">
+                  {notaLida.pedidos.map((p) => {
+                    const c = (caminho ?? []).find((x) => x.cotacaoId === p.cotacaoId);
+                    return c ? (
+                      <button key={p.cotacaoId} type="button" onClick={() => abrirRecebimento(c, notaLida)}>
+                        <span><b>{c.fornecedor}</b><small>{c.pedidoNumero ? `Pedido #${c.pedidoNumero} · ` : ""}cotação #{c.cotacaoId}{c.solicitante ? ` · ${c.solicitante}` : ""} · {p.motivo === "cnpj" ? "mesmo CNPJ" : p.motivo === "fornecedor" ? "mesmo fornecedor" : "nome parecido"}</small></span>
+                        <span className="r"><b>{money(p.falta)}</b><small>{p.valorConfere ? "valor confere" : "valor diferente"}</small></span>
+                      </button>
+                    ) : null;
+                  })}
+                </div>
+              </>
+            ) : <p>Nenhum pedido a caminho combina com esta nota{notaLida.fornecedor ? ` de ${notaLida.fornecedor.nome}` : ""}. Você pode recebê-la sem pedido (o Compras é avisado).</p>}
+            <footer>
+              <Button variant="secondary" onClick={() => setNotaLida(null)}>Cancelar</Button>
+              <Button variant="secondary" onClick={() => abrirRecebimento("avulso", notaLida)}>Receber sem pedido</Button>
+            </footer>
+          </div>
+        </Modal>
+      )}
       {cancelar && <CancelarModal pedido={cancelar} onClose={() => setCancelar(null)} onFeito={() => { setCancelar(null); void depois(`Pedido #${cancelar.numero} cancelado.`); }} />}
       {detalhe && <DetalheRecebido recebido={detalhe} onClose={() => setDetalhe(null)} />}
     </div>

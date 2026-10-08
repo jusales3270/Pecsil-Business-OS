@@ -349,3 +349,58 @@ test("detectar: .xls antigo (arquivo composto)", () => {
   const xls = new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0, 0, 0]);
   assert.equal(tipoDoArquivo(xls), "xls");
 });
+
+import { chaveValida, lerDanfe, pareceDanfe } from "../lib/fiscal/danfe-pdf.ts";
+import { fornecedorDaNota, lerNotaDoArquivo, pedidosDaNota } from "../lib/fiscal/nota-carga.ts";
+
+// DANFE fictício: chave com dígito verificador válido e rótulos do layout oficial.
+const chaveFicticia = (() => {
+  const base = "3526091122233300018155001000012345100001234";
+  let soma = 0, peso = 2;
+  for (let i = base.length - 1; i >= 0; i--) { soma += Number(base[i]) * peso; peso = peso === 9 ? 2 : peso + 1; }
+  const r = soma % 11;
+  return base + String(r < 2 ? 0 : 11 - r);
+})();
+const d = (x, y, s) => ({ x, y, w: 40, s });
+const danfe = [[
+  d(36, 813, "RECEBEMOS DE FERRAMENTAS EXEMPLO LTDA OS PRODUTOS/SERVIÇOS CONSTANTES DA NOTA FISCAL INDICADA AO LADO"),
+  d(296, 752, "DANFE"), d(377, 714, "CHAVE DE ACESSO"), d(383, 704, chaveFicticia.replace(/(\d{4})/g, "$1 ").trim()),
+  d(36, 659, "NATUREZA DA OPERAÇÃO"), d(35, 649, "VENDA"),
+  d(36, 607, "NOME/RAZÃO SOCIAL"), d(390, 607, "CNPJ/CPF"), d(487, 607, "DATA DA EMISSÃO"),
+  d(36, 597, "PECSIL"), d(389, 597, "46.839.106/0001-84"), d(487, 597, "28/09/2026"),
+  d(36, 501, "BASE DE CÁLCULO DO ICMS"), d(146, 501, "VALOR DO ICMS"), d(255, 501, "BASE DE CÁLCULO DO ICMS ST"), d(472, 501, "VALOR TOTAL DOS PRODUTOS"),
+  d(119, 491, "222,50"), d(229, 491, "40,05"), d(337, 491, "0,00"), d(513, 491, "222,50"),
+  d(378, 480, "VALOR DO IPI"), d(473, 480, "VALOR TOTAL DA NOTA"), d(446, 470, "11,13"), d(514, 470, "233,63"),
+]];
+
+test("DANFE: chave com dígito verificador e valores lidos abaixo de cada rótulo", () => {
+  assert.equal(chaveValida(chaveFicticia), true);
+  assert.equal(chaveValida(chaveFicticia.slice(0, 43) + ((Number(chaveFicticia[43]) + 1) % 10)), false);
+  assert.equal(pareceDanfe(danfe), true);
+  const n = lerDanfe(danfe);
+  assert.equal(n.chave, chaveFicticia);
+  assert.equal(n.numero, "12345");
+  assert.equal(n.serie, "1");
+  assert.equal(n.emitente.cnpj, "11222333000181");
+  assert.equal(n.emitente.nome, "FERRAMENTAS EXEMPLO LTDA");
+  assert.equal(n.emissao, "2026-09-28");
+  assert.equal(n.destinatarioCnpj, "46839106000184");
+  assert.deepEqual([n.valorProdutos, n.valorNota, n.baseIcms, n.icms, n.ipi], [222.5, 233.63, 222.5, 40.05, 11.13]);
+  assert.deepEqual(n.camposNaoLidos, []);
+});
+
+test("nota: XML pelo arquivo; fornecedor pelo CNPJ ou pelo nome; pedido a caminho", async () => {
+  const xmlNota = readFileSync(new URL("./fixtures/nfe-ficticia.xml", import.meta.url));
+  const lida = await lerNotaDoArquivo(new Uint8Array(xmlNota));
+  assert.equal(lida.origem, "xml");
+  assert.ok(lida.xml);
+  const cadastro = [{ id: "a", name: "FERRAMENTAS EXEMPLO", tax_id: null }, { id: "b", name: "OUTRA EMPRESA", tax_id: "99999999000199" }];
+  assert.deepEqual(fornecedorDaNota(lida.nfe, cadastro), { id: "a", nome: "FERRAMENTAS EXEMPLO", porCnpj: false, gravarCnpj: true });
+  assert.deepEqual(fornecedorDaNota(lida.nfe, [{ id: "c", name: "QUALQUER", tax_id: "11.222.333/0001-81" }]), { id: "c", nome: "QUALQUER", porCnpj: true, gravarCnpj: false });
+  const pedidos = pedidosDaNota(lida.nfe, { id: "a", nome: "FERRAMENTAS EXEMPLO", porCnpj: false, gravarCnpj: true }, [
+    { cotacaoId: 1, fornecedor: "FERRAMENTAS EXEMPLO", supplierId: "a", cnpj: null, totalComprado: 233.63, jaRecebido: 0 },
+    { cotacaoId: 2, fornecedor: "SEM RELAÇÃO", supplierId: "z", cnpj: null, totalComprado: 233.63, jaRecebido: 0 },
+  ]);
+  assert.deepEqual(pedidos.map((p) => [p.cotacaoId, p.motivo, p.valorConfere]), [[1, "fornecedor", true]]);
+  await assert.rejects(() => lerNotaDoArquivo(new TextEncoder().encode("OFXHEADER:100\n<OFX>")), /extrato bancário/);
+});

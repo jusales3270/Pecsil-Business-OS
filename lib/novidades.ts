@@ -27,6 +27,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-08-notas-xml-pdf",
+    data: "2026-10-08",
+    area: "Fiscal e Almoxarifado",
+    modulos: ["fiscal", "almoxarifado"],
+    titulo: "Notas fiscais: envie o XML ou o PDF",
+    itens: [
+      "No Painel do ICMS, o botão Enviar notas aceita vários XML e DANFEs em PDF de uma vez: a plataforma lê, reconhece o fornecedor e mostra o que vai lançar antes de gravar.",
+      "Nota que já está no painel não entra de novo, e o mesmo XML e PDF da mesma nota contam uma vez só.",
+      "No Almoxarifado, o botão Enviar nota acha o pedido a caminho daquele fornecedor e abre o recebimento já preenchido.",
+      "Quando a nota vem do PDF, os valores aparecem para conferência. Se o fornecedor do cadastro ainda não tem CNPJ, ele passa a ter o da nota.",
+    ],
+  },
+  {
     id: "2026-10-08-financeiro-enviar-extrato",
     data: "2026-10-08",
     area: "Financeiro",

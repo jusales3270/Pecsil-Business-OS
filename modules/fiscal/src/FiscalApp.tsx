@@ -5,6 +5,7 @@ import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../.
 import { useModuleNav } from "../../../lib/module-nav-context";
 import type { Nfe } from "../../../lib/almoxarifado/nfe-xml";
 import type { ModuleRuntimeProps } from "../../runtime";
+import { EnviarArquivo } from "../../../app/components/enviar-arquivo";
 
 /**
  * Módulo Fiscal — Painel do ICMS. Substitui a planilha mensal: uma linha por
@@ -106,6 +107,21 @@ export default function FiscalApp({ notify }: ModuleRuntimeProps) {
         <div><p className="eyebrow">FISCAL · ICMS</p><h1>Painel do ICMS</h1><p>Notas de entrada de {nomeMes(mes)}: crédito de ICMS, IPI por centro e o livro de apuração. As notas recebidas no Almoxarifado entram sozinhas.</p></div>
         <div className="icms-acoes">
           <label className="almox-mes"><span>Mês</span><input type="month" value={mes} onChange={(e) => e.target.value && setMes(e.target.value)} /></label>
+          {podeEditar && (
+            <EnviarArquivo<PreviaNotas>
+              rotulo="Enviar notas"
+              titulo={`Enviar notas para ${nomeMes(mes)}`}
+              descricao="XML da NF-e ou DANFE em PDF — pode mandar várias de uma vez. A plataforma lê, reconhece o fornecedor e mostra o que vai lançar; nota que já está no painel não entra de novo."
+              aceita=".xml,.pdf,text/xml,application/xml,application/pdf"
+              endpoint="/api/fiscal/icms/notas"
+              multiplo
+              extras={{ mes }}
+              renderPrevia={(p) => <PreviaNotasView p={p} />}
+              podeConfirmar={(p) => p.resumo.novas > 0}
+              textoConfirmar="Lançar no painel"
+              onConcluido={(msg) => { notify(msg); void carregar(mes); }}
+            />
+          )}
           {podeEditar && <Button onClick={() => setEditar("nova")}>+ Nova nota</Button>}
         </div>
       </div>
@@ -239,12 +255,21 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
   const lerXml = async (file: File | undefined) => {
     if (!file) return;
     setErro("");
-    const res = await api<{ nfe: Nfe; jaNoIcms: boolean }>("/api/almoxarifado/nfe", { method: "POST", body: JSON.stringify({ xml: await file.text() }) });
+    const corpo = new FormData();
+    corpo.set("arquivo", file);
+    let res: { ok: true; data: { nfe: Nfe; jaNoIcms: boolean; origem: "xml" | "pdf"; fornecedor: { nome: string } | null } } | { ok: false; error: string };
+    try {
+      const r = await fetch("/api/almoxarifado/nfe", { method: "POST", body: corpo, cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      res = r.ok ? { ok: true, data: j } : { ok: false, error: j?.error === "FORBIDDEN" ? "Sem permissão." : j?.error || "Não foi possível ler a nota." };
+    } catch { res = { ok: false, error: "Sem conexão com o servidor." }; }
     if (!res.ok) { setErro(res.error); return; }
     if (res.data.jaNoIcms) { setErro("Esta nota já está no painel (mesma chave de acesso)."); return; }
     const n = res.data.nfe;
-    setF((a) => ({ ...a, emitida: n.emissao, fornecedor: n.emitente.nome, fantasia: n.emitente.fantasia, cnpj: n.emitente.cnpj, nfe: n.numero, serie: n.serie, chave: n.chave,
-      valor: campo(n.valorNota), vlrCobrado: campo(n.valorNota), baseIcms: campo(n.baseIcms), icms: campo(n.icms), ipi: campo(n.ipi), xmlOk: true }));
+    const doPdf = res.data.origem === "pdf";
+    setF((a) => ({ ...a, emitida: n.emissao, fornecedor: n.emitente.nome, fantasia: n.emitente.fantasia || res.data.fornecedor?.nome || "", cnpj: n.emitente.cnpj, nfe: n.numero, serie: n.serie, chave: n.chave,
+      valor: campo(n.valorNota), vlrCobrado: campo(n.valorNota), baseIcms: campo(n.baseIcms), icms: campo(n.icms), ipi: campo(n.ipi), xmlOk: !doPdf,
+      obs: doPdf ? "Lida do DANFE em PDF: conferir com a nota." : a.obs }));
   };
 
   const salvar = async (event: React.FormEvent) => {
@@ -272,8 +297,8 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
       <form className="almox-form" onSubmit={salvar}>
         {!nota && (
           <div className="almox-arquivo">
-            <input ref={arquivo} type="file" accept=".xml,text/xml,application/xml" hidden onChange={(e) => void lerXml(e.target.files?.[0])} />
-            <button type="button" onClick={() => arquivo.current?.click()}><b>{f.chave ? "XML lido — conferir abaixo" : "Anexar o XML da NF-e (opcional)"}</b><small>Preenche fornecedor, número, valores, ICMS e IPI.</small></button>
+            <input ref={arquivo} type="file" accept=".xml,.pdf,text/xml,application/xml,application/pdf" hidden onChange={(e) => void lerXml(e.target.files?.[0])} />
+            <button type="button" onClick={() => arquivo.current?.click()}><b>{f.chave ? "Nota lida — conferir abaixo" : "Anexar a nota: XML ou DANFE em PDF (opcional)"}</b><small>Preenche fornecedor, número, valores, ICMS e IPI. Do PDF, confira os valores.</small></button>
           </div>
         )}
         {veioDoRecebimento && <Callout variant="info" title="Veio do recebimento">Os valores vêm da nota recebida no Almoxarifado. Aqui você ajusta centro, tipo, situação e observação.</Callout>}
@@ -308,5 +333,47 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
         </footer>
       </form>
     </Modal>
+  );
+}
+
+type PreviaNotas = {
+  mes: string; recebida: string;
+  linhas: {
+    arquivo: string; ok: boolean; erro?: string; origem?: "xml" | "pdf"; chave?: string; numero?: string; serie?: string; emissao?: string;
+    emitente?: string; cnpj?: string; valor?: number; baseIcms?: number; icms?: number; ipi?: number; camposNaoLidos?: string[];
+    situacao?: "nova" | "ja_no_painel" | "repetida_no_envio"; fornecedor?: { id: string; nome: string; porCnpj: boolean; gravarCnpj: boolean } | null;
+  }[];
+  resumo: { arquivos: number; novas: number; jaNoPainel: number; erros: number; valor: number; icms: number; pdf: number; cnpjParaGravar: number };
+};
+
+const SITUACAO_NOTA: Record<string, [string, "success" | "neutral" | "attention"]> = { nova: ["Nova", "success"], ja_no_painel: ["Já no painel", "neutral"], repetida_no_envio: ["Repetida", "neutral"] };
+
+function PreviaNotasView({ p }: { p: PreviaNotas }) {
+  return (
+    <>
+      <div className="arq-numeros">
+        <div><small>Novas</small><b>{p.resumo.novas}</b><span>de {p.resumo.arquivos} {p.resumo.arquivos === 1 ? "arquivo" : "arquivos"}</span></div>
+        <div><small>Valor das novas</small><b>{money(p.resumo.valor)}</b><span>ICMS {money(p.resumo.icms)}</span></div>
+        <div><small>Já no painel</small><b>{p.resumo.jaNoPainel}</b><span>não entram de novo</span></div>
+        <div><small>Com problema</small><b className={p.resumo.erros ? "alerta" : ""}>{p.resumo.erros}</b><span>{p.resumo.pdf ? `${p.resumo.pdf} lidas do PDF: conferir` : "todas lidas do XML"}</span></div>
+      </div>
+      {p.resumo.cnpjParaGravar > 0 && <Callout variant="info" title="CNPJ no cadastro de fornecedores">{p.resumo.cnpjParaGravar === 1 ? "1 fornecedor do cadastro está sem CNPJ e vai receber" : `${p.resumo.cnpjParaGravar} fornecedores do cadastro estão sem CNPJ e vão receber`} o da nota.</Callout>}
+      <div className="arq-notas" role="table">
+        {p.linhas.map((l, i) => (
+          <div role="row" key={`${l.arquivo}-${i}`} className={l.ok ? "" : "erro"}>
+            {l.ok ? (
+              <>
+                <span className="nf"><b>NF {l.numero}{l.serie ? `/${l.serie}` : ""}</b><small>{l.emissao ? l.emissao.split("-").reverse().join("/") : "—"} · {l.origem === "pdf" ? "PDF" : "XML"}</small></span>
+                <span className="forn"><b title={l.emitente}>{l.fornecedor?.nome ?? l.emitente}</b><small>{l.cnpj ? l.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : ""}{l.fornecedor ? (l.fornecedor.porCnpj ? " · cadastro pelo CNPJ" : " · cadastro pelo nome") : " · fornecedor fora do cadastro"}{l.camposNaoLidos?.length ? ` · não lido: ${l.camposNaoLidos.join(", ")}` : ""}</small></span>
+                <span className="r">{money(l.valor ?? 0)}<small>ICMS {money(l.icms ?? 0)}</small></span>
+                <span>{l.situacao && <Status tone={SITUACAO_NOTA[l.situacao][1]}>{SITUACAO_NOTA[l.situacao][0]}</Status>}</span>
+              </>
+            ) : (
+              <><span className="nf"><b>{l.arquivo}</b></span><span className="forn"><small>{l.erro}</small></span><span /><span><Status tone="attention">Não lida</Status></span></>
+            )}
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
