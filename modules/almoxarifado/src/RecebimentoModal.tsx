@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Callout, Modal, Segmented } from "../../../packages/design-system";
 import type { Nfe } from "../../../lib/almoxarifado/nfe-xml";
-import { type ACaminho, DIVISAO, Icone, chamar, date, hoje, money, qtd } from "./tipos";
+import { type ACaminho, DIVISAO, Icone, chamar, date, hoje, lerNotaArquivo, money, qtd, type NotaLidaResposta } from "./tipos";
 
 type Modo = "xml" | "manual";
 type Dup = { numero: string; vencimento: string; valor: string };
@@ -19,9 +19,10 @@ const campoValor = (valor: number) => (valor ? valor.toLocaleString("pt-BR", { m
  * (tudo preenchido) ou digitando. Ao confirmar, o banco cria a conta a pagar,
  * abate a previsão da compra, lança no Painel do ICMS e avisa o Financeiro.
  */
-export function RecebimentoModal({ compra, onClose, onFeito }: { compra: ACaminho | null; onClose: () => void; onFeito: (mensagem: string) => void }) {
+export function RecebimentoModal({ compra, inicial, onClose, onFeito }: { compra: ACaminho | null; inicial?: NotaLidaResposta; onClose: () => void; onFeito: (mensagem: string) => void }) {
   const [modo, setModo] = useState<Modo>("xml");
   const [xml, setXml] = useState<string | null>(null);
+  const [doPdf, setDoPdf] = useState(false);
   const [nfe, setNfe] = useState<Nfe | null>(null);
   const [lendo, setLendo] = useState(false);
   const [aviso, setAviso] = useState("");
@@ -52,29 +53,44 @@ export function RecebimentoModal({ compra, onClose, onFeito }: { compra: ACaminh
 
   const faltaReceber = compra ? Math.max(0, compra.totalComprado - compra.jaRecebido) : 0;
 
+  /** Preenche a nota a partir do que o servidor leu (XML ou DANFE em PDF). */
+  const aplicar = (lida: NotaLidaResposta) => {
+    if (lida.jaRecebida) { setErro(`Esta nota já foi recebida (recebimento #${lida.jaRecebida.numero}, ${date(lida.jaRecebida.em)}).`); return; }
+    const n = lida.nfe;
+    setXml(lida.xml);
+    setDoPdf(lida.origem === "pdf");
+    setNfe(n);
+    if (!compra) setFornecedor(n.emitente.fantasia || lida.fornecedor?.nome || n.emitente.nome);
+    setNf(n.numero); setSerie(n.serie); setChave(n.chave); setEmissao(n.emissao);
+    setValor(campoValor(n.valorNota)); setBase(campoValor(n.baseIcms)); setIcms(campoValor(n.icms)); setIpi(campoValor(n.ipi));
+    setDups(n.duplicatas.length
+      ? n.duplicatas.map((d) => ({ numero: d.numero, vencimento: d.vencimento, valor: campoValor(d.valor) }))
+      : [{ numero: "1", vencimento: compra?.previsaoVencimento ?? "", valor: campoValor(n.valorNota) }]);
+    if (compra) setEncerra(n.valorNota >= faltaReceber * 0.98);
+    const avisos: string[] = [];
+    if (lida.origem === "pdf") avisos.push("Nota lida do DANFE em PDF: confira valores e vencimentos (o PDF não traz as parcelas).");
+    if (compra?.cnpj && n.emitente.cnpj && compra.cnpj !== n.emitente.cnpj) avisos.push(`O CNPJ da nota (${n.emitente.nome}) é diferente do fornecedor da compra (${compra.fornecedor}).`);
+    if (compra && Math.abs(n.valorNota - faltaReceber) > Math.max(1, faltaReceber * 0.02)) avisos.push(`A nota vale ${money(n.valorNota)} e a compra ${money(faltaReceber)}${n.ipi ? ` (a compra pode não incluir IPI de ${money(n.ipi)})` : ""}.`);
+    setAviso(avisos.join(" "));
+  };
+
   const lerArquivo = async (file: File | undefined) => {
     if (!file) return;
     setErro(""); setAviso(""); setLendo(true);
-    const texto = await file.text();
-    const res = await chamar<{ nfe: Nfe; jaRecebida: { numero: number; em: string } | null; jaNoIcms: boolean }>("/api/almoxarifado/nfe", { method: "POST", body: JSON.stringify({ xml: texto }) });
+    const res = await lerNotaArquivo(file);
     setLendo(false);
     if (!res.ok) { setErro(res.error); return; }
-    const { nfe: lida, jaRecebida } = res.data;
-    if (jaRecebida) { setErro(`Esta nota já foi recebida (recebimento #${jaRecebida.numero}, ${date(jaRecebida.em)}).`); return; }
-    setXml(texto);
-    setNfe(lida);
-    if (!compra) setFornecedor(lida.emitente.fantasia || lida.emitente.nome);
-    setNf(lida.numero); setSerie(lida.serie); setChave(lida.chave); setEmissao(lida.emissao);
-    setValor(campoValor(lida.valorNota)); setBase(campoValor(lida.baseIcms)); setIcms(campoValor(lida.icms)); setIpi(campoValor(lida.ipi));
-    setDups(lida.duplicatas.length
-      ? lida.duplicatas.map((d) => ({ numero: d.numero, vencimento: d.vencimento, valor: campoValor(d.valor) }))
-      : [{ numero: "1", vencimento: compra?.previsaoVencimento ?? "", valor: campoValor(lida.valorNota) }]);
-    if (compra) setEncerra(lida.valorNota >= faltaReceber * 0.98);
-    const avisos: string[] = [];
-    if (compra?.cnpj && lida.emitente.cnpj && compra.cnpj !== lida.emitente.cnpj) avisos.push(`O CNPJ da nota (${lida.emitente.nome}) é diferente do fornecedor da compra (${compra.fornecedor}).`);
-    if (compra && Math.abs(lida.valorNota - faltaReceber) > Math.max(1, faltaReceber * 0.02)) avisos.push(`A nota vale ${money(lida.valorNota)} e a compra ${money(faltaReceber)}${lida.ipi ? ` (a compra pode não incluir IPI de ${money(lida.ipi)})` : ""}.`);
-    setAviso(avisos.join(" "));
+    aplicar(res.data);
   };
+
+  // Nota já lida antes de abrir (botão "Enviar nota" do Almoxarifado).
+  useEffect(() => {
+    if (!inicial) return;
+    const t = setTimeout(() => aplicar(inicial), 0);
+    return () => clearTimeout(t);
+    // só na abertura
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const somaDups = useMemo(() => dups.reduce((acc, d) => acc + (numero(d.valor) || 0), 0), [dups]);
   const mudarDup = (index: number, campo: keyof Dup, texto: string) => setDups((atual) => atual.map((d, i) => (i === index ? { ...d, [campo]: texto } : d)));
@@ -119,15 +135,15 @@ export function RecebimentoModal({ compra, onClose, onFeito }: { compra: ACaminh
   return (
     <Modal eyebrow="Almoxarifado · recebimento" title={titulo} subtitle={subtitulo} onClose={onClose}>
       <div className="almox-form almox-receber">
-        <Segmented<Modo> options={[{ value: "xml", label: "Anexar XML da nota" }, { value: "manual", label: "Digitar a nota" }]} value={modo} onChange={(m) => { setModo(m); setErro(""); }} ariaLabel="Como lançar a nota" />
+        <Segmented<Modo> options={[{ value: "xml", label: "Anexar a nota (XML ou PDF)" }, { value: "manual", label: "Digitar a nota" }]} value={modo} onChange={(m) => { setModo(m); setErro(""); }} ariaLabel="Como lançar a nota" />
 
         {modo === "xml" && !nfe && (
           <div className="almox-arquivo">
-            <input ref={arquivo} type="file" accept=".xml,text/xml,application/xml" onChange={(event) => void lerArquivo(event.target.files?.[0])} hidden />
+            <input ref={arquivo} type="file" accept=".xml,.pdf,text/xml,application/xml,application/pdf" onChange={(event) => void lerArquivo(event.target.files?.[0])} hidden />
             <button type="button" onClick={() => arquivo.current?.click()} disabled={lendo}>
               <Icone nome="nota" size={26} />
-              <b>{lendo ? "Lendo a nota…" : "Escolher o arquivo XML da NF-e"}</b>
-              <small>Fornecedor, número, valores, ICMS, IPI e vencimentos vêm preenchidos. Nota de serviço ou de papel: use &ldquo;Digitar a nota&rdquo;.</small>
+              <b>{lendo ? "Lendo a nota…" : "Escolher o XML da NF-e ou o DANFE em PDF"}</b>
+              <small>Fornecedor, número, valores, ICMS e IPI vêm preenchidos (do XML, também os vencimentos). Nota de serviço ou de papel: use &ldquo;Digitar a nota&rdquo;.</small>
             </button>
           </div>
         )}
@@ -138,8 +154,8 @@ export function RecebimentoModal({ compra, onClose, onFeito }: { compra: ACaminh
           <>
             {nfe && (
               <p className="almox-nfe-resumo">
-                <Icone nome="check" size={16} /> NF-e {nfe.numero} · série {nfe.serie} · {nfe.emitente.nome} · emitida em {date(nfe.emissao)}
-                <button type="button" className="almox-link" onClick={() => { setNfe(null); setXml(null); setAviso(""); }}>trocar arquivo</button>
+                <Icone nome="check" size={16} /> NF-e {nfe.numero} · série {nfe.serie} · {nfe.emitente.nome} · emitida em {date(nfe.emissao)}{doPdf ? " · lida do PDF" : ""}
+                <button type="button" className="almox-link" onClick={() => { setNfe(null); setXml(null); setDoPdf(false); setAviso(""); }}>trocar arquivo</button>
               </p>
             )}
             <div className="almox-campos">

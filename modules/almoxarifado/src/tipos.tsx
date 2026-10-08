@@ -88,6 +88,31 @@ export async function chamar<T>(url: string, init?: RequestInit): Promise<{ ok: 
   }
 }
 
+/** Nota lida no servidor (XML ou DANFE em PDF), com o fornecedor do cadastro e os pedidos que combinam. */
+export type NotaLidaResposta = {
+  nfe: import("../../../lib/almoxarifado/nfe-xml").Nfe;
+  origem: "xml" | "pdf";
+  xml: string | null;
+  camposNaoLidos: string[];
+  jaRecebida: { numero: number; em: string } | null;
+  jaNoIcms: boolean;
+  fornecedor: { id: string; nome: string; porCnpj: boolean; gravarCnpj: boolean } | null;
+  pedidos: { cotacaoId: number; fornecedor: string; falta: number; motivo: "cnpj" | "fornecedor" | "nome"; valorConfere: boolean }[];
+};
+
+export async function lerNotaArquivo(file: File): Promise<{ ok: true; data: NotaLidaResposta } | { ok: false; error: string }> {
+  const corpo = new FormData();
+  corpo.set("arquivo", file);
+  try {
+    const res = await fetch("/api/almoxarifado/nfe", { method: "POST", body: corpo, cache: "no-store" });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: body?.error === "FORBIDDEN" ? "Sem permissão para esta ação." : body?.error || "Não foi possível ler a nota." };
+    return { ok: true, data: body as NotaLidaResposta };
+  } catch {
+    return { ok: false, error: "Sem conexão com o servidor." };
+  }
+}
+
 /** Ícones da tela, com tamanho explícito (sem largura o SVG global vira 20px). */
 export function Icone({ nome, size = 18 }: { nome: "mais" | "caixa" | "caminhao" | "nota" | "lixo" | "alerta" | "check" | "seta"; size?: number }) {
   const paths: Record<string, React.ReactNode> = {

@@ -7062,3 +7062,21 @@ button.holiday-row:hover {
   .arq-tabela > [role="row"] { grid-template-columns: minmax(0, 1fr) 40px 100px; }
   .arq-tabela > [role="row"] > :nth-child(3) { display: none; }
 }
+/* Prévia de várias notas (Fiscal › Enviar notas). */
+.arq-notas { display: flex; flex-direction: column; max-height: 42vh; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); }
+.arq-notas > [role="row"] { display: grid; grid-template-columns: 110px minmax(0, 1fr) 130px 110px; gap: var(--sp-3); align-items: center; padding: 8px 10px; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); }
+.arq-notas > [role="row"]:first-child { border-top: 0; }
+.arq-notas > [role="row"].erro { background: var(--tint-amber); }
+.arq-notas span { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.arq-notas b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.arq-notas small { font-size: var(--fs-xs); color: var(--text-muted); overflow-wrap: anywhere; }
+.arq-notas .r { align-items: flex-end; font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) { .arq-notas > [role="row"] { grid-template-columns: minmax(0, 1fr) auto; } .arq-notas .nf { grid-column: 1 / -1; } }
+/* Almoxarifado › Enviar nota: escolha do pedido que combina com a nota. */
+.almox-acoes-topo { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.almox-nota-pedidos { display: flex; flex-direction: column; gap: 6px; }
+.almox-nota-pedidos > button { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); text-align: left; cursor: pointer; }
+.almox-nota-pedidos > button:hover { border-color: var(--accent-blue); background: var(--tint-blue); }
+.almox-nota-pedidos span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.almox-nota-pedidos span.r { align-items: flex-end; font-variant-numeric: tabular-nums; }
+.almox-nota-pedidos small { font-size: var(--fs-xs); color: var(--text-muted); }
