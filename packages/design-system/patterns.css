@@ -7035,3 +7035,30 @@ button.holiday-row:hover {
   .banco-lista > [role="row"] > :nth-child(6) { grid-area: acoes; justify-content: flex-start; }
 }
 .almox-form .banco-opcao > span { flex-direction: row; justify-content: flex-start; text-align: left; }
+
+/* Enviar arquivo (componente comum aos módulos): zona de soltar, prévia e números. */
+.banco-topo { display: flex; justify-content: flex-end; gap: var(--sp-2); }
+.arq-envio { gap: var(--sp-3); }
+.arq-zona { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 160px; padding: var(--sp-5); border: 2px dashed var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); color: var(--text-secondary); text-align: center; cursor: pointer; }
+.arq-zona:hover, .arq-zona.on, .arq-zona:focus-visible { border-color: var(--accent-blue); background: var(--tint-blue); outline: none; }
+.arq-zona b { font-size: var(--fs-md); color: var(--text-primary); }
+.arq-zona small { max-width: 520px; font-size: var(--fs-xs); color: var(--text-muted); }
+.arq-previa { display: flex; flex-direction: column; gap: var(--sp-3); }
+.arq-cabeca { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--sp-3); }
+.arq-cabeca b { font-size: var(--fs-md); color: var(--text-primary); }
+.arq-cabeca small { flex-basis: 100%; font-size: var(--fs-xs); color: var(--text-muted); }
+.arq-numeros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
+.arq-numeros > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--bg-subtle); }
+.arq-numeros small { font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+.arq-numeros b { font-size: var(--fs-lg, var(--fs-md)); font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.arq-numeros b.alerta { color: var(--accent-amber); }
+.arq-numeros span { font-size: var(--fs-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.arq-tabela { display: flex; flex-direction: column; max-height: 30vh; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); }
+.arq-tabela > [role="row"] { display: grid; grid-template-columns: minmax(0, 1fr) 60px 130px 130px; gap: var(--sp-2); padding: 6px 10px; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
+.arq-tabela > .cabeca { border-top: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; background: var(--bg-subtle); }
+.arq-tabela .r { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) {
+  .arq-numeros { grid-template-columns: 1fr 1fr; }
+  .arq-tabela > [role="row"] { grid-template-columns: minmax(0, 1fr) 40px 100px; }
+  .arq-tabela > [role="row"] > :nth-child(3) { display: none; }
+}

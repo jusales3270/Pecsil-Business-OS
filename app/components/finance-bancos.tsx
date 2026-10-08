@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Callout, Modal, Segmented, Status } from "../../packages/design-system";
 import type { FinanceBankAccount } from "../../lib/data/finance";
+import { EnviarArquivo } from "./enviar-arquivo";
 
 /**
  * Bancos e conciliação. O extrato importado do banco é conferido contra o Financeiro:
@@ -107,6 +108,21 @@ export function FinanceBancos({ accounts, onChanged }: { accounts: FinanceBankAc
 
   return (
     <div className="banco-modulo">
+      {dados?.podeOperar && (
+        <div className="banco-topo">
+          <EnviarArquivo<PreviaExtrato>
+            rotulo="Enviar extrato"
+            titulo="Enviar extrato bancário"
+            descricao="OFX de qualquer banco, planilha (.xlsx) do Santander ou PDF do Itaú. A plataforma identifica o banco e a conta, confere os saldos e mostra o que vai conciliar antes de gravar."
+            aceita=".ofx,.xlsx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            endpoint="/api/finance/bancos/extrato"
+            renderPrevia={(p) => <PreviaExtratoView p={p} />}
+            podeConfirmar={(p) => p.saldo.confere && p.novos > 0}
+            textoConfirmar="Gravar e conciliar"
+            onConcluido={depois}
+          />
+        </div>
+      )}
       {accounts.length ? (
         <div className="banco-contas">
           {accounts.map((c) => (
@@ -350,5 +366,57 @@ function CriarModal({ lancamentos, plano, onClose, onFeito }: { lancamentos: Lan
         </footer>
       </div>
     </Modal>
+  );
+}
+
+type PreviaExtrato = {
+  banco: string; formato: "ofx" | "planilha" | "pdf";
+  conta: { agencia: string; numero: string; digito: string | null; existe: boolean };
+  periodo: { inicio: string | null; fim: string | null };
+  lancamentos: number; entradas: number; saidas: number;
+  saldo: { confere: boolean; diasConferidos: number; divergentes: { data: string; banco: number; calculado: number }[]; final: number; informado: number | null };
+  novos: number; jaImportados: number;
+  conciliacao: { conciliados: number; nivel1: number; nivel2: number; nivel3: number; valor: number };
+  ignorados: number; paraRevisar: number;
+  categorias: { rotulo: string; quantidade: number; entradas: number; saidas: number }[];
+  envioAnterior: { quando: string; nome: string; quem: string | null } | null;
+};
+
+const FORMATO: Record<PreviaExtrato["formato"], string> = { ofx: "OFX", planilha: "planilha", pdf: "PDF" };
+
+function PreviaExtratoView({ p }: { p: PreviaExtrato }) {
+  return (
+    <>
+      <div className="arq-cabeca">
+        <b>{p.banco} · ag. {p.conta.agencia} · conta {p.conta.numero}{p.conta.digito ? `-${p.conta.digito}` : ""}</b>
+        <small>{FORMATO[p.formato]} · {date(p.periodo.inicio)} a {date(p.periodo.fim)} · {plural(p.lancamentos, "lançamento", "lançamentos")}</small>
+        {!p.conta.existe && <Status tone="info">Conta nova: será cadastrada</Status>}
+      </div>
+      {p.envioAnterior && <Callout variant="warning" title="Este arquivo já foi enviado">Em {new Date(p.envioAnterior.quando).toLocaleString("pt-BR")}{p.envioAnterior.quem ? ` por ${p.envioAnterior.quem}` : ""}. O que já está na plataforma não é gravado de novo.</Callout>}
+      {p.saldo.confere ? (
+        <Callout variant="success" title="Saldos conferidos">
+          {p.saldo.diasConferidos} saldos do dia batem com os lançamentos. Saldo final {money(p.saldo.final)}{p.saldo.informado !== null && Math.abs(p.saldo.informado - p.saldo.final) > 0.004 ? ` (o banco informa ${money(p.saldo.informado)})` : ""}.
+        </Callout>
+      ) : (
+        <Callout variant="warning" title="Os saldos não fecham — nada será gravado">
+          {p.saldo.divergentes.map((d) => `${date(d.data)}: banco ${money(d.banco)}, calculado ${money(d.calculado)}`).join(" · ") || "O saldo corrido da planilha não confere."}
+        </Callout>
+      )}
+      <div className="arq-numeros">
+        <div><small>Novos</small><b>{p.novos.toLocaleString("pt-BR")}</b><span>{p.jaImportados ? `${p.jaImportados.toLocaleString("pt-BR")} já estavam na plataforma` : "nenhum repetido"}</span></div>
+        <div><small>Conciliados na hora</small><b>{p.conciliacao.conciliados.toLocaleString("pt-BR")}</b><span>{money(p.conciliacao.valor)}</span></div>
+        <div><small>Sem conta (transferências etc.)</small><b>{p.ignorados.toLocaleString("pt-BR")}</b><span>entram como ignorados</span></div>
+        <div><small>Para revisar</small><b className={p.paraRevisar ? "alerta" : ""}>{p.paraRevisar.toLocaleString("pt-BR")}</b><span>vão para A conciliar</span></div>
+      </div>
+      {p.categorias.length > 0 && (
+        <div className="arq-tabela" role="table">
+          <div className="cabeca" role="row"><span>Categoria</span><span className="r">Qtde.</span><span className="r">Entradas</span><span className="r">Saídas</span></div>
+          {p.categorias.map((c) => (
+            <div role="row" key={c.rotulo}><span>{c.rotulo}</span><span className="r">{c.quantidade}</span><span className="r">{c.entradas ? money(c.entradas) : "—"}</span><span className="r">{c.saidas ? money(c.saidas) : "—"}</span></div>
+          ))}
+        </div>
+      )}
+      {p.novos === 0 && <p className="banco-nada">Nada novo neste arquivo: todos os lançamentos já estão na plataforma.</p>}
+    </>
   );
 }

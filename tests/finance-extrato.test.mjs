@@ -202,3 +202,80 @@ test("classificar: PIX enviado só com nome é pagamento (fornecedor)", () => {
   assert.equal(c.categoria, "fornecedor");
   assert.equal(c.contraparte, "JBE SEGURANCA LTDA");
 });
+
+import { tipoDoArquivo } from "../lib/arquivos/detectar.ts";
+import { lerXlsx } from "../lib/arquivos/xlsx.ts";
+import { lerExtratoItauPdf, pareceExtratoItau } from "../lib/finance/extrato-itau-pdf.ts";
+import { lerExtratoDoArquivo, contaDoExtrato, prepararLancamentos } from "../lib/finance/extrato-carga.ts";
+
+const xlsx = readFileSync(new URL("./fixtures/extrato-santander-ficticio.xlsx", import.meta.url));
+
+test("detectar: tipo pelo conteúdo, não pela extensão", () => {
+  assert.equal(tipoDoArquivo(new Uint8Array(xlsx)), "xlsx");
+  assert.equal(tipoDoArquivo(new TextEncoder().encode(ofx)), "ofx");
+  assert.equal(tipoDoArquivo(new TextEncoder().encode("%PDF-1.7\n...")), "pdf");
+  assert.equal(tipoDoArquivo(new TextEncoder().encode('<?xml version="1.0"?><nfeProc versao="4.00"><NFe>')), "nfe-xml");
+  assert.equal(tipoDoArquivo(new TextEncoder().encode("qualquer coisa")), "desconhecido");
+});
+
+test("xlsx: lê a primeira aba sem biblioteca (texto e número)", () => {
+  const linhas = lerXlsx(xlsx);
+  assert.deepEqual(linhas[0].slice(0, 4), ["AGENCIA", "0099", "CONTA", "123456789"]);
+  assert.deepEqual(linhas[2], ["Data", "Histórico", "Documento", "Valor (R$)", "Saldo (R$)"]);
+  assert.deepEqual(linhas[3], ["03/03/2026", "PIX RECEBIDO  46839106000184", "", 500, 640.5]);
+  assert.equal(linhas[4][3], -59.5);
+});
+
+test("carga: planilha do Santander pelo arquivo, conta e chaves estáveis", async () => {
+  const e = await lerExtratoDoArquivo(new Uint8Array(xlsx));
+  assert.equal(e.formato, "planilha");
+  assert.equal(e.nomeBanco, "Santander");
+  assert.deepEqual(contaDoExtrato(e), { bank_code: "0033", bank_name: "Santander", branch: "0099", account_number: "12345678", account_digit: "9", account_type: "checking", opening_balance: 50 });
+  const a = prepararLancamentos(e).map((l) => l.externalId);
+  const b = prepararLancamentos(await lerExtratoDoArquivo(new Uint8Array(xlsx))).map((l) => l.externalId);
+  assert.deepEqual(a, b);
+  assert.equal(new Set(a).size, a.length);
+});
+
+test("carga: OFX pelo arquivo, banco pelo código; nota fiscal é recusada como extrato", async () => {
+  const e = await lerExtratoDoArquivo(new TextEncoder().encode(ofx));
+  assert.equal(e.formato, "ofx");
+  assert.equal(e.nomeBanco, "Itaú");
+  await assert.rejects(() => lerExtratoDoArquivo(new TextEncoder().encode('<?xml version="1.0"?><nfeProc><NFe>')), /nota fiscal/);
+  await assert.rejects(() => lerExtratoDoArquivo(new TextEncoder().encode("texto qualquer")), /não reconhecido/);
+});
+
+// PDF do Itaú: páginas com os pedaços posicionados (x, y), como o pdfjs entrega.
+const it = (x, y, s, w = 30) => ({ x, y, w, s });
+const pag1 = [
+  it(34, 820, "PECSIL TESTE LTDA."), it(436, 820, "Agência 0001"), it(493, 820, "Conta 0012345-6"),
+  it(34, 790, "Lançamentos do período:"), it(35, 770, "Data"), it(87, 770, "Lançamentos"), it(223, 770, "Razão Social"), it(360, 770, "CNPJ/CPF"), it(467, 770, "Valor (R$)"), it(521, 770, "Saldo (R$)"),
+  it(35, 750, "31/12/2025"), it(87, 750, "SALDO ANTERIOR"), it(536, 750, "1.000,00", 30),
+  // razão social quebrada em duas linhas, acima e abaixo da linha da data
+  it(223, 736, "ACME FERRAMENTAS"), it(35, 730, "02/01/2026"), it(87, 730, "BOLETO PAGO ACME FERRAM"), it(360, 730, "11.222.333/0001-81"), it(469, 730, "-250,00", 35), it(223, 725, "LTDA"),
+  it(35, 712, "02/01/2026"), it(87, 712, "SISPAG FORNECEDORES PIX QR-"), it(469, 712, "-100,00", 35), it(87, 707, "CODE"),
+  it(35, 694, "02/01/2026"), it(87, 694, "SALDO TOTAL DISPONÍVEL DIA"), it(529, 694, "650,00", 30),
+  // pé da página: começa um lançamento que continua na página seguinte
+  it(87, 40, "RENDIMENTOS REND PAGO APLIC"),
+];
+const pag2 = [
+  it(35, 805, "03/01/2026"), it(87, 805, "AUT MAIS"), it(476, 805, "0,10", 30),
+  it(35, 792, "03/01/2026"), it(87, 792, "SALDO TOTAL DISPONÍVEL DIA"), it(529, 792, "650,10", 30),
+];
+
+test("PDF do Itaú: quebra de linha, palavra com hífen e lançamento que continua na outra página", () => {
+  assert.equal(pareceExtratoItau([pag1, pag2]), true);
+  const e = lerExtratoItauPdf([pag1, pag2]);
+  assert.equal(e.agencia, "0001");
+  assert.equal(e.numeroConta, "12345");
+  assert.equal(e.digito, "6");
+  assert.deepEqual(e.saldoAnterior, { data: "2025-12-31", centavos: 100000 });
+  assert.deepEqual(e.lancamentos.map((l) => [l.data, l.centavos, l.memo]), [
+    ["2026-01-02", -25000, "BOLETO PAGO ACME FERRAM ACME FERRAMENTAS LTDA 11.222.333/0001-81"],
+    ["2026-01-02", -10000, "SISPAG FORNECEDORES PIX QR-CODE"],
+    ["2026-01-03", 10, "RENDIMENTOS REND PAGO APLIC AUT MAIS"],
+  ]);
+  assert.deepEqual(e.saldosDiarios, [{ data: "2026-01-02", centavos: 65000 }, { data: "2026-01-03", centavos: 65010 }]);
+  assert.deepEqual(conferirSaldos(e).divergentes, []);
+  assert.equal(pareceExtratoItau([[it(10, 10, "Relatório qualquer")]]), false);
+});
