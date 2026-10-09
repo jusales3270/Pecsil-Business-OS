@@ -137,6 +137,13 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     ],
   },
   {
+    code: "fundicao",
+    label: "Fundição",
+    features: [
+      { code: "fundicao.pedidos", label: "Pedidos de material", description: "Painel da Fundição: pede material ao Compras e acompanha cotação, aprovação, compra e chegada; operar pede e cancela.", levels: VER_OPERAR },
+    ],
+  },
+  {
     code: "fiscal",
     label: "Fiscal",
     features: [

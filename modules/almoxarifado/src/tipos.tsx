@@ -6,6 +6,8 @@ export type Pedido = {
   id: string;
   numero: number;
   divisao: "USINAGEM" | "FUNDICAO" | "GERAL";
+  /** Quem pediu: o Almoxarifado ou a Fundição (painel da Fundição). */
+  origem: "ALMOXARIFADO" | "FUNDICAO";
   urgencia: "normal" | "urgente";
   observacao: string | null;
   status: SituacaoPedido;
@@ -24,6 +26,7 @@ export type ACaminho = {
   divisao: string | null;
   pedidoId: string | null;
   pedidoNumero: number | null;
+  origem: "ALMOXARIFADO" | "FUNDICAO" | null;
   solicitante: string | null;
   compradoEm: string | null;
   totalComprado: number;

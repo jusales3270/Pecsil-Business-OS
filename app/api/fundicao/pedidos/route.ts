@@ -1,40 +1,37 @@
 import { NextResponse } from "next/server";
-import { requireAnyFeature, requireFeature } from "../../../../lib/auth/feature-guard";
+import { requireFeature } from "../../../../lib/auth/feature-guard";
 import { COLUNAS_PEDIDO, itensDoPedido, pedidoParaTela, type PedidoLinha } from "../../../../lib/almoxarifado/pedidos";
 
 export const dynamic = "force-dynamic";
 
-const LEITURA = ["almoxarifado.solicitacoes", "almoxarifado.recebimento"];
-
-/** Pedidos de material, com itens, dos últimos meses (mais recentes primeiro). O Almoxarifado vê também os da Fundição: recebe tudo. */
+/** Pedidos de material feitos pela Fundição (só os dela), mais recentes primeiro. */
 export async function GET() {
-  const guard = await requireAnyFeature(LEITURA);
+  const guard = await requireFeature("fundicao.pedidos", "ver");
   if ("error" in guard) return guard.error;
   const { data, error } = await guard.supabase
     .from("material_requests")
     .select(COLUNAS_PEDIDO)
+    .eq("origem", "FUNDICAO")
     .order("created_at", { ascending: false })
     .limit(400);
   if (error) {
-    console.error("Falha ao ler pedidos de material", error);
-    return NextResponse.json({ error: "ALMOXARIFADO_UNAVAILABLE" }, { status: 503 });
+    console.error("Falha ao ler pedidos da Fundição", error);
+    return NextResponse.json({ error: "FUNDICAO_UNAVAILABLE" }, { status: 503 });
   }
   return NextResponse.json({
-    canRequest: guard.access.can("almoxarifado.solicitacoes", "operar"),
-    canReceive: guard.access.can("almoxarifado.recebimento", "operar"),
+    canRequest: guard.access.can("fundicao.pedidos", "operar"),
     requests: ((data ?? []) as PedidoLinha[]).map(pedidoParaTela),
   });
 }
 
-/** Novo pedido de material: avisa quem cota no Compras. */
+/** Novo pedido da Fundição: vai para a divisão Fundição do Compras, assinado por quem pediu. */
 export async function POST(request: Request) {
-  const guard = await requireFeature("almoxarifado.solicitacoes", "operar");
+  const guard = await requireFeature("fundicao.pedidos", "operar");
   if ("error" in guard) return guard.error;
-  const body = (await request.json().catch(() => ({}))) as { divisao?: string; urgencia?: string; observacao?: string; itens?: Parameters<typeof itensDoPedido>[0] };
+  const body = (await request.json().catch(() => ({}))) as { urgencia?: string; observacao?: string; itens?: Parameters<typeof itensDoPedido>[0] };
   const lidos = itensDoPedido(body.itens);
   if ("erro" in lidos) return NextResponse.json({ error: lidos.erro }, { status: 400 });
-  const { data, error } = await guard.supabase.rpc("almoxarifado_criar_solicitacao", {
-    p_divisao: body.divisao === "FUNDICAO" ? "FUNDICAO" : "USINAGEM",
+  const { data, error } = await guard.supabase.rpc("fundicao_criar_pedido", {
     p_urgencia: body.urgencia === "urgente" ? "urgente" : "normal",
     p_observacao: body.observacao ?? "",
     p_itens: lidos.itens,

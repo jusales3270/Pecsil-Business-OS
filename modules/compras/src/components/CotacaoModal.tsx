@@ -398,10 +398,10 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
             <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-[#212121]">
-                  Pedido do Almoxarifado #{pedido.numero}
+                  {pedido.origem === 'FUNDICAO' ? 'Pedido da Fundição' : 'Pedido do Almoxarifado'} #{pedido.numero}
                   {pedido.urgencia === 'urgente' && <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">URGENTE</span>}
                 </p>
-                <span className="text-xs text-[#757575]">{pedido.solicitante ?? 'Almoxarifado'}</span>
+                <span className="text-xs text-[#757575]">{pedido.solicitante ?? (pedido.origem === 'FUNDICAO' ? 'Fundição' : 'Almoxarifado')}</span>
               </div>
               {pedido.observacao && <p className="text-xs text-[#555]">{pedido.observacao}</p>}
               <ul className="space-y-1">

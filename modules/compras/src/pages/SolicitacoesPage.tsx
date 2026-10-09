@@ -2,13 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Package, RefreshCw, Search } from 'lucide-react';
 import { useStore } from '@/store';
 import { supabase } from '@/lib/supabase';
-import type { PedidoMaterial } from '@/types';
+import type { Divisao, PedidoMaterial } from '@/types';
 import CotacaoModal from '@/components/CotacaoModal';
+import DivisaoTabs from '@/components/DivisaoTabs';
 
 /**
- * Pedidos de material do Almoxarifado. O almoxarife pede; quem cota abre a
- * cotação a partir do pedido ("Cotar"), e a situação do pedido acompanha a
- * cotação sozinha (o banco atualiza e avisa o almoxarife a cada passo).
+ * Pedidos de material: do Almoxarifado (Henrique, para Usinagem ou Fundição) e da
+ * Fundição (Guilherme, pelo painel dela). Separados por divisão como as cotações;
+ * quem cota abre a cotação a partir do pedido ("Cotar"), e a situação do pedido
+ * acompanha a cotação sozinha (o banco atualiza e avisa quem pediu a cada passo).
  */
 
 type Filtro = 'abertos' | 'andamento' | 'todos';
@@ -30,10 +32,12 @@ const FILTROS: { value: Filtro; label: string; status: PedidoMaterial['status'][
   { value: 'todos', label: 'Todos', status: null },
 ];
 
-const DIVISAO: Record<PedidoMaterial['divisao'], string> = { USINAGEM: 'Usinagem', FUNDICAO: 'Fundição', GERAL: 'Geral' };
+/** Divisão da aba: pedidos antigos "Geral" ficam junto da Usinagem. */
+const divisaoDaAba = (p: PedidoMaterial): Divisao => (p.divisao === 'FUNDICAO' ? 'FUNDICAO' : 'USINAGEM');
+const ORIGEM: Record<PedidoMaterial['origem'], string> = { ALMOXARIFADO: 'Almoxarifado', FUNDICAO: 'Fundição' };
 
 type Row = {
-  id: string; numero: number; divisao: PedidoMaterial['divisao']; urgencia: PedidoMaterial['urgencia']; observacao: string | null;
+  id: string; numero: number; divisao: PedidoMaterial['divisao']; origem: PedidoMaterial['origem'] | null; urgencia: PedidoMaterial['urgencia']; observacao: string | null;
   status: PedidoMaterial['status']; created_at: string; requested_by_name: string | null;
   material_request_items: { produto: string; quantidade: number; unidade: string; observacao: string | null; ordem: number }[] | null;
 };
@@ -41,6 +45,7 @@ type Row = {
 export default function SolicitacoesPage() {
   const caps = useStore((state) => state.caps);
   const cotacoes = useStore((state) => state.cotacoes);
+  const currentDivisao = useStore((state) => state.currentDivisao);
   const fetchInitialData = useStore((state) => state.fetchInitialData);
   const [pedidos, setPedidos] = useState<PedidoMaterial[] | null>(null);
   const [erro, setErro] = useState('');
@@ -51,13 +56,13 @@ export default function SolicitacoesPage() {
   const carregar = useCallback(async () => {
     const { data, error } = await supabase
       .from('material_requests')
-      .select('id, numero, divisao, urgencia, observacao, status, created_at, requested_by_name, material_request_items(produto, quantidade, unidade, observacao, ordem)')
+      .select('id, numero, divisao, origem, urgencia, observacao, status, created_at, requested_by_name, material_request_items(produto, quantidade, unidade, observacao, ordem)')
       .order('created_at', { ascending: false })
       .limit(300);
     if (error) { setErro('Não foi possível carregar os pedidos.'); return; }
     setErro('');
     setPedidos(((data ?? []) as Row[]).map((r) => ({
-      id: r.id, numero: Number(r.numero), divisao: r.divisao, urgencia: r.urgencia, observacao: r.observacao, status: r.status,
+      id: r.id, numero: Number(r.numero), divisao: r.divisao, origem: r.origem === 'FUNDICAO' ? 'FUNDICAO' : 'ALMOXARIFADO', urgencia: r.urgencia, observacao: r.observacao, status: r.status,
       createdAt: r.created_at, solicitante: r.requested_by_name,
       itens: [...(r.material_request_items ?? [])].sort((a, b) => a.ordem - b.ordem).map((i) => ({ produto: i.produto, quantidade: Number(i.quantidade), unidade: i.unidade, observacao: i.observacao })),
     })));
@@ -68,29 +73,37 @@ export default function SolicitacoesPage() {
     return () => clearTimeout(t);
   }, [carregar]);
 
-  const visiveis = useMemo(() => {
+  // Filtro de situação e busca; a divisão é a aba (Usinagem / Fundição), como nas cotações.
+  const filtrados = useMemo(() => {
     const regra = FILTROS.find((f) => f.value === filtro)?.status;
     const termo = busca.trim().toLowerCase();
     return (pedidos ?? []).filter((p) => (!regra || regra.includes(p.status))
       && (!termo || String(p.numero).includes(termo) || p.itens.some((i) => i.produto.toLowerCase().includes(termo)) || (p.solicitante ?? '').toLowerCase().includes(termo)));
   }, [pedidos, filtro, busca]);
+  const visiveis = useMemo(() => filtrados.filter((p) => divisaoDaAba(p) === currentDivisao), [filtrados, currentDivisao]);
+  const porDivisao = useMemo(() => ({
+    USINAGEM: filtrados.filter((p) => divisaoDaAba(p) === 'USINAGEM').length,
+    FUNDICAO: filtrados.filter((p) => divisaoDaAba(p) === 'FUNDICAO').length,
+  }), [filtrados]);
 
   const contagem = (f: Filtro) => {
     const regra = FILTROS.find((x) => x.value === f)?.status;
-    return (pedidos ?? []).filter((p) => !regra || regra.includes(p.status)).length;
+    return (pedidos ?? []).filter((p) => divisaoDaAba(p) === currentDivisao && (!regra || regra.includes(p.status))).length;
   };
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[#212121]">Pedidos do Almoxarifado</h1>
-          <p className="text-sm text-[#757575]">Material que está faltando. Cote a partir do pedido: o almoxarife acompanha cada passo e é avisado.</p>
+          <h1 className="text-xl font-bold text-[#212121]">Pedidos de material</h1>
+          <p className="text-sm text-[#757575]">Material que está faltando, pedido pelo Almoxarifado ou pela Fundição. Cote a partir do pedido: quem pediu acompanha cada passo e é avisado.</p>
         </div>
         <button type="button" onClick={() => void carregar()} className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] px-3 py-2 text-xs font-semibold text-[#555] hover:bg-slate-50">
           <RefreshCw size={14} /> Atualizar
         </button>
       </div>
+
+      <DivisaoTabs counts={porDivisao} />
 
       <div className="flex flex-wrap items-center gap-2">
         {FILTROS.map((f) => (
@@ -111,7 +124,7 @@ export default function SolicitacoesPage() {
         <div className="rounded-xl border border-dashed border-black/[0.12] p-8 text-center">
           <Package size={26} className="mx-auto text-[#bbb]" />
           <p className="mt-2 text-sm font-semibold text-[#212121]">Nenhum pedido neste filtro</p>
-          <p className="text-xs text-[#757575]">Quando o Almoxarifado pedir material, o pedido aparece aqui e você recebe um aviso no sino.</p>
+          <p className="text-xs text-[#757575]">{currentDivisao === 'FUNDICAO' ? 'Quando o Almoxarifado ou a Fundição pedirem material para a Fundição' : 'Quando o Almoxarifado pedir material para a Usinagem'}, o pedido aparece aqui e você recebe um aviso no sino.</p>
         </div>
       )}
 
@@ -127,7 +140,7 @@ export default function SolicitacoesPage() {
                     Pedido #{p.numero}
                     {p.urgencia === 'urgente' && <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">URGENTE</span>}
                   </p>
-                  <p className="text-xs text-[#757575]">{DIVISAO[p.divisao]} · {p.solicitante ?? 'Almoxarifado'} · {new Date(p.createdAt).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-xs text-[#757575]">{ORIGEM[p.origem]} · {p.solicitante ?? '—'} · {new Date(p.createdAt).toLocaleDateString('pt-BR')}</p>
                 </div>
                 <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${SITUACAO[p.status].cls}`}>{SITUACAO[p.status].label}</span>
               </header>

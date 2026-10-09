@@ -26,6 +26,7 @@ export const EVENT_MODULES: Record<string, string> = {
   cadastros: "Cadastros",
   producao: "Produção",
   almoxarifado: "Almoxarifado",
+  fundicao: "Fundição",
 };
 
 export const EVENT_CATALOG: readonly EventType[] = [
@@ -44,6 +45,8 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "almoxarifado.solicitacao.criada", module: "almoxarifado", label: "Material pedido", description: "O Almoxarifado pediu material ao Compras." },
   { type: "almoxarifado.recebimento.confirmado", module: "almoxarifado", label: "Material recebido", description: "Nota fiscal lançada no recebimento: virou conta a pagar e entrou no Painel do ICMS." },
   { type: "almoxarifado.solicitacao.cancelada", module: "almoxarifado", label: "Pedido de material cancelado", description: "O pedido de material foi cancelado antes da compra." },
+  { type: "fundicao.pedido.criado", module: "fundicao", label: "Material pedido pela Fundição", description: "A Fundição pediu material ao Compras pelo painel dela." },
+  { type: "fundicao.pedido.cancelado", module: "fundicao", label: "Pedido da Fundição cancelado", description: "O pedido de material da Fundição foi cancelado antes da compra." },
   { type: "producao.os.aberta", module: "producao", label: "OS aberta", description: "Uma OS do Forja passou a existir no Business OS." },
   { type: "producao.os.status", module: "producao", label: "OS mudou de situação", description: "A OS mudou de status no Forja (em produção, finalizada, atrasada…)." },
   { type: "producao.os.faturada", module: "producao", label: "OS faturada", description: "A OS recebeu número de nota fiscal." },

@@ -27,6 +27,29 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-09-fundicao-pedidos",
+    data: "2026-10-09",
+    area: "Fundição",
+    modulos: ["fundicao"],
+    titulo: "Peça material ao Compras pelo seu painel",
+    itens: [
+      "Use Pedir material para mandar ao Compras o que a Fundição precisa: itens, quantidade, urgência e observação. O pedido vai com o seu nome.",
+      "Cada pedido mostra o andamento: com o Compras, aprovado, comprado e recebido. Você é avisado no sino a cada passo, inclusive quando o material chega no Almoxarifado.",
+    ],
+  },
+  {
+    id: "2026-10-09-compras-pedidos-por-divisao",
+    data: "2026-10-09",
+    area: "Compras",
+    modulos: ["compras", "almoxarifado"],
+    titulo: "Pedidos de material separados por Usinagem e Fundição",
+    itens: [
+      "A aba Pedidos do Almoxarifado agora se chama Pedidos de material e tem as abas Usinagem e Fundição, como as cotações.",
+      "A Fundição também pede material pelo painel dela: cada cartão mostra de onde veio, Almoxarifado ou Fundição, e quem pediu.",
+      "No Almoxarifado, o material comprado para a Fundição aparece em A caminho com \"para a Fundição\" e o nome de quem pediu.",
+    ],
+  },
+  {
     id: "2026-10-09-ordem-de-compra",
     data: "2026-10-09",
     area: "Compras",

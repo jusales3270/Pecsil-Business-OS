@@ -54,7 +54,7 @@ export function tabsFor(role: UserRole | undefined, caps: ComprasCaps): { page: 
       ]
     : [
         { page: 'dashboard', label: 'Dashboard', icon: 'grid', show: true },
-        { page: 'solicitacoes', label: 'Pedidos do Almoxarifado', icon: 'box', show: caps.verCotacoes },
+        { page: 'solicitacoes', label: 'Pedidos de material', icon: 'box', show: caps.verCotacoes },
         { page: 'cotacoes', label: 'Minhas Cotações', icon: 'file', show: caps.verCotacoes },
         { page: 'compras', label: 'Compras Realizadas', icon: 'cart', show: caps.verRealizadas },
         { page: 'fornecedores', label: 'Fornecedores', icon: 'factory', show: caps.verFornecedores },

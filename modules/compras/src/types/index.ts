@@ -90,6 +90,8 @@ export interface PedidoMaterial {
   id: string;
   numero: number;
   divisao: 'USINAGEM' | 'FUNDICAO' | 'GERAL';
+  /** Quem pediu: o Almoxarifado ou a Fundição (painel da Fundição). */
+  origem: 'ALMOXARIFADO' | 'FUNDICAO';
   urgencia: 'normal' | 'urgente';
   observacao: string | null;
   status: 'aberta' | 'em_cotacao' | 'aprovada' | 'rejeitada' | 'comprada' | 'parcial' | 'recebida' | 'cancelada';

@@ -8,8 +8,16 @@ type Linha = { produto: string; quantidade: string; unidade: string; observacao:
 const vazia = (): Linha => ({ produto: "", quantidade: "", unidade: "UN", observacao: "" });
 
 /** Pedido de material ao Compras: itens, divisão e urgência. Quem cota é avisado na hora. */
-export function PedidoModal({ onClose, onCriado }: { onClose: () => void; onCriado: (numero: number) => void }) {
-  const [divisao, setDivisao] = useState<"USINAGEM" | "FUNDICAO">("USINAGEM");
+export function PedidoModal({ onClose, onCriado, endpoint = "/api/almoxarifado/solicitacoes", divisaoFixa, eyebrow = "Almoxarifado · novo pedido" }: {
+  onClose: () => void;
+  onCriado: (numero: number) => void;
+  /** Rota que grava o pedido (Almoxarifado ou Fundição). */
+  endpoint?: string;
+  /** Divisão definida por quem pede (a Fundição só pede para a Fundição): esconde a escolha. */
+  divisaoFixa?: "USINAGEM" | "FUNDICAO";
+  eyebrow?: string;
+}) {
+  const [divisao, setDivisao] = useState<"USINAGEM" | "FUNDICAO">(divisaoFixa ?? "USINAGEM");
   const [urgente, setUrgente] = useState(false);
   const [linhas, setLinhas] = useState<Linha[]>([vazia()]);
   const [observacao, setObservacao] = useState("");
@@ -26,7 +34,7 @@ export function PedidoModal({ onClose, onCriado }: { onClose: () => void; onCria
     if (itens.some((linha) => !(numero(linha.quantidade) > 0))) { setErro("Toda linha precisa de quantidade."); return; }
     setSalvando(true);
     setErro("");
-    const res = await chamar<{ numero: number }>("/api/almoxarifado/solicitacoes", {
+    const res = await chamar<{ numero: number }>(endpoint, {
       method: "POST",
       body: JSON.stringify({
         divisao, urgencia: urgente ? "urgente" : "normal", observacao,
@@ -39,12 +47,14 @@ export function PedidoModal({ onClose, onCriado }: { onClose: () => void; onCria
   };
 
   return (
-    <Modal eyebrow="Almoxarifado · novo pedido" title="Pedir material ao Compras" subtitle="Quem cota recebe o aviso na hora. Você acompanha a cotação, a aprovação e a compra por aqui." onClose={onClose}>
+    <Modal eyebrow={eyebrow} title="Pedir material ao Compras" subtitle="Quem cota recebe o aviso na hora. Você acompanha a cotação, a aprovação e a compra por aqui." onClose={onClose}>
       <form className="almox-form" onSubmit={salvar}>
         <div className="almox-form-linha">
-          <label><span>Divisão</span>
-            <Segmented<"USINAGEM" | "FUNDICAO"> options={[{ value: "USINAGEM", label: "Usinagem" }, { value: "FUNDICAO", label: "Fundição" }]} value={divisao} onChange={setDivisao} ariaLabel="Divisão" />
-          </label>
+          {divisaoFixa ? <span /> : (
+            <label><span>Divisão</span>
+              <Segmented<"USINAGEM" | "FUNDICAO"> options={[{ value: "USINAGEM", label: "Usinagem" }, { value: "FUNDICAO", label: "Fundição" }]} value={divisao} onChange={setDivisao} ariaLabel="Divisão" />
+            </label>
+          )}
           <label className="almox-marca"><input type="checkbox" checked={urgente} onChange={(event) => setUrgente(event.target.checked)} /> <span>Urgente — está parando o trabalho</span></label>
         </div>
 
