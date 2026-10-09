@@ -5,7 +5,12 @@ import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../.
 import { useModuleNav } from "../../../lib/module-nav-context";
 import type { Nfe } from "../../../lib/almoxarifado/nfe-xml";
 import type { ModuleRuntimeProps } from "../../runtime";
-import { EnviarArquivo } from "../../../app/components/enviar-arquivo";
+import { EnviarArquivo, useSoltarArquivo } from "../../../app/components/enviar-arquivo";
+
+const cnpjFormatado = (v: string | null | undefined) => {
+  const d = (v ?? "").replace(/\D/g, "");
+  return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : (v ?? "");
+};
 
 /**
  * Módulo Fiscal — Painel do ICMS. Substitui a planilha mensal: uma linha por
@@ -166,7 +171,7 @@ export default function FiscalApp({ notify }: ModuleRuntimeProps) {
                 {visiveis.map((e) => (
                   <div role="row" key={e.id}>
                     <span>{date(e.recebida)}</span>
-                    <span className="nome" title={e.fornecedor}>{e.fantasia || e.fornecedor}<small>{ORIGEM[e.origem]}{e.obs ? ` · ${e.obs}` : ""}</small></span>
+                    <span className="nome" title={e.fornecedor}>{e.fantasia || e.fornecedor}<small>{e.cnpj ? `${cnpjFormatado(e.cnpj)} · ` : ""}{ORIGEM[e.origem]}{e.obs ? ` · ${e.obs}` : ""}</small></span>
                     <span>{e.nfe ?? "—"}</span>
                     <span className="r">{money(e.valor)}</span>
                     <span className="r">{money(e.icms)}</span>
@@ -240,7 +245,7 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
   const [f, setF] = useState(() => ({
     competencia: nota?.competencia?.slice(0, 7) ?? mes,
     emitida: nota?.emitida ?? "", recebida: nota?.recebida ?? hoje(),
-    fornecedor: nota?.fornecedor ?? "", fantasia: nota?.fantasia ?? "", cnpj: nota?.cnpj ?? "",
+    fornecedor: nota?.fornecedor ?? "", fantasia: nota?.fantasia ?? "", cnpj: cnpjFormatado(nota?.cnpj),
     nfe: nota?.nfe ?? "", serie: nota?.serie ?? "", chave: nota?.chave ?? "",
     valor: campo(nota?.valor ?? 0), vlrCobrado: campo(nota?.vlr_cobrado ?? 0), baseIcms: campo(nota?.base_icms ?? 0), icms: campo(nota?.icms ?? 0), ipi: campo(nota?.ipi ?? 0),
     tipo: nota?.tipo ?? "Uso e consumo",
@@ -267,10 +272,13 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
     if (res.data.jaNoIcms) { setErro("Esta nota já está no painel (mesma chave de acesso)."); return; }
     const n = res.data.nfe;
     const doPdf = res.data.origem === "pdf";
-    setF((a) => ({ ...a, emitida: n.emissao, fornecedor: n.emitente.nome, fantasia: n.emitente.fantasia || res.data.fornecedor?.nome || "", cnpj: n.emitente.cnpj, nfe: n.numero, serie: n.serie, chave: n.chave,
+    setF((a) => ({ ...a, emitida: n.emissao, fornecedor: n.emitente.nome, fantasia: n.emitente.fantasia || res.data.fornecedor?.nome || "", cnpj: cnpjFormatado(n.emitente.cnpj), nfe: n.numero, serie: n.serie, chave: n.chave,
       valor: campo(n.valorNota), vlrCobrado: campo(n.valorNota), baseIcms: campo(n.baseIcms), icms: campo(n.icms), ipi: campo(n.ipi), xmlOk: !doPdf,
       obs: doPdf ? "Lida do DANFE em PDF: conferir com a nota." : a.obs }));
   };
+  const [lendo, setLendo] = useState(false);
+  const lerArquivo = async (file: File | undefined) => { setLendo(true); await lerXml(file); setLendo(false); };
+  const { arrastando, soltar } = useSoltarArquivo((lista) => void lerArquivo(lista[0]), !lendo);
 
   const salvar = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -296,9 +304,9 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
     <Modal eyebrow="Fiscal · Painel do ICMS" title={nota ? `NF ${nota.nfe ?? "—"} · ${nota.fantasia || nota.fornecedor}` : "Nova nota de entrada"} subtitle={nota ? `${ORIGEM[nota.origem]}${nota.created_by_name ? ` por ${nota.created_by_name}` : ""}` : "Anexe o XML ou digite. Use para notas do administrativo, de terceiros e o que não passou pelo Almoxarifado."} onClose={onClose}>
       <form className="almox-form" onSubmit={salvar}>
         {!nota && (
-          <div className="almox-arquivo">
-            <input ref={arquivo} type="file" accept=".xml,.pdf,text/xml,application/xml,application/pdf" hidden onChange={(e) => void lerXml(e.target.files?.[0])} />
-            <button type="button" onClick={() => arquivo.current?.click()}><b>{f.chave ? "Nota lida — conferir abaixo" : "Anexar a nota: XML ou DANFE em PDF (opcional)"}</b><small>Preenche fornecedor, número, valores, ICMS e IPI. Do PDF, confira os valores.</small></button>
+          <div className={`almox-arquivo ${arrastando ? "on" : ""}`} {...soltar}>
+            <input ref={arquivo} type="file" accept=".xml,.pdf,text/xml,application/xml,application/pdf" hidden onChange={(e) => { void lerArquivo(e.target.files?.[0]); e.target.value = ""; }} />
+            <button type="button" onClick={() => arquivo.current?.click()} disabled={lendo}><b>{lendo ? "Lendo a nota…" : f.chave ? "Nota lida — conferir abaixo" : "Anexar a nota: arraste o XML ou o DANFE em PDF aqui, ou clique (opcional)"}</b><small>Preenche fornecedor, CNPJ, número, valores, ICMS e IPI. Do PDF, confira os valores.</small></button>
           </div>
         )}
         {veioDoRecebimento && <Callout variant="info" title="Veio do recebimento">Os valores vêm da nota recebida no Almoxarifado. Aqui você ajusta centro, tipo, situação e observação.</Callout>}
@@ -309,6 +317,7 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
           <label><span>Tipo</span><select value={f.tipo} onChange={(e) => set("tipo", e.target.value)}>{[...new Set([...TIPOS, f.tipo])].map((t) => <option key={t}>{t}</option>)}</select></label>
           <label className="almox-largo"><span>Fornecedor *</span><input value={f.fornecedor} onChange={(e) => set("fornecedor", e.target.value)} readOnly={veioDoRecebimento} /></label>
           <label><span>Fantasia</span><input value={f.fantasia} onChange={(e) => set("fantasia", e.target.value)} /></label>
+          <label><span>CNPJ</span><input value={f.cnpj} onChange={(e) => set("cnpj", e.target.value)} onBlur={(e) => set("cnpj", cnpjFormatado(e.target.value))} inputMode="numeric" placeholder="00.000.000/0000-00" readOnly={veioDoRecebimento} /></label>
           <label><span>NF-e</span><input value={f.nfe} onChange={(e) => set("nfe", e.target.value)} readOnly={veioDoRecebimento} /></label>
           <label><span>Valor</span><input value={f.valor} onChange={(e) => set("valor", e.target.value)} inputMode="decimal" readOnly={veioDoRecebimento} /></label>
           <label><span>Valor cobrado</span><input value={f.vlrCobrado} onChange={(e) => set("vlrCobrado", e.target.value)} inputMode="decimal" /></label>

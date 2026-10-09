@@ -1,7 +1,37 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Button, Modal } from "../../packages/design-system";
+
+/**
+ * Arrastar e soltar arquivo numa área: devolve os handlers para espalhar no
+ * elemento e se há um arquivo passando por cima (para destacar a área). Sem o
+ * preventDefault no dragover o navegador abre o arquivo em vez de entregá-lo.
+ */
+export function useSoltarArquivo(aoSoltar: (arquivos: File[]) => void, ativo = true) {
+  const [arrastando, setArrastando] = useState(false);
+  const temArquivo = (e: DragEvent<HTMLElement>) => Array.from(e.dataTransfer.types).includes("Files");
+  const passar = (e: DragEvent<HTMLElement>) => {
+    if (!temArquivo(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = ativo ? "copy" : "none";
+    if (ativo) setArrastando(true);
+  };
+  return {
+    arrastando,
+    soltar: {
+      onDragEnter: passar,
+      onDragOver: passar,
+      onDragLeave: (e: DragEvent<HTMLElement>) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setArrastando(false); },
+      onDrop: (e: DragEvent<HTMLElement>) => {
+        if (!temArquivo(e)) return;
+        e.preventDefault();
+        setArrastando(false);
+        if (ativo && e.dataTransfer.files.length) aoSoltar(Array.from(e.dataTransfer.files));
+      },
+    },
+  };
+}
 
 /**
  * Enviar arquivo dentro de um módulo: a pessoa escolhe (ou arrasta) o arquivo, a
@@ -34,7 +64,6 @@ export function EnviarArquivo<T>({
   const [analise, setAnalise] = useState<T | null>(null);
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState<"analisar" | "confirmar" | null>(null);
-  const [arrastando, setArrastando] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
   const fechar = () => { setAberto(false); setArquivos([]); setAnalise(null); setErro(""); setOcupado(null); };
@@ -63,6 +92,7 @@ export function EnviarArquivo<T>({
     if (!r.ok) { setErro(r.error); return; }
     setAnalise(r.data as T);
   };
+  const { arrastando, soltar } = useSoltarArquivo((lista) => void escolher(lista), !ocupado);
 
   const confirmar = async () => {
     if (!arquivos.length) return;
@@ -87,9 +117,7 @@ export function EnviarArquivo<T>({
                 tabIndex={0}
                 onClick={() => input.current?.click()}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") input.current?.click(); }}
-                onDragOver={(e) => { e.preventDefault(); setArrastando(true); }}
-                onDragLeave={() => setArrastando(false)}
-                onDrop={(e) => { e.preventDefault(); setArrastando(false); void escolher(e.dataTransfer.files); }}
+                {...soltar}
               >
                 <b>{ocupado === "analisar" ? (arquivos.length > 1 ? `Lendo ${arquivos.length} arquivos…` : "Lendo o arquivo…") : multiplo ? "Arraste os arquivos aqui ou clique para escolher" : "Arraste o arquivo aqui ou clique para escolher"}</b>
                 <small>{descricao}</small>
