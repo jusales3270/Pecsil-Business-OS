@@ -33,8 +33,9 @@ Quem é avisado sai da permissão (`notify_feature`), não do nome da pessoa.
 
 | Passo | Quem | Onde | O que acontece | Evento / aviso |
 |---|---|---|---|---|
-| 1 | Almoxarife (Henrique) | Almoxarifado › Solicitações | Pede o material que falta (itens, divisão, urgência) | `almoxarifado.solicitacao.criada` · aviso a quem cota (`compras.cotacoes` operar) |
-| 2 | Compras (Kaylane) | Compras › Pedidos do Almoxarifado | "Cotar" abre a cotação ligada ao pedido (`cotacoes.material_request_id`) | `compras.cotacao.criada` · pedido "em cotação" + aviso ao solicitante |
+| 1 | Almoxarife (Henrique) | Almoxarifado › Solicitações | Pede o material que falta (itens, divisão Usinagem ou Fundição, urgência) | `almoxarifado.solicitacao.criada` · aviso a quem cota (`compras.cotacoes` operar) |
+| 1b | Fundição (Guilherme) | Fundição › Pedidos de material | Pede o material da Fundição pelo painel dele (desde 09/10/2026); vai sempre para a divisão Fundição, assinado por ele (`material_requests.origem = 'FUNDICAO'`) | `fundicao.pedido.criado` · aviso a quem cota |
+| 2 | Compras (Kaylane) | Compras › Pedidos de material (abas Usinagem / Fundição) | "Cotar" abre a cotação ligada ao pedido (`cotacoes.material_request_id`) | `compras.cotacao.criada` · pedido "em cotação" + aviso ao solicitante |
 | 3 | Gestor (Ricardo) | Compras › Pendentes | Aprova ou rejeita | `compras.cotacao.aprovada` · pedido "aprovado"/"rejeitado" + aviso ao solicitante |
 | 4 | Compras (Kaylane) | Compras › Minhas cotações › Comprar | **Aviso de compra** (NF opcional nesta hora) | `compras.compra.registrada` · **previsão** em Contas a pagar + aviso a quem paga e a quem recebe |
 | 5 | Almoxarife | Almoxarifado › A caminho › Receber | Confere e lança a nota (XML da NF-e ou digitada) | `almoxarifado.recebimento.confirmado` · **conta a pagar real** (vencimentos das duplicatas), previsão abatida/apagada, linha no **Painel do ICMS**, aviso a quem paga |
@@ -42,6 +43,7 @@ Quem é avisado sai da permissão (`notify_feature`), não do nome da pessoa.
 
 Respostas às perguntas do rascunho:
 - **Comunicado ao almoxarifado:** pelo sistema (aviso no sino e lista "A caminho").
+- **Pedidos da Fundição (09/10/2026):** quem só tem Fundição › Pedidos de material cai direto no painel da Fundição e vê só os pedidos da Fundição. O material chega pelo Almoxarifado (o Henrique recebe, vendo "para a Fundição"); o solicitante é avisado de cada passo e quando o material chega.
 - **Conferência:** o almoxarife confere o material com a nota; o XML mostra itens e valores ao lado do que foi comprado.
 - **Recebimento parcial:** cada nota gera a sua conta a pagar; a previsão é abatida e o pedido fica "recebido em parte" até o almoxarife marcar "pedido completo".
 - **Divergência:** o almoxarife descreve; a conta entra com "revisar" e o Compras é avisado.

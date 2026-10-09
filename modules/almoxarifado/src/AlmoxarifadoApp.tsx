@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Kpi, KpiGrid, Modal, Segmented, Status } from "../../../packages/design-system";
+import { Button, Kpi, KpiGrid, Modal, Status } from "../../../packages/design-system";
 import { useModuleNav } from "../../../lib/module-nav-context";
 import { canUseFeature } from "../../access";
 import type { ModuleRuntimeProps } from "../../runtime";
 import { PedidoModal } from "./PedidoModal";
+import { CancelarModal, CartaoPedido, ListaPedidos } from "./pedidos-ui";
 import { RecebimentoModal } from "./RecebimentoModal";
-import { type ACaminho, DIVISAO, Icone, type NotaLidaResposta, type Pedido, type Recebido, SITUACAO, chamar, date, hoje, lerNotaArquivo, money, qtd } from "./tipos";
+import { type ACaminho, DIVISAO, Icone, type NotaLidaResposta, type Pedido, type Recebido, chamar, date, hoje, lerNotaArquivo, money, qtd } from "./tipos";
 
 /**
  * Almoxarifado: pede material ao Compras, acompanha a cotação e a compra, e
@@ -23,13 +24,6 @@ const SECOES = [
 ] as const;
 type Secao = (typeof SECOES)[number]["id"];
 
-type FiltroPedido = "andamento" | "recebidos" | "cancelados" | "todos";
-const FILTROS: { value: FiltroPedido; label: string; status: Pedido["status"][] | null }[] = [
-  { value: "andamento", label: "Em andamento", status: ["aberta", "em_cotacao", "aprovada", "rejeitada", "comprada", "parcial"] },
-  { value: "recebidos", label: "Recebidos", status: ["recebida"] },
-  { value: "cancelados", label: "Cancelados", status: ["cancelada"] },
-  { value: "todos", label: "Todos", status: null },
-];
 
 export default function AlmoxarifadoApp({ access, notify, initialSection }: ModuleRuntimeProps) {
   const { registerNav } = useModuleNav();
@@ -132,29 +126,14 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
   );
   const botaoPedir = podePedir ? <Button onClick={() => setNovoPedido(true)}><Icone nome="mais" size={16} /> Pedir material</Button> : null;
 
-  const cartaoPedido = (p: Pedido) => (
-    <article key={p.id} className="almox-pedido">
-      <header>
-        <div className="almox-pedido-titulo"><span><b>Pedido #{p.numero}</b>{p.urgencia === "urgente" && <Status tone="danger">Urgente</Status>}</span><small>{DIVISAO[p.divisao]} · {p.solicitante ?? "—"} · {date(p.criadoEm)}</small></div>
-        <Status tone={SITUACAO[p.status].tone}>{SITUACAO[p.status].label}</Status>
-      </header>
-      <div className="almox-pedido-itens">
-        {p.itens.map((item, index) => <p key={index}><b>{qtd(item.quantidade)} {item.unidade}</b> {item.produto}{item.observacao && <em> — {item.observacao}</em>}</p>)}
-      </div>
-      {p.observacao && <p className="almox-obs">{p.observacao}</p>}
-      {p.status === "cancelada" && p.motivoCancelamento && <p className="almox-obs">Cancelado: {p.motivoCancelamento}</p>}
-      {podePedir && ["aberta", "em_cotacao", "aprovada", "rejeitada"].includes(p.status) && (
-        <footer><Button variant="ghost" compact className="almox-perigo" onClick={() => setCancelar(p)}>Cancelar pedido</Button></footer>
-      )}
-    </article>
-  );
+  const cartaoPedido = (p: Pedido) => <CartaoPedido key={p.id} pedido={p} onCancelar={podePedir ? setCancelar : undefined} />;
 
   const cartaoCaminho = (c: ACaminho) => {
     const falta = Math.max(0, c.totalComprado - c.jaRecebido);
     return (
       <article key={c.cotacaoId} className="almox-pedido almox-caminho">
         <header>
-          <div className="almox-pedido-titulo"><b>{c.fornecedor}</b><small>Cotação #{c.cotacaoId}{c.pedidoNumero ? ` · pedido #${c.pedidoNumero}` : ""} · comprado em {date(c.compradoEm)}{c.divisao ? ` · ${DIVISAO[c.divisao] ?? c.divisao}` : ""}</small></div>
+          <div className="almox-pedido-titulo"><b>{c.fornecedor}</b><small>Cotação #{c.cotacaoId}{c.pedidoNumero ? ` · pedido #${c.pedidoNumero}` : ""}{c.origem === "FUNDICAO" ? ` · para a Fundição (${c.solicitante ?? "—"})` : ""} · comprado em {date(c.compradoEm)}{c.divisao ? ` · ${DIVISAO[c.divisao] ?? c.divisao}` : ""}</small></div>
           {c.recebimentos > 0 ? <Status tone="purple">Recebido em parte</Status> : <Status tone="info">A caminho</Status>}
         </header>
         <div className="almox-pedido-itens">
@@ -200,7 +179,7 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
       );
     }
 
-    if (secao === "Solicitações") return <Solicitacoes pedidos={pedidos} cartao={cartaoPedido} cabecalho={cabecalho("ALMOXARIFADO · PEDIDOS", "Solicitações de material", "Cada pedido segue sozinho: em cotação, aprovado, comprado e recebido. Você recebe um aviso a cada passo.", botaoPedir)} />;
+    if (secao === "Solicitações") return <ListaPedidos pedidos={pedidos} cartao={cartaoPedido} cabecalho={cabecalho("ALMOXARIFADO · PEDIDOS", "Solicitações de material", "Cada pedido segue sozinho: em cotação, aprovado, comprado e recebido. Você recebe um aviso a cada passo.", botaoPedir)} />;
 
     if (secao === "A caminho") {
       return (
@@ -269,54 +248,9 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
           </div>
         </Modal>
       )}
-      {cancelar && <CancelarModal pedido={cancelar} onClose={() => setCancelar(null)} onFeito={() => { setCancelar(null); void depois(`Pedido #${cancelar.numero} cancelado.`); }} />}
+      {cancelar && <CancelarModal pedido={cancelar} url={`/api/almoxarifado/solicitacoes/${cancelar.id}/cancelar`} onClose={() => setCancelar(null)} onFeito={() => { setCancelar(null); void depois(`Pedido #${cancelar.numero} cancelado.`); }} />}
       {detalhe && <DetalheRecebido recebido={detalhe} onClose={() => setDetalhe(null)} />}
     </div>
-  );
-}
-
-function Solicitacoes({ pedidos, cartao, cabecalho }: { pedidos: Pedido[]; cartao: (p: Pedido) => React.ReactNode; cabecalho: React.ReactNode }) {
-  const [filtro, setFiltro] = useState<FiltroPedido>("andamento");
-  const [busca, setBusca] = useState("");
-  const conta = (f: FiltroPedido) => { const regra = FILTROS.find((x) => x.value === f)?.status; return pedidos.filter((p) => !regra || regra.includes(p.status)).length; };
-  const visiveis = pedidos.filter((p) => {
-    const regra = FILTROS.find((x) => x.value === filtro)?.status;
-    const termo = busca.trim().toLowerCase();
-    return (!regra || regra.includes(p.status)) && (!termo || String(p.numero).includes(termo) || p.itens.some((i) => i.produto.toLowerCase().includes(termo)));
-  });
-  return (
-    <>
-      {cabecalho}
-      <div className="almox-filtros">
-        <Segmented<FiltroPedido> options={FILTROS.map((f) => ({ value: f.value, label: `${f.label} · ${conta(f.value)}` }))} value={filtro} onChange={setFiltro} ariaLabel="Situação dos pedidos" />
-        <input className="almox-busca" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Número ou material" aria-label="Buscar pedido" />
-      </div>
-      {visiveis.length ? <div className="almox-grade">{visiveis.map(cartao)}</div> : <div className="finance-empty almox-vazio"><b>Nenhum pedido neste filtro</b><small>Troque o filtro ou a busca.</small></div>}
-    </>
-  );
-}
-
-function CancelarModal({ pedido, onClose, onFeito }: { pedido: Pedido; onClose: () => void; onFeito: () => void }) {
-  const [motivo, setMotivo] = useState("");
-  const [erro, setErro] = useState("");
-  const [salvando, setSalvando] = useState(false);
-  const enviar = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (motivo.trim().length < 3) { setErro("Informe o motivo."); return; }
-    setSalvando(true);
-    const res = await chamar(`/api/almoxarifado/solicitacoes/${pedido.id}/cancelar`, { method: "POST", body: JSON.stringify({ motivo }) });
-    setSalvando(false);
-    if (!res.ok) { setErro(res.error); return; }
-    onFeito();
-  };
-  return (
-    <Modal eyebrow="Almoxarifado" title={`Cancelar o pedido #${pedido.numero}?`} subtitle={pedido.status === "aberta" ? "O Compras ainda não começou a cotar." : "O Compras já está trabalhando nele e será avisado."} onClose={onClose}>
-      <form className="almox-form" onSubmit={enviar}>
-        <label className="almox-largo"><span>Motivo</span><textarea rows={2} value={motivo} onChange={(e) => setMotivo(e.target.value)} autoFocus placeholder="Ex.: achamos o material no estoque" /></label>
-        {erro && <p className="almox-erro" role="alert">{erro}</p>}
-        <footer><Button type="button" variant="secondary" onClick={onClose} disabled={salvando}>Voltar</Button><Button type="submit" className="almox-perigo-cheio" disabled={salvando}>{salvando ? "Cancelando…" : "Cancelar pedido"}</Button></footer>
-      </form>
-    </Modal>
   );
 }
 

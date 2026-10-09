@@ -9,6 +9,7 @@ import { almoxarifadoModuleManifest } from "./almoxarifado/manifest";
 import { fiscalModuleManifest } from "./fiscal/manifest";
 import type { ModuleManifest } from "./types";
 // module-generator:imports
+import { FundicaoModuleManifest } from "./fundicao/manifest";
 
 function createRegistry(manifests: readonly ModuleManifest[]) {
   const ids = new Set<string>();
@@ -43,6 +44,7 @@ export const moduleRegistry = createRegistry([
   almoxarifadoModuleManifest,
   fiscalModuleManifest,
   // module-generator:entries
+  FundicaoModuleManifest,
   ...plannedModuleManifests,
 ]);
 
