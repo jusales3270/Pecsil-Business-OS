@@ -27,6 +27,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-09-arrastar-nota",
+    data: "2026-10-09",
+    area: "Fiscal e Almoxarifado",
+    modulos: ["fiscal", "almoxarifado"],
+    titulo: "Arraste a nota para ler",
+    itens: [
+      "Na Nova nota do Painel do ICMS e no recebimento do Almoxarifado, basta arrastar o XML ou o PDF da nota até o quadro tracejado; clicar continua funcionando.",
+      "O CNPJ do fornecedor lido da nota agora aparece no formulário, no resumo do recebimento e em cada linha do Painel do ICMS.",
+    ],
+  },
+  {
     id: "2026-10-09-danfe-mais-modelos",
     data: "2026-10-09",
     area: "Fiscal e Almoxarifado",

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Callout, Modal, Segmented } from "../../../packages/design-system";
 import type { Nfe } from "../../../lib/almoxarifado/nfe-xml";
+import { useSoltarArquivo } from "../../../app/components/enviar-arquivo";
 import { type ACaminho, DIVISAO, Icone, chamar, date, hoje, lerNotaArquivo, money, qtd, type NotaLidaResposta } from "./tipos";
 
 type Modo = "xml" | "manual";
@@ -68,7 +69,7 @@ export function RecebimentoModal({ compra, inicial, onClose, onFeito }: { compra
       : [{ numero: "1", vencimento: compra?.previsaoVencimento ?? "", valor: campoValor(n.valorNota) }]);
     if (compra) setEncerra(n.valorNota >= faltaReceber * 0.98);
     const avisos: string[] = [];
-    if (lida.origem === "pdf") avisos.push("Nota lida do DANFE em PDF: confira valores e vencimentos (o PDF não traz as parcelas).");
+    if (lida.origem === "pdf") avisos.push("Nota lida do DANFE em PDF: confira valores e vencimentos (do PDF, as parcelas só vêm quando somam o total da nota).");
     if (compra?.cnpj && n.emitente.cnpj && compra.cnpj !== n.emitente.cnpj) avisos.push(`O CNPJ da nota (${n.emitente.nome}) é diferente do fornecedor da compra (${compra.fornecedor}).`);
     if (compra && Math.abs(n.valorNota - faltaReceber) > Math.max(1, faltaReceber * 0.02)) avisos.push(`A nota vale ${money(n.valorNota)} e a compra ${money(faltaReceber)}${n.ipi ? ` (a compra pode não incluir IPI de ${money(n.ipi)})` : ""}.`);
     setAviso(avisos.join(" "));
@@ -82,6 +83,7 @@ export function RecebimentoModal({ compra, inicial, onClose, onFeito }: { compra
     if (!res.ok) { setErro(res.error); return; }
     aplicar(res.data);
   };
+  const { arrastando, soltar } = useSoltarArquivo((lista) => void lerArquivo(lista[0]), !lendo);
 
   // Nota já lida antes de abrir (botão "Enviar nota" do Almoxarifado).
   useEffect(() => {
@@ -138,11 +140,11 @@ export function RecebimentoModal({ compra, inicial, onClose, onFeito }: { compra
         <Segmented<Modo> options={[{ value: "xml", label: "Anexar a nota (XML ou PDF)" }, { value: "manual", label: "Digitar a nota" }]} value={modo} onChange={(m) => { setModo(m); setErro(""); }} ariaLabel="Como lançar a nota" />
 
         {modo === "xml" && !nfe && (
-          <div className="almox-arquivo">
-            <input ref={arquivo} type="file" accept=".xml,.pdf,text/xml,application/xml,application/pdf" onChange={(event) => void lerArquivo(event.target.files?.[0])} hidden />
+          <div className={`almox-arquivo ${arrastando ? "on" : ""}`} {...soltar}>
+            <input ref={arquivo} type="file" accept=".xml,.pdf,text/xml,application/xml,application/pdf" onChange={(event) => { void lerArquivo(event.target.files?.[0]); event.target.value = ""; }} hidden />
             <button type="button" onClick={() => arquivo.current?.click()} disabled={lendo}>
               <Icone nome="nota" size={26} />
-              <b>{lendo ? "Lendo a nota…" : "Escolher o XML da NF-e ou o DANFE em PDF"}</b>
+              <b>{lendo ? "Lendo a nota…" : "Arraste aqui o XML da NF-e ou o DANFE em PDF, ou clique para escolher"}</b>
               <small>Fornecedor, número, valores, ICMS e IPI vêm preenchidos (do XML, também os vencimentos). Nota de serviço ou de papel: use &ldquo;Digitar a nota&rdquo;.</small>
             </button>
           </div>
@@ -154,7 +156,7 @@ export function RecebimentoModal({ compra, inicial, onClose, onFeito }: { compra
           <>
             {nfe && (
               <p className="almox-nfe-resumo">
-                <Icone nome="check" size={16} /> NF-e {nfe.numero} · série {nfe.serie} · {nfe.emitente.nome} · emitida em {date(nfe.emissao)}{doPdf ? " · lida do PDF" : ""}
+                <Icone nome="check" size={16} /> NF-e {nfe.numero} · série {nfe.serie} · {nfe.emitente.nome}{nfe.emitente.cnpj.length === 14 ? ` · CNPJ ${nfe.emitente.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")}` : ""} · emitida em {date(nfe.emissao)}{doPdf ? " · lida do PDF" : ""}
                 <button type="button" className="almox-link" onClick={() => { setNfe(null); setXml(null); setDoPdf(false); setAviso(""); }}>trocar arquivo</button>
               </p>
             )}
