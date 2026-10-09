@@ -27,6 +27,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-09-danfe-mais-modelos",
+    data: "2026-10-09",
+    area: "Fiscal e Almoxarifado",
+    modulos: ["fiscal", "almoxarifado"],
+    titulo: "DANFE em PDF: mais modelos de nota lidos",
+    itens: [
+      "A leitura do PDF agora entende os modelos de DANFE com nomes abreviados (como \"V. TOTAL DA NOTA\"), trazendo base e valor do ICMS, IPI e totais.",
+      "As duplicatas da nota (vencimentos e valores) vêm preenchidas no recebimento quando a soma delas fecha com o total da nota; se não fechar, ficam para digitar.",
+    ],
+  },
+  {
     id: "2026-10-08-notas-xml-pdf",
     data: "2026-10-08",
     area: "Fiscal e Almoxarifado",

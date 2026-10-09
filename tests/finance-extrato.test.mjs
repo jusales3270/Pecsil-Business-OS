@@ -389,6 +389,42 @@ test("DANFE: chave com dígito verificador e valores lidos abaixo de cada rótul
   assert.deepEqual(n.camposNaoLidos, []);
 });
 
+// Outro emissor: rótulos abreviados, "CNPJ / CPF" também no emitente e fatura em duas duplicatas.
+const danfeAbreviado = (valorDup2) => [[
+  d(7, 825, "RECEBEMOS DE FERRAMENTAS EXEMPLO LTDA OS PRODUTOS E/OU SERVIÇOS CONSTANTES DA NOTA FISCAL ELETRÔNICA INDICADA"),
+  d(7, 818, "ABAIXO. EMISSÃO: 29/09/2026 VALOR TOTAL: R$ 21.385,00 DESTINATÁRIO: Pecsil"),
+  d(269, 760, "DANFE"), d(344, 725, "CHAVE DE ACESSO"), d(371, 712, chaveFicticia.replace(/(\d{4})/g, "$1 ").trim()),
+  d(7, 680, "NATUREZA DA OPERAÇÃO"), d(89, 667, "Venda de Produção do Estabelecimento"),
+  d(7, 660, "INSCRIÇÃO ESTADUAL"), d(449, 660, "CNPJ / CPF"), d(59, 647, "82107959"), d(478, 647, "11.222.333/0001-81"),
+  d(7, 636, "DESTINATÁRIO / REMETENTE"),
+  d(7, 629, "NOME / RAZÃO SOCIAL"), d(364, 629, "CNPJ / CPF"), d(497, 629, "DATA DA EMISSÃO"),
+  d(7, 616, "Pecsil"), d(388, 616, "46.839.106/0001-84"), d(520, 616, "29/09/2026"),
+  d(7, 565, "FATURA / DUPLICATA"),
+  d(7, 558, "Num."), d(89, 558, "Num."), d(73, 557, "001"), d(155, 557, "002"),
+  d(7, 549, "Venc."), d(89, 549, "Venc."), d(51, 549, "28/12/2026"), d(133, 549, "28/11/2026"),
+  d(7, 542, "Valor"), d(45, 542, "R$ 10.692,50"), d(89, 542, "Valor"), d(127, 542, `R$ ${valorDup2}`),
+  d(7, 531, "CÁLCULO DO IMPOSTO"),
+  d(7, 524, "BASE DE CÁLC. DO ICMS"), d(72, 524, "VALOR DO ICMS"), d(136, 524, "BASE DE CÁLC. ICMS S.T."), d(201, 524, "VALOR DO ICMS SUBST."), d(526, 524, "V. TOTAL PRODUTOS"),
+  d(29, 511, "21.385,00"), d(99, 511, "2.566,20"), d(181, 511, "0,00"), d(246, 511, "9,99"), d(548, 511, "21.385,00"),
+  d(266, 504, "VALOR TOTAL IPI"), d(526, 504, "V. TOTAL DA NOTA"), d(311, 491, "0,00"), d(548, 491, "21.385,00"),
+]];
+
+test("DANFE: rótulos abreviados, CNPJ do destinatário pelo bloco e duplicatas que fecham com o total", () => {
+  const n = lerDanfe(danfeAbreviado("10.692,50"));
+  assert.equal(n.destinatarioCnpj, "46839106000184");
+  assert.equal(n.natureza, "Venda de Produção do Estabelecimento");
+  assert.deepEqual([n.valorProdutos, n.valorNota, n.baseIcms, n.icms, n.ipi], [21385, 21385, 21385, 2566.2, 0]);
+  assert.deepEqual(n.duplicatas, [
+    { numero: "002", vencimento: "2026-11-28", valor: 10692.5 },
+    { numero: "001", vencimento: "2026-12-28", valor: 10692.5 },
+  ]);
+  assert.deepEqual(n.camposNaoLidos, []);
+  // Soma das duplicatas diferente do total: não chuta, pede para a pessoa digitar.
+  const errada = lerDanfe(danfeAbreviado("10.000,00"));
+  assert.deepEqual(errada.duplicatas, []);
+  assert.deepEqual(errada.camposNaoLidos, ["duplicatas"]);
+});
+
 test("nota: XML pelo arquivo; fornecedor pelo CNPJ ou pelo nome; pedido a caminho", async () => {
   const xmlNota = readFileSync(new URL("./fixtures/nfe-ficticia.xml", import.meta.url));
   const lida = await lerNotaDoArquivo(new Uint8Array(xmlNota));
