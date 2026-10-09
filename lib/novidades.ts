@@ -27,6 +27,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-09-ordem-de-compra",
+    data: "2026-10-09",
+    area: "Compras",
+    modulos: ["compras"],
+    titulo: "Ordem de compra em PDF depois da aprovação",
+    itens: [
+      "Cotação aprovada ganha o botão Ordem de compra: abre o documento no modelo da PecSil (logo, dados do fornecedor, materiais, ICMS, IPI e totais) para baixar em PDF e mandar ao fornecedor.",
+      "O número da ordem de compra é o da cotação, e só os itens aprovados entram.",
+      "Na cotação, o novo bloco Entrega e frete guarda frete (CIF, FOB ou sem frete), valor do frete, seguro, outras despesas, prazo de entrega e a observação para o fornecedor; o Ricardo aprova vendo o total do pedido.",
+      "No cadastro de fornecedores entrou o CEP, que também sai na ordem de compra.",
+    ],
+  },
+  {
     id: "2026-10-09-arrastar-nota",
     data: "2026-10-09",
     area: "Fiscal e Almoxarifado",

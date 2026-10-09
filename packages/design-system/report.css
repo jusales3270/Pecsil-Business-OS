@@ -169,6 +169,181 @@
   color: var(--report-muted);
 }
 
+/* ---------------------------------------------------------------------------
+   Ordem de Compra (A4 paisagem), no modelo do sistema antigo: caixas com
+   borda fina, faixas cinza nos títulos, tudo em uma folha.
+   --------------------------------------------------------------------------- */
+/* A folha em paisagem vem de um @page declarado só na página da OC
+   (app/relatorios/ordem-compra/page.tsx); página nomeada aqui forçaria uma
+   quebra e deixaria a primeira folha em branco. */
+.report-sheet.oc-folha {
+  width: min(297mm, 100%);
+  padding: 10mm;
+  overflow-x: auto;
+}
+.oc {
+  min-width: 250mm;
+  font-size: 8.5pt;
+  line-height: 1.35;
+  color: #111;
+}
+.oc b {
+  font-weight: 600;
+}
+.oc-avisos {
+  margin-bottom: 4mm;
+  padding: 2.5mm 3mm;
+  border-radius: 4px;
+  background: var(--tint-amber, #fff4dc);
+  color: var(--text-primary);
+  font-size: 9pt;
+}
+.oc-topo {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr 1.2fr;
+  border: 1px solid #555;
+}
+.oc-topo > div {
+  padding: 1.8mm 3.5mm;
+}
+.oc-topo > div + div {
+  border-left: 1px solid #555;
+}
+.oc-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.oc-logo img {
+  width: auto;
+  height: 12mm;
+}
+.oc-titulo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.oc-titulo h1 {
+  font-size: 16pt;
+  font-weight: 700;
+}
+.oc-titulo p {
+  font-size: 13pt;
+  font-weight: 700;
+}
+.oc-empresa {
+  display: flex;
+  flex-direction: column;
+  font-size: 8.5pt;
+}
+.oc-empresa b {
+  font-size: 10pt;
+  font-weight: 700;
+}
+.oc-fornecedor {
+  display: grid;
+  grid-template-columns: 1.5fr 1.2fr 1fr;
+  gap: 4mm;
+  padding: 1.5mm 3.5mm;
+  border: 1px solid #555;
+  border-top: 0;
+}
+.oc-fornecedor p {
+  display: flex;
+  gap: 2mm;
+  min-height: 4.4mm;
+}
+.oc-fornecedor p b {
+  flex-shrink: 0;
+}
+.oc-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.oc-tabela th,
+.oc-tabela td {
+  padding: 0.8mm 2mm;
+  border: 1px solid #555;
+  text-align: center;
+  vertical-align: middle;
+}
+.oc-tabela th {
+  background: #e9ebee;
+  font-weight: 600;
+  font-size: 8pt;
+}
+.oc-tabela th.oc-faixa {
+  font-size: 10pt;
+  font-weight: 700;
+}
+.oc-tabela .oc-esq {
+  text-align: left;
+}
+.oc-tabela .oc-dir {
+  text-align: right;
+  font-weight: 600;
+}
+.oc-tabela .oc-num {
+  text-align: right;
+}
+.oc-materiais {
+  border-top: 0;
+}
+.oc-materiais tr.oc-total td {
+  font-weight: 700;
+}
+.oc-condicoes {
+  margin-top: 1.5mm;
+}
+.oc-condicoes tr.oc-rotulos th {
+  width: calc(100% / 7);
+}
+.oc-condicoes td.oc-obs {
+  height: 5mm;
+  vertical-align: top;
+}
+.oc-aviso-parcial {
+  margin-top: 1.5mm;
+  font-size: 7.5pt;
+  color: #555;
+}
+.oc-rodape {
+  margin-top: 2mm;
+  border: 1px solid #555;
+  break-inside: avoid;
+}
+.oc-notas {
+  padding: 1.5mm 3.5mm;
+  font-size: 7.5pt;
+}
+.oc-notas ol {
+  margin: 0.5mm 0 0;
+  padding: 0;
+  list-style: none;
+}
+.oc-notas strong {
+  font-weight: 700;
+}
+.oc-assinaturas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid #555;
+}
+.oc-assinaturas p {
+  padding: 1.8mm 3.5mm;
+  color: #444;
+}
+.oc-assinaturas p + p {
+  border-left: 1px solid #555;
+}
+.oc-assinaturas span {
+  margin-left: 3mm;
+  color: #111;
+}
+
 @media (max-width: 760px) {
   .report-sheet {
     padding: 6mm;
@@ -211,6 +386,21 @@
   }
   .report-table tr {
     break-inside: avoid;
+  }
+  .report-sheet.oc-folha {
+    overflow: visible;
+  }
+  .oc {
+    min-width: 0;
+  }
+  .oc-avisos {
+    display: none;
+  }
+  .oc-tabela tr {
+    break-inside: avoid;
+  }
+  .oc-tabela thead {
+    display: table-header-group;
   }
   * {
     -webkit-print-color-adjust: exact;

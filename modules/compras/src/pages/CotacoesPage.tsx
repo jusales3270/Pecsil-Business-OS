@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useStore, formatAmount, isProductFullyPurchased, getStatusDisplay, calcularTotalPendente } from '@/store';
+import { useStore, formatAmount, isProductFullyPurchased, getStatusDisplay, calcularTotalPendente, temOrdemDeCompra, abrirOrdemDeCompra } from '@/store';
 import type { Cotacao } from '@/types';
 import {
   Plus,
@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   Calendar,
   RotateCcw,
+  FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import CotacaoModal from '@/components/CotacaoModal';
@@ -345,6 +346,7 @@ export default function CotacoesPage() {
                             <IconButton icon={<RotateCcw size={14} />} onClick={() => handleRevert(c)} title="Reverter para aprovação" />
                           </>
                         )}
+                        {temOrdemDeCompra(c) && (<IconButton icon={<FileText size={14} />} onClick={() => abrirOrdemDeCompra(c.id)} title="Ordem de compra" />)}
                       </div>
                     </td>
                   </tr>
@@ -450,6 +452,14 @@ export default function CotacoesPage() {
                       <RotateCcw size={13} /> Reverter
                     </button>
                   </>
+                )}
+                {temOrdemDeCompra(c) && (
+                  <button
+                    onClick={() => abrirOrdemDeCompra(c.id)}
+                    className="flex-1 min-w-[70px] flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium bg-[#e8eaf6] text-primary hover:bg-[#c5cae9] transition-colors"
+                  >
+                    <FileText size={13} /> Ordem de compra
+                  </button>
                 )}
               </div>
             </div>

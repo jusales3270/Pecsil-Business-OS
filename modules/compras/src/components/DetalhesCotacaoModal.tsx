@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useStore, formatAmount, formatUnitPrice, formatDate, formatDateTime, isProductFullyPurchased, calcularTotalRestante, getStatusDisplay, calcularTotalPendente } from '@/store';
+import { useStore, formatAmount, formatUnitPrice, formatDate, formatDateTime, isProductFullyPurchased, calcularTotalRestante, getStatusDisplay, calcularTotalPendente, despesasCotacao, temOrdemDeCompra, abrirOrdemDeCompra } from '@/store';
 import type { Cotacao, StatusProduto } from '@/types';
-import { X, ShoppingCart, CheckCircle } from 'lucide-react';
+import { X, ShoppingCart, CheckCircle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import CompraModal from './CompraModal';
 
@@ -269,6 +269,21 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
               <span className="text-[#757575]">IPI: <strong className="text-[#212121]">{formatAmount(ipi)}</strong></span>
               <span className="text-lg font-bold text-primary ml-auto">{formatAmount(total)}</span>
             </div>
+            {/* Pedido: frete, despesas e entrega (saem na Ordem de Compra) */}
+            <div className="mt-2 pt-2 border-t border-black/[0.06] flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+              <span className="text-[#757575]">Frete: <strong className="text-[#212121]">{currentCotacao.freteTipo === 'FOB' ? 'FOB (PecSil)' : currentCotacao.freteTipo === 'SEM' ? 'Sem frete' : 'CIF (fornecedor)'}</strong></span>
+              {(currentCotacao.freteValor ?? 0) > 0 && <span className="text-[#757575]">Valor do frete: <strong className="text-[#212121]">{formatAmount(currentCotacao.freteValor ?? 0)}</strong></span>}
+              {(currentCotacao.seguroValor ?? 0) > 0 && <span className="text-[#757575]">Seguro: <strong className="text-[#212121]">{formatAmount(currentCotacao.seguroValor ?? 0)}</strong></span>}
+              {(currentCotacao.outrasDespesas ?? 0) > 0 && <span className="text-[#757575]">Outras despesas: <strong className="text-[#212121]">{formatAmount(currentCotacao.outrasDespesas ?? 0)}</strong></span>}
+              {currentCotacao.prazoEntrega && <span className="text-[#757575]">Entrega: <strong className="text-[#212121]">{formatDate(currentCotacao.prazoEntrega)}</strong></span>}
+            </div>
+            {currentCotacao.observacao && <p className="mt-1 text-xs text-[#757575]">Observação ao fornecedor: <span className="text-[#212121]">{currentCotacao.observacao}</span></p>}
+            {despesasCotacao(currentCotacao) > 0 && (
+              <div className="mt-2 pt-2 border-t border-black/[0.06] flex items-center justify-between">
+                <span className="text-xs text-[#212121] font-semibold uppercase">Total do pedido (com frete e despesas)</span>
+                <span className="text-lg font-bold text-primary">{formatAmount(total + despesasCotacao(currentCotacao))}</span>
+              </div>
+            )}
             {/* Total Pendente - when some items have been decided */}
             {(() => {
               const hasDecision = currentCotacao.produtos && currentCotacao.produtos.some(p => p.status === 'APROVADO' || p.status === 'REJEITADO');
@@ -327,6 +342,15 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
           >
             Fechar
           </button>
+          {temOrdemDeCompra(currentCotacao) && (caps.verCotacoes || caps.verAprovacoes || caps.verRealizadas) && (
+            <button
+              onClick={() => abrirOrdemDeCompra(currentCotacao.id)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-primary/30 text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
+            >
+              <FileText size={16} />
+              Ordem de compra
+            </button>
+          )}
           {onComprar && caps.comprar && user?.role === 'ORCAMENTISTA' && (currentCotacao.status === 'APROVADO' || (currentCotacao.status === 'PENDENTE' && currentCotacao.produtos && currentCotacao.produtos.some(p => p.status === 'APROVADO'))) && (
             <button
               onClick={onComprar}

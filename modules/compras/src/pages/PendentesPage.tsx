@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useStore, calcularTotal, formatCurrency, formatAmount, formatCotacaoProdutosDesc, formatCotacaoProdutosQtd } from '@/store';
+import { useStore, totalDoPedido, formatCurrency, formatAmount, formatCotacaoProdutosDesc, formatCotacaoProdutosQtd } from '@/store';
 import type { Cotacao } from '@/types';
 import { Eye, CheckCircle, XCircle, Scale, Search, Calendar, FilterX } from 'lucide-react';
 import { toast } from 'sonner';
@@ -49,9 +49,9 @@ export default function PendentesPage() {
       }
       return true;
     })
-    .sort((a, b) => calcularTotal(b) - calcularTotal(a));
+    .sort((a, b) => totalDoPedido(b) - totalDoPedido(a));
 
-  const totalPendente = pendentes.reduce((sum, c) => sum + calcularTotal(c), 0);
+  const totalPendente = pendentes.reduce((sum, c) => sum + totalDoPedido(c), 0);
 
   // Counts for division tabs
   const divisaoCounts = useMemo(() => {
@@ -71,7 +71,7 @@ export default function PendentesPage() {
   };
 
   const handleApprove = async (cotacao: Cotacao) => {
-    if (calcularTotal(cotacao) > 5000) {
+    if (totalDoPedido(cotacao) > 5000) {
       setConfirmModal(cotacao);
     } else {
       try {
@@ -221,7 +221,7 @@ export default function PendentesPage() {
               </thead>
               <tbody>
                 {pendentes.map(c => {
-                  const total = calcularTotal(c);
+                  const total = totalDoPedido(c);
                   const isHighValue = total > 10000;
                   return (
                     <tr key={c.id} className="border-b border-black/[0.04] hover:bg-[#fafafa] transition-colors">
@@ -286,7 +286,7 @@ export default function PendentesPage() {
           </div>
         ) : (
           pendentes.map(c => {
-            const total = calcularTotal(c);
+            const total = totalDoPedido(c);
             const isHighValue = total > 10000;
             return (
               <div key={c.id} className="bg-white rounded-xl border border-black/[0.08] shadow-sm p-4">
@@ -348,7 +348,7 @@ export default function PendentesPage() {
               Esta cotação tem valor acima de <strong>{formatCurrency(5000)}</strong>.
             </p>
             <p className="text-sm text-[#212121] font-medium mb-4">
-              {confirmModal.fornecedor} — {formatAmount(calcularTotal(confirmModal))}
+              {confirmModal.fornecedor} — {formatAmount(totalDoPedido(confirmModal))}
             </p>
             <div className="flex items-center gap-3">
               <button

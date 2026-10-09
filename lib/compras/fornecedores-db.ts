@@ -1,7 +1,7 @@
 /** Colunas e formato do cadastro de fornecedores, compartilhados pelas rotas do Compras. */
 
 export const SUPPLIER_COLUMNS =
-  "id, name, tax_id, active, merged_into, legal_name, trade_name, state_registration, contact_name, phone, email, address, city, state, payment_terms, divisions, category, notes";
+  "id, name, tax_id, active, merged_into, legal_name, trade_name, state_registration, contact_name, phone, email, address, city, state, postal_code, payment_terms, divisions, category, notes";
 
 export type SupplierRow = {
   id: string;
@@ -18,6 +18,7 @@ export type SupplierRow = {
   address: string | null;
   city: string | null;
   state: string | null;
+  postal_code: string | null;
   payment_terms: string | null;
   divisions: string[] | null;
   category: string | null;
@@ -55,6 +56,7 @@ export function toSupplier(row: SupplierRow, aliases: string[] = []) {
     address: row.address,
     city: row.city,
     state: row.state,
+    postalCode: row.postal_code,
     paymentTerms: row.payment_terms,
     divisions: row.divisions ?? [],
     category: row.category,

@@ -35,6 +35,7 @@ type Supplier = {
   address: string | null;
   city: string | null;
   state: string | null;
+  postalCode: string | null;
   paymentTerms: string | null;
   divisions: string[];
   category: string | null;
@@ -357,6 +358,7 @@ const toForm = (s: Supplier): FormState => ({
   address: s.address ?? '',
   city: s.city ?? '',
   state: s.state ?? '',
+  postalCode: s.postalCode ? s.postalCode.replace(/^(\d{5})(\d{3})$/, '$1-$2') : '',
   paymentTerms: s.paymentTerms ?? '',
   category: s.category ?? '',
   notes: s.notes ?? '',
@@ -600,6 +602,7 @@ function FornecedorPainel({
                 {campo('Endereço', 'address', { span: true })}
                 {campo('Cidade', 'city')}
                 {campo('UF', 'state', { placeholder: 'SP' })}
+                {campo('CEP', 'postalCode', { placeholder: '00000-000' })}
               </Secao>
               <Secao titulo="Classificação">
                 <div className="flex flex-col gap-1">

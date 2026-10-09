@@ -13,7 +13,15 @@ import { Button } from "../../packages/design-system";
  * navegador, sem nada instalado no servidor.
  */
 
-export function ReportDocument({ fileTitle, children, ready }: { fileTitle: string; children: ReactNode; ready: boolean }) {
+export function ReportDocument({ fileTitle, children, ready, sheetClassName = "", tip = "relatório" }: {
+  fileTitle: string;
+  children: ReactNode;
+  ready: boolean;
+  /** Classe a mais na folha (ex.: "oc-folha" para a Ordem de Compra em paisagem). */
+  sheetClassName?: string;
+  /** Como o documento é chamado na barra ("relatório", "ordem de compra"). */
+  tip?: string;
+}) {
   useEffect(() => {
     const root = document.documentElement;
     const temaAnterior = root.dataset.theme;
@@ -41,13 +49,13 @@ export function ReportDocument({ fileTitle, children, ready }: { fileTitle: stri
   return (
     <div className="report-doc">
       <div className="report-toolbar">
-        <p>Confira o relatório e use <b>Baixar PDF</b>. Na janela que abrir, escolha &ldquo;Salvar como PDF&rdquo;.</p>
+        <p>Confira {tip === "relatório" ? "o" : "a"} {tip} e use <b>Baixar PDF</b>. Na janela que abrir, escolha &ldquo;Salvar como PDF&rdquo;.</p>
         <div>
           <Button variant="secondary" compact onClick={() => window.close()}>Fechar</Button>
           <Button compact disabled={!ready} onClick={() => window.print()}>Baixar PDF</Button>
         </div>
       </div>
-      <div className="report-sheet">{children}</div>
+      <div className={`report-sheet ${sheetClassName}`.trim()}>{children}</div>
     </div>
   );
 }
