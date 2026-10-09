@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useStore, formatAmount, formatUnitPrice, formatCurrencyInput, normalizeCurrencyInput, parseCurrencyInput } from '@/store';
-import type { Cotacao, Divisao, CotacaoProduto, PedidoMaterial } from '@/types';
+import type { Cotacao, Divisao, CotacaoProduto, PedidoMaterial, FreteTipo } from '@/types';
 import { X, Cog, Flame, Plus, Trash2, Edit, Lock, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import SugestaoInput from '@/components/SugestaoInput';
@@ -42,12 +42,23 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
     obs: '',
   });
   const [productErrors, setProductErrors] = useState<Record<string, string>>({});
+  // Dados do pedido que saem na Ordem de Compra.
+  const [pedidoOc, setPedidoOc] = useState({ freteTipo: 'CIF' as FreteTipo, freteValor: '', seguroValor: '', outrasDespesas: '', prazoEntrega: '', observacao: '' });
+  const valorCampo = (v?: number) => (v ? normalizeCurrencyInput(String(v)) : '');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (cotacao) {
       setFornecedor(cotacao.fornecedor);
       setDivisao(cotacao.divisao);
+      setPedidoOc({
+        freteTipo: cotacao.freteTipo ?? 'CIF',
+        freteValor: valorCampo(cotacao.freteValor),
+        seguroValor: valorCampo(cotacao.seguroValor),
+        outrasDespesas: valorCampo(cotacao.outrasDespesas),
+        prazoEntrega: cotacao.prazoEntrega ?? '',
+        observacao: cotacao.observacao ?? '',
+      });
       if (cotacao.produtos && cotacao.produtos.length > 0) {
         // Separate approved/purchased items (read-only) from editable items
         const approved = cotacao.produtos.filter(p => p.status === 'APROVADO');
@@ -203,6 +214,7 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
   };
 
   const bd = calcOverallTotals();
+  const despesas = ['freteValor', 'seguroValor', 'outrasDespesas'].reduce((soma, k) => soma + (parseCurrencyInput(pedidoOc[k as 'freteValor']) || 0), 0);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -234,6 +246,12 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
       divisao,
       produtos,
       materialRequestId: pedido?.id ?? cotacao?.materialRequestId ?? null,
+      freteTipo: pedidoOc.freteTipo,
+      freteValor: parseCurrencyInput(pedidoOc.freteValor) || 0,
+      seguroValor: parseCurrencyInput(pedidoOc.seguroValor) || 0,
+      outrasDespesas: parseCurrencyInput(pedidoOc.outrasDespesas) || 0,
+      prazoEntrega: pedidoOc.prazoEntrega || null,
+      observacao: pedidoOc.observacao.trim() || null,
       // Legacy fields
       produto: firstP.produto,
       valorUnit: firstP.valorUnit,
@@ -716,6 +734,66 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
             )}
           </div>
 
+          {/* Entrega e frete: saem na Ordem de Compra e somam no total do pedido */}
+          <div className="border-t border-black/[0.06] pt-4 space-y-3">
+            <div>
+              <label className="text-sm font-medium text-[#212121]">Entrega e frete</label>
+              <p className="text-[11px] text-[#757575]">Saem na ordem de compra. Frete, seguro e outras despesas cobrados pelo fornecedor somam no total do pedido.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-[#212121] mb-1 block">Frete</label>
+                <select
+                  value={pedidoOc.freteTipo}
+                  onChange={e => setPedidoOc(f => ({ ...f, freteTipo: e.target.value as FreteTipo }))}
+                  aria-label="Frete"
+                  className="w-full px-3 py-2 rounded-lg border border-black/[0.08] text-xs bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
+                  <option value="CIF">CIF — por conta do fornecedor</option>
+                  <option value="FOB">FOB — por conta da PecSil</option>
+                  <option value="SEM">Sem frete</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[#212121] mb-1 block">Prazo de entrega</label>
+                <input
+                  type="date"
+                  value={pedidoOc.prazoEntrega}
+                  onChange={e => setPedidoOc(f => ({ ...f, prazoEntrega: e.target.value }))}
+                  aria-label="Prazo de entrega"
+                  className="w-full px-3 py-2 rounded-lg border border-black/[0.08] text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
+              </div>
+              {([['freteValor', 'Valor do frete (R$)'], ['seguroValor', 'Seguro (R$)'], ['outrasDespesas', 'Outras despesas (R$)']] as const).map(([campo, rotulo]) => (
+                <div key={campo}>
+                  <label className="text-xs font-medium text-[#212121] mb-1 block">{rotulo}</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={pedidoOc[campo]}
+                    onChange={e => { const v = formatCurrencyInput(e.target.value, 2); setPedidoOc(f => ({ ...f, [campo]: v })); }}
+                    onBlur={e => { const v = e.target.value ? normalizeCurrencyInput(e.target.value, 2, 2) : ''; setPedidoOc(f => ({ ...f, [campo]: v })); }}
+                    placeholder="0,00"
+                    aria-label={rotulo}
+                    className="w-full px-3 py-2 rounded-lg border border-black/[0.08] text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
+                </div>
+              ))}
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-[#212121] mb-1 block">Observação para o fornecedor</label>
+                <textarea
+                  value={pedidoOc.observacao}
+                  onChange={e => setPedidoOc(f => ({ ...f, observacao: e.target.value }))}
+                  placeholder="Sai no campo Observação da ordem de compra (opcional)"
+                  rows={2}
+                  maxLength={2000}
+                  aria-label="Observação para o fornecedor"
+                  className="w-full px-3 py-2 rounded-lg border border-black/[0.08] text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Total Preview */}
           {produtos.length > 0 && (
             <div className="p-4 bg-[#f8f9fa] border border-black/[0.08] rounded-lg">
@@ -734,6 +812,12 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
                   Total: {formatAmount(bd.total)}
                 </span>
               </div>
+              {despesas > 0 && (
+                <div className="mt-2 pt-2 border-t border-black/[0.06] flex items-center justify-between text-sm">
+                  <span className="text-[#757575]">Frete e despesas: <strong className="text-[#212121]">{formatAmount(despesas)}</strong></span>
+                  <span className="font-bold text-primary">Total do pedido: {formatAmount(bd.total + despesas)}</span>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -121,6 +121,7 @@ export const SUPPLIER_TEXT_FIELDS = {
 export type SupplierInput = Partial<Record<keyof typeof SUPPLIER_TEXT_FIELDS, string | null>> & {
   taxId?: string | null;
   state?: string | null;
+  postalCode?: string | null;
   divisions?: string[];
   active?: boolean;
 };
@@ -145,6 +146,11 @@ export function supplierChanges(body: SupplierInput): { changes: Record<string, 
     const uf = String(body.state ?? "").trim().toUpperCase();
     if (uf && !/^[A-Z]{2}$/.test(uf)) return { error: "UF inválida (use a sigla, ex.: SP)." };
     changes.state = uf || null;
+  }
+  if (body.postalCode !== undefined) {
+    const cep = String(body.postalCode ?? "").replace(/\D/g, "");
+    if (cep && cep.length !== 8) return { error: "CEP inválido (8 dígitos)." };
+    changes.postal_code = cep || null;
   }
   if (body.divisions !== undefined) {
     const divisions = Array.isArray(body.divisions) ? body.divisions : [];

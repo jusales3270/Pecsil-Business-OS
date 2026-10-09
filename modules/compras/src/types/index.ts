@@ -31,6 +31,9 @@ export interface User {
 
 export type StatusCotacao = 'PENDENTE' | 'APROVADO' | 'REJEITADO' | 'COMPRADO';
 
+/** Frete na Ordem de Compra: CIF (fornecedor), FOB (PecSil) ou sem frete. */
+export type FreteTipo = 'CIF' | 'FOB' | 'SEM';
+
 export type StatusProduto = 'PENDENTE' | 'APROVADO' | 'REJEITADO';
 
 export interface CotacaoProduto {
@@ -66,6 +69,13 @@ export interface Cotacao {
   obs?: string;
   status: StatusCotacao;
   divisao: Divisao;
+  /** Dados do pedido que saem na Ordem de Compra (frete, despesas, entrega, observação). */
+  freteTipo?: FreteTipo;
+  freteValor?: number;
+  seguroValor?: number;
+  outrasDespesas?: number;
+  prazoEntrega?: string | null;
+  observacao?: string | null;
   userId: number;
   aprovadoPor: string | null;
   motivoRejeicao: string | null;

@@ -14,6 +14,22 @@ const seedCompras: Compra[] = [];
 const seedNotificacoes: Notificacao[] = [];
 
 // Load from localStorage or use seed
+/**
+ * Dados do pedido para a Ordem de Compra (cotacoes.frete_tipo etc.). Campo não
+ * informado (undefined) não é enviado, para não apagar o que já está gravado
+ * quando a cotação muda só de status.
+ */
+function camposDoPedido(d: Partial<Cotacao>) {
+  return {
+    frete_tipo: d.freteTipo,
+    frete_valor: d.freteValor,
+    seguro_valor: d.seguroValor,
+    outras_despesas: d.outrasDespesas,
+    prazo_entrega: d.prazoEntrega === undefined ? undefined : d.prazoEntrega || null,
+    observacao: d.observacao === undefined ? undefined : d.observacao?.trim() || null,
+  };
+}
+
 function loadFromStorage<T>(key: string, fallback: T): T {
   try {
     const stored = localStorage.getItem(key);
@@ -232,6 +248,12 @@ export const useStore = create<AppState>((set, get) => ({
           createdAt: c.created_at,
           updatedAt: c.updated_at,
           deletedAt: c.deleted_at,
+          freteTipo: c.frete_tipo ?? 'CIF',
+          freteValor: Number(c.frete_valor) || 0,
+          seguroValor: Number(c.seguro_valor) || 0,
+          outrasDespesas: Number(c.outras_despesas) || 0,
+          prazoEntrega: c.prazo_entrega ?? null,
+          observacao: c.observacao ?? null,
           produtos: subProds.map(p => ({
             id: String(p.id),
             produto: p.produto,
@@ -304,6 +326,7 @@ export const useStore = create<AppState>((set, get) => ({
           user_id: String(data.userId || '1'),
           divisao: data.divisao,
           material_request_id: data.materialRequestId ?? null,
+          ...camposDoPedido(data),
           produto: data.produto,
           valor_unit: data.valorUnit,
           quantidade: data.quantidade,
@@ -422,6 +445,7 @@ export const useStore = create<AppState>((set, get) => ({
         motivo_rejeicao: data.motivoRejeicao,
         data_decisao: data.dataDecisao,
         divisao: data.divisao,
+        ...camposDoPedido(data),
         produto: data.produto,
         valor_unit: data.valorUnit,
         quantidade: data.quantidade,
@@ -910,6 +934,30 @@ export function calcularTotal(c: Cotacao | { valorUnit: number; quantidade: numb
   const bruto = valorUnit * quantidade;
   const ipi = bruto * (ipiPct / 100);
   return parseFloat((bruto + ipi).toFixed(2));
+}
+
+/** Frete + seguro + outras despesas da cotação (somam no total do pedido da OC). */
+export function despesasCotacao(c: Pick<Cotacao, 'freteValor' | 'seguroValor' | 'outrasDespesas'>): number {
+  return Math.round(((c.freteValor || 0) + (c.seguroValor || 0) + (c.outrasDespesas || 0)) * 100) / 100;
+}
+
+/** Total do pedido: itens (com IPI, sem os rejeitados) + frete, seguro e outras despesas. */
+export function totalDoPedido(c: Cotacao): number {
+  return Math.round((calcularTotal(c) + despesasCotacao(c)) * 100) / 100;
+}
+
+/** A Ordem de Compra sai quando há item aprovado (cotação aprovada, parcial ou comprada). */
+export function temOrdemDeCompra(c: Cotacao): boolean {
+  if (c.deletedAt) return false;
+  if (c.produtos && c.produtos.length > 0) {
+    if (c.produtos.some(p => p.status)) return c.produtos.some(p => p.status === 'APROVADO');
+  }
+  return c.status === 'APROVADO' || c.status === 'COMPRADO';
+}
+
+/** Abre a Ordem de Compra (documento para baixar em PDF) numa aba nova. */
+export function abrirOrdemDeCompra(id: number) {
+  window.open(`/relatorios/ordem-compra?id=${id}`, '_blank', 'noopener');
 }
 
 /**
