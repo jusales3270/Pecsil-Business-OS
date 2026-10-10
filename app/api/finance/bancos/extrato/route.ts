@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { requireFeature } from "../../../../../lib/auth/feature-guard";
+import { guardarOriginal } from "../../../../../lib/documentos/guardar";
 import { PdfInvalido } from "../../../../../lib/arquivos/pdf-texto";
 import { XlsxInvalido } from "../../../../../lib/arquivos/xlsx";
 import { ROTULO_CATEGORIA } from "../../../../../lib/finance/extrato-classificar";
@@ -22,7 +23,8 @@ const LEITURA = [ExtratoNaoReconhecido, PdfInvalido, XlsxInvalido, OfxInvalido, 
  * Financeiro › Bancos e conciliação › "Enviar extrato".
  *   acao=analisar  → lê o arquivo, confere os saldos e mostra o que vai acontecer (nada é gravado);
  *   acao=confirmar → lê o MESMO arquivo de novo (nunca confia em dados vindos do navegador) e grava.
- * O arquivo não é guardado: só o registro do envio (nome, tamanho, sha256, resumo).
+ * O arquivo original fica guardado no setor Financeiro (decisão D3 do proprietário, 10/10/2026),
+ * ligado ao registro do envio (nome, tamanho, sha256, resumo).
  */
 export async function POST(request: Request) {
   const guard = await requireFeature("financeiro.bancos", "operar");
@@ -76,11 +78,24 @@ export async function POST(request: Request) {
         gravados += Number((data as { inserted?: number }).inserted ?? 0);
         conciliados += Number((data as { linked?: number }).linked ?? 0);
       }
-      await guard.supabase.rpc("file_intake_register", {
+      const { data: intakeId } = await guard.supabase.rpc("file_intake_register", {
         p_feature: "financeiro.bancos", p_module: "financeiro", p_kind: `extrato-${extrato.formato}`, p_name: arquivo.name, p_size: arquivo.size, p_sha256: sha256,
         p_summary: { banco: extrato.nomeBanco, conta: `${conta.branch}/${conta.account_number}`, inicio: extrato.inicio, fim: extrato.fim, gravados, conciliados },
       });
-      return NextResponse.json({ gravados, conciliados, mensagem: `Extrato ${extrato.nomeBanco} importado: ${gravados} lançamentos novos, ${conciliados} conciliados automaticamente.` });
+      // Original guardado (D3). Se falhar, o extrato já está gravado: só avisa.
+      let aviso = "";
+      try {
+        await guardarOriginal(guard.supabase, {
+          modulo: "financeiro", feature: "financeiro.bancos", origem: "extrato", intakeId: (intakeId as string | null) ?? null,
+          arquivo: { nome: arquivo.name, tipo: arquivo.type, dados },
+          titulo: `Extrato ${extrato.nomeBanco} ${conta.branch}/${conta.account_number}${extrato.inicio ? ` · ${extrato.inicio.split("-").reverse().join("/")} a ${(extrato.fim ?? "").split("-").reverse().join("/")}` : ""}`,
+          categoria: "Extrato bancário",
+        });
+      } catch (e) {
+        console.error("Extrato gravado, mas o original não foi guardado", e);
+        aviso = " O arquivo original não pôde ser guardado em Documentos; envie de novo por lá se precisar.";
+      }
+      return NextResponse.json({ gravados, conciliados, mensagem: `Extrato ${extrato.nomeBanco} importado: ${gravados} lançamentos novos, ${conciliados} conciliados automaticamente.${aviso}` });
     }
 
     const { data: anterior } = await guard.supabase

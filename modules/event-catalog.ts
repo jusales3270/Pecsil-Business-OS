@@ -48,6 +48,7 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "almoxarifado.solicitacao.cancelada", module: "almoxarifado", label: "Pedido de material cancelado", description: "O pedido de material foi cancelado antes da compra." },
   { type: "fundicao.pedido.criado", module: "fundicao", label: "Material pedido pela Fundição", description: "A Fundição pediu material ao Compras pelo painel dela." },
   { type: "fundicao.pedido.cancelado", module: "fundicao", label: "Pedido da Fundição cancelado", description: "O pedido de material da Fundição foi cancelado antes da compra." },
+  { type: "fundacao.documento.enviado", module: "fundacao", label: "Documento guardado", description: "Um documento foi guardado na pasta de um setor (enviado à mão ou original de extrato/nota)." },
   { type: "fundacao.sugestao.decidida", module: "fundacao", label: "Sugestão da IA decidida", description: "Alguém aceitou, recusou, corrigiu ou ignorou uma sugestão do modelo de decisão." },
   { type: "producao.os.aberta", module: "producao", label: "OS aberta", description: "Uma OS do Forja passou a existir no Business OS." },
   { type: "producao.os.status", module: "producao", label: "OS mudou de situação", description: "A OS mudou de status no Forja (em produção, finalizada, atrasada…)." },

@@ -256,6 +256,8 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
   const [salvando, setSalvando] = useState(false);
   const [confirmaExcluir, setConfirmaExcluir] = useState(false);
   const set = (k: keyof typeof f, v: string | boolean) => setF((a) => ({ ...a, [k]: v }));
+  // Arquivo da nota anexado: guardado em Documentos › Fiscal depois de incluir (D3).
+  const [arquivoNota, setArquivoNota] = useState<File | null>(null);
 
   const lerXml = async (file: File | undefined) => {
     if (!file) return;
@@ -272,6 +274,7 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
     if (res.data.jaNoIcms) { setErro("Esta nota já está no painel (mesma chave de acesso)."); return; }
     const n = res.data.nfe;
     const doPdf = res.data.origem === "pdf";
+    setArquivoNota(file);
     setF((a) => ({ ...a, emitida: n.emissao, fornecedor: n.emitente.nome, fantasia: n.emitente.fantasia || res.data.fornecedor?.nome || "", cnpj: cnpjFormatado(n.emitente.cnpj), nfe: n.numero, serie: n.serie, chave: n.chave,
       valor: campo(n.valorNota), vlrCobrado: campo(n.valorNota), baseIcms: campo(n.baseIcms), icms: campo(n.icms), ipi: campo(n.ipi), xmlOk: !doPdf,
       obs: doPdf ? "Lida do DANFE em PDF: conferir com a nota." : a.obs }));
@@ -285,10 +288,25 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
     if (!f.fornecedor.trim()) { setErro("Informe o fornecedor."); return; }
     setSalvando(true);
     const corpo = { ...f, valor: num(f.valor), vlrCobrado: num(f.vlrCobrado) || num(f.valor), baseIcms: num(f.baseIcms), icms: num(f.icms), ipi: num(f.ipi), emitida: f.emitida || null, recebida: f.recebida || null };
-    const res = nota ? await api(`/api/fiscal/icms/${nota.id}`, { method: "PATCH", body: JSON.stringify(corpo) }) : await api("/api/fiscal/icms", { method: "POST", body: JSON.stringify(corpo) });
+    const res = nota ? await api(`/api/fiscal/icms/${nota.id}`, { method: "PATCH", body: JSON.stringify(corpo) }) : await api<{ id?: string }>("/api/fiscal/icms", { method: "POST", body: JSON.stringify(corpo) });
+    if (!res.ok) { setSalvando(false); setErro(res.error); return; }
+    // Nota nova com arquivo: o original fica guardado, ligado à linha do painel. Se falhar, a nota já está no painel.
+    let original = "";
+    const criada = (res.data as { id?: string } | null)?.id;
+    if (!nota && arquivoNota && criada) {
+      const envio = new FormData();
+      envio.set("arquivo", arquivoNota);
+      envio.set("setor", "fiscal");
+      envio.set("origem", "nota");
+      envio.set("entidadeTipo", "fiscal_icms_entry");
+      envio.set("entidadeId", criada);
+      envio.set("titulo", `NF ${f.nfe}${f.serie ? `/${f.serie}` : ""} · ${f.fornecedor.trim()}`);
+      envio.set("categoria", "Nota fiscal de entrada");
+      const doc = await fetch("/api/documentos", { method: "POST", body: envio, cache: "no-store" }).catch(() => null);
+      original = doc?.ok ? " O arquivo original ficou em Documentos." : " O arquivo original não foi guardado em Documentos.";
+    }
     setSalvando(false);
-    if (!res.ok) { setErro(res.error); return; }
-    onFeito(nota ? "Nota alterada." : "Nota incluída no painel.");
+    onFeito(nota ? "Nota alterada." : `Nota incluída no painel.${original}`);
   };
   const excluir = async () => {
     if (!nota) return;

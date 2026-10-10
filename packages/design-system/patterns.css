@@ -7134,3 +7134,26 @@ button.holiday-row:hover {
   .sug-tabela > .cabeca { display: none; }
   .sug-tabela > [role="row"] { grid-template-columns: 1fr 1fr; padding: 10px 0; }
 }
+
+/* --- Fundação › Documentos dos setores ------------------------------------------- */
+.doc-setor { display: flex; flex-direction: column; gap: var(--sp-4); }
+.doc-setor > .page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--sp-3); }
+.doc-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.doc-campo { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--text-secondary); }
+.doc-campo select, .doc-busca { padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.doc-busca { flex: 1 1 240px; min-width: 0; }
+.doc-vazio { padding: var(--sp-4) 0; color: var(--text-muted); }
+.doc-lista { display: flex; flex-direction: column; margin-top: var(--sp-3); }
+.doc-item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--sp-3); padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
+.doc-principal { display: flex; flex-direction: column; min-width: 0; }
+.doc-principal b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.doc-principal small { color: var(--text-muted); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+.doc-marcas { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.doc-acoes { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.doc-link { padding: 0; border: 0; background: none; color: var(--accent-blue); font: inherit; font-size: var(--fs-sm); cursor: pointer; text-decoration: none; }
+.doc-link.perigo { color: var(--accent-red); }
+.doc-versoes p { margin: 0 0 8px; font-size: var(--fs-sm); color: var(--text-secondary); }
+@media (max-width: 760px) {
+  .doc-item { grid-template-columns: 1fr; gap: 6px; }
+  .doc-marcas, .doc-acoes { justify-content: flex-start; }
+}

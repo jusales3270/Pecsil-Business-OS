@@ -40,6 +40,7 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
   const [novoPedido, setNovoPedido] = useState(false);
   const [receber, setReceber] = useState<ACaminho | null | "avulso">(null);
   const [notaInicial, setNotaInicial] = useState<NotaLidaResposta | undefined>(undefined);
+  const [arquivoDaNota, setArquivoDaNota] = useState<File | null>(null);
   const [notaLida, setNotaLida] = useState<NotaLidaResposta | null>(null);
   const [lendoNota, setLendoNota] = useState(false);
   const arquivoNota = useRef<HTMLInputElement>(null);
@@ -50,6 +51,7 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
     setLendoNota(false);
     if (!res.ok) { notify(res.error); return; }
     if (res.data.jaRecebida) { notify(`Esta nota já foi recebida (recebimento #${res.data.jaRecebida.numero}, ${date(res.data.jaRecebida.em)}).`); return; }
+    setArquivoDaNota(file);
     setNotaLida(res.data);
   };
   const abrirRecebimento = (alvo: ACaminho | "avulso", lida: NotaLidaResposta) => { setNotaLida(null); setNotaInicial(lida); setReceber(alvo); };
@@ -221,7 +223,7 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
     <div className="almox-modulo">
       {conteudo()}
       {novoPedido && <PedidoModal onClose={() => setNovoPedido(false)} onCriado={(numero) => { setNovoPedido(false); setSecao("Solicitações"); void depois(`Pedido #${numero} enviado ao Compras.`); }} />}
-      {receber && <RecebimentoModal compra={receber === "avulso" ? null : receber} inicial={notaInicial} onClose={() => { setReceber(null); setNotaInicial(undefined); }} onFeito={(mensagem) => { setReceber(null); setNotaInicial(undefined); void depois(mensagem); }} />}
+      {receber && <RecebimentoModal compra={receber === "avulso" ? null : receber} inicial={notaInicial} arquivoInicial={notaInicial ? arquivoDaNota : null} onClose={() => { setReceber(null); setNotaInicial(undefined); setArquivoDaNota(null); }} onFeito={(mensagem) => { setReceber(null); setNotaInicial(undefined); setArquivoDaNota(null); void depois(mensagem); }} />}
       {notaLida && (
         <Modal eyebrow="Almoxarifado · enviar nota" title={`NF ${notaLida.nfe.numero}${notaLida.nfe.serie ? `/${notaLida.nfe.serie}` : ""} · ${notaLida.fornecedor?.nome ?? notaLida.nfe.emitente.nome}`} subtitle={`${money(notaLida.nfe.valorNota)} · emitida em ${date(notaLida.nfe.emissao)} · lida do ${notaLida.origem === "pdf" ? "PDF (confira os valores)" : "XML"}`} onClose={() => setNotaLida(null)}>
           <div className="almox-form">

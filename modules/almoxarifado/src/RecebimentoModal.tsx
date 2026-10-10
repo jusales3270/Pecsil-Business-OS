@@ -20,8 +20,10 @@ const campoValor = (valor: number) => (valor ? valor.toLocaleString("pt-BR", { m
  * (tudo preenchido) ou digitando. Ao confirmar, o banco cria a conta a pagar,
  * abate a previsão da compra, lança no Painel do ICMS e avisa o Financeiro.
  */
-export function RecebimentoModal({ compra, inicial, onClose, onFeito }: { compra: ACaminho | null; inicial?: NotaLidaResposta; onClose: () => void; onFeito: (mensagem: string) => void }) {
+export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onFeito }: { compra: ACaminho | null; inicial?: NotaLidaResposta; arquivoInicial?: File | null; onClose: () => void; onFeito: (mensagem: string) => void }) {
   const [modo, setModo] = useState<Modo>("xml");
+  // Arquivo da nota (XML ou DANFE): guardado em Documentos › Almoxarifado depois de confirmar (D3).
+  const [arquivoNota, setArquivoNota] = useState<File | null>(arquivoInicial ?? null);
   const [xml, setXml] = useState<string | null>(null);
   const [doPdf, setDoPdf] = useState(false);
   const [nfe, setNfe] = useState<Nfe | null>(null);
@@ -81,6 +83,7 @@ export function RecebimentoModal({ compra, inicial, onClose, onFeito }: { compra
     const res = await lerNotaArquivo(file);
     setLendo(false);
     if (!res.ok) { setErro(res.error); return; }
+    setArquivoNota(file);
     aplicar(res.data);
   };
   const { arrastando, soltar } = useSoltarArquivo((lista) => void lerArquivo(lista[0]), !lendo);
@@ -108,7 +111,7 @@ export function RecebimentoModal({ compra, inicial, onClose, onFeito }: { compra
     if (!conferido) { setErro("Confirme que conferiu o material recebido."); return; }
     if (divergencia && motivo.trim().length < 3) { setErro("Descreva a divergência."); return; }
     setSalvando(true);
-    const res = await chamar<{ numero: number; revisar: string }>("/api/almoxarifado/recebimentos", {
+    const res = await chamar<{ id: string; numero: number; revisar: string }>("/api/almoxarifado/recebimentos", {
       method: "POST",
       body: JSON.stringify({
         cotacao_id: compra?.cotacaoId ?? null,
@@ -124,9 +127,23 @@ export function RecebimentoModal({ compra, inicial, onClose, onFeito }: { compra
         duplicatas: dups.map((d) => ({ numero: d.numero, vencimento: d.vencimento, valor: numero(d.valor) })),
       }),
     });
+    if (!res.ok) { setSalvando(false); setErro(res.error); return; }
+    // O original da nota fica guardado, ligado ao recebimento. Se falhar, o recebimento já está gravado.
+    let original = "";
+    if (arquivoNota && res.data.id) {
+      const corpo = new FormData();
+      corpo.set("arquivo", arquivoNota);
+      corpo.set("setor", "almoxarifado");
+      corpo.set("origem", "recebimento");
+      corpo.set("entidadeTipo", "receipt");
+      corpo.set("entidadeId", res.data.id);
+      corpo.set("titulo", `NF ${nf.trim()}${serie.trim() ? `/${serie.trim()}` : ""} · ${fornecedor.trim()} (recebimento #${res.data.numero})`);
+      corpo.set("categoria", "Nota fiscal recebida");
+      const doc = await fetch("/api/documentos", { method: "POST", body: corpo, cache: "no-store" }).catch(() => null);
+      original = doc?.ok ? " A nota original ficou em Documentos." : " A nota original não foi guardada em Documentos; envie por lá se precisar.";
+    }
     setSalvando(false);
-    if (!res.ok) { setErro(res.error); return; }
-    onFeito(`Recebimento #${res.data.numero} gravado. A conta a pagar foi para o Financeiro${res.data.revisar ? ` (para revisar: ${res.data.revisar})` : ""}.`);
+    onFeito(`Recebimento #${res.data.numero} gravado. A conta a pagar foi para o Financeiro${res.data.revisar ? ` (para revisar: ${res.data.revisar})` : ""}.${original}`);
   };
 
   const titulo = compra ? `Receber compra de ${compra.fornecedor}` : "Nota sem pedido de compra";
@@ -157,7 +174,7 @@ export function RecebimentoModal({ compra, inicial, onClose, onFeito }: { compra
             {nfe && (
               <p className="almox-nfe-resumo">
                 <Icone nome="check" size={16} /> NF-e {nfe.numero} · série {nfe.serie} · {nfe.emitente.nome}{nfe.emitente.cnpj.length === 14 ? ` · CNPJ ${nfe.emitente.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")}` : ""} · emitida em {date(nfe.emissao)}{doPdf ? " · lida do PDF" : ""}
-                <button type="button" className="almox-link" onClick={() => { setNfe(null); setXml(null); setDoPdf(false); setAviso(""); }}>trocar arquivo</button>
+                <button type="button" className="almox-link" onClick={() => { setNfe(null); setXml(null); setDoPdf(false); setAviso(""); setArquivoNota(null); }}>trocar arquivo</button>
               </p>
             )}
             <div className="almox-campos">

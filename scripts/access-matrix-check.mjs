@@ -276,6 +276,18 @@ try {
     const painel = await client.rpc("ai_use_stats", { p_days: 30 });
     check(n, "não abre o painel de uso da IA", Boolean(painel.error), painel.error?.code);
 
+    // Documentos dos setores: escrita só pela função (com permissão); bucket sem acesso pelo cliente.
+    const docFalso = await client.from("company_documents").insert({ organization_id: org.id, module_code: "fiscal", feature_code: "fiscal.icms", title: "x", original_name: "x", size_bytes: 1, sha256: "0".repeat(64), storage_path: `${org.id}/fiscal/x/x` });
+    check(n, "não grava documento direto na tabela", Boolean(docFalso.error), docFalso.error?.code);
+    const podeFiscal = (scenario.grants["fiscal.icms"] ?? "") === "operar";
+    const regFiscal = await client.rpc("company_document_register", {
+      p_module: "fiscal", p_feature: "fiscal.icms", p_title: "matriz", p_category: null, p_original_name: "matriz.txt", p_mime: "text/plain",
+      p_size: 1, p_sha256: "f".repeat(64), p_storage_path: `${org.id}/fiscal/matriz/matriz.txt`, p_source: "envio",
+    });
+    if (!podeFiscal) check(n, "não registra documento no Fiscal sem permissão", regFiscal.error?.code === "42501", regFiscal.error?.code);
+    const bucket = await client.storage.from("empresa-documentos").list(org.id);
+    check(n, "não lista o armazenamento de documentos pelo cliente", Boolean(bucket.error) || (bucket.data ?? []).length === 0, bucket.error?.message ?? (bucket.data ?? []).length);
+
     await client.auth.signOut();
   }
 
