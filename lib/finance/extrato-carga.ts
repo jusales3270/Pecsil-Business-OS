@@ -98,9 +98,11 @@ export function prepararLancamentos(e: Extrato): Lancamento[] {
 }
 
 /** Não são pagamento (não procuram baixa). */
-export const NAO_E_PAGAMENTO = new Set<CategoriaExtrato>(["transferencia_interna", "antecipacao_recebiveis", "emprestimo", "rendimento", "aplicacao", "recebimento_cliente", "estorno"]);
+export const NAO_E_PAGAMENTO = new Set<CategoriaExtrato>(["transferencia_interna", "antecipacao_recebiveis", "emprestimo", "rendimento", "aplicacao", "recebimento_cliente", "estorno", "cambio", "exportacao", "finimp", "emprestimo_cambio"]);
 /** Nem pedem conta no Financeiro: entram já como "ignorados". O recebimento de cliente fica pendente. */
-export const SEM_BAIXA = new Set<CategoriaExtrato>(["transferencia_interna", "antecipacao_recebiveis", "emprestimo", "rendimento", "aplicacao", "estorno"]);
+// Câmbio (exportação, FINIMP, empréstimo) não é pagamento a fornecedor nem tem conta no
+// Financeiro: fica fora da fila de conciliação (proprietário, 10/10/2026).
+export const SEM_BAIXA = new Set<CategoriaExtrato>(["transferencia_interna", "antecipacao_recebiveis", "emprestimo", "rendimento", "aplicacao", "estorno", "cambio", "exportacao", "finimp", "emprestimo_cambio"]);
 
 const diaMais = (s: string, d: number) => new Date(Date.parse(`${s}T00:00:00Z`) + d * 86_400_000).toISOString().slice(0, 10);
 const cents = (n: unknown) => Math.round(Number(n) * 100);

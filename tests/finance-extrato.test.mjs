@@ -183,6 +183,7 @@ test("classificar: históricos do Santander", () => {
   assert.equal(classificarLancamento("PIX AGENDADO  PECSIL MOLDES").categoria, "transferencia_interna");
   assert.equal(classificarLancamento("PIX RECEBIDO  40049874000158").categoria, "recebimento_cliente");
   assert.equal(classificarLancamento("OPERACAO DE CAMBIO-DEBITO RESERVA").categoria, "cambio");
+  assert.equal(classificarLancamento("OPERACAO DE CAMBIO-CREDITO RESERVA").categoria, "exportacao");
   assert.equal(classificarLancamento("IMPOSTO DE RENDA SOBRE OPER CAMBIO").categoria, "tributo");
   assert.equal(classificarLancamento("PAGAMENTO DARF EM CANAIS INTERNET TRIBUTOS FEDERAI").categoria, "tributo");
   assert.equal(classificarLancamento("PREST. DE EMPREST. FINANCIAMENTO CONTRATO 290000006190").categoria, "financiamento");
