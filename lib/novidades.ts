@@ -27,6 +27,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-10-coleta-arquivos",
+    data: "2026-10-10",
+    area: "Fundação",
+    modulos: ["fundacao"],
+    titulo: "Coleta de arquivos dos computadores",
+    itens: [
+      "Quem o proprietário credenciar pode abrir Fundação › Coleta de arquivos no Chrome ou no Edge, conceder acesso a uma pasta e encontrar extratos, notas, contratos e planilhas esquecidos.",
+      "A plataforma lê a pasta no próprio computador e separa por setor; nada sobe antes de você conferir. Ficam de fora pastas de sistema, fotos, vídeos, documentos de colaborador e arquivos pessoais.",
+      "O que já está na plataforma é reconhecido e pulado. Cada acesso fica registrado: quem aceitou, quando, o computador e a pasta.",
+    ],
+  },
+  {
     id: "2026-10-10-documentos-setor",
     data: "2026-10-10",
     area: "Plataforma",

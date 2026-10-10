@@ -230,7 +230,7 @@ pasta escolhida ─► triagem local ─► lista ─► documento guardado no s
 | 0 | Decisões D1–D6 | aguardando o proprietário |
 | 0 | Base do modelo de decisão (Etapa 0 do PLANO-JEV, com o Clef) | aguardando a conta da Cloudflare (número da conta e token só de Workers AI) |
 | 1 | Guarda de documentos por setor | **entregue em 10/10/2026** |
-| 2 | Coleta pelo navegador | após a 1, a base do Clef, D1 e D2 |
+| 2 | Coleta pelo navegador | **construída em 10/10/2026** |
 | 3 | Mais leitores | após a 2 e a base do Clef (prioridade pelo que a coleta mais encontrar) |
 | 4 | Ligações por regra | após a 1; ganha força com a 2 |
 | 5 | Busca por significado e perguntas | na fase da SARA, após D5 |
@@ -245,8 +245,8 @@ anterior cumprir o aceite e estiver em produção sem incidente.
 
 | # | Pergunta | Opções / recomendação |
 |---|---|---|
-| D1 | Quem pode coletar arquivos dos computadores? | Todos que operam algum setor, ou só pessoas indicadas por setor (recomendado para começar). |
-| D2 | Quais pastas sugerir e quais excluir? | Sugerir Documentos, Área de trabalho, Downloads e a pasta da rede; excluir sempre pastas de sistema, de programas e de fotos pessoais. |
+| D1 | Quem pode coletar arquivos dos computadores? | **Respondida em 10/10/2026: só quem o proprietário credenciar** (funcionalidade "Coletar arquivos", `fundacao.coleta`). |
+| D2 | Quais pastas sugerir e quais excluir? | **Respondida em 10/10/2026:** sugerir Documentos, Área de trabalho, Downloads e a pasta da rede; ignorar sempre pastas de sistema, de programas e de fotos/vídeos pessoais. |
 | D3 | Depois de ler um arquivo (ex.: extrato), guardar o original? | **Respondida em 10/10/2026: guardar o original** junto do dado extraído. |
 | D4 | OCR de escaneados: onde roda? | Local no servidor (nada sai da empresa, mais lento) ou serviço externo (mais preciso, dados saem). |
 | D5 | Busca por significado: onde roda? | Modelo local (nada sai) ou na nuvem, mandando só trechos sem dados pessoais. |
@@ -280,4 +280,5 @@ anterior cumprir o aceite e estiver em produção sem incidente.
 | 10/10/2026 | 0, 2, 3 | O modelo de decisão é o Clef; a base comum do PLANO-JEV (feita com o Clef) é pré-requisito das Etapas 2 e 3 | Proprietário |
 | 10/10/2026 | 1 | D3: o arquivo original fica guardado, mesmo depois da leitura dos dados | Proprietário |
 | 10/10/2026 | 1 | Guarda nova (`company_documents`, bucket `empresa-documentos`) separada da do RH (`documents`/`rh-documents`, que continua como está). Cada documento é protegido por uma funcionalidade que já existe (mapa em `lib/documentos/setores.ts`). O arquivo passa sempre pelo servidor; o bucket não tem política para usuários e o download é por link de 60 s | Claude, plano aprovado pelo proprietário |
+| 10/10/2026 | 2 | D1 e D2 respondidas (só credenciados; pastas sugeridas e ignoradas acima). A coleta guarda o documento no setor e não lança dados (extrato e nota seguem pelos botões do módulo). Documento de colaborador não sobe pela coleta. Quem coleta guarda em qualquer setor, mas depois só vê os setores que já via. O Clef entra só nos "a definir", com o uso "Triagem da coleta" (nasce desligado) | Proprietário + Claude |
 | 10/10/2026 | 1 | Originais guardados automaticamente: extrato (Financeiro), notas do Painel do ICMS e Nova nota (Fiscal, ligadas à linha do ICMS), nota do recebimento (Almoxarifado, ligada ao recebimento). Tela Fundação › Documentos | Claude |
