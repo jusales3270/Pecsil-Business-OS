@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { requireFeature } from "../../../../../lib/auth/feature-guard";
+import { guardarOriginal } from "../../../../../lib/documentos/guardar";
 import { PdfInvalido } from "../../../../../lib/arquivos/pdf-texto";
 import { DanfeInvalido } from "../../../../../lib/fiscal/danfe-pdf";
 import { icmsColunas } from "../../../../../lib/fiscal/icms-campos";
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
   let lancadas = 0;
   let cnpjsGravados = 0;
   const falhas: string[] = [];
+  const entradaPorChave = new Map<string, string>();
   for (const l of novas) {
     const resultado = icmsColunas({
       competencia: mes, emitida: l.emissao || null, recebida, fornecedor: l.emitente || "Fornecedor", fantasia: l.fornecedor?.nome ?? null,
@@ -102,23 +104,40 @@ export async function POST(request: Request) {
       obs: l.origem === "pdf" ? "Lida do DANFE em PDF: conferir com a nota." : null,
     });
     if ("erro" in resultado) { falhas.push(`${l.arquivo}: ${resultado.erro}`); continue; }
-    const { error } = await guard.supabase.from("fiscal_icms_entries").insert({ ...resultado.colunas, origem: "manual", supplier_id: l.fornecedor?.id ?? null });
+    const { data: criada, error } = await guard.supabase.from("fiscal_icms_entries").insert({ ...resultado.colunas, origem: "manual", supplier_id: l.fornecedor?.id ?? null }).select("id").single();
     if (error) { falhas.push(`${l.arquivo}: ${error.code === "23505" ? "já está no painel" : "não foi possível lançar"}`); continue; }
     lancadas++;
+    if (l.chave && criada?.id) entradaPorChave.set(l.chave, criada.id);
     if (l.fornecedor?.gravarCnpj && l.cnpj) {
       const { data } = await guard.supabase.rpc("supplier_set_tax_id_from_nfe", { p_supplier: l.fornecedor.id, p_cnpj: l.cnpj });
       if (data === true) cnpjsGravados++;
     }
   }
+  let originaisFalharam = 0;
   for (const { arquivo, dados, lida } of lidas) {
     if (!lida) continue;
-    await guard.supabase.rpc("file_intake_register", {
+    const { data: intakeId } = await guard.supabase.rpc("file_intake_register", {
       p_feature: "fiscal.icms", p_module: "fiscal", p_kind: `nota-${lida.origem}`, p_name: arquivo.name, p_size: arquivo.size,
       p_sha256: createHash("sha256").update(dados).digest("hex"), p_summary: { chave: lida.nfe.chave, numero: lida.nfe.numero, valor: lida.nfe.valorNota },
     });
+    // Original da nota lançada agora (D3): guardado no Fiscal, ligado à linha do Painel do ICMS.
+    const entrada = entradaPorChave.get(lida.nfe.chave);
+    if (!entrada) continue;
+    try {
+      await guardarOriginal(guard.supabase, {
+        modulo: "fiscal", feature: "fiscal.icms", origem: "nota", intakeId: (intakeId as string | null) ?? null,
+        entidade: { tipo: "fiscal_icms_entry", id: entrada },
+        arquivo: { nome: arquivo.name, tipo: arquivo.type, dados },
+        titulo: `NF ${lida.nfe.numero}${lida.nfe.serie ? `/${lida.nfe.serie}` : ""} · ${lida.nfe.emitente.nome} (${lida.origem === "xml" ? "XML" : "DANFE"})`,
+        categoria: "Nota fiscal de entrada",
+      });
+    } catch (e) {
+      originaisFalharam++;
+      console.error("Nota lançada, mas o original não foi guardado", e);
+    }
   }
   return NextResponse.json({
     lancadas, cnpjsGravados, falhas,
-    mensagem: `${lancadas} ${lancadas === 1 ? "nota lançada" : "notas lançadas"} no Painel do ICMS${cnpjsGravados ? ` · CNPJ gravado em ${cnpjsGravados} ${cnpjsGravados === 1 ? "fornecedor" : "fornecedores"}` : ""}${falhas.length ? ` · ${falhas.length} com problema` : ""}. Complete centro e tipo no painel.`,
+    mensagem: `${lancadas} ${lancadas === 1 ? "nota lançada" : "notas lançadas"} no Painel do ICMS${cnpjsGravados ? ` · CNPJ gravado em ${cnpjsGravados} ${cnpjsGravados === 1 ? "fornecedor" : "fornecedores"}` : ""}${falhas.length ? ` · ${falhas.length} com problema` : ""}. Complete centro e tipo no painel.${originaisFalharam ? ` ${originaisFalharam} arquivo(s) original(is) não foram guardados em Documentos.` : ""}`,
   });
 }

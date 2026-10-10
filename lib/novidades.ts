@@ -27,6 +27,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-10-documentos-setor",
+    data: "2026-10-10",
+    area: "Plataforma",
+    modulos: ["financeiro", "fiscal", "compras", "almoxarifado", "comercial", "fundicao", "producao"],
+    titulo: "Documentos de cada setor guardados na plataforma",
+    itens: [
+      "Nova tela Fundação › Documentos: cada setor guarda seus arquivos na plataforma, visíveis só para quem tem acesso àquele setor.",
+      "Extratos bancários e notas fiscais lançados passam a guardar o arquivo original, ligado ao lançamento de onde vieram.",
+      "Dá para enviar documento à mão, baixar, guardar uma nova versão (o histórico fica) e arquivar. O mesmo arquivo não é guardado duas vezes no setor.",
+    ],
+  },
+  {
     id: "2026-10-10-sugestoes-ia",
     data: "2026-10-10",
     area: "Fundação",

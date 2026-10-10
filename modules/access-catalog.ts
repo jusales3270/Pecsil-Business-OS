@@ -165,6 +165,21 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
 
 export type AccessGrants = Record<string, AccessLevel>;
 
+/**
+ * Funcionalidades que dão acesso a Fundação › Documentos (documentos por setor; ver
+ * lib/documentos/setores.ts — um teste confere que as duas listas batem). Quem é só do RH
+ * também abre a tela, que o leva para Recursos Humanos › Documentos.
+ */
+export const FEATURES_DOCUMENTOS_SETOR = new Set([
+  "financeiro.pagar", "financeiro.bancos", "financeiro.receber",
+  "fiscal.icms",
+  "compras.cotacoes", "compras.realizadas", "compras.fornecedores",
+  "almoxarifado.recebimento", "almoxarifado.solicitacoes",
+  "comercial.clientes",
+  "fundicao.pedidos",
+  "producao.os",
+]);
+
 const FEATURE_INDEX = new Map(
   ACCESS_CATALOG.flatMap((module) => module.features.map((feature) => [feature.code, { module, feature }] as const)),
 );
@@ -255,7 +270,9 @@ export function derivePermissions(grants: AccessGrants): string[] {
     if (code === "financeiro.bancos" && rank >= 2) permissions.add("financeiro.reconcile");
     if (moduleCode === "rh") permissions.add("core.people.view");
     if (code === "rh.colaboradores" && rank >= 2) permissions.add("core.people.create").add("core.people.edit");
+    if (FEATURES_DOCUMENTOS_SETOR.has(code)) permissions.add("core.documentos_setor.view");
     if (code === "rh.documentos") {
+      permissions.add("core.documentos_setor.view");
       permissions.add("core.documents.view");
       if (rank >= 2) permissions.add("core.documents.create").add("core.documents.edit");
       if (rank >= 3) permissions.add("core.documents.approve");
