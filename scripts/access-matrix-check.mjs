@@ -43,6 +43,7 @@ const CASES = [
   { name: "só SST (ver)", grants: { "rh.sst": "ver" } },
   { name: "só OS da Produção (ver)", grants: { "producao.os": "ver" } },
   { name: "só Terceiros do RH (ver)", grants: { "rh.terceiros": "ver" } },
+  { name: "só Sugestões da IA (ver)", grants: { "fundacao.sugestoes": "ver" } },
 ];
 
 const { data: org } = await admin.from("organizations").select("id").limit(1).single();
@@ -257,6 +258,23 @@ try {
     check(n, "não edita fornecedor sem Cadastros", supplierAfter.name === anySupplier.name, supplierAfter.name);
     const merge = await client.rpc("merge_suppliers", { keep_id: anySupplier.id, drop_id: anySupplier.id });
     check(n, "não unifica fornecedores sem Cadastros", Boolean(merge.error), merge.error?.code);
+
+    // Modelo de decisão (Clef): configuração só do proprietário; auditoria só por função.
+    check(n, "não lê a configuração dos usos da IA", (await total(client, "ai_uses")) === 0, await total(client, "ai_uses"));
+    const { data: usoTeste } = await admin.from("ai_uses").select("id, enabled").eq("code", "fundacao.teste").limit(1).single();
+    if (usoTeste) {
+      await client.from("ai_uses").update({ enabled: !usoTeste.enabled }).eq("id", usoTeste.id);
+      const { data: usoDepois } = await admin.from("ai_uses").select("enabled").eq("id", usoTeste.id).single();
+      check(n, "não liga nem desliga uso da IA", usoDepois.enabled === usoTeste.enabled, usoDepois.enabled);
+    }
+    const julgamentos = await total(client, "ai_judgments");
+    const veSugestoes = "fundacao.sugestoes" in scenario.grants;
+    check(n, veSugestoes ? "lê sugestões da IA (só as do que pode ver)" : "não lê sugestões da IA",
+      veSugestoes ? typeof julgamentos === "number" : julgamentos === 0, julgamentos);
+    const falsa = await client.from("ai_judgments").insert({ organization_id: org.id, use_code: "fundacao.teste", feature_code: "fundacao.sugestoes", outcome: "aceita" });
+    check(n, "não grava sugestão direto", Boolean(falsa.error), falsa.error?.code);
+    const painel = await client.rpc("ai_use_stats", { p_days: 30 });
+    check(n, "não abre o painel de uso da IA", Boolean(painel.error), painel.error?.code);
 
     await client.auth.signOut();
   }

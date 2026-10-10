@@ -27,6 +27,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-10-sugestoes-ia",
+    data: "2026-10-10",
+    area: "Fundação",
+    modulos: ["fundacao"],
+    titulo: "Sugestões da IA: a base para conferir o que o modelo sugere",
+    itens: [
+      "Nova tela Fundação › Sugestões da IA: o que o modelo de decisão (Clef) sugerir aparece em azul, com a confiança, para alguém aceitar, recusar ou corrigir. A IA só sugere; quem decide é a pessoa.",
+      "Antes de qualquer texto sair para o modelo, um filtro procura CPF, PIS, e-mail, telefone e dado de saúde. Se achar, nada é enviado e o bloqueio fica registrado.",
+      "Nenhum uso está ligado ainda: cada um é ligado pelo proprietário só depois de uma simulação conferida.",
+    ],
+  },
+  {
     id: "2026-10-09-fundicao-pedidos",
     data: "2026-10-09",
     area: "Fundição",

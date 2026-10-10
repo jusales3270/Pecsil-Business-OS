@@ -380,3 +380,54 @@ export function Columns({ data }: { data: { label: string; value: number; tone?:
     </div>
   );
 }
+
+/* --- Sugestão do modelo de decisão (Clef) ------------------------------------ */
+
+/**
+ * O que vem do modelo de decisão aparece sempre marcado como tal, em azul e com a
+ * confiança à vista (CLAUDE.md, "Modelo de decisão fala em azul"). Nunca como dado
+ * apurado: a pessoa aceita, recusa ou corrige. O "por quê?" mostra a pergunta feita.
+ */
+export function SugestaoModelo({
+  modelo = "Clef",
+  confianca,
+  resposta,
+  pergunta,
+  detalhe,
+  onAceitar,
+  onRecusar,
+  ocupado = false,
+}: {
+  modelo?: string;
+  /** De 0 a 1. */
+  confianca: number | null;
+  resposta: ReactNode;
+  pergunta?: string;
+  detalhe?: ReactNode;
+  onAceitar?: () => void;
+  onRecusar?: () => void;
+  ocupado?: boolean;
+}) {
+  const pct = typeof confianca === "number" ? ` · ${Math.round(confianca * 100)}%` : "";
+  return (
+    <div className="ds-sugestao" role="group" aria-label={`Sugestão do ${modelo}`}>
+      <div className="ds-sugestao-topo">
+        <Status tone="info">Sugestão do {modelo}{pct}</Status>
+        {(onAceitar || onRecusar) && (
+          <span className="ds-sugestao-acoes">
+            {onRecusar && <Button variant="secondary" compact onClick={onRecusar} disabled={ocupado}>Recusar</Button>}
+            {onAceitar && <Button compact onClick={onAceitar} disabled={ocupado}>Aceitar</Button>}
+          </span>
+        )}
+      </div>
+      <div className="ds-sugestao-resposta">{resposta}</div>
+      {detalhe}
+      {pergunta && (
+        <details className="ds-sugestao-porque">
+          <summary>por quê?</summary>
+          <p>Pergunta feita ao modelo: {pergunta}</p>
+        </details>
+      )}
+    </div>
+  );
+}
