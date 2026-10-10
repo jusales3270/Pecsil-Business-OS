@@ -7157,3 +7157,29 @@ button.holiday-row:hover {
   .doc-item { grid-template-columns: 1fr; gap: 6px; }
   .doc-marcas, .doc-acoes { justify-content: flex-start; }
 }
+
+/* --- Fundação › Coleta de arquivos ------------------------------------------------ */
+.coleta { display: flex; flex-direction: column; gap: var(--sp-4); }
+.coleta-passo h2, .coleta-resumo h2 { margin: 0 0 4px; font-size: var(--fs-lg); }
+.coleta-passo p, .coleta-resumo p { margin: 0 0 var(--sp-3); color: var(--text-secondary); font-size: var(--fs-sm); }
+.coleta-nota { color: var(--text-muted) !important; font-size: var(--fs-xs) !important; }
+.coleta-linha { display: flex; flex-wrap: wrap; gap: 8px; }
+.coleta-linha input { flex: 1 1 260px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }
+.coleta-grupo { margin-top: var(--sp-3); }
+.coleta-grupo h3 { margin: 0 0 6px; font-size: var(--fs-sm); color: var(--text-primary); }
+.coleta-grupo h3 small { color: var(--text-muted); font-weight: 400; }
+.coleta-item { display: grid; grid-template-columns: 28px minmax(0, 1fr) 190px 100px; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); }
+.coleta-item.fora { opacity: 0.7; }
+.coleta-nome { display: flex; flex-direction: column; min-width: 0; }
+.coleta-nome b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+.coleta-nome small { color: var(--text-muted); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+.coleta-clef { margin-top: 2px; }
+.coleta-item select { padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font-size: var(--fs-sm); }
+.coleta-rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-3); margin-top: var(--sp-4); font-size: var(--fs-sm); color: var(--text-secondary); }
+.coleta-aceite { display: flex; justify-content: space-between; gap: var(--sp-3); padding: 8px 0; border-bottom: 1px solid var(--border-subtle); }
+.coleta-aceite > div { display: flex; flex-direction: column; min-width: 0; }
+.coleta-aceite small { color: var(--text-muted); font-size: var(--fs-xs); }
+@media (max-width: 760px) {
+  .coleta-item { grid-template-columns: 28px minmax(0, 1fr); }
+  .coleta-item select, .coleta-envio { grid-column: 2; }
+}

@@ -158,6 +158,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "fundacao.auditoria", label: "Auditoria", description: "Trilha de auditoria da plataforma.", levels: VER },
       { code: "fundacao.cadastros", label: "Cadastros", description: "Fornecedores e centros de custo usados por todos os módulos; operar edita e unifica.", levels: VER_OPERAR },
       { code: "fundacao.eventos", label: "Eventos", description: "Linha do tempo do que acontece em cada módulo (base das integrações e da SARA).", levels: VER },
+      { code: "fundacao.coleta", label: "Coletar arquivos", description: "Coleta de arquivos dos computadores pelo navegador (só quem o proprietário credenciar): concede acesso a uma pasta, confere e guarda nos setores.", levels: VER_OPERAR },
       { code: "fundacao.sugestoes", label: "Sugestões da IA", description: "Fila de conferência das sugestões do modelo de decisão (Clef); operar aceita, recusa ou corrige. Cada sugestão exige também a permissão do módulo dela.", levels: VER_OPERAR },
     ],
   },
@@ -259,6 +260,7 @@ export function derivePermissions(grants: AccessGrants): string[] {
       if (code === "fundacao.cadastros") permissions.add("core.cadastros.view");
       if (code === "fundacao.eventos") permissions.add("core.eventos.view");
       if (code === "fundacao.sugestoes") permissions.add("core.sugestoes.view");
+      if (code === "fundacao.coleta") permissions.add("core.coleta.view");
       continue;
     }
     permissions.add(`${moduleCode}.view`);

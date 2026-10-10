@@ -44,6 +44,7 @@ const CASES = [
   { name: "só OS da Produção (ver)", grants: { "producao.os": "ver" } },
   { name: "só Terceiros do RH (ver)", grants: { "rh.terceiros": "ver" } },
   { name: "só Sugestões da IA (ver)", grants: { "fundacao.sugestoes": "ver" } },
+  { name: "só Coletar arquivos (operar)", grants: { "fundacao.coleta": "operar" } },
 ];
 
 const { data: org } = await admin.from("organizations").select("id").limit(1).single();
@@ -285,6 +286,18 @@ try {
       p_size: 1, p_sha256: "f".repeat(64), p_storage_path: `${org.id}/fiscal/matriz/matriz.txt`, p_source: "envio",
     });
     if (!podeFiscal) check(n, "não registra documento no Fiscal sem permissão", regFiscal.error?.code === "42501", regFiscal.error?.code);
+    // Coleta: aceites só do próprio; sem a funcionalidade, as funções são recusadas.
+    const coleta = scenario.grants["fundacao.coleta"] === "operar";
+    check(n, "não lê aceites de coleta de outras pessoas", (await total(client, "file_collection_consents")) === 0, await total(client, "file_collection_consents"));
+    const hashes = await client.rpc("company_document_hashes_exist", { p_hashes: ["0".repeat(64)] });
+    check(n, coleta ? "conferir repetidos responde só sim/não" : "sem Coletar arquivos não confere repetidos",
+      coleta ? !hashes.error && Array.isArray(hashes.data) : hashes.error?.code === "42501", hashes.error?.code ?? JSON.stringify(hashes.data));
+    if (!coleta) {
+      const aceite = await client.rpc("file_collection_accept", { p_device_id: "00000000-0000-0000-0000-000000000000", p_device_name: "matriz", p_folder_name: "x" });
+      check(n, "sem Coletar arquivos não registra aceite", aceite.error?.code === "42501", aceite.error?.code);
+    }
+    const aceiteDireto = await client.from("file_collection_consents").insert({ organization_id: org.id, profile_id: owner.id, device_id: "00000000-0000-0000-0000-000000000000", device_name: "x", folder_name: "x" });
+    check(n, "não grava aceite direto na tabela", Boolean(aceiteDireto.error), aceiteDireto.error?.code);
     const bucket = await client.storage.from("empresa-documentos").list(org.id);
     check(n, "não lista o armazenamento de documentos pelo cliente", Boolean(bucket.error) || (bucket.data ?? []).length === 0, bucket.error?.message ?? (bucket.data ?? []).length);
 
