@@ -21,6 +21,9 @@ export type CategoriaExtrato =
   | "pessoa_fisica"
   | "estorno"
   | "cambio"
+  | "exportacao"
+  | "finimp"
+  | "emprestimo_cambio"
   | "cartao_credito"
   | "outros";
 
@@ -39,7 +42,13 @@ export const ROTULO_CATEGORIA: Record<CategoriaExtrato, string> = {
   recebimento_cliente: "Recebimento de cliente",
   pessoa_fisica: "Pessoa física",
   estorno: "Estorno / devolução",
-  cambio: "Câmbio (importação / exportação)",
+  // Câmbio no Santander (proprietário, 10/10/2026): entradas são recebimentos de exportação;
+  // saídas são parcelas de FINIMP e de empréstimo. O texto do banco não diz qual é qual na
+  // saída, então ela chega como "cambio" e é separada depois.
+  cambio: "Câmbio (FINIMP ou empréstimo)",
+  exportacao: "Recebimento de exportação",
+  finimp: "Parcela de FINIMP",
+  emprestimo_cambio: "Parcela de empréstimo (câmbio)",
   cartao_credito: "Fatura do cartão de crédito",
   outros: "Outros",
 };
@@ -124,6 +133,7 @@ export function classificarLancamento(memo: string, cnpjProprio = CNPJ_PECSIL): 
 
   if (/^AQUISICAO FORNECEDORES/.test(m)) return como("antecipacao_recebiveis", { contraparte: null });
   if (/^(EMPREST|CONTRATACAO EMPREST)/.test(m)) return como("emprestimo", { contraparte: null, cnpj: null });
+  if (/^OPERACAO DE CAMBIO.*CREDITO/.test(m)) return como("exportacao", { contraparte: null });
   if (/^OPERACAO DE CAMBIO/.test(m)) return como("cambio", { contraparte: null });
   if (cnpj === cnpjProprio || /PECSIL MOLDES|PECSIL METALURGICA/.test(m)) return como("transferencia_interna", { contraparte: null });
   if (/^SISPAG SALARIOS/.test(m)) return como("folha", { contraparte: null });
