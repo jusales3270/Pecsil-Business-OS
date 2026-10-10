@@ -5,7 +5,7 @@
 > Toda regra pode ser alterada; o que se pede é que a mudança seja **explícita e
 > registrada** (ver [§10 — Como mudar este documento](#10--como-mudar-este-documento)).
 
-Última revisão: 10/08/2026
+Última revisão: 10/10/2026 (SARA como harness corporativo e Segundo Cérebro: Fase 6 e Referências)
 
 ---
 
@@ -239,6 +239,41 @@ colocado em cima do ERP. Construído em níveis:
 - Nível 4 exige aprovação humana explícita para qualquer ação crítica.
 - Nível N+1 só começa quando o nível N estiver em uso real.
 
+#### SARA como harness corporativo (10/10/2026)
+
+> Decidido com o proprietário em 10/10/2026. Mudança leve (§10): detalha *como* a
+> SARA é construída, sem mexer nos princípios nem nas restrições acima.
+
+A SARA é o **harness corporativo da PecSil**: o programa que coordena os modelos de IA
+para cumprir uma tarefa. Ele entrega a informação certa, oferece as ferramentas,
+controla o que pode ser feito e mantém o trabalho andando até o resultado ou até
+precisar parar e perguntar. Ela não é um chat colocado em cima do sistema. Usa as
+**mesmas ferramentas que as telas usam, como a pessoa logada**, e nunca acessa o
+banco por fora delas.
+
+Quase todas as peças desse harness já existem na plataforma:
+
+| Peça do harness | O que já existe no Business OS |
+|---|---|
+| **Permissões** | Funcionalidades por pessoa (ver/operar/aprovar) e as travas no banco (RLS). A SARA herda as de quem pergunta. |
+| **Aprovações** | "Mostra e a pessoa confirma" (envio de arquivos) e as aprovações de processo (cotação pelo diretor). A SARA prepara; quem confirma é a pessoa. |
+| **Ferramentas** | As rotas e funções da plataforma (consultar títulos, criar pedido, ler nota, gerar ordem de compra…). Cada uma confere a permissão de quem chama. |
+| **Registro** | Trilha de eventos dos módulos (`module_events`) e registro de envios de arquivo (`file_intakes`). |
+| **Memória** | O banco de dados e o **Segundo Cérebro** (documentos da empresa ligados aos dados), em [`docs/PLANO-SEGUNDO-CEREBRO.md`](./PLANO-SEGUNDO-CEREBRO.md). |
+| **Skills** | O jeito PecSil de trabalhar, escrito em [`docs/PROCESSOS-PECSIL.md`](./PROCESSOS-PECSIL.md), virando instrução para a IA seguir. |
+| **Vários modelos** | Clef (Cloudflare) para decisões rápidas e baratas; um modelo maior só para conversa e análise. Cada tarefa usa o mais barato que resolve. |
+| **Teto de uso** | Limite de consumo de IA por setor, com painel de quem usa o quê (a construir). |
+
+**Onde a IA não entra:** no miolo dos módulos. Conciliação bancária, ordem de compra,
+recebimento da nota, ICMS e permissões são regras exatas e dão sempre o mesmo resultado.
+A SARA **consulta, prepara, tria e cobra**. Quem grava continua sendo a regra do módulo,
+com a confirmação da pessoa.
+
+**Como as entregas atuais se encaixam:** a coleta de arquivos dos computadores é uma
+*ferramenta*, a triagem por setor é uma *skill*, e o Segundo Cérebro é a *memória*.
+Por isso essas entregas podem começar antes da Fase 6 sem violar a pré-condição abaixo:
+são fundação, não a SARA.
+
 **Pré-condição:** Fase 5 entregue.
 
 ---
@@ -383,5 +418,7 @@ Se uma regra deste documento estiver atrapalhando o trabalho real, o padrão é
 | [`docs/PENDENCIA-INFRA-SUPABASE.md`](./PENDENCIA-INFRA-SUPABASE.md) | Bloqueio de infraestrutura (Fase 0) |
 | [`modules/planned.ts`](../modules/planned.ts) | Roadmap de módulos em código |
 | [`docs/PROCESSOS-PECSIL.md`](./PROCESSOS-PECSIL.md) | Cadeias entre departamentos (base das reações entre módulos) |
+| [`docs/PLANO-SEGUNDO-CEREBRO.md`](./PLANO-SEGUNDO-CEREBRO.md) | Segundo Cérebro: coleta de arquivos dos computadores, guarda por setor, ligações com o banco e busca (memória da SARA) |
+| [`docs/PLANO-JEV.md`](./PLANO-JEV.md) | Uso do modelo de decisão (Jev, depois Clef): etapas, regras e calibração |
 | [`docs/VISAO-PRODUTO-ESCALA.md`](./VISAO-PRODUTO-ESCALA.md) | **Retomar ao fim do roadmap:** levar o Business OS a outras indústrias — diferenciais, prioridades P1–P4 e reflexos no sistema |
 | [`.env.example`](../.env.example) | Variáveis necessárias |

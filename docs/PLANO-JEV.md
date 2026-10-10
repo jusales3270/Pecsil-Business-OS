@@ -6,6 +6,14 @@
 >
 > Criado em 25/09/2026 · Dono: proprietário da PecSil · Execução: Claude
 
+> **Troca de modelo: Clef no lugar do Jev** (decidida em 03/10/2026, registrada em
+> 10/10/2026). O modelo chamado passa a ser o **Clef**, da Cloudflare: `clef-flash` para
+> decisões rápidas e `clef` para as mais difíceis. A API dele é compatível com a do Jev,
+> com os mesmos três tipos de pergunta (`noul`, `choice`, `score`) e confiança em cada
+> resposta. **Etapas, portões e regras deste documento continuam valendo; muda só o
+> modelo.** Onde o texto diz "Jev", leia "modelo de decisão (hoje o Clef)". Os ajustes da
+> Etapa 0 estão na seção 3, e o registro na seção 7.
+
 ---
 
 ## 1. O que é o Jev e o que ele não é
@@ -87,10 +95,29 @@ repetir cliente, auditoria e marcação na tela em cada módulo.
 | Variável no Coolify | `TYPESAFE_API_KEY` configurada na aplicação `i3rwerhgkqqurapbrowuho1p`. |
 | `scripts/jev-simular.mjs` | Roda um uso sobre os dados reais **sem gravar sugestão**, gera o relatório de conferência em `~/Downloads` (mesmo molde das importações do RH). |
 
+**Com o Clef (10/10/2026), a Etapa 0 é construída já com ele:**
+
+- **Cliente:** chama o Workers AI da Cloudflare
+  (`/accounts/<CLOUDFLARE_ACCOUNT_ID>/ai/run/@cf/cloudflare/clef-flash` ou `…/clef`).
+  - Chaves `CLOUDFLARE_ACCOUNT_ID` e um token **só de Workers AI**, guardados no
+    `.env.local` e no Coolify, nunca com `NEXT_PUBLIC_`.
+  - O modelo de cada uso fica em `jev_uses.modelo`. Os nomes das peças podem virar
+    neutros na construção (ex.: `lib/decisao/`); o papel de cada uma não muda.
+- **Selo na tela:** "Sugestão do Clef · 87%", seguindo a mesma regra de exibição do
+  `CLAUDE.md`.
+- **Variáveis no Coolify:** as da Cloudflare, no lugar de `TYPESAFE_API_KEY`.
+- **Antes de ligar qualquer uso:** simulação em português com casos reais da PecSil
+  (fornecedores parecidos, gastos, pedidos de material) pelo `jev-simular`, com
+  relatório conferido pelo proprietário. Os números publicados são da própria Cloudflare
+  e precisam ser confirmados aqui.
+- **Usuário fora do plano:** o Segundo Cérebro
+  ([`PLANO-SEGUNDO-CEREBRO.md`](./PLANO-SEGUNDO-CEREBRO.md)) usa esta mesma base na
+  triagem de arquivos e no mapeamento de colunas de planilhas.
+
 **Critério de aceite:**
 - testes do guard com CPF, CID e e-mail bloqueados;
 - consulta de ponta a ponta registrada em `jev_judgments`;
-- com a TypeSafe fora do ar (simulado), a tela segue no fluxo manual sem erro;
+- com o serviço do modelo fora do ar (simulado), a tela segue no fluxo manual sem erro;
 - a matriz de acesso (`scripts/access-matrix-check.mjs`) cobre `jev_uses` e `jev_judgments`;
 - telas em 1440 e 390, claro e escuro.
 
@@ -338,3 +365,5 @@ ser feito.
 |---|---|---|---|
 | 25/09/2026 | todas | Plano criado; ordem e regras aprovadas para execução | Proprietário |
 | 25/09/2026 | 8 | Motivos de parada já são catalogados no Forja; a etapa passa a tratar só paradas no motivo genérico com observação e o agrupamento por causa-raiz | Claude, conferido no schema do Forja |
+| 03/10/2026 | todas | O modelo passa a ser o **Clef** (Cloudflare) no lugar do Jev; etapas, portões e regras ficam iguais | Proprietário |
+| 10/10/2026 | 0 | A Etapa 0 (base comum) é construída já com o Clef e passa a servir também ao Segundo Cérebro (triagem de arquivos e mapeamento de colunas). Antes de ligar, simulação em português com casos reais | Proprietário |
