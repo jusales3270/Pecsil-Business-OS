@@ -6,11 +6,22 @@
  * o app aberto compara os ids que já conhece com os da versão nova no
  * servidor, e mostra só o que é novo para aquela pessoa.
  *
- * `modulos` diz a quem interessa: só quem tem acesso a um desses módulos vê
- * a novidade (quem é do RH não é avisado do Financeiro). Sem `modulos`, vale
- * para todos (mudança da plataforma inteira).
+ * A quem interessa (o aviso só vai para quem foi afetado; o proprietário vê tudo):
+ * - `funcionalidades`: só quem tem uma delas (o mais preciso; ex.: a coleta só
+ *   para quem tem "Coletar arquivos");
+ * - senão `modulos`: quem tem acesso a um desses módulos (quem é do RH não é
+ *   avisado do Financeiro; quem tem dois módulos recebe as dos dois);
+ * - sem nenhum dos dois: todos (mudança da plataforma inteira).
+ * O aviso "Nova versão disponível" com o botão Atualizar vai para TODOS, mesmo
+ * quando a versão não traz novidade da área da pessoa.
  */
-import { hasModuleAccess, type AccessGrants } from "../modules/access-catalog";
+import { FEATURES_DOCUMENTOS_SETOR, hasFeature, hasModuleAccess, type AccessGrants } from "../modules/access-catalog";
+import { SETORES_COLETA } from "./coleta/modulos";
+
+/** Quem coleta arquivos em algum setor. */
+const COLETA = SETORES_COLETA.map((s) => `${s}.coleta`);
+/** Quem vê documentos de algum setor (Fundação › Documentos). */
+const DOCUMENTOS = [...FEATURES_DOCUMENTOS_SETOR];
 
 export type Novidade = {
   /** Único e estável (ex.: "2026-09-29-sugestoes"). */
@@ -21,6 +32,12 @@ export type Novidade = {
   area: string;
   /** Códigos dos módulos a quem interessa (ex.: ["compras"]). Vazio: todos. */
   modulos?: string[];
+  /**
+   * Mais preciso que `modulos`: só quem tem uma destas funcionalidades (ex.: ["fundacao.sugestoes"]).
+   * Mantenha `modulos` junto: o app aberto numa versão antiga só conhece `modulos` e, sem ele,
+   * mostraria a novidade para todos.
+   */
+  funcionalidades?: string[];
   titulo: string;
   itens: string[];
 };
@@ -30,6 +47,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-10-11-leitura-documentos",
     data: "2026-10-11",
     area: "Plataforma",
+    funcionalidades: [...DOCUMENTOS, ...COLETA],
     modulos: ["financeiro", "fiscal", "compras", "almoxarifado", "comercial", "fundicao", "producao"],
     titulo: "A plataforma lê o conteúdo dos documentos",
     itens: [
@@ -42,6 +60,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-10-10-coleta-por-modulo",
     data: "2026-10-10",
     area: "Plataforma",
+    funcionalidades: COLETA,
     modulos: ["financeiro", "fiscal", "compras", "almoxarifado", "comercial", "fundicao", "producao"],
     titulo: "Coletar arquivos dentro de cada módulo",
     itens: [
@@ -54,6 +73,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-10-10-documentos-setor",
     data: "2026-10-10",
     area: "Plataforma",
+    funcionalidades: DOCUMENTOS,
     modulos: ["financeiro", "fiscal", "compras", "almoxarifado", "comercial", "fundicao", "producao"],
     titulo: "Documentos de cada setor guardados na plataforma",
     itens: [
@@ -66,6 +86,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-10-10-sugestoes-ia",
     data: "2026-10-10",
     area: "Fundação",
+    funcionalidades: ["fundacao.sugestoes"],
     modulos: ["fundacao"],
     titulo: "Sugestões da IA: a base para conferir o que o modelo sugere",
     itens: [
@@ -401,7 +422,11 @@ export function novidadesNovas(doServidor: readonly Novidade[], conhecidas: read
 
 export type AcessoNovidades = { isOwner: boolean; grants: AccessGrants };
 
-/** Só o que interessa a esta pessoa: novidades dos módulos a que ela tem acesso. */
+/** Só o que interessa a esta pessoa: das funcionalidades e dos módulos a que ela tem acesso. */
 export function novidadesPara(lista: readonly Novidade[], acesso: AcessoNovidades): Novidade[] {
-  return lista.filter((n) => !n.modulos?.length || n.modulos.some((m) => hasModuleAccess(acesso, m)));
+  return lista.filter((n) => {
+    if (n.funcionalidades?.length) return n.funcionalidades.some((f) => hasFeature(acesso, f));
+    if (n.modulos?.length) return n.modulos.some((m) => hasModuleAccess(acesso, m));
+    return true;
+  });
 }

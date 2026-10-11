@@ -34,3 +34,26 @@ test("cada pessoa só vê as novidades dos módulos a que tem acesso", async () 
   assert.deepEqual(ids({ isOwner: true, grants: {} }), ["a", "b", "c"], "proprietário vê tudo");
   for (const n of NOVIDADES) for (const m of n.modulos ?? []) assert.match(m, /^[a-z]+$/, `${n.id}: código de módulo`);
 });
+
+test("novidade de funcionalidade só vai para quem tem a funcionalidade; quem tem vários módulos recebe de todos", async () => {
+  const { novidadesPara } = await import("../lib/novidades.ts");
+  const lista = [
+    { id: "coleta", data: "2026-10-10", area: "Plataforma", funcionalidades: ["financeiro.coleta", "compras.coleta"], modulos: ["financeiro", "compras"], titulo: "C", itens: ["x"] },
+    { id: "fin", data: "2026-10-10", area: "Financeiro", modulos: ["financeiro"], titulo: "F", itens: ["x"] },
+    { id: "fis", data: "2026-10-10", area: "Fiscal", modulos: ["fiscal"], titulo: "I", itens: ["x"] },
+  ];
+  const ids = (grants, isOwner = false) => novidadesPara(lista, { isOwner, grants }).map((n) => n.id);
+  assert.deepEqual(ids({ "financeiro.pagar": "aprovar" }), ["fin"], "do Financeiro sem coleta: não recebe a da coleta");
+  assert.deepEqual(ids({ "financeiro.coleta": "operar" }), ["coleta"], "só coleta: recebe só a da coleta");
+  assert.deepEqual(ids({ "financeiro.pagar": "ver", "fiscal.icms": "operar" }), ["fin", "fis"], "dois módulos: as dos dois");
+  assert.deepEqual(ids({}, true), ["coleta", "fin", "fis"], "proprietário vê tudo");
+});
+
+test("as novidades por funcionalidade mantêm `modulos` (o app de versão antiga só conhece `modulos`)", async () => {
+  const { NOVIDADES } = await import("../lib/novidades.ts");
+  const { findFeature } = await import("../modules/access-catalog.ts");
+  for (const n of NOVIDADES.filter((x) => x.funcionalidades?.length)) {
+    assert.ok(n.modulos?.length, `${n.id}: falta modulos`);
+    for (const f of n.funcionalidades) assert.ok(findFeature(f), `${n.id}: funcionalidade desconhecida ${f}`);
+  }
+});

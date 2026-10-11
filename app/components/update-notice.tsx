@@ -16,9 +16,10 @@ import { NOVIDADES, novidadesNovas, novidadesPara, type AcessoNovidades, type No
  * Ao clicar em Atualizar, a janela "O que há de novo" mostra o que a versão no
  * ar traz a mais que esta (lib/novidades.ts), e só então recarrega.
  *
- * Só avisa quem é afetado: a novidade de um módulo aparece para quem tem acesso
- * a ele. Versão sem nada para esta pessoa não mostra aviso nenhum — a versão
- * nova já fica baixada e entra na próxima vez que a plataforma for aberta.
+ * A janela "O que há de novo" só mostra o que é da área da pessoa (os módulos e
+ * funcionalidades a que ela tem acesso; lib/novidades.ts). O aviso "Nova versão
+ * disponível" com o botão Atualizar vai para TODOS: quem não tem novidade da sua
+ * área atualiza direto, sem janela.
  */
 
 const VERSAO_CARREGADA = process.env.NEXT_PUBLIC_APP_VERSION ?? "";
@@ -108,12 +109,8 @@ export function UpdateNotice() {
         const doServidor = ((lista as { novidades?: Novidade[] } | null)?.novidades ?? []) as Novidade[];
         const novas = novidadesNovas(doServidor, NOVIDADES);
         const minhas = novidadesPara(novas, acesso);
-        if (!minhas.length) {
-          // Nada para esta pessoa: sem aviso. As novidades dos outros módulos não
-          // reaparecem para ela depois de recarregar.
-          marcarVistas(novas.map((n) => n.id));
-          return;
-        }
+        // As novidades de outras áreas não aparecem para ela, nem depois de recarregar.
+        marcarVistas(novas.filter((n) => !minhas.includes(n)).map((n) => n.id));
         setPendentes(minhas);
         setDisponivel(true);
       }
@@ -138,8 +135,9 @@ export function UpdateNotice() {
     };
   }, [verificar]);
 
-  /** Abre a janela com o que a versão nova traz para esta pessoa, antes de recarregar. */
+  /** Abre a janela com o que a versão nova traz para esta pessoa, antes de recarregar; sem nada da área dela, atualiza direto. */
   const mostrarNovidades = () => {
+    if (!pendentes.length) { void atualizar(); return; }
     setModo("antes");
     setNovidades(pendentes);
   };
