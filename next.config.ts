@@ -8,7 +8,8 @@ const buildVersion = process.env.SOURCE_COMMIT?.slice(0, 12) || new Date().toISO
 
 const nextConfig: NextConfig = {
   // O pdfjs roda no servidor (leitura de extrato e relatório em PDF) e não deve ser empacotado.
-  serverExternalPackages: ["pdfjs-dist"],
+  // O tesseract.js (OCR local, Etapa 3) sobe um worker próprio a partir do node_modules.
+  serverExternalPackages: ["pdfjs-dist", "tesseract.js"],
   env: {
     NEXT_PUBLIC_APP_VERSION: buildVersion,
   },

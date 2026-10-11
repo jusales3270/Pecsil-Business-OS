@@ -173,18 +173,28 @@ pasta escolhida ─► triagem local ─► lista ─► documento guardado no s
   - o aceite aparece no registro;
   - nenhum dado com CPF sai para o Clef (teste do filtro).
 
-### Etapa 3: Mais leitores
+### Etapa 3: Ler o conteúdo (revista em 10/10/2026)
 
-- **.docx (Word):** leitura de texto, no mesmo esquema do leitor de Excel (sem biblioteca
-  nova).
-- **Planilha livre** (estoque, controle de compras, lista de fornecedores):
-  - o Clef sugere qual coluna corresponde a qual campo da plataforma, recebendo só os
-    títulos e linhas de exemplo sem dados pessoais;
-  - a pessoa confirma o mapeamento;
-  - a plataforma mostra a prévia do que vai gravar.
-- **PDF escaneado e foto:** OCR, conforme a decisão D4.
-- **Aceite:** para cada leitor, testes com arquivos reais anonimizados, e a prévia confere
-  com o documento.
+O dono apontou que não faz sentido receber arquivos sem conseguir lê-los: a leitura vem
+**antes** das ligações (Etapa 4), que usam esse texto.
+
+- **Leitor único** (`lib/leitura/`), que roda no navegador e no servidor: PDF com texto,
+  Word (.docx), Excel (.xlsx; .xls no servidor), XML, OFX, TXT e CSV. Não entrou biblioteca
+  nova; o zip usa o `DecompressionStream` do navegador e do Node.
+- **Na coleta:** o conteúdo é lido no próprio computador antes da conferência e decide o setor
+  quando a regra é forte (chave de acesso de NF-e com dígito verificador, DANFE, extrato,
+  boleto, cotação…). Holerite ou lista com 3 ou mais CPFs fica barrado como RH. O texto não
+  sobe, e o Clef continua recebendo só o nome e a pasta.
+- **Texto guardado** (`company_document_texts`): todo documento guardado tem o texto lido no
+  servidor, a partir do original. Quem lê o texto é só quem vê o documento; quem grava é só o
+  servidor.
+- **OCR local (D4):** PDF escaneado e foto são lidos no servidor da PecSil com o tesseract.js
+  e o português empacotado pelo npm. Nada sai da empresa. Uma tarefa agendada do Coolify
+  (a cada 5 minutos) lê a fila, inclusive os documentos guardados antes desta etapa.
+- **Fica para depois:** planilha livre com mapeamento de colunas pelo Clef (é importar dados,
+  não só ler).
+- **Aceite:** testes com arquivos fictícios de cada tipo (inclusive escaneado com OCR); QA da
+  coleta com nota de nome genérico, holerite escondido e escaneado; matriz de acesso do texto.
 
 ### Etapa 4: Ligações por regra
 
@@ -234,12 +244,12 @@ pasta escolhida ─► triagem local ─► lista ─► documento guardado no s
 
 | Ordem | Etapa | Pronta para começar? |
 |---|---|---|
-| 0 | Decisões D1–D6 | aguardando o proprietário |
-| 0 | Base do modelo de decisão (Etapa 0 do PLANO-JEV, com o Clef) | aguardando a conta da Cloudflare (número da conta e token só de Workers AI) |
+| 0 | Decisões D1–D6 | D1–D4 respondidas; D5 e D6 pendentes |
+| 0 | Base do modelo de decisão (Etapa 0 do PLANO-JEV, com o Clef) | **entregue em 10/10/2026** |
 | 1 | Guarda de documentos por setor | **entregue em 10/10/2026** |
-| 2 | Coleta pelo navegador | **construída em 10/10/2026** |
-| 3 | Mais leitores | após a 2 e a base do Clef (prioridade pelo que a coleta mais encontrar) |
-| 4 | Ligações por regra | após a 1; ganha força com a 2 |
+| 2 | Coleta pelo navegador (dentro de cada módulo) | **entregue em 10/10/2026** |
+| 3 | Ler o conteúdo (texto + OCR local) | **em construção (10–11/10/2026)** |
+| 4 | Ligações por regra | logo após a 3 (usa o texto lido) |
 | 5 | Busca por significado e perguntas | na fase da SARA, após D5 |
 | 6 | Programa instalado (opcional) | só se a 2 mostrar necessidade |
 
@@ -255,7 +265,7 @@ anterior cumprir o aceite e estiver em produção sem incidente.
 | D1 | Quem pode coletar arquivos dos computadores? | **Respondida em 10/10/2026: só quem o proprietário credenciar**, módulo a módulo ("Coletar arquivos" nos acessos de cada módulo, `<setor>.coleta`; revisto no mesmo dia: antes era um acesso único na Fundação). |
 | D2 | Quais pastas sugerir e quais excluir? | **Respondida em 10/10/2026:** sugerir Documentos, Área de trabalho, Downloads e a pasta da rede; ignorar sempre pastas de sistema, de programas e de fotos/vídeos pessoais. |
 | D3 | Depois de ler um arquivo (ex.: extrato), guardar o original? | **Respondida em 10/10/2026: guardar o original** junto do dado extraído. |
-| D4 | OCR de escaneados: onde roda? | Local no servidor (nada sai da empresa, mais lento) ou serviço externo (mais preciso, dados saem). |
+| D4 | OCR de escaneados: onde roda? | **Respondida em 10/10/2026: local, no servidor da PecSil** (tesseract.js, português empacotado; nenhum documento sai da empresa). |
 | D5 | Busca por significado: onde roda? | Modelo local (nada sai) ou na nuvem, mandando só trechos sem dados pessoais. |
 | D6 | Teto de uso de IA por setor | Valor mensal por setor e quem acompanha o painel. |
 
@@ -290,3 +300,4 @@ anterior cumprir o aceite e estiver em produção sem incidente.
 | 10/10/2026 | 2 | D1 e D2 respondidas (só credenciados; pastas sugeridas e ignoradas acima). A coleta guarda o documento no setor e não lança dados (extrato e nota seguem pelos botões do módulo). Documento de colaborador não sobe pela coleta. Quem coleta guarda em qualquer setor, mas depois só vê os setores que já via. O Clef entra só nos "a definir", com o uso "Triagem da coleta" (nasce desligado) | Proprietário + Claude |
 | 10/10/2026 | 1 | Originais guardados automaticamente: extrato (Financeiro), notas do Painel do ICMS e Nova nota (Fiscal, ligadas à linha do ICMS), nota do recebimento (Almoxarifado, ligada ao recebimento). Tela Fundação › Documentos | Claude |
 | 10/10/2026 | 2 | Coleta sai da Fundação e vai para cada módulo: "Coletar arquivos" nos acessos de cada módulo (só operar), item no menu do módulo, setor vem da credencial. Arquivo que parece de outro setor vem desmarcado com aviso; se marcado, entra no setor do módulo. "Coletar arquivos" não abre o resto do módulo (`has_module` ignora `*.coleta`). Triagem pelo Clef: um uso por setor, todos desligados | Proprietário |
+| 10/10/2026 | 3 | Ler antes de ligar: a Etapa 3 (leitura do conteúdo) vem antes da 4 e não espera o uso da coleta. D4 = OCR local. Planilha livre com mapeamento fica para depois | Proprietário |

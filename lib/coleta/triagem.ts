@@ -83,3 +83,14 @@ export function classificar({ nome, pasta = "", tipo = "desconhecido" }: { nome:
   for (const r of REGRAS) if (r.re.test(texto)) return { setor: r.setor, confianca: "regra", motivo: r.motivo };
   return { setor: null, confianca: "duvida", motivo: "o nome não diz o setor" };
 }
+
+/**
+ * Junta a classificação pelo nome com a do conteúdo (Etapa 3): RH e pessoal pelo nome continuam
+ * barrados; o conteúdo barra o RH escondido sob nome genérico e, quando reconhece o setor, decide.
+ */
+export function combinar(peloNome: Classificacao, peloConteudo: { setor: string | null; rh?: boolean; motivo: string } | null): Classificacao {
+  if (!peloConteudo || peloNome.rh || peloNome.pessoal) return peloNome;
+  if (peloConteudo.rh) return { setor: null, confianca: "regra", rh: true, motivo: peloConteudo.motivo };
+  if (peloConteudo.setor) return { setor: peloConteudo.setor, confianca: "regra", motivo: peloConteudo.motivo };
+  return peloNome;
+}

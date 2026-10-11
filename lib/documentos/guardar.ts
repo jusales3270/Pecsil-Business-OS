@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "../supabase/admin";
+import { lerEGravar } from "../leitura/servidor";
 import { caminhoDocumento } from "./setores";
 
 /**
@@ -10,7 +11,8 @@ import { caminhoDocumento } from "./setores";
  * fica guardado). O arquivo sobe com a chave mestra — o bucket não tem política para
  * usuários — e o registro é feito com a SESSÃO da pessoa, que confere a permissão do setor.
  * Se o registro falhar, o arquivo que acabou de subir é apagado. Mesmo arquivo já guardado
- * no setor não duplica.
+ * no setor não duplica. Documento novo tem o texto lido na hora (Etapa 3); escaneado e foto
+ * ficam para o OCR da rodada agendada.
  */
 
 const BUCKET = "empresa-documentos";
@@ -63,6 +65,7 @@ export async function guardarOriginal(supabase: SupabaseClient, e: GuardarEntrad
   }
   const r = data as Guardado;
   if (r.existente) await admin.storage.from(BUCKET).remove([caminho]);
+  else await lerEGravar(admin, { id: r.id, organization_id: String(org) }, e.arquivo.dados); // nunca derruba o envio
   return r;
 }
 
