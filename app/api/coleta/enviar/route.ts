@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireFeature } from "../../../../lib/auth/feature-guard";
+import { exigirColeta } from "../../../../lib/coleta/acesso";
 import { guardarOriginal } from "../../../../lib/documentos/guardar";
 import { LIMITE_DOCUMENTO } from "../../../../lib/documentos/acesso";
 import { setorPorModulo } from "../../../../lib/documentos/setores";
@@ -8,18 +8,18 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * Guarda um arquivo aprovado na conferência da coleta, no setor escolhido (origem "coleta").
- * Quem coleta guarda em qualquer setor, mas depois só vê os setores que já via. Se o setor
- * veio do Clef, a escolha final da pessoa decide a sugestão (aceita ou corrigida).
+ * Guarda um arquivo aprovado na conferência da coleta, sempre no setor da coleta (origem
+ * "coleta"): o setor vem da credencial, nunca da tela. Se o Clef sugeriu um setor, guardar aqui
+ * decide a sugestão (aceita se ele disse este setor, corrigida se disse outro).
  */
 export async function POST(request: Request) {
-  const guard = await requireFeature("fundacao.coleta", "operar");
-  if ("error" in guard) return guard.error;
   const form = await request.formData().catch(() => null);
+  const guard = await exigirColeta(form?.get("modulo"));
+  if ("error" in guard) return guard.error;
   const arquivo = form?.get("arquivo");
-  const setor = setorPorModulo(String(form?.get("setor") ?? ""));
+  const setor = setorPorModulo(guard.setor);
   if (!(arquivo instanceof File)) return NextResponse.json({ error: "Arquivo ausente." }, { status: 400 });
-  if (!setor) return NextResponse.json({ error: "Escolha o setor." }, { status: 400 });
+  if (!setor) return NextResponse.json({ error: "Setor da coleta inválido." }, { status: 400 });
   if (arquivo.size > LIMITE_DOCUMENTO) return NextResponse.json({ error: "O arquivo passa de 9,5 MB." }, { status: 413 });
   const pasta = String(form?.get("pasta") ?? "").slice(0, 200);
   try {

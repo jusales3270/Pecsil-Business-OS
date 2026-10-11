@@ -45,3 +45,10 @@ test("quem não tem nada do Comercial não abre o departamento", () => {
   const portaria = usuario({ "portaria.visitas": "operar" });
   assert.equal(canAccessModule(portaria, comercial), false);
 });
+
+test("quem só tem \"Coletar arquivos\" vê o módulo no menu (e só a coleta dentro)", () => {
+  const financeiro = getModuleById("financeiro");
+  assert.equal(canAccessModule(usuario({ "financeiro.coleta": "operar" }), financeiro), true);
+  assert.equal(canAccessModule(usuario({ "compras.coleta": "operar" }), comercial), true);
+  assert.equal(canAccessModule(usuario({ "fiscal.coleta": "operar" }), financeiro), false);
+});

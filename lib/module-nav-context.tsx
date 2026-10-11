@@ -63,28 +63,24 @@ function mesmaLista(
     && item.badge === b[i]?.badge && item.badgeTone === b[i]?.badgeTone);
 }
 
+/** Mesmo menu: mesmos itens, áreas e seleção (as funções não entram na comparação). */
+export function mesmoEstadoNav(prev: ModuleNavState | null, state: ModuleNavState | null) {
+  if (!prev || !state) return prev === state;
+  return prev.moduleId === state.moduleId &&
+    prev.activeId === state.activeId &&
+    prev.activeAreaId === state.activeAreaId &&
+    prev.sidebarTree === state.sidebarTree &&
+    mesmaLista(prev.items, state.items) &&
+    mesmaLista(prev.areas, state.areas);
+}
+
 export function ModuleNavProvider({ children }: { children: React.ReactNode }) {
   const [navState, setNavState] = useState<ModuleNavState | null>(null);
 
   // Só troca o estado quando o conteúdo muda de verdade. Sem isso, cada render
   // do módulo registraria um objeto novo e a plataforma entraria em laço.
   const registerNav = useCallback((state: ModuleNavState | null) => {
-    setNavState(prev => {
-      if (!prev && !state) return null;
-      if (
-        prev &&
-        state &&
-        prev.moduleId === state.moduleId &&
-        prev.activeId === state.activeId &&
-        prev.activeAreaId === state.activeAreaId &&
-        prev.sidebarTree === state.sidebarTree &&
-        mesmaLista(prev.items, state.items) &&
-        mesmaLista(prev.areas, state.areas)
-      ) {
-        return prev;
-      }
-      return state;
-    });
+    setNavState(prev => (mesmoEstadoNav(prev, state) ? prev : state));
   }, []);
 
   const value = useMemo(() => ({ navState, registerNav }), [navState, registerNav]);

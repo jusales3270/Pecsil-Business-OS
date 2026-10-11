@@ -44,7 +44,7 @@ const CASES = [
   { name: "só OS da Produção (ver)", grants: { "producao.os": "ver" } },
   { name: "só Terceiros do RH (ver)", grants: { "rh.terceiros": "ver" } },
   { name: "só Sugestões da IA (ver)", grants: { "fundacao.sugestoes": "ver" } },
-  { name: "só Coletar arquivos (operar)", grants: { "fundacao.coleta": "operar" } },
+  { name: "só Coletar arquivos do Financeiro (operar)", grants: { "financeiro.coleta": "operar" } },
 ];
 
 const { data: org } = await admin.from("organizations").select("id").limit(1).single();
@@ -286,15 +286,31 @@ try {
       p_size: 1, p_sha256: "f".repeat(64), p_storage_path: `${org.id}/fiscal/matriz/matriz.txt`, p_source: "envio",
     });
     if (!podeFiscal) check(n, "não registra documento no Fiscal sem permissão", regFiscal.error?.code === "42501", regFiscal.error?.code);
-    // Coleta: aceites só do próprio; sem a funcionalidade, as funções são recusadas.
-    const coleta = scenario.grants["fundacao.coleta"] === "operar";
+    // Coleta (por módulo): aceites só do próprio; só no setor em que tem "Coletar arquivos".
+    const coleta = scenario.grants["financeiro.coleta"] === "operar";
     check(n, "não lê aceites de coleta de outras pessoas", (await total(client, "file_collection_consents")) === 0, await total(client, "file_collection_consents"));
-    const hashes = await client.rpc("company_document_hashes_exist", { p_hashes: ["0".repeat(64)] });
+    const hashes = await client.rpc("company_document_hashes_exist", { p_module: "financeiro", p_hashes: ["0".repeat(64)] });
     check(n, coleta ? "conferir repetidos responde só sim/não" : "sem Coletar arquivos não confere repetidos",
       coleta ? !hashes.error && Array.isArray(hashes.data) : hashes.error?.code === "42501", hashes.error?.code ?? JSON.stringify(hashes.data));
+    const hashesFiscal = await client.rpc("company_document_hashes_exist", { p_module: "fiscal", p_hashes: ["0".repeat(64)] });
+    check(n, "sem Coletar arquivos do Fiscal não confere repetidos no Fiscal", hashesFiscal.error?.code === "42501", hashesFiscal.error?.code);
+    const aceiteFiscal = await client.rpc("file_collection_accept", { p_module: "fiscal", p_device_id: "00000000-0000-0000-0000-000000000000", p_device_name: "matriz", p_folder_name: "x" });
+    check(n, "não registra aceite de coleta no Fiscal", aceiteFiscal.error?.code === "42501", aceiteFiscal.error?.code);
     if (!coleta) {
-      const aceite = await client.rpc("file_collection_accept", { p_device_id: "00000000-0000-0000-0000-000000000000", p_device_name: "matriz", p_folder_name: "x" });
+      const aceite = await client.rpc("file_collection_accept", { p_module: "financeiro", p_device_id: "00000000-0000-0000-0000-000000000000", p_device_name: "matriz", p_folder_name: "x" });
       check(n, "sem Coletar arquivos não registra aceite", aceite.error?.code === "42501", aceite.error?.code);
+    }
+    const coletaFiscal = await client.rpc("company_document_register", {
+      p_module: "fiscal", p_feature: "fiscal.icms", p_title: "matriz", p_category: null, p_original_name: "matriz.txt", p_mime: "text/plain",
+      p_size: 1, p_sha256: "e".repeat(64), p_storage_path: `${org.id}/fiscal/matriz/matriz.txt`, p_source: "coleta",
+    });
+    if (!podeFiscal) check(n, "coleta não guarda em setor sem Coletar arquivos", coletaFiscal.error?.code === "42501", coletaFiscal.error?.code);
+    if (coleta) {
+      // "Coletar arquivos" não abre o resto do módulo.
+      const mod = await client.rpc("has_module", { requested_module: "financeiro" });
+      check(n, "Coletar arquivos não dá acesso ao módulo Financeiro", mod.data === false, JSON.stringify(mod.data ?? mod.error?.code));
+      const criar = await client.rpc("has_permission", { requested_module: "financeiro", requested_action: "create" });
+      check(n, "Coletar arquivos não dá a permissão antiga financeiro.create", criar.data === false, JSON.stringify(criar.data ?? criar.error?.code));
     }
     const aceiteDireto = await client.from("file_collection_consents").insert({ organization_id: org.id, profile_id: owner.id, device_id: "00000000-0000-0000-0000-000000000000", device_name: "x", folder_name: "x" });
     check(n, "não grava aceite direto na tabela", Boolean(aceiteDireto.error), aceiteDireto.error?.code);

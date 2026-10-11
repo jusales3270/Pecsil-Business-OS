@@ -2,6 +2,7 @@ import type { ModuleManifest, ModuleScope } from "./types";
 import { hasAnyPermission, hasPermission } from "./access-policy";
 import { getDepartmentAreas } from "./registry";
 import { hasFeature, hasModuleAccess, type AccessGrants, type AccessLevel, type JobTitle } from "./access-catalog";
+import { setoresDeColeta } from "../lib/coleta/modulos";
 
 export type ModuleAccessContext = {
   userId: string;
@@ -52,12 +53,14 @@ export function canUseFeature(context: ModuleAccessContext, code: string, level:
 
 /**
  * Acesso ao módulo pelas funcionalidades liberadas. Um departamento também abre
- * pelas áreas que abriga: quem só tem `compras.*` entra pelo Comercial.
+ * pelas áreas que abriga: quem só tem `compras.*` entra pelo Comercial. Quem só tem
+ * "Coletar arquivos" no módulo também entra, mas só vê a coleta.
  */
 export function canAccessModule(context: ModuleAccessContext, manifest: ModuleManifest) {
   if (!manifest.enabled) return false;
   if (hasModuleAccess(context, manifest.code)) return true;
-  return getDepartmentAreas(manifest.id).some(area => area.enabled && hasModuleAccess(context, area.code));
+  if (getDepartmentAreas(manifest.id).some(area => area.enabled && hasModuleAccess(context, area.code))) return true;
+  return setoresDeColeta(context, manifest.id).length > 0;
 }
 
 /** Só departamentos e módulos soltos aparecem no menu; as áreas abrem dentro deles. */

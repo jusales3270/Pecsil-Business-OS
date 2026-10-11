@@ -234,7 +234,8 @@ function AccessChecklist({ grants, onChange }: { grants: AccessGrants; onChange:
   function setModule(module: AccessModule, enabled: boolean) {
     const next = { ...grants };
     for (const feature of module.features) {
-      if (enabled) next[feature.code] = next[feature.code] ?? "ver";
+      // "Coletar arquivos" nunca vem junto com o módulo: o proprietário marca pessoa a pessoa.
+      if (enabled) { if (!feature.code.endsWith(".coleta")) next[feature.code] = next[feature.code] ?? feature.levels[0]; }
       else delete next[feature.code];
     }
     onChange(next);
@@ -299,7 +300,7 @@ function AccessChecklist({ grants, onChange }: { grants: AccessGrants; onChange:
                         <input
                           type="checkbox"
                           checked={Boolean(level)}
-                          onChange={(event) => setFeature(feature.code, event.target.checked ? "ver" : null)}
+                          onChange={(event) => setFeature(feature.code, event.target.checked ? feature.levels[0] : null)}
                         />
                         <span>
                           <b>{feature.label}</b>
