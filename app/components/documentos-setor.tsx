@@ -20,7 +20,7 @@ type Documento = {
   leitura: LeituraDoc | LeituraDoc[] | null;
   /** Com busca: o trecho achado (palavras entre [[ ]]) e se casou por palavra ou por semelhança. */
   trecho?: string | null;
-  como?: "palavras" | "parecido";
+  como?: "palavras" | "parecido" | "significado";
   /** Ligações por regra (Etapa 4): só as que a pessoa pode ver. */
   ligacoes?: { id: string; target_type: string; target_label: string | null; confidence: string; status: string }[];
 };
@@ -133,7 +133,7 @@ export function DocumentosSetorView({ notify, buscaInicial = "" }: { notify: (ms
                       const ligadas = (d.ligacoes ?? []).filter((l) => l.status !== "descartada");
                       return ligadas.length ? <small className="doc-ligado-a">Ligado a: {ligadas.map((l) => `${l.target_label ?? l.target_type}${l.confidence === "provavel" && l.status === "ativa" ? " (a confirmar)" : ""}`).join(" · ")}</small> : null;
                     })()}
-                    {d.trecho !== undefined && <TrechoAchado trecho={d.trecho} parecido={d.como === "parecido"} />}
+                    {d.trecho !== undefined && <TrechoAchado trecho={d.trecho} parecido={d.como === "parecido"} sentido={d.como === "significado"} />}
                   </div>
                   <div className="doc-marcas">
                     <Status tone="info">{rotulo(d.module_code)}</Status>
@@ -248,12 +248,13 @@ function Historico({ doc, onClose }: { doc: Documento; onClose: () => void }) {
 }
 
 /** Trecho achado pela busca, com as palavras destacadas (sem HTML vindo do documento). */
-export function TrechoAchado({ trecho, parecido }: { trecho: string | null | undefined; parecido?: boolean }) {
+export function TrechoAchado({ trecho, parecido, sentido }: { trecho: string | null | undefined; parecido?: boolean; sentido?: boolean }) {
   const pedacos = pedacosDoTrecho(trecho);
-  if (!pedacos.length && !parecido) return null;
+  if (!pedacos.length && !parecido && !sentido) return null;
   return (
     <small className="doc-trecho">
       {parecido && <em className="doc-trecho-parecido">Parecido com o que você buscou{pedacos.length ? ": " : ""}</em>}
+      {sentido && <em className="doc-trecho-parecido">Pelo sentido{pedacos.length ? ": " : ""}</em>}
       {pedacos.map((p, i) => (p.achado ? <mark key={i}>{p.texto}</mark> : <span key={i}>{p.texto}</span>))}
     </small>
   );

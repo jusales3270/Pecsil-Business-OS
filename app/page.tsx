@@ -231,7 +231,7 @@ function SecurityView({ access }: { notify:(message:string)=>void; access: Modul
   </>;
 }
 type AccessMatrixUser = { id:string; fullName:string; email:string; isOwner:boolean; employee:{name:string}|null; grants:AccessGrants };
-type DocumentoAchado = { id: string; title: string; original_name: string; module_code: string; trecho: string | null; como: "palavras" | "parecido" };
+type DocumentoAchado = { id: string; title: string; original_name: string; module_code: string; trecho: string | null; como: "palavras" | "parecido" | "significado" };
 
 function CorporateSearchView({ initialQuery, setView, people, modules, organizationData, onOpenModule, onOpenDocumentos }: { initialQuery:string; setView:(view:View)=>void; people: Person[]; modules: ModuleManifest[]; organizationData: OrganizationData; onOpenModule:(moduleId:string)=>void; onOpenDocumentos:(busca:string)=>void }) {
   const [query,setQuery]=useState(initialQuery);
@@ -270,7 +270,7 @@ function CorporateSearchView({ initialQuery, setView, people, modules, organizat
     <Card className="search-hero"><Icon name="search" size={24}/><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Nome, cargo, módulo ou o que está escrito num documento..."/><span>⌘ K</span></Card>
     <div className="search-filter-row"><span>{query.trim().length<2?"Digite ao menos 2 caracteres":`${results.length+documentos.length} ${results.length+documentos.length===1?"resultado autorizado":"resultados autorizados"}`}</span></div>
     {results.length>0&&<Card className="search-results">{results.map(item=><button key={item.key} onClick={item.open}><span className="result-icon"><Icon name={item.icon}/></span><span><b>{item.title}</b><small>{item.meta}</small></span><Status>{item.type}</Status><Icon name="arrow"/></button>)}</Card>}
-    {documentos.length>0&&<Card className="search-results search-documentos"><p className="search-grupo">Documentos</p>{documentos.map(d=><button key={d.id} onClick={()=>onOpenDocumentos(query.trim())}><span className="result-icon"><Icon name="file"/></span><span><b>{d.title}</b><TrechoAchado trecho={d.trecho} parecido={d.como==="parecido"}/></span><Status>Documento</Status><Icon name="arrow"/></button>)}</Card>}
+    {documentos.length>0&&<Card className="search-results search-documentos"><p className="search-grupo">Documentos</p>{documentos.map(d=><button key={d.id} onClick={()=>onOpenDocumentos(query.trim())}><span className="result-icon"><Icon name="file"/></span><span><b>{d.title}</b><TrechoAchado trecho={d.trecho} parecido={d.como==="parecido"} sentido={d.como==="significado"}/></span><Status>Documento</Status><Icon name="arrow"/></button>)}</Card>}
     {query.trim().length>=2&&!results.length&&!documentos.length&&<Card className="hr-empty-card"><div className="hr-empty"><Icon name="search" size={28}/><b>Nenhum resultado autorizado</b><small>Tente outro termo.</small></div></Card>}
   </>;
 }

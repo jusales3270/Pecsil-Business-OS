@@ -229,8 +229,12 @@ nota.
 **Entrega A — busca por palavras (11/10/2026):** `company_document_search` (com as permissões de
 quem pesquisa), português sem acento (`portugues_sem_acento`), aspas e -excluir, tolerância a
 erro de digitação (trigramas, só quando nada casa). Em Fundação › Documentos e na Busca
-Corporativa, com o trecho destacado. **Entrega B — significado local** logo depois, começando por
-um teste de viabilidade do modelo no servidor.
+Corporativa, com o trecho destacado. **Entrega B — significado local (11/10/2026):** modelo
+multilingual-e5-small (ONNX, 118 MB, baixado uma vez para o servidor; nenhum texto sai), trechos de
+~800 caracteres com vetores em `company_document_chunks` (pgvector, HNSW), gerados na rodada
+agendada; resultados "Pelo sentido" depois dos por palavra, com corte relativo ao melhor. Teste de
+viabilidade: 7/7 buscas sem a palavra exata acertaram o primeiro resultado; +430 MB de memória
+enquanto carregado (descarrega após 10 min parado); servidor com 15 GB.
 
 - **O que entra:**
   - extensão `vector`;
