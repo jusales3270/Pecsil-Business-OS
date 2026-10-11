@@ -51,3 +51,40 @@ test("coleta: sha256 do navegador igual ao do servidor", async () => {
   const dados = new TextEncoder().encode("PecSil coleta de arquivos");
   assert.equal(await sha256Hex(dados), createHash("sha256").update(dados).digest("hex"));
 });
+
+test("coleta por módulo: cada setor da guarda tem \"Coletar arquivos\" no próprio módulo, só operar", async () => {
+  const { SETORES_COLETA } = await import("../lib/coleta/modulos.ts");
+  const { findFeature } = await import("../modules/access-catalog.ts");
+  assert.deepEqual([...SETORES_COLETA].sort(), SETORES_DOCUMENTO.map((s) => s.modulo).sort());
+  for (const s of SETORES_COLETA) {
+    const f = findFeature(`${s}.coleta`);
+    assert.ok(f, `${s}.coleta falta no catálogo`);
+    assert.equal(f.module.code, s);
+    assert.deepEqual([...f.feature.levels], ["operar"]);
+  }
+  assert.equal(findFeature("fundacao.coleta"), null);
+});
+
+test("coleta por módulo: o setor vem do módulo; o Comercial abriga o Compras", async () => {
+  const { setoresDoModulo, setoresDeColeta, soColeta } = await import("../lib/coleta/modulos.ts");
+  assert.deepEqual(setoresDoModulo("financeiro"), ["financeiro"]);
+  assert.deepEqual(setoresDoModulo("comercial"), ["comercial", "compras"]);
+  assert.deepEqual(setoresDoModulo("rh"), []);
+  const kaylane = { grants: { "compras.cotacoes": "operar", "compras.coleta": "operar" } };
+  assert.deepEqual(setoresDeColeta(kaylane, "comercial"), ["compras"]);
+  assert.equal(soColeta(kaylane, "comercial"), false);
+  const so = { grants: { "financeiro.coleta": "operar" } };
+  assert.equal(soColeta(so, "financeiro"), true);
+  assert.deepEqual(setoresDeColeta(so, "fiscal"), []);
+  assert.equal(soColeta({ isOwner: true, grants: {} }, "financeiro"), false);
+  assert.deepEqual(setoresDeColeta({ isOwner: true, grants: {} }, "comercial"), ["comercial", "compras"]);
+});
+
+test("coleta por módulo: \"Coletar arquivos\" não abre o resto do módulo (como has_module no banco)", async () => {
+  const { hasModuleAccess, derivePermissions } = await import("../modules/access-catalog.ts");
+  const so = { grants: { "financeiro.coleta": "operar" } };
+  assert.equal(hasModuleAccess(so, "financeiro"), false);
+  assert.equal(hasModuleAccess(so, "financeiro", "operar"), false);
+  const p = derivePermissions(so.grants);
+  for (const proibida of ["financeiro.view", "financeiro.create", "financeiro.edit", "core.documentos_setor.view"]) assert.equal(p.includes(proibida), false, proibida);
+});

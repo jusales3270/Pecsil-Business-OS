@@ -137,6 +137,11 @@ pasta escolhida ─► triagem local ─► lista ─► documento guardado no s
 
 - **Objetivo:** achar os arquivos esquecidos nos computadores (todos Windows) sem
   instalar nada.
+- **Onde fica (revisto em 10/10/2026):** dentro de cada módulo (Financeiro, Fiscal, Compras,
+  Almoxarifado, Comercial, Fundição, Produção), no item "Coletar arquivos" do menu. O
+  proprietário escolhe nos acessos de cada módulo quem pode coletar (funcionalidade
+  `<setor>.coleta`, só operar). O setor do arquivo vem da credencial: o que é coletado no
+  Financeiro entra no Financeiro. "Coletar arquivos" não abre o resto do módulo.
 - **Fluxo:**
   1. **Pedir acesso:** a pessoa clica em **"Conceder acesso a uma pasta"** (Chrome ou Edge)
      e escolhe Documentos, Área de trabalho, Downloads, a pasta da rede ou o próprio
@@ -151,9 +156,11 @@ pasta escolhida ─► triagem local ─► lista ─► documento guardado no s
        planilha), mais nome, extensão e padrões (holerite, férias, recibo, contrato,
        orçamento…);
      - manda ao Clef só os casos em dúvida, com o mínimo (regra 4).
-  4. **Conferir:** a lista aparece agrupada por setor sugerido. A pessoa troca o setor,
-     desmarca ou marca como pessoal (e aí o arquivo não sobe).
-  5. **Subir:** sobe só o que ela aprovou, para a guarda do setor (Etapa 1). Onde existe
+  4. **Conferir:** a lista separa o que é do setor (vem marcado), o que não tem setor claro e
+     o que parece de outro setor (vêm desmarcados, com aviso), além do que é do RH ou pessoal
+     (não sobe). Se a pessoa marcar um arquivo de outro setor, ele entra no setor do módulo
+     em que ela está coletando, nunca em outro.
+  5. **Subir:** sobe só o que ela aprovou, para a guarda do setor do módulo (Etapa 1). Onde existe
      leitor, a leitura entra no fluxo de sempre: extrato vai para a conciliação, nota vai
      para o ICMS ou o recebimento, sempre com a prévia e a confirmação.
 - **Limite:** o navegador só alcança a pasta escolhida e só lê com a plataforma aberta.
@@ -245,7 +252,7 @@ anterior cumprir o aceite e estiver em produção sem incidente.
 
 | # | Pergunta | Opções / recomendação |
 |---|---|---|
-| D1 | Quem pode coletar arquivos dos computadores? | **Respondida em 10/10/2026: só quem o proprietário credenciar** (funcionalidade "Coletar arquivos", `fundacao.coleta`). |
+| D1 | Quem pode coletar arquivos dos computadores? | **Respondida em 10/10/2026: só quem o proprietário credenciar**, módulo a módulo ("Coletar arquivos" nos acessos de cada módulo, `<setor>.coleta`; revisto no mesmo dia: antes era um acesso único na Fundação). |
 | D2 | Quais pastas sugerir e quais excluir? | **Respondida em 10/10/2026:** sugerir Documentos, Área de trabalho, Downloads e a pasta da rede; ignorar sempre pastas de sistema, de programas e de fotos/vídeos pessoais. |
 | D3 | Depois de ler um arquivo (ex.: extrato), guardar o original? | **Respondida em 10/10/2026: guardar o original** junto do dado extraído. |
 | D4 | OCR de escaneados: onde roda? | Local no servidor (nada sai da empresa, mais lento) ou serviço externo (mais preciso, dados saem). |
@@ -282,3 +289,4 @@ anterior cumprir o aceite e estiver em produção sem incidente.
 | 10/10/2026 | 1 | Guarda nova (`company_documents`, bucket `empresa-documentos`) separada da do RH (`documents`/`rh-documents`, que continua como está). Cada documento é protegido por uma funcionalidade que já existe (mapa em `lib/documentos/setores.ts`). O arquivo passa sempre pelo servidor; o bucket não tem política para usuários e o download é por link de 60 s | Claude, plano aprovado pelo proprietário |
 | 10/10/2026 | 2 | D1 e D2 respondidas (só credenciados; pastas sugeridas e ignoradas acima). A coleta guarda o documento no setor e não lança dados (extrato e nota seguem pelos botões do módulo). Documento de colaborador não sobe pela coleta. Quem coleta guarda em qualquer setor, mas depois só vê os setores que já via. O Clef entra só nos "a definir", com o uso "Triagem da coleta" (nasce desligado) | Proprietário + Claude |
 | 10/10/2026 | 1 | Originais guardados automaticamente: extrato (Financeiro), notas do Painel do ICMS e Nova nota (Fiscal, ligadas à linha do ICMS), nota do recebimento (Almoxarifado, ligada ao recebimento). Tela Fundação › Documentos | Claude |
+| 10/10/2026 | 2 | Coleta sai da Fundação e vai para cada módulo: "Coletar arquivos" nos acessos de cada módulo (só operar), item no menu do módulo, setor vem da credencial. Arquivo que parece de outro setor vem desmarcado com aviso; se marcado, entra no setor do módulo. "Coletar arquivos" não abre o resto do módulo (`has_module` ignora `*.coleta`). Triagem pelo Clef: um uso por setor, todos desligados | Proprietário |

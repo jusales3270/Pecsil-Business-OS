@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireFeature } from "../../../../lib/auth/feature-guard";
+import { exigirAlgumaColeta } from "../../../../lib/coleta/acesso";
 
 export const dynamic = "force-dynamic";
 
 /** Começa uma coleta a partir de um aceite válido (não revogado) da própria pessoa. */
 export async function POST(request: Request) {
-  const guard = await requireFeature("fundacao.coleta", "operar");
+  // O setor vem do aceite; o banco confere "Coletar arquivos" nele.
+  const guard = await exigirAlgumaColeta();
   if ("error" in guard) return guard.error;
   const body = (await request.json().catch(() => ({}))) as { aceiteId?: string };
   const { data, error } = await guard.supabase.rpc("file_collection_run_start", { p_consent: body.aceiteId ?? null });

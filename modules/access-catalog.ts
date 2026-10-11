@@ -48,6 +48,17 @@ const VER = ["ver"] as const;
 const VER_OPERAR = ["ver", "operar"] as const;
 const TODOS = ["ver", "operar", "aprovar"] as const;
 
+/**
+ * "Coletar arquivos" de cada setor (lib/coleta/modulos.ts): só operar, e não abre o resto do
+ * módulo — hasModuleAccess e derivePermissions ignoram as funcionalidades *.coleta, como o banco.
+ */
+const coleta = (setor: string): AccessFeature => ({
+  code: `${setor}.coleta`,
+  label: "Coletar arquivos",
+  description: "Coleta de arquivos dos computadores pelo navegador, guardados neste setor (só quem o proprietário escolher). Não dá acesso ao resto do módulo.",
+  levels: ["operar"],
+});
+
 export const ACCESS_CATALOG: readonly AccessModule[] = [
   {
     code: "rh",
@@ -78,6 +89,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "financeiro.plano", label: "Plano de contas", description: "Plano de contas; operar inclui, edita, move e exclui contas.", levels: VER_OPERAR },
       { code: "financeiro.relatorios", label: "Relatórios", description: "Relatórios financeiros e exportação.", levels: VER },
       { code: "financeiro.homologacao", label: "Homologação", description: "Plano de contas, alçadas e critérios de homologação.", levels: VER_OPERAR },
+      coleta("financeiro"),
     ],
   },
   {
@@ -90,6 +102,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "comercial.clientes", label: "Clientes", description: "Cadastro de clientes e os e-mails de cada um; operar edita.", levels: VER_OPERAR },
       { code: "comercial.cobranca", label: "Cobrança", description: "Títulos a receber vencidos e a régua de avisos; aprovar é quem dispara o e-mail ao cliente.", levels: TODOS },
       { code: "comercial.conexao", label: "Conexão de e-mail", description: "Situação da leitura das caixas de e-mail (última sincronização e erros).", levels: VER },
+      coleta("comercial"),
     ],
   },
   {
@@ -101,6 +114,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "compras.aprovacoes", label: "Aprovações", description: "Cotações pendentes e histórico de decisões; aprovar decide.", levels: ["ver", "aprovar"] },
       { code: "compras.realizadas", label: "Compras realizadas", description: "Compras efetivadas; operar registra a compra com NF.", levels: VER_OPERAR },
       { code: "compras.fornecedores", label: "Fornecedores", description: "Cadastro e histórico de compras por fornecedor; operar cadastra, edita e unifica.", levels: VER_OPERAR },
+      coleta("compras"),
     ],
   },
   {
@@ -126,6 +140,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "producao.externos", label: "Envios externos", description: "Lotes em fornecedores (metalização externa).", levels: VER },
       { code: "producao.bi", label: "BI & Análises", description: "Pontualidade de entrega e causas de parada.", levels: VER },
       { code: "producao.conexao", label: "Conexão Forja", description: "Situação da integração com o Forja.", levels: VER },
+      coleta("producao"),
     ],
   },
   {
@@ -134,6 +149,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     features: [
       { code: "almoxarifado.solicitacoes", label: "Solicitações", description: "Pedidos de material ao Compras; operar pede e cancela.", levels: VER_OPERAR },
       { code: "almoxarifado.recebimento", label: "Recebimento", description: "Material a caminho e entrada da nota fiscal; operar confere e lança a nota, que vira conta a pagar.", levels: VER_OPERAR },
+      coleta("almoxarifado"),
     ],
   },
   {
@@ -141,6 +157,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     label: "Fundição",
     features: [
       { code: "fundicao.pedidos", label: "Pedidos de material", description: "Painel da Fundição: pede material ao Compras e acompanha cotação, aprovação, compra e chegada; operar pede e cancela.", levels: VER_OPERAR },
+      coleta("fundicao"),
     ],
   },
   {
@@ -148,6 +165,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     label: "Fiscal",
     features: [
       { code: "fiscal.icms", label: "Painel do ICMS", description: "Notas de entrada do mês, ICMS e IPI por centro e livro de apuração; operar lança notas e marca XML, lançamento e autorização.", levels: VER_OPERAR },
+      coleta("fiscal"),
     ],
   },
   {
@@ -158,7 +176,6 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "fundacao.auditoria", label: "Auditoria", description: "Trilha de auditoria da plataforma.", levels: VER },
       { code: "fundacao.cadastros", label: "Cadastros", description: "Fornecedores e centros de custo usados por todos os módulos; operar edita e unifica.", levels: VER_OPERAR },
       { code: "fundacao.eventos", label: "Eventos", description: "Linha do tempo do que acontece em cada módulo (base das integrações e da SARA).", levels: VER },
-      { code: "fundacao.coleta", label: "Coletar arquivos", description: "Coleta de arquivos dos computadores pelo navegador (só quem o proprietário credenciar): concede acesso a uma pasta, confere e guarda nos setores.", levels: VER_OPERAR },
       { code: "fundacao.sugestoes", label: "Sugestões da IA", description: "Fila de conferência das sugestões do modelo de decisão (Clef); operar aceita, recusa ou corrige. Cada sugestão exige também a permissão do módulo dela.", levels: VER_OPERAR },
     ],
   },
@@ -238,7 +255,7 @@ export function hasFeature(access: FeatureAccess, code: string, level: AccessLev
 export function hasModuleAccess(access: FeatureAccess, moduleCode: string, level: AccessLevel = "ver"): boolean {
   if (access.isOwner) return true;
   return Object.entries(access.grants ?? {}).some(
-    ([code, granted]) => code.startsWith(`${moduleCode}.`) && levelRank(granted) >= levelRank(level),
+    ([code, granted]) => code.startsWith(`${moduleCode}.`) && !code.endsWith(".coleta") && levelRank(granted) >= levelRank(level),
   );
 }
 
@@ -251,7 +268,7 @@ export function derivePermissions(grants: AccessGrants): string[] {
   const permissions = new Set<string>(["core.search.view", "core.notifications.view"]);
   for (const [code, level] of Object.entries(grants)) {
     const entry = findFeature(code);
-    if (!entry) continue;
+    if (!entry || code.endsWith(".coleta")) continue;
     const moduleCode = entry.module.code;
     const rank = levelRank(level);
     if (moduleCode === "fundacao") {
@@ -260,7 +277,6 @@ export function derivePermissions(grants: AccessGrants): string[] {
       if (code === "fundacao.cadastros") permissions.add("core.cadastros.view");
       if (code === "fundacao.eventos") permissions.add("core.eventos.view");
       if (code === "fundacao.sugestoes") permissions.add("core.sugestoes.view");
-      if (code === "fundacao.coleta") permissions.add("core.coleta.view");
       continue;
     }
     permissions.add(`${moduleCode}.view`);
