@@ -8,6 +8,7 @@ import type { ModuleRuntimeProps } from "../../runtime";
 import { PedidoModal } from "./PedidoModal";
 import { CancelarModal, CartaoPedido, ListaPedidos } from "./pedidos-ui";
 import { RecebimentoModal } from "./RecebimentoModal";
+import { DocumentosLigados } from "../../../app/components/documentos-ligados";
 import { type ACaminho, DIVISAO, Icone, type NotaLidaResposta, type Pedido, type Recebido, chamar, date, hoje, lerNotaArquivo, money, qtd } from "./tipos";
 
 /**
@@ -275,6 +276,7 @@ function DetalheRecebido({ recebido: r, onClose }: { recebido: Recebido; onClose
             {[...r.receipt_items].sort((a, b) => a.ordem - b.ordem).map((item, index) => <p key={index}><b>{qtd(Number(item.quantidade))} {item.unidade ?? ""}</b> {item.descricao}<em className="valor">{money(Number(item.valor_total))}</em></p>)}
           </div>
         )}
+        <DocumentosLigados tipo="recebimento" id={r.id} />
         <footer><Button variant="secondary" onClick={onClose}>Fechar</Button></footer>
       </div>
     </Modal>

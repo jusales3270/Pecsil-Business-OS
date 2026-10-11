@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-11-documentos-ligados",
+    data: "2026-10-11",
+    area: "Plataforma",
+    funcionalidades: [...DOCUMENTOS, "compras.fornecedores", "fundacao.cadastros", "comercial.clientes"],
+    modulos: ["financeiro", "fiscal", "compras", "almoxarifado", "comercial", "fundicao", "producao"],
+    titulo: "Documentos ligados à nota, ao fornecedor e à cotação",
+    itens: [
+      "Cada documento guardado é ligado sozinho ao que ele cita: a nota fiscal pela chave de acesso, o fornecedor pelo CNPJ, e, pela nota, a cotação e a conta a pagar.",
+      "Os documentos ligados aparecem na nota do Painel do ICMS, no recebimento, na cotação/ordem de compra, no painel do fornecedor (aba Documentos) e no cadastro de fornecedores e clientes.",
+      "Quando o documento só cita um número de cotação ou de OS, a ligação aparece como \"a confirmar\": você confirma ou descarta. Cada pessoa só vê ligação para o que pode abrir.",
+    ],
+  },
+  {
     id: "2026-10-11-leitura-documentos",
     data: "2026-10-11",
     area: "Plataforma",

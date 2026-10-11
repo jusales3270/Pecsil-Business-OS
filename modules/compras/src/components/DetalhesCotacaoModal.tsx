@@ -4,6 +4,7 @@ import type { Cotacao, StatusProduto } from '@/types';
 import { X, ShoppingCart, CheckCircle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import CompraModal from './CompraModal';
+import { DocumentosLigados } from '@/app/components/documentos-ligados';
 
 interface Props {
   cotacao: Cotacao;
@@ -331,6 +332,9 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
               <p className="text-xs text-[#c62828]">{currentCotacao.motivoRejeicao}</p>
             </div>
           )}
+
+          {/* Documentos que citam esta cotação/OC (Segundo Cérebro, Etapa 4) */}
+          <DocumentosLigados tipo="cotacao" id={currentCotacao.id} titulo="Documentos ligados a esta cotação/OC" />
         </div>
 
         {/* Footer */}

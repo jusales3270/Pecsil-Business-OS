@@ -7144,6 +7144,17 @@ button.holiday-row:hover {
 .doc-busca { flex: 1 1 240px; min-width: 0; }
 .doc-vazio { padding: var(--sp-4) 0; color: var(--text-muted); }
 .doc-leitura-resumo { margin: 0; color: var(--text-secondary); font-size: var(--fs-sm); }
+/* Documentos ligados (Etapa 4): bloco reaproveitado nas telas de nota, fornecedor, cotação… */
+.doc-ligados { display: flex; flex-direction: column; gap: 4px; margin-top: var(--sp-3); }
+.doc-ligados h3 { margin: 0 0 4px; font-size: var(--fs-sm); color: var(--text-primary); }
+.doc-ligados-vazio { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); }
+.doc-ligado-a { color: var(--accent-blue) !important; }
+.doc-ligado { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: 6px 0; border-top: 1px solid var(--border-subtle); }
+.doc-ligado-nome { display: flex; flex-direction: column; min-width: 0; }
+.doc-ligado-nome b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+.doc-ligado-nome small { color: var(--text-muted); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+.doc-ligado-acoes { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
+@media (max-width: 760px) { .doc-ligado { flex-direction: column; align-items: flex-start; } .doc-ligado-acoes { justify-content: flex-start; } }
 .doc-lista { display: flex; flex-direction: column; margin-top: var(--sp-3); }
 .doc-item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--sp-3); padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
 .doc-principal { display: flex; flex-direction: column; min-width: 0; }

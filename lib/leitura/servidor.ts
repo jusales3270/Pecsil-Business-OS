@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { linhasDoPdf, textoDoPdf } from "../arquivos/pdf-texto";
 import { lerXls } from "../arquivos/xls";
 import { tipoDoArquivo } from "../arquivos/detectar";
+import { ligarPendentes, ligarSemFalhar } from "../ligacoes/servidor";
 import { imagensDoPdf, ocr } from "./ocr";
 import { LIMITE_TEXTO, lerTexto, type Extratores, type Leitura } from "./texto";
 
@@ -11,6 +12,7 @@ import { LIMITE_TEXTO, lerTexto, type Extratores, type Leitura } from "./texto";
  * Leitura no servidor (Etapa 3): o texto de cada documento guardado vai para
  * `company_document_texts`, sempre relido a partir do original e gravado com a chave de serviço.
  * PDF escaneado e foto ficam "pendente_ocr" e são lidos pela rodada agendada (OCR local, D4).
+ * Depois de lido, o documento é ligado ao que cita (Etapa 4: nota, fornecedor, cotação…).
  */
 
 const BUCKET = "empresa-documentos";
@@ -37,6 +39,8 @@ export async function lerEGravar(admin: SupabaseClient, doc: Doc, dados: Uint8Ar
     const l = await lerTexto(dados, extratoresServidor);
     if (l.status === "lido") await gravar(admin, doc, { ...comoLido(l), attempts: tentativas });
     else await gravar(admin, doc, { status: l.ocr ? "pendente_ocr" : "sem_texto", method: null, content: null, pages: null, chars: 0, error: l.motivo.slice(0, 300), attempts: tentativas });
+    // Sem texto ainda liga pela origem (a nota ou o recebimento de onde o documento veio).
+    await ligarSemFalhar(admin, doc, l.status === "lido" ? l.texto : "");
     return l;
   } catch (e) {
     console.error("Falha ao ler documento", doc.id, e);
@@ -55,10 +59,11 @@ async function lerPorOcr(admin: SupabaseClient, doc: Doc, dados: Uint8Array, ten
     return "sem_texto" as const;
   }
   await gravar(admin, doc, { status: "lido", method: "ocr", content: texto, pages: imagens.length, chars: texto.length, error: null, attempts: tentativas });
+  await ligarSemFalhar(admin, doc, texto);
   return "lido" as const;
 }
 
-export type Rodada = { vistos: number; lidos: number; ocr: number; semTexto: number; erros: number; restantes: boolean };
+export type Rodada = { vistos: number; lidos: number; ocr: number; semTexto: number; erros: number; restantes: boolean; ligados: number; ligacoesNovas: number };
 
 /**
  * Uma rodada da fila: documentos ainda sem leitura (inclui os guardados antes desta etapa) e os
@@ -66,7 +71,7 @@ export type Rodada = { vistos: number; lidos: number; ocr: number; semTexto: num
  */
 export async function processarPendentes(admin: SupabaseClient, { limite = 10, prazoMs = 50_000 } = {}): Promise<Rodada> {
   const inicio = Date.now();
-  const r: Rodada = { vistos: 0, lidos: 0, ocr: 0, semTexto: 0, erros: 0, restantes: false };
+  const r: Rodada = { vistos: 0, lidos: 0, ocr: 0, semTexto: 0, erros: 0, restantes: false, ligados: 0, ligacoesNovas: 0 };
   const { data, error } = await admin.rpc("company_document_texts_pendentes", { p_limite: limite });
   if (error) throw new Error(error.message);
   const fila = (data ?? []) as { id: string; organization_id: string; storage_path: string; status: string | null; attempts: number }[];
@@ -99,5 +104,11 @@ export async function processarPendentes(admin: SupabaseClient, { limite = 10, p
     }
   }
   if (fila.length === limite) r.restantes = true;
+  // Ligações (Etapa 4): os lidos ainda sem ligação e os religados do dia, se sobrou tempo.
+  if (Date.now() - inicio < prazoMs) {
+    const l = await ligarPendentes(admin, 20).catch((e) => { console.error("Falha na rodada de ligações", e); return { ligados: 0, novas: 0 }; });
+    r.ligados = l.ligados;
+    r.ligacoesNovas = l.novas;
+  }
   return r;
 }

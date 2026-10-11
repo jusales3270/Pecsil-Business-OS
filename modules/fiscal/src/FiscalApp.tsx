@@ -6,6 +6,7 @@ import { useModuleNav } from "../../../lib/module-nav-context";
 import type { Nfe } from "../../../lib/almoxarifado/nfe-xml";
 import type { ModuleRuntimeProps } from "../../runtime";
 import { EnviarArquivo, useSoltarArquivo } from "../../../app/components/enviar-arquivo";
+import { DocumentosLigados } from "../../../app/components/documentos-ligados";
 
 const cnpjFormatado = (v: string | null | undefined) => {
   const d = (v ?? "").replace(/\D/g, "");
@@ -350,6 +351,7 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
           {([["xmlOk", "XML recebido"], ["lancado", "Lançada"], ["autorizado", "Autorizada"]] as const).map(([k, l]) => <label key={k} className="almox-marca"><input type="checkbox" checked={f[k]} onChange={(e) => set(k, e.target.checked)} /> <span>{l}</span></label>)}
         </div>
         <label className="almox-largo"><span>Observação</span><input value={f.obs} onChange={(e) => set("obs", e.target.value)} /></label>
+        {nota && <div className="almox-largo"><DocumentosLigados tipo="nota_icms" id={nota.id} /></div>}
         {erro && <p className="almox-erro" role="alert">{erro}</p>}
         <footer>
           {nota && !veioDoRecebimento && (confirmaExcluir

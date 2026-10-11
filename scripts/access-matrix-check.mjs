@@ -323,6 +323,16 @@ try {
     check(n, "não grava texto de documento pelo cliente", Boolean(textoFalso.error), textoFalso.error?.code);
     const fila = await client.rpc("company_document_texts_pendentes", { p_limite: 1 });
     check(n, "não lê a fila de leitura (só o servidor)", Boolean(fila.error), fila.error?.code ?? "sem erro");
+    // Ligações (Etapa 4): só de documento e alvo que a pessoa vê; ninguém grava pelo cliente; candidatos só no servidor.
+    const ligs = await client.from("company_document_links").select("target_type").limit(1000);
+    const podeVerTipo = { nota_icms: ["fiscal.icms"], recebimento: ["almoxarifado.recebimento"], fornecedor: ["compras.fornecedores", "fundacao.cadastros"], cliente: ["comercial.clientes", "fundacao.cadastros"], titulo: ["financeiro.pagar", "financeiro.receber"], cotacao: ["compras.cotacoes", "compras.aprovacoes"], os: ["producao.os"] };
+    check(n, "só vê ligação para o que pode abrir", !ligs.error && (ligs.data ?? []).every((l) => (podeVerTipo[l.target_type] ?? []).some((f) => scenario.grants[f])), ligs.error?.code ?? `${(ligs.data ?? []).length} ligações`);
+    const ligFalsa = await client.from("company_document_links").insert({ organization_id: org.id, document_id: "00000000-0000-0000-0000-000000000000", target_type: "fornecedor", target_id: "x", rule: "cnpj", confidence: "exata" });
+    check(n, "não grava ligação pelo cliente", Boolean(ligFalsa.error), ligFalsa.error?.code);
+    const cand = await client.rpc("company_document_link_candidates", { p_document: "00000000-0000-0000-0000-000000000000", p_cnpjs: [], p_chaves: [], p_nfs: [], p_cotacoes: [], p_os: [] });
+    check(n, "não chama a busca de ligações (só o servidor)", Boolean(cand.error), cand.error?.code ?? "sem erro");
+    const decidir = await client.rpc("company_document_link_decide", { p_id: "00000000-0000-0000-0000-000000000000", p_decisao: "descartada" });
+    check(n, "não decide ligação inexistente", Boolean(decidir.error), decidir.error?.code ?? "sem erro");
     const bucket = await client.storage.from("empresa-documentos").list(org.id);
     check(n, "não lista o armazenamento de documentos pelo cliente", Boolean(bucket.error) || (bucket.data ?? []).length === 0, bucket.error?.message ?? (bucket.data ?? []).length);
 
