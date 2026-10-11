@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-11-busca-nos-documentos",
+    data: "2026-10-11",
+    area: "Plataforma",
+    funcionalidades: DOCUMENTOS,
+    modulos: ["financeiro", "fiscal", "compras", "almoxarifado", "comercial", "fundicao", "producao"],
+    titulo: "Busca dentro dos documentos",
+    itens: [
+      "A busca de Documentos e a Busca Corporativa procuram no que está escrito dentro dos arquivos, não só no nome: \"manutenção forno\" acha o contrato, mesmo que o arquivo se chame \"documento final\".",
+      "Acha variações e palavras sem acento (\"fornos\", \"manutencao\"), aceita \"frase entre aspas\" e -palavra para excluir, e tolera erro de digitação. O trecho achado aparece com a palavra destacada.",
+      "Cada pessoa só acha os documentos que pode abrir.",
+    ],
+  },
+  {
     id: "2026-10-11-documentos-ligados",
     data: "2026-10-11",
     area: "Plataforma",

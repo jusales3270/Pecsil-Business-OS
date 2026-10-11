@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Callout, Card, Modal, Status } from "../../packages/design-system";
 import { useSoltarArquivo } from "./enviar-arquivo";
+import { pedacosDoTrecho } from "../../lib/documentos/trecho";
 
 /**
  * Fundação › Documentos (Segundo Cérebro, Etapa 1): os documentos de cada setor, com a
@@ -17,6 +18,9 @@ type Documento = {
   entity_type: string | null; entity_id: string | null; uploaded_by_name: string | null; created_at: string;
   /** Leitura do texto (Etapa 3); null = ainda não lido. O PostgREST pode trazer objeto ou lista. */
   leitura: LeituraDoc | LeituraDoc[] | null;
+  /** Com busca: o trecho achado (palavras entre [[ ]]) e se casou por palavra ou por semelhança. */
+  trecho?: string | null;
+  como?: "palavras" | "parecido";
   /** Ligações por regra (Etapa 4): só as que a pessoa pode ver. */
   ligacoes?: { id: string; target_type: string; target_label: string | null; confidence: string; status: string }[];
 };
@@ -40,9 +44,9 @@ function situacaoLeitura(l: Documento["leitura"]): { tom: "success" | "neutral" 
 const quando = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 const tamanho = (b: number) => (b >= 1_048_576 ? `${(b / 1_048_576).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
-export function DocumentosSetorView({ notify }: { notify: (msg: string) => void }) {
+export function DocumentosSetorView({ notify, buscaInicial = "" }: { notify: (msg: string) => void; buscaInicial?: string }) {
   const [setor, setSetor] = useState("");
-  const [busca, setBusca] = useState("");
+  const [busca, setBusca] = useState(buscaInicial);
   const [lista, setLista] = useState<Lista | null>(null);
   const [erro, setErro] = useState<"" | "sem-acesso" | string>("");
   const [enviando, setEnviando] = useState(false);
@@ -106,7 +110,7 @@ export function DocumentosSetorView({ notify }: { notify: (msg: string) => void 
                 {(lista?.setores ?? []).map((s) => <option key={s.modulo} value={s.modulo}>{s.rotulo}</option>)}
               </select>
             </label>
-            <input className="doc-busca" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, título ou categoria" aria-label="Buscar documento" />
+            <input className="doc-busca" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar no conteúdo dos documentos (ex.: manutenção forno, &quot;nota fiscal&quot;, -danfe)" aria-label="Buscar documento" />
           </div>
           {lista?.leitura && (
             <p className="doc-leitura-resumo">Leitura dos documentos: {lista.leitura.lidos} lidos · {lista.leitura.pendentesOcr} aguardando OCR · {lista.leitura.naoLidos} aguardando leitura · {lista.leitura.semTexto} sem texto{lista.leitura.erros ? ` · ${lista.leitura.erros} com erro` : ""}</p>
@@ -129,6 +133,7 @@ export function DocumentosSetorView({ notify }: { notify: (msg: string) => void 
                       const ligadas = (d.ligacoes ?? []).filter((l) => l.status !== "descartada");
                       return ligadas.length ? <small className="doc-ligado-a">Ligado a: {ligadas.map((l) => `${l.target_label ?? l.target_type}${l.confidence === "provavel" && l.status === "ativa" ? " (a confirmar)" : ""}`).join(" · ")}</small> : null;
                     })()}
+                    {d.trecho !== undefined && <TrechoAchado trecho={d.trecho} parecido={d.como === "parecido"} />}
                   </div>
                   <div className="doc-marcas">
                     <Status tone="info">{rotulo(d.module_code)}</Status>
@@ -239,5 +244,17 @@ function Historico({ doc, onClose }: { doc: Documento; onClose: () => void }) {
         ))}
       </div>
     </Modal>
+  );
+}
+
+/** Trecho achado pela busca, com as palavras destacadas (sem HTML vindo do documento). */
+export function TrechoAchado({ trecho, parecido }: { trecho: string | null | undefined; parecido?: boolean }) {
+  const pedacos = pedacosDoTrecho(trecho);
+  if (!pedacos.length && !parecido) return null;
+  return (
+    <small className="doc-trecho">
+      {parecido && <em className="doc-trecho-parecido">Parecido com o que você buscou{pedacos.length ? ": " : ""}</em>}
+      {pedacos.map((p, i) => (p.achado ? <mark key={i}>{p.texto}</mark> : <span key={i}>{p.texto}</span>))}
+    </small>
   );
 }

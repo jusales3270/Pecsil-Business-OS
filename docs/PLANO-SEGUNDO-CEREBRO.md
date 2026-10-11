@@ -226,6 +226,12 @@ nota.
 
 ### Etapa 5: Busca por significado e perguntas (na fase da SARA)
 
+**Entrega A — busca por palavras (11/10/2026):** `company_document_search` (com as permissões de
+quem pesquisa), português sem acento (`portugues_sem_acento`), aspas e -excluir, tolerância a
+erro de digitação (trigramas, só quando nada casa). Em Fundação › Documentos e na Busca
+Corporativa, com o trecho destacado. **Entrega B — significado local** logo depois, começando por
+um teste de viabilidade do modelo no servidor.
+
 - **O que entra:**
   - extensão `vector`;
   - os documentos são divididos em trechos com o vetor de significado, cada trecho com
@@ -234,7 +240,13 @@ nota.
   - perguntas sobre os documentos pela SARA.
 - **Regras:** a resposta sempre traz a fonte (qual documento e trecho). Ligações
   sugeridas pelo modelo entram como **sugestão a confirmar**.
-- **Depende de:** decisão D5 e da SARA nível 1 (consulta) em uso.
+- **Depende de:** decisão D5 (**respondida em 11/10/2026: local**) e da SARA nível 1 (consulta) em uso.
+- **Como (D5 = local):** um modelo pequeno de significado, que entende português, roda no
+  servidor da PecSil (como o OCR), e os vetores ficam no banco (extensão `vector`, já
+  disponível no servidor). Nada sai da empresa. A busca por palavras do próprio banco
+  (`unaccent` + `pg_trgm` + texto em português) pode vir antes, porque não depende de nada.
+- Perguntas sobre os documentos, com resposta escrita, exigem um modelo que escreve (o Clef
+  não faz isso); é decisão da fase da SARA.
 
 ### Etapa 6 (opcional): Programa instalado no Windows
 
@@ -252,13 +264,13 @@ nota.
 
 | Ordem | Etapa | Pronta para começar? |
 |---|---|---|
-| 0 | Decisões D1–D6 | D1–D4 respondidas; D5 e D6 pendentes |
+| 0 | Decisões D1–D6 | D1–D5 respondidas; D6 pendente |
 | 0 | Base do modelo de decisão (Etapa 0 do PLANO-JEV, com o Clef) | **entregue em 10/10/2026** |
 | 1 | Guarda de documentos por setor | **entregue em 10/10/2026** |
 | 2 | Coleta pelo navegador (dentro de cada módulo) | **entregue em 10/10/2026** |
 | 3 | Ler o conteúdo (texto + OCR local) | **entregue em 11/10/2026** |
-| 4 | Ligações por regra | **em construção (11/10/2026)** |
-| 5 | Busca por significado e perguntas | na fase da SARA, após D5 |
+| 4 | Ligações por regra | **entregue em 11/10/2026** |
+| 5 | Busca (palavras agora; significado local em seguida; perguntas na fase da SARA) | **em construção (11/10/2026)** |
 | 6 | Programa instalado (opcional) | só se a 2 mostrar necessidade |
 
 **Portão entre etapas:** igual ao do PLANO-JEV. A próxima etapa só começa quando a
@@ -274,7 +286,7 @@ anterior cumprir o aceite e estiver em produção sem incidente.
 | D2 | Quais pastas sugerir e quais excluir? | **Respondida em 10/10/2026:** sugerir Documentos, Área de trabalho, Downloads e a pasta da rede; ignorar sempre pastas de sistema, de programas e de fotos/vídeos pessoais. |
 | D3 | Depois de ler um arquivo (ex.: extrato), guardar o original? | **Respondida em 10/10/2026: guardar o original** junto do dado extraído. |
 | D4 | OCR de escaneados: onde roda? | **Respondida em 10/10/2026: local, no servidor da PecSil** (tesseract.js, português empacotado; nenhum documento sai da empresa). |
-| D5 | Busca por significado: onde roda? | Modelo local (nada sai) ou na nuvem, mandando só trechos sem dados pessoais. |
+| D5 | Busca por significado: onde roda? | **Respondida em 11/10/2026: local, no servidor da PecSil** (modelo pequeno de significado em português; vetores no banco; nenhum documento sai da empresa). |
 | D6 | Teto de uso de IA por setor | Valor mensal por setor e quem acompanha o painel. |
 
 ---
@@ -309,3 +321,4 @@ anterior cumprir o aceite e estiver em produção sem incidente.
 | 10/10/2026 | 1 | Originais guardados automaticamente: extrato (Financeiro), notas do Painel do ICMS e Nova nota (Fiscal, ligadas à linha do ICMS), nota do recebimento (Almoxarifado, ligada ao recebimento). Tela Fundação › Documentos | Claude |
 | 10/10/2026 | 2 | Coleta sai da Fundação e vai para cada módulo: "Coletar arquivos" nos acessos de cada módulo (só operar), item no menu do módulo, setor vem da credencial. Arquivo que parece de outro setor vem desmarcado com aviso; se marcado, entra no setor do módulo. "Coletar arquivos" não abre o resto do módulo (`has_module` ignora `*.coleta`). Triagem pelo Clef: um uso por setor, todos desligados | Proprietário |
 | 10/10/2026 | 3 | Ler antes de ligar: a Etapa 3 (leitura do conteúdo) vem antes da 4 e não espera o uso da coleta. D4 = OCR local. Planilha livre com mapeamento fica para depois | Proprietário |
+| 11/10/2026 | 5 | D5: busca por significado local, no servidor (mesma linha do OCR, D4). Busca por palavras do banco pode vir antes; perguntas com resposta escrita ficam para a fase da SARA | Proprietário |

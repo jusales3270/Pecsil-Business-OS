@@ -333,6 +333,11 @@ try {
     check(n, "não chama a busca de ligações (só o servidor)", Boolean(cand.error), cand.error?.code ?? "sem erro");
     const decidir = await client.rpc("company_document_link_decide", { p_id: "00000000-0000-0000-0000-000000000000", p_decisao: "descartada" });
     check(n, "não decide ligação inexistente", Boolean(decidir.error), decidir.error?.code ?? "sem erro");
+    // Busca dentro dos documentos (Etapa 5): só acha o que a pessoa pode abrir (roda com as permissões dela).
+    const achou = await client.rpc("company_document_search", { p_q: "a", p_setor: null, p_limite: 50 });
+    const idsAchados = (achou.data ?? []).map((d) => d.id);
+    const visiveis = idsAchados.length ? await client.from("company_documents").select("id").in("id", idsAchados) : { data: [] };
+    check(n, "a busca só acha documento que a pessoa vê", !achou.error && (visiveis.data ?? []).length === idsAchados.length, achou.error?.code ?? `${idsAchados.length} achados`);
     const bucket = await client.storage.from("empresa-documentos").list(org.id);
     check(n, "não lista o armazenamento de documentos pelo cliente", Boolean(bucket.error) || (bucket.data ?? []).length === 0, bucket.error?.message ?? (bucket.data ?? []).length);
 

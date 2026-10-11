@@ -45,14 +45,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ versoes });
   }
 
+  // Com busca: procura DENTRO dos documentos (Etapa 5; company_document_search, com o RLS de quem
+  // pesquisa) e devolve o trecho achado; a ordem é a da relevância.
+  let achados: { id: string; trecho: string | null; como: string }[] | null = null;
+  if (busca) {
+    const { data: r, error: eBusca } = await guard.supabase.rpc("company_document_search", { p_q: busca.slice(0, 200), p_setor: setor || null, p_limite: 50 });
+    if (eBusca) {
+      console.error("Falha na busca de documentos", eBusca);
+      return NextResponse.json({ error: "DOCUMENTOS_UNAVAILABLE" }, { status: 503 });
+    }
+    achados = (r ?? []) as { id: string; trecho: string | null; como: string }[];
+  }
   let consulta = guard.supabase.from("company_documents").select(COLUNAS)
     .is("superseded_by", null).is("archived_at", null).order("created_at", { ascending: false }).limit(500);
   if (setor) consulta = consulta.eq("module_code", setor);
-  if (busca) {
-    const termo = busca.replace(/[%,()]/g, " ").slice(0, 80);
-    consulta = consulta.or(`title.ilike.%${termo}%,original_name.ilike.%${termo}%,category.ilike.%${termo}%`);
-  }
-  const { data, error } = await consulta;
+  if (achados) consulta = consulta.in("id", achados.length ? achados.map((a) => a.id) : ["00000000-0000-0000-0000-000000000000"]);
+  const { data: brutos, error } = await consulta;
+  const data = achados
+    ? achados.flatMap((a) => { const d = (brutos ?? []).find((x) => (x as { id: string }).id === a.id); return d ? [{ ...d, trecho: a.trecho, como: a.como }] : []; })
+    : brutos;
   if (error) {
     console.error("Falha ao listar documentos", error);
     return NextResponse.json({ error: "DOCUMENTOS_UNAVAILABLE" }, { status: 503 });
