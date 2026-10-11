@@ -338,6 +338,14 @@ try {
     const idsAchados = (achou.data ?? []).map((d) => d.id);
     const visiveis = idsAchados.length ? await client.from("company_documents").select("id").in("id", idsAchados) : { data: [] };
     check(n, "a busca só acha documento que a pessoa vê", !achou.error && (visiveis.data ?? []).length === idsAchados.length, achou.error?.code ?? `${idsAchados.length} achados`);
+    // Significado (Etapa 5B): trechos só de documento que a pessoa vê; ninguém grava trecho pelo cliente.
+    const vetorZero = "[" + Array(384).fill(0.01).join(",") + "]";
+    const sentido = await client.rpc("company_document_semantic", { p_vetor: vetorZero, p_setor: null, p_limite: 50 });
+    const idsSentido = (sentido.data ?? []).map((d) => d.id);
+    const visSentido = idsSentido.length ? await client.from("company_documents").select("id").in("id", idsSentido) : { data: [] };
+    check(n, "a busca por sentido só acha documento que a pessoa vê", !sentido.error && (visSentido.data ?? []).length === idsSentido.length, sentido.error?.code ?? `${idsSentido.length} achados`);
+    const trechoFalso = await client.from("company_document_chunks").insert({ organization_id: org.id, document_id: "00000000-0000-0000-0000-000000000000", ordem: 0, content: "x", embedding: vetorZero });
+    check(n, "não grava trecho de significado pelo cliente", Boolean(trechoFalso.error), trechoFalso.error?.code);
     const bucket = await client.storage.from("empresa-documentos").list(org.id);
     check(n, "não lista o armazenamento de documentos pelo cliente", Boolean(bucket.error) || (bucket.data ?? []).length === 0, bucket.error?.message ?? (bucket.data ?? []).length);
 

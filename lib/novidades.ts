@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-11-busca-por-sentido",
+    data: "2026-10-11",
+    area: "Plataforma",
+    funcionalidades: DOCUMENTOS,
+    modulos: ["financeiro", "fiscal", "compras", "almoxarifado", "comercial", "fundicao", "producao"],
+    titulo: "Busca pelo sentido",
+    itens: [
+      "A busca de documentos entende o que você quis dizer, não só as palavras: \"conserto da fornalha\" acha o contrato de manutenção dos fornos, e \"conta de luz\" acha o extrato com a energia elétrica.",
+      "Esses resultados aparecem depois dos que têm as palavras exatas, marcados como \"Pelo sentido\". Tudo é feito no servidor da PecSil: nenhum documento sai da empresa.",
+    ],
+  },
+  {
     id: "2026-10-11-busca-nos-documentos",
     data: "2026-10-11",
     area: "Plataforma",

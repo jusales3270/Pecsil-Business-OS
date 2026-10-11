@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { exigirDocumentos, LIMITE_DOCUMENTO } from "../../../lib/documentos/acesso";
 import { guardarOriginal } from "../../../lib/documentos/guardar";
+import { buscarPorSentido } from "../../../lib/significado/servidor";
+import { juntarComSentido } from "../../../lib/significado/trechos";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -55,6 +57,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "DOCUMENTOS_UNAVAILABLE" }, { status: 503 });
     }
     achados = (r ?? []) as { id: string; trecho: string | null; como: string }[];
+    achados = juntarComSentido(achados, await buscarPorSentido(guard.supabase, busca, setor || null, new Set(), 10));
   }
   let consulta = guard.supabase.from("company_documents").select(COLUNAS)
     .is("superseded_by", null).is("archived_at", null).order("created_at", { ascending: false }).limit(500);

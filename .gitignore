@@ -51,3 +51,4 @@ public/pecsil-video.mp4
 # A extração grava em ~/.config/pecsil/portaria-snapshot.json.
 modules/portaria/src/data/*.json
 *portaria-snapshot*.json
+.modelos/

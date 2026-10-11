@@ -5,6 +5,7 @@ import { linhasDoPdf, textoDoPdf } from "../arquivos/pdf-texto";
 import { lerXls } from "../arquivos/xls";
 import { tipoDoArquivo } from "../arquivos/detectar";
 import { ligarPendentes, ligarSemFalhar } from "../ligacoes/servidor";
+import { indexarPendentes } from "../significado/servidor";
 import { imagensDoPdf, ocr } from "./ocr";
 import { LIMITE_TEXTO, lerTexto, type Extratores, type Leitura } from "./texto";
 
@@ -27,7 +28,8 @@ export const extratoresServidor: Extratores = {
 type Doc = { id: string; organization_id: string };
 
 async function gravar(admin: SupabaseClient, doc: Doc, campos: Record<string, unknown>) {
-  const { error } = await admin.from("company_document_texts").upsert({ document_id: doc.id, organization_id: doc.organization_id, read_at: new Date().toISOString(), ...campos });
+  // Texto (re)lido: os vetores de significado são refeitos na próxima rodada (embedded_at = null).
+  const { error } = await admin.from("company_document_texts").upsert({ document_id: doc.id, organization_id: doc.organization_id, read_at: new Date().toISOString(), embedded_at: null, ...campos });
   if (error) throw new Error(`Não foi possível gravar a leitura: ${error.message}`);
 }
 
@@ -63,7 +65,7 @@ async function lerPorOcr(admin: SupabaseClient, doc: Doc, dados: Uint8Array, ten
   return "lido" as const;
 }
 
-export type Rodada = { vistos: number; lidos: number; ocr: number; semTexto: number; erros: number; restantes: boolean; ligados: number; ligacoesNovas: number };
+export type Rodada = { vistos: number; lidos: number; ocr: number; semTexto: number; erros: number; restantes: boolean; ligados: number; ligacoesNovas: number; indexados: number; trechos: number; modeloSignificado: boolean };
 
 /**
  * Uma rodada da fila: documentos ainda sem leitura (inclui os guardados antes desta etapa) e os
@@ -71,7 +73,7 @@ export type Rodada = { vistos: number; lidos: number; ocr: number; semTexto: num
  */
 export async function processarPendentes(admin: SupabaseClient, { limite = 10, prazoMs = 50_000 } = {}): Promise<Rodada> {
   const inicio = Date.now();
-  const r: Rodada = { vistos: 0, lidos: 0, ocr: 0, semTexto: 0, erros: 0, restantes: false, ligados: 0, ligacoesNovas: 0 };
+  const r: Rodada = { vistos: 0, lidos: 0, ocr: 0, semTexto: 0, erros: 0, restantes: false, ligados: 0, ligacoesNovas: 0, indexados: 0, trechos: 0, modeloSignificado: true };
   const { data, error } = await admin.rpc("company_document_texts_pendentes", { p_limite: limite });
   if (error) throw new Error(error.message);
   const fila = (data ?? []) as { id: string; organization_id: string; storage_path: string; status: string | null; attempts: number }[];
@@ -109,6 +111,14 @@ export async function processarPendentes(admin: SupabaseClient, { limite = 10, p
     const l = await ligarPendentes(admin, 20).catch((e) => { console.error("Falha na rodada de ligações", e); return { ligados: 0, novas: 0 }; });
     r.ligados = l.ligados;
     r.ligacoesNovas = l.novas;
+  }
+  // Significado (Etapa 5B): trechos e vetores dos textos lidos, com o tempo que sobrou.
+  const sobra = prazoMs - (Date.now() - inicio);
+  if (sobra > 5_000) {
+    const ix = await indexarPendentes(admin, sobra).catch((e) => { console.error("Falha na rodada de significado", e); return { indexados: 0, trechos: 0, modelo: false }; });
+    r.indexados = ix.indexados;
+    r.trechos = ix.trechos;
+    r.modeloSignificado = ix.modelo;
   }
   return r;
 }
