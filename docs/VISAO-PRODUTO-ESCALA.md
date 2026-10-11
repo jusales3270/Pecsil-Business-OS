@@ -1,8 +1,10 @@
 # Visão de produto — do PecSil Business OS para outras indústrias
 
-> **Status:** estacionado para retomada. Nada aqui é executado antes de concluir o
-> roadmap do Business OS (`docs/BLUEPRINT-PECSIL-BUSINESS-OS.md`, Fases 0–7).
-> Ao retomar, cada item abaixo é ligado à fase correspondente do sistema completo.
+> **Status:** as frentes comerciais (prova de resultado, modelo de negócio, produtização)
+> continuam estacionadas até concluir o roadmap do Business OS
+> (`docs/BLUEPRINT-PECSIL-BUSINESS-OS.md`, Fases 0–7). **Desde 11/10/2026, porém, o jeito de
+> construir já é de produto**: ver a seção 6. Ao retomar, cada item abaixo é ligado à fase
+> correspondente do sistema completo.
 >
 > Registrado em 21/09/2026, a partir da análise de um estudo de caso: uma indústria
 > de alumínio em Cabreúva (SP) e a consultoria Kistra, parceira da Acelera 360.
@@ -162,3 +164,61 @@ Legenda:
 - Almoxarifado inexistente: a cadeia de compras para no meio.
 - A Produção depende do Forja, que é específico da PecSil.
 - Integração ainda "só fala": os módulos anunciam, mas ninguém reage.
+
+## 6. Diretriz de construção: produto multiempresa (11/10/2026)
+
+Decisão do proprietário: o Business OS vai ser **empacotado como produto para outras
+empresas**. A PecSil continua sendo a fábrica de validação e a primeira cliente, mas **toda
+arquitetura e toda feature nova já nascem pensadas para dados empresariais genéricos**. A
+identidade e as regras de cada empresa são **variáveis** que respondem a um mesmo núcleo, o
+**"harness business"**.
+
+### 6.1 O que vira variável de cada empresa
+
+| Variável | Hoje, na PecSil | Destino |
+|---|---|---|
+| Identidade (razão social, CNPJ, IE, endereço, telefones) | `lib/empresa.ts` (`EMPRESA_PECSIL`) e `CNPJ_PECSIL` em `lib/finance/extrato-classificar.ts` | Cadastro da organização (`organizations` já tem `name` e `tax_id`) |
+| Marca (logo claro e escuro, cores, nome na tela) | `public/pecsil-logo*.png`, texto "Pecsil Molds for Glass" | Configuração da empresa |
+| Setores e módulos ativos | `lib/documentos/setores.ts`, `SETORES_COLETA`, catálogo de acesso | Configuração da empresa sobre o catálogo comum |
+| Regras de triagem (bancos, palavras do ramo, como "fundição" e "forno") | `lib/coleta/triagem.ts`, `lib/leitura/conteudo.ts` | Dicionário por empresa, com o comum como base |
+| Integrações (ex.: Forja na Produção) | `lib/forja/` | Conector por empresa |
+| Nome do cookie de sessão | `sb-pecsil-auth-token` | Derivado da instalação |
+
+### 6.2 Regras para construir daqui em diante
+
+1. **Código novo não fixa a PecSil.** Lê a identidade da organização ou da configuração da
+   empresa. Exemplo do jeito certo: as ligações por regra excluem o CNPJ da própria empresa
+   lendo `organizations.tax_id`, e não uma constante.
+2. **O banco já é multiempresa** (`organization_id` em tudo, RLS por organização). Manter
+   assim em toda tabela nova.
+3. **Vieses da PecSil são bem-vindos**, desde que entrem como dado ou configuração, e não
+   como regra escondida no código.
+4. Os pontos fixos da tabela 6.1 são levados para configuração **quando o trabalho passar
+   por eles**, sem refatoração avulsa.
+5. As frentes comerciais (cadastro de empresas no login, cobrança, onboarding de cliente)
+   só começam com pedido do proprietário. A diretriz muda o jeito de construir, não a ordem
+   do roadmap.
+
+### 6.3 Referência estudada: "AI Operating System" (11/10/2026)
+
+Um vídeo sobre um sistema operacional de IA para empresas (cérebro em pasta + harness +
+executor de ações + filas + cofre de segredos). O que serve para nós, com o nosso
+alinhamento (nota geral: cerca de 70 de 100):
+
+| Padrão | Nós | Situação |
+|---|---|---|
+| Números no banco; o cérebro só sabe onde buscar | Banco como fonte única; Segundo Cérebro como camada de ligações e busca | Feito |
+| Sistema próprio, aberto, auto-hospedado | Coolify no servidor da empresa; OCR e busca pelo sentido locais | Feito |
+| Tudo que entra passa por triagem e cai numa fila de decisão humana | Sino, aprovações, fila de Sugestões da IA, "mostra e confirma" | Em boa parte |
+| O cérebro guarda conhecimento **e processos** | Documentos por setor, texto, ligações e busca; processos em `docs/PROCESSOS-PECSIL.md` | Falta transformar processo em habilidade da SARA |
+| Segredos só como apelido, com valor num cofre e registro de uso | Variáveis no Coolify, nunca no código | Falta o cofre |
+| Harness para conversar com o cérebro | A SARA, sempre com a permissão de quem pergunta | Planejado |
+| Executor de ações separado do cérebro | Eventos dos módulos (`module_events`); reações só com o processo mapeado | Planejado |
+| Conversas com a IA guardadas por empresa e setor | A SARA deve registrar as conversas, com permissão | Planejado |
+
+**Nossa vantagem sobre a referência:** lá o cérebro é uma pasta, e quem a abre vê tudo.
+Aqui há **permissão por pessoa e por setor** em tudo, inclusive na busca e nas ligações, e
+o RH é tratado à parte por causa da LGPD.
+
+**Lacunas que mais pesam:** SARA (harness), reações automáticas (executor) e cofre de
+segredos.
