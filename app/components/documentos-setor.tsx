@@ -17,6 +17,8 @@ type Documento = {
   entity_type: string | null; entity_id: string | null; uploaded_by_name: string | null; created_at: string;
   /** Leitura do texto (Etapa 3); null = ainda não lido. O PostgREST pode trazer objeto ou lista. */
   leitura: LeituraDoc | LeituraDoc[] | null;
+  /** Ligações por regra (Etapa 4): só as que a pessoa pode ver. */
+  ligacoes?: { id: string; target_type: string; target_label: string | null; confidence: string; status: string }[];
 };
 type LeituraDoc = { status: "lido" | "sem_texto" | "pendente_ocr" | "erro"; method: string | null; pages: number | null; chars: number | null };
 type ResumoLeitura = { total: number; lidos: number; pendentesOcr: number; semTexto: number; erros: number; naoLidos: number };
@@ -123,6 +125,10 @@ export function DocumentosSetorView({ notify }: { notify: (msg: string) => void 
                     <b title={d.original_name}>{d.title}</b>
                     <small>{d.original_name} · {tamanho(Number(d.size_bytes))}{d.version > 1 ? ` · versão ${d.version}` : ""}</small>
                     <small>{ORIGEM[d.source] ?? d.source}{d.entity_type && LIGACAO[d.entity_type] ? ` · ${LIGACAO[d.entity_type]}` : ""} · {d.uploaded_by_name ?? "—"} em {quando(d.created_at)}</small>
+                    {(() => {
+                      const ligadas = (d.ligacoes ?? []).filter((l) => l.status !== "descartada");
+                      return ligadas.length ? <small className="doc-ligado-a">Ligado a: {ligadas.map((l) => `${l.target_label ?? l.target_type}${l.confidence === "provavel" && l.status === "ativa" ? " (a confirmar)" : ""}`).join(" · ")}</small> : null;
+                    })()}
                   </div>
                   <div className="doc-marcas">
                     <Status tone="info">{rotulo(d.module_code)}</Status>

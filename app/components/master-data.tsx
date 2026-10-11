@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Card, Status } from "../../packages/design-system";
 import { formatTaxId, plural, send } from "./cadastros-utils";
 import { CustomersPanel } from "./customers-panel";
+import { DocumentosLigados } from "./documentos-ligados";
 
 type Supplier = {
   id: string;
@@ -204,6 +205,7 @@ function SupplierForm({ supplier, onClose, onSaved }: { supplier: Supplier; onCl
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
             <span>Fornecedor ativo</span>
           </label>
+          <div className="field-wide"><DocumentosLigados tipo="fornecedor" id={supplier.id} /></div>
           {error && <p className="user-admin-error field-wide">{error}</p>}
         </div>
         <footer>

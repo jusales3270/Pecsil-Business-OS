@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useStore, formatCurrency, formatDate, formatUnitPrice, calcularTotal } from '@/store';
 import type { Cotacao } from '@/types';
 import DetalhesCotacaoModal from '@/components/DetalhesCotacaoModal';
+import { DocumentosLigados } from '@/app/components/documentos-ligados';
 import SugestaoInput from '@/components/SugestaoInput';
 import type { Suggestion } from '../../../../lib/compras/sugestoes-core';
 import { priceHistory } from '../../../../lib/compras/fornecedores-core';
@@ -45,7 +46,7 @@ type Supplier = {
 };
 
 type Duplicate = { a: string; b: string; score: number };
-type Aba = 'cadastro' | 'compras' | 'cotacoes' | 'precos';
+type Aba = 'cadastro' | 'compras' | 'cotacoes' | 'precos' | 'documentos';
 
 const DIVISOES: Record<string, string> = { USINAGEM: 'Usinagem', FUNDICAO: 'Fundição' };
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -433,6 +434,7 @@ function FornecedorPainel({
     { id: 'compras', label: `Compras (${compras.length})` },
     { id: 'cotacoes', label: `Cotações (${cotacoes.length})` },
     { id: 'precos', label: `Preços (${precos.length})` },
+    { id: 'documentos', label: 'Documentos' },
     { id: 'cadastro', label: 'Cadastro' },
   ];
 
@@ -581,6 +583,8 @@ function FornecedorPainel({
               </>
             )
           )}
+
+          {aba === 'documentos' && <DocumentosLigados tipo="fornecedor" id={fornecedor.id} titulo="Documentos deste fornecedor" />}
 
           {aba === 'cadastro' && (
             <div className="space-y-5">

@@ -22,14 +22,17 @@ function dvDaChave(chave43: string): number {
  * Chave de acesso de NF-e/CT-e: 44 dígitos (às vezes em grupos de 4, quebrados em duas linhas no
  * DANFE), começando pelo código da UF (11–53) e com o dígito verificador certo.
  */
-export function temChaveDeAcesso(texto: string): boolean {
+export function chavesDeAcesso(texto: string): string[] {
+  const chaves = new Set<string>();
   for (const m of texto.matchAll(/(?<!\d)(?:\d{4}[\s.]{0,3}){10}\d{4}(?!\d)/g)) {
     const d = m[0].replace(/\D/g, "");
     const uf = Number(d.slice(0, 2));
-    if (d.length === 44 && uf >= 11 && uf <= 53 && dvDaChave(d.slice(0, 43)) === Number(d[43])) return true;
+    if (d.length === 44 && uf >= 11 && uf <= 53 && dvDaChave(d.slice(0, 43)) === Number(d[43])) chaves.add(d);
   }
-  return false;
+  return [...chaves];
 }
+
+export const temChaveDeAcesso = (texto: string) => chavesDeAcesso(texto).length > 0;
 
 /** Quantos CPFs válidos e diferentes aparecem (formatados: 000.000.000-00). */
 export function contarCpfs(texto: string): number {

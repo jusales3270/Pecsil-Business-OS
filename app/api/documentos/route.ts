@@ -6,7 +6,7 @@ import { guardarOriginal } from "../../../lib/documentos/guardar";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const COLUNAS = "id, module_code, feature_code, title, category, original_name, mime_type, size_bytes, version, previous_id, source, entity_type, entity_id, uploaded_by_name, created_at, leitura:company_document_texts(status, method, pages, chars)";
+const COLUNAS = "id, module_code, feature_code, title, category, original_name, mime_type, size_bytes, version, previous_id, source, entity_type, entity_id, uploaded_by_name, created_at, leitura:company_document_texts(status, method, pages, chars), ligacoes:company_document_links(id, target_type, target_label, confidence, status)";
 
 /** Resumo da leitura (Etapa 3), só para o proprietário: lidos, esperando OCR, sem texto, erros e ainda não lidos. */
 async function resumoDaLeitura(supabase: SupabaseClient) {

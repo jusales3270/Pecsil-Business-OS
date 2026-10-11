@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Card, Status } from "../../packages/design-system";
 import { formatTaxId, plural, send } from "./cadastros-utils";
+import { DocumentosLigados } from "./documentos-ligados";
 
 export type CustomerEmail = { id: string; email: string; label: string | null };
 
@@ -289,6 +290,7 @@ function CustomerForm({
           ) : (
             <p className="md-hint field-wide">Depois de salvar, os e-mails do cliente são cadastrados aqui mesmo.</p>
           )}
+          {customer && <div className="field-wide"><DocumentosLigados tipo="cliente" id={customer.id} /></div>}
           {erro && <p className="user-admin-error field-wide">{erro}</p>}
         </div>
         <footer>

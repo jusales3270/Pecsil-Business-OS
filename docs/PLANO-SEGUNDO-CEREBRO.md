@@ -198,6 +198,14 @@ O dono apontou que não faz sentido receber arquivos sem conseguir lê-los: a le
 
 ### Etapa 4: Ligações por regra
 
+**Construída em 11/10/2026** (`company_document_links`, `lib/ligacoes/`): exatas por chave de
+acesso, CNPJ + nº da NF, CNPJ (menos o da PecSil), origem do documento e, pela nota, fornecedor,
+cotação e título; prováveis (a confirmar) por nº de cotação/OC e de OS citados com prefixo.
+Descartada não volta. Bloco "Documentos ligados" na nota do ICMS, recebimento, cotação/OC,
+fornecedor (Compras e Cadastros) e cliente. **Adiado:** valor + data → extrato/título (os títulos
+não têm CNPJ) e tela de detalhe da OS. Só 30 de 715 fornecedores têm CNPJ: o caminho forte é a
+nota.
+
 - **Objetivo:** ligar cada documento ao que já existe no banco, sem IA, de forma exata e
   barata.
 - **Regras:**
@@ -248,8 +256,8 @@ O dono apontou que não faz sentido receber arquivos sem conseguir lê-los: a le
 | 0 | Base do modelo de decisão (Etapa 0 do PLANO-JEV, com o Clef) | **entregue em 10/10/2026** |
 | 1 | Guarda de documentos por setor | **entregue em 10/10/2026** |
 | 2 | Coleta pelo navegador (dentro de cada módulo) | **entregue em 10/10/2026** |
-| 3 | Ler o conteúdo (texto + OCR local) | **em construção (10–11/10/2026)** |
-| 4 | Ligações por regra | logo após a 3 (usa o texto lido) |
+| 3 | Ler o conteúdo (texto + OCR local) | **entregue em 11/10/2026** |
+| 4 | Ligações por regra | **em construção (11/10/2026)** |
 | 5 | Busca por significado e perguntas | na fase da SARA, após D5 |
 | 6 | Programa instalado (opcional) | só se a 2 mostrar necessidade |
 
