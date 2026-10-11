@@ -12,7 +12,7 @@ import { UserManagement } from "./components/user-management";
 import { MasterDataView } from "./components/master-data";
 import { EventTrailView } from "./components/event-trail";
 import { SugestoesIaView } from "./components/sugestoes-ia";
-import { DocumentosSetorView } from "./components/documentos-setor";
+import { DocumentosSetorView, TrechoAchado } from "./components/documentos-setor";
 import { ModuloComColeta } from "./components/coleta-modulo";
 import { AccountPanel } from "./components/account-panel";
 import { ACCESS_CATALOG, ACCESS_LEVELS, LEVEL_LABELS, levelRank, type AccessGrants } from "../modules/access-catalog";
@@ -231,8 +231,23 @@ function SecurityView({ access }: { notify:(message:string)=>void; access: Modul
   </>;
 }
 type AccessMatrixUser = { id:string; fullName:string; email:string; isOwner:boolean; employee:{name:string}|null; grants:AccessGrants };
-function CorporateSearchView({ initialQuery, setView, people, modules, organizationData, onOpenModule }: { initialQuery:string; setView:(view:View)=>void; people: Person[]; modules: ModuleManifest[]; organizationData: OrganizationData; onOpenModule:(moduleId:string)=>void }) {
+type DocumentoAchado = { id: string; title: string; original_name: string; module_code: string; trecho: string | null; como: "palavras" | "parecido" };
+
+function CorporateSearchView({ initialQuery, setView, people, modules, organizationData, onOpenModule, onOpenDocumentos }: { initialQuery:string; setView:(view:View)=>void; people: Person[]; modules: ModuleManifest[]; organizationData: OrganizationData; onOpenModule:(moduleId:string)=>void; onOpenDocumentos:(busca:string)=>void }) {
   const [query,setQuery]=useState(initialQuery);
+  // Documentos: busca DENTRO do conteúdo, no servidor (só o que a pessoa pode abrir). Etapa 5.
+  const [documentos,setDocumentos]=useState<DocumentoAchado[]>([]);
+  useEffect(()=>{
+    const termo=query.trim();
+    let ativo=true;
+    const t=setTimeout(async()=>{
+      if(termo.length<3){ if(ativo) setDocumentos([]); return; }
+      const r=await fetch(`/api/documentos/buscar?q=${encodeURIComponent(termo)}`,{cache:"no-store"}).catch(()=>null);
+      const corpo=r?.ok?await r.json().catch(()=>null):null;
+      if(ativo) setDocumentos((corpo?.documentos??[]) as DocumentoAchado[]);
+    },300);
+    return ()=>{ ativo=false; clearTimeout(t); };
+  },[query]);
   // Busca sobre o cadastro real: pessoas, módulos e estrutura.
   const results=useMemo(()=>{
     const term=query.trim().toLowerCase();
@@ -252,10 +267,11 @@ function CorporateSearchView({ initialQuery, setView, people, modules, organizat
     return matches.slice(0,40);
   },[query,people,modules,organizationData,setView,onOpenModule]);
   return <><div className="page-head"><div><p className="eyebrow">SERVIÇO CENTRAL</p><h1>Busca corporativa</h1><p>Encontre pessoas, módulos e estruturas autorizadas em um só lugar.</p></div><Status tone="success">Respeita permissões</Status></div>
-    <Card className="search-hero"><Icon name="search" size={24}/><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Nome, cargo, departamento ou módulo..."/><span>⌘ K</span></Card>
-    <div className="search-filter-row"><span>{query.trim().length<2?"Digite ao menos 2 caracteres":`${results.length} ${results.length===1?"resultado":"resultados"} autorizados`}</span></div>
+    <Card className="search-hero"><Icon name="search" size={24}/><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Nome, cargo, módulo ou o que está escrito num documento..."/><span>⌘ K</span></Card>
+    <div className="search-filter-row"><span>{query.trim().length<2?"Digite ao menos 2 caracteres":`${results.length+documentos.length} ${results.length+documentos.length===1?"resultado autorizado":"resultados autorizados"}`}</span></div>
     {results.length>0&&<Card className="search-results">{results.map(item=><button key={item.key} onClick={item.open}><span className="result-icon"><Icon name={item.icon}/></span><span><b>{item.title}</b><small>{item.meta}</small></span><Status>{item.type}</Status><Icon name="arrow"/></button>)}</Card>}
-    {query.trim().length>=2&&!results.length&&<Card className="hr-empty-card"><div className="hr-empty"><Icon name="search" size={28}/><b>Nenhum resultado autorizado</b><small>Tente outro termo.</small></div></Card>}
+    {documentos.length>0&&<Card className="search-results search-documentos"><p className="search-grupo">Documentos</p>{documentos.map(d=><button key={d.id} onClick={()=>onOpenDocumentos(query.trim())}><span className="result-icon"><Icon name="file"/></span><span><b>{d.title}</b><TrechoAchado trecho={d.trecho} parecido={d.como==="parecido"}/></span><Status>Documento</Status><Icon name="arrow"/></button>)}</Card>}
+    {query.trim().length>=2&&!results.length&&!documentos.length&&<Card className="hr-empty-card"><div className="hr-empty"><Icon name="search" size={28}/><b>Nenhum resultado autorizado</b><small>Tente outro termo.</small></div></Card>}
   </>;
 }
 
@@ -316,7 +332,7 @@ function AccessDenied({ target, access, onBack }: { target: string; access: Modu
 
 function HomeContent() {
   const { navState } = useModuleNav();
-  const [view,setView]=useState<View>("Visão Geral"); const [mobile,setMobile]=useState(false); const [toast,setToast]=useState(""); const [globalQuery,setGlobalQuery]=useState("");
+  const [view,setView]=useState<View>("Visão Geral"); const [mobile,setMobile]=useState(false); const [toast,setToast]=useState(""); const [globalQuery,setGlobalQuery]=useState(""); const [buscaDocumentos,setBuscaDocumentos]=useState("");
   const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const [activeModuleId,setActiveModuleId]=useState<string | null>(null);
   // Área dentro do departamento (ex.: "compras" dentro de "comercial").
@@ -386,6 +402,7 @@ function HomeContent() {
   const notify=(message:string)=>{setToast(message);setTimeout(()=>setToast(""),2600)};
   const recordOperationalEvent=(message:string,module="Recursos Humanos")=>{const lower=message.toLowerCase();const sensitive=lower.includes("aprov")||lower.includes("reprov")||lower.includes("conforme")||lower.includes("situação alterada");const monitored=lower.includes("export")||lower.includes("documento")||lower.includes("cadastro");const title=message.split(":")[0].replace(/\.$/,"");setOperationalEvents(current=>[{id:Date.now(),title,message,actor:access.name,module,time:"Agora",tone:(sensitive?"attention":"info") as OperationalEvent["tone"],risk:(sensitive?"Sensível":monitored?"Monitorado":"Normal") as OperationalEvent["risk"],icon:sensitive?"shield":lower.includes("export")?"download":"bell"},...current].slice(0,20));};
   const change=(v:View)=>{
+    setBuscaDocumentos(""); // a busca vinda da Busca Corporativa vale só para aquela abertura
     if (!isExecutive && (v === "Visão Geral" || v === "Módulos")) {
       if (targetedModule) {
         openModule(targetedModule);
@@ -547,7 +564,7 @@ function HomeContent() {
           {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{canInstall && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar aplicativo</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
         </div>
       </header>
-      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={snapshot.loadedAt} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?<ModuloComColeta key={`${activeModuleId}-${moduleSection?.n??0}`} moduloId={activeModuleId} moduloNome={activeModule?.name??activeModuleId} access={access} notify={notify}>{renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined,initialSection:moduleSection?.secao})}</ModuloComColeta>:view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Sugestões da IA"?<SugestoesIaView notify={notify}/>:view==="Documentos"?<DocumentosSetorView notify={notify}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents} inbox={inbox.items} unread={inbox.unread} onOpen={openInboxItem} onMarkAll={()=>void inbox.markRead("all")}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
+      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={snapshot.loadedAt} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?<ModuloComColeta key={`${activeModuleId}-${moduleSection?.n??0}`} moduloId={activeModuleId} moduloNome={activeModule?.name??activeModuleId} access={access} notify={notify}>{renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined,initialSection:moduleSection?.secao})}</ModuloComColeta>:view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule} onOpenDocumentos={(busca)=>{change("Documentos");setBuscaDocumentos(busca)}}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Sugestões da IA"?<SugestoesIaView notify={notify}/>:view==="Documentos"?<DocumentosSetorView key={buscaDocumentos} notify={notify} buscaInicial={buscaDocumentos}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents} inbox={inbox.items} unread={inbox.unread} onOpen={openInboxItem} onMarkAll={()=>void inbox.markRead("all")}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
       <nav className="mobile-bottom-nav" aria-label="Navegação rápida móvel">
         <button
           type="button"

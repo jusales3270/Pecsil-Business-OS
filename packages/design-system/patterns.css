@@ -7149,6 +7149,11 @@ button.holiday-row:hover {
 .doc-ligados h3 { margin: 0 0 4px; font-size: var(--fs-sm); color: var(--text-primary); }
 .doc-ligados-vazio { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); }
 .doc-ligado-a { color: var(--accent-blue) !important; }
+/* Trecho achado pela busca (Etapa 5): palavras destacadas sem HTML vindo do documento. */
+.doc-trecho { display: block; margin-top: 2px; color: var(--text-secondary) !important; font-size: var(--fs-xs); line-height: 1.45; overflow-wrap: anywhere; }
+.doc-trecho mark { background: var(--tint-amber, rgb(245 158 11 / 0.22)); color: var(--text-primary); border-radius: 3px; padding: 0 2px; }
+.doc-trecho-parecido { font-style: normal; color: var(--text-muted); }
+.search-documentos .search-grupo { margin: 0 0 4px; padding: 0 var(--sp-3); color: var(--text-muted); font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
 .doc-ligado { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: 6px 0; border-top: 1px solid var(--border-subtle); }
 .doc-ligado-nome { display: flex; flex-direction: column; min-width: 0; }
 .doc-ligado-nome b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
