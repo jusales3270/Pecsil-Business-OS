@@ -314,6 +314,15 @@ try {
     }
     const aceiteDireto = await client.from("file_collection_consents").insert({ organization_id: org.id, profile_id: owner.id, device_id: "00000000-0000-0000-0000-000000000000", device_name: "x", folder_name: "x" });
     check(n, "não grava aceite direto na tabela", Boolean(aceiteDireto.error), aceiteDireto.error?.code);
+    // Texto dos documentos (Etapa 3): só de documento que a pessoa vê; ninguém grava pelo cliente nem lê a fila.
+    const textos = await client.from("company_document_texts").select("document_id").limit(1000);
+    const idsTexto = (textos.data ?? []).map((t) => t.document_id);
+    const docsDosTextos = idsTexto.length ? await client.from("company_documents").select("id").in("id", idsTexto) : { data: [] };
+    check(n, "só lê texto de documento que vê", !textos.error && (docsDosTextos.data ?? []).length === idsTexto.length, `${idsTexto.length} textos / ${(docsDosTextos.data ?? []).length} documentos`);
+    const textoFalso = await client.from("company_document_texts").insert({ document_id: "00000000-0000-0000-0000-000000000000", organization_id: org.id, status: "lido", content: "x" });
+    check(n, "não grava texto de documento pelo cliente", Boolean(textoFalso.error), textoFalso.error?.code);
+    const fila = await client.rpc("company_document_texts_pendentes", { p_limite: 1 });
+    check(n, "não lê a fila de leitura (só o servidor)", Boolean(fila.error), fila.error?.code ?? "sem erro");
     const bucket = await client.storage.from("empresa-documentos").list(org.id);
     check(n, "não lista o armazenamento de documentos pelo cliente", Boolean(bucket.error) || (bucket.data ?? []).length === 0, bucket.error?.message ?? (bucket.data ?? []).length);
 

@@ -5,7 +5,10 @@ import { Button, Callout, Card, Status } from "../../packages/design-system";
 import { tipoDoArquivo, type TipoArquivo } from "../../lib/arquivos/detectar";
 import { sha256Hex } from "../../lib/coleta/hash";
 import type { SetorColeta } from "../../lib/coleta/modulos";
-import { ROTULO_IGNORADO, classificar, ignorar, type MotivoIgnorado } from "../../lib/coleta/triagem";
+import { ROTULO_IGNORADO, classificar, combinar, ignorar, type MotivoIgnorado } from "../../lib/coleta/triagem";
+import { classificarConteudo } from "../../lib/leitura/conteudo";
+import { paginasPdfNavegador } from "../../lib/leitura/pdf-navegador";
+import { lerTexto, type Leitura } from "../../lib/leitura/texto";
 import { rotuloDoSetor } from "../../lib/documentos/setores";
 
 /**
@@ -14,6 +17,8 @@ import { rotuloDoSetor } from "../../lib/documentos/setores";
  * Chrome/Edge; a plataforma lê a pasta NO PRÓPRIO COMPUTADOR e mostra a lista para conferir. Tudo
  * o que for enviado entra no setor deste módulo: o setor vem da credencial. Arquivo que parece de
  * outro setor vem desmarcado, com aviso. Documento de colaborador e arquivo pessoal não sobem.
+ * O CONTEÚDO também é lido aqui (Etapa 3: PDF, Word, Excel, XML) e decide o setor quando a regra
+ * é forte; o texto não sobe. Escaneado e foto são lidos depois de guardados (OCR no servidor).
  */
 
 type Pasta = { name: string; kind: "directory"; values: () => AsyncIterable<Entrada> };
@@ -34,6 +39,12 @@ type Execucao = { id: string; consent_id: string; started_at: string; finished_a
 type Grupo = "deste" | "definir" | "outro" | "rh" | "pessoal";
 
 const CHAVE_PC = "pecsil_coleta_computador";
+const PRAZO_LEITURA_MS = 15_000;
+/** Lê o texto do arquivo, com prazo: arquivo que demora demais fica só com a regra do nome. */
+const lerComPrazo = (dados: Uint8Array) => Promise.race([
+  lerTexto(dados, { pdf: paginasPdfNavegador }),
+  new Promise<Leitura | null>((ok) => setTimeout(() => ok(null), PRAZO_LEITURA_MS)),
+]);
 const LIMITE_ARQUIVOS = 5000;
 /** "do Financeiro", "da Fundição": Fundição e Produção são femininas. */
 const FEMININOS = new Set(["fundicao", "producao"]);
@@ -60,6 +71,7 @@ export function ColetaArquivosView({ notify, setor }: { notify: (msg: string) =>
   const [contagem, setContagem] = useState<Contagem>({ varridos: 0, ignorados: {}, pastasPuladas: 0, repetidos: 0 });
   const [clefAviso, setClefAviso] = useState("");
   const [progresso, setProgresso] = useState({ feitos: 0, total: 0 });
+  const [leitura, setLeitura] = useState<{ feitos: number; total: number } | null>(null);
   const [historico, setHistorico] = useState<{ aceites: Aceite[]; coletas: Execucao[] } | null>(null);
   const [erro, setErro] = useState("");
 
@@ -102,7 +114,7 @@ export function ColetaArquivosView({ notify, setor }: { notify: (msg: string) =>
     try {
       const aceite = await json("/api/coleta/acessos", { modulo: setor, deviceId: computador.id, deviceName: computador.nome, folderName: raiz.name });
       const exec = await json("/api/coleta/execucoes", { aceiteId: aceite.id });
-      setRunId(exec.id); setPastaNome(raiz.name); setEtapa("lendo"); setItens([]);
+      setRunId(exec.id); setPastaNome(raiz.name); setEtapa("lendo"); setItens([]); setLeitura(null);
       const c: Contagem = { varridos: 0, ignorados: {}, pastasPuladas: 0, repetidos: 0 };
       const lista: Item[] = [];
       const vistos = new Set<string>();
@@ -145,6 +157,19 @@ export function ColetaArquivosView({ notify, setor }: { notify: (msg: string) =>
       const novos = lista.filter((x) => !existentes.has(x.hash));
       c.repetidos += lista.length - novos.length;
       setContagem({ ...c, ignorados: { ...c.ignorados } });
+      // Conteúdo (Etapa 3): lê o texto aqui mesmo e reclassifica. O texto não sobe.
+      for (const [i, x] of novos.entries()) {
+        setLeitura({ feitos: i, total: novos.length });
+        if (x.rh || x.pessoal) continue;
+        const l = await lerComPrazo(new Uint8Array(await x.arquivo.arrayBuffer()));
+        if (l?.status === "lido") {
+          const k = combinar({ setor: x.setor, confianca: x.setor ? "regra" : "duvida", motivo: x.motivo }, classificarConteudo(l.texto));
+          Object.assign(x, { setor: k.setor, motivo: k.motivo, rh: Boolean(k.rh), marcado: k.setor === setor && !k.rh });
+        } else if (l?.status === "sem_texto" && l.ocr) {
+          x.motivo = `${x.motivo} · ${l.motivo}: o texto é lido depois de guardado`;
+        }
+      }
+      setLeitura({ feitos: novos.length, total: novos.length });
       // Dúvida → Clef (só nome e pasta; só se o uso deste setor estiver ligado).
       const duvidas = novos.filter((x) => !x.setor && !x.rh && !x.pessoal);
       for (let i = 0; i < duvidas.length; i += 50) {
@@ -251,7 +276,7 @@ export function ColetaArquivosView({ notify, setor }: { notify: (msg: string) =>
       )}
 
       {etapa === "lendo" && (
-        <Card className="md-card"><div className="coleta-passo"><h2>Lendo &ldquo;{pastaNome}&rdquo; neste computador…</h2><p>{contagem.varridos} arquivos lidos · {Object.values(contagem.ignorados).reduce((s, n) => s + (n ?? 0), 0)} ignorados · {contagem.pastasPuladas} pastas puladas</p></div></Card>
+        <Card className="md-card"><div className="coleta-passo"><h2>Lendo &ldquo;{pastaNome}&rdquo; neste computador…</h2><p>{contagem.varridos} arquivos lidos · {Object.values(contagem.ignorados).reduce((s, n) => s + (n ?? 0), 0)} ignorados · {contagem.pastasPuladas} pastas puladas{leitura ? ` · lendo o conteúdo: ${leitura.feitos} de ${leitura.total}` : ""}</p></div></Card>
       )}
 
       {(etapa === "conferir" || etapa === "enviando" || etapa === "fim") && (

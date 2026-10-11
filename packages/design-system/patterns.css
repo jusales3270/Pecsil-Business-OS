@@ -7143,6 +7143,7 @@ button.holiday-row:hover {
 .doc-campo select, .doc-busca { padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
 .doc-busca { flex: 1 1 240px; min-width: 0; }
 .doc-vazio { padding: var(--sp-4) 0; color: var(--text-muted); }
+.doc-leitura-resumo { margin: 0; color: var(--text-secondary); font-size: var(--fs-sm); }
 .doc-lista { display: flex; flex-direction: column; margin-top: var(--sp-3); }
 .doc-item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--sp-3); padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
 .doc-principal { display: flex; flex-direction: column; min-width: 0; }

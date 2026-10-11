@@ -27,6 +27,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-11-leitura-documentos",
+    data: "2026-10-11",
+    area: "Plataforma",
+    modulos: ["financeiro", "fiscal", "compras", "almoxarifado", "comercial", "fundicao", "producao"],
+    titulo: "A plataforma lê o conteúdo dos documentos",
+    itens: [
+      "Na coleta, o conteúdo de PDF, Word, Excel e XML é lido no próprio computador antes da conferência: uma nota com nome genérico é reconhecida pela chave de acesso, e um holerite escondido fica barrado como documento do RH. O texto não sai do computador.",
+      "Os documentos guardados têm o texto lido, inclusive os antigos. PDF escaneado e foto passam por leitura de imagem (OCR) no servidor da PecSil, sem sair da empresa.",
+      "Em Documentos, cada arquivo mostra se já foi lido. É a base para ligar cada documento ao fornecedor, à nota e à ordem de compra (próxima etapa).",
+    ],
+  },
+  {
     id: "2026-10-10-coleta-por-modulo",
     data: "2026-10-10",
     area: "Plataforma",

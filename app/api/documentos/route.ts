@@ -1,11 +1,23 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { exigirDocumentos, LIMITE_DOCUMENTO } from "../../../lib/documentos/acesso";
 import { guardarOriginal } from "../../../lib/documentos/guardar";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const COLUNAS = "id, module_code, feature_code, title, category, original_name, mime_type, size_bytes, version, previous_id, source, entity_type, entity_id, uploaded_by_name, created_at";
+const COLUNAS = "id, module_code, feature_code, title, category, original_name, mime_type, size_bytes, version, previous_id, source, entity_type, entity_id, uploaded_by_name, created_at, leitura:company_document_texts(status, method, pages, chars)";
+
+/** Resumo da leitura (Etapa 3), só para o proprietário: lidos, esperando OCR, sem texto, erros e ainda não lidos. */
+async function resumoDaLeitura(supabase: SupabaseClient) {
+  const contar = async (status?: string) => {
+    let q = supabase.from(status ? "company_document_texts" : "company_documents").select(status ? "document_id" : "id", { count: "exact", head: true });
+    q = status ? q.eq("status", status) : q.is("archived_at", null);
+    return (await q).count ?? 0;
+  };
+  const [total, lidos, pendentes, semTexto, erros] = await Promise.all([contar(), contar("lido"), contar("pendente_ocr"), contar("sem_texto"), contar("erro")]);
+  return { total, lidos, pendentesOcr: pendentes, semTexto, erros, naoLidos: Math.max(0, total - lidos - pendentes - semTexto - erros) };
+}
 
 /**
  * Documentos dos setores (Fundação › Documentos). O banco (RLS) só entrega os documentos
@@ -50,6 +62,7 @@ export async function GET(request: Request) {
     setores: guard.visiveis.map((s) => ({ modulo: s.modulo, rotulo: s.rotulo })),
     envio: guard.envio.map((s) => ({ modulo: s.modulo, rotulo: s.rotulo })),
     isOwner: guard.access.isOwner,
+    leitura: guard.access.isOwner ? await resumoDaLeitura(guard.supabase) : null,
   });
 }
 

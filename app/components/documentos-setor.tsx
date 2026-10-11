@@ -15,12 +15,26 @@ type Documento = {
   id: string; module_code: string; feature_code: string; title: string; category: string | null; original_name: string;
   mime_type: string | null; size_bytes: number; version: number; previous_id: string | null; source: string;
   entity_type: string | null; entity_id: string | null; uploaded_by_name: string | null; created_at: string;
+  /** Leitura do texto (Etapa 3); null = ainda não lido. O PostgREST pode trazer objeto ou lista. */
+  leitura: LeituraDoc | LeituraDoc[] | null;
 };
+type LeituraDoc = { status: "lido" | "sem_texto" | "pendente_ocr" | "erro"; method: string | null; pages: number | null; chars: number | null };
+type ResumoLeitura = { total: number; lidos: number; pendentesOcr: number; semTexto: number; erros: number; naoLidos: number };
 type Setor = { modulo: string; rotulo: string };
-type Lista = { documentos: Documento[]; setores: Setor[]; envio: Setor[]; isOwner: boolean };
+type Lista = { documentos: Documento[]; setores: Setor[]; envio: Setor[]; isOwner: boolean; leitura: ResumoLeitura | null };
 
 const ORIGEM: Record<string, string> = { envio: "Enviado à mão", extrato: "Extrato bancário", nota: "Nota fiscal", recebimento: "Recebimento do Almoxarifado", coleta: "Coleta de arquivos" };
 const LIGACAO: Record<string, string> = { fiscal_icms_entry: "ligado ao Painel do ICMS", receipt: "ligado ao recebimento" };
+const METODO: Record<string, string> = { pdf: "PDF", docx: "Word", xlsx: "Excel", xls: "Excel", xml: "XML", ofx: "OFX", txt: "texto", ocr: "OCR" };
+/** Situação da leitura do texto, para a marca do documento. */
+function situacaoLeitura(l: Documento["leitura"]): { tom: "success" | "neutral" | "attention" | "danger"; texto: string } {
+  const x = Array.isArray(l) ? l[0] : l;
+  if (!x) return { tom: "neutral", texto: "Aguardando leitura" };
+  if (x.status === "lido") return { tom: "success", texto: x.method === "ocr" ? `Lido por OCR${x.pages ? ` (${x.pages} pág.)` : ""}` : `Lido (${METODO[x.method ?? ""] ?? "texto"}${x.pages ? `, ${x.pages} pág.` : ""})` };
+  if (x.status === "pendente_ocr") return { tom: "neutral", texto: "Aguardando OCR" };
+  if (x.status === "sem_texto") return { tom: "attention", texto: "Sem texto" };
+  return { tom: "danger", texto: "Erro na leitura" };
+}
 const quando = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 const tamanho = (b: number) => (b >= 1_048_576 ? `${(b / 1_048_576).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
@@ -92,6 +106,9 @@ export function DocumentosSetorView({ notify }: { notify: (msg: string) => void 
             </label>
             <input className="doc-busca" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, título ou categoria" aria-label="Buscar documento" />
           </div>
+          {lista?.leitura && (
+            <p className="doc-leitura-resumo">Leitura dos documentos: {lista.leitura.lidos} lidos · {lista.leitura.pendentesOcr} aguardando OCR · {lista.leitura.naoLidos} aguardando leitura · {lista.leitura.semTexto} sem texto{lista.leitura.erros ? ` · ${lista.leitura.erros} com erro` : ""}</p>
+          )}
           {erro && <p className="user-admin-error">{erro}</p>}
           {!lista && !erro && <p className="doc-vazio">Carregando…</p>}
           {lista && !lista.documentos.length && (
@@ -110,6 +127,7 @@ export function DocumentosSetorView({ notify }: { notify: (msg: string) => void 
                   <div className="doc-marcas">
                     <Status tone="info">{rotulo(d.module_code)}</Status>
                     {d.category && <Status tone="neutral">{d.category}</Status>}
+                    {(() => { const s = situacaoLeitura(d.leitura); return <Status tone={s.tom}>{s.texto}</Status>; })()}
                   </div>
                   <div className="doc-acoes">
                     <a className="doc-link" href={`/api/documentos/${d.id}/baixar`} target="_blank" rel="noopener">Baixar</a>
