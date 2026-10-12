@@ -177,12 +177,19 @@ identidade e as regras de cada empresa são **variáveis** que respondem a um me
 
 | Variável | Hoje, na PecSil | Destino |
 |---|---|---|
-| Identidade (razão social, CNPJ, IE, endereço, telefones) | `lib/empresa.ts` (`EMPRESA_PECSIL`) e `CNPJ_PECSIL` em `lib/finance/extrato-classificar.ts` | Cadastro da organização (`organizations` já tem `name` e `tax_id`) |
+| Identidade (razão social, CNPJ, IE, endereço, telefones) | `lib/empresa.ts` (`EMPRESA_PECSIL`) e `CNPJ_PECSIL` em `lib/finance/extrato-classificar.ts` | **Feito em parte (12/10/2026):** `fiscal_config` (Fiscal › Configuração) guarda o emitente por organização. A Ordem de Compra passa a ler dali quando for mexida. |
+| Certificado digital, série e numeração, regras fiscais | — | `fiscal_config` + cofre (Vault) + `fiscal_series`, por organização ([FISCAL-NFE.md](FISCAL-NFE.md)) |
 | Marca (logo claro e escuro, cores, nome na tela) | `public/pecsil-logo*.png`, texto "Pecsil Molds for Glass" | Configuração da empresa |
 | Setores e módulos ativos | `lib/documentos/setores.ts`, `SETORES_COLETA`, catálogo de acesso | Configuração da empresa sobre o catálogo comum |
 | Regras de triagem (bancos, palavras do ramo, como "fundição" e "forno") | `lib/coleta/triagem.ts`, `lib/leitura/conteudo.ts` | Dicionário por empresa, com o comum como base |
 | Integrações (ex.: Forja na Produção) | `lib/forja/` | Conector por empresa |
 | Nome do cookie de sessão | `sb-pecsil-auth-token` | Derivado da instalação |
+
+**Licença do transmissor de NF-e (12/10/2026):** a biblioteca gratuita que fala com a SEFAZ
+(NFeWizard) é GPL-3.0. Por isso ela vive num **serviço separado** (`services/transmissor-nfe`,
+GPL, código aberto próprio), e a plataforma fala com ele por HTTP, pelo contrato em
+`lib/fiscal/transmissor/`. A plataforma não importa nada dele e continua com a licença que o
+proprietário escolher. Trocar por uma API paga é trocar a implementação do contrato.
 
 ### 6.2 Regras para construir daqui em diante
 

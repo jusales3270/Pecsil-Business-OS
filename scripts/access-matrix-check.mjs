@@ -45,6 +45,10 @@ const CASES = [
   { name: "só Terceiros do RH (ver)", grants: { "rh.terceiros": "ver" } },
   { name: "só Sugestões da IA (ver)", grants: { "fundacao.sugestoes": "ver" } },
   { name: "só Coletar arquivos do Financeiro (operar)", grants: { "financeiro.coleta": "operar" } },
+  { name: "só Painel do ICMS (ver)", grants: { "fiscal.icms": "ver" } },
+  { name: "só Configuração fiscal (operar)", grants: { "fiscal.config": "operar" } },
+  { name: "só Certificado digital (operar)", grants: { "fiscal.certificado": "operar" } },
+  { name: "só Portal do contador (escritório)", grants: { "fiscal.portal": "operar" } },
 ];
 
 const { data: org } = await admin.from("organizations").select("id").limit(1).single();
@@ -314,6 +318,80 @@ try {
     }
     const aceiteDireto = await client.from("file_collection_consents").insert({ organization_id: org.id, profile_id: owner.id, device_id: "00000000-0000-0000-0000-000000000000", device_name: "x", folder_name: "x" });
     check(n, "não grava aceite direto na tabela", Boolean(aceiteDireto.error), aceiteDireto.error?.code);
+    // Fiscal (NF-e, Entrega 1): certificado só no cofre e só para o servidor; escrita só pelas funções.
+    const certLer = await client.rpc("fiscal_certificado_ler", { p_org: org.id });
+    check(n, "não lê o certificado digital", Boolean(certLer.error), certLer.error?.code ?? "LEU");
+    const segredos = await client.from("fiscal_certificado_segredos").select("organization_id");
+    check(n, "não vê onde o certificado está no cofre", Boolean(segredos.error) || (segredos.data ?? []).length === 0, segredos.error?.code ?? (segredos.data ?? []).length);
+    const cofre = await client.schema("vault").from("decrypted_secrets").select("id").limit(1);
+    check(n, "não abre o cofre (Vault)", Boolean(cofre.error) || (cofre.data ?? []).length === 0, cofre.error?.code ?? (cofre.data ?? []).length);
+    const cuidaCert = scenario.grants["fiscal.certificado"] === "operar";
+    if (!cuidaCert) {
+      const certSalvar = await client.rpc("fiscal_certificado_salvar", { p_pfx: "A".repeat(200), p_senha: "x", p_titular: "x", p_cnpj: "11222333000181", p_validade: "2030-01-01T00:00:00Z" });
+      check(n, "sem Certificado digital não envia certificado", certSalvar.error?.code === "42501", certSalvar.error?.code);
+      const certRemover = await client.rpc("fiscal_certificado_remover");
+      check(n, "sem Certificado digital não remove certificado", certRemover.error?.code === "42501", certRemover.error?.code);
+    } else {
+      // Quem cuida do certificado pode enviar, mas o banco continua recusando o de outro CNPJ (nada é gravado).
+      const outro = await client.rpc("fiscal_certificado_salvar", { p_pfx: "A".repeat(200), p_senha: "x", p_titular: "x", p_cnpj: "11222333000181", p_validade: "2030-01-01T00:00:00Z" });
+      check(n, "Certificado digital: certificado de outro CNPJ é recusado", Boolean(outro.error) && outro.error.code !== "42501", outro.error?.message?.slice(0, 60));
+    }
+    const auditoria = await client.rpc("fiscal_certificado_registrar", { p_org: org.id, p_acao: "removido", p_antes: null, p_titular: null, p_cnpj: null, p_validade: null });
+    check(n, "não grava na auditoria do certificado pelo cliente", Boolean(auditoria.error), auditoria.error?.code ?? "GRAVOU");
+    const configDireto = await client.from("fiscal_config").update({ ambiente: "producao" }).eq("organization_id", org.id).select("organization_id");
+    check(n, "não altera a configuração fiscal direto na tabela", Boolean(configDireto.error) || (configDireto.data ?? []).length === 0, configDireto.error?.code ?? (configDireto.data ?? []).length);
+    const operaConfig = scenario.grants["fiscal.config"] === "operar";
+    if (operaConfig) {
+      // Quem opera a configuração não liga produção (é do proprietário); nada é gravado.
+      const producao = await client.rpc("fiscal_config_salvar", { p: { ambiente: "producao" } });
+      check(n, "operar a configuração não liga a produção", producao.error?.code === "42501", producao.error?.code);
+    } else {
+      const salvar = await client.rpc("fiscal_config_salvar", { p: { ie: "123" } });
+      check(n, "sem Configuração fiscal (operar) não altera o emitente", salvar.error?.code === "42501", salvar.error?.code);
+    }
+    const veFiscal = "fiscal.icms" in scenario.grants || "fiscal.nfe" in scenario.grants;
+    const veConfig = veFiscal || "fiscal.config" in scenario.grants || cuidaCert;
+    const configs = await total(client, "fiscal_config");
+    check(n, veConfig ? "lê a configuração fiscal da empresa" : "não lê a configuração fiscal", veConfig ? configs === 1 : configs === 0, configs);
+    const dfe = await total(client, "fiscal_dfe");
+    check(n, veFiscal ? "lê as notas recebidas da SEFAZ" : "não lê as notas recebidas da SEFAZ", veFiscal ? typeof dfe === "number" : dfe === 0, dfe);
+    if (!veFiscal) {
+      const lista = await client.rpc("fiscal_dfe_listar", { p_filtro: "todas", p_limite: 1 });
+      check(n, "não lista as notas recebidas", lista.error?.code === "42501", lista.error?.code);
+    }
+    const dfeReg = await client.rpc("fiscal_dfe_registrar", { p_org: org.id, p: { tipo: "resumo", nsu: "1", chave: "3".repeat(44) } });
+    check(n, "não registra nota da SEFAZ (só o servidor)", Boolean(dfeReg.error), dfeReg.error?.code ?? "REGISTROU");
+    const docSistema = await client.rpc("company_document_register_sistema", {
+      p_org: org.id, p_module: "fiscal", p_feature: "fiscal.icms", p_title: "x", p_original_name: "x.xml", p_mime: null, p_size: 1,
+      p_sha256: "d".repeat(64), p_storage_path: `${org.id}/fiscal/x/x.xml`, p_source: "sefaz", p_autor: "x",
+    });
+    check(n, "não registra documento como sistema", Boolean(docSistema.error), docSistema.error?.code ?? "REGISTROU");
+    const dfeDireto = await client.from("fiscal_dfe").insert({ organization_id: org.id, chave: "3".repeat(44) });
+    check(n, "não grava nota recebida direto na tabela", Boolean(dfeDireto.error), dfeDireto.error?.code);
+
+    // Portal do escritório: o escritório vê só o portal (totais), nunca as linhas; ninguém grava direto.
+    const doPortal = scenario.grants["fiscal.portal"] === "operar";
+    const lado = await client.rpc("fiscal_portal_lado");
+    check(n, doPortal ? "portal: entra como escritório" : "portal: sem lado no portal", doPortal ? lado.data === "escritorio" : lado.data === null, JSON.stringify(lado.data));
+    const indic = await client.rpc("fiscal_portal_indicadores", { p_mes: "2026-09-01" });
+    check(n, doPortal ? "portal: vê os totais do mês" : "portal: não vê os totais do mês", doPortal ? !indic.error : indic.error?.code === "42501", indic.error?.code ?? "ok");
+    for (const tabela of ["fiscal_competencias", "fiscal_pendencias", "fiscal_malotes", "fiscal_portal_anexos"]) {
+      const ins = await client.from(tabela).insert({ organization_id: org.id });
+      check(n, `portal: não grava direto em ${tabela}`, Boolean(ins.error), ins.error?.code);
+      if (!doPortal) { const qt = await total(client, tabela); check(n, `portal: não lê ${tabela}`, qt === 0, qt); }
+    }
+    const abrirComp = await client.rpc("fiscal_portal_competencia_abrir", { p_mes: "2026-01-01" });
+    check(n, "portal: não abre competência (é da empresa)", abrirComp.error?.code === "42501", abrirComp.error?.code);
+    const receber = await client.rpc("fiscal_portal_malote_receber", { p_malote: "00000000-0000-0000-0000-000000000000", p_observacao: null });
+    check(n, doPortal ? "portal: escritório sem aceite do termo não opera" : "portal: não confirma malote", receber.error?.code === "42501", receber.error?.code);
+    const baixarPortal = await client.rpc("fiscal_portal_baixar", { p_document: "00000000-0000-0000-0000-000000000000" });
+    check(n, "portal: não baixa arquivo fora do portal", Boolean(baixarPortal.error), baixarPortal.error?.code);
+    if (doPortal) {
+      const icms = await total(client, "fiscal_icms_entries");
+      const docsFora = await total(client, "company_documents", (q) => q.neq("feature_code", "fiscal.portal"));
+      check(n, "portal: escritório não vê as notas do Painel do ICMS nem documentos fora do portal", icms === 0 && docsFora === 0, `${icms}/${docsFora}`);
+    }
+
     // Texto dos documentos (Etapa 3): só de documento que a pessoa vê; ninguém grava pelo cliente nem lê a fila.
     const textos = await client.from("company_document_texts").select("document_id").limit(1000);
     const idsTexto = (textos.data ?? []).map((t) => t.document_id);

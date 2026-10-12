@@ -5,13 +5,14 @@ import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../.
 import { useModuleNav } from "../../../lib/module-nav-context";
 import type { Nfe } from "../../../lib/almoxarifado/nfe-xml";
 import type { ModuleRuntimeProps } from "../../runtime";
+import { canUseFeature } from "../../access";
 import { EnviarArquivo, useSoltarArquivo } from "../../../app/components/enviar-arquivo";
 import { DocumentosLigados } from "../../../app/components/documentos-ligados";
 
-const cnpjFormatado = (v: string | null | undefined) => {
-  const d = (v ?? "").replace(/\D/g, "");
-  return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : (v ?? "");
-};
+import { api, cnpjFormatado, curto, date, hoje, money, nomeMes } from "./comum";
+import { NotasRecebidas } from "./NotasRecebidas";
+import { ConfiguracaoFiscal } from "./ConfiguracaoFiscal";
+import { PortalEscritorio } from "./PortalEscritorio";
 
 /**
  * Módulo Fiscal — Painel do ICMS. Substitui a planilha mensal: uma linha por
@@ -35,26 +36,55 @@ type FiltroSituacao = "todas" | "sem_xml" | "nao_lancada" | "nao_autorizada";
 const TIPOS = ["Material", "Uso e consumo", "Serviço", "Ativo imobilizado", "Frete", "Energia", "Outros"];
 const ORIGEM: Record<Entrada["origem"], string> = { almoxarifado: "Almoxarifado", manual: "Lançada aqui", historico: "Planilha antiga" };
 
-const money = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const curto = (v: number) => (Math.abs(v) >= 1_000_000 ? `R$ ${(v / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} mi` : Math.abs(v) >= 10_000 ? `R$ ${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil` : money(v));
-const date = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10).split("-").reverse().join("/") : "—");
-const hoje = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-const nomeMes = (mes: string) => `${MESES[Number(mes.slice(5, 7)) - 1]} de ${mes.slice(0, 4)}`;
 const num = (t: string) => { const s = t.trim().replace(/[R$\s]/g, ""); return Number(s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s) || 0; };
 const campo = (v: number) => (v ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
 
-async function api<T>(url: string, init?: RequestInit): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
-  try {
-    const res = await fetch(url, { cache: "no-store", ...init, headers: { "content-type": "application/json" } });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, error: body?.error === "FORBIDDEN" ? "Sem permissão." : body?.error || "Não foi possível concluir." };
-    return { ok: true, data: body as T };
-  } catch { return { ok: false, error: "Sem conexão com o servidor." }; }
+const SECOES = [
+  { id: "Painel do ICMS", icon: "file" },
+  { id: "Notas recebidas", icon: "inbox" },
+  { id: "Escritório contábil", icon: "briefcase" },
+  { id: "Portal do contador", icon: "briefcase" },
+  { id: "Configuração", icon: "settings" },
+] as const;
+type Secao = (typeof SECOES)[number]["id"];
+
+/**
+ * Fiscal: cada seção aparece para quem tem a funcionalidade dela. Painel do ICMS (fiscal.icms);
+ * Notas recebidas da SEFAZ (fiscal.icms ou fiscal.nfe); Escritório contábil (fiscal.escritorio ou o dono);
+ * Portal do contador (fiscal.portal — o escritório, que só vê esta seção); Configuração (fiscal.config,
+ * fiscal.certificado ou o dono).
+ */
+export default function FiscalApp({ notify, access, initialSection }: ModuleRuntimeProps) {
+  const { registerNav } = useModuleNav();
+  const pode = (f: string) => access.isOwner || canUseFeature(access, f);
+  const empresa = pode("fiscal.escritorio");
+  const visiveis = SECOES.filter(({ id }) =>
+    id === "Painel do ICMS" ? pode("fiscal.icms")
+      : id === "Notas recebidas" ? pode("fiscal.icms") || pode("fiscal.nfe")
+        : id === "Escritório contábil" ? empresa
+          : id === "Portal do contador" ? !empresa && pode("fiscal.portal")
+            : pode("fiscal.config") || pode("fiscal.certificado"));
+  const ids = visiveis.map((s) => s.id).join("|");
+  const [escolhida, setSecao] = useState<Secao | null>(() => (SECOES.some((s) => s.id === initialSection) ? (initialSection as Secao) : null));
+  const secao: Secao | undefined = visiveis.find((s) => s.id === escolhida)?.id ?? visiveis[0]?.id;
+
+  useEffect(() => {
+    registerNav({
+      moduleId: "fiscal", moduleName: "Fiscal", sidebarTree: true,
+      items: SECOES.filter((s) => ids.split("|").includes(s.id)).map(({ id, icon }) => ({ id, label: id, icon })),
+      activeId: secao ?? "", onSelect: (id) => setSecao(id as Secao),
+    });
+  }, [registerNav, secao, ids]);
+  useEffect(() => () => registerNav(null), [registerNav]);
+
+  if (secao === "Notas recebidas") return <NotasRecebidas notify={notify} />;
+  if (secao === "Configuração") return <ConfiguracaoFiscal notify={notify} />;
+  if (secao === "Escritório contábil" || secao === "Portal do contador") return <PortalEscritorio notify={notify} />;
+  if (secao === "Painel do ICMS") return <PainelIcms notify={notify} />;
+  return <div className="finance-empty almox-vazio"><b>Sem acesso às telas do Fiscal</b><small>Peça ao proprietário a funcionalidade em Pessoas e Acessos.</small></div>;
 }
 
-export default function FiscalApp({ notify }: ModuleRuntimeProps) {
-  const { registerNav } = useModuleNav();
+function PainelIcms({ notify }: { notify: (message: string) => void }) {
   const [mes, setMes] = useState(hoje().slice(0, 7));
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState("");
@@ -70,11 +100,6 @@ export default function FiscalApp({ notify }: ModuleRuntimeProps) {
     setDados({ ...res.data, entradas: res.data.entradas.map((e) => ({ ...e, valor: Number(e.valor), vlr_cobrado: Number(e.vlr_cobrado), base_icms: Number(e.base_icms), icms: Number(e.icms), ipi: Number(e.ipi) })), livro: res.data.livro.map((l) => ({ ...l, credito: Number(l.credito), debito: Number(l.debito) })) });
   }, []);
   useEffect(() => { const t = setTimeout(() => { void carregar(mes); }, 0); return () => clearTimeout(t); }, [carregar, mes]);
-
-  useEffect(() => {
-    registerNav({ moduleId: "fiscal", moduleName: "Fiscal", sidebarTree: true, items: [{ id: "icms", label: "Painel do ICMS", icon: "file" }], activeId: "icms", onSelect: () => {} });
-  }, [registerNav]);
-  useEffect(() => () => registerNav(null), [registerNav]);
 
   const atual = dados?.mes === mes ? dados : null;
   const podeEditar = Boolean(atual?.canEdit);

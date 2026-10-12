@@ -6933,6 +6933,123 @@ button.holiday-row:hover {
 @media (max-width: 720px) { .icms-centros { grid-template-columns: 1fr; } .icms-livro-form { grid-template-columns: 1fr 1fr; } .icms-livro-form input:first-child { grid-column: 1 / -1; } }
 
 /* ============================================================================
+   Fiscal › Notas recebidas (SEFAZ) e Configuração fiscal
+   ============================================================================ */
+.fiscal-dfe-estado { margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+.fiscal-dfe-estado b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.fiscal-dfe-tabela { display: flex; flex-direction: column; overflow-x: auto; }
+.fiscal-dfe-tabela > [role="row"] { display: grid; grid-template-columns: 84px minmax(220px, 1.6fr) 120px 110px 84px 84px minmax(170px, auto); align-items: center; gap: var(--sp-3); min-width: 960px; padding: 8px 6px; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
+.fiscal-dfe-tabela > .cabeca { border-top: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.fiscal-dfe-tabela .r { text-align: right; font-variant-numeric: tabular-nums; }
+.fiscal-dfe-tabela .c { display: flex; justify-content: center; }
+.fiscal-dfe-tabela .nome { display: flex; flex-direction: column; min-width: 0; font-weight: 600; }
+.fiscal-dfe-tabela .nome small { font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fiscal-dfe-acoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-3); }
+.fiscal-dfe-acoes small { font-size: var(--fs-xs); color: var(--text-muted); }
+.fiscal-dfe-acoes .almox-link:disabled { opacity: 0.6; cursor: default; }
+.fiscal-erro, .fiscal-dfe-tabela .nome small.fiscal-erro { color: var(--accent-red); white-space: normal; }
+.fiscal-nota-ajuda { margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+.fiscal-config-bloco > header { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.fiscal-config-bloco > header h2 { margin: 0; font-size: var(--fs-md); color: var(--text-primary); }
+.fiscal-config-bloco > footer { display: flex; justify-content: flex-end; gap: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border-subtle); }
+.fiscal-campos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
+.fiscal-campos > label { display: flex; flex-direction: column; align-items: stretch; gap: 0; min-width: 0; white-space: normal; }
+.fiscal-campos > label.fiscal-largo { grid-column: span 2; }
+.fiscal-campos > label > span, .fiscal-cert-form label > span { display: block; margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.fiscal-campos > label > span small { font-weight: 400; color: var(--text-muted); }
+.fiscal-campos input, .fiscal-cert-form input:not([type="file"]) {
+  width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm);
+}
+.fiscal-campos select { width: 100%; font: inherit; font-size: var(--fs-sm); background-color: var(--bg-surface); }
+.fiscal-campos input:disabled, .fiscal-campos select:disabled { background: var(--bg-subtle); color: var(--text-secondary); }
+.fiscal-campos input:focus, .fiscal-campos select:focus, .fiscal-cert-form input:focus { outline: none; border-color: var(--accent-blue); box-shadow: var(--shadow-focus); }
+.fiscal-cert { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); margin: 0; }
+.fiscal-cert > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--bg-subtle); min-width: 0; }
+.fiscal-cert dt { font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+.fiscal-cert dd { margin: 0; font-size: var(--fs-sm); color: var(--text-primary); overflow-wrap: anywhere; }
+.fiscal-cert-form { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; align-items: end; gap: var(--sp-3); }
+.fiscal-cert-form input[type="file"] { width: 100%; font-size: var(--fs-sm); color: var(--text-secondary); }
+.fiscal-cert-form .almox-erro { grid-column: 1 / -1; }
+.fiscal-cert-acoes { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.fiscal-cert-acoes .almox-perigo { margin-left: 0; }
+.fiscal-chave { display: flex; align-items: flex-start; gap: var(--sp-3); cursor: pointer; }
+.fiscal-chave input { margin-top: 3px; width: 16px; height: 16px; flex: none; accent-color: var(--accent-blue); }
+.fiscal-chave > span { display: flex; flex-direction: column; gap: 2px; }
+.fiscal-chave b { font-size: var(--fs-sm); color: var(--text-primary); }
+.fiscal-chave small { font-size: var(--fs-xs); color: var(--text-muted); }
+@media (max-width: 720px) {
+  .fiscal-campos { grid-template-columns: 1fr; }
+  .fiscal-campos > label.fiscal-largo { grid-column: auto; }
+  .fiscal-cert { grid-template-columns: 1fr 1fr; }
+  .fiscal-cert-form { grid-template-columns: 1fr; }
+}
+
+/* Fiscal › Portal do escritório (Escritório contábil / Portal do contador) */
+.portal-sub { font-size: var(--fs-xs); color: var(--text-muted); }
+.portal-termo ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text-primary); line-height: 1.5; }
+.portal-etapas ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); margin: 0; padding: 0; list-style: none; }
+.portal-etapas li { display: flex; flex-direction: column; gap: 4px; padding: var(--sp-3); border-radius: var(--radius-sm); background: var(--bg-subtle); min-width: 0; }
+.portal-etapas li > span { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border-strong); font-size: var(--fs-xs); font-weight: 700; color: var(--text-muted); }
+.portal-etapas li b { font-size: var(--fs-sm); color: var(--text-secondary); }
+.portal-etapas li small { font-size: var(--fs-xs); color: var(--text-muted); overflow-wrap: anywhere; }
+.portal-etapas li.feita > span { background: var(--accent-green); border-color: var(--accent-green); color: var(--text-on-accent); }
+.portal-etapas li.atual { background: var(--tint-blue); box-shadow: inset 0 0 0 1px var(--accent-blue); }
+.portal-etapas li.atual > span { background: var(--accent-blue); border-color: var(--accent-blue); color: var(--text-on-accent); }
+.portal-etapas li.atual b, .portal-etapas li.feita b { color: var(--text-primary); }
+.portal-etapas-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sp-2); }
+.portal-checklist, .portal-lista { display: flex; flex-direction: column; }
+.portal-item, .portal-malote { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: 10px 4px; border-top: 1px solid var(--border-subtle); }
+.portal-item:first-child, .portal-malote:first-child { border-top: 0; }
+.portal-item > div, .portal-malote > div:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.portal-item b, .portal-malote b { font-size: var(--fs-sm); color: var(--text-primary); }
+.portal-item small, .portal-malote small { font-size: var(--fs-xs); color: var(--text-muted); }
+.portal-malote p { margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); white-space: pre-wrap; }
+.portal-numero { font-size: var(--fs-xs); font-weight: 600; color: var(--accent-blue); font-variant-numeric: tabular-nums; }
+.portal-item .icms-select { flex: none; min-width: 150px; }
+.portal-receber { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-2); }
+.portal-receber input, .portal-form input, .portal-form textarea, .portal-responder textarea {
+  width: 100%; min-height: 36px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); color-scheme: light dark;
+}
+.portal-receber input { width: 260px; }
+.portal-form textarea, .portal-responder textarea { resize: vertical; }
+.portal-form { display: grid; grid-template-columns: minmax(0, 1fr) 170px auto; align-items: end; gap: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border-subtle); }
+.portal-form > label { display: flex; flex-direction: column; min-width: 0; }
+.portal-form > label > span { display: block; margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.portal-form > label.largo, .portal-form > .portal-form-acoes { grid-column: 1 / -1; }
+.portal-form-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sp-2); }
+.portal-pendencia { border: 1px solid var(--border); border-radius: var(--radius-md); margin-top: var(--sp-2); background: var(--bg-surface); }
+.portal-pendencia.resolvida { opacity: 0.8; }
+.portal-pendencia-topo { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: 10px var(--sp-4); border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.portal-pendencia-topo > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.portal-pendencia-topo b { font-size: var(--fs-sm); color: var(--text-primary); }
+.portal-pendencia-topo small { font-size: var(--fs-xs); color: var(--text-muted); }
+.portal-pendencia-corpo { display: flex; flex-direction: column; gap: var(--sp-3); padding: 0 var(--sp-4) var(--sp-4); }
+.portal-msg { max-width: 85%; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--bg-subtle); }
+.portal-msg.minha { align-self: flex-end; background: var(--tint-blue); }
+.portal-msg small { font-size: var(--fs-xs); color: var(--text-muted); }
+.portal-msg p { margin: 2px 0 0; font-size: var(--fs-sm); color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
+.portal-responder { display: flex; flex-direction: column; gap: var(--sp-2); }
+.portal-anexos { display: flex; flex-direction: column; gap: 6px; }
+.portal-anexo { display: flex; flex-direction: column; gap: 1px; padding: 6px 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); text-decoration: none; }
+.portal-anexo:hover { border-color: var(--accent-blue); }
+.portal-anexo b { font-size: var(--fs-sm); color: var(--accent-blue); overflow-wrap: anywhere; }
+.portal-anexo small { font-size: var(--fs-xs); color: var(--text-muted); }
+.portal-anexar { align-self: flex-start; position: relative; cursor: pointer; }
+.portal-anexar input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.portal-anexar span { font-size: var(--fs-sm); font-weight: 600; color: var(--accent-blue); }
+@media (max-width: 720px) {
+  .portal-etapas ol { grid-template-columns: 1fr 1fr; }
+  .portal-item, .portal-malote { flex-direction: column; align-items: stretch; }
+  .portal-receber { justify-content: stretch; }
+  .portal-receber input { width: 100%; }
+  .portal-form { grid-template-columns: 1fr; }
+  .portal-msg { max-width: 100%; }
+  .portal-pendencia-topo { flex-direction: column; align-items: flex-start; }
+}
+
+/* ============================================================================
    Financeiro › Contas a pagar › Histórico a revisar (séries do sistema antigo)
    ============================================================================ */
 .rev-modulo { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }

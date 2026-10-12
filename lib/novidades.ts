@@ -44,6 +44,35 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-12-portal-escritorio",
+    data: "2026-10-12",
+    area: "Fiscal",
+    funcionalidades: ["fiscal.escritorio", "fiscal.portal"],
+    modulos: ["fiscal"],
+    titulo: "Portal do escritório de contabilidade",
+    itens: [
+      "Fechamento de cada mês com o escritório num lugar só: checklist com os números da plataforma e a situação (em preparação, enviada, conferida, fechada).",
+      "Malote registrado: o que foi no papel e quando, com a confirmação de recebimento do escritório.",
+      "Pendências nos dois sentidos, com mensagens e anexos, no lugar de e-mail e WhatsApp.",
+      "O escritório entra com conta própria e vê só o portal e os totais do mês; tudo o que ele abre e baixa fica registrado.",
+    ],
+  },
+  {
+    id: "2026-10-12-fiscal-notas-recebidas",
+    data: "2026-10-12",
+    area: "Fiscal",
+    funcionalidades: ["fiscal.icms", "fiscal.nfe", "fiscal.config", "fiscal.certificado"],
+    modulos: ["fiscal"],
+    titulo: "Notas recebidas da SEFAZ e Configuração fiscal",
+    itens: [
+      "Nova tela Notas recebidas: as notas que a SEFAZ registra contra o CNPJ da empresa chegam sozinhas, com a conferência do que ainda não está no Painel do ICMS nem foi recebido no Almoxarifado.",
+      "Nota cancelada pelo fornecedor na SEFAZ aparece como cancelada, e quem lança no Painel do ICMS é avisado se ela já estava lançada.",
+      "Lançar no Painel do ICMS direto da nota recebida, com o XML da SEFAZ (que fica guardado em Documentos).",
+      "Nova tela Configuração: dados do emitente, certificado digital, série e numeração. É a base da emissão de NF-e pela plataforma, que vem em seguida.",
+      "O certificado digital pode ser enviado pelo proprietário ou por quem ele autorizar (Certificado digital). Ninguém consegue ler o arquivo nem a senha, e cada troca fica na auditoria e avisa o proprietário.",
+    ],
+  },
+  {
     id: "2026-10-12-cnpj-fornecedores",
     data: "2026-10-12",
     area: "Compras",
