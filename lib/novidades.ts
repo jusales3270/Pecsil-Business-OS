@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-12-cnpj-fornecedores",
+    data: "2026-10-12",
+    area: "Compras",
+    funcionalidades: ["compras.fornecedores", "fundacao.cadastros"],
+    modulos: ["compras", "fundacao"],
+    titulo: "CNPJ dos fornecedores a partir das notas",
+    itens: [
+      "Cada nota com CNPJ (Painel do ICMS, recebimento ou XML guardado) já se liga sozinha ao fornecedor que tem aquele CNPJ.",
+      "Quando o cadastro ainda não tem o CNPJ, ele aparece em \"CNPJ a conferir\", no topo de Fornecedores: grave no fornecedor certo, cadastre o fornecedor novo ou diga qual fornecedor já cadastrado é.",
+      "CNPJ que já é de outro fornecedor aparece como possível duplicado, para marcar e unificar depois.",
+    ],
+  },
+  {
     id: "2026-10-11-busca-por-sentido",
     data: "2026-10-11",
     area: "Plataforma",

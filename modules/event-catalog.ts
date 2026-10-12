@@ -85,6 +85,7 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "acesso.usuario.reativado", module: "acesso", label: "Acesso reativado", description: "Conta liberada de novo." },
   { type: "acesso.usuario.validade_alterada", module: "acesso", label: "Validade alterada", description: "Prazo de acesso de terceiro mudou." },
   { type: "cadastros.fornecedor.criado", module: "cadastros", label: "Fornecedor cadastrado", description: "Novo fornecedor no cadastro mestre." },
+  { type: "cadastros.fornecedor.cnpj_confirmado", module: "cadastros", label: "CNPJ de fornecedor confirmado", description: "Alguém confirmou o CNPJ vindo de uma nota (gravou no fornecedor, cadastrou ou ligou a um existente)." },
   { type: "cadastros.fornecedor.unificado", module: "cadastros", label: "Fornecedores unificados", description: "Dois cadastros do mesmo fornecedor viraram um." },
   { type: "cadastros.cliente.criado", module: "cadastros", label: "Cliente cadastrado", description: "Novo cliente no cadastro mestre." },
   { type: "cadastros.cliente.unificado", module: "cadastros", label: "Clientes unificados", description: "Dois cadastros do mesmo cliente viraram um." },

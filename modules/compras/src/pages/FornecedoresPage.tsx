@@ -5,6 +5,7 @@ import { useStore, formatCurrency, formatDate, formatUnitPrice, calcularTotal } 
 import type { Cotacao } from '@/types';
 import DetalhesCotacaoModal from '@/components/DetalhesCotacaoModal';
 import { DocumentosLigados } from '@/app/components/documentos-ligados';
+import { CnpjAConferir } from '@/app/components/cnpj-a-conferir';
 import SugestaoInput from '@/components/SugestaoInput';
 import type { Suggestion } from '../../../../lib/compras/sugestoes-core';
 import { priceHistory } from '../../../../lib/compras/fornecedores-core';
@@ -221,6 +222,9 @@ export default function FornecedoresPage() {
           )}
         </div>
       )}
+
+      {/* Notas com CNPJ que o cadastro ainda não reconhece (captura automática, 12/10/2026). */}
+      <CnpjAConferir onMudou={() => void carregar()} />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[220px] max-w-[420px]">
