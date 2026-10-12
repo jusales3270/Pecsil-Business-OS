@@ -201,7 +201,7 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
         {!recebidosMes ? vazio("Carregando…", "") : !recebidosMes.length ? vazio("Nenhuma nota recebida neste mês", "Escolha outro mês.") : (
           <section className="almox-bloco">
             <div className="almox-tabela" role="table">
-              <div className="cabeca" role="row"><span>Recebido</span><span>Fornecedor</span><span>NF</span><span>Pedido</span><span>Valor</span><span>ICMS</span><span /></div>
+              <div className="cabeca" role="row"><span>Recebido</span><span>Fornecedor</span><span>NF</span><span>Pedido</span><span className="valor">Valor</span><span className="valor">ICMS</span><span /></div>
               {recebidosMes.map((r) => (
                 <button type="button" role="row" key={r.id} onClick={() => setDetalhe(r)}>
                   <span>{date(r.recebido_em)}</span>
