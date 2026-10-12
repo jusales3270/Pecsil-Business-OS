@@ -1,0 +1,20 @@
+{
+  "name": "pecsil-transmissor-nfe",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Transmissor de NF-e: serviço separado que conversa com a SEFAZ (emissão, eventos, distribuição de documentos, DANFE). Licença GPL-3.0 por usar o NFeWizard.",
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node servidor.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@nfewizard/danfe": "1.0.7",
+    "nfewizard-io": "1.1.4",
+    "node-forge": "1.4.0"
+  }
+}

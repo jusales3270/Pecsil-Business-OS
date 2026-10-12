@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Build artifacts que não devem ser lintados:
     "dist/**",
     "node_modules/**",
+    // Serviço separado (GPL-3.0), com pacote e testes próprios:
+    "services/**",
   ]),
 ]);
 

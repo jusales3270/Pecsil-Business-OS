@@ -69,6 +69,39 @@ export async function guardarOriginal(supabase: SupabaseClient, e: GuardarEntrad
   return r;
 }
 
+/**
+ * Guarda um original trazido pelo SISTEMA (rodada agendada, sem sessão de pessoa): o XML que a
+ * SEFAZ distribuiu, a nota que a própria empresa emitiu. Só com a chave de serviço; a organização
+ * vem no parâmetro. Mesmo arquivo já guardado no setor não duplica.
+ */
+export async function guardarOriginalSistema(
+  admin: SupabaseClient,
+  org: string,
+  e: { modulo: string; feature: string; arquivo: { nome: string; tipo?: string | null; dados: Uint8Array }; origem: "sefaz" | "emissao"; titulo?: string | null; autor: string; entidade?: { tipo: string; id: string } | null },
+): Promise<Guardado> {
+  const hash = sha256(e.arquivo.dados);
+  const { data: igual } = await admin.from("company_documents").select("id")
+    .eq("organization_id", org).eq("module_code", e.modulo).eq("sha256", hash).is("superseded_by", null).is("archived_at", null).limit(1).maybeSingle();
+  if (igual) return { id: igual.id, existente: true };
+
+  const caminho = caminhoDocumento(org, e.modulo, randomUUID(), e.arquivo.nome);
+  const { error: eUp } = await admin.storage.from(BUCKET).upload(caminho, e.arquivo.dados, { contentType: e.arquivo.tipo || "application/octet-stream", upsert: false });
+  if (eUp) throw new Error(`Não foi possível guardar o arquivo: ${eUp.message}`);
+  const { data, error } = await admin.rpc("company_document_register_sistema", {
+    p_org: org, p_module: e.modulo, p_feature: e.feature, p_title: e.titulo ?? e.arquivo.nome, p_original_name: e.arquivo.nome,
+    p_mime: e.arquivo.tipo ?? null, p_size: e.arquivo.dados.byteLength, p_sha256: hash, p_storage_path: caminho, p_source: e.origem,
+    p_autor: e.autor, p_entity_type: e.entidade?.tipo ?? null, p_entity_id: e.entidade?.id ?? null,
+  });
+  if (error) {
+    await admin.storage.from(BUCKET).remove([caminho]);
+    throw new Error(error.message);
+  }
+  const r = data as Guardado;
+  if (r.existente) await admin.storage.from(BUCKET).remove([caminho]);
+  else await lerEGravar(admin, { id: r.id, organization_id: org }, e.arquivo.dados); // leitura, ligações e CNPJ, como num envio
+  return r;
+}
+
 function registro(e: GuardarEntrada, hash: string, caminho: string, tipo: string | null) {
   // Para o caso "já guardado" o caminho não é usado: a função devolve o documento existente.
   return {
