@@ -7333,3 +7333,93 @@ button.holiday-row:hover {
 .cnpj-escolher { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; flex-basis: 100%; }
 .cnpj-escolher input { flex: 1 1 220px; max-width: 360px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
 .cnpj-escolher small { color: var(--text-muted); font-size: var(--fs-xs); }
+
+/* ============================================================================
+   Tabelas em linhas: colunas da TABELA, herdadas por cada linha (subgrid).
+   ----------------------------------------------------------------------------
+   Antes cada linha era uma grade própria, com larguras fixas em px: com letra
+   maior (zoom, fonte do sistema) ou valor grande, o conteúdo estourava a coluna
+   e saía de baixo do cabeçalho. Agora as colunas são definidas uma vez, na
+   tabela, e medem pelo conteúdo mais largo de TODAS as linhas — cabeçalho,
+   linhas e total ficam sempre alinhados. Não cabe? A tabela rola de lado
+   (nunca aperta). A coluna principal (nome, histórico) fica com o espaço que
+   sobra. Tabelas que viram cartão no celular usam isto acima do ponto de quebra.
+   Nova tabela: declarar as colunas na tabela e incluir no grupo abaixo.
+   ============================================================================ */
+:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .almox-tabela, .rev-parcelas) {
+  display: grid; align-content: start; column-gap: var(--sp-3); overflow-x: auto;
+}
+:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .almox-tabela, .rev-parcelas) > * { grid-column: 1 / -1; }
+:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .almox-tabela, .rev-parcelas) > [role="row"] {
+  display: grid; grid-template-columns: subgrid; column-gap: inherit; min-width: 0;
+}
+:is(.icms-tabela, .fiscal-dfe-tabela, .almox-tabela, .rev-parcelas) > [role="row"] > :not(.nome) { white-space: nowrap; }
+
+/* Recebida · Fornecedor · NF-e · Valor · ICMS · IPI · Tipo · F · U · RS · XML · LACTO · AUT · editar */
+.icms-tabela { grid-template-columns: max-content minmax(180px, 1fr) repeat(5, max-content) repeat(6, minmax(36px, max-content)) max-content; }
+/* Descrição · Crédito · Débito · Saldo · ações */
+.icms-livro { grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(110px, max-content)) max-content; }
+/* Emissão · Emitente · Valor · Situação · No painel · Recebida · ações */
+.fiscal-dfe-tabela { grid-template-columns: max-content minmax(240px, 1fr) repeat(4, max-content) minmax(150px, max-content); }
+/* Almoxarifado: data · fornecedor/nome · demais colunas · marcas */
+.almox-tabela { grid-template-columns: max-content minmax(220px, 2fr) repeat(4, max-content) minmax(150px, 1fr); }
+/* Vencimento · Lançamento · Histórico · Valor · Situação */
+.rev-parcelas { grid-template-columns: max-content max-content minmax(200px, 1fr) max-content max-content; }
+
+@media (min-width: 721px) {
+  :is(.banco-lista, .arq-tabela, .arq-notas) { display: grid; align-content: start; column-gap: var(--sp-3); }
+  :is(.banco-lista, .arq-tabela, .arq-notas) > * { grid-column: 1 / -1; }
+  :is(.banco-lista, .arq-tabela, .arq-notas) > [role="row"] { display: grid; grid-template-columns: subgrid; column-gap: inherit; min-width: 0; }
+  /* ☐ · Data · Descrição · Valor · Situação · ações */
+  .banco-lista { grid-template-columns: max-content max-content minmax(240px, 1fr) max-content max-content minmax(190px, max-content); }
+  .banco-lista > [role="row"] > :is(:nth-child(2), :nth-child(4)) { white-space: nowrap; }
+  /* Categoria · Qtde. · Período · Valor */
+  .arq-tabela { grid-template-columns: minmax(0, 1fr) repeat(3, max-content); }
+  /* NF · Fornecedor · Valor · Situação */
+  .arq-notas { grid-template-columns: max-content minmax(0, 1fr) max-content max-content; }
+}
+@media (min-width: 761px) {
+  .sug-tabela { display: grid; align-content: start; column-gap: var(--sp-3); overflow-x: auto; grid-template-columns: minmax(160px, 1fr) repeat(7, max-content); }
+  .sug-tabela > * { grid-column: 1 / -1; }
+  .sug-tabela > [role="row"] { display: grid; grid-template-columns: subgrid; column-gap: inherit; min-width: 0; }
+}
+@media (min-width: 901px) {
+  /* Vencimento · Histórico · Documento · Conta · Valor · Situação */
+  .receber-tabela { display: grid; align-content: start; column-gap: var(--sp-3); overflow-x: auto; grid-template-columns: max-content minmax(220px, 1fr) max-content minmax(140px, 220px) max-content max-content; }
+  .receber-tabela > * { grid-column: 1 / -1; }
+  .receber-tabela > :is(.cabeca, button) { grid-template-columns: subgrid; column-gap: inherit; }
+  .receber-tabela > :is(.cabeca, button) > :is(:nth-child(1), :nth-child(3), :nth-child(5)) { white-space: nowrap; }
+}
+
+/* Mesma regra para as tabelas do RH e de Pessoas e Acessos (cabeçalho em div + linhas em button).
+   Abaixo de 861px elas viram cartão (regra do celular), então o padrão vale só acima. A tabela de
+   Terceiros (.terceiros-table) tem colunas próprias e fica de fora. */
+@media (min-width: 861px) {
+  :is(.hr-people-table, .people-table, .document-table, .journey-table, .doc-table, .sst-record-table,
+      .absence-table:not(.terceiros-table), .benefit-request-table, .report-list) {
+    display: grid; align-content: start; column-gap: var(--sp-4); overflow-x: auto;
+  }
+  :is(.hr-people-table, .people-table, .document-table, .journey-table, .doc-table, .sst-record-table,
+      .absence-table:not(.terceiros-table), .benefit-request-table, .report-list) > * { grid-column: 1 / -1; }
+  :is(.hr-people-table, .people-table, .document-table, .journey-table, .doc-table, .sst-record-table,
+      .absence-table:not(.terceiros-table), .benefit-request-table, .report-list)
+    > :is(button, .hr-table-header, .people-header, .document-header, .journey-table-head, .doc-table-head,
+          .sst-record-head, .absence-table-head, .benefit-request-head, .report-list-head) {
+    display: grid; grid-template-columns: subgrid; column-gap: inherit; min-width: 0;
+  }
+  /* Cabeçalho com o mesmo recuo lateral das linhas (senão a 1ª coluna começa antes). */
+  :is(.hr-table-header, .people-header, .document-header, .journey-table-head, .doc-table-head, .sst-record-head,
+      .absence-table-head, .benefit-request-head, .report-list-head) { padding-inline: var(--sp-4); }
+  /* Colaborador · Cargo · Departamento · Situação · seta */
+  .hr-people-table { grid-template-columns: minmax(220px, 2fr) minmax(160px, 1.4fr) minmax(120px, 1fr) max-content 20px; }
+  /* Pessoa · Cargo e departamento · Perfil · Situação · seta */
+  .people-table { grid-template-columns: minmax(200px, 2fr) minmax(160px, 1.5fr) max-content max-content 20px; }
+  /* Documento · Categoria · Versão · Atualização · Situação · seta */
+  .document-table { grid-template-columns: minmax(200px, 2.2fr) max-content max-content minmax(120px, 1fr) max-content 20px; }
+  :is(.journey-table, .doc-table, .sst-record-table) {
+    grid-template-columns: minmax(150px, 1.9fr) minmax(110px, 1.2fr) minmax(130px, 1.4fr) minmax(90px, 1fr) max-content 20px;
+  }
+  :is(.absence-table:not(.terceiros-table), .benefit-request-table, .report-list) {
+    grid-template-columns: minmax(160px, 2fr) minmax(140px, 1.5fr) minmax(110px, 1.1fr) max-content 20px;
+  }
+}
