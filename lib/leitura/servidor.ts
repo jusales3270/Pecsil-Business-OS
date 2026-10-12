@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { linhasDoPdf, textoDoPdf } from "../arquivos/pdf-texto";
 import { lerXls } from "../arquivos/xls";
 import { tipoDoArquivo } from "../arquivos/detectar";
+import { lerNfe } from "../almoxarifado/nfe-xml";
 import { ligarPendentes, ligarSemFalhar } from "../ligacoes/servidor";
 import { indexarPendentes } from "../significado/servidor";
 import { imagensDoPdf, ocr } from "./ocr";
@@ -43,11 +44,28 @@ export async function lerEGravar(admin: SupabaseClient, doc: Doc, dados: Uint8Ar
     else await gravar(admin, doc, { status: l.ocr ? "pendente_ocr" : "sem_texto", method: null, content: null, pages: null, chars: 0, error: l.motivo.slice(0, 300), attempts: tentativas });
     // Sem texto ainda liga pela origem (a nota ou o recebimento de onde o documento veio).
     await ligarSemFalhar(admin, doc, l.status === "lido" ? l.texto : "");
+    await cnpjDoEmitente(admin, doc, dados);
     return l;
   } catch (e) {
     console.error("Falha ao ler documento", doc.id, e);
     await gravar(admin, doc, { status: "erro", error: (e instanceof Error ? e.message : "falha na leitura").slice(0, 300), attempts: tentativas + 1 }).catch(() => undefined);
     return null;
+  }
+}
+
+/**
+ * XML de NF-e guardado: o CNPJ e o nome do emitente vão para a fila "CNPJ a conferir" quando o
+ * cadastro ainda não tem aquele CNPJ (o banco decide se é completar, novo ou nada). Nunca derruba.
+ */
+async function cnpjDoEmitente(admin: SupabaseClient, doc: Doc, dados: Uint8Array) {
+  if (tipoDoArquivo(dados) !== "nfe-xml") return;
+  try {
+    const nfe = lerNfe(new TextDecoder("utf-8").decode(dados));
+    if (!nfe.emitente.cnpj) return;
+    const { error } = await admin.rpc("supplier_cnpj_registrar", { p_org: doc.organization_id, p_cnpj: nfe.emitente.cnpj, p_nome: nfe.emitente.nome || nfe.emitente.fantasia, p_documento: doc.id });
+    if (error) console.error("Falha ao registrar CNPJ do emitente", doc.id, error.message);
+  } catch {
+    // XML que não é NF-e válida: nada a registrar.
   }
 }
 

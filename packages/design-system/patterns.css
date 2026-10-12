@@ -7200,3 +7200,19 @@ button.holiday-row:hover {
   .coleta-item { grid-template-columns: 28px minmax(0, 1fr); }
   .coleta-envio { grid-column: 2; }
 }
+
+/* CNPJ a conferir (captura automática a cada nota): Compras › Fornecedores e Fundação › Cadastros. */
+.cnpj-conferir { display: flex; flex-direction: column; gap: 6px; margin: 0 0 var(--sp-3); padding: var(--sp-3); border: 1px solid var(--edge-amber, var(--border)); border-radius: var(--radius-md, 10px); background: var(--tint-amber, var(--bg-surface)); }
+.cnpj-conferir h3 { margin: 0; font-size: var(--fs-sm); color: var(--text-primary); }
+.cnpj-conferir h3 small { color: var(--text-muted); font-weight: 400; }
+.cnpj-conferir header p { margin: 2px 0 0; color: var(--text-secondary); font-size: var(--fs-xs); }
+.cnpj-conferir-erro { margin: 0; color: var(--accent-red); font-size: var(--fs-xs); }
+.cnpj-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px var(--sp-3); padding: 8px 0; border-top: 1px solid var(--border-subtle); }
+.cnpj-item-texto { display: flex; flex-direction: column; min-width: 0; flex: 1 1 320px; }
+.cnpj-item-texto b { font-size: var(--fs-sm); color: var(--text-primary); }
+.cnpj-item-texto small { color: var(--text-secondary); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+.cnpj-item-texto .mono { font-family: var(--font-mono, ui-monospace, monospace); }
+.cnpj-item-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.cnpj-escolher { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; flex-basis: 100%; }
+.cnpj-escolher input { flex: 1 1 220px; max-width: 360px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.cnpj-escolher small { color: var(--text-muted); font-size: var(--fs-xs); }

@@ -5,6 +5,7 @@ import { Button, Card, Status } from "../../packages/design-system";
 import { formatTaxId, plural, send } from "./cadastros-utils";
 import { CustomersPanel } from "./customers-panel";
 import { DocumentosLigados } from "./documentos-ligados";
+import { CnpjAConferir } from "./cnpj-a-conferir";
 
 type Supplier = {
   id: string;
@@ -100,6 +101,7 @@ function SuppliersTab({ notify }: { notify: (message: string) => void }) {
 
   return (
     <Card className="md-card">
+      <CnpjAConferir onMudou={() => void load()} />
       <div className="md-toolbar">
         <label className="inline-search">
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar fornecedor, apelido ou CNPJ…" />

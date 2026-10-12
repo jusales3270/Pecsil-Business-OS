@@ -346,6 +346,19 @@ try {
     check(n, "a busca por sentido só acha documento que a pessoa vê", !sentido.error && (visSentido.data ?? []).length === idsSentido.length, sentido.error?.code ?? `${idsSentido.length} achados`);
     const trechoFalso = await client.from("company_document_chunks").insert({ organization_id: org.id, document_id: "00000000-0000-0000-0000-000000000000", ordem: 0, content: "x", embedding: vetorZero });
     check(n, "não grava trecho de significado pelo cliente", Boolean(trechoFalso.error), trechoFalso.error?.code);
+    // CNPJ a conferir: só quem vê Fornecedores/Cadastros lê; ninguém grava; decidir exige operar; registrar é do servidor.
+    const veFornecedores = Boolean(scenario.grants["compras.fornecedores"] || scenario.grants["fundacao.cadastros"]);
+    const filaCnpj = await client.from("supplier_cnpj_suggestions").select("id").limit(5);
+    check(n, veFornecedores ? "lê a fila de CNPJ a conferir" : "não lê a fila de CNPJ a conferir", !filaCnpj.error && (veFornecedores || (filaCnpj.data ?? []).length === 0), filaCnpj.error?.code ?? `${(filaCnpj.data ?? []).length}`);
+    const filaFalsa = await client.from("supplier_cnpj_suggestions").insert({ organization_id: org.id, tipo: "novo", cnpj: "11222333000181", origem_tipo: "nota_icms", origem_id: "x" });
+    check(n, "não grava na fila de CNPJ pelo cliente", Boolean(filaFalsa.error), filaFalsa.error?.code);
+    const operaFornecedores = scenario.grants["compras.fornecedores"] === "operar" || scenario.grants["fundacao.cadastros"] === "operar";
+    if (!operaFornecedores) {
+      const dec = await client.rpc("supplier_cnpj_decide", { p_id: "00000000-0000-0000-0000-000000000000", p_decisao: "recusar", p_supplier: null });
+      check(n, "sem operar fornecedores não decide CNPJ", dec.error?.code === "42501", dec.error?.code ?? "sem erro");
+    }
+    const reg = await client.rpc("supplier_cnpj_registrar", { p_org: org.id, p_cnpj: "11222333000181", p_nome: "x", p_documento: "00000000-0000-0000-0000-000000000000" });
+    check(n, "não registra CNPJ pelo cliente (só o servidor)", Boolean(reg.error), reg.error?.code ?? "sem erro");
     const bucket = await client.storage.from("empresa-documentos").list(org.id);
     check(n, "não lista o armazenamento de documentos pelo cliente", Boolean(bucket.error) || (bucket.data ?? []).length === 0, bucket.error?.message ?? (bucket.data ?? []).length);
 
