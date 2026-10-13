@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Callout, Card, Status } from "../../packages/design-system";
+import { Button, Callout, Card, Carregando, Status } from "../../packages/design-system";
 import { tipoDoArquivo, type TipoArquivo } from "../../lib/arquivos/detectar";
 import { sha256Hex } from "../../lib/coleta/hash";
 import type { SetorColeta } from "../../lib/coleta/modulos";
@@ -63,6 +63,8 @@ export function ColetaArquivosView({ notify, setor }: { notify: (msg: string) =>
   const no = em(setor);
   const [suporte, setSuporte] = useState<boolean | null>(null);
   const [computador, setComputador] = useState<{ id: string; nome: string } | null>(null);
+  // A janela de pastas do navegador pode demorar a abrir: avisa enquanto isso.
+  const [abrindoPasta, setAbrindoPasta] = useState(false);
   const [nomePc, setNomePc] = useState("");
   const [etapa, setEtapa] = useState<"inicio" | "lendo" | "conferir" | "enviando" | "fim">("inicio");
   const [pastaNome, setPastaNome] = useState("");
@@ -110,7 +112,9 @@ export function ColetaArquivosView({ notify, setor }: { notify: (msg: string) =>
     const escolher = (window as JanelaComPasta).showDirectoryPicker;
     if (!escolher || !computador) return;
     let raiz: Pasta;
+    setAbrindoPasta(true);
     try { raiz = await escolher({ mode: "read", id: `pecsil-coleta-${setor}`, startIn: "documents" }); } catch { return; } // a pessoa cancelou
+    finally { setAbrindoPasta(false); }
     try {
       const aceite = await json("/api/coleta/acessos", { modulo: setor, deviceId: computador.id, deviceName: computador.nome, folderName: raiz.name });
       const exec = await json("/api/coleta/execucoes", { aceiteId: aceite.id });
@@ -268,7 +272,11 @@ export function ColetaArquivosView({ notify, setor }: { notify: (msg: string) =>
               <h2>2. Conceder acesso a uma pasta</h2>
               <p>Computador: <b>{computador.nome}</b>. Escolha a pasta para a plataforma ler. Sugestões: <b>Documentos</b>, <b>Área de trabalho</b>, <b>Downloads</b> e a <b>pasta da rede</b> {doSetor}.</p>
               <p className="coleta-nota">O navegador vai pedir permissão. A leitura acontece neste computador: nada sobe agora. O que você aprovar fica guardado nos documentos {doSetor}. Ficam de fora pastas de sistema e de programas, fotos, vídeos e músicas, arquivos compactados e os maiores que 9,5 MB. Documentos de colaborador e arquivos pessoais não sobem.</p>
-              <Button onClick={() => void coletar()}>Conceder acesso a uma pasta</Button>
+              <Button className="coleta-botao" onClick={() => void coletar()} disabled={abrindoPasta} aria-busy={abrindoPasta}>
+                {abrindoPasta ? <><Carregando /> Abrindo a janela de pastas…</> : <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
+                  Conceder acesso a uma pasta</>}
+              </Button>
             </div>
           )}
           {erro && <p className="almox-erro" role="alert">{erro}</p>}

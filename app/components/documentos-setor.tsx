@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Callout, Card, Modal, Status } from "../../packages/design-system";
+import { useCallback, useEffect, useState } from "react";
+import { Button, Callout, Card, Modal, Status, ZonaBotao, useEscolherArquivo } from "../../packages/design-system";
 import { useSoltarArquivo } from "./enviar-arquivo";
 import { pedacosDoTrecho } from "../../lib/documentos/trecho";
 
@@ -52,7 +52,6 @@ export function DocumentosSetorView({ notify, buscaInicial = "" }: { notify: (ms
   const [enviando, setEnviando] = useState(false);
   const [historico, setHistorico] = useState<Documento | null>(null);
   const [arquivar, setArquivar] = useState<Documento | null>(null);
-  const versaoInput = useRef<HTMLInputElement>(null);
   const [versaoDe, setVersaoDe] = useState<Documento | null>(null);
 
   const carregar = useCallback(async () => {
@@ -83,6 +82,7 @@ export function DocumentosSetorView({ notify, buscaInicial = "" }: { notify: (ms
     notify(body?.mensagem ?? "Nova versão guardada.");
     await carregar();
   };
+  const seletorVersao = useEscolherArquivo((a) => void enviarVersao(a[0]));
 
   const rotulo = (modulo: string) => lista?.setores.find((s) => s.modulo === modulo)?.rotulo ?? modulo;
 
@@ -143,14 +143,14 @@ export function DocumentosSetorView({ notify, buscaInicial = "" }: { notify: (ms
                   <div className="doc-acoes">
                     <a className="doc-link" href={`/api/documentos/${d.id}/baixar`} target="_blank" rel="noopener">Baixar</a>
                     {d.version > 1 && <button type="button" className="doc-link" onClick={() => setHistorico(d)}>Histórico</button>}
-                    {podeMexer && <button type="button" className="doc-link" onClick={() => { setVersaoDe(d); setTimeout(() => versaoInput.current?.click(), 0); }}>Nova versão</button>}
+                    {podeMexer && <button type="button" className="doc-link" onClick={() => { setVersaoDe(d); seletorVersao.abrir(); }} disabled={seletorVersao.abrindo}>{seletorVersao.abrindo && versaoDe?.id === d.id ? "Abrindo a janela…" : "Nova versão"}</button>}
                     {podeMexer && <button type="button" className="doc-link perigo" onClick={() => setArquivar(d)}>Arquivar</button>}
                   </div>
                 </article>
               );
             })}
           </div>
-          <input ref={versaoInput} type="file" hidden onChange={(e) => { void enviarVersao(e.target.files?.[0]); e.target.value = ""; }} />
+          <input {...seletorVersao.inputProps} />
         </Card>
       )}
 
@@ -179,9 +179,9 @@ function EnviarDocumento({ setores, setorInicial, onClose, onFeito }: { setores:
   const [titulo, setTitulo] = useState("");
   const [categoria, setCategoria] = useState("");
   const [arquivo, setArquivo] = useState<File | null>(null);
+  const seletor = useEscolherArquivo((a) => setArquivo(a[0] ?? null));
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
   const { arrastando, soltar } = useSoltarArquivo((lista) => setArquivo(lista[0] ?? null), !salvando);
 
   const enviar = async (e: React.FormEvent) => {
@@ -205,10 +205,11 @@ function EnviarDocumento({ setores, setorInicial, onClose, onFeito }: { setores:
     <Modal eyebrow="Documentos" title="Enviar documento" subtitle="O arquivo fica guardado no setor escolhido, visível só para quem tem acesso a ele." onClose={onClose}>
       <form className="almox-form" onSubmit={enviar}>
         <div className={`almox-arquivo ${arrastando ? "on" : ""}`} {...soltar}>
-          <input ref={input} type="file" hidden onChange={(e) => { setArquivo(e.target.files?.[0] ?? null); e.target.value = ""; }} />
-          <button type="button" onClick={() => input.current?.click()} disabled={salvando}>
+          <input {...seletor.inputProps} />
+          <button type="button" onClick={seletor.abrir} disabled={salvando || seletor.abrindo} aria-busy={seletor.abrindo}>
             <b>{arquivo ? arquivo.name : "Arraste o arquivo aqui ou clique para escolher"}</b>
             <small>PDF, planilha, Word, imagem, XML… até 9,5 MB.</small>
+            <ZonaBotao abrindo={seletor.abrindo} rotulo={arquivo ? "Trocar arquivo" : "Escolher arquivo"} />
           </button>
         </div>
         <div className="almox-campos">

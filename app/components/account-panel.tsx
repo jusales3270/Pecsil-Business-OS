@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Button } from "../../packages/design-system";
+import { useState } from "react";
+import { Button, EscolherArquivo } from "../../packages/design-system";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
 import type { ModuleAccessContext } from "../../modules";
 import type { SessionProfile } from "../../lib/data/use-session-access";
@@ -36,7 +36,6 @@ export function AccountPanel({
   const [preview, setPreview] = useState<string | null>(profile.avatarUrl);
   const [busy, setBusy] = useState<"" | "avatar" | "name" | "password">("");
   const [error, setError] = useState("");
-  const fileInput = useRef<HTMLInputElement>(null);
 
   async function uploadAvatar(file: File) {
     if (!ACCEPTED.includes(file.type)) {
@@ -144,13 +143,14 @@ export function AccountPanel({
             <b>Foto de perfil</b>
             <small>JPG, PNG ou WebP, até 2 MB.</small>
             <div className="account-avatar-actions">
-              <Button
-                variant="secondary"
-                disabled={busy === "avatar"}
-                onClick={() => fileInput.current?.click()}
-              >
-                {busy === "avatar" ? "Enviando…" : preview ? "Trocar foto" : "Enviar foto"}
-              </Button>
+              <EscolherArquivo
+                rotulo={preview ? "Trocar foto" : "Enviar foto"}
+                aceita={ACCEPTED.join(",")}
+                compacto
+                ocupado={busy === "avatar"}
+                textoOcupado="Enviando a foto…"
+                onEscolher={(a) => { if (a[0]) void uploadAvatar(a[0]); }}
+              />
               {preview && (
                 <button
                   type="button"
@@ -172,17 +172,6 @@ export function AccountPanel({
               )}
             </div>
           </div>
-          <input
-            ref={fileInput}
-            type="file"
-            accept={ACCEPTED.join(",")}
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void uploadAvatar(file);
-              event.target.value = "";
-            }}
-          />
         </section>
 
         <div className="user-admin-fields">

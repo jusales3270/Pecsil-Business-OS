@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Callout, Modal, Segmented } from "../../../packages/design-system";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Callout, Modal, Segmented, ZonaBotao, useEscolherArquivo } from "../../../packages/design-system";
 import type { Nfe } from "../../../lib/almoxarifado/nfe-xml";
 import { useSoltarArquivo } from "../../../app/components/enviar-arquivo";
 import { type ACaminho, DIVISAO, Icone, chamar, date, hoje, lerNotaArquivo, money, qtd, type NotaLidaResposta } from "./tipos";
@@ -29,7 +29,6 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
   const [nfe, setNfe] = useState<Nfe | null>(null);
   const [lendo, setLendo] = useState(false);
   const [aviso, setAviso] = useState("");
-  const arquivo = useRef<HTMLInputElement>(null);
 
   // Campos da nota (preenchidos pelo XML ou digitados).
   const [fornecedor, setFornecedor] = useState(compra?.fornecedor ?? "");
@@ -86,6 +85,7 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
     setArquivoNota(file);
     aplicar(res.data);
   };
+  const seletor = useEscolherArquivo((a) => void lerArquivo(a[0]));
   const { arrastando, soltar } = useSoltarArquivo((lista) => void lerArquivo(lista[0]), !lendo);
 
   // Nota já lida antes de abrir (botão "Enviar nota" do Almoxarifado).
@@ -158,11 +158,12 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
 
         {modo === "xml" && !nfe && (
           <div className={`almox-arquivo ${arrastando ? "on" : ""}`} {...soltar}>
-            <input ref={arquivo} type="file" accept=".xml,.pdf,text/xml,application/xml,application/pdf" onChange={(event) => { void lerArquivo(event.target.files?.[0]); event.target.value = ""; }} hidden />
-            <button type="button" onClick={() => arquivo.current?.click()} disabled={lendo}>
+            <input {...seletor.inputProps} accept=".xml,.pdf,text/xml,application/xml,application/pdf" />
+            <button type="button" onClick={seletor.abrir} disabled={lendo || seletor.abrindo} aria-busy={lendo || seletor.abrindo}>
               <Icone nome="nota" size={26} />
               <b>{lendo ? "Lendo a nota…" : "Arraste aqui o XML da NF-e ou o DANFE em PDF, ou clique para escolher"}</b>
               <small>Fornecedor, número, valores, ICMS e IPI vêm preenchidos (do XML, também os vencimentos). Nota de serviço ou de papel: use &ldquo;Digitar a nota&rdquo;.</small>
+              {!lendo && <ZonaBotao abrindo={seletor.abrindo} rotulo="Escolher a nota" />}
             </button>
           </div>
         )}

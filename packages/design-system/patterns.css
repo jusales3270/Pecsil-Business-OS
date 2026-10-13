@@ -2250,10 +2250,10 @@ i.info                 { background: var(--accent-blue); }
    Os `:not()` protegem barras de controle dentro do cartão — cabeçalho
    (.card-head/.ds-panel-head) e filtros segmentados (.notification-filter):
    seus botões são ações/abas, não linhas de lista de largura total. */
-.ds-card > button,
+.ds-card > button:where(:not(.ds-button)),
 .ds-card > section,
 .ds-card > article,
-.ds-card > div:not(.card-head):not(.ds-panel-head):not(.notification-filter):not(.journey-table):not(.doc-table):not(.sst-record-table):not(.absence-table):not(.benefit-request-table):not(.report-list):not(.hr-people-table):not(.people-table):not(.document-table):not(.journey-bank-list):not(.calendar-rows):not(.fin-grafico-topo) > button {
+.ds-card > div:not(.card-head):not(.ds-panel-head):not(.notification-filter):not(.journey-table):not(.doc-table):not(.sst-record-table):not(.absence-table):not(.benefit-request-table):not(.report-list):not(.hr-people-table):not(.people-table):not(.document-table):not(.journey-bank-list):not(.calendar-rows):not(.fin-grafico-topo) > button:where(:not(.ds-button)) {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
@@ -2267,13 +2267,13 @@ i.info                 { background: var(--accent-blue); }
   transition: background-color var(--dur-fast) var(--ease);
 }
 
-.ds-card > button:first-of-type,
+.ds-card > button:where(:not(.ds-button)):first-of-type,
 .ds-card > section:first-of-type,
 .ds-card > article:first-of-type {
   border-top: none;
 }
 
-.ds-card > button:hover {
+.ds-card > button:where(:not(.ds-button)):hover {
   background: var(--bg-hover);
 }
 
@@ -6955,7 +6955,7 @@ button.holiday-row:hover {
 .fiscal-campos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
 .fiscal-campos > label { display: flex; flex-direction: column; align-items: stretch; gap: 0; min-width: 0; white-space: normal; }
 .fiscal-campos > label.fiscal-largo { grid-column: span 2; }
-.fiscal-campos > label > span, .fiscal-cert-form label > span { display: block; margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.fiscal-campos > label > span, .fiscal-cert-form label > span, .fiscal-cert-campo > span { display: block; margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
 .fiscal-campos > label > span small { font-weight: 400; color: var(--text-muted); }
 .fiscal-campos input, .fiscal-cert-form input:not([type="file"]) {
   width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -6968,8 +6968,8 @@ button.holiday-row:hover {
 .fiscal-cert > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--bg-subtle); min-width: 0; }
 .fiscal-cert dt { font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
 .fiscal-cert dd { margin: 0; font-size: var(--fs-sm); color: var(--text-primary); overflow-wrap: anywhere; }
+.fiscal-cert-campo { display: flex; flex-direction: column; min-width: 0; }
 .fiscal-cert-form { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; align-items: end; gap: var(--sp-3); }
-.fiscal-cert-form input[type="file"] { width: 100%; font-size: var(--fs-sm); color: var(--text-secondary); }
 .fiscal-cert-form .almox-erro { grid-column: 1 / -1; }
 .fiscal-cert-acoes { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .fiscal-cert-acoes .almox-perigo { margin-left: 0; }
@@ -7036,9 +7036,6 @@ button.holiday-row:hover {
 .portal-anexo:hover { border-color: var(--accent-blue); }
 .portal-anexo b { font-size: var(--fs-sm); color: var(--accent-blue); overflow-wrap: anywhere; }
 .portal-anexo small { font-size: var(--fs-xs); color: var(--text-muted); }
-.portal-anexar { align-self: flex-start; position: relative; cursor: pointer; }
-.portal-anexar input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.portal-anexar span { font-size: var(--fs-sm); font-weight: 600; color: var(--accent-blue); }
 @media (max-width: 720px) {
   .portal-etapas ol { grid-template-columns: 1fr 1fr; }
   .portal-item, .portal-malote { flex-direction: column; align-items: stretch; }
@@ -7423,3 +7420,37 @@ button.holiday-row:hover {
     grid-template-columns: minmax(160px, 2fr) minmax(140px, 1.5fr) minmax(110px, 1.1fr) max-content 20px;
   }
 }
+
+/* ============================================================================
+   Escolher arquivo (packages/design-system/arquivo.tsx)
+   Botão evidente de "selecionar arquivo": azul, com ícone, hover forte e o
+   aviso "Abrindo a janela…" enquanto a janela do sistema não abre/fecha.
+   ============================================================================ */
+.ds-arquivo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); min-width: 0; }
+.ds-button.ds-arquivo-botao {
+  background: var(--tint-blue); border: 1px dashed var(--accent-blue); color: var(--accent-blue); cursor: pointer;
+}
+.ds-button.ds-arquivo-botao:hover:not(:disabled) { background: var(--accent-blue); border-style: solid; color: var(--text-on-accent); }
+.ds-button.ds-arquivo-botao:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.ds-button.ds-arquivo-botao:disabled { cursor: progress; opacity: 0.85; }
+.ds-button.ds-arquivo-botao:disabled:not([aria-busy="true"]) { cursor: not-allowed; opacity: 0.5; }
+.ds-arquivo-nome {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 10px; border-radius: 999px;
+  background: var(--bg-subtle); color: var(--text-primary); font-size: var(--fs-xs); font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Ocupado (abrindo a janela, lendo, enviando) não é "desabilitado": cor cheia e cursor de espera. */
+.ds-button[aria-busy="true"]:disabled { opacity: 1; cursor: progress; filter: none; }
+.ds-arquivo-ajuda { font-size: var(--fs-xs); color: var(--text-muted); }
+.ds-carregando {
+  display: inline-block; flex: none; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  animation: ds-girar 0.7s linear infinite;
+}
+@keyframes ds-girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ds-carregando { animation-duration: 2s; } }
+/* Selo "Escolher arquivo" dentro das áreas de arrastar/clicar (almox-arquivo, arq-zona). */
+.ds-zona-botao {
+  display: inline-flex; align-items: center; gap: var(--sp-2); margin-top: 4px; padding: 7px 14px; border-radius: var(--radius-md);
+  border: 1px solid var(--accent-blue); background: var(--tint-blue); color: var(--accent-blue); font-size: var(--fs-sm); font-weight: 600;
+}
+:is(.almox-arquivo button, .arq-zona):hover .ds-zona-botao { background: var(--accent-blue); color: var(--text-on-accent); }
