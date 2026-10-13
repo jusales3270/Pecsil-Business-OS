@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Kpi, KpiGrid, Modal, Status } from "../../../packages/design-system";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button, Carregando, Kpi, KpiGrid, Modal, Status, useEscolherArquivo } from "../../../packages/design-system";
 import { useModuleNav } from "../../../lib/module-nav-context";
 import { canUseFeature } from "../../access";
 import type { ModuleRuntimeProps } from "../../runtime";
@@ -44,7 +44,6 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
   const [arquivoDaNota, setArquivoDaNota] = useState<File | null>(null);
   const [notaLida, setNotaLida] = useState<NotaLidaResposta | null>(null);
   const [lendoNota, setLendoNota] = useState(false);
-  const arquivoNota = useRef<HTMLInputElement>(null);
   const enviarNota = async (file: File | undefined) => {
     if (!file) return;
     setLendoNota(true);
@@ -55,11 +54,14 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
     setArquivoDaNota(file);
     setNotaLida(res.data);
   };
+  const seletorNota = useEscolherArquivo((a) => void enviarNota(a[0]));
   const abrirRecebimento = (alvo: ACaminho | "avulso", lida: NotaLidaResposta) => { setNotaLida(null); setNotaInicial(lida); setReceber(alvo); };
   const botaoEnviarNota = podeReceber ? (
     <>
-      <input ref={arquivoNota} type="file" accept=".xml,.pdf,text/xml,application/xml,application/pdf" hidden onChange={(e) => { void enviarNota(e.target.files?.[0]); e.target.value = ""; }} />
-      <Button compact onClick={() => arquivoNota.current?.click()} disabled={lendoNota}><Icone nome="nota" size={16} /> {lendoNota ? "Lendo a nota…" : "Enviar nota"}</Button>
+      <input {...seletorNota.inputProps} accept=".xml,.pdf,text/xml,application/xml,application/pdf" />
+      <Button compact onClick={seletorNota.abrir} disabled={lendoNota || seletorNota.abrindo} aria-busy={lendoNota || seletorNota.abrindo}>
+        {lendoNota || seletorNota.abrindo ? <Carregando /> : <Icone nome="nota" size={16} />} {lendoNota ? "Lendo a nota…" : seletorNota.abrindo ? "Abrindo a janela…" : "Enviar nota"}
+      </Button>
     </>
   ) : null;
   const [cancelar, setCancelar] = useState<Pedido | null>(null);

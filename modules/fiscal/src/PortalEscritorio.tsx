@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Callout, Status } from "../../../packages/design-system";
+import { useCallback, useEffect, useState } from "react";
+import { Button, Callout, EscolherArquivo, Status } from "../../../packages/design-system";
 import { api, curto, dataHora, hoje, money, nomeMes } from "./comum";
 
 /**
@@ -300,7 +300,6 @@ function PendenciaCartao({ p, mensagens, anexos, lado, pode, minhaVez, ocupado, 
 }
 
 function Anexos({ titulo, anexos, pode, alvo, notify, onMudou }: { titulo: string; anexos: Anexo[]; pode: boolean; alvo: { competencia?: string; pendencia?: string }; notify: (m: string) => void; onMudou: () => void }) {
-  const entrada = useRef<HTMLInputElement>(null);
   const [enviando, setEnviando] = useState(false);
   const enviar = async (arquivo: File | undefined) => {
     if (!arquivo) return;
@@ -311,7 +310,6 @@ function Anexos({ titulo, anexos, pode, alvo, notify, onMudou }: { titulo: strin
     if (alvo.pendencia) corpo.append("pendencia", alvo.pendencia);
     const r = await api("/api/fiscal/portal/anexo", { method: "POST", body: corpo });
     setEnviando(false);
-    if (entrada.current) entrada.current.value = "";
     notify(r.ok ? `${arquivo.name} anexado.` : r.error);
     if (r.ok) onMudou();
   };
@@ -324,12 +322,7 @@ function Anexos({ titulo, anexos, pode, alvo, notify, onMudou }: { titulo: strin
           <b>{a.nome}</b><small>{tamanho(a.tamanho)} · {a.lado === "empresa" ? "empresa" : "escritório"}{a.enviado_por_nome ? ` · ${a.enviado_por_nome}` : ""} · {dataHora(a.created_at)}</small>
         </a>
       ))}
-      {pode && (
-        <label className="portal-anexar">
-          <input ref={entrada} type="file" onChange={(e) => void enviar(e.target.files?.[0])} disabled={enviando} />
-          <span>{enviando ? "Enviando…" : "+ Anexar arquivo"}</span>
-        </label>
-      )}
+      {pode && <EscolherArquivo rotulo="Anexar arquivo" compacto ocupado={enviando} textoOcupado="Enviando o arquivo…" onEscolher={(a) => void enviar(a[0])} />}
     </div>
   );
 }

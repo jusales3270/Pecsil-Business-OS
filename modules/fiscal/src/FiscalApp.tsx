@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../../packages/design-system";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status, ZonaBotao, useEscolherArquivo } from "../../../packages/design-system";
 import { useModuleNav } from "../../../lib/module-nav-context";
 import type { Nfe } from "../../../lib/almoxarifado/nfe-xml";
 import type { ModuleRuntimeProps } from "../../runtime";
@@ -267,7 +267,6 @@ function Livro({ mes, linhas, podeEditar, onMudou, notify }: { mes: string; linh
 }
 
 function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada | null; onClose: () => void; onFeito: (msg: string) => void }) {
-  const arquivo = useRef<HTMLInputElement>(null);
   const [f, setF] = useState(() => ({
     competencia: nota?.competencia?.slice(0, 7) ?? mes,
     emitida: nota?.emitida ?? "", recebida: nota?.recebida ?? hoje(),
@@ -307,6 +306,7 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
   };
   const [lendo, setLendo] = useState(false);
   const lerArquivo = async (file: File | undefined) => { setLendo(true); await lerXml(file); setLendo(false); };
+  const seletor = useEscolherArquivo((a) => void lerArquivo(a[0]));
   const { arrastando, soltar } = useSoltarArquivo((lista) => void lerArquivo(lista[0]), !lendo);
 
   const salvar = async (event: React.FormEvent) => {
@@ -349,8 +349,8 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
       <form className="almox-form" onSubmit={salvar}>
         {!nota && (
           <div className={`almox-arquivo ${arrastando ? "on" : ""}`} {...soltar}>
-            <input ref={arquivo} type="file" accept=".xml,.pdf,text/xml,application/xml,application/pdf" hidden onChange={(e) => { void lerArquivo(e.target.files?.[0]); e.target.value = ""; }} />
-            <button type="button" onClick={() => arquivo.current?.click()} disabled={lendo}><b>{lendo ? "Lendo a nota…" : f.chave ? "Nota lida — conferir abaixo" : "Anexar a nota: arraste o XML ou o DANFE em PDF aqui, ou clique (opcional)"}</b><small>Preenche fornecedor, CNPJ, número, valores, ICMS e IPI. Do PDF, confira os valores.</small></button>
+            <input {...seletor.inputProps} accept=".xml,.pdf,text/xml,application/xml,application/pdf" />
+            <button type="button" onClick={seletor.abrir} disabled={lendo || seletor.abrindo} aria-busy={lendo || seletor.abrindo}><b>{lendo ? "Lendo a nota…" : f.chave ? "Nota lida — conferir abaixo" : "Anexar a nota: arraste o XML ou o DANFE em PDF aqui, ou clique (opcional)"}</b><small>Preenche fornecedor, CNPJ, número, valores, ICMS e IPI. Do PDF, confira os valores.</small>{!lendo && <ZonaBotao abrindo={seletor.abrindo} rotulo={f.chave ? "Trocar a nota" : "Escolher a nota"} />}</button>
           </div>
         )}
         {veioDoRecebimento && <Callout variant="info" title="Veio do recebimento">Os valores vêm da nota recebida no Almoxarifado. Aqui você ajusta centro, tipo, situação e observação.</Callout>}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Button, Callout, Status } from "../../../packages/design-system";
+import { Button, Callout, EscolherArquivo, Status } from "../../../packages/design-system";
 import { api, cnpjFormatado, dataHora } from "./comum";
 
 /**
@@ -214,7 +214,10 @@ function EnviarCertificado({ temCert, transmissor, notify, onMudou }: { temCert:
 
   return (
     <form className="fiscal-cert-form" onSubmit={enviar} autoComplete="off">
-      <label><span>Arquivo do certificado (.pfx)</span><input type="file" accept=".pfx,.p12,application/x-pkcs12" onChange={(e) => setArquivo(e.target.files?.[0] ?? null)} disabled={!transmissor} /></label>
+      <div className="fiscal-cert-campo">
+        <span>Arquivo do certificado (.pfx)</span>
+        <EscolherArquivo rotulo="Escolher o certificado (.pfx)" aceita=".pfx,.p12,application/x-pkcs12" arquivo={arquivo?.name} onEscolher={(a) => setArquivo(a[0] ?? null)} desabilitado={!transmissor || enviando} />
+      </div>
       <label><span>Senha do certificado</span><input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="new-password" disabled={!transmissor} /></label>
       <div className="fiscal-cert-acoes">
         <Button type="submit" disabled={!transmissor || !arquivo || !senha || enviando}>{enviando ? "Conferindo…" : temCert ? "Trocar certificado" : "Enviar certificado"}</Button>
