@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireFeature } from "../../../../lib/auth/feature-guard";
 import { normalizarNota } from "../../../../lib/fiscal/emissao/normalizar";
 import { problemasDoEmitente } from "../../../../lib/fiscal/emissao/regras";
-import { AMBIENTES_LIBERADOS, COLUNAS_CLIENTE, COLUNAS_LISTA, ambienteLiberado, auditar, autorDaSessao, clienteDaOrganizacao, emitenteDaOrganizacao, gravarNoCadastroDoCliente, resumoDaNota } from "../../../../lib/fiscal/emissao/servidor";
+import { AMBIENTES_LIBERADOS, COLUNAS_CLIENTE, COLUNAS_LISTA, ambienteLiberado, auditar, autorDaSessao, clienteDaOrganizacao, definirOrigens, emitenteDaOrganizacao, gravarNoCadastroDoCliente, resumoDaNota } from "../../../../lib/fiscal/emissao/servidor";
 import { transmissorConfigurado } from "../../../../lib/fiscal/transmissor";
 import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 
@@ -67,6 +67,10 @@ export async function POST(request: Request) {
     montada_por: autor.profileId, montada_por_nome: autor.nome,
   }).select("id").single();
   if (error) return NextResponse.json({ error: "Não foi possível criar a nota." }, { status: 400 });
+  if (nota.itens.some((i) => i.itemOrcamento)) {
+    const recusa = await definirOrigens(admin, autor.org, data.id, nota);
+    if (recusa) { await admin.from("fiscal_nfe").delete().eq("id", data.id); return NextResponse.json({ error: recusa }, { status: 409 }); }
+  }
   await auditar(admin, { ...autor, evento: "criada", nfeId: data.id, dados: { ambiente } });
   return NextResponse.json({ id: data.id, customer_id: customer });
 }

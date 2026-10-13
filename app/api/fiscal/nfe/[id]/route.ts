@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireFeature } from "../../../../../lib/auth/feature-guard";
 import { normalizarNota } from "../../../../../lib/fiscal/emissao/normalizar";
-import { ambienteLiberado, auditar, autorDaSessao, clienteDaOrganizacao, gravarNoCadastroDoCliente, resumoDaNota } from "../../../../../lib/fiscal/emissao/servidor";
+import { ambienteLiberado, auditar, autorDaSessao, clienteDaOrganizacao, definirOrigens, gravarNoCadastroDoCliente, resumoDaNota } from "../../../../../lib/fiscal/emissao/servidor";
 import { createSupabaseAdminClient } from "../../../../../lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +38,9 @@ export async function PUT(request: Request, context: Contexto) {
   if (!autor) return NextResponse.json({ error: "Sessão sem organização." }, { status: 400 });
   const admin = createSupabaseAdminClient();
   const nota = normalizarNota(corpo?.nota);
+  // Item que veio de orçamento: o banco confere o teto do pedido e do produzido antes de salvar.
+  const recusa = await definirOrigens(admin, autor.org, id, nota);
+  if (recusa) return NextResponse.json({ error: recusa }, { status: 409 });
   const customer = await gravarNoCadastroDoCliente(admin, autor, await clienteDaOrganizacao(admin, autor.org, corpo?.customer_id), nota.destinatario);
   const { error } = await admin.from("fiscal_nfe").update({
     nota, ...resumoDaNota(nota), customer_id: customer,

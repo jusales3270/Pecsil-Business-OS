@@ -99,6 +99,8 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     features: [
       { code: "comercial.caixa", label: "Caixa de entrada", description: "E-mails recebidos e a classificação de cada um; operar corrige a classificação e abre o card.", levels: VER_OPERAR },
       { code: "comercial.funil", label: "Funil", description: "Cards de pedido e atendimento por etapa; operar move, responde e fecha.", levels: VER_OPERAR },
+      { code: "comercial.orcamentos", label: "Orçamentos", description: "Orçamentos de venda com itens, anexos (pedido do cliente e cotação) e anotações; operar monta, marca como ganho ou perdido e reabre.", levels: VER_OPERAR },
+      { code: "comercial.produtos", label: "Produtos", description: "Cadastro de produtos (código interno, NCM, desenho, material) que os orçamentos e as notas usam; operar cadastra e clona.", levels: VER_OPERAR },
       { code: "comercial.clientes", label: "Clientes", description: "Cadastro de clientes e os e-mails de cada um; operar edita.", levels: VER_OPERAR },
       { code: "comercial.cobranca", label: "Cobrança", description: "Títulos a receber vencidos e a régua de avisos; aprovar é quem dispara o e-mail ao cliente.", levels: TODOS },
       { code: "comercial.conexao", label: "Conexão de e-mail", description: "Situação da leitura das caixas de e-mail (última sincronização e erros).", levels: VER },
@@ -133,6 +135,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     features: [
       { code: "producao.painel", label: "Painel", description: "Visão geral da fábrica: status das OS, gargalos e alertas.", levels: VER },
       { code: "producao.os", label: "Ordens de serviço", description: "Lista de OS com cliente, artigo e prazo.", levels: VER },
+      { code: "producao.entrada", label: "Entrada de produção", description: "Peças prontas dos orçamentos ganhos, que liberam o faturamento; operar lança e estorna.", levels: VER_OPERAR },
       { code: "producao.fundicao", label: "Pipeline fundição", description: "Lotes fase a fase na fundição.", levels: VER },
       { code: "producao.paradas", label: "Paradas", description: "Máquinas paradas e tempo parado por motivo.", levels: VER },
       { code: "producao.qualidade", label: "Qualidade", description: "Resultados de inspeção.", levels: VER },
@@ -198,7 +201,7 @@ export const FEATURES_DOCUMENTOS_SETOR = new Set([
   "fiscal.icms",
   "compras.cotacoes", "compras.realizadas", "compras.fornecedores",
   "almoxarifado.recebimento", "almoxarifado.solicitacoes",
-  "comercial.clientes",
+  "comercial.clientes", "comercial.orcamentos",
   "fundicao.pedidos",
   "producao.os",
 ]);

@@ -26,6 +26,7 @@ const sql = [
   "202610120002_fiscal_nfe_base.sql",
   "202610120003_fiscal_certificado_permissao.sql",
   "202610120004_fiscal_portal_escritorio.sql",
+  "202610130005_comercial_orcamentos.sql",
 ]
   .map((name) => readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), "utf8"))
   .join("\n");

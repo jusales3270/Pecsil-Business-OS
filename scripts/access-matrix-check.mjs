@@ -49,6 +49,8 @@ const CASES = [
   { name: "só Configuração fiscal (operar)", grants: { "fiscal.config": "operar" } },
   { name: "só Certificado digital (operar)", grants: { "fiscal.certificado": "operar" } },
   { name: "só Portal do contador (escritório)", grants: { "fiscal.portal": "operar" } },
+  { name: "só Orçamentos (ver)", grants: { "comercial.orcamentos": "ver" } },
+  { name: "só Entrada de produção (operar)", grants: { "producao.entrada": "operar" } },
 ];
 
 const { data: org } = await admin.from("organizations").select("id").limit(1).single();
@@ -391,6 +393,33 @@ try {
       const docsFora = await total(client, "company_documents", (q) => q.neq("feature_code", "fiscal.portal"));
       check(n, "portal: escritório não vê as notas do Painel do ICMS nem documentos fora do portal", icms === 0 && docsFora === 0, `${icms}/${docsFora}`);
     }
+
+    // Vendas (orçamentos, produtos, entrada de produção, faturamento): lê quem cuida, produz ou fatura;
+    // situação, entrada de produção e itens faturados só mudam pelas funções (nada é gravado aqui).
+    const veVendas = ["comercial.orcamentos", "comercial.produtos", "producao.entrada", "fiscal.nfe"].some((f) => f in scenario.grants);
+    const veOrcamentos = ["comercial.orcamentos", "producao.entrada", "fiscal.nfe"].some((f) => f in scenario.grants);
+    for (const [tabela, ve] of [["products", veVendas], ["product_groups", veVendas], ["sales_quotes", veOrcamentos], ["sales_quote_items", veOrcamentos], ["production_entries", veOrcamentos], ["fiscal_nfe_origens", veOrcamentos]]) {
+      const qt = await total(client, tabela);
+      check(n, ve ? `vendas: lê ${tabela}` : `vendas: não lê ${tabela}`, ve ? typeof qt === "number" : qt === 0, qt);
+    }
+    const prodDireto = await client.from("products").insert({ organization_id: org.id, codigo: "QA-MATRIZ", descricao: "x" });
+    const operaProdutos = scenario.grants["comercial.produtos"] === "operar";
+    if (!operaProdutos) check(n, "vendas: sem Produtos (operar) não cadastra produto", Boolean(prodDireto.error), prodDireto.error?.code);
+    else if (!prodDireto.error) await admin.from("products").delete().eq("organization_id", org.id).eq("codigo", "QA-MATRIZ");
+    const orcDireto = await client.from("sales_quotes").insert({ organization_id: org.id, customer_id: "00000000-0000-0000-0000-000000000000" });
+    check(n, "vendas: orçamento com cliente inexistente ou sem permissão não grava", Boolean(orcDireto.error), orcDireto.error?.code);
+    const ganhoDireto = await client.from("sales_quotes").update({ situacao: "ganho" }).neq("id", "00000000-0000-0000-0000-000000000000").select("id");
+    check(n, "vendas: não marca ganho direto na tabela", Boolean(ganhoDireto.error) || (ganhoDireto.data ?? []).length === 0, ganhoDireto.error?.code ?? (ganhoDireto.data ?? []).length);
+    const entradaDireta = await client.from("production_entries").insert({ organization_id: org.id, quote_item_id: "00000000-0000-0000-0000-000000000000", quantidade: 1 });
+    check(n, "vendas: não lança entrada de produção direto na tabela", Boolean(entradaDireta.error), entradaDireta.error?.code);
+    const entradaRpc = await client.rpc("producao_entrada_registrar", { p_item: "00000000-0000-0000-0000-000000000000", p_quantidade: 1, p_observacao: null });
+    const operaEntrada = scenario.grants["producao.entrada"] === "operar";
+    check(n, operaEntrada ? "vendas: entrada de produção em item inexistente é recusada" : "vendas: sem Entrada de produção (operar) não lança", operaEntrada ? Boolean(entradaRpc.error) && entradaRpc.error.code !== "42501" : entradaRpc.error?.code === "42501", entradaRpc.error?.code);
+    const origens = await client.rpc("fiscal_nfe_origens_definir", { p_org: org.id, p_nfe: "00000000-0000-0000-0000-000000000000", p_itens: [] });
+    check(n, "vendas: não define itens faturados de nota (só o servidor)", Boolean(origens.error), origens.error?.code ?? "sem erro");
+    const situ = await client.rpc("comercial_orcamento_situacao", { p_quote: "00000000-0000-0000-0000-000000000000", p_situacao: "ganho", p_motivo: null });
+    const operaOrc = scenario.grants["comercial.orcamentos"] === "operar";
+    check(n, operaOrc ? "vendas: ganho de orçamento inexistente recusado" : "vendas: sem Orçamentos (operar) não muda situação", operaOrc ? Boolean(situ.error) : situ.error?.code === "42501", situ.error?.code);
 
     // Entrar com a digital: cada um vê só os próprios aparelhos; ninguém grava nem lê os desafios.
     const aparelhosOutros = await client.from("access_passkeys").select("id").neq("profile_id", "00000000-0000-0000-0000-000000000000");

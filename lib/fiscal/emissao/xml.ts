@@ -103,6 +103,9 @@ export function gerarXmlNfe(g: GerarXml): { xml: string; chave: string; totais: 
       tag("cEANTrib", "SEM GTIN"), tag("uTrib", tx(i.unidade || "UN", 6)), tag("qTrib", d4(i.quantidade)), tag("vUnTrib", d4(i.valorUnitario)),
       c.vFrete ? tag("vFrete", d2(c.vFrete)) : "", c.vSeg ? tag("vSeg", d2(c.vSeg)) : "", c.vDesc ? tag("vDesc", d2(c.vDesc)) : "", c.vOutro ? tag("vOutro", d2(c.vOutro)) : "",
       tag("indTot", "1"),
+      // Pedido de compra do cliente: xPed até 15 caracteres; nItemPed só número (até 6). O texto completo vai em infAdProd.
+      i.pedidoCompra && i.pedidoCompra.length <= 15 ? tag("xPed", tx(i.pedidoCompra, 15)) : "",
+      i.pedidoCompra && i.pedidoCompra.length <= 15 && /^\d{1,6}$/.test(i.itemPedido ?? "") ? tag("nItemPed", i.itemPedido) : "",
     ].join("");
     const orig = tag("orig", String(i.origem ?? 0));
     let icms: string;
@@ -135,7 +138,8 @@ export function gerarXmlNfe(g: GerarXml): { xml: string; chave: string; totais: 
         ? `<COFINSAliq>${tag("CST", i.cofinsCst)}${tag("vBC", baseP)}${tag("pCOFINS", d4(i.cofinsAliquota))}${tag("vCOFINS", d2(c.vCOFINS))}</COFINSAliq>`
         : `<COFINSOutr>${tag("CST", i.cofinsCst)}${tag("vBC", baseP)}${tag("pCOFINS", d4(i.cofinsAliquota))}${tag("vCOFINS", d2(c.vCOFINS))}</COFINSOutr>`)
       : `<COFINSNT>${tag("CST", i.cofinsCst)}</COFINSNT>`;
-    return `<det nItem="${k + 1}"><prod>${prod}</prod><imposto><ICMS>${icms}</ICMS>${ipi}<PIS>${pis}</PIS><COFINS>${cofins}</COFINS></imposto></det>`;
+    const infAdProd = i.pedidoCompra ? tag("infAdProd", tx(`Nº Pedido: ${i.pedidoCompra}${i.itemPedido ? ` Nº Pedido Item: ${i.itemPedido}` : ""}`, 500)) : "";
+    return `<det nItem="${k + 1}"><prod>${prod}</prod><imposto><ICMS>${icms}</ICMS>${ipi}<PIS>${pis}</PIS><COFINS>${cofins}</COFINS></imposto>${infAdProd}</det>`;
   }).join("");
 
   const t = totais;

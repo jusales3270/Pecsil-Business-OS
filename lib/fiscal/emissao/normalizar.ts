@@ -2,16 +2,10 @@
  * Nota que veio da tela → dados limpos (números como número, textos aparados, listas com limite).
  * Usado no servidor antes de gravar; o modelo de nota vazia e o item padrão servem à tela.
  */
+import { lerNumeroBr } from "../../numero-br";
 import type { ItemNfe, NotaNfe } from "./tipos";
 
-// "1.234,56" (vírgula = formato brasileiro) ou "1234.56"; vazio vira o padrão.
-const num = (v: unknown, padrao = 0) => {
-  if (typeof v === "number") return Number.isFinite(v) ? v : padrao;
-  const s = String(v ?? "").trim();
-  if (!s) return padrao;
-  const n = Number(s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s);
-  return Number.isFinite(n) ? n : padrao;
-};
+const num = (v: unknown, padrao = 0) => lerNumeroBr(v, padrao);
 const txt = (v: unknown, max = 200) => String(v ?? "").slice(0, max);
 const umDe = <T extends string | number>(v: unknown, validos: readonly T[], padrao: T): T => (validos.includes(v as T) ? (v as T) : padrao);
 
@@ -64,6 +58,9 @@ export function normalizarNota(v: unknown): NotaNfe {
         unidade: txt(i.unidade, 6).toUpperCase() || "UN", quantidade: num(i.quantidade), valorUnitario: num(i.valorUnitario), desconto: num(i.desconto),
         origem: umDe(num(i.origem), [0, 1, 2, 3, 4, 5, 6, 7, 8] as const, 0), icmsCst: txt(i.icmsCst, 3), icmsAliquota: num(i.icmsAliquota), icmsReducaoBase: num(i.icmsReducaoBase),
         ipiCst: txt(i.ipiCst, 2), ipiAliquota: num(i.ipiAliquota), pisCst: txt(i.pisCst, 2), pisAliquota: num(i.pisAliquota), cofinsCst: txt(i.cofinsCst, 2), cofinsAliquota: num(i.cofinsAliquota),
+        ...(typeof i.itemOrcamento === "string" && /^[0-9a-f-]{36}$/i.test(i.itemOrcamento) ? { itemOrcamento: i.itemOrcamento } : {}),
+        ...(txt(i.pedidoCompra, 60).trim() ? { pedidoCompra: txt(i.pedidoCompra, 60).trim() } : {}),
+        ...(txt(i.itemPedido, 20).trim() ? { itemPedido: txt(i.itemPedido, 20).trim() } : {}),
       };
     }),
     frete: {

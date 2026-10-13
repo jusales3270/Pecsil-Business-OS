@@ -45,6 +45,11 @@ export type ItemNfe = {
   pisAliquota: number;
   cofinsCst: string;
   cofinsAliquota: number;
+  /** Item do orçamento que esta linha fatura (o teto do pedido é conferido no banco). */
+  itemOrcamento?: string;
+  /** Pedido de compra do cliente e o nº do item nele (xPed/nItemPed; o GRV leva os dois). */
+  pedidoCompra?: string;
+  itemPedido?: string;
 };
 
 export type Duplicata = { numero: string; vencimento: string; valor: number };
