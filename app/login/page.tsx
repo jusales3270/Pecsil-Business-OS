@@ -2,6 +2,13 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
+import { ativarDigital, digitalAtivaNesteAparelho, digitalDisponivel, dispensarOferta, entrarComDigital, ofertaDispensada } from "../../lib/auth/digital-cliente";
+
+const IconeDigital = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M12 11c0 3.5-1 6.5-2.5 8.5" /><path d="M8.5 7.6A5 5 0 0 1 17 11c0 1.4-.1 2.8-.4 4.1" /><path d="M5.6 15.5A10 10 0 0 0 7 11a5 5 0 0 1 .3-1.7" /><path d="M3 9.6A9 9 0 0 1 20.9 9" /><path d="M14.5 21c.7-1.6 1.1-3.3 1.3-5" /><path d="M12 11v1.5" />
+  </svg>
+);
 
 const configured = Boolean(
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -14,6 +21,35 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  // Entrar com a digital (passkey): só no celular com biometria. "ativa" = alguém já ativou neste aparelho.
+  const [digital, setDigital] = useState<{ disponivel: boolean; ativa: string | null }>({ disponivel: false, ativa: null });
+  const [oferta, setOferta] = useState(false);
+  const [usandoDigital, setUsandoDigital] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    void digitalDisponivel().then((disponivel) => { if (vivo) setDigital({ disponivel, ativa: digitalAtivaNesteAparelho() }); });
+    return () => { vivo = false; };
+  }, []);
+
+  async function entrarDigital() {
+    setUsandoDigital(true);
+    setMessage("");
+    const r = await entrarComDigital();
+    if (r.ok) { window.location.assign("/"); return; }
+    setUsandoDigital(false);
+    setDigital((d) => ({ ...d, ativa: digitalAtivaNesteAparelho() }));
+    setMessage(r.erro === "ACCESS_EXPIRED" ? expiredMessage("") : r.erro);
+  }
+
+  async function ativarEEntrar() {
+    setUsandoDigital(true);
+    setMessage("");
+    const r = await ativarDigital(email);
+    if (r.ok) { window.location.assign("/"); return; }
+    setUsandoDigital(false);
+    setMessage(r.erro);
+  }
 
   // Acesso de terceiro vencido (vindo da aplicação ou do próprio login).
   useEffect(() => {
@@ -81,6 +117,8 @@ export default function LoginPage() {
       }
     }
 
+    // No celular com biometria, oferece ativar a digital antes de seguir (uma vez a cada 30 dias, se dispensada).
+    if (digital.disponivel && digital.ativa !== email && !ofertaDispensada()) { setOferta(true); return; }
     window.location.assign("/");
   }
 
@@ -99,6 +137,28 @@ export default function LoginPage() {
           <h1>Bem-vindo</h1>
           <p>Entre com sua identidade Pecsil para acessar os módulos autorizados.</p>
         </div>
+        {oferta ? (
+          <div className="login-oferta">
+            <span className="login-oferta-icone"><IconeDigital /></span>
+            <b>Entrar mais rápido da próxima vez?</b>
+            <p>Ative a digital (ou o rosto) neste celular. Ela fica só no aparelho: a plataforma nunca recebe a sua biometria. A senha continua valendo.</p>
+            <button type="button" className="login-digital" onClick={() => void ativarEEntrar()} disabled={usandoDigital}>
+              {usandoDigital ? "Aguardando a digital…" : <><IconeDigital /> Ativar a digital</>}
+            </button>
+            <button type="button" className="login-link" onClick={() => { dispensarOferta(); window.location.assign("/"); }} disabled={usandoDigital}>Agora não</button>
+            {message && <p className="login-message" role="alert">{message}</p>}
+          </div>
+        ) : (
+        <>
+        {digital.disponivel && digital.ativa && (
+          <div className="login-digital-bloco">
+            <button type="button" className="login-digital" onClick={() => void entrarDigital()} disabled={usandoDigital}>
+              {usandoDigital ? "Aguardando a digital…" : <><IconeDigital /> Entrar com a digital</>}
+            </button>
+            <small>{digital.ativa}</small>
+            <span className="login-ou">ou entre com e-mail e senha</span>
+          </div>
+        )}
         <form onSubmit={signIn}>
           <label>
             <span>E-mail corporativo</span>
@@ -126,7 +186,14 @@ export default function LoginPage() {
             {loading ? "Validando acesso..." : "Entrar no sistema"}
           </button>
           {message && <p className="login-message" role="alert">{message}</p>}
+          {digital.disponivel && !digital.ativa && (
+            <button type="button" className="login-link" onClick={() => void entrarDigital()} disabled={usandoDigital}>
+              {usandoDigital ? "Aguardando a digital…" : "Entrar com a digital"}
+            </button>
+          )}
         </form>
+        </>
+        )}
         <div className={`login-connection ${configured ? "ready" : "pending"}`}>
           <i />
           <span>

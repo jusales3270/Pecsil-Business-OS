@@ -33,12 +33,16 @@ type OperationalEvent = {
   icon: string;
 };
 
+/** Busca Corporativa escondida a pedido do proprietário (12/10/2026) até procurar nos dados dos
+ *  módulos e haver documentos guardados. A tela continua no código; para voltar, é só ligar aqui. */
+const BUSCA_CORPORATIVA_ATIVA = false;
+
 const nav: { label: View; icon: string }[] = [
   { label: "Visão Geral", icon: "grid" }, { label: "Módulos", icon: "modules" },
   { label: "Pessoas e Acessos", icon: "users" }, { label: "Estrutura", icon: "org" },
   { label: "Cadastros", icon: "briefcase" }, { label: "Eventos", icon: "clock" }, { label: "Sugestões da IA", icon: "check" },
   { label: "Permissões e Segurança", icon: "lock" },
-  { label: "Busca Corporativa", icon: "search" },
+  ...(BUSCA_CORPORATIVA_ATIVA ? [{ label: "Busca Corporativa" as View, icon: "search" }] : []),
   { label: "Documentos", icon: "file" }, { label: "Notificações", icon: "bell" },
   { label: "Auditoria", icon: "shield" }, { label: "Banco e Autenticação", icon: "database" }, { label: "Configurações", icon: "settings" },
 ];
@@ -552,7 +556,7 @@ function HomeContent() {
         <button className="menu-button" onClick={()=>setMobile(true)} aria-label="Abrir menu"><Icon name="menu"/></button>
         <div className="header-title"><h1>{headerTitle}</h1><p>{headerSubtitle}</p></div>
         <Status tone={loading?"neutral":snapshot.source==="supabase"?"success":"attention"}>{loading?"Sincronizando":snapshot.source==="supabase"?"Supabase":"Demonstrativo"}</Status>
-        <form className="search" onSubmit={e=>{e.preventDefault();openSearch()}}><Icon name="search" size={16}/><input value={globalQuery} onChange={e=>setGlobalQuery(e.target.value)} placeholder="Pessoa, documento, módulo..."/></form>
+        {BUSCA_CORPORATIVA_ATIVA && <form className="search" onSubmit={e=>{e.preventDefault();openSearch()}}><Icon name="search" size={16}/><input value={globalQuery} onChange={e=>setGlobalQuery(e.target.value)} placeholder="Pessoa, documento, módulo..."/></form>}
         {canInstall&&<button className="header-install" onClick={()=>promptInstall()} title="Instalar o Pecsil OS neste dispositivo" aria-label="Instalar aplicativo"><Icon name="download" size={16}/><span>Instalar app</span></button>}
         <ThemeToggle/>
         {hasPermission(access,"core.notifications.view")&&<button className="header-icon" aria-label={inbox.unread?`Notificações: ${inbox.unread} não lidas`:"Notificações"} onClick={()=>change("Notificações")}><Icon name="bell" size={18}/>{inbox.unread>0&&<i className="count">{inbox.unread>99?"99+":inbox.unread}</i>}</button>}
@@ -594,7 +598,7 @@ function HomeContent() {
           <Icon name="modules" size={20} />
           <span>Módulos</span>
         </button>
-        <button
+        {BUSCA_CORPORATIVA_ATIVA && <button
           type="button"
           className={`mobile-bottom-nav-item ${!activeModuleId && !deniedTarget && view === "Busca Corporativa" ? "active" : ""}`}
           onClick={() => change("Busca Corporativa")}
@@ -602,7 +606,7 @@ function HomeContent() {
         >
           <Icon name="search" size={20} />
           <span>Buscar</span>
-        </button>
+        </button>}
         <button
           type="button"
           className={`mobile-bottom-nav-item ${!activeModuleId && !deniedTarget && view === "Notificações" ? "active" : ""}`}

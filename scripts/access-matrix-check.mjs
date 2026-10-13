@@ -392,6 +392,14 @@ try {
       check(n, "portal: escritório não vê as notas do Painel do ICMS nem documentos fora do portal", icms === 0 && docsFora === 0, `${icms}/${docsFora}`);
     }
 
+    // Entrar com a digital: cada um vê só os próprios aparelhos; ninguém grava nem lê os desafios.
+    const aparelhosOutros = await client.from("access_passkeys").select("id").neq("profile_id", "00000000-0000-0000-0000-000000000000");
+    check(n, "digital: não vê aparelhos de outras pessoas", (aparelhosOutros.data ?? []).length === 0, (aparelhosOutros.data ?? []).length);
+    const aparelhoFalso = await client.from("access_passkeys").insert({ organization_id: org.id, profile_id: owner.id, user_id: "00000000-0000-0000-0000-000000000000", credential_id: "x".repeat(20), public_key: "y".repeat(20) });
+    check(n, "digital: não cadastra aparelho direto na tabela", Boolean(aparelhoFalso.error), aparelhoFalso.error?.code);
+    const desafios = await client.from("access_passkey_challenges").select("id").limit(1);
+    check(n, "digital: não lê os desafios", Boolean(desafios.error) || (desafios.data ?? []).length === 0, desafios.error?.code ?? (desafios.data ?? []).length);
+
     // Texto dos documentos (Etapa 3): só de documento que a pessoa vê; ninguém grava pelo cliente nem lê a fila.
     const textos = await client.from("company_document_texts").select("document_id").limit(1000);
     const idsTexto = (textos.data ?? []).map((t) => t.document_id);

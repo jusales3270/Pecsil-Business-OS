@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button, EscolherArquivo } from "../../packages/design-system";
+import { AparelhosDigital } from "./aparelhos-digital";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
 import type { ModuleAccessContext } from "../../modules";
 import type { SessionProfile } from "../../lib/data/use-session-access";
@@ -224,6 +225,9 @@ export function AccountPanel({
               {busy === "password" ? "Trocando…" : "Trocar senha"}
             </Button>
           </div>
+
+          {/* --- Entrar com a digital (celular) ----------------------------- */}
+          <AparelhosDigital email={profile.email ?? undefined} notify={notify} />
 
           {/* --- Somente leitura -------------------------------------------- */}
           <div className="user-admin-note field-wide">

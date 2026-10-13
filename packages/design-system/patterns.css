@@ -7454,3 +7454,17 @@ button.holiday-row:hover {
   border: 1px solid var(--accent-blue); background: var(--tint-blue); color: var(--accent-blue); font-size: var(--fs-sm); font-weight: 600;
 }
 :is(.almox-arquivo button, .arq-zona):hover .ds-zona-botao { background: var(--accent-blue); color: var(--text-on-accent); }
+
+/* Entrar com a digital — aparelhos (painel da conta e Pessoas e Acessos) */
+.digital-aparelhos { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-subtle); }
+.digital-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.digital-topo > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 240px; }
+.digital-topo b { font-size: var(--fs-sm); color: var(--text-primary); }
+.digital-topo small, .digital-vazio { font-size: var(--fs-xs); color: var(--text-muted); }
+.digital-aparelhos ul { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.digital-aparelhos li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: 8px 0; border-top: 1px solid var(--border-subtle); }
+.digital-aparelhos li > span:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.digital-aparelhos li b { font-size: var(--fs-sm); color: var(--text-primary); }
+.digital-aparelhos li small { font-size: var(--fs-xs); color: var(--text-muted); }
+.digital-confirmar { display: inline-flex; gap: var(--sp-2); }
+.digital-aparelhos .almox-perigo { margin-left: 0; }
