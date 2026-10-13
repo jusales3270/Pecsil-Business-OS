@@ -4,8 +4,8 @@ import { randomInt } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { obterTransmissor, transmissorConfigurado } from "../transmissor";
 import { calcularItens, calcularTotais } from "./calculo";
-import { validarNota, type Problema } from "./regras";
-import type { AmbienteNfe, Emitente, NotaNfe } from "./tipos";
+import { cnpjValido, cpfValido, validarNota, type Problema } from "./regras";
+import type { AmbienteNfe, Destinatario, Emitente, NotaNfe } from "./tipos";
 import { assinaturaDeTreino, gerarXmlNfe, nfeProcDeTreino } from "./xml";
 
 /**
@@ -33,6 +33,26 @@ export async function clienteDaOrganizacao(admin: SupabaseClient, org: string, i
   if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) return null;
   const { data } = await admin.from("customers").select("id").eq("organization_id", org).eq("id", id).maybeSingle();
   return data?.id ?? null;
+}
+
+/** Dados fiscais do cliente, como a tela da nota usa. */
+export const COLUNAS_CLIENTE = "id, name, tax_id, ie, ind_ie, email_nfe, cep, logradouro, numero, complemento, bairro, municipio, codigo_municipio, uf, telefone";
+
+/**
+ * Ao salvar a nota, os dados do destinatário vão para o cadastro do cliente (decisão do
+ * proprietário, 13/10). Escolhido do cadastro: atualiza. Sem cliente: acha pelo CNPJ/CPF ou pelo
+ * nome; não achando, cria — só com documento de dígito válido, para rascunho incompleto não virar
+ * cadastro. Campo vazio não apaga o que já existe. Devolve o id do cliente (ou null).
+ */
+export async function gravarNoCadastroDoCliente(admin: SupabaseClient, autor: Autor, customerId: string | null, d: Destinatario): Promise<string | null> {
+  const doc = d.documento.replace(/\D/g, "");
+  const docValido = doc.length === 14 ? cnpjValido(doc) : doc.length === 11 ? cpfValido(doc) : false;
+  if (!customerId && (!docValido || !d.nome.trim())) return null;
+  const { data, error } = await admin.rpc("customer_dados_fiscais_gravar", {
+    p_org: autor.org, p_customer: customerId, p: { ...d, documento: docValido ? doc : "" }, p_autor: autor.nome,
+  });
+  if (error) { console.error("Falha ao gravar o cadastro do cliente pela nota", error.message); return customerId; }
+  return (data as string | null) ?? customerId;
 }
 
 /** Colunas da lista (sem o XML, que pesa). */

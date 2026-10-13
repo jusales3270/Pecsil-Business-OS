@@ -181,3 +181,44 @@ test("treino nunca fala com a SEFAZ e o portão humano está nas rotas", () => {
   assert.match(ler("../app/api/fiscal/nfe/inutilizar/route.ts"), /requireFeature\("fiscal\.nfe", "aprovar"\)/);
   assert.match(ler("../app/api/fiscal/nfe/route.ts"), /export async function DELETE[\s\S]*requireFeature\("fiscal\.nfe", "aprovar"\)[\s\S]*!== "treino"/);
 });
+
+const { lerBrasilApiCnpj, lerViaCep, consultarCnpj, consultarCep, ConsultaIndisponivel } = await import("../lib/fiscal/consulta-publica.ts");
+const sqlClientes = ler("../supabase/migrations/202610130004_clientes_dados_fiscais.sql");
+
+test("consulta pública: BrasilAPI junta o tipo do logradouro e traz o código IBGE", () => {
+  const d = lerBrasilApiCnpj({
+    razao_social: "EMPRESA EXEMPLO LTDA", descricao_situacao_cadastral: "ATIVA", cep: "13300000", descricao_tipo_de_logradouro: "RUA",
+    logradouro: "DAS FLORES", numero: "", complemento: null, bairro: "CENTRO", municipio: "ITU", uf: "sp", codigo_municipio_ibge: 3523909, ddd_telefone_1: "1140230000", email: "Fiscal@Exemplo.com",
+  });
+  assert.equal(d.logradouro, "RUA DAS FLORES");
+  assert.equal(d.numero, "SN");
+  assert.equal(d.codigoMunicipio, "3523909");
+  assert.equal(d.uf, "SP");
+  assert.equal(d.telefone, "1140230000");
+  assert.equal(d.email, "fiscal@exemplo.com");
+  assert.equal(lerBrasilApiCnpj({ descricao_tipo_de_logradouro: "AVENIDA", logradouro: "AVENIDA PAULISTA" }).logradouro, "AVENIDA PAULISTA");
+});
+
+test("consulta pública: ViaCEP traz o IBGE; CEP inexistente volta null", () => {
+  assert.deepEqual(lerViaCep({ cep: "01001-000", logradouro: "Praça da Sé", complemento: "lado ímpar", bairro: "Sé", localidade: "São Paulo", uf: "SP", ibge: "3550308" }),
+    { cep: "01001000", logradouro: "Praça da Sé", complemento: "lado ímpar", bairro: "Sé", municipio: "São Paulo", codigoMunicipio: "3550308", uf: "SP" });
+  assert.equal(lerViaCep({ erro: "true" }), null);
+});
+
+test("consulta pública: CPF nunca sai; 404 é não encontrado; queda vira aviso", async () => {
+  let chamadas = 0;
+  const falso = (status, corpo) => async () => { chamadas++; return new Response(JSON.stringify(corpo), { status }); };
+  await assert.rejects(() => consultarCnpj("52998224725", falso(200, {})), /Só CNPJ/);
+  assert.equal(chamadas, 0, "CPF não pode gerar chamada externa");
+  assert.equal(await consultarCnpj("11222333000181", falso(404, { message: "não encontrado" })), null);
+  await assert.rejects(() => consultarCnpj("11222333000181", async () => { throw new Error("rede"); }), ConsultaIndisponivel);
+  await assert.rejects(() => consultarCep("01001000", falso(500, {})), ConsultaIndisponivel);
+});
+
+test("migração dos clientes: campos fiscais com checagem e gravação só pelo servidor", () => {
+  for (const c of ["ie", "ind_ie", "email_nfe", "cep", "logradouro", "codigo_municipio", "uf", "telefone"]) assert.match(sqlClientes, new RegExp(`add column if not exists ${c} `));
+  assert.match(sqlClientes, /revoke all on function public\.customer_dados_fiscais_gravar\(uuid, uuid, jsonb, text\) from public, anon, authenticated/);
+  assert.match(sqlClientes, /grant execute on function public\.customer_dados_fiscais_gravar\(uuid, uuid, jsonb, text\) to service_role/);
+  assert.match(sqlClientes, /if doc is null or nome is null then return null; end if;/, "sem documento não cria cliente");
+  assert.match(ler("../app/api/fiscal/consulta/route.ts"), /requireFeature\("fiscal\.nfe", "operar"\)/);
+});

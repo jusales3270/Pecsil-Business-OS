@@ -20,7 +20,13 @@ type Linha = {
   natureza: string; valor_total: number; destinatario_nome: string | null; destinatario_documento: string | null; protocolo: string | null;
   autorizada_em: string | null; motivo: string | null; montada_por_nome: string | null; aprovada_por_nome: string | null; cancelada_em: string | null; updated_at: string;
 };
-type Cliente = { id: string; name: string; tax_id: string | null };
+type Cliente = {
+  id: string; name: string; tax_id: string | null; ie: string | null; ind_ie: 1 | 2 | 9 | null; email_nfe: string | null; cep: string | null;
+  logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null; municipio: string | null;
+  codigo_municipio: string | null; uf: string | null; telefone: string | null;
+};
+type DadosCnpj = { razaoSocial: string; situacao: string; cep: string; logradouro: string; numero: string; complemento: string; bairro: string; municipio: string; codigoMunicipio: string; uf: string; telefone: string; email: string };
+type DadosCep = { logradouro: string; complemento: string; bairro: string; municipio: string; codigoMunicipio: string; uf: string };
 type Inutilizacao = { id: string; serie: number; numero_inicio: number; numero_fim: number; texto: string; created_by_name: string | null; created_at: string };
 type Lista = {
   notas: Linha[]; emitente: { razaoSocial: string; cnpj: string; uf: string; crt: number } | null; problemasEmitente: Problema[];
@@ -251,17 +257,18 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
   const destinoFora = Boolean(nota.destinatario.uf && ufEmitente && nota.destinatario.uf !== ufEmitente);
 
   const mudar = (fn: (n: NotaNfe) => NotaNfe) => { setNota(fn); setSujo(true); };
-  const setDest = <K extends keyof Destinatario>(k: K, v: Destinatario[K]) => mudar((n) => {
-    const destinatario = { ...n.destinatario, [k]: v };
+  const mudarDest = (parcial: Partial<Destinatario>) => mudar((n) => {
+    const destinatario = { ...n.destinatario, ...parcial };
     // UF mudou: o CFOP acompanha (5↔6 na saída, 1↔2 na entrada).
-    if (k === "uf" && ufEmitente && String(v).length === 2) {
-      const fora = String(v) !== ufEmitente;
+    if (parcial.uf && parcial.uf !== n.destinatario.uf && ufEmitente && parcial.uf.length === 2) {
+      const fora = parcial.uf !== ufEmitente;
       const de = n.tipo === 1 ? (fora ? "5" : "6") : (fora ? "1" : "2");
       const para = n.tipo === 1 ? (fora ? "6" : "5") : (fora ? "2" : "1");
       return { ...n, destinatario, itens: n.itens.map((i) => (i.cfop.startsWith(de) ? { ...i, cfop: para + i.cfop.slice(1) } : i)) };
     }
     return { ...n, destinatario };
   });
+  const setDest = <K extends keyof Destinatario>(k: K, v: Destinatario[K]) => mudarDest({ [k]: v } as Partial<Destinatario>);
   const setItem = <K extends keyof ItemNfe>(k: number, campo: K, v: ItemNfe[K]) => mudar((n) => ({ ...n, itens: n.itens.map((i, j) => (j === k ? { ...i, [campo]: v } : i)) }));
 
   const aplicarModelo = (mid: string) => {
@@ -277,8 +284,39 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
       if (d) { mudar((n) => ({ ...n, destinatario: { ...notaVazia().destinatario, ...d } })); setClienteId(null); }
     } else if (valor.startsWith("c:")) {
       const c = lista.clientes.find((x) => x.id === valor.slice(2));
-      if (c) { mudar((n) => ({ ...n, destinatario: { ...n.destinatario, nome: c.name.slice(0, 60), documento: so(c.tax_id ?? "") } })); setClienteId(c.id); }
+      if (!c) return;
+      // O que o cadastro tem preenche; o que falta fica em branco para completar (e volta ao cadastro ao salvar).
+      mudarDest({
+        ...notaVazia().destinatario, nome: c.name.slice(0, 60), documento: so(c.tax_id ?? ""), indIE: c.ind_ie ?? 1, ie: c.ie ?? "",
+        email: c.email_nfe ?? "", cep: c.cep ?? "", logradouro: c.logradouro ?? "", numero: c.numero ?? "", complemento: c.complemento ?? "",
+        bairro: c.bairro ?? "", municipio: c.municipio ?? "", codigoMunicipio: c.codigo_municipio ?? "", uf: c.uf ?? "", fone: c.telefone ?? "",
+      });
+      setClienteId(c.id);
+      const faltam = !c.tax_id ? "o CNPJ" : !c.logradouro || !c.codigo_municipio ? "o endereço" : "";
+      if (faltam) notify(`O cadastro de ${c.name} ainda não tem ${faltam}. ${!c.tax_id ? "Digite o CNPJ e clique em Buscar pelo CNPJ" : "Complete aqui"}: ao salvar, vai para o cadastro.`);
     }
+  };
+
+  const [consultando, setConsultando] = useState<null | "cnpj" | "cep">(null);
+  const buscarCnpj = async () => {
+    setConsultando("cnpj");
+    const r = await api<{ dados: DadosCnpj }>(`/api/fiscal/consulta?cnpj=${nota.destinatario.documento}`);
+    setConsultando(null);
+    if (!r.ok) { notify(r.error); return; }
+    const x = r.data.dados;
+    mudarDest({
+      nome: x.razaoSocial || nota.destinatario.nome, cep: x.cep, logradouro: x.logradouro, numero: x.numero, complemento: x.complemento, bairro: x.bairro,
+      municipio: x.municipio, codigoMunicipio: x.codigoMunicipio, uf: x.uf, fone: x.telefone || nota.destinatario.fone, email: nota.destinatario.email || x.email,
+    });
+    notify(`${x.situacao && x.situacao !== "ATIVA" ? `Atenção: CNPJ com situação ${x.situacao} na Receita. ` : ""}Dados da Receita preenchidos. A inscrição estadual não vem na consulta: confira e digite.`);
+  };
+  const buscarCep = async (cep: string) => {
+    setConsultando("cep");
+    const r = await api<{ dados: DadosCep }>(`/api/fiscal/consulta?cep=${cep}`);
+    setConsultando(null);
+    if (!r.ok) { notify(r.error); return; }
+    const x = r.data.dados;
+    mudarDest({ logradouro: x.logradouro || nota.destinatario.logradouro, bairro: x.bairro || nota.destinatario.bairro, municipio: x.municipio, codigoMunicipio: x.codigoMunicipio, uf: x.uf });
   };
 
   const salvar = async (): Promise<string | null> => {
@@ -288,7 +326,9 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
       : await api<{ id: string }>("/api/fiscal/nfe", { method: "POST", body: corpo });
     if (!r.ok) { notify(r.error); return null; }
     setSujo(false);
-    return id ?? (r.data as { id: string }).id;
+    const salvo = r.data as { id?: string; customer_id?: string | null };
+    if (salvo.customer_id) setClienteId(salvo.customer_id);
+    return id ?? salvo.id ?? null;
   };
 
   const acao = async (nome: string, texto?: string): Promise<boolean> => {
@@ -341,6 +381,8 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
 
   const errosDo = (prefixo: string) => (validacao?.erros ?? []).filter((p) => p.campo.startsWith(prefixo));
   const d = nota.destinatario;
+  const docsDoCadastro = new Set(lista.clientes.map((c) => c.tax_id).filter(Boolean));
+  const usadosFora = lista.destinatarios.filter((x) => !docsDoCadastro.has(x.documento));
   const ipiCsts = nota.tipo === 1 ? CST_IPI_SAIDA : CST_IPI_ENTRADA;
   const icmsCsts = crt === 1 || crt === 2 || crt === 4 ? CSOSN_SIMPLES : CST_ICMS_NORMAL;
   const somaDup = r2(nota.pagamento.duplicatas.reduce((a, x) => a + x.valor, 0));
@@ -400,18 +442,19 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
               {editavel && (lista.destinatarios.length > 0 || lista.clientes.length > 0) && (
                 <select className="nfe-modelo" value="" onChange={(e) => preencherDestinatario(e.target.value)} aria-label="Preencher destinatário">
                   <option value="">Preencher a partir de…</option>
-                  {lista.destinatarios.length > 0 && <optgroup label="Já usados em notas (com endereço)">{lista.destinatarios.map((x) => <option key={x.documento} value={`u:${x.documento}`}>{x.nome} · {cnpjFormatado(x.documento)}</option>)}</optgroup>}
-                  {lista.clientes.length > 0 && <optgroup label="Cadastro de clientes (só nome e CNPJ)">{lista.clientes.map((c) => <option key={c.id} value={`c:${c.id}`}>{c.name}{c.tax_id ? ` · ${cnpjFormatado(c.tax_id)}` : ""}</option>)}</optgroup>}
+                  {lista.clientes.length > 0 && <optgroup label="Cadastro de clientes">{lista.clientes.map((c) => <option key={c.id} value={`c:${c.id}`}>{c.name}{c.tax_id ? ` · ${cnpjFormatado(c.tax_id)}` : " · sem CNPJ"}{c.tax_id && (!c.logradouro || !c.codigo_municipio) ? " · sem endereço" : ""}</option>)}</optgroup>}
+                  {usadosFora.length > 0 && <optgroup label="Já usados em notas (fora do cadastro)">{usadosFora.map((x) => <option key={x.documento} value={`u:${x.documento}`}>{x.nome} · {cnpjFormatado(x.documento)}</option>)}</optgroup>}
                 </select>
               )}
             </header>
             <div className="fiscal-campos nfe-campos">
               <label><span>CNPJ ou CPF</span><input inputMode="numeric" value={d.documento.length === 14 ? cnpjFormatado(d.documento) : d.documento} onChange={(e) => setDest("documento", so(e.target.value).slice(0, 14))} /></label>
+              {editavel && <div className="nfe-buscar"><Button type="button" variant="secondary" compact onClick={() => void buscarCnpj()} disabled={d.documento.length !== 14 || consultando !== null}>{consultando === "cnpj" ? "Consultando…" : "Buscar pelo CNPJ"}</Button></div>}
               <label className="nfe-largo"><span>Razão social / nome</span><input value={d.nome} maxLength={60} onChange={(e) => setDest("nome", e.target.value)} /></label>
               <label className="nfe-largo"><span>Indicador da IE</span><select value={d.indIE} onChange={(e) => setDest("indIE", Number(e.target.value) as 1 | 2 | 9)}><option value={1}>1 · Contribuinte do ICMS</option><option value={2}>2 · Contribuinte isento</option><option value={9}>9 · Não contribuinte</option></select></label>
               <label><span>Inscrição estadual</span><input value={d.ie} maxLength={14} disabled={d.indIE !== 1} onChange={(e) => setDest("ie", so(e.target.value))} /></label>
               <label><span>E-mail para a nota</span><input type="email" value={d.email} maxLength={60} onChange={(e) => setDest("email", e.target.value)} /></label>
-              <label><span>CEP</span><input inputMode="numeric" value={d.cep} onChange={(e) => setDest("cep", so(e.target.value).slice(0, 8))} /></label>
+              <label><span>CEP{consultando === "cep" ? <small> · buscando…</small> : <small> · completa o endereço</small>}</span><input inputMode="numeric" value={d.cep} onChange={(e) => { const cep = so(e.target.value).slice(0, 8); setDest("cep", cep); if (cep.length === 8 && cep !== d.cep) void buscarCep(cep); }} /></label>
               <label className="nfe-largo"><span>Logradouro</span><input value={d.logradouro} maxLength={60} onChange={(e) => setDest("logradouro", e.target.value)} /></label>
               <label><span>Número</span><input value={d.numero} maxLength={60} onChange={(e) => setDest("numero", e.target.value)} /></label>
               <label><span>Complemento</span><input value={d.complemento} maxLength={60} onChange={(e) => setDest("complemento", e.target.value)} /></label>

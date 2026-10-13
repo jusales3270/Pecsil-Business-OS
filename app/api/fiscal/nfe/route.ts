@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireFeature } from "../../../../lib/auth/feature-guard";
 import { normalizarNota } from "../../../../lib/fiscal/emissao/normalizar";
 import { problemasDoEmitente } from "../../../../lib/fiscal/emissao/regras";
-import { AMBIENTES_LIBERADOS, COLUNAS_LISTA, ambienteLiberado, auditar, autorDaSessao, clienteDaOrganizacao, emitenteDaOrganizacao, resumoDaNota } from "../../../../lib/fiscal/emissao/servidor";
+import { AMBIENTES_LIBERADOS, COLUNAS_CLIENTE, COLUNAS_LISTA, ambienteLiberado, auditar, autorDaSessao, clienteDaOrganizacao, emitenteDaOrganizacao, gravarNoCadastroDoCliente, resumoDaNota } from "../../../../lib/fiscal/emissao/servidor";
 import { transmissorConfigurado } from "../../../../lib/fiscal/transmissor";
 import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     guard.supabase.from("fiscal_nfe").select(COLUNAS_LISTA).eq("ambiente", ambiente).order("created_at", { ascending: false }).limit(300),
     // Destinatários já usados: a próxima nota para o mesmo cliente já vem com o endereço.
     guard.supabase.from("fiscal_nfe").select("destinatario:nota->destinatario, updated_at").order("updated_at", { ascending: false }).limit(200),
-    admin.from("customers").select("id, name, tax_id").eq("organization_id", autor.org).eq("active", true).is("merged_into", null).order("name").limit(1000),
+    admin.from("customers").select(COLUNAS_CLIENTE).eq("organization_id", autor.org).eq("active", true).is("merged_into", null).order("name").limit(1000),
     emitenteDaOrganizacao(admin, autor.org),
     guard.supabase.from("fiscal_nfe_eventos").select("id, serie, numero_inicio, numero_fim, texto, created_by_name, created_at").eq("ambiente", ambiente).eq("tipo", "inutilizacao").order("created_at", { ascending: false }).limit(50),
   ]);
@@ -61,14 +61,14 @@ export async function POST(request: Request) {
   if (!autor) return NextResponse.json({ error: "Sessão sem organização." }, { status: 400 });
   const nota = normalizarNota(corpo?.nota);
   const admin = createSupabaseAdminClient();
-  const customer = await clienteDaOrganizacao(admin, autor.org, corpo?.customer_id);
+  const customer = await gravarNoCadastroDoCliente(admin, autor, await clienteDaOrganizacao(admin, autor.org, corpo?.customer_id), nota.destinatario);
   const { data, error } = await admin.from("fiscal_nfe").insert({
     organization_id: autor.org, ambiente, situacao: "rascunho", nota, ...resumoDaNota(nota), customer_id: customer,
     montada_por: autor.profileId, montada_por_nome: autor.nome,
   }).select("id").single();
   if (error) return NextResponse.json({ error: "Não foi possível criar a nota." }, { status: 400 });
   await auditar(admin, { ...autor, evento: "criada", nfeId: data.id, dados: { ambiente } });
-  return NextResponse.json({ id: data.id });
+  return NextResponse.json({ id: data.id, customer_id: customer });
 }
 
 /** Limpar o treino: apaga as notas, os eventos e a numeração do treino (quem aprova). */
