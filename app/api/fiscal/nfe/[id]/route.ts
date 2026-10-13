@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireFeature } from "../../../../../lib/auth/feature-guard";
 import { normalizarNota } from "../../../../../lib/fiscal/emissao/normalizar";
-import { ambienteLiberado, auditar, autorDaSessao, clienteDaOrganizacao, resumoDaNota } from "../../../../../lib/fiscal/emissao/servidor";
+import { ambienteLiberado, auditar, autorDaSessao, clienteDaOrganizacao, gravarNoCadastroDoCliente, resumoDaNota } from "../../../../../lib/fiscal/emissao/servidor";
 import { createSupabaseAdminClient } from "../../../../../lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -38,12 +38,13 @@ export async function PUT(request: Request, context: Contexto) {
   if (!autor) return NextResponse.json({ error: "Sessão sem organização." }, { status: 400 });
   const admin = createSupabaseAdminClient();
   const nota = normalizarNota(corpo?.nota);
+  const customer = await gravarNoCadastroDoCliente(admin, autor, await clienteDaOrganizacao(admin, autor.org, corpo?.customer_id), nota.destinatario);
   const { error } = await admin.from("fiscal_nfe").update({
-    nota, ...resumoDaNota(nota), customer_id: await clienteDaOrganizacao(admin, autor.org, corpo?.customer_id),
+    nota, ...resumoDaNota(nota), customer_id: customer,
     situacao: "rascunho", validacao: null, motivo: null, updated_at: new Date().toISOString(),
   }).eq("id", id).in("situacao", [...EDITAVEL]);
   if (error) return NextResponse.json({ error: "Não foi possível salvar." }, { status: 400 });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, customer_id: customer });
 }
 
 /**

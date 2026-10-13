@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-13-nfe-cliente-preenche",
+    data: "2026-10-13",
+    area: "Fiscal",
+    funcionalidades: ["fiscal.nfe"],
+    modulos: ["fiscal"],
+    titulo: "Destinatário da nota preenchido pelo cadastro e pelo CNPJ",
+    itens: [
+      "Escolher o cliente na nota preenche o destinatário com o que o cadastro tem: CNPJ, inscrição estadual, endereço, código IBGE, telefone e e-mail.",
+      "\"Buscar pelo CNPJ\" traz da Receita a razão social, o endereço e o código IBGE; digitar o CEP completa a rua, o bairro e o município. A inscrição estadual continua digitada.",
+      "Ao salvar a nota, os dados do destinatário vão para o cadastro do cliente: cada cliente é preenchido uma vez só.",
+    ],
+  },
+  {
     id: "2026-10-13-nfe-treino",
     data: "2026-10-13",
     area: "Fiscal",

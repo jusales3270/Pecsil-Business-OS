@@ -7011,6 +7011,8 @@ button.holiday-row:hover {
 .nfe-campos > label.nfe-check { flex-direction: row; align-items: center; gap: var(--sp-2); grid-column: span 2; cursor: pointer; }
 .nfe-campos > label.nfe-check input { width: 16px; min-height: 0; height: 16px; flex: none; accent-color: var(--accent-blue); }
 .nfe-campos > label.nfe-check > span { margin: 0; }
+.nfe-buscar { display: flex; align-items: flex-end; }
+.nfe-buscar .ds-button { min-height: 38px; }
 .nfe-modelo { max-width: 100%; min-height: 34px; font: inherit; font-size: var(--fs-sm); background-color: var(--bg-surface); }
 .nfe-contagem { font-size: var(--fs-sm); color: var(--text-muted); }
 .nfe-item { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-subtle); }
