@@ -2,6 +2,7 @@
 
 import { FormEvent, Fragment, useEffect, useMemo, useState } from "react";
 import { Button, Card, Status } from "../../packages/design-system";
+import { AparelhosDigital } from "./aparelhos-digital";
 import {
   ACCESS_CATALOG,
   ACCESS_DEPARTMENTS,
@@ -196,6 +197,7 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
 
       {editing && (
         <EditUserDrawer
+          notify={notify}
           user={editing}
           copySources={copySources.filter((source) => source.id !== editing.id)}
           onClose={() => setEditing(null)}
@@ -637,11 +639,13 @@ function EditUserDrawer({
   copySources,
   onClose,
   onSaved,
+  notify,
 }: {
   user: AdminUser;
   copySources: AdminUser[];
   onClose: () => void;
   onSaved: (message: string) => void;
+  notify: (message: string) => void;
 }) {
   const [grants, setGrants] = useState<AccessGrants>(user.grants);
   const [checklistKey, setChecklistKey] = useState(0);
@@ -807,6 +811,8 @@ function EditUserDrawer({
               Redefinir senha
             </Button>
           </div>
+
+          <AparelhosDigital perfil={user.id} notify={notify} />
 
           <div className="user-admin-danger field-wide">
             <span>

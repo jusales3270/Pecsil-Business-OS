@@ -44,6 +44,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-13-entrar-com-digital",
+    data: "2026-10-13",
+    area: "Plataforma",
+    titulo: "Entrar com a digital no celular",
+    itens: [
+      "No celular, depois de entrar com a senha, a plataforma oferece ativar a digital (ou o rosto). Da próxima vez, é só tocar em \"Entrar com a digital\".",
+      "A biometria fica só no seu aparelho: a plataforma nunca a recebe. A senha continua valendo.",
+      "No painel da sua conta você vê os celulares com digital ativa e pode remover qualquer um.",
+    ],
+  },
+  {
     id: "2026-10-12-portal-escritorio",
     data: "2026-10-12",
     area: "Fiscal",
