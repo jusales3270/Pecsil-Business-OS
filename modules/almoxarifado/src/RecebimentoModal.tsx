@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Callout, Modal, Segmented, ZonaBotao, useEscolherArquivo } from "../../../packages/design-system";
 import type { Nfe } from "../../../lib/almoxarifado/nfe-xml";
+import { obsDoServico } from "../../../lib/fiscal/nfse";
 import { useSoltarArquivo } from "../../../app/components/enviar-arquivo";
 import { type ACaminho, DIVISAO, Icone, chamar, date, hoje, lerNotaArquivo, money, qtd, type NotaLidaResposta } from "./tipos";
 
@@ -50,18 +51,22 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
   const [divergencia, setDivergencia] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [observacao, setObservacao] = useState("");
+  // Nota de serviço (NFS-e): sem ICMS/IPI; entra no Painel do ICMS com tipo "Serviço".
+  const [modelo, setModelo] = useState<"nfe" | "nfse">("nfe");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   const faltaReceber = compra ? Math.max(0, compra.totalComprado - compra.jaRecebido) : 0;
 
-  /** Preenche a nota a partir do que o servidor leu (XML ou DANFE em PDF). */
+  /** Preenche a nota a partir do que o servidor leu (NF-e ou NFS-e; XML ou PDF). */
   const aplicar = (lida: NotaLidaResposta) => {
     if (lida.jaRecebida) { setErro(`Esta nota já foi recebida (recebimento #${lida.jaRecebida.numero}, ${date(lida.jaRecebida.em)}).`); return; }
     const n = lida.nfe;
     setXml(lida.xml);
     setDoPdf(lida.origem === "pdf");
     setNfe(n);
+    setModelo(lida.modelo ?? "nfe");
+    if (lida.modelo === "nfse" && lida.servico) setObservacao((o) => o || obsDoServico(lida.servico!, lida.origem === "pdf"));
     if (!compra) setFornecedor(n.emitente.fantasia || lida.fornecedor?.nome || n.emitente.nome);
     setNf(n.numero); setSerie(n.serie); setChave(n.chave); setEmissao(n.emissao);
     setValor(campoValor(n.valorNota)); setBase(campoValor(n.baseIcms)); setIcms(campoValor(n.icms)); setIpi(campoValor(n.ipi));
@@ -70,7 +75,8 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
       : [{ numero: "1", vencimento: compra?.previsaoVencimento ?? "", valor: campoValor(n.valorNota) }]);
     if (compra) setEncerra(n.valorNota >= faltaReceber * 0.98);
     const avisos: string[] = [];
-    if (lida.origem === "pdf") avisos.push("Nota lida do DANFE em PDF: confira valores e vencimentos (do PDF, as parcelas só vêm quando somam o total da nota).");
+    if (lida.modelo === "nfse") avisos.push(`Nota de serviço (NFS-e)${lida.origem === "pdf" ? " lida do PDF: confira número, data e valor" : ""}. Sem ICMS nem IPI; o ISS vai na observação.${lida.camposNaoLidos.length ? ` Não lido: ${lida.camposNaoLidos.join(", ")}.` : ""}`);
+    else if (lida.origem === "pdf") avisos.push("Nota lida do DANFE em PDF: confira valores e vencimentos (do PDF, as parcelas só vêm quando somam o total da nota).");
     if (compra?.cnpj && n.emitente.cnpj && compra.cnpj !== n.emitente.cnpj) avisos.push(`O CNPJ da nota (${n.emitente.nome}) é diferente do fornecedor da compra (${compra.fornecedor}).`);
     if (compra && Math.abs(n.valorNota - faltaReceber) > Math.max(1, faltaReceber * 0.02)) avisos.push(`A nota vale ${money(n.valorNota)} e a compra ${money(faltaReceber)}${n.ipi ? ` (a compra pode não incluir IPI de ${money(n.ipi)})` : ""}.`);
     setAviso(avisos.join(" "));
@@ -123,6 +129,7 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
         valor_total: total, base_icms: numero(base) || 0, icms: numero(icms) || 0, ipi: numero(ipi) || 0,
         xml, divisao, encerra_pedido: compra ? encerra : true,
         divergencia, divergencia_motivo: divergencia ? motivo.trim() : "", observacao: observacao.trim(),
+        ...(modelo === "nfse" ? { tipo: "Serviço" } : {}),
         itens: (nfe?.itens ?? []).map((item) => ({ descricao: item.descricao, quantidade: item.quantidade, unidade: item.unidade, valor_total: item.valorTotal })),
         duplicatas: dups.map((d) => ({ numero: d.numero, vencimento: d.vencimento, valor: numero(d.valor) })),
       }),
@@ -161,8 +168,8 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
             <input {...seletor.inputProps} accept=".xml,.pdf,text/xml,application/xml,application/pdf" />
             <button type="button" onClick={seletor.abrir} disabled={lendo || seletor.abrindo} aria-busy={lendo || seletor.abrindo}>
               <Icone nome="nota" size={26} />
-              <b>{lendo ? "Lendo a nota…" : "Arraste aqui o XML da NF-e ou o DANFE em PDF, ou clique para escolher"}</b>
-              <small>Fornecedor, número, valores, ICMS e IPI vêm preenchidos (do XML, também os vencimentos). Nota de serviço ou de papel: use &ldquo;Digitar a nota&rdquo;.</small>
+              <b>{lendo ? "Lendo a nota…" : "Arraste aqui o XML ou o PDF da nota, ou clique para escolher"}</b>
+              <small>Nota de produto (NF-e/DANFE) ou de serviço (NFS-e). Fornecedor, número e valores vêm preenchidos; da NF-e também ICMS, IPI e vencimentos. Nota de papel: use &ldquo;Digitar a nota&rdquo;.</small>
               {!lendo && <ZonaBotao abrindo={seletor.abrindo} rotulo="Escolher a nota" />}
             </button>
           </div>

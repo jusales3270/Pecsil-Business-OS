@@ -6,6 +6,11 @@ import { PdfInvalido } from "../../../../../lib/arquivos/pdf-texto";
 import { DanfeInvalido } from "../../../../../lib/fiscal/danfe-pdf";
 import { icmsColunas } from "../../../../../lib/fiscal/icms-campos";
 import { NotaNaoReconhecida, fornecedorDaNota, lerNotaDoArquivo, type FornecedorCadastro, type NotaLida } from "../../../../../lib/fiscal/nota-carga";
+import { NfseInvalida, obsDoServico } from "../../../../../lib/fiscal/nfse";
+import type { Nfe } from "../../../../../lib/almoxarifado/nfe-xml";
+
+/** Identidade da nota: a chave; sem chave (NFS-e municipal), o prestador (CNPJ) com o número. */
+const idNota = (n: Nfe) => n.chave || `S:${n.emitente.cnpj.replace(/\D/g, "")}:${n.numero}`;
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,6 +25,11 @@ type Linha = {
   ok: boolean;
   erro?: string;
   origem?: "xml" | "pdf";
+  /** nfe = produto; nfse = serviço (sem ICMS/IPI; ISS na observação). */
+  modelo?: "nfe" | "nfse";
+  iss?: number;
+  issRetido?: boolean;
+  codigoVerificacao?: string;
   chave?: string;
   numero?: string;
   serie?: string;
@@ -36,7 +46,8 @@ type Linha = {
 };
 
 /**
- * Fiscal › Painel do ICMS › "Enviar notas": vários XML e/ou DANFE em PDF de uma vez.
+ * Fiscal › Painel do ICMS › "Enviar notas": vários XML e/ou PDF de uma vez — notas de produto
+ * (NF-e/DANFE) e de serviço (NFS-e: nacional, ABRASF ou da Prefeitura de São Paulo).
  *   acao=analisar  → lê cada arquivo e mostra o que entraria (nada é gravado);
  *   acao=confirmar → lê de novo e lança no painel o que for novo (pela chave).
  * Centro (Fundição/Usinagem/Administrativo) e tipo ficam para a pessoa completar no painel.
@@ -62,23 +73,32 @@ export async function POST(request: Request) {
     try {
       lidas.push({ arquivo, dados, lida: await lerNotaDoArquivo(dados) });
     } catch (e) {
-      const conhecido = [NotaNaoReconhecida, DanfeInvalido, PdfInvalido].some((C) => e instanceof C);
+      const conhecido = [NotaNaoReconhecida, DanfeInvalido, PdfInvalido, NfseInvalida].some((C) => e instanceof C);
       if (!conhecido) console.error("Falha ao ler nota", e);
       lidas.push({ arquivo, dados, lida: null, erro: conhecido ? (e as Error).message : "Não consegui ler este arquivo." });
     }
   }
-  const chaves = lidas.flatMap((l) => (l.lida ? [l.lida.nfe.chave] : []));
-  const { data: existentes } = chaves.length ? await guard.supabase.from("fiscal_icms_entries").select("chave").in("chave", chaves) : { data: [] };
-  const jaNoPainel = new Set((existentes ?? []).map((e) => String(e.chave)));
+  const chaves = lidas.flatMap((l) => (l.lida?.nfe.chave ? [l.lida.nfe.chave] : []));
+  const semChave = lidas.flatMap((l) => (l.lida && !l.lida.nfe.chave && l.lida.nfe.numero ? [l.lida.nfe.numero] : []));
+  const [{ data: existentes }, { data: existentesSemChave }] = await Promise.all([
+    chaves.length ? guard.supabase.from("fiscal_icms_entries").select("chave").in("chave", chaves) : Promise.resolve({ data: [] as { chave: string }[] }),
+    semChave.length ? guard.supabase.from("fiscal_icms_entries").select("cnpj, nfe").in("nfe", semChave) : Promise.resolve({ data: [] as { cnpj: string | null; nfe: string | null }[] }),
+  ]);
+  const jaNoPainel = new Set([
+    ...(existentes ?? []).map((e) => String(e.chave)),
+    ...(existentesSemChave ?? []).map((e) => `S:${(e.cnpj ?? "").replace(/\D/g, "")}:${e.nfe}`),
+  ]);
   const vistas = new Set<string>();
 
   const linhas: Linha[] = lidas.map(({ arquivo, lida, erro }) => {
     if (!lida) return { arquivo: arquivo.name, ok: false, erro };
     const n = lida.nfe;
-    const situacao: Linha["situacao"] = jaNoPainel.has(n.chave) ? "ja_no_painel" : vistas.has(n.chave) ? "repetida_no_envio" : "nova";
-    vistas.add(n.chave);
+    const id = idNota(n);
+    const situacao: Linha["situacao"] = jaNoPainel.has(id) ? "ja_no_painel" : vistas.has(id) ? "repetida_no_envio" : "nova";
+    vistas.add(id);
     return {
-      arquivo: arquivo.name, ok: true, origem: lida.origem, chave: n.chave, numero: n.numero, serie: n.serie, emissao: n.emissao,
+      arquivo: arquivo.name, ok: true, origem: lida.origem, modelo: lida.modelo, iss: lida.servico?.iss, issRetido: lida.servico?.issRetido,
+      codigoVerificacao: lida.servico?.codigoVerificacao, chave: n.chave, numero: n.numero, serie: n.serie, emissao: n.emissao,
       emitente: n.emitente.nome, cnpj: n.emitente.cnpj, valor: n.valorNota, baseIcms: n.baseIcms, icms: n.icms, ipi: n.ipi,
       camposNaoLidos: lida.camposNaoLidos, situacao, fornecedor: fornecedorDaNota(n, (cadastro ?? []) as FornecedorCadastro[]),
     };
@@ -101,13 +121,16 @@ export async function POST(request: Request) {
       competencia: mes, emitida: l.emissao || null, recebida, fornecedor: l.emitente || "Fornecedor", fantasia: l.fornecedor?.nome ?? null,
       cnpj: l.cnpj ?? null, nfe: l.numero ?? null, serie: l.serie ?? null, chave: l.chave ?? null,
       valor: l.valor ?? 0, vlrCobrado: l.valor ?? 0, baseIcms: l.baseIcms ?? 0, icms: l.icms ?? 0, ipi: l.ipi ?? 0, xmlOk: l.origem === "xml",
-      obs: l.origem === "pdf" ? "Lida do DANFE em PDF: conferir com a nota." : null,
+      tipo: l.modelo === "nfse" ? "Serviço" : undefined,
+      obs: l.modelo === "nfse"
+        ? obsDoServico({ iss: l.iss ?? 0, issRetido: Boolean(l.issRetido), codigoVerificacao: l.codigoVerificacao ?? "" }, l.origem === "pdf")
+        : l.origem === "pdf" ? "Lida do DANFE em PDF: conferir com a nota." : null,
     });
     if ("erro" in resultado) { falhas.push(`${l.arquivo}: ${resultado.erro}`); continue; }
     const { data: criada, error } = await guard.supabase.from("fiscal_icms_entries").insert({ ...resultado.colunas, origem: "manual", supplier_id: l.fornecedor?.id ?? null }).select("id").single();
     if (error) { falhas.push(`${l.arquivo}: ${error.code === "23505" ? "já está no painel" : "não foi possível lançar"}`); continue; }
     lancadas++;
-    if (l.chave && criada?.id) entradaPorChave.set(l.chave, criada.id);
+    if (criada?.id) entradaPorChave.set(l.chave || `S:${(l.cnpj ?? "").replace(/\D/g, "")}:${l.numero}`, criada.id);
     if (l.fornecedor?.gravarCnpj && l.cnpj) {
       const { data } = await guard.supabase.rpc("supplier_set_tax_id_from_nfe", { p_supplier: l.fornecedor.id, p_cnpj: l.cnpj });
       if (data === true) cnpjsGravados++;
@@ -121,15 +144,15 @@ export async function POST(request: Request) {
       p_sha256: createHash("sha256").update(dados).digest("hex"), p_summary: { chave: lida.nfe.chave, numero: lida.nfe.numero, valor: lida.nfe.valorNota },
     });
     // Original da nota lançada agora (D3): guardado no Fiscal, ligado à linha do Painel do ICMS.
-    const entrada = entradaPorChave.get(lida.nfe.chave);
+    const entrada = entradaPorChave.get(idNota(lida.nfe));
     if (!entrada) continue;
     try {
       await guardarOriginal(guard.supabase, {
         modulo: "fiscal", feature: "fiscal.icms", origem: "nota", intakeId: (intakeId as string | null) ?? null,
         entidade: { tipo: "fiscal_icms_entry", id: entrada },
         arquivo: { nome: arquivo.name, tipo: arquivo.type, dados },
-        titulo: `NF ${lida.nfe.numero}${lida.nfe.serie ? `/${lida.nfe.serie}` : ""} · ${lida.nfe.emitente.nome} (${lida.origem === "xml" ? "XML" : "DANFE"})`,
-        categoria: "Nota fiscal de entrada",
+        titulo: `${lida.modelo === "nfse" ? "NFS-e" : "NF"} ${lida.nfe.numero}${lida.nfe.serie ? `/${lida.nfe.serie}` : ""} · ${lida.nfe.emitente.nome} (${lida.origem === "xml" ? "XML" : "PDF"})`,
+        categoria: lida.modelo === "nfse" ? "Nota fiscal de serviço" : "Nota fiscal de entrada",
       });
     } catch (e) {
       originaisFalharam++;

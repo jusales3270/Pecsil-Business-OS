@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- NFS-e ABRASF 2.x FICTÍCIA para testes. -->
+<CompNfse xmlns="http://www.abrasf.org.br/nfse.xsd">
+  <Nfse versao="2.02">
+    <InfNfse Id="nfse789">
+      <Numero>789</Numero>
+      <CodigoVerificacao>AB12CD34</CodigoVerificacao>
+      <DataEmissao>2026-10-05T09:30:00</DataEmissao>
+      <ValoresNfse><BaseCalculo>1800.00</BaseCalculo><Aliquota>3.00</Aliquota><ValorIss>54.00</ValorIss><ValorLiquidoNfse>1800.00</ValorLiquidoNfse></ValoresNfse>
+      <PrestadorServico>
+        <IdentificacaoPrestador><CpfCnpj><Cnpj>55444333000122</Cnpj></CpfCnpj><InscricaoMunicipal>12345</InscricaoMunicipal></IdentificacaoPrestador>
+        <RazaoSocial>CALIBRACOES E ENSAIOS EXEMPLO LTDA</RazaoSocial>
+        <NomeFantasia>CALIBRA EXEMPLO</NomeFantasia>
+        <Endereco><Endereco>Rua Exemplo</Endereco><Numero>100</Numero><Uf>SP</Uf></Endereco>
+      </PrestadorServico>
+      <DeclaracaoPrestacaoServico>
+        <InfDeclaracaoPrestacaoServico>
+          <Competencia>2026-10-01</Competencia>
+          <Servico>
+            <Valores><ValorServicos>1800.00</ValorServicos><ValorIss>54.00</ValorIss></Valores>
+            <IssRetido>2</IssRetido>
+            <ItemListaServico>14.01</ItemListaServico>
+            <Discriminacao>Calibração de instrumentos de medição</Discriminacao>
+          </Servico>
+          <Prestador><CpfCnpj><Cnpj>55444333000122</Cnpj></CpfCnpj></Prestador>
+          <TomadorServico><IdentificacaoTomador><CpfCnpj><Cnpj>99888777000166</Cnpj></CpfCnpj></IdentificacaoTomador></TomadorServico>
+        </InfDeclaracaoPrestacaoServico>
+      </DeclaracaoPrestacaoServico>
+    </InfNfse>
+  </Nfse>
+</CompNfse>

@@ -91,9 +91,11 @@ export async function chamar<T>(url: string, init?: RequestInit): Promise<{ ok: 
   }
 }
 
-/** Nota lida no servidor (XML ou DANFE em PDF), com o fornecedor do cadastro e os pedidos que combinam. */
+/** Nota lida no servidor (NF-e de produto ou NFS-e de serviço; XML ou PDF), com o fornecedor do cadastro e os pedidos que combinam. */
 export type NotaLidaResposta = {
   nfe: import("../../../lib/almoxarifado/nfe-xml").Nfe;
+  modelo?: "nfe" | "nfse";
+  servico?: { iss: number; issRetido: boolean; valorLiquido: number; codigoVerificacao: string } | null;
   origem: "xml" | "pdf";
   xml: string | null;
   camposNaoLidos: string[];

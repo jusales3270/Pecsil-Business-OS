@@ -1,5 +1,6 @@
 /**
- * Nota fiscal enviada como arquivo (XML da NF-e ou DANFE em PDF): lê, reconhece o
+ * Nota fiscal enviada como arquivo — de PRODUTO (XML da NF-e ou DANFE em PDF) ou de SERVIÇO
+ * (NFS-e: XML nacional, ABRASF ou da Prefeitura de São Paulo, ou o PDF): lê, reconhece o
  * fornecedor do cadastro e acha o pedido a caminho. Usado pelo Painel do ICMS
  * ("Enviar notas") e pelo recebimento do Almoxarifado. Só roda no servidor.
  */
@@ -9,11 +10,16 @@ import { tipoDoArquivo } from "../arquivos/detectar.ts";
 import { textoDoPdf } from "../arquivos/pdf-texto.ts";
 import { nameSimilarity, normalizeName } from "../compras/fornecedores-core.ts";
 import { lerDanfe, pareceDanfe } from "./danfe-pdf.ts";
+import { NfseInvalida, lerNfsePdf, lerNfseXml, nfseComoNota, pareceNfsePdf, pareceNfseXml } from "./nfse.ts";
 
 export class NotaNaoReconhecida extends Error {}
 
 export type NotaLida = {
   nfe: Nfe;
+  /** nfe = produto (ICMS/IPI); nfse = serviço (ISS; ICMS e IPI zerados). */
+  modelo: "nfe" | "nfse";
+  /** Só na nota de serviço: ISS, retenção e o que mais vai para a observação. */
+  servico?: { iss: number; issRetido: boolean; valorLiquido: number; codigoVerificacao: string };
   origem: "xml" | "pdf";
   /** Texto do XML (guardado no recebimento); nulo quando veio do PDF. */
   xml: string | null;
@@ -23,23 +29,39 @@ export type NotaLida = {
 
 export async function lerNotaDoArquivo(dados: Uint8Array): Promise<NotaLida> {
   const tipo = tipoDoArquivo(dados);
-  if (tipo === "nfe-xml" || tipo === "xml") {
-    const xml = new TextDecoder("utf-8").decode(dados);
-    try {
-      return { nfe: lerNfe(xml), origem: "xml", xml, camposNaoLidos: [] };
-    } catch (e) {
-      throw new NotaNaoReconhecida(e instanceof NfeInvalida ? e.message : "Não consegui ler o XML da nota.");
-    }
-  }
+  if (tipo === "nfe-xml" || tipo === "xml") return lerNotaXml(new TextDecoder("utf-8").decode(dados));
   if (tipo === "pdf") {
     const paginas = await textoDoPdf(dados, 30);
-    if (!pareceDanfe(paginas)) throw new NotaNaoReconhecida("Este PDF não é um DANFE (a nota fiscal impressa).");
-    const d = lerDanfe(paginas);
-    const nfe: Nfe = { chave: d.chave, numero: d.numero, serie: d.serie, emissao: d.emissao, natureza: d.natureza, emitente: d.emitente, destinatarioCnpj: d.destinatarioCnpj, valorProdutos: d.valorProdutos, valorNota: d.valorNota, baseIcms: d.baseIcms, icms: d.icms, ipi: d.ipi, itens: d.itens, duplicatas: d.duplicatas };
-    return { nfe, origem: "pdf", xml: null, camposNaoLidos: d.camposNaoLidos };
+    if (pareceDanfe(paginas)) {
+      const d = lerDanfe(paginas);
+      const nfe: Nfe = { chave: d.chave, numero: d.numero, serie: d.serie, emissao: d.emissao, natureza: d.natureza, emitente: d.emitente, destinatarioCnpj: d.destinatarioCnpj, valorProdutos: d.valorProdutos, valorNota: d.valorNota, baseIcms: d.baseIcms, icms: d.icms, ipi: d.ipi, itens: d.itens, duplicatas: d.duplicatas };
+      return { nfe, modelo: "nfe", origem: "pdf", xml: null, camposNaoLidos: d.camposNaoLidos };
+    }
+    if (pareceNfsePdf(paginas)) {
+      const s = lerNfsePdf(paginas);
+      return { nfe: nfseComoNota(s), modelo: "nfse", servico: { iss: s.iss, issRetido: s.issRetido, valorLiquido: s.valorLiquido, codigoVerificacao: s.codigoVerificacao }, origem: "pdf", xml: null, camposNaoLidos: s.camposNaoLidos };
+    }
+    throw new NotaNaoReconhecida("Este PDF não é uma nota fiscal: nem DANFE (produto) nem NFS-e (serviço).");
   }
   if (tipo === "ofx" || tipo === "xlsx" || tipo === "xls") throw new NotaNaoReconhecida("Este arquivo parece um extrato bancário. Extratos vão em Financeiro › Bancos e conciliação.");
-  throw new NotaNaoReconhecida("Formato não reconhecido. Envie o XML da NF-e ou o DANFE em PDF.");
+  throw new NotaNaoReconhecida("Formato não reconhecido. Envie o XML ou o PDF da nota (NF-e de produto ou NFS-e de serviço).");
+}
+
+/** XML de nota: NF-e (produto) ou NFS-e (serviço). */
+export function lerNotaXml(xml: string): NotaLida {
+  if (pareceNfseXml(xml)) {
+    try {
+      const s = lerNfseXml(xml);
+      return { nfe: nfseComoNota(s), modelo: "nfse", servico: { iss: s.iss, issRetido: s.issRetido, valorLiquido: s.valorLiquido, codigoVerificacao: s.codigoVerificacao }, origem: "xml", xml, camposNaoLidos: [] };
+    } catch (e) {
+      throw new NotaNaoReconhecida(e instanceof NfseInvalida ? e.message : "Não consegui ler o XML da nota de serviço.");
+    }
+  }
+  try {
+    return { nfe: lerNfe(xml), modelo: "nfe", origem: "xml", xml, camposNaoLidos: [] };
+  } catch (e) {
+    throw new NotaNaoReconhecida(e instanceof NfeInvalida ? "O XML não é de uma NF-e (produto) nem de uma NFS-e (serviço)." : "Não consegui ler o XML da nota.");
+  }
 }
 
 export type FornecedorCadastro = { id: string; name: string; tax_id: string | null };

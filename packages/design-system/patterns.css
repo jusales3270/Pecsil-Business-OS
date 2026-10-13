@@ -6985,6 +6985,83 @@ button.holiday-row:hover {
   .fiscal-cert-form { grid-template-columns: 1fr; }
 }
 
+/* Fiscal › Notas emitidas (NF-e) — treino */
+.nfe-faixa-treino {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--sp-3); padding: 10px 14px; border: 1px dashed var(--edge-amber);
+  border-radius: var(--radius-md); background: repeating-linear-gradient(135deg, var(--tint-amber) 0 14px, transparent 14px 28px), var(--bg-surface);
+  font-size: var(--fs-sm); color: var(--text-secondary);
+}
+.nfe-faixa-treino b { color: var(--accent-amber); letter-spacing: 0.04em; }
+.nfe-numero { font-variant-numeric: tabular-nums; font-weight: 600; }
+.nfe-problemas, .nfe-avisos { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
+.nfe-problemas { color: var(--accent-red); }
+.nfe-avisos { color: var(--accent-amber); }
+.nfe-eventos { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-2); }
+.nfe-eventos li { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--bg-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
+.nfe-eventos small { font-size: var(--fs-xs); color: var(--text-muted); }
+.nfe-ids { grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)); }
+.nfe-chave { font-variant-numeric: tabular-nums; font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-xs) !important; }
+.nfe-editor { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--sp-5); align-items: start; }
+.nfe-form { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; margin: 0; padding: 0; border: 0; }
+.nfe-lado { display: flex; flex-direction: column; gap: var(--sp-4); position: sticky; top: var(--sp-4); min-width: 0; }
+.nfe-lado h2, .nfe-h2 { margin: 0; font-size: var(--fs-md); color: var(--text-primary); }
+.nfe-campos { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.nfe-campos > label.nfe-largo { grid-column: span 2; }
+.nfe-campos > label.nfe-cheio { grid-column: 1 / -1; }
+.nfe-campos > label.nfe-check { flex-direction: row; align-items: center; gap: var(--sp-2); grid-column: span 2; cursor: pointer; }
+.nfe-campos > label.nfe-check input { width: 16px; min-height: 0; height: 16px; flex: none; accent-color: var(--accent-blue); }
+.nfe-campos > label.nfe-check > span { margin: 0; }
+.nfe-modelo { max-width: 100%; min-height: 34px; font: inherit; font-size: var(--fs-sm); background-color: var(--bg-surface); }
+.nfe-contagem { font-size: var(--fs-sm); color: var(--text-muted); }
+.nfe-item { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-subtle); }
+.nfe-item > header { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-3); }
+.nfe-item > header b { color: var(--text-primary); }
+.nfe-item > header > span:not(.nfe-item-acoes) { font-size: var(--fs-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.nfe-item-acoes { display: flex; gap: var(--sp-3); margin-left: auto; }
+.nfe-item-acoes .almox-perigo { margin-left: 0; }
+.nfe-impostos { padding-top: var(--sp-3); border-top: 1px dashed var(--border); }
+.nfe-item-calculo { margin: 0; font-size: var(--fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.nfe-texto { display: flex; flex-direction: column; }
+.nfe-texto textarea, .nfe-duplicatas input, .nfe-gerar input {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm);
+}
+.nfe-texto textarea { resize: vertical; min-height: 72px; }
+.nfe-texto textarea:focus, .nfe-duplicatas input:focus, .nfe-gerar input:focus { outline: none; border-color: var(--accent-blue); box-shadow: var(--shadow-focus); }
+.nfe-form:disabled :is(input, select, textarea) { background: var(--bg-subtle); color: var(--text-secondary); }
+.nfe-duplicatas { row-gap: var(--sp-2); }
+.nfe-duplicatas > [role="row"] { align-items: center; font-size: var(--fs-sm); }
+.nfe-duplicatas > .cabeca, .nfe-tabela > .cabeca { font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.nfe-duplicatas .r { text-align: right; font-variant-numeric: tabular-nums; }
+.nfe-duplicatas input[inputmode="decimal"] { text-align: right; }
+.nfe-dup-soma { padding-top: var(--sp-2); border-top: 1px solid var(--border-subtle); color: var(--text-secondary); }
+.nfe-gerar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-3); }
+.nfe-gerar label { display: flex; flex-direction: column; width: 120px; }
+.nfe-gerar label > span { margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.nfe-totais dl { margin: 0; display: flex; flex-direction: column; }
+.nfe-totais dl > div { display: flex; justify-content: space-between; gap: var(--sp-3); padding: 5px 0; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); }
+.nfe-totais dt { color: var(--text-secondary); }
+.nfe-totais dd { margin: 0; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.nfe-totais .nfe-total { padding: 8px 0; border-top: 2px solid var(--border); font-weight: 700; font-size: var(--fs-md); }
+.nfe-totais .nfe-total dt { color: var(--text-primary); }
+.nfe-conferencia { gap: var(--sp-3); }
+.nfe-conferencia .ds-status { align-self: flex-start; }
+.nfe-acoes-lado { gap: var(--sp-2); }
+.nfe-acoes-lado > :is(.ds-button, a.ds-button) { width: 100%; justify-content: center; text-align: center; text-decoration: none; }
+.nfe-acoes-lado .almox-perigo { margin-left: 0; }
+.nfe-acoes-lado .almox-link { align-self: center; }
+.nfe-contador { font-size: var(--fs-xs); color: var(--text-muted); margin-top: calc(var(--sp-3) * -1); }
+@media (max-width: 1100px) {
+  .nfe-editor { grid-template-columns: 1fr; }
+  .nfe-lado { position: static; }
+}
+@media (max-width: 720px) {
+  .nfe-campos { grid-template-columns: 1fr 1fr; }
+  .nfe-campos > label.nfe-largo, .nfe-campos > label.nfe-check { grid-column: 1 / -1; }
+  .nfe-ids { grid-template-columns: 1fr 1fr; }
+  .nfe-ids > div:first-child { grid-column: 1 / -1; }
+}
+
 /* Fiscal › Portal do escritório (Escritório contábil / Portal do contador) */
 .portal-sub { font-size: var(--fs-xs); color: var(--text-muted); }
 .portal-termo ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text-primary); line-height: 1.5; }
@@ -7343,14 +7420,14 @@ button.holiday-row:hover {
    sobra. Tabelas que viram cartão no celular usam isto acima do ponto de quebra.
    Nova tabela: declarar as colunas na tabela e incluir no grupo abaixo.
    ============================================================================ */
-:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .almox-tabela, .rev-parcelas) {
+:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .nfe-tabela, .nfe-duplicatas, .almox-tabela, .rev-parcelas) {
   display: grid; align-content: start; column-gap: var(--sp-3); overflow-x: auto;
 }
-:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .almox-tabela, .rev-parcelas) > * { grid-column: 1 / -1; }
-:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .almox-tabela, .rev-parcelas) > [role="row"] {
+:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .nfe-tabela, .nfe-duplicatas, .almox-tabela, .rev-parcelas) > * { grid-column: 1 / -1; }
+:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .nfe-tabela, .nfe-duplicatas, .almox-tabela, .rev-parcelas) > [role="row"] {
   display: grid; grid-template-columns: subgrid; column-gap: inherit; min-width: 0;
 }
-:is(.icms-tabela, .fiscal-dfe-tabela, .almox-tabela, .rev-parcelas) > [role="row"] > :not(.nome) { white-space: nowrap; }
+:is(.icms-tabela, .fiscal-dfe-tabela, .nfe-tabela, .almox-tabela, .rev-parcelas) > [role="row"] > :not(.nome) { white-space: nowrap; }
 
 /* Recebida · Fornecedor · NF-e · Valor · ICMS · IPI · Tipo · F · U · RS · XML · LACTO · AUT · editar */
 .icms-tabela { grid-template-columns: max-content minmax(180px, 1fr) repeat(5, max-content) repeat(6, minmax(36px, max-content)) max-content; }
@@ -7358,6 +7435,15 @@ button.holiday-row:hover {
 .icms-livro { grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(110px, max-content)) max-content; }
 /* Emissão · Emitente · Valor · Situação · No painel · Recebida · ações */
 .fiscal-dfe-tabela { grid-template-columns: max-content minmax(240px, 1fr) repeat(4, max-content) minmax(150px, max-content); }
+/* NF-e emitidas: Número · Destinatário · Emissão · Valor · Situação · ações */
+.nfe-tabela { grid-template-columns: max-content minmax(240px, 1fr) repeat(3, max-content) minmax(110px, max-content); }
+.nfe-tabela > [role="row"] { align-items: center; padding: 8px 6px; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
+.nfe-tabela > .cabeca { border-top: 0; }
+.nfe-tabela .r { text-align: right; font-variant-numeric: tabular-nums; }
+.nfe-tabela .nome { display: flex; flex-direction: column; min-width: 0; font-weight: 600; }
+.nfe-tabela .nome small { font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); }
+/* Duplicatas: Parcela · Vencimento · Valor · ação */
+.nfe-duplicatas { grid-template-columns: minmax(80px, 120px) minmax(140px, 170px) minmax(110px, 160px) max-content; }
 /* Almoxarifado: data · fornecedor/nome · demais colunas · marcas */
 .almox-tabela { grid-template-columns: max-content minmax(220px, 2fr) repeat(4, max-content) minmax(150px, 1fr); }
 /* Vencimento · Lançamento · Histórico · Valor · Situação */

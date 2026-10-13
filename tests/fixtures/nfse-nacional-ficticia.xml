@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- NFS-e NACIONAL FICTÍCIA para testes: empresas, CNPJs e valores inventados. -->
+<NFSe xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">
+  <infNFSe Id="NFS35239092112223330001810000000000001226101234567890">
+    <xLocEmi>Itu</xLocEmi>
+    <nNFSe>1226</nNFSe>
+    <dhProc>2026-10-08T14:20:00-03:00</dhProc>
+    <emit>
+      <CNPJ>11222333000181</CNPJ>
+      <xNome>MANUTENCAO INDUSTRIAL EXEMPLO LTDA</xNome>
+      <xFant>MANUT EXEMPLO</xFant>
+      <enderNac><cMun>3523909</cMun><UF>SP</UF><CEP>13300000</CEP></enderNac>
+    </emit>
+    <valores><vBC>2500.00</vBC><pAliqAplic>5.00</pAliqAplic><vISSQN>125.00</vISSQN><vTotalRet>125.00</vTotalRet><vLiq>2375.00</vLiq></valores>
+    <DPS versao="1.00">
+      <infDPS Id="DPS352390921122233300018100001000000000001226">
+        <dhEmi>2026-10-08T10:00:00-03:00</dhEmi>
+        <prest><CNPJ>11222333000181</CNPJ></prest>
+        <toma><CNPJ>99888777000166</CNPJ><xNome>EMPRESA TOMADORA FICTICIA LTDA</xNome></toma>
+        <serv><cServ><cTribNac>140101</cTribNac><xDescServ>Manutenção corretiva do compressor da linha 2</xDescServ></cServ></serv>
+        <valores><vServPrest><vServ>2500.00</vServ></vServPrest><trib><tribMun><tribISSQN>1</tribISSQN><tpRetISSQN>2</tpRetISSQN></tribMun></trib></valores>
+      </infDPS>
+    </DPS>
+  </infNFSe>
+</NFSe>
