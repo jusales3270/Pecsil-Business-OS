@@ -267,7 +267,7 @@ function DetalheRecebido({ recebido: r, onClose }: { recebido: Recebido; onClose
           <div><dt>Valor da nota</dt><dd><b>{money(r.valor_total)}</b></dd></div>
           <div><dt>ICMS · IPI</dt><dd>{money(r.icms)} · {money(r.ipi)}</dd></div>
           <div><dt>Emissão</dt><dd>{date(r.emissao)}</dd></div>
-          <div><dt>Origem</dt><dd>{r.com_xml ? "XML da NF-e" : "Digitada"}{r.cotacao_id ? ` · cotação #${r.cotacao_id}` : " · sem pedido"}</dd></div>
+          <div><dt>Origem</dt><dd>{r.com_xml ? "XML da nota" : "Digitada"}{r.cotacao_id ? ` · cotação #${r.cotacao_id}` : " · sem pedido"}</dd></div>
           {r.nf_chave && <div className="largo"><dt>Chave de acesso</dt><dd className="mono">{r.nf_chave}</dd></div>}
           <div className="largo"><dt>Vencimentos</dt><dd>{r.receipt_installments.map((d) => `${date(d.vencimento)} · ${money(Number(d.valor))}`).join("  |  ")}</dd></div>
           {r.divergencia && <div className="largo"><dt>Divergência</dt><dd>{r.divergencia_motivo}</dd></div>}

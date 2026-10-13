@@ -44,6 +44,32 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-13-nfe-treino",
+    data: "2026-10-13",
+    area: "Fiscal",
+    funcionalidades: ["fiscal.nfe"],
+    modulos: ["fiscal"],
+    titulo: "Treino de emissão de NF-e",
+    itens: [
+      "Nova tela Fiscal › Notas emitidas, por enquanto só para TREINO: monte a nota como faria de verdade, sem nada ir para a SEFAZ e sem valor fiscal.",
+      "A plataforma calcula ICMS, IPI, PIS e COFINS por item e confere as regras (CFOP, CST, duplicatas, destinatário) e o esquema oficial da SEFAZ antes de liberar.",
+      "Quem monta envia para aprovação; quem aprova transmite (simulado), e saem o DANFE e o XML marcados como sem valor fiscal. Dá para treinar também cancelamento, carta de correção e inutilização.",
+    ],
+  },
+  {
+    id: "2026-10-13-notas-de-servico",
+    data: "2026-10-13",
+    area: "Fiscal",
+    funcionalidades: ["fiscal.icms", "almoxarifado.recebimento"],
+    modulos: ["fiscal", "almoxarifado"],
+    titulo: "Notas de serviço (NFS-e) no Painel do ICMS e no recebimento",
+    itens: [
+      "O Painel do ICMS e o recebimento do Almoxarifado aceitam também a nota de serviço (NFS-e), em XML ou PDF, além da NF-e de produto.",
+      "Os formatos reconhecidos são o nacional, o das prefeituras (padrão ABRASF) e o da Prefeitura de São Paulo. A nota entra com tipo \"Serviço\", sem ICMS nem IPI, e com o ISS (e se foi retido) na observação.",
+      "Do PDF, o que não for lido fica indicado para completar. Nota de serviço repetida (mesmo prestador e número) não entra duas vezes.",
+    ],
+  },
+  {
     id: "2026-10-13-entrar-com-digital",
     data: "2026-10-13",
     area: "Plataforma",

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- NFS-e da Prefeitura de São Paulo FICTÍCIA para testes. -->
+<RetornoConsulta xmlns="http://www.prefeitura.sp.gov.br/nfe">
+  <NFe>
+    <ChaveNFe><InscricaoPrestador>12345678</InscricaoPrestador><NumeroNFe>4521</NumeroNFe><CodigoVerificacao>XYZ98765</CodigoVerificacao></ChaveNFe>
+    <DataEmissaoNFe>2026-10-02T11:00:00</DataEmissaoNFe>
+    <CPFCNPJPrestador><CNPJ>33222111000144</CNPJ></CPFCNPJPrestador>
+    <RazaoSocialPrestador>SOFTWARE DE GESTAO EXEMPLO LTDA</RazaoSocialPrestador>
+    <EnderecoPrestador><Logradouro>AV EXEMPLO</Logradouro><UF>SP</UF></EnderecoPrestador>
+    <ValorServicos>950.00</ValorServicos>
+    <CodigoServico>02800</CodigoServico>
+    <ValorISS>19.00</ValorISS>
+    <ISSRetido>false</ISSRetido>
+    <CPFCNPJTomador><CNPJ>99888777000166</CNPJ></CPFCNPJTomador>
+    <Discriminacao>Licença mensal do sistema de manutenção</Discriminacao>
+  </NFe>
+</RetornoConsulta>

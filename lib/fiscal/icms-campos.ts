@@ -40,7 +40,7 @@ export function icmsColunas(body: IcmsEntradaBody): { colunas: Record<string, un
   if (body.cnpj !== undefined) c.cnpj = texto(body.cnpj)?.replace(/\D/g, "") || null;
   if (body.chave !== undefined) {
     const chave = (body.chave ?? "").replace(/\D/g, "");
-    if (chave && chave.length !== 44) return { erro: "A chave de acesso tem 44 dígitos." };
+    if (chave && chave.length !== 44 && chave.length !== 50) return { erro: "A chave de acesso tem 44 dígitos (NF-e) ou 50 (NFS-e nacional)." };
     c.chave = chave || null;
   }
   for (const [campo, coluna] of [["valor", "valor"], ["vlrCobrado", "vlr_cobrado"], ["baseIcms", "base_icms"], ["icms", "icms"], ["ipi", "ipi"]] as const) {

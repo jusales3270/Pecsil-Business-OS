@@ -10,7 +10,9 @@ import { EnviarArquivo, useSoltarArquivo } from "../../../app/components/enviar-
 import { DocumentosLigados } from "../../../app/components/documentos-ligados";
 
 import { api, cnpjFormatado, curto, date, hoje, money, nomeMes } from "./comum";
+import { obsDoServico } from "../../../lib/fiscal/nfse";
 import { NotasRecebidas } from "./NotasRecebidas";
+import { NotasEmitidas } from "./NotasEmitidas";
 import { ConfiguracaoFiscal } from "./ConfiguracaoFiscal";
 import { PortalEscritorio } from "./PortalEscritorio";
 
@@ -42,6 +44,7 @@ const campo = (v: number) => (v ? v.toLocaleString("pt-BR", { minimumFractionDig
 const SECOES = [
   { id: "Painel do ICMS", icon: "file" },
   { id: "Notas recebidas", icon: "inbox" },
+  { id: "Notas emitidas", icon: "edit" },
   { id: "Escritório contábil", icon: "briefcase" },
   { id: "Portal do contador", icon: "briefcase" },
   { id: "Configuração", icon: "settings" },
@@ -50,7 +53,7 @@ type Secao = (typeof SECOES)[number]["id"];
 
 /**
  * Fiscal: cada seção aparece para quem tem a funcionalidade dela. Painel do ICMS (fiscal.icms);
- * Notas recebidas da SEFAZ (fiscal.icms ou fiscal.nfe); Escritório contábil (fiscal.escritorio ou o dono);
+ * Notas recebidas da SEFAZ (fiscal.icms ou fiscal.nfe); Notas emitidas — por ora o treino (fiscal.nfe); Escritório contábil (fiscal.escritorio ou o dono);
  * Portal do contador (fiscal.portal — o escritório, que só vê esta seção); Configuração (fiscal.config,
  * fiscal.certificado ou o dono).
  */
@@ -61,6 +64,7 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
   const visiveis = SECOES.filter(({ id }) =>
     id === "Painel do ICMS" ? pode("fiscal.icms")
       : id === "Notas recebidas" ? pode("fiscal.icms") || pode("fiscal.nfe")
+        : id === "Notas emitidas" ? pode("fiscal.nfe")
         : id === "Escritório contábil" ? empresa
           : id === "Portal do contador" ? !empresa && pode("fiscal.portal")
             : pode("fiscal.config") || pode("fiscal.certificado"));
@@ -78,6 +82,7 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
   useEffect(() => () => registerNav(null), [registerNav]);
 
   if (secao === "Notas recebidas") return <NotasRecebidas notify={notify} />;
+  if (secao === "Notas emitidas") return <NotasEmitidas notify={notify} />;
   if (secao === "Configuração") return <ConfiguracaoFiscal notify={notify} />;
   if (secao === "Escritório contábil" || secao === "Portal do contador") return <PortalEscritorio notify={notify} />;
   if (secao === "Painel do ICMS") return <PainelIcms notify={notify} />;
@@ -142,7 +147,7 @@ function PainelIcms({ notify }: { notify: (message: string) => void }) {
             <EnviarArquivo<PreviaNotas>
               rotulo="Enviar notas"
               titulo={`Enviar notas para ${nomeMes(mes)}`}
-              descricao="XML da NF-e ou DANFE em PDF — pode mandar várias de uma vez. A plataforma lê, reconhece o fornecedor e mostra o que vai lançar; nota que já está no painel não entra de novo."
+              descricao="Notas de produto (XML da NF-e ou DANFE) e de serviço (NFS-e, XML ou PDF) — pode mandar várias de uma vez. A plataforma lê, reconhece o fornecedor e mostra o que vai lançar; nota que já está no painel não entra de novo."
               aceita=".xml,.pdf,text/xml,application/xml,application/pdf"
               endpoint="/api/fiscal/icms/notas"
               multiplo
@@ -289,20 +294,23 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
     setErro("");
     const corpo = new FormData();
     corpo.set("arquivo", file);
-    let res: { ok: true; data: { nfe: Nfe; jaNoIcms: boolean; origem: "xml" | "pdf"; fornecedor: { nome: string } | null } } | { ok: false; error: string };
+    let res: { ok: true; data: { nfe: Nfe; jaNoIcms: boolean; origem: "xml" | "pdf"; modelo?: "nfe" | "nfse"; servico?: { iss: number; issRetido: boolean; codigoVerificacao: string } | null; camposNaoLidos?: string[]; fornecedor: { nome: string } | null } } | { ok: false; error: string };
     try {
       const r = await fetch("/api/almoxarifado/nfe", { method: "POST", body: corpo, cache: "no-store" });
       const j = await r.json().catch(() => ({}));
       res = r.ok ? { ok: true, data: j } : { ok: false, error: j?.error === "FORBIDDEN" ? "Sem permissão." : j?.error || "Não foi possível ler a nota." };
     } catch { res = { ok: false, error: "Sem conexão com o servidor." }; }
     if (!res.ok) { setErro(res.error); return; }
-    if (res.data.jaNoIcms) { setErro("Esta nota já está no painel (mesma chave de acesso)."); return; }
+    if (res.data.jaNoIcms) { setErro(res.data.nfe.chave ? "Esta nota já está no painel (mesma chave de acesso)." : "Esta nota já está no painel (mesmo prestador e número)."); return; }
+    const servico = res.data.modelo === "nfse" ? res.data.servico ?? { iss: 0, issRetido: false, codigoVerificacao: "" } : null;
     const n = res.data.nfe;
     const doPdf = res.data.origem === "pdf";
     setArquivoNota(file);
     setF((a) => ({ ...a, emitida: n.emissao, fornecedor: n.emitente.nome, fantasia: n.emitente.fantasia || res.data.fornecedor?.nome || "", cnpj: cnpjFormatado(n.emitente.cnpj), nfe: n.numero, serie: n.serie, chave: n.chave,
       valor: campo(n.valorNota), vlrCobrado: campo(n.valorNota), baseIcms: campo(n.baseIcms), icms: campo(n.icms), ipi: campo(n.ipi), xmlOk: !doPdf,
-      obs: doPdf ? "Lida do DANFE em PDF: conferir com a nota." : a.obs }));
+      ...(servico ? { tipo: "Serviço" } : {}),
+      obs: servico ? obsDoServico(servico, doPdf) : doPdf ? "Lida do DANFE em PDF: conferir com a nota." : a.obs }));
+    if (servico && res.data.camposNaoLidos?.length) setErro(`Nota de serviço lida do PDF. Complete: ${res.data.camposNaoLidos.join(", ")}.`);
   };
   const [lendo, setLendo] = useState(false);
   const lerArquivo = async (file: File | undefined) => { setLendo(true); await lerXml(file); setLendo(false); };
@@ -350,7 +358,7 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
         {!nota && (
           <div className={`almox-arquivo ${arrastando ? "on" : ""}`} {...soltar}>
             <input {...seletor.inputProps} accept=".xml,.pdf,text/xml,application/xml,application/pdf" />
-            <button type="button" onClick={seletor.abrir} disabled={lendo || seletor.abrindo} aria-busy={lendo || seletor.abrindo}><b>{lendo ? "Lendo a nota…" : f.chave ? "Nota lida — conferir abaixo" : "Anexar a nota: arraste o XML ou o DANFE em PDF aqui, ou clique (opcional)"}</b><small>Preenche fornecedor, CNPJ, número, valores, ICMS e IPI. Do PDF, confira os valores.</small>{!lendo && <ZonaBotao abrindo={seletor.abrindo} rotulo={f.chave ? "Trocar a nota" : "Escolher a nota"} />}</button>
+            <button type="button" onClick={seletor.abrir} disabled={lendo || seletor.abrindo} aria-busy={lendo || seletor.abrindo}><b>{lendo ? "Lendo a nota…" : f.chave ? "Nota lida — conferir abaixo" : "Anexar a nota (produto ou serviço): arraste o XML ou o PDF aqui, ou clique (opcional)"}</b><small>Preenche fornecedor, CNPJ, número, valores, ICMS e IPI. Do PDF, confira os valores.</small>{!lendo && <ZonaBotao abrindo={seletor.abrindo} rotulo={f.chave ? "Trocar a nota" : "Escolher a nota"} />}</button>
           </div>
         )}
         {veioDoRecebimento && <Callout variant="info" title="Veio do recebimento">Os valores vêm da nota recebida no Almoxarifado. Aqui você ajusta centro, tipo, situação e observação.</Callout>}
@@ -393,7 +401,7 @@ function NotaModal({ mes, nota, onClose, onFeito }: { mes: string; nota: Entrada
 type PreviaNotas = {
   mes: string; recebida: string;
   linhas: {
-    arquivo: string; ok: boolean; erro?: string; origem?: "xml" | "pdf"; chave?: string; numero?: string; serie?: string; emissao?: string;
+    arquivo: string; ok: boolean; erro?: string; origem?: "xml" | "pdf"; modelo?: "nfe" | "nfse"; iss?: number; chave?: string; numero?: string; serie?: string; emissao?: string;
     emitente?: string; cnpj?: string; valor?: number; baseIcms?: number; icms?: number; ipi?: number; camposNaoLidos?: string[];
     situacao?: "nova" | "ja_no_painel" | "repetida_no_envio"; fornecedor?: { id: string; nome: string; porCnpj: boolean; gravarCnpj: boolean } | null;
   }[];
@@ -417,9 +425,9 @@ function PreviaNotasView({ p }: { p: PreviaNotas }) {
           <div role="row" key={`${l.arquivo}-${i}`} className={l.ok ? "" : "erro"}>
             {l.ok ? (
               <>
-                <span className="nf"><b>NF {l.numero}{l.serie ? `/${l.serie}` : ""}</b><small>{l.emissao ? l.emissao.split("-").reverse().join("/") : "—"} · {l.origem === "pdf" ? "PDF" : "XML"}</small></span>
+                <span className="nf"><b>{l.modelo === "nfse" ? "NFS-e" : "NF"} {l.numero}{l.serie ? `/${l.serie}` : ""}</b><small>{l.emissao ? l.emissao.split("-").reverse().join("/") : "—"} · {l.origem === "pdf" ? "PDF" : "XML"}</small></span>
                 <span className="forn"><b title={l.emitente}>{l.fornecedor?.nome ?? l.emitente}</b><small>{l.cnpj ? l.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : ""}{l.fornecedor ? (l.fornecedor.porCnpj ? " · cadastro pelo CNPJ" : " · cadastro pelo nome") : " · fornecedor fora do cadastro"}{l.camposNaoLidos?.length ? ` · não lido: ${l.camposNaoLidos.join(", ")}` : ""}</small></span>
-                <span className="r">{money(l.valor ?? 0)}<small>ICMS {money(l.icms ?? 0)}</small></span>
+                <span className="r">{money(l.valor ?? 0)}<small>{l.modelo === "nfse" ? `ISS ${money(l.iss ?? 0)}` : `ICMS ${money(l.icms ?? 0)}`}</small></span>
                 <span>{l.situacao && <Status tone={SITUACAO_NOTA[l.situacao][1]}>{SITUACAO_NOTA[l.situacao][0]}</Status>}</span>
               </>
             ) : (
