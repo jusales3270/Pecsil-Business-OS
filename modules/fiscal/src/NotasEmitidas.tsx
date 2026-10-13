@@ -6,6 +6,7 @@ import { calcularItens, calcularTotais, icmsDestaca, ipiTributado, pisCofinsComA
 import { itemPadrao, notaVazia } from "../../../lib/fiscal/emissao/normalizar";
 import { CSOSN_SIMPLES, CST_ICMS_NORMAL, CST_IPI_ENTRADA, CST_IPI_SAIDA, CST_PIS_COFINS, FORMAS_PAGAMENTO, MODELOS_OPERACAO, type Problema } from "../../../lib/fiscal/emissao/regras";
 import type { Destinatario, ItemNfe, NotaNfe, SituacaoNfe, Totais } from "../../../lib/fiscal/emissao/tipos";
+import { lerNumeroBr } from "../../../lib/numero-br";
 import { api, cnpjFormatado, curto, dataHora, hoje, money } from "./comum";
 
 /**
@@ -62,7 +63,7 @@ const ORIGENS = ["0 · Nacional", "1 · Estrangeira, importação direta", "2 ·
 const MODALIDADE_FRETE: Record<number, string> = { 0: "Por conta do emitente (CIF)", 1: "Por conta do destinatário (FOB)", 2: "Por conta de terceiros", 9: "Sem frete" };
 const UFS = ["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"];
 
-const lerNumero = (t: string) => { const s = t.trim().replace(/[R$\s%]/g, ""); if (!s) return 0; const n = Number(s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s); return Number.isFinite(n) ? n : 0; };
+const lerNumero = (t: string) => lerNumeroBr(t);
 const fmt = (v: number, casas = 2) => (v ? v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }) : "");
 const numeroNota = (l: Pick<Linha, "serie" | "numero">) => (l.numero ? `${String(l.numero).padStart(6, "0")}${l.serie !== null ? ` · série ${l.serie}` : ""}` : "sem número");
 const so = (t: string) => t.replace(/\D/g, "");
@@ -78,11 +79,12 @@ function Numero({ valor, onChange, casas = 2, rotulo }: { valor: number; onChang
   );
 }
 
-export function NotasEmitidas({ notify }: { notify: (m: string) => void }) {
+export function NotasEmitidas({ notify, abrir = null, onAberta }: { notify: (m: string) => void; abrir?: string | null; onAberta?: () => void }) {
   const [dados, setDados] = useState<Lista | null>(null);
   const [erro, setErro] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("todas");
-  const [aberta, setAberta] = useState<string | "nova" | null>(null);
+  const [aberta, setAberta] = useState<string | "nova" | null>(abrir);
+  useEffect(() => { if (abrir) onAberta?.(); }, [abrir, onAberta]);
   const [inutilizar, setInutilizar] = useState(false);
   const [limpando, setLimpando] = useState<"perguntar" | "apagando" | null>(null);
 
@@ -477,6 +479,7 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
                 <div className="nfe-item" key={k}>
                   <header>
                     <b>Item {k + 1}</b>
+                    {i.itemOrcamento && <Status tone="info">{`Do orçamento${i.pedidoCompra ? ` · pedido ${i.pedidoCompra}${i.itemPedido ? ` item ${i.itemPedido}` : ""}` : ""}`}</Status>}
                     <span>{money(c ? r2(c.vProd - c.vDesc) : 0)}{c && c.vICMS ? ` · ICMS ${money(c.vICMS)}` : ""}{c && c.vIPI ? ` · IPI ${money(c.vIPI)}` : ""}</span>
                     {editavel && (
                       <span className="nfe-item-acoes">

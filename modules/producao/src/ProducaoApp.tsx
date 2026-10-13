@@ -15,12 +15,14 @@ import { LotesFantasmasSection } from "./components/LotesFantasmasSection";
 import { GraficosAnalise } from "./components/GraficosAnalise";
 import { EnviosExternosSection } from "./components/EnviosExternosSection";
 import { ConfiguracaoConexaoSection } from "./components/ConfiguracaoConexaoSection";
+import { EntradaProducao } from "./components/EntradaProducao";
 import { ProducaoIcon } from "./components/ProducaoIcon";
 import "./producao.css";
 
 const sections = [
   ["Painel", "factory"],
   ["Ordens de serviço", "file"],
+  ["Entrada de produção", "box"],
   ["Pipeline fundição", "arrow"],
   ["Paradas", "alert"],
   ["Qualidade", "check"],
@@ -36,6 +38,7 @@ type ProducaoSection = (typeof sections)[number][0];
 const SECTION_FEATURE: Record<ProducaoSection, string> = {
   "Painel": "producao.painel",
   "Ordens de serviço": "producao.os",
+  "Entrada de produção": "producao.entrada",
   "Pipeline fundição": "producao.fundicao",
   "Paradas": "producao.paradas",
   "Qualidade": "producao.qualidade",
@@ -109,6 +112,8 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
   const renderSection = () => {
     // Sem a API do Forja não há produção para mostrar. Só a aba de conexão
     // continua útil (testar e ver o endereço configurado).
+    // A entrada de produção é da plataforma (orçamentos ganhos), não depende do Forja.
+    if (section === "Entrada de produção") return <EntradaProducao notify={notify} />;
     if (semConexao && section !== "Conexão Forja") {
       return (
         <div className="producao-workspace">

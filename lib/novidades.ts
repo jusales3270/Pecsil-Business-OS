@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-13-orcamentos",
+    data: "2026-10-13",
+    area: "Comercial",
+    funcionalidades: ["comercial.orcamentos", "comercial.produtos", "producao.entrada", "fiscal.nfe"],
+    modulos: ["comercial", "producao", "fiscal"],
+    titulo: "Orçamentos, produtos, entrada de produção e faturamento pelo pedido",
+    itens: [
+      "Comercial › Vendas: cadastro de produtos (código interno no formato do GRV, NCM, desenho, material), com \"Clonar\" para a peça parecida.",
+      "Orçamentos com itens, o pedido de compra do cliente e a cotação anexados (exigidos para marcar como ganho), anotações das mudanças e histórico de preço. Ganho, vira previsão a receber.",
+      "Produção › Entrada de produção: as peças prontas dos orçamentos ganhos, nunca acima do pedido.",
+      "Fiscal › A faturar: escolha quanto faturar de cada item e a nota nasce preenchida, com o pedido do cliente. Em várias notas, se precisar, mas nunca acima do pedido; nota cancelada devolve. Por enquanto no treino.",
+    ],
+  },
+  {
     id: "2026-10-13-nfe-cliente-preenche",
     data: "2026-10-13",
     area: "Fiscal",

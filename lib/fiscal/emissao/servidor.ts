@@ -55,6 +55,20 @@ export async function gravarNoCadastroDoCliente(admin: SupabaseClient, autor: Au
   return (data as string | null) ?? customerId;
 }
 
+/**
+ * Itens de orçamento que a nota fatura (pela marca `itemOrcamento` de cada item). O banco confere
+ * o teto — nunca acima do pedido nem do produzido — com as linhas travadas. Devolve a mensagem de
+ * recusa, ou null.
+ */
+export async function definirOrigens(admin: SupabaseClient, org: string, nfeId: string, nota: NotaNfe): Promise<string | null> {
+  const porItem = new Map<string, number>();
+  for (const i of nota.itens) if (i.itemOrcamento) porItem.set(i.itemOrcamento, (porItem.get(i.itemOrcamento) ?? 0) + i.quantidade);
+  const { error } = await admin.rpc("fiscal_nfe_origens_definir", {
+    p_org: org, p_nfe: nfeId, p_itens: [...porItem].map(([item, quantidade]) => ({ item, quantidade })),
+  });
+  return error ? error.message : null;
+}
+
 /** Colunas da lista (sem o XML, que pesa). */
 export const COLUNAS_LISTA = "id, ambiente, situacao, serie, numero, chave, emissao, natureza, valor_total, destinatario_nome, destinatario_documento, protocolo, autorizada_em, motivo, montada_por_nome, aprovada_por_nome, cancelada_em, created_at, updated_at";
 

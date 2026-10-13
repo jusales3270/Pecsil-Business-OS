@@ -13,6 +13,7 @@ import { api, cnpjFormatado, curto, date, hoje, money, nomeMes } from "./comum";
 import { obsDoServico } from "../../../lib/fiscal/nfse";
 import { NotasRecebidas } from "./NotasRecebidas";
 import { NotasEmitidas } from "./NotasEmitidas";
+import { AFaturar } from "./AFaturar";
 import { ConfiguracaoFiscal } from "./ConfiguracaoFiscal";
 import { PortalEscritorio } from "./PortalEscritorio";
 
@@ -44,6 +45,7 @@ const campo = (v: number) => (v ? v.toLocaleString("pt-BR", { minimumFractionDig
 const SECOES = [
   { id: "Painel do ICMS", icon: "file" },
   { id: "Notas recebidas", icon: "inbox" },
+  { id: "A faturar", icon: "receivable" },
   { id: "Notas emitidas", icon: "edit" },
   { id: "Escritório contábil", icon: "briefcase" },
   { id: "Portal do contador", icon: "briefcase" },
@@ -64,13 +66,15 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
   const visiveis = SECOES.filter(({ id }) =>
     id === "Painel do ICMS" ? pode("fiscal.icms")
       : id === "Notas recebidas" ? pode("fiscal.icms") || pode("fiscal.nfe")
-        : id === "Notas emitidas" ? pode("fiscal.nfe")
+        : id === "Notas emitidas" || id === "A faturar" ? pode("fiscal.nfe")
         : id === "Escritório contábil" ? empresa
           : id === "Portal do contador" ? !empresa && pode("fiscal.portal")
             : pode("fiscal.config") || pode("fiscal.certificado"));
   const ids = visiveis.map((s) => s.id).join("|");
   const [escolhida, setSecao] = useState<Secao | null>(() => (SECOES.some((s) => s.id === initialSection) ? (initialSection as Secao) : null));
   const secao: Secao | undefined = visiveis.find((s) => s.id === escolhida)?.id ?? visiveis[0]?.id;
+  // Nota gerada em "A faturar": abre direto no editor de Notas emitidas.
+  const [notaParaAbrir, setNotaParaAbrir] = useState<string | null>(null);
 
   useEffect(() => {
     registerNav({
@@ -82,7 +86,8 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
   useEffect(() => () => registerNav(null), [registerNav]);
 
   if (secao === "Notas recebidas") return <NotasRecebidas notify={notify} />;
-  if (secao === "Notas emitidas") return <NotasEmitidas notify={notify} />;
+  if (secao === "Notas emitidas") return <NotasEmitidas notify={notify} abrir={notaParaAbrir} onAberta={() => setNotaParaAbrir(null)} />;
+  if (secao === "A faturar") return <AFaturar notify={notify} onAbrirNota={(id) => { setNotaParaAbrir(id); setSecao("Notas emitidas"); }} />;
   if (secao === "Configuração") return <ConfiguracaoFiscal notify={notify} />;
   if (secao === "Escritório contábil" || secao === "Portal do contador") return <PortalEscritorio notify={notify} />;
   if (secao === "Painel do ICMS") return <PainelIcms notify={notify} />;

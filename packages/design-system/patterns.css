@@ -7064,6 +7064,35 @@ button.holiday-row:hover {
   .nfe-ids > div:first-child { grid-column: 1 / -1; }
 }
 
+/* Comercial › Vendas */
+.vnd-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.vnd-busca { flex: 1 1 260px; min-height: 38px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.vnd-busca:focus { outline: none; border-color: var(--accent-blue); box-shadow: var(--shadow-focus); }
+.vnd-codigo { font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-xs); font-weight: 600; color: var(--text-primary); }
+.vnd-saldo { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); padding: 8px 12px; border-radius: var(--radius-sm); background: var(--bg-surface); font-size: var(--fs-sm); color: var(--text-secondary); }
+.vnd-saldo b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.vnd-anexos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
+.vnd-anexo { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-subtle); min-width: 0; }
+.vnd-anexo > b { font-size: var(--fs-sm); color: var(--text-primary); }
+.vnd-anexo-linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); max-width: 100%; font-size: var(--fs-sm); }
+.vnd-anexo-linha .almox-link { overflow-wrap: anywhere; text-align: left; }
+.vnd-anexo-linha .almox-perigo { margin-left: 0; }
+.vnd-anotar { display: flex; align-items: flex-end; gap: var(--sp-3); }
+.vnd-anotar .nfe-texto { flex: 1; }
+.vnd-marcado { background: var(--tint-blue); }
+.vnd-qtd { width: 100px; min-height: 32px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); text-align: right; }
+.vnd-qtd:focus { outline: none; border-color: var(--accent-blue); box-shadow: var(--shadow-focus); }
+.vnd-invalido { border-color: var(--accent-red); }
+.vnd-dica { font-size: var(--fs-xs); color: var(--text-muted); }
+.vnd-barra-faturar { position: sticky; bottom: var(--sp-3); z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-surface); box-shadow: var(--shadow-md, var(--shadow-sm)); }
+.vnd-barra-faturar > span { margin-right: auto; font-weight: 600; color: var(--text-primary); }
+.vnd-barra-faturar > span small { font-weight: 400; color: var(--text-muted); }
+.vnd-barra-faturar .ds-callout { flex-basis: 100%; }
+@media (max-width: 720px) {
+  .vnd-anexos { grid-template-columns: 1fr; }
+  .vnd-anotar { flex-direction: column; align-items: stretch; }
+}
+
 /* Fiscal › Portal do escritório (Escritório contábil / Portal do contador) */
 .portal-sub { font-size: var(--fs-xs); color: var(--text-muted); }
 .portal-termo ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text-primary); line-height: 1.5; }
@@ -7422,14 +7451,14 @@ button.holiday-row:hover {
    sobra. Tabelas que viram cartão no celular usam isto acima do ponto de quebra.
    Nova tabela: declarar as colunas na tabela e incluir no grupo abaixo.
    ============================================================================ */
-:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .nfe-tabela, .nfe-duplicatas, .almox-tabela, .rev-parcelas) {
+:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .nfe-tabela, .nfe-duplicatas, .vnd-tabela, .almox-tabela, .rev-parcelas) {
   display: grid; align-content: start; column-gap: var(--sp-3); overflow-x: auto;
 }
-:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .nfe-tabela, .nfe-duplicatas, .almox-tabela, .rev-parcelas) > * { grid-column: 1 / -1; }
-:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .nfe-tabela, .nfe-duplicatas, .almox-tabela, .rev-parcelas) > [role="row"] {
+:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .nfe-tabela, .nfe-duplicatas, .vnd-tabela, .almox-tabela, .rev-parcelas) > * { grid-column: 1 / -1; }
+:is(.icms-tabela, .icms-livro, .fiscal-dfe-tabela, .nfe-tabela, .nfe-duplicatas, .vnd-tabela, .almox-tabela, .rev-parcelas) > [role="row"] {
   display: grid; grid-template-columns: subgrid; column-gap: inherit; min-width: 0;
 }
-:is(.icms-tabela, .fiscal-dfe-tabela, .nfe-tabela, .almox-tabela, .rev-parcelas) > [role="row"] > :not(.nome) { white-space: nowrap; }
+:is(.icms-tabela, .fiscal-dfe-tabela, .nfe-tabela, .vnd-tabela, .almox-tabela, .rev-parcelas) > [role="row"] > :not(.nome) { white-space: nowrap; }
 
 /* Recebida · Fornecedor · NF-e · Valor · ICMS · IPI · Tipo · F · U · RS · XML · LACTO · AUT · editar */
 .icms-tabela { grid-template-columns: max-content minmax(180px, 1fr) repeat(5, max-content) repeat(6, minmax(36px, max-content)) max-content; }
@@ -7446,6 +7475,22 @@ button.holiday-row:hover {
 .nfe-tabela .nome small { font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); }
 /* Duplicatas: Parcela · Vencimento · Valor · ação */
 .nfe-duplicatas { grid-template-columns: minmax(80px, 120px) minmax(140px, 170px) minmax(110px, 160px) max-content; }
+/* Comercial › Vendas (produtos, orçamentos), Produção › Entrada e Fiscal › A faturar */
+.vnd-tabela > [role="row"] { align-items: center; padding: 8px 6px; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
+.vnd-tabela > .cabeca { border-top: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.vnd-tabela .r { text-align: right; font-variant-numeric: tabular-nums; }
+.vnd-tabela .nome { display: flex; flex-direction: column; min-width: 0; font-weight: 600; }
+.vnd-tabela .nome small { font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); }
+/* Código · Descrição · Cliente · NCM · Desenho · ações */
+.vnd-produtos { grid-template-columns: max-content minmax(260px, 1fr) minmax(140px, max-content) repeat(2, max-content) minmax(120px, max-content); }
+/* Grupo · Nome · Próximo código · ação */
+.vnd-grupos { grid-template-columns: max-content minmax(140px, 1fr) max-content max-content; }
+/* Nº · Cliente · Data · Pedido · Total · Situação · ação */
+.vnd-orcamentos { grid-template-columns: max-content minmax(240px, 1fr) repeat(5, max-content); }
+/* Código · Item · Pedido · Produzido · Faturado · Falta · ações */
+.vnd-entrada { grid-template-columns: max-content minmax(220px, 1fr) repeat(4, max-content) minmax(120px, max-content); }
+/* ☐ · Código · Item · Pedido · Produzido · Faturado · Disponível · Falta · Faturar agora */
+.vnd-faturar { grid-template-columns: max-content max-content minmax(220px, 1fr) repeat(5, max-content) minmax(110px, max-content); }
 /* Almoxarifado: data · fornecedor/nome · demais colunas · marcas */
 .almox-tabela { grid-template-columns: max-content minmax(220px, 2fr) repeat(4, max-content) minmax(150px, 1fr); }
 /* Vencimento · Lançamento · Histórico · Valor · Situação */

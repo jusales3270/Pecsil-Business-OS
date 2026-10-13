@@ -20,7 +20,7 @@ export const SETORES_DOCUMENTO: readonly Setor[] = [
   { modulo: "fiscal", rotulo: "Fiscal", feature: "fiscal.icms" },
   { modulo: "compras", rotulo: "Compras", feature: "compras.cotacoes", outras: ["compras.realizadas", "compras.fornecedores"] },
   { modulo: "almoxarifado", rotulo: "Almoxarifado", feature: "almoxarifado.recebimento", outras: ["almoxarifado.solicitacoes"] },
-  { modulo: "comercial", rotulo: "Comercial", feature: "comercial.clientes" },
+  { modulo: "comercial", rotulo: "Comercial", feature: "comercial.clientes", outras: ["comercial.orcamentos"] },
   { modulo: "fundicao", rotulo: "Fundição", feature: "fundicao.pedidos" },
   { modulo: "producao", rotulo: "Produção", feature: "producao.os" },
 ];

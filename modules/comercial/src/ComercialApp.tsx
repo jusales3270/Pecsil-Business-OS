@@ -12,18 +12,20 @@ import type { Page as ComprasPage } from "../../compras/src/types";
 import { CustomersPanel } from "../../../app/components/customers-panel";
 import { ConexaoSection } from "./components/ConexaoSection";
 import { FunilBoard } from "./components/FunilBoard";
+import { Orcamentos } from "./vendas/Orcamentos";
+import { Produtos } from "./vendas/Produtos";
 import "./comercial.css";
 
 /**
  * Casca do departamento Comercial.
  *
- * O Comercial não tem tela própria: ele abriga áreas. Hoje abriga o CRM e o
- * Compras (o módulo `compras`, inteiro, apenas embutido). Esta casca registra a
+ * O Comercial não tem tela própria: ele abriga áreas. Hoje abriga o CRM, Vendas
+ * (orçamentos e produtos) e o Compras (o módulo `compras`, inteiro, apenas embutido). Esta casca registra a
  * árvore do menu — Comercial › CRM › seções, e Comercial › Compras › abas do
  * Compras (Dashboard, Cotações, …, Fornecedores) — que a barra lateral desenha.
  */
 
-type Area = "crm" | "compras";
+type Area = "crm" | "vendas" | "compras";
 
 /** Cada seção do CRM é uma funcionalidade liberável por usuário. */
 const CRM_SECTIONS = [
@@ -36,6 +38,14 @@ const CRM_SECTIONS = [
 
 type CrmSection = (typeof CRM_SECTIONS)[number]["id"];
 
+/** Vendas (docs/PLANO-ORCAMENTO.md): o orçamento que vira OS e nota, e o cadastro de produtos. */
+const VENDAS_SECTIONS = [
+  { id: "orcamentos", label: "Orçamentos", icon: "file", feature: "comercial.orcamentos" },
+  { id: "produtos", label: "Produtos", icon: "box", feature: "comercial.produtos" },
+] as const;
+
+type VendasSection = (typeof VENDAS_SECTIONS)[number]["id"];
+
 export default function ComercialApp({ access, onExit, onEvent, notify, initialArea, initialSection }: ModuleRuntimeProps) {
   const { registerNav } = useModuleNav();
 
@@ -45,6 +55,11 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
     [access],
   );
   const podeCrm = secoesCrm.length > 0;
+  const secoesVendas = useMemo(
+    () => VENDAS_SECTIONS.filter((secao) => hasFeature(access, secao.feature)),
+    [access],
+  );
+  const podeVendas = secoesVendas.length > 0;
   const podeCompras = hasModuleAccess(access, "compras");
 
   // Abre no CRM, que é a razão de o departamento existir; o atalho antigo
@@ -52,9 +67,12 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
   const [area, setArea] = useState<Area>(() => {
     if (initialArea === "compras" && podeCompras) return "compras";
     if (initialArea === "crm" && podeCrm) return "crm";
-    return podeCrm ? "crm" : "compras";
+    if (initialArea === "vendas" && podeVendas) return "vendas";
+    return podeCrm ? "crm" : podeVendas ? "vendas" : "compras";
   });
   const [crmSection, setCrmSection] = useState<CrmSection>(() => secoesCrm[0]?.id ?? "caixa");
+  const [vendasSection, setVendasSection] = useState<VendasSection>(() =>
+    VENDAS_SECTIONS.some((s) => s.id === initialSection) ? (initialSection as VendasSection) : secoesVendas[0]?.id ?? "orcamentos");
 
   // Abas do Compras, as mesmas da barra do topo dele (mesmas regras de visão e
   // permissão). Menu e barra mexem no mesmo `currentPage`, então andam juntos.
@@ -72,17 +90,20 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
   const areas = useMemo<ModuleNavArea[]>(
     () => [
       ...(podeCrm ? [{ id: "crm", label: "CRM", icon: "inbox" }] : []),
+      ...(podeVendas ? [{ id: "vendas", label: "Vendas", icon: "file" }] : []),
       ...(podeCompras ? [{ id: "compras", label: "Compras", icon: "cart" }] : []),
     ],
-    [podeCrm, podeCompras],
+    [podeCrm, podeVendas, podeCompras],
   );
 
   const items = useMemo<ModuleNavItem[]>(
     () =>
       area === "crm"
         ? secoesCrm.map(({ id, label, icon }) => ({ id, label, icon }))
-        : comprasTabs.map(({ page, label, icon }) => ({ id: page, label, icon })),
-    [area, secoesCrm, comprasTabs],
+        : area === "vendas"
+          ? secoesVendas.map(({ id, label, icon }) => ({ id, label, icon }))
+          : comprasTabs.map(({ page, label, icon }) => ({ id: page, label, icon })),
+    [area, secoesCrm, secoesVendas, comprasTabs],
   );
 
   // `onEvent` muda de identidade a cada render da casca da plataforma; guardá-lo
@@ -100,10 +121,15 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
       activeAreaId: area,
       onSelectArea: (id) => setArea(id as Area),
       items,
-      activeId: area === "crm" ? crmSection : comprasPage,
+      activeId: area === "crm" ? crmSection : area === "vendas" ? vendasSection : comprasPage,
       onSelect: (id) => {
         if (area === "compras") {
           setComprasPage(id as ComprasPage);
+          return;
+        }
+        if (area === "vendas") {
+          setVendasSection(id as VendasSection);
+          onEventRef.current(`Navegou para ${id} em Vendas`, "Comercial");
           return;
         }
         setArea("crm");
@@ -111,7 +137,7 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
         onEventRef.current(`Navegou para ${id} no CRM`, "Comercial");
       },
     });
-  }, [registerNav, areas, items, area, crmSection, comprasPage, setComprasPage]);
+  }, [registerNav, areas, items, area, crmSection, vendasSection, comprasPage, setComprasPage]);
 
   // Limpar só ao sair do módulo. Limpar a cada mudança de dependência zeraria a
   // navegação e derrubaria a comparação de igualdade do provedor — o registro
@@ -129,6 +155,12 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
         </div>
       </div>
     );
+  }
+
+  if (area === "vendas") {
+    const vendas = secoesVendas.find((item) => item.id === vendasSection) ?? secoesVendas[0];
+    if (vendas?.id === "produtos") return <Produtos notify={notify} />;
+    return <Orcamentos notify={notify} />;
   }
 
   const secao = secoesCrm.find((item) => item.id === crmSection) ?? secoesCrm[0];
