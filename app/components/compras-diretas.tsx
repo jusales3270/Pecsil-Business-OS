@@ -39,8 +39,14 @@ const numero = (texto: string) => {
   return Number(limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo);
 };
 
-export function ComprasDiretas({ eyebrow, texto, podeRegistrar = false, podeAbrirOC = false, acaoExtra, notify }: {
+/** Última OC vista nesta lista (por pessoa e navegador): o que veio depois aparece como "Nova". */
+const lerVista = (chave: string) => { try { const v = localStorage.getItem(chave); return v === null ? null : Number(v) || 0; } catch { return null; } };
+const gravarVista = (chave: string, id: number) => { try { localStorage.setItem(chave, String(id)); } catch { /* sem armazenamento: sem marca de nova */ } };
+
+export function ComprasDiretas({ eyebrow, texto, painel, podeRegistrar = false, podeAbrirOC = false, acaoExtra, notify }: {
   eyebrow: string;
+  /** Onde a lista está (cada painel guarda o que já foi visto). */
+  painel: "compras" | "almoxarifado";
   texto: string;
   /** Compras: registrar a compra direta pedida pelo diretor (caminho B). */
   podeRegistrar?: boolean;
@@ -56,13 +62,20 @@ export function ComprasDiretas({ eyebrow, texto, podeRegistrar = false, podeAbri
   const [busca, setBusca] = useState("");
   const [aberta, setAberta] = useState<CompraDireta | null>(null);
   const [nova, setNova] = useState(false);
+  const [vistaAntes, setVistaAntes] = useState<number | null | undefined>(undefined);
 
   const carregar = useCallback(async () => {
     const res = await chamar<{ items: CompraDireta[] }>("/api/compras/diretas");
     if (!res.ok) { setErro(res.error); return; }
     setErro("");
+    // Primeira vez: nada aparece como nova. Depois, as OCs acima da última vista ficam marcadas nesta abertura.
+    const chave = `compras_diretas_vista_${painel}`;
+    const maior = res.data.items.reduce((m, c) => Math.max(m, c.id), 0);
+    const antes = lerVista(chave);
+    setVistaAntes((atual) => (atual === undefined ? antes ?? maior : atual));
+    gravarVista(chave, Math.max(maior, antes ?? 0));
     setItens(res.data.items.map((c) => ({ ...c, total: Number(c.total), despesas: Number(c.despesas), notas: c.notas.map((n) => ({ ...n, valor: Number(n.valor) })) })));
-  }, []);
+  }, [painel]);
   useEffect(() => {
     const t = setTimeout(() => { void carregar(); }, 0);
     return () => clearTimeout(t);
@@ -117,6 +130,7 @@ export function ComprasDiretas({ eyebrow, texto, podeRegistrar = false, podeAbri
                   <span className="valor">{money(valorDe(c))}</span>
                   <span>{c.autorizadoPor ?? "—"}</span>
                   <span className="marcas">
+                    {typeof vistaAntes === "number" && c.id > vistaAntes && <Status tone="attention">Nova</Status>}
                     {c.notas.length ? <Status tone="success">Recebida</Status> : <Status tone="info">A caminho</Status>}
                     <Status tone="neutral">{c.pelaNota ? "Pela nota" : "Pelo Compras"}</Status>
                   </span>

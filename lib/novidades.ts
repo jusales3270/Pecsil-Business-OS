@@ -66,7 +66,7 @@ export const NOVIDADES: Novidade[] = [
     itens: [
       "Uma compra é \"Cotação nº\" enquanto espera a aprovação e passa a ser \"OC nº\" depois de aprovada, com o mesmo número do começo ao fim.",
       "Nova aba \"Compras diretas\" no Compras e no Almoxarifado, com a mesma lista e os mesmos números: compras autorizadas sem cotação, que já nascem como OC.",
-      "No Almoxarifado, a \"Nota sem pedido\" vem com \"É compra direta (gerar OC)\" marcado: ao gravar, a OC nasce preenchida com os dados da nota e o Compras é avisado, sem digitar de novo. Desmarque para remessa, conserto, devolução ou amostra.",
+      "No Almoxarifado, em Compras diretas › \"Lançar compra direta\" (digitando os itens) ou enviando o XML/PDF da nota com \"É compra direta (gerar OC)\" marcado: ao gravar, a OC nasce com o número e os itens da nota, a conta vai para o Contas a pagar e o Compras é avisado, sem digitar de novo. Desmarque para remessa, conserto, devolução ou amostra.",
       "Todo recebimento agora informa o tipo e o centro (Fundição, Usinagem, Administrativo): a nota entra completa no Painel do ICMS.",
       "No Compras, \"Nova compra direta\" registra a compra pedida pela diretoria: a OC sai na hora para o fornecedor e o material aparece em \"A caminho\" para o Almoxarifado.",
     ],
