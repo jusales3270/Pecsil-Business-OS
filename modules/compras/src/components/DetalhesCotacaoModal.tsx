@@ -5,6 +5,7 @@ import { X, ShoppingCart, CheckCircle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import CompraModal from './CompraModal';
 import { DocumentosLigados } from '@/app/components/documentos-ligados';
+import { rotuloCompra } from '../../../../lib/compras/rotulo';
 
 interface Props {
   cotacao: Cotacao;
@@ -101,7 +102,7 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.08]">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-[#212121]">Cotação #{currentCotacao.id}</h2>
+            <h2 className="text-lg font-semibold text-[#212121]">{rotuloCompra(currentCotacao)}</h2>
             <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${sc.bg} ${sc.text}`}>
               {sc.label}
             </span>

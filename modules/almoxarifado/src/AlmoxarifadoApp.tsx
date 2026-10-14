@@ -9,6 +9,8 @@ import { PedidoModal } from "./PedidoModal";
 import { CancelarModal, CartaoPedido, ListaPedidos } from "./pedidos-ui";
 import { RecebimentoModal } from "./RecebimentoModal";
 import { DocumentosLigados } from "../../../app/components/documentos-ligados";
+import { ComprasDiretas } from "../../../app/components/compras-diretas";
+import { rotuloOC } from "../../../lib/compras/rotulo";
 import { type ACaminho, DIVISAO, Icone, type NotaLidaResposta, type Pedido, type Recebido, chamar, date, hoje, lerNotaArquivo, money, qtd } from "./tipos";
 
 /**
@@ -21,6 +23,7 @@ const SECOES = [
   { id: "Painel", icon: "grid" },
   { id: "Solicitações", icon: "inbox" },
   { id: "A caminho", icon: "truck" },
+  { id: "Compras diretas", icon: "cart" },
   { id: "Recebidos", icon: "check" },
 ] as const;
 type Secao = (typeof SECOES)[number]["id"];
@@ -107,8 +110,11 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
   }, [registerNav, secao, caminho?.length]);
   useEffect(() => () => registerNav(null), [registerNav]);
 
+  // Recarrega a lista de compras diretas depois de um recebimento (a OC pode ter nascido agora).
+  const [versaoDiretas, setVersaoDiretas] = useState(0);
   const depois = async (mensagem: string) => {
     notify(mensagem);
+    setVersaoDiretas((v) => v + 1);
     await Promise.all([carregar(), carregarRecebidos(mes)]);
   };
 
@@ -138,7 +144,7 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
     return (
       <article key={c.cotacaoId} className="almox-pedido almox-caminho">
         <header>
-          <div className="almox-pedido-titulo"><b>{c.fornecedor}</b><small>Cotação #{c.cotacaoId}{c.pedidoNumero ? ` · pedido #${c.pedidoNumero}` : ""}{c.origem === "FUNDICAO" ? ` · para a Fundição (${c.solicitante ?? "—"})` : ""} · comprado em {date(c.compradoEm)}{c.divisao ? ` · ${DIVISAO[c.divisao] ?? c.divisao}` : ""}</small></div>
+          <div className="almox-pedido-titulo"><b>{c.fornecedor}</b><small>{rotuloOC(c.cotacaoId)}{c.direta ? ` · compra direta${c.autorizadoPor ? ` (autorizada por ${c.autorizadoPor})` : ""}` : ""}{c.pedidoNumero ? ` · pedido #${c.pedidoNumero}` : ""}{c.origem === "FUNDICAO" ? ` · para a Fundição (${c.solicitante ?? "—"})` : ""} · comprado em {date(c.compradoEm)}{c.divisao ? ` · ${DIVISAO[c.divisao] ?? c.divisao}` : ""}</small></div>
           {c.recebimentos > 0 ? <Status tone="purple">Recebido em parte</Status> : <Status tone="info">A caminho</Status>}
         </header>
         <div className="almox-pedido-itens">
@@ -196,6 +202,18 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
       );
     }
 
+    if (secao === "Compras diretas") {
+      return (
+        <ComprasDiretas
+          key={versaoDiretas}
+          eyebrow="ALMOXARIFADO · SEM COTAÇÃO"
+          texto={'Compras autorizadas sem cotação. Ao lançar a nota sem pedido com "É compra direta" marcado, a OC nasce aqui e no Compras, com o mesmo número.'}
+          acaoExtra={podeReceber ? <Button variant="secondary" onClick={() => setReceber("avulso")}><Icone nome="nota" size={16} /> Nota sem pedido</Button> : undefined}
+          notify={notify}
+        />
+      );
+    }
+
     return (
       <>
         {cabecalho("ALMOXARIFADO · RECEBIDOS", "Notas recebidas", "Notas lançadas no recebimento. Cada uma virou conta a pagar e linha no Painel do ICMS.",
@@ -209,7 +227,7 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
                   <span>{date(r.recebido_em)}</span>
                   <span className="nome">{r.fornecedor}</span>
                   <span>{r.nf_numero}{r.nf_serie ? `/${r.nf_serie}` : ""}</span>
-                  <span>{r.material_requests?.numero ? `#${r.material_requests.numero}` : r.cotacao_id ? `cot. #${r.cotacao_id}` : "avulsa"}</span>
+                  <span>{r.material_requests?.numero ? `#${r.material_requests.numero}` : r.cotacao_id ? rotuloOC(r.cotacao_id) : "avulsa"}</span>
                   <span className="valor">{money(r.valor_total)}</span>
                   <span className="valor">{money(r.icms)}</span>
                   <span className="marcas">{r.com_xml && <Status tone="success">XML</Status>}{r.divergencia && <Status tone="danger">Divergência</Status>}{!r.encerra_pedido && <Status tone="purple">Parcial</Status>}</span>
@@ -238,7 +256,7 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
                     const c = (caminho ?? []).find((x) => x.cotacaoId === p.cotacaoId);
                     return c ? (
                       <button key={p.cotacaoId} type="button" onClick={() => abrirRecebimento(c, notaLida)}>
-                        <span><b>{c.fornecedor}</b><small>{c.pedidoNumero ? `Pedido #${c.pedidoNumero} · ` : ""}cotação #{c.cotacaoId}{c.solicitante ? ` · ${c.solicitante}` : ""} · {p.motivo === "cnpj" ? "mesmo CNPJ" : p.motivo === "fornecedor" ? "mesmo fornecedor" : "nome parecido"}</small></span>
+                        <span><b>{c.fornecedor}</b><small>{c.pedidoNumero ? `Pedido #${c.pedidoNumero} · ` : ""}{rotuloOC(c.cotacaoId)}{c.solicitante ? ` · ${c.solicitante}` : ""} · {p.motivo === "cnpj" ? "mesmo CNPJ" : p.motivo === "fornecedor" ? "mesmo fornecedor" : "nome parecido"}</small></span>
                         <span className="r"><b>{money(p.falta)}</b><small>{p.valorConfere ? "valor confere" : "valor diferente"}</small></span>
                       </button>
                     ) : null;
@@ -267,7 +285,7 @@ function DetalheRecebido({ recebido: r, onClose }: { recebido: Recebido; onClose
           <div><dt>Valor da nota</dt><dd><b>{money(r.valor_total)}</b></dd></div>
           <div><dt>ICMS · IPI</dt><dd>{money(r.icms)} · {money(r.ipi)}</dd></div>
           <div><dt>Emissão</dt><dd>{date(r.emissao)}</dd></div>
-          <div><dt>Origem</dt><dd>{r.com_xml ? "XML da nota" : "Digitada"}{r.cotacao_id ? ` · cotação #${r.cotacao_id}` : " · sem pedido"}</dd></div>
+          <div><dt>Origem</dt><dd>{r.com_xml ? "XML da nota" : "Digitada"}{r.cotacao_id ? ` · ${rotuloOC(r.cotacao_id)}` : " · sem pedido"}</dd></div>
           {r.nf_chave && <div className="largo"><dt>Chave de acesso</dt><dd className="mono">{r.nf_chave}</dd></div>}
           <div className="largo"><dt>Vencimentos</dt><dd>{r.receipt_installments.map((d) => `${date(d.vencimento)} · ${money(Number(d.valor))}`).join("  |  ")}</dd></div>
           {r.divergencia && <div className="largo"><dt>Divergência</dt><dd>{r.divergencia_motivo}</dd></div>}

@@ -4,11 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, Callout, Modal, Segmented, ZonaBotao, useEscolherArquivo } from "../../../packages/design-system";
 import type { Nfe } from "../../../lib/almoxarifado/nfe-xml";
 import { obsDoServico } from "../../../lib/fiscal/nfse";
+import { TIPOS_ICMS } from "../../../lib/fiscal/icms-campos";
+import { rotuloOC } from "../../../lib/compras/rotulo";
 import { useSoltarArquivo } from "../../../app/components/enviar-arquivo";
 import { type ACaminho, DIVISAO, Icone, chamar, date, hoje, lerNotaArquivo, money, qtd, type NotaLidaResposta } from "./tipos";
 
 type Modo = "xml" | "manual";
 type Dup = { numero: string; vencimento: string; valor: string };
+type Centro = { fundicao: boolean; usinagem: boolean; administrativo: boolean };
+const centroDa = (divisao: string | null | undefined): Centro => ({ fundicao: divisao === "FUNDICAO", usinagem: divisao !== "FUNDICAO", administrativo: false });
 
 const numero = (texto: string) => {
   const limpo = texto.trim().replace(/[R$\s]/g, "");
@@ -19,7 +23,8 @@ const campoValor = (valor: number) => (valor ? valor.toLocaleString("pt-BR", { m
 /**
  * Recebimento: o almoxarife confere o material e lança a nota — anexando o XML
  * (tudo preenchido) ou digitando. Ao confirmar, o banco cria a conta a pagar,
- * abate a previsão da compra, lança no Painel do ICMS e avisa o Financeiro.
+ * abate a previsão da compra, lança no Painel do ICMS (com centro e tipo) e avisa o Financeiro.
+ * Nota sem pedido marcada como compra direta: a OC nasce pronta para o Compras, com o mesmo número.
  */
 export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onFeito }: { compra: ACaminho | null; inicial?: NotaLidaResposta; arquivoInicial?: File | null; onClose: () => void; onFeito: (mensagem: string) => void }) {
   const [modo, setModo] = useState<Modo>("xml");
@@ -43,6 +48,14 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
   const [ipi, setIpi] = useState("");
   const [dups, setDups] = useState<Dup[]>([{ numero: "1", vencimento: compra?.previsaoVencimento ?? "", valor: "" }]);
   const [divisao, setDivisao] = useState<string>(compra?.divisao ?? "USINAGEM");
+  // Compra direta (só na nota sem pedido): vem marcada; desmarca para remessa, conserto, devolução ou amostra.
+  const [compraDireta, setCompraDireta] = useState(!compra);
+  const [autorizado, setAutorizado] = useState("");
+  const [autorizadores, setAutorizadores] = useState<string[]>([]);
+  // Painel do ICMS: a linha entra completa, sem digitar de novo lá.
+  const [centro, setCentro] = useState<Centro>(() => centroDa(compra?.divisao ?? "USINAGEM"));
+  const [centroTocado, setCentroTocado] = useState(false);
+  const [tipo, setTipo] = useState("Material");
 
   // Conferência.
   const [recebidoEm, setRecebidoEm] = useState(hoje());
@@ -51,8 +64,6 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
   const [divergencia, setDivergencia] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [observacao, setObservacao] = useState("");
-  // Nota de serviço (NFS-e): sem ICMS/IPI; entra no Painel do ICMS com tipo "Serviço".
-  const [modelo, setModelo] = useState<"nfe" | "nfse">("nfe");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
@@ -65,7 +76,8 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
     setXml(lida.xml);
     setDoPdf(lida.origem === "pdf");
     setNfe(n);
-    setModelo(lida.modelo ?? "nfe");
+    // Nota de serviço (NFS-e): sem ICMS/IPI; entra no Painel do ICMS com tipo "Serviço".
+    if (lida.modelo === "nfse") setTipo("Serviço");
     if (lida.modelo === "nfse" && lida.servico) setObservacao((o) => o || obsDoServico(lida.servico!, lida.origem === "pdf"));
     if (!compra) setFornecedor(n.emitente.fantasia || lida.fornecedor?.nome || n.emitente.nome);
     setNf(n.numero); setSerie(n.serie); setChave(n.chave); setEmissao(n.emissao);
@@ -103,6 +115,21 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Quem costuma autorizar compra direta (das compras diretas já lançadas), para sugerir.
+  useEffect(() => {
+    if (compra) return;
+    let vivo = true;
+    void chamar<{ items: { autorizadoPor: string | null }[] }>("/api/compras/diretas").then((res) => {
+      if (!vivo || !res.ok) return;
+      const nomes = [...new Set(res.data.items.map((c) => c.autorizadoPor).filter((n): n is string => Boolean(n)))];
+      setAutorizadores(nomes);
+      setAutorizado((atual) => atual || nomes[0] || "");
+    });
+    return () => { vivo = false; };
+  }, [compra]);
+  const mudarDivisao = (nova: string) => { setDivisao(nova); if (!centroTocado) setCentro(centroDa(nova)); };
+  const marcarCentro = (campo: keyof Centro, valor: boolean) => { setCentroTocado(true); setCentro((atual) => ({ ...atual, [campo]: valor })); };
+
   const somaDups = useMemo(() => dups.reduce((acc, d) => acc + (numero(d.valor) || 0), 0), [dups]);
   const mudarDup = (index: number, campo: keyof Dup, texto: string) => setDups((atual) => atual.map((d, i) => (i === index ? { ...d, [campo]: texto } : d)));
 
@@ -116,8 +143,11 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
     if (Math.abs(somaDups - total) > 0.05) { setErro(`Os vencimentos somam ${money(somaDups)} e a nota ${money(total)}. Ajuste antes de confirmar.`); return; }
     if (!conferido) { setErro("Confirme que conferiu o material recebido."); return; }
     if (divergencia && motivo.trim().length < 3) { setErro("Descreva a divergência."); return; }
+    const direta = !compra && compraDireta;
+    if (direta && !autorizado.trim()) { setErro("Informe quem autorizou a compra direta (ou desmarque se não for compra)."); return; }
+    if (!centro.fundicao && !centro.usinagem && !centro.administrativo) { setErro("Marque o centro da nota (Fundição, Usinagem ou Administrativo)."); return; }
     setSalvando(true);
-    const res = await chamar<{ id: string; numero: number; revisar: string }>("/api/almoxarifado/recebimentos", {
+    const res = await chamar<{ id: string; numero: number; revisar: string; oc: number | null }>("/api/almoxarifado/recebimentos", {
       method: "POST",
       body: JSON.stringify({
         cotacao_id: compra?.cotacaoId ?? null,
@@ -129,7 +159,8 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
         valor_total: total, base_icms: numero(base) || 0, icms: numero(icms) || 0, ipi: numero(ipi) || 0,
         xml, divisao, encerra_pedido: compra ? encerra : true,
         divergencia, divergencia_motivo: divergencia ? motivo.trim() : "", observacao: observacao.trim(),
-        ...(modelo === "nfse" ? { tipo: "Serviço" } : {}),
+        tipo, centro,
+        compra_direta: direta, autorizado_por: direta ? autorizado.trim() : "",
         itens: (nfe?.itens ?? []).map((item) => ({ descricao: item.descricao, quantidade: item.quantidade, unidade: item.unidade, valor_total: item.valorTotal })),
         duplicatas: dups.map((d) => ({ numero: d.numero, vencimento: d.vencimento, valor: numero(d.valor) })),
       }),
@@ -150,13 +181,14 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
       original = doc?.ok ? " A nota original ficou em Documentos." : " A nota original não foi guardada em Documentos; envie por lá se precisar.";
     }
     setSalvando(false);
-    onFeito(`Recebimento #${res.data.numero} gravado. A conta a pagar foi para o Financeiro${res.data.revisar ? ` (para revisar: ${res.data.revisar})` : ""}.${original}`);
+    const oc = res.data.oc ? `${rotuloOC(res.data.oc)} gerada como compra direta: o Compras já recebeu a OC preenchida. ` : "";
+    onFeito(`${oc}Recebimento #${res.data.numero} gravado. A conta a pagar foi para o Financeiro${res.data.revisar ? ` (para revisar: ${res.data.revisar})` : ""} e a nota entrou no Painel do ICMS como ${tipo}.${original}`);
   };
 
   const titulo = compra ? `Receber compra de ${compra.fornecedor}` : "Nota sem pedido de compra";
   const subtitulo = compra
-    ? `Cotação #${compra.cotacaoId}${compra.pedidoNumero ? ` · pedido #${compra.pedidoNumero}` : ""} · comprado em ${date(compra.compradoEm)} · ${money(faltaReceber)} a receber`
-    : "Material que chegou sem cotação no sistema. O Compras é avisado e a conta vai com \"revisar\".";
+    ? `${rotuloOC(compra.cotacaoId)}${compra.direta ? " · compra direta" : ""}${compra.pedidoNumero ? ` · pedido #${compra.pedidoNumero}` : ""} · comprado em ${date(compra.compradoEm)} · ${money(faltaReceber)} a receber`
+    : "Material que chegou sem cotação no sistema. Se a compra foi autorizada pela diretoria, deixe \"É compra direta\" marcado: a OC nasce pronta para o Compras.";
 
   return (
     <Modal eyebrow="Almoxarifado · recebimento" title={titulo} subtitle={subtitulo} onClose={onClose}>
@@ -195,11 +227,38 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
               <label><span>Valor do ICMS</span><input value={icms} onChange={(e) => setIcms(e.target.value)} inputMode="decimal" placeholder="0,00" readOnly={Boolean(nfe)} /></label>
               <label><span>IPI</span><input value={ipi} onChange={(e) => setIpi(e.target.value)} inputMode="decimal" placeholder="0,00" readOnly={Boolean(nfe)} /></label>
               {!compra && (
-                <label><span>Divisão (centro)</span>
-                  <select value={divisao} onChange={(e) => setDivisao(e.target.value)}>{["USINAGEM", "FUNDICAO"].map((d) => <option key={d} value={d}>{DIVISAO[d]}</option>)}</select>
+                <label><span>Divisão</span>
+                  <select value={divisao} onChange={(e) => mudarDivisao(e.target.value)}>{["USINAGEM", "FUNDICAO"].map((d) => <option key={d} value={d}>{DIVISAO[d]}</option>)}</select>
                 </label>
               )}
               {!nfe && <label className="almox-largo"><span>Chave de acesso (opcional, 44 dígitos)</span><input value={chave} onChange={(e) => setChave(e.target.value)} inputMode="numeric" /></label>}
+            </div>
+
+            {!compra && (
+              <div className="almox-bloco-interno almox-direta">
+                <label className="almox-marca"><input type="checkbox" checked={compraDireta} onChange={(e) => setCompraDireta(e.target.checked)} /> <span><b>É compra direta (gerar OC)</b> · compra autorizada sem cotação. Desmarque para remessa, conserto, devolução ou amostra.</span></label>
+                {compraDireta && (
+                  <div className="almox-campos">
+                    <label><span>Autorizada por *</span><input value={autorizado} onChange={(e) => setAutorizado(e.target.value)} list="recebimento-autorizadores" placeholder="Quem autorizou" /></label>
+                    <datalist id="recebimento-autorizadores">{autorizadores.map((n) => <option key={n} value={n} />)}</datalist>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="almox-bloco-interno">
+              <p className="almox-rotulo">Painel do ICMS (a nota entra lá com isto)</p>
+              <div className="almox-icms">
+                <label><span>Tipo</span>
+                  <select value={tipo} onChange={(e) => setTipo(e.target.value)}>{[...new Set([...TIPOS_ICMS, tipo])].map((t) => <option key={t}>{t}</option>)}</select>
+                </label>
+                <fieldset>
+                  <legend>Centro</legend>
+                  <label className="almox-marca"><input type="checkbox" checked={centro.fundicao} onChange={(e) => marcarCentro("fundicao", e.target.checked)} /> <span>Fundição</span></label>
+                  <label className="almox-marca"><input type="checkbox" checked={centro.usinagem} onChange={(e) => marcarCentro("usinagem", e.target.checked)} /> <span>Usinagem</span></label>
+                  <label className="almox-marca"><input type="checkbox" checked={centro.administrativo} onChange={(e) => marcarCentro("administrativo", e.target.checked)} /> <span>Administrativo</span></label>
+                </fieldset>
+              </div>
             </div>
 
             <div className="almox-bloco-interno">

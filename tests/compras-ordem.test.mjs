@@ -55,3 +55,10 @@ test("OC: avisa quando o cadastro do fornecedor está incompleto", () => {
   const oc = montarOrdemCompra(cab(), modelo, { ...fornecedor, cnpj: null, endereco: null }, null);
   assert.deepEqual(oc.avisos, ["O fornecedor está sem CNPJ no cadastro.", "O fornecedor está sem endereço completo no cadastro."]);
 });
+
+test("OC: compra direta sai marcada, com quem autorizou", () => {
+  const oc = montarOrdemCompra(cab({ status: "COMPRADO", direta: true }), [item("LUVA", 10, 5, { ipi: 0 })], fornecedor, null);
+  assert.equal(oc.direta, true);
+  assert.equal(oc.aprovadoPor, "Ricardo");
+  assert.equal(montarOrdemCompra(cab(), modelo, fornecedor, null).direta, false);
+});

@@ -51,6 +51,7 @@ const CASES = [
   { name: "só Portal do contador (escritório)", grants: { "fiscal.portal": "operar" } },
   { name: "só Orçamentos (ver)", grants: { "comercial.orcamentos": "ver" } },
   { name: "só Entrada de produção (operar)", grants: { "producao.entrada": "operar" } },
+  { name: "só Recebimento do Almoxarifado (operar)", grants: { "almoxarifado.recebimento": "operar" } },
 ];
 
 const { data: org } = await admin.from("organizations").select("id").limit(1).single();
@@ -162,7 +163,7 @@ try {
       check(n, "não edita feriados", Boolean(holiday.error), holiday.error?.code);
     }
     if (hasCompras) {
-      const quote = await client.from("cotacoes").insert({ organization_id: org.id, fornecedor: "Teste matriz", divisao: "USINAGEM", status: "PENDENTE", user_id: "1" });
+      const quote = await client.from("cotacoes").insert({ id: -1, organization_id: org.id, fornecedor: "Teste matriz", divisao: "USINAGEM", status: "PENDENTE", user_id: "1" });
       check(n, "não cria cotação com Ver", Boolean(quote.error), quote.error?.code);
     }
     // Dado clínico: só com rh.clinico, e escrever exige operar.
@@ -265,6 +266,21 @@ try {
     check(n, "não edita fornecedor sem Cadastros", supplierAfter.name === anySupplier.name, supplierAfter.name);
     const merge = await client.rpc("merge_suppliers", { keep_id: anySupplier.id, drop_id: anySupplier.id });
     check(n, "não unifica fornecedores sem Cadastros", Boolean(merge.error), merge.error?.code);
+
+    // Compras diretas: a lista é de quem vê o Compras ou recebe material; registrar, só quem opera no
+    // Compras; ninguém marca a origem "direta" escrevendo na tabela (só pelas funções).
+    const g = scenario.grants;
+    const veDiretas = ["compras.cotacoes", "compras.aprovacoes", "compras.realizadas", "almoxarifado.recebimento"].some((f) => f in g);
+    const diretas = await client.rpc("compras_diretas_listar", { p_limite: 1 });
+    check(n, veDiretas ? "lista as compras diretas" : "não lista as compras diretas",
+      veDiretas ? !diretas.error && Array.isArray(diretas.data) : diretas.error?.code === "42501", diretas.error?.code ?? "LISTOU");
+    if (!(g["compras.cotacoes"] === "operar" || g["compras.realizadas"] === "operar")) {
+      const reg = await client.rpc("compras_direta_registrar", { p: { fornecedor: "MATRIZ", autorizado_por: "x", itens: [{ produto: "x", quantidade: 1, valor_unit: 1 }] } });
+      check(n, "não registra compra direta", reg.error?.code === "42501", reg.error?.code ?? "REGISTROU");
+    }
+    // id explícito: a tentativa negada não gasta número da sequência (o nº da cotação é o nº da OC).
+    const origemFalsa = await client.from("cotacoes").insert({ id: -1, organization_id: org.id, fornecedor: "MATRIZ", divisao: "USINAGEM", status: "PENDENTE", user_id: "1", origem: "direta" });
+    check(n, "não marca compra direta escrevendo na tabela", Boolean(origemFalsa.error), origemFalsa.error?.code ?? "GRAVOU");
 
     // Modelo de decisão (Clef): configuração só do proprietário; auditoria só por função.
     check(n, "não lê a configuração dos usos da IA", (await total(client, "ai_uses")) === 0, await total(client, "ai_uses"));

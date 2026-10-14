@@ -5,6 +5,7 @@ import { X, Cog, Flame, Plus, Trash2, Edit, Lock, CheckCircle } from 'lucide-rea
 import { toast } from 'sonner';
 import SugestaoInput from '@/components/SugestaoInput';
 import { useSugestoesCompras } from '@/hooks/useSugestoesCompras';
+import {  } from '../../../../lib/compras/rotulo';
 
 interface Props {
   cotacao: Cotacao | null;
@@ -315,10 +316,10 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
           motivoRejeicao: hasPendingItems ? null : cotacao.motivoRejeicao,
           dataDecisao: hasPendingItems ? cotacao.dataDecisao : cotacao.dataDecisao,
         });
-        toast.success(`Cotação #${cotacao.id} atualizada e reenviada!`);
+        toast.success(`Cotação nº ${cotacao.id} atualizada e reenviada.`);
       } else {
         const c = await addCotacao(data);
-        toast.success(`Cotação #${c.id} criada! Aguardando aprovação do gestor.`);
+        toast.success(`Cotação nº ${c.id} criada. Aguardando aprovação; aprovada, ela vira a OC nº ${c.id}.`);
       }
       onClose();
     } catch (err) {
@@ -333,7 +334,7 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.08]">
           <h2 className="text-lg font-semibold text-[#212121]">
-            {cotacao ? `Editar Cotação #${cotacao.id}` : 'Nova Cotação'}
+            {cotacao ? `Editar Cotação nº ${cotacao.id}` : 'Nova Cotação'}
           </h2>
           <button
             onClick={onClose}

@@ -11,6 +11,9 @@ export type IcmsEntradaBody = {
   xmlOk?: boolean; lancado?: boolean; autorizado?: boolean; obs?: string | null;
 };
 
+/** Tipos de nota do Painel do ICMS (o mesmo rol no Painel e no recebimento do Almoxarifado). */
+export const TIPOS_ICMS = ["Material", "Uso e consumo", "Serviço", "Ativo imobilizado", "Frete", "Energia", "Outros"];
+
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 const texto = (valor: string | null | undefined) => (valor && valor.trim() ? valor.trim() : null);
 const dinheiro = (valor: unknown) => {

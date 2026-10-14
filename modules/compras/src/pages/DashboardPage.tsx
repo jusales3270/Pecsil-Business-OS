@@ -19,6 +19,7 @@ import {
 } from 'recharts';
 import { useMemo, useState } from 'react';
 import DivisaoTabs from '@/components/DivisaoTabs';
+import { rotuloCompra, rotuloOC } from '../../../../lib/compras/rotulo';
 
 const COLORS = {
   PENDENTE: '#f57c00',
@@ -41,7 +42,8 @@ export default function DashboardPage() {
     if (!user) return null;
 
     if (user.role === 'ORCAMENTISTA') {
-      const myCotacoes = cotacoes.filter(c => c.userId === user.id && c.deletedAt === null && c.divisao === currentDivisao);
+      // Compra direta não é cotação: fica fora dos números do Orçamentista (tem a aba própria).
+      const myCotacoes = cotacoes.filter(c => c.userId === user.id && c.deletedAt === null && c.divisao === currentDivisao && c.origem !== 'direta');
       const total = myCotacoes.length;
       const aprovados = myCotacoes.filter(c => c.status === 'APROVADO' || (c.status === 'PENDENTE' && c.produtos && c.produtos.some(p => p.status === 'APROVADO'))).length;
       const pendentes = myCotacoes.filter(c => c.status === 'PENDENTE' && !(c.produtos && c.produtos.some(p => p.status === 'APROVADO'))).length;
@@ -179,7 +181,7 @@ export default function DashboardPage() {
   const divisaoCounts = useMemo(() => {
     if (!user) return { USINAGEM: 0, FUNDICAO: 0 };
     const base = user.role === 'ORCAMENTISTA'
-      ? cotacoes.filter(c => c.userId === user.id && c.deletedAt === null)
+      ? cotacoes.filter(c => c.userId === user.id && c.deletedAt === null && c.origem !== 'direta')
       : cotacoes.filter(c => c.deletedAt === null);
     return {
       USINAGEM: base.filter(c => c.divisao === 'USINAGEM').length,
@@ -317,7 +319,7 @@ export default function DashboardPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-black/[0.08]">
-                <th className="text-left py-2.5 px-3 font-medium text-[#757575] text-xs uppercase">ID</th>
+                <th className="text-left py-2.5 px-3 font-medium text-[#757575] text-xs uppercase">Nº</th>
                 <th className="text-left py-2.5 px-3 font-medium text-[#757575] text-xs uppercase">Fornecedor</th>
                 <th className="text-left py-2.5 px-3 font-medium text-[#757575] text-xs uppercase">Produto</th>
                 <th className="text-right py-2.5 px-3 font-medium text-[#757575] text-xs uppercase">Qtd</th>
@@ -329,7 +331,7 @@ export default function DashboardPage() {
             <tbody>
               {(stats.type === 'ORCAMENTISTA' ? stats.recentCotacoes : stats.topPendentes).map((c) => (
                 <tr key={c.id} className="border-b border-black/[0.04] hover:bg-[#fafafa]">
-                  <td className="py-2.5 px-3 text-[#212121]">#{c.id}</td>
+                  <td className="py-2.5 px-3 text-[#212121] whitespace-nowrap">{rotuloCompra(c, { curto: true })}</td>
                   <td className="py-2.5 px-3 text-[#212121] max-w-[200px] truncate">{c.fornecedor}</td>
                   <td className="py-2.5 px-3 text-[#212121] max-w-[250px] truncate" title={c.produtos?.map(p => p.produto).join(', ') || c.produto}>
                     {formatCotacaoProdutosDesc(c)}
@@ -390,7 +392,7 @@ export default function DashboardPage() {
           {(stats.type === 'ORCAMENTISTA' ? stats.recentCotacoes : stats.topPendentes).map((c) => (
             <div key={c.id} className="p-3 bg-[#fafafa] rounded-lg border border-black/[0.06]">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-[#757575]">#{c.id}</span>
+                <span className="text-xs text-[#757575]">{rotuloCompra(c, { curto: true })}</span>
                 <StatusBadge status={c.status} cotacao={c} />
               </div>
               <p className="text-sm font-medium text-[#212121] truncate">{c.fornecedor}</p>
@@ -534,7 +536,7 @@ function DrilldownModal({ type, onClose }: { type: 'PENDENTES' | 'APROVADOS_MES'
       }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     if (type === 'ORC_TOTAL') {
-      return cotacoes.filter(c => c.deletedAt === null && c.divisao === currentDivisao && c.userId === user?.id);
+      return cotacoes.filter(c => c.deletedAt === null && c.divisao === currentDivisao && c.userId === user?.id && c.origem !== 'direta');
     }
     if (type === 'ORC_PENDENTES') {
       return cotacoes.filter(c => c.deletedAt === null && c.status === 'PENDENTE' && c.divisao === currentDivisao && c.userId === user?.id);
@@ -627,7 +629,7 @@ function DrilldownModal({ type, onClose }: { type: 'PENDENTES' | 'APROVADOS_MES'
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-primary">NF: {c.nf || 'Sem NF'}</span>
-                        <span className="text-xs text-[#757575]">• Cotação #{c.cotacaoId}</span>
+                        <span className="text-xs text-[#757575]">• {rotuloOC(c.cotacaoId)}</span>
                       </div>
                       <p className="text-sm font-semibold text-[#212121]">{c.fornecedor}</p>
                       <p className="text-xs text-[#757575]">{c.produto} — {c.quantidade} {c.unidade}</p>
@@ -650,7 +652,7 @@ function DrilldownModal({ type, onClose }: { type: 'PENDENTES' | 'APROVADOS_MES'
                   >
                     <div className="space-y-1 min-w-0 flex-1 pr-4">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-[#757575]">#{c.id}</span>
+                        <span className="text-xs font-bold text-[#757575]">{rotuloCompra(c, { curto: true })}</span>
                         {type === 'APROVADOS_MES' && (
                           <span className="text-[10px] px-1.5 py-0.2 rounded bg-green-50 text-green-700 font-semibold border border-green-200">
                             Aprovado por: {c.aprovadoPor || 'não informado'}

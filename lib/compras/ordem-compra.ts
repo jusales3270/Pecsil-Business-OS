@@ -28,6 +28,8 @@ export type CabecalhoCotacao = {
   outrasDespesas: number;
   prazoEntrega: string | null;
   observacao: string | null;
+  /** Compra direta: sem cotação, autorizada fora da plataforma (aprovadoPor = quem autorizou). */
+  direta?: boolean;
 };
 
 export type ItemCotacao = {
@@ -68,6 +70,7 @@ export type OrdemCompra = {
   prazoEntrega: string | null;
   observacao: string | null;
   aprovadoPor: string | null;
+  direta: boolean;
   solicitante: string;
   /** Algum item da cotação ficou de fora (rejeitado ou ainda pendente). */
   parcial: boolean;
@@ -132,6 +135,7 @@ export function montarOrdemCompra(cab: CabecalhoCotacao, itens: ItemCotacao[], f
     prazoEntrega: cab.prazoEntrega,
     observacao: cab.observacao?.trim() || null,
     aprovadoPor: cab.aprovadoPor,
+    direta: Boolean(cab.direta),
     solicitante: solicitante?.trim() || "COMPRAS",
     parcial: aprovados.length < itens.length,
     avisos,

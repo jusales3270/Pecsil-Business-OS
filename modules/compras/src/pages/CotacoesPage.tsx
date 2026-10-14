@@ -18,6 +18,7 @@ import CotacaoModal from '@/components/CotacaoModal';
 import DetalhesCotacaoModal from '@/components/DetalhesCotacaoModal';
 import CompraModal from '@/components/CompraModal';
 import DivisaoTabs from '@/components/DivisaoTabs';
+import { rotuloCompra } from '../../../../lib/compras/rotulo';
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'Todos' },
@@ -139,6 +140,8 @@ export default function CotacoesPage() {
       if (!user) return false;
       if (c.userId !== user.id) return false;
       if (c.deletedAt !== null) return false;
+      // Compra direta não passa por cotação: fica em "Compras diretas".
+      if (c.origem === 'direta') return false;
       if (c.divisao !== currentDivisao) return false;
       if (statusFilter) {
         if (statusFilter === 'REJEITADO') {
@@ -177,7 +180,7 @@ export default function CotacoesPage() {
   // Counts for the division tabs
   const divisaoCounts = useMemo(() => {
     if (!user) return { USINAGEM: 0, FUNDICAO: 0 };
-    const userCotacoes = cotacoes.filter(c => c.userId === user.id && c.deletedAt === null);
+    const userCotacoes = cotacoes.filter(c => c.userId === user.id && c.deletedAt === null && c.origem !== 'direta');
     return {
       USINAGEM: userCotacoes.filter(c => c.divisao === 'USINAGEM').length,
       FUNDICAO: userCotacoes.filter(c => c.divisao === 'FUNDICAO').length,
@@ -191,7 +194,7 @@ export default function CotacoesPage() {
     try {
       await deleteCotacao(cotacao.id);
       setDeleteConfirm(null);
-      toast.success(`Cotação #${cotacao.id} excluída com sucesso!`);
+      toast.success(`${rotuloCompra(cotacao, { curto: true })} excluída.`);
     } catch (err) {
       console.error(err);
       toast.error('Erro ao excluir cotação no banco de dados.');
@@ -213,10 +216,10 @@ export default function CotacoesPage() {
   };
 
   const handleRevert = async (cotacao: Cotacao) => {
-    if (confirm(`Tem certeza que deseja reverter a cotação #${cotacao.id} para a aprovação dos gestores?`)) {
+    if (confirm(`Tem certeza que deseja reverter a ${rotuloCompra(cotacao, { curto: true })} para a aprovação dos gestores?`)) {
       try {
         await revertCotacaoParaPendente(cotacao.id);
-        toast.success(`Cotação #${cotacao.id} enviada de volta para aprovação!`);
+        toast.success(`Cotação nº ${cotacao.id} enviada de volta para aprovação.`);
       } catch (err) {
         console.error(err);
         toast.error('Erro ao reverter cotação.');
@@ -302,7 +305,7 @@ export default function CotacoesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-black/[0.08] bg-[#fafafa]">
-                <th className="text-left py-3 px-4 font-medium text-[#757575] text-xs uppercase">ID</th>
+                <th className="text-left py-3 px-4 font-medium text-[#757575] text-xs uppercase">Nº</th>
                 <th className="text-left py-3 px-4 font-medium text-[#757575] text-xs uppercase">Fornecedor</th>
                 <th className="text-left py-3 px-4 font-medium text-[#757575] text-xs uppercase">Produto</th>
                 <th className="text-right py-3 px-4 font-medium text-[#757575] text-xs uppercase">Qtd</th>
@@ -321,7 +324,7 @@ export default function CotacoesPage() {
               ) : (
                 paginated.map(c => (
                   <tr key={c.id} className="border-b border-black/[0.04] hover:bg-[#fafafa] transition-colors">
-                    <td className="py-3 px-4 font-medium text-[#212121]">#{c.id}</td>
+                    <td className="py-3 px-4 font-medium text-[#212121] whitespace-nowrap">{rotuloCompra(c, { curto: true })}</td>
                     <td className="py-3 px-4 text-[#212121] max-w-[180px] truncate">{c.fornecedor}</td>
                     <td className="py-3 px-4 text-[#212121] max-w-[220px] truncate" title={getFilteredProdutos(c, statusFilter).map(p => p.produto).join(', ')}>
                       {formatProdutosDesc(getFilteredProdutos(c, statusFilter))}
@@ -403,7 +406,7 @@ export default function CotacoesPage() {
           paginated.map(c => (
             <div key={c.id} className="bg-white rounded-xl border border-black/[0.08] shadow-sm p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-[#212121]">#{c.id}</span>
+                <span className="text-sm font-medium text-[#212121]">{rotuloCompra(c, { curto: true })}</span>
                 <StatusBadge cotacao={c} compras={compras} />
               </div>
               <p className="text-sm text-[#212121] font-medium mb-0.5">{c.fornecedor}</p>

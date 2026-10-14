@@ -10,6 +10,7 @@ import PendentesPage from '@/pages/PendentesPage';
 import HistoricoPage from '@/pages/HistoricoPage';
 import FornecedoresPage from '@/pages/FornecedoresPage';
 import SolicitacoesPage from '@/pages/SolicitacoesPage';
+import DiretasPage from '@/pages/DiretasPage';
 import { Toaster } from '@/components/ui/sonner';
 import { type ModuleAccessContext } from '@/modules/access';
 import type { Page } from '@/types';
@@ -86,6 +87,8 @@ export default function ComprasApp({ access, onExit, embedded = false, initialSe
         return <DashboardPage />;
       case 'cotacoes':
         return <CotacoesPage />;
+      case 'diretas':
+        return <DiretasPage />;
       case 'compras':
         return <ComprasPage />;
       case 'pendentes':

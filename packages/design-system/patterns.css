@@ -6796,6 +6796,7 @@ button.holiday-row:hover {
    ============================================================================ */
 .almox-modulo { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
 .almox-head { align-items: flex-end; }
+@media (max-width: 720px) { .almox-head { flex-direction: column; align-items: flex-start; gap: var(--sp-3); } }
 .almox-bloco { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; padding: var(--sp-5); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-surface); box-shadow: var(--shadow-sm); }
 .almox-bloco h2 { margin: 2px 0 0; font-size: var(--fs-lg); color: var(--text-primary); }
 .almox-bloco-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
@@ -6873,6 +6874,14 @@ button.holiday-row:hover {
 .almox-nfe-resumo .almox-link { margin-left: auto; }
 .almox-bloco-interno { padding: var(--sp-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-subtle); }
 .almox-dups { display: flex; flex-direction: column; gap: 6px; }
+/* Recebimento: compra direta e o que vai para o Painel do ICMS (tipo e centro). */
+.almox-direta { display: flex; flex-direction: column; gap: var(--sp-3); }
+.almox-direta .almox-marca { align-items: flex-start; }
+.almox-direta .almox-marca input { margin-top: 2px; flex: none; }
+.almox-icms { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-3) var(--sp-5); }
+.almox-icms > label { min-width: 200px; }
+.almox-icms fieldset { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); min-height: 36px; margin: 0; padding: 0; border: 0; }
+.almox-icms legend { float: left; margin-right: var(--sp-2); font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
 .almox-dups > [role="row"] { display: grid; grid-template-columns: 70px 160px minmax(120px, 1fr) 36px; gap: 6px; }
 .almox-dups-rodape { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; color: var(--text-secondary); }
 .almox-dups-rodape .neg { color: var(--accent-red); font-weight: 600; }

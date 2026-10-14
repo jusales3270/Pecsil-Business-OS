@@ -76,6 +76,12 @@ export interface Cotacao {
   outrasDespesas?: number;
   prazoEntrega?: string | null;
   observacao?: string | null;
+  /** 'direta': compra sem cotação (nasce aprovada); o número é o mesmo da sequência das OCs. */
+  origem?: 'cotacao' | 'direta';
+  /** Quem autorizou a compra direta. */
+  autorizadoPor?: string | null;
+  /** Recebimento que originou a compra direta (nota lançada pelo Almoxarifado). */
+  receiptId?: string | null;
   userId: number;
   aprovadoPor: string | null;
   motivoRejeicao: string | null;
@@ -167,6 +173,7 @@ export type Page =
   | 'login'
   | 'dashboard'
   | 'cotacoes'
+  | 'diretas'
   | 'compras'
   | 'pendentes'
   | 'historico'

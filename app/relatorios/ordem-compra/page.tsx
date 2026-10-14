@@ -127,7 +127,9 @@ function OrdemDeCompra({ ordem }: { ordem: OrdemCompra }) {
           </ol>
         </div>
         <div className="oc-assinaturas">
-          <p>Aprovado eletronicamente por: <span>{ordem.aprovadoPor ?? ""}</span></p>
+          {ordem.direta
+            ? <p>Compra direta · autorizada por: <span>{ordem.aprovadoPor ?? ""}</span></p>
+            : <p>Aprovado eletronicamente por: <span>{ordem.aprovadoPor ?? ""}</span></p>}
           <p>Solicitante: <span>{ordem.solicitante}</span></p>
         </div>
       </footer>

@@ -142,6 +142,9 @@ export const useStore = create<AppState>((set, get) => ({
               status: c.status,
               userId: isNaN(Number(c.userId)) ? 1 : Number(c.userId),
               aprovadoPor: c.aprovadoPor,
+              origem: c.origem === 'direta' ? 'direta' : 'cotacao',
+              autorizadoPor: c.autorizadoPor ?? null,
+              receiptId: c.receiptId ?? null,
               motivoRejeicao: c.motivoRejeicao,
               dataDecisao: c.dataDecisao,
               createdAt: c.createdAt,
@@ -243,6 +246,9 @@ export const useStore = create<AppState>((set, get) => ({
           status: c.status,
           userId: isNaN(Number(c.user_id)) ? 1 : Number(c.user_id),
           aprovadoPor: c.aprovado_por,
+          origem: c.origem === 'direta' ? 'direta' : 'cotacao',
+          autorizadoPor: c.autorizado_por ?? null,
+          receiptId: c.receipt_id ?? null,
           motivoRejeicao: c.motivo_rejeicao,
           dataDecisao: c.data_decisao,
           createdAt: c.created_at,
@@ -374,7 +380,7 @@ export const useStore = create<AppState>((set, get) => ({
             user_id: '2', // Gestor profile ID
             cotacao_id: cotacaoId,
             tipo: 'NOVA_COTACAO_PENDENTE',
-            mensagem: `Nova cotação #${cotacaoId} de ${data.fornecedor} aguardando aprovação`,
+            mensagem: `Nova cotação nº ${cotacaoId} de ${data.fornecedor} aguardando aprovação`,
             lida: false,
           });
         } catch { /* ignore */ }
@@ -566,7 +572,7 @@ export const useStore = create<AppState>((set, get) => ({
       user_id: String(cotacao.userId),
       cotacao_id: id,
       tipo: 'COTACAO_APROVADA',
-      mensagem: `Sua cotação #${id} foi APROVADA pelo ${user.name}`,
+      mensagem: `Sua cotação nº ${id} foi APROVADA pelo ${user.name}: agora é a OC nº ${id}`,
       lida: false,
     });
 
@@ -605,7 +611,7 @@ export const useStore = create<AppState>((set, get) => ({
       user_id: String(cotacao.userId),
       cotacao_id: id,
       tipo: 'COTACAO_REJEITADA',
-      mensagem: `Sua cotação #${id} foi REJEITADA. Motivo: ${motivo}`,
+      mensagem: `Sua cotação nº ${id} foi REJEITADA. Motivo: ${motivo}`,
       lida: false,
     });
 
@@ -715,7 +721,7 @@ export const useStore = create<AppState>((set, get) => ({
         user_id: String(cotacao.userId),
         cotacao_id: cotacaoId,
         tipo: newStatus === 'APROVADO' ? 'COTACAO_APROVADA' : 'COTACAO_REJEITADA',
-        mensagem: `Sua cotação #${cotacaoId} foi decidida pelo ${user.name} (Status: ${newStatus})`,
+        mensagem: `Sua cotação nº ${cotacaoId} foi decidida pelo ${user.name} (Status: ${newStatus})`,
         lida: false,
       });
     } else {
@@ -809,7 +815,7 @@ export const useStore = create<AppState>((set, get) => ({
         user_id: String(cotacaoData.user_id),
         cotacao_id: cotacaoId,
         tipo: 'COTACAO_COMPRADA',
-        mensagem: `Cotação #${cotacaoId} foi COMPRADA. Total: R$ ${compraData.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        mensagem: `OC nº ${cotacaoId} foi COMPRADA. Total: R$ ${compraData.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
         lida: false,
       });
     }

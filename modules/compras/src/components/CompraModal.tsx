@@ -3,6 +3,7 @@ import { useStore, calcularTotal, formatAmount, formatUnitPrice, formatCurrencyI
 import type { Cotacao } from '@/types';
 import { X, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { rotuloOC } from '../../../../lib/compras/rotulo';
 
 interface Props {
   cotacao: Cotacao;
@@ -167,7 +168,7 @@ export default function CompraModal({ cotacao, onClose, singleProductId }: Props
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-[620px] max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.08]">
-          <h2 className="text-lg font-semibold text-[#212121]">Aviso de compra — Cotação #{cotacao.id}</h2>
+          <h2 className="text-lg font-semibold text-[#212121]">Aviso de compra — {rotuloOC(cotacao.id)}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-[#757575] hover:bg-gray-100 transition-colors"
