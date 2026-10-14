@@ -74,6 +74,8 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "rh.colaborador.admitido", module: "rh", label: "Colaborador cadastrado", description: "Novo colaborador no quadro." },
   { type: "rh.colaborador.desligado", module: "rh", label: "Colaborador desligado", description: "O colaborador deixou o quadro." },
   { type: "rh.colaborador.reativado", module: "rh", label: "Colaborador reativado", description: "O colaborador voltou ao quadro." },
+  { type: "rh.terceiro.incluido", module: "rh", label: "Terceiro incluído", description: "O RH incluiu um prestador no quadro de terceiros da Portaria." },
+  { type: "rh.terceiro.excluido", module: "rh", label: "Terceiro excluído", description: "O RH tirou um prestador do quadro de terceiros da Portaria." },
   { type: "rh.ausencia.aprovada", module: "rh", label: "Ausência aprovada", description: "Férias, folga ou licença aprovada." },
   { type: "rh.ausencia.reprovada", module: "rh", label: "Ausência reprovada", description: "Solicitação de ausência reprovada." },
   { type: "financeiro.titulo.criado", module: "financeiro", label: "Título criado", description: "Conta a pagar ou a receber lançada." },
