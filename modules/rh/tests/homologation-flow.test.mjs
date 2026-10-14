@@ -21,7 +21,8 @@ test("aceite cobre áreas, perfis e dependência conhecida", () => {
 test("ações do RH alimentam notificações e auditoria centrais", () => {
   assert.match(shell, /recordOperationalEvent/);
   assert.match(shell, /NotificationsView notify=\{notify\} events=\{operationalEvents\}/);
-  assert.match(shell, /AuditView notify=\{notify\} events=\{operationalEvents\}/);
+  // A auditoria lê a trilha do banco (as ações do RH são gravadas pelos gatilhos de auditoria).
+  assert.match(shell, /view==="Auditoria"\?<AuditoriaCentral\/>/);
   assert.match(hr, /notify\(message\);onEvent\(message\)/);
 });
 

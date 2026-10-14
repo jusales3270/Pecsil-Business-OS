@@ -29,6 +29,7 @@ type AdminUser = {
   expired: boolean;
   employee: { id: string; name: string; registration: string | null; department: string | null } | null;
   grants: AccessGrants;
+  lastActivity?: string | null;
 };
 
 type Candidate = {
@@ -161,6 +162,7 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
                 <span>
                   <b>{user.fullName}</b>
                   <small>{user.email}</small>
+                  <small className="user-admin-visto">{user.lastActivity ? `Último acesso: ${new Date(user.lastActivity).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}` : "Nunca entrou"}</small>
                 </span>
               </span>
               <span>{linkLabel(user)}</span>

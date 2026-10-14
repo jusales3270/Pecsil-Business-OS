@@ -18,6 +18,8 @@ export type AdminUser = {
   expired: boolean;
   employee: { id: string; name: string; registration: string | null; department: string | null } | null;
   grants: AccessGrants;
+  /** Última atividade (login ou sessão renovada), pelo registro de login — vale desde 01/09/2026. */
+  lastActivity: string | null;
 };
 
 type Row = Record<string, unknown>;
@@ -32,7 +34,7 @@ export async function GET() {
   if ("error" in auth) return auth.error;
 
   const admin = createSupabaseAdminClient();
-  const [profilesResult, grantsResult, employeesResult] = await Promise.all([
+  const [profilesResult, grantsResult, employeesResult, acessosResult] = await Promise.all([
     admin.from("profiles").select("id, full_name, email, status, is_owner, account_type, company_name, job_title, access_expires_at").eq("organization_id", auth.orgId).order("full_name"),
     admin.from("user_feature_grants").select("profile_id, feature_code, level").eq("organization_id", auth.orgId),
     admin
@@ -40,7 +42,9 @@ export async function GET() {
       .select("id, full_name, employee_number, profile_id, departments(name)")
       .eq("organization_id", auth.orgId)
       .not("profile_id", "is", null),
+    admin.rpc("auditoria_ultimos_acessos_org", { p_org: auth.orgId }),
   ]);
+  const ultimoAcesso = new Map(((acessosResult.data ?? []) as { profile_id: string; ultima_atividade: string | null }[]).map((a) => [a.profile_id, a.ultima_atividade]));
   const failed = [profilesResult, grantsResult, employeesResult].find((result) => result.error);
   if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
 
@@ -65,6 +69,7 @@ export async function GET() {
       jobTitle: isJobTitle(profile.job_title) ? profile.job_title : null,
       accessExpiresAt: profile.access_expires_at ?? null,
       expired: isAccessExpired(profile.access_expires_at),
+      lastActivity: ultimoAcesso.get(profile.id) ?? null,
       employee: employee
         ? {
             id: String(employee.id),
