@@ -45,13 +45,17 @@ export async function POST(request: Request) {
 
   let entrada = corpo;
   let origem: string | null = null;
+  let numeroOrigem: number | null = null;
   if (typeof corpo?.clonarDe === "string") {
     // Clone: cabeçalho e itens do orçamento de origem; pedido do cliente, anexos e situação ficam de fora.
     const { data: q } = await guard.supabase.from("sales_quotes").select("*").eq("id", corpo.clonarDe).maybeSingle();
     if (!q) return NextResponse.json({ error: "Orçamento de origem não encontrado." }, { status: 404 });
     const { data: itensOrigem } = await guard.supabase.from("sales_quote_items").select("*").eq("quote_id", q.id).order("ordem");
     origem = q.id;
-    entrada = { ...q, pedido_cliente: null, data_orcamento: null, validade: null, itens: itensOrigem ?? [] };
+    numeroOrigem = q.numero;
+    // Data de hoje em Brasília (o "hoje" do banco é o de Greenwich: depois das 21h já é amanhã).
+    const hojeBrasilia = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    entrada = { ...q, pedido_cliente: null, data_orcamento: hojeBrasilia, validade: null, itens: itensOrigem ?? [] };
   }
   const { orcamento, erros } = normalizarOrcamento(entrada);
   if (erros.length && !origem) return NextResponse.json({ error: erros.join(" ") }, { status: 400 });
@@ -68,7 +72,7 @@ export async function POST(request: Request) {
     }
   }
   if (origem) {
-    await guard.supabase.from("sales_quote_notes").insert({ organization_id: org, quote_id: data.id, texto: "Clonado de outro orçamento.", autor_profile_id: perfil, autor_nome: nome });
+    await guard.supabase.from("sales_quote_notes").insert({ organization_id: org, quote_id: data.id, texto: numeroOrigem ? `Clonado do orçamento #${numeroOrigem}.` : "Clonado de outro orçamento.", autor_profile_id: perfil, autor_nome: nome });
   }
   return NextResponse.json(data);
 }
