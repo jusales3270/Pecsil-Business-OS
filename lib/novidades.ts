@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-14-quadro-terceiros",
+    data: "2026-10-14",
+    area: "RH e Portaria",
+    funcionalidades: ["rh.terceiros", "portaria.terceiros"],
+    modulos: ["rh", "portaria"],
+    titulo: "O RH inclui e exclui pessoas do quadro de terceiros",
+    itens: [
+      "Em RH › Colaboradores › Terceiros, o novo \"Quadro de terceiros\" mostra quem a Portaria pode escolher ao registrar a entrada.",
+      "Com \"Terceiros\" em Operar, o RH inclui e exclui pessoas do quadro. A Portaria é avisada e a lista dela se atualiza sozinha.",
+      "Excluir tira a pessoa da lista; as horas já apontadas continuam no histórico e no relatório mensal.",
+    ],
+  },
+  {
     id: "2026-10-14-compras-diretas",
     data: "2026-10-14",
     area: "Compras e Almoxarifado",

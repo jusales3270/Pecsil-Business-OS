@@ -5936,6 +5936,18 @@ button.holiday-row:hover {
 .terceiros-table > .terceiros-row > .ds-status {
   justify-self: start;
 }
+/* Quadro de terceiros: quem a Portaria escolhe; o RH (Operar) inclui e exclui. */
+.terceiros-quadro-texto { margin: 0 var(--sp-4) var(--sp-3); font-size: var(--fs-sm); color: var(--text-muted); }
+.terceiros-quadro-form { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: 0 var(--sp-4) var(--sp-3); }
+.terceiros-quadro-form input { flex: 1 1 240px; min-width: 0; height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.terceiros-quadro-erro { margin: 0 var(--sp-4) var(--sp-3); color: var(--accent-red); font-size: var(--fs-sm); font-weight: 600; }
+.terceiros-quadro { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); border-top: 1px solid var(--border-subtle); }
+.terceiros-quadro > div { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border-subtle); font-size: var(--fs-sm); }
+.terceiros-quadro > div > span { display: flex; flex-direction: column; min-width: 0; color: var(--text-primary); overflow-wrap: anywhere; }
+.terceiros-quadro > div small { font-size: var(--fs-xs); color: var(--text-muted); }
+.terceiros-quadro-excluir { flex: none; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-secondary); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer; }
+.terceiros-quadro-excluir:hover, .terceiros-quadro-excluir.confirmar { border-color: var(--accent-red); color: var(--accent-red); }
+.terceiros-quadro-excluir.confirmar { background: color-mix(in srgb, var(--accent-red) 10%, var(--bg-surface)); }
 .terceiros-date {
   display: flex;
   flex-direction: column;

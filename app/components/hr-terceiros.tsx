@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, Kpi, KpiGrid, Status } from "../../packages/design-system";
+import { useCallback, useEffect, useState } from "react";
+import { Button, Card, Kpi, KpiGrid, Status } from "../../packages/design-system";
 import { contabilizar, formatarData, formatarHoras, horaDoApontamento, minutosDaPassagem, naFabrica, saidaParaExibir, type TerceiroApontamento } from "../../lib/rh/terceiros-core";
 
 /**
  * RH › Terceiros: acompanhamento de quem está na fábrica, com base nos
- * apontamentos da Portaria. Só leitura: entrada e saída continuam sendo
- * registradas exclusivamente pela Portaria.
+ * apontamentos da Portaria (entrada e saída continuam exclusivas da Portaria),
+ * e o quadro de terceiros: quem a Portaria pode escolher ao registrar a
+ * entrada. Com "Terceiros" em Operar, o RH inclui e exclui pessoas do quadro.
  */
 
 type Estado = { status: "loading" } | { status: "error"; mensagem: string } | { status: "ready"; apontamentos: TerceiroApontamento[]; lidoEm: Date };
@@ -25,7 +26,99 @@ function minutosDesde(entrada: string, agora: Date) {
   return minutosDaPassagem(entrada, agoraHm) ?? 0;
 }
 
-export function TerceirosSection() {
+type PessoaQuadro = { id: string; nome: string; incluido_por: string | null; incluido_por_nome: string | null; incluido_em: string };
+
+async function chamar<T>(url: string, init?: RequestInit): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(url, { cache: "no-store", ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: body?.error === "FORBIDDEN" ? "Sem permissão para esta ação." : body?.error || "Não foi possível concluir." };
+    return { ok: true, data: body as T };
+  } catch {
+    return { ok: false, error: "Sem conexão com o servidor." };
+  }
+}
+
+/** Quadro de terceiros: a lista de prestadores da Portaria. Quem tem Operar inclui e exclui. */
+function QuadroTerceiros({ podeEditar, notify }: { podeEditar: boolean; notify?: (mensagem: string) => void }) {
+  const [quadro, setQuadro] = useState<PessoaQuadro[] | null>(null);
+  const [erro, setErro] = useState("");
+  const [nome, setNome] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [confirmar, setConfirmar] = useState<string | null>(null);
+
+  const carregar = useCallback(async () => {
+    const res = await chamar<{ quadro: PessoaQuadro[] }>("/api/rh/terceiros/quadro");
+    if (!res.ok) { setErro(res.error); return; }
+    setErro("");
+    setQuadro(res.data.quadro);
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(() => { void carregar(); }, 0);
+    return () => clearTimeout(t);
+  }, [carregar]);
+
+  const incluir = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (nome.trim().length < 2) { setErro("Informe o nome do terceiro."); return; }
+    setSalvando(true);
+    const res = await chamar<{ nome: string }>("/api/rh/terceiros/quadro", { method: "POST", body: JSON.stringify({ nome }) });
+    setSalvando(false);
+    if (!res.ok) { setErro(res.error); return; }
+    setNome("");
+    notify?.(`${res.data.nome} incluído no quadro. Já aparece para a Portaria.`);
+    await carregar();
+  };
+
+  const excluir = async (pessoa: PessoaQuadro) => {
+    if (confirmar !== pessoa.id) { setConfirmar(pessoa.id); return; }
+    setSalvando(true);
+    const res = await chamar<{ nome: string }>(`/api/rh/terceiros/quadro?id=${pessoa.id}`, { method: "DELETE" });
+    setSalvando(false);
+    setConfirmar(null);
+    if (!res.ok) { setErro(res.error); return; }
+    notify?.(`${res.data.nome} excluído do quadro. Os apontamentos já feitos continuam no histórico.`);
+    await carregar();
+  };
+
+  return (
+    <Card className="absence-card">
+      <div className="absence-toolbar">
+        <div><p className="eyebrow">QUADRO</p><h2>Quadro de terceiros</h2></div>
+        {quadro && <Status tone="neutral">{quadro.length} {quadro.length === 1 ? "pessoa" : "pessoas"}</Status>}
+      </div>
+      <p className="terceiros-quadro-texto">Quem a Portaria pode escolher ao registrar a entrada de um terceiro.{podeEditar ? " Excluir tira a pessoa da lista; as horas já apontadas continuam no histórico e no relatório." : ""}</p>
+      {podeEditar && (
+        <form className="terceiros-quadro-form" onSubmit={incluir}>
+          <input value={nome} onChange={(event) => { setNome(event.target.value); setErro(""); }} placeholder="Nome do terceiro" maxLength={80} aria-label="Nome do terceiro" />
+          <Button type="submit" disabled={salvando}>{salvando ? "Gravando…" : "Incluir no quadro"}</Button>
+        </form>
+      )}
+      {erro && <p className="terceiros-quadro-erro" role="alert">{erro}</p>}
+      {!quadro && !erro && <div className="hr-empty"><b>Carregando…</b></div>}
+      {quadro && !quadro.length && <div className="hr-empty"><b>Nenhum terceiro no quadro</b><small>{podeEditar ? "Inclua acima quem presta serviço na fábrica." : "O RH inclui quem presta serviço na fábrica."}</small></div>}
+      {/* div, não ul: `.ds-card ul > li` formata toda lista de cartão como checklist. */}
+      {quadro && quadro.length > 0 && (
+        <div className="terceiros-quadro" role="list">
+          {quadro.map((pessoa) => (
+            <div key={pessoa.id} role="listitem">
+              <span><b>{pessoa.nome}</b><small>{pessoa.incluido_por
+                ? `incluído por ${pessoa.incluido_por_nome ?? "—"} em ${new Date(pessoa.incluido_em).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`
+                : "já estava na lista da Portaria"}</small></span>
+              {podeEditar && (
+                <button type="button" className={`terceiros-quadro-excluir${confirmar === pessoa.id ? " confirmar" : ""}`} onClick={() => void excluir(pessoa)} onBlur={() => setConfirmar((c) => (c === pessoa.id ? null : c))} disabled={salvando} aria-label={confirmar === pessoa.id ? `Confirmar exclusão de ${pessoa.nome}` : `Excluir ${pessoa.nome} do quadro`}>
+                  {confirmar === pessoa.id ? "Confirmar exclusão" : "Excluir"}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+export function TerceirosSection({ podeEditar = false, notify }: { podeEditar?: boolean; notify?: (mensagem: string) => void }) {
   const [hoje] = useState(hojeLocal);
   const [data, setData] = useState(hoje);
   const [estado, setEstado] = useState<Estado>({ status: "loading" });
@@ -64,7 +157,7 @@ export function TerceirosSection() {
       <div>
         <p className="eyebrow">RH · TERCEIROS</p>
         <h1>Terceiros na fábrica</h1>
-        <p>Acompanhamento das entradas e saídas registradas pela Portaria. Os apontamentos são feitos e corrigidos só na Portaria.</p>
+        <p>Acompanhamento das entradas e saídas registradas pela Portaria e o quadro de terceiros. Os apontamentos são feitos e corrigidos só na Portaria.</p>
       </div>
       <label className="terceiros-date">
         <span>Dia</span>
@@ -122,5 +215,7 @@ export function TerceirosSection() {
         {estado.status === "ready" && !apontamentos.length && <div className="hr-empty"><b>Nenhum apontamento neste dia</b><small>A Portaria não registrou entradas de terceiros.</small></div>}
       </div>
     </Card>
+
+    <QuadroTerceiros podeEditar={podeEditar} notify={notify} />
   </>;
 }

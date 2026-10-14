@@ -261,7 +261,7 @@ export function HrModule({
           {section === "Painel" && <HrDashboard people={employees} summary={summary} rh={rh} setSection={setSection} notify={track} access={access} canCreate={canCreate} requestCreate={() => setCreateRequested(value => value + 1)}/>}
           {section === "Colaboradores" && canSeeClt && canSeeTerceiros && <PeopleKindTabs value={kind} onChange={setPeopleKind}/>}
           {section === "Colaboradores" && kind === "CLT" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} canViewDocs={canUseFeature(access, "rh.documentos")} persists={rh.source === "supabase"} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
-          {section === "Colaboradores" && kind === "Terceiros" && <TerceirosSection/>}
+          {section === "Colaboradores" && kind === "Terceiros" && <TerceirosSection podeEditar={canUseFeature(access, "rh.terceiros", "operar")} notify={track}/>}
           {section === "Ponto e jornada" && <JourneySection notify={track} access={access}/>}
           {section === "Férias e ausências" && <AbsenceSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Feriados" && <HolidaysSection notify={track}/>}

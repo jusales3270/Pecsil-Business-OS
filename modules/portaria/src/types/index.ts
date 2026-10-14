@@ -107,22 +107,7 @@ export interface RegistroTerceiro {
   minutosTrabalhados?: number;
 }
 
-// Prestadores de serviço terceirizados (ordem alfabética)
-export const TERCEIROS = [
-  'Adriano',
-  'Ailton',
-  'Alex',
-  'Claudemir',
-  'Dalvacy',
-  'Diego',
-  'Everton',
-  'Márcio',
-  'Nilton',
-  'Romualdo',
-  'Victor',
-  'Victor Pinheiro',
-  'Wesley',
-] as const;
+// Prestadores terceirizados: vêm do quadro de terceiros mantido pelo RH (tabela terceiros_quadro).
 
 export interface Recebido {
   id: string;

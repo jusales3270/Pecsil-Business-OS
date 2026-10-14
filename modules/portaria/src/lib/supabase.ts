@@ -313,6 +313,22 @@ export async function fetchTerceiros() {
   }));
 }
 
+/**
+ * Quadro de terceiros (mantido pelo RH): os nomes que aparecem ao registrar a entrada.
+ * Guarda a última lista lida para a Portaria seguir funcionando sem conexão.
+ */
+const QUADRO_CACHE = 'portaria_quadro_terceiros';
+export function quadroTerceirosGuardado(): string[] {
+  try { const v = JSON.parse(localStorage.getItem(QUADRO_CACHE) ?? '[]'); return Array.isArray(v) ? v.filter((n) => typeof n === 'string') : []; } catch { return []; }
+}
+export async function fetchQuadroTerceiros(): Promise<string[]> {
+  const { data, error } = await supabase.from('terceiros_quadro').select('nome').eq('ativo', true).order('nome');
+  if (error) { console.error('Erro ao carregar o quadro de terceiros:', error); return quadroTerceirosGuardado(); }
+  const nomes = (data ?? []).map((t: { nome: string }) => t.nome);
+  try { localStorage.setItem(QUADRO_CACHE, JSON.stringify(nomes)); } catch { /* sem armazenamento: segue com a lista lida */ }
+  return nomes;
+}
+
 export async function inserirTerceiro(t: {
   nome: string;
   data: string;

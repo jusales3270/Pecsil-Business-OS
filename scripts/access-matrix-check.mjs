@@ -228,6 +228,18 @@ try {
       const novo = await client.from("terceiros").insert({ organization_id: org.id, nome: "Matriz", data: "2099-01-01", hora_entrada: "2099-01-01T07:00:00.000Z" });
       check(n, "não cria apontamento", Boolean(novo.error), novo.error?.code);
     }
+    // Quadro de terceiros: a Portaria e o RH leem; incluir/excluir só com rh.terceiros Operar, pela função.
+    const quadroVisto = await total(client, "terceiros_quadro");
+    check(n, veTerceiros ? "vê o quadro de terceiros" : "não vê o quadro de terceiros", veTerceiros ? quadroVisto > 0 : quadroVisto === 0, quadroVisto);
+    const quadroDireto = await client.from("terceiros_quadro").insert({ organization_id: org.id, nome: "Matriz" });
+    check(n, "não grava no quadro direto na tabela", Boolean(quadroDireto.error), quadroDireto.error?.code ?? "GRAVOU");
+    if (scenario.grants["rh.terceiros"] !== "operar") {
+      const inclui = await client.rpc("rh_terceiro_incluir", { p_nome: "Matriz" });
+      check(n, "não inclui terceiro no quadro sem Operar", inclui.error?.code === "42501", inclui.error?.code ?? "INCLUIU");
+      const { data: alguem } = await admin.from("terceiros_quadro").select("id").eq("ativo", true).limit(1).single();
+      const exclui = await client.rpc("rh_terceiro_excluir", { p_id: alguem.id });
+      check(n, "não exclui terceiro do quadro sem Operar", exclui.error?.code === "42501", exclui.error?.code ?? "EXCLUIU");
+    }
 
     // Funil do CRM: quem só VÊ não cria nem move card.
     const veFunil = "comercial.funil" in scenario.grants;
