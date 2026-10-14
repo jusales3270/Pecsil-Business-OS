@@ -290,7 +290,7 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
                 <label><span>Contato</span><input value={cab.contato} maxLength={120} onChange={(e) => mudarCab("contato", e.target.value)} /></label>
                 <label><span>Data</span><input type="date" value={cab.data_orcamento} onChange={(e) => mudarCab("data_orcamento", e.target.value)} disabled={!aberto} /></label>
                 <label><span>Validade</span><input type="date" value={cab.validade} onChange={(e) => mudarCab("validade", e.target.value)} /></label>
-                <label><span>Pedido de compra do cliente<small> · a nota segue ele</small></span><input value={cab.pedido_cliente} maxLength={60} onChange={(e) => mudarCab("pedido_cliente", e.target.value)} disabled={!aberto} placeholder="4502385803" /></label>
+                <label><span>Pedido de compra do cliente<small> · a nota segue ele</small></span><input value={cab.pedido_cliente} maxLength={60} onChange={(e) => mudarCab("pedido_cliente", e.target.value)} disabled={!aberto} placeholder="Ex.: 4502385803" /></label>
                 <label><span>Condição de pagamento</span><input value={cab.condicao_pagamento} maxLength={120} onChange={(e) => mudarCab("condicao_pagamento", e.target.value)} placeholder="28 dias" /></label>
                 <label className="nfe-largo"><span>Frete</span>
                   <select value={cab.frete_modalidade} onChange={(e) => mudarCab("frete_modalidade", e.target.value)} disabled={!aberto}>{Object.entries(MODALIDADES_FRETE).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>

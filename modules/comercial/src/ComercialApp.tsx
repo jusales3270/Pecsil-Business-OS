@@ -71,6 +71,8 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
     return podeCrm ? "crm" : podeVendas ? "vendas" : "compras";
   });
   const [crmSection, setCrmSection] = useState<CrmSection>(() => secoesCrm[0]?.id ?? "caixa");
+  // Clicar na seção do menu (mesmo a já aberta) volta para a lista dela: remonta a tela.
+  const [vendasVolta, setVendasVolta] = useState(0);
   const [vendasSection, setVendasSection] = useState<VendasSection>(() =>
     VENDAS_SECTIONS.some((s) => s.id === initialSection) ? (initialSection as VendasSection) : secoesVendas[0]?.id ?? "orcamentos");
 
@@ -129,6 +131,7 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
         }
         if (area === "vendas") {
           setVendasSection(id as VendasSection);
+          setVendasVolta((n) => n + 1);
           onEventRef.current(`Navegou para ${id} em Vendas`, "Comercial");
           return;
         }
@@ -159,8 +162,8 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
 
   if (area === "vendas") {
     const vendas = secoesVendas.find((item) => item.id === vendasSection) ?? secoesVendas[0];
-    if (vendas?.id === "produtos") return <Produtos notify={notify} />;
-    return <Orcamentos notify={notify} />;
+    if (vendas?.id === "produtos") return <Produtos key={vendasVolta} notify={notify} />;
+    return <Orcamentos key={vendasVolta} notify={notify} />;
   }
 
   const secao = secoesCrm.find((item) => item.id === crmSection) ?? secoesCrm[0];
