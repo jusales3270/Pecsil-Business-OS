@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-13-auditoria-central",
+    data: "2026-10-13",
+    area: "Plataforma",
+    funcionalidades: ["fundacao.auditoria"],
+    modulos: ["fundacao"],
+    titulo: "Auditoria central: quem entrou, abriu, fez e aprovou o quê",
+    itens: [
+      "Fundação › Auditoria mostra numa trilha só as ações (lançou, alterou, excluiu, aprovou), os eventos dos módulos, as entradas no sistema e as telas abertas, com filtros por pessoa, módulo, período e busca.",
+      "O histórico vale desde 01/09/2026; as telas abertas passam a ser registradas agora. Nos cadastros e orçamentos, a alteração mostra o que mudou (antes → depois).",
+      "\"Caminho\" mostra tudo o que aconteceu com um registro (um orçamento, um título, uma nota). Exporta em CSV. Pessoas e Acessos passa a mostrar o último acesso de cada um.",
+    ],
+  },
+  {
     id: "2026-10-13-orcamentos",
     data: "2026-10-13",
     area: "Comercial",

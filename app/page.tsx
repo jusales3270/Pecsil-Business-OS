@@ -7,6 +7,7 @@ import { useFoundationData } from "../lib/data/use-foundation-data";
 import { canAccessModule, getCatalogModules, getModuleById, getVisibleModules, hasPermission, moduleRegistry, renderModuleComponent, type ModuleAccessContext, type ModuleManifest } from "../modules";
 import { useSessionAccess } from "../lib/data/use-session-access";
 import { ModuleNavProvider, useModuleNav } from "../lib/module-nav-context";
+import { AuditoriaCentral } from "./components/auditoria-central";
 import { HrModule } from "./components/hr-module";
 import { UserManagement } from "./components/user-management";
 import { MasterDataView } from "./components/master-data";
@@ -299,15 +300,6 @@ function NotificationsView({ events, inbox, unread, onOpen, onMarkAll }: { notif
   </>;
 }
 
-function AuditView({ events }: { notify:(message:string)=>void; events:OperationalEvent[] }) {
-  // A trilha completa fica em `audit_logs`, no banco; aqui aparecem os eventos
-  // desta sessão. A lista de exemplos foi removida.
-  return <><div className="page-head"><div><p className="eyebrow">GOVERNANÇA</p><h1>Auditoria central</h1><p>Rastreabilidade de acessos, dados sensíveis e operações críticas.</p></div></div>
-    {events.length
-      ? <Card className="audit-timeline">{events.map(event=><button key={event.id}><span className="audit-icon"><Icon name={event.icon}/></span><span><b>{event.title}</b><small>{event.actor} · {event.module}</small></span><small>{event.time}</small><Status tone={event.risk==="Sensível"?"info":"success"}>{event.risk}</Status><Icon name="arrow"/></button>)}</Card>
-      : <Card className="hr-empty-card"><div className="hr-empty"><Icon name="shield" size={28}/><b>Nenhum evento nesta sessão</b><small>Toda operação sensível é gravada em audit_logs no banco, com autor, horário e escopo.</small></div></Card>}
-  </>;
-}
 function PersistenceView({ dataSource, summary, organizationName }: { dataSource: "demo" | "supabase"; summary: FoundationSummary; organizationName: string }) {
   const connected = dataSource === "supabase";
   return <>
@@ -347,6 +339,18 @@ function HomeContent() {
   // Seção pedida por um aviso ou pelo endereço (`&secao=`); `n` remonta o módulo mesmo se já estava aberto.
   const [moduleSection,setModuleSection]=useState<{secao:string;n:number}|null>(null);
   const { snapshot, loading, error } = useFoundationData();
+  // Auditoria: registra a tela aberta (módulo e seção). O banco não repete a mesma tela em 15 min;
+  // nunca atrapalha a navegação.
+  const telaModulo = activeModuleId ?? "plataforma";
+  const telaSecao = activeModuleId
+    ? (navState?.moduleId === activeModuleId ? [navState.areas?.find((a) => a.id === navState.activeAreaId)?.label, navState.items.find((i) => i.id === navState.activeId)?.label ?? navState.activeId].filter(Boolean).join(" › ") : "")
+    : view;
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void fetch("/api/auditoria/acesso", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ modulo: telaModulo, secao: telaSecao }) }).catch(() => undefined);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [telaModulo, telaSecao]);
   // Identidade real do usuário autenticado (papel, permissões e escopo do banco).
   // Enquanto carrega, ou com o Supabase inacessível, cai no contexto demonstrativo.
   const { access, real: realAccess, loading: accessLoading, profile: sessionProfile, reload: reloadIdentity } = useSessionAccess();
@@ -568,7 +572,7 @@ function HomeContent() {
           {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{canInstall && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar aplicativo</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
         </div>
       </header>
-      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={snapshot.loadedAt} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?<ModuloComColeta key={`${activeModuleId}-${moduleSection?.n??0}`} moduloId={activeModuleId} moduloNome={activeModule?.name??activeModuleId} access={access} notify={notify}>{renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined,initialSection:moduleSection?.secao})}</ModuloComColeta>:view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule} onOpenDocumentos={(busca)=>{change("Documentos");setBuscaDocumentos(busca)}}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Sugestões da IA"?<SugestoesIaView notify={notify}/>:view==="Documentos"?<DocumentosSetorView key={buscaDocumentos} notify={notify} buscaInicial={buscaDocumentos}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents} inbox={inbox.items} unread={inbox.unread} onOpen={openInboxItem} onMarkAll={()=>void inbox.markRead("all")}/>:view==="Auditoria"?<AuditView notify={notify} events={operationalEvents}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
+      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={snapshot.loadedAt} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?<ModuloComColeta key={`${activeModuleId}-${moduleSection?.n??0}`} moduloId={activeModuleId} moduloNome={activeModule?.name??activeModuleId} access={access} notify={notify}>{renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined,initialSection:moduleSection?.secao})}</ModuloComColeta>:view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule} onOpenDocumentos={(busca)=>{change("Documentos");setBuscaDocumentos(busca)}}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Sugestões da IA"?<SugestoesIaView notify={notify}/>:view==="Documentos"?<DocumentosSetorView key={buscaDocumentos} notify={notify} buscaInicial={buscaDocumentos}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents} inbox={inbox.items} unread={inbox.unread} onOpen={openInboxItem} onMarkAll={()=>void inbox.markRead("all")}/>:view==="Auditoria"?<AuditoriaCentral/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
       <nav className="mobile-bottom-nav" aria-label="Navegação rápida móvel">
         <button
           type="button"
