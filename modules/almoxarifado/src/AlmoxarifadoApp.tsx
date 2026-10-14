@@ -43,6 +43,8 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
 
   const [novoPedido, setNovoPedido] = useState(false);
   const [receber, setReceber] = useState<ACaminho | null | "avulso">(null);
+  // "Lançar compra direta" abre a nota sem pedido já na digitação (com os itens, como no Compras).
+  const [digitar, setDigitar] = useState(false);
   const [notaInicial, setNotaInicial] = useState<NotaLidaResposta | undefined>(undefined);
   const [arquivoDaNota, setArquivoDaNota] = useState<File | null>(null);
   const [notaLida, setNotaLida] = useState<NotaLidaResposta | null>(null);
@@ -205,10 +207,14 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
     if (secao === "Compras diretas") {
       return (
         <ComprasDiretas
+          painel="almoxarifado"
           key={versaoDiretas}
           eyebrow="ALMOXARIFADO · SEM COTAÇÃO"
-          texto={'Compras autorizadas sem cotação. Ao lançar a nota sem pedido com "É compra direta" marcado, a OC nasce aqui e no Compras, com o mesmo número.'}
-          acaoExtra={podeReceber ? <Button variant="secondary" onClick={() => setReceber("avulso")}><Icone nome="nota" size={16} /> Nota sem pedido</Button> : undefined}
+          texto={'Compras autorizadas sem cotação. Lance a nota (pelo XML/PDF ou digitando os itens) com "É compra direta" marcado: a OC nasce aqui e no Compras, com o mesmo número, e a conta vai para o Financeiro.'}
+          acaoExtra={podeReceber ? <>
+            <Button variant="secondary" onClick={() => setReceber("avulso")}><Icone nome="nota" size={16} /> Enviar a nota (XML ou PDF)</Button>
+            <Button onClick={() => { setDigitar(true); setReceber("avulso"); }}><Icone nome="mais" size={16} /> Lançar compra direta</Button>
+          </> : undefined}
           notify={notify}
         />
       );
@@ -244,7 +250,7 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
     <div className="almox-modulo">
       {conteudo()}
       {novoPedido && <PedidoModal onClose={() => setNovoPedido(false)} onCriado={(numero) => { setNovoPedido(false); setSecao("Solicitações"); void depois(`Pedido #${numero} enviado ao Compras.`); }} />}
-      {receber && <RecebimentoModal compra={receber === "avulso" ? null : receber} inicial={notaInicial} arquivoInicial={notaInicial ? arquivoDaNota : null} onClose={() => { setReceber(null); setNotaInicial(undefined); setArquivoDaNota(null); }} onFeito={(mensagem) => { setReceber(null); setNotaInicial(undefined); setArquivoDaNota(null); void depois(mensagem); }} />}
+      {receber && <RecebimentoModal compra={receber === "avulso" ? null : receber} inicial={notaInicial} arquivoInicial={notaInicial ? arquivoDaNota : null} modoInicial={digitar ? "manual" : "xml"} onClose={() => { setReceber(null); setDigitar(false); setNotaInicial(undefined); setArquivoDaNota(null); }} onFeito={(mensagem) => { setReceber(null); setDigitar(false); setNotaInicial(undefined); setArquivoDaNota(null); void depois(mensagem); }} />}
       {notaLida && (
         <Modal eyebrow="Almoxarifado · enviar nota" title={`NF ${notaLida.nfe.numero}${notaLida.nfe.serie ? `/${notaLida.nfe.serie}` : ""} · ${notaLida.fornecedor?.nome ?? notaLida.nfe.emitente.nome}`} subtitle={`${money(notaLida.nfe.valorNota)} · emitida em ${date(notaLida.nfe.emissao)} · lida do ${notaLida.origem === "pdf" ? "PDF (confira os valores)" : "XML"}`} onClose={() => setNotaLida(null)}>
           <div className="almox-form">

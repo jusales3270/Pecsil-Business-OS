@@ -11,6 +11,7 @@ export default function DiretasPage() {
   const fetchInitialData = useStore((state) => state.fetchInitialData);
   return (
     <ComprasDiretas
+      painel="compras"
       eyebrow="COMPRAS · SEM COTAÇÃO"
       texto="Compras autorizadas sem cotação. Cada uma nasce aprovada como OC: a que veio pela nota já chega preenchida pelo Almoxarifado."
       podeRegistrar={caps.cotar || caps.comprar}

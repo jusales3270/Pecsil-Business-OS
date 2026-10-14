@@ -7,10 +7,12 @@ import { obsDoServico } from "../../../lib/fiscal/nfse";
 import { TIPOS_ICMS } from "../../../lib/fiscal/icms-campos";
 import { rotuloOC } from "../../../lib/compras/rotulo";
 import { useSoltarArquivo } from "../../../app/components/enviar-arquivo";
-import { type ACaminho, DIVISAO, Icone, chamar, date, hoje, lerNotaArquivo, money, qtd, type NotaLidaResposta } from "./tipos";
+import { type ACaminho, DIVISAO, Icone, UNIDADES, chamar, date, hoje, lerNotaArquivo, money, qtd, type NotaLidaResposta } from "./tipos";
 
 type Modo = "xml" | "manual";
 type Dup = { numero: string; vencimento: string; valor: string };
+type ItemManual = { produto: string; quantidade: string; unidade: string; valor: string };
+const itemVazio = (): ItemManual => ({ produto: "", quantidade: "", unidade: "UN", valor: "" });
 type Centro = { fundicao: boolean; usinagem: boolean; administrativo: boolean };
 const centroDa = (divisao: string | null | undefined): Centro => ({ fundicao: divisao === "FUNDICAO", usinagem: divisao !== "FUNDICAO", administrativo: false });
 
@@ -26,8 +28,8 @@ const campoValor = (valor: number) => (valor ? valor.toLocaleString("pt-BR", { m
  * abate a previsão da compra, lança no Painel do ICMS (com centro e tipo) e avisa o Financeiro.
  * Nota sem pedido marcada como compra direta: a OC nasce pronta para o Compras, com o mesmo número.
  */
-export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onFeito }: { compra: ACaminho | null; inicial?: NotaLidaResposta; arquivoInicial?: File | null; onClose: () => void; onFeito: (mensagem: string) => void }) {
-  const [modo, setModo] = useState<Modo>("xml");
+export function RecebimentoModal({ compra, inicial, arquivoInicial, modoInicial = "xml", onClose, onFeito }: { compra: ACaminho | null; inicial?: NotaLidaResposta; arquivoInicial?: File | null; modoInicial?: Modo; onClose: () => void; onFeito: (mensagem: string) => void }) {
+  const [modo, setModo] = useState<Modo>(modoInicial);
   // Arquivo da nota (XML ou DANFE): guardado em Documentos › Almoxarifado depois de confirmar (D3).
   const [arquivoNota, setArquivoNota] = useState<File | null>(arquivoInicial ?? null);
   const [xml, setXml] = useState<string | null>(null);
@@ -56,6 +58,11 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
   const [centro, setCentro] = useState<Centro>(() => centroDa(compra?.divisao ?? "USINAGEM"));
   const [centroTocado, setCentroTocado] = useState(false);
   const [tipo, setTipo] = useState("Material");
+  // Compra direta digitada (sem XML): os itens da nota, como na "Nova compra direta" do Compras. Viram os itens da OC.
+  const [itensManuais, setItensManuais] = useState<ItemManual[]>([itemVazio()]);
+  // Enquanto a pessoa não digita o valor da nota nem o vencimento, eles acompanham o total dos itens (+ IPI).
+  const [valorTocado, setValorTocado] = useState(false);
+  const [dupTocada, setDupTocada] = useState(false);
 
   // Conferência.
   const [recebidoEm, setRecebidoEm] = useState(hoje());
@@ -130,6 +137,21 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
   const mudarDivisao = (nova: string) => { setDivisao(nova); if (!centroTocado) setCentro(centroDa(nova)); };
   const marcarCentro = (campo: keyof Centro, valor: boolean) => { setCentroTocado(true); setCentro((atual) => ({ ...atual, [campo]: valor })); };
 
+  const totalItens = (linhas: ItemManual[]) => Math.round(linhas.reduce((acc, l) => acc + (numero(l.quantidade) || 0) * (numero(l.valor) || 0), 0) * 100) / 100;
+  /** Valor da nota e parcela única seguem os itens (+ IPI) até a pessoa mexer neles. */
+  const seguirItens = (linhas: ItemManual[], ipiTexto: string) => {
+    const total = totalItens(linhas) + (numero(ipiTexto) || 0);
+    if (!(total > 0)) return;
+    if (!valorTocado) setValor(campoValor(total));
+    if (!dupTocada) setDups((atual) => (atual.length === 1 ? [{ ...atual[0], valor: campoValor(total) }] : atual));
+  };
+  const mudarItem = (index: number, campo: keyof ItemManual, texto: string) => {
+    const linhas = itensManuais.map((l, i) => (i === index ? { ...l, [campo]: texto } : l));
+    setItensManuais(linhas);
+    seguirItens(linhas, ipi);
+  };
+  const itensDigitados = !nfe && !compra && compraDireta;
+
   const somaDups = useMemo(() => dups.reduce((acc, d) => acc + (numero(d.valor) || 0), 0), [dups]);
   const mudarDup = (index: number, campo: keyof Dup, texto: string) => setDups((atual) => atual.map((d, i) => (i === index ? { ...d, [campo]: texto } : d)));
 
@@ -145,6 +167,9 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
     if (divergencia && motivo.trim().length < 3) { setErro("Descreva a divergência."); return; }
     const direta = !compra && compraDireta;
     if (direta && !autorizado.trim()) { setErro("Informe quem autorizou a compra direta (ou desmarque se não for compra)."); return; }
+    const linhasManuais = itensDigitados ? itensManuais.filter((l) => l.produto.trim()) : [];
+    if (itensDigitados && !linhasManuais.length) { setErro("Informe os itens da nota: eles viram os itens da OC."); return; }
+    if (linhasManuais.some((l) => !(numero(l.quantidade) > 0) || !l.valor.trim() || !(numero(l.valor) >= 0))) { setErro("Todo item precisa de quantidade e valor unitário."); return; }
     if (!centro.fundicao && !centro.usinagem && !centro.administrativo) { setErro("Marque o centro da nota (Fundição, Usinagem ou Administrativo)."); return; }
     setSalvando(true);
     const res = await chamar<{ id: string; numero: number; revisar: string; oc: number | null }>("/api/almoxarifado/recebimentos", {
@@ -161,7 +186,9 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
         divergencia, divergencia_motivo: divergencia ? motivo.trim() : "", observacao: observacao.trim(),
         tipo, centro,
         compra_direta: direta, autorizado_por: direta ? autorizado.trim() : "",
-        itens: (nfe?.itens ?? []).map((item) => ({ descricao: item.descricao, quantidade: item.quantidade, unidade: item.unidade, valor_total: item.valorTotal })),
+        itens: nfe
+          ? nfe.itens.map((item) => ({ descricao: item.descricao, quantidade: item.quantidade, unidade: item.unidade, valor_total: item.valorTotal }))
+          : linhasManuais.map((l) => ({ descricao: l.produto.trim(), quantidade: numero(l.quantidade), unidade: l.unidade, valor_total: Math.round(numero(l.quantidade) * numero(l.valor) * 100) / 100 })),
         duplicatas: dups.map((d) => ({ numero: d.numero, vencimento: d.vencimento, valor: numero(d.valor) })),
       }),
     });
@@ -222,10 +249,10 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
               <label><span>Número da NF *</span><input value={nf} onChange={(e) => setNf(e.target.value)} readOnly={Boolean(nfe)} /></label>
               <label><span>Série</span><input value={serie} onChange={(e) => setSerie(e.target.value)} readOnly={Boolean(nfe)} /></label>
               <label><span>Emissão</span><input type="date" value={emissao} onChange={(e) => setEmissao(e.target.value)} readOnly={Boolean(nfe)} /></label>
-              <label><span>Valor total da nota *</span><input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" placeholder="0,00" readOnly={Boolean(nfe)} /></label>
+              <label><span>Valor total da nota *</span><input value={valor} onChange={(e) => { setValor(e.target.value); setValorTocado(true); }} inputMode="decimal" placeholder="0,00" readOnly={Boolean(nfe)} /></label>
               <label><span>Base do ICMS</span><input value={base} onChange={(e) => setBase(e.target.value)} inputMode="decimal" placeholder="0,00" readOnly={Boolean(nfe)} /></label>
               <label><span>Valor do ICMS</span><input value={icms} onChange={(e) => setIcms(e.target.value)} inputMode="decimal" placeholder="0,00" readOnly={Boolean(nfe)} /></label>
-              <label><span>IPI</span><input value={ipi} onChange={(e) => setIpi(e.target.value)} inputMode="decimal" placeholder="0,00" readOnly={Boolean(nfe)} /></label>
+              <label><span>IPI</span><input value={ipi} onChange={(e) => { setIpi(e.target.value); if (itensDigitados) seguirItens(itensManuais, e.target.value); }} inputMode="decimal" placeholder="0,00" readOnly={Boolean(nfe)} /></label>
               {!compra && (
                 <label><span>Divisão</span>
                   <select value={divisao} onChange={(e) => mudarDivisao(e.target.value)}>{["USINAGEM", "FUNDICAO"].map((d) => <option key={d} value={d}>{DIVISAO[d]}</option>)}</select>
@@ -241,6 +268,27 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
                   <div className="almox-campos">
                     <label><span>Autorizada por *</span><input value={autorizado} onChange={(e) => setAutorizado(e.target.value)} list="recebimento-autorizadores" placeholder="Quem autorizou" /></label>
                     <datalist id="recebimento-autorizadores">{autorizadores.map((n) => <option key={n} value={n} />)}</datalist>
+                  </div>
+                )}
+                {itensDigitados && (
+                  <div className="almox-itens-form" role="table" aria-label="Itens da nota">
+                    <p className="almox-rotulo">Itens da nota (viram os itens da OC)</p>
+                    <div className="cabeca" role="row"><span>Material</span><span>Quantidade</span><span>Unidade</span><span>Valor unitário (R$)</span><span /></div>
+                    {itensManuais.map((linha, index) => (
+                      <div key={index} role="row">
+                        <input value={linha.produto} onChange={(e) => mudarItem(index, "produto", e.target.value)} placeholder="Ex.: Broca HSS 10 mm" aria-label={`Material ${index + 1}`} />
+                        <input value={linha.quantidade} onChange={(e) => mudarItem(index, "quantidade", e.target.value)} inputMode="decimal" placeholder="0" aria-label={`Quantidade ${index + 1}`} />
+                        <select value={linha.unidade} onChange={(e) => mudarItem(index, "unidade", e.target.value)} aria-label={`Unidade ${index + 1}`}>
+                          {UNIDADES.map((u) => <option key={u}>{u}</option>)}
+                        </select>
+                        <input value={linha.valor} onChange={(e) => mudarItem(index, "valor", e.target.value)} inputMode="decimal" placeholder="0,00" aria-label={`Valor unitário ${index + 1}`} />
+                        <button type="button" className="almox-icone-botao" onClick={() => { const linhas = itensManuais.length > 1 ? itensManuais.filter((_, i) => i !== index) : [itemVazio()]; setItensManuais(linhas); seguirItens(linhas, ipi); }} aria-label={`Remover item ${index + 1}`}><Icone nome="lixo" size={16} /></button>
+                      </div>
+                    ))}
+                    <div className="almox-dups-rodape">
+                      <button type="button" className="almox-adicionar" onClick={() => setItensManuais((atual) => [...atual, itemVazio()])}><Icone nome="mais" size={16} /> Adicionar item</button>
+                      <span>Total dos itens {money(totalItens(itensManuais))}</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -268,7 +316,7 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, onClose, onF
                   <div key={index} role="row">
                     <input value={d.numero} onChange={(e) => mudarDup(index, "numero", e.target.value)} aria-label={`Parcela ${index + 1}`} placeholder="Nº" />
                     <input type="date" value={d.vencimento} onChange={(e) => mudarDup(index, "vencimento", e.target.value)} aria-label={`Vencimento ${index + 1}`} />
-                    <input value={d.valor} onChange={(e) => mudarDup(index, "valor", e.target.value)} inputMode="decimal" placeholder="0,00" aria-label={`Valor ${index + 1}`} />
+                    <input value={d.valor} onChange={(e) => { mudarDup(index, "valor", e.target.value); setDupTocada(true); }} inputMode="decimal" placeholder="0,00" aria-label={`Valor ${index + 1}`} />
                     <button type="button" className="almox-icone-botao" onClick={() => setDups((atual) => (atual.length > 1 ? atual.filter((_, i) => i !== index) : atual))} aria-label={`Remover vencimento ${index + 1}`}><Icone nome="lixo" size={16} /></button>
                   </div>
                 ))}
