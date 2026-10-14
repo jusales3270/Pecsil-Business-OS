@@ -4,6 +4,7 @@ import type { Cotacao } from '@/types';
 import { CheckCircle, XCircle, Search, Calendar, FilterX, Eye } from 'lucide-react';
 import DivisaoTabs from '@/components/DivisaoTabs';
 import DetalhesCotacaoModal from '@/components/DetalhesCotacaoModal';
+import { rotuloCompra } from '../../../../lib/compras/rotulo';
 
 export default function HistoricoPage() {
   const { cotacoes, currentDivisao, activeCotacaoIdForModal, setActiveCotacaoIdForModal } = useStore();
@@ -212,7 +213,7 @@ export default function HistoricoPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-black/[0.08] bg-[#fafafa]">
-                  <th className="text-left py-3 px-4 font-medium text-[#757575] text-xs uppercase">ID</th>
+                  <th className="text-left py-3 px-4 font-medium text-[#757575] text-xs uppercase">Nº</th>
                   <th className="text-left py-3 px-4 font-medium text-[#757575] text-xs uppercase">Fornecedor</th>
                   <th className="text-left py-3 px-4 font-medium text-[#757575] text-xs uppercase">Produto</th>
                   <th className="text-right py-3 px-4 font-medium text-[#757575] text-xs uppercase">Qtd</th>
@@ -228,7 +229,7 @@ export default function HistoricoPage() {
                   const prods = getFilteredProdutos(c, statusFilter);
                   return (
                     <tr key={c.id} className="border-b border-black/[0.04] hover:bg-[#fafafa] transition-colors">
-                      <td className="py-3 px-4 font-medium text-[#212121]">#{c.id}</td>
+                      <td className="py-3 px-4 font-medium text-[#212121] whitespace-nowrap">{rotuloCompra(c, { curto: true })}{c.origem === 'direta' && <span className="block text-[10px] font-semibold uppercase tracking-wide text-[#757575]">compra direta</span>}</td>
                       <td className="py-3 px-4 text-[#212121] max-w-[180px] truncate">{c.fornecedor}</td>
                       <td className="py-3 px-4 text-[#212121] max-w-[220px] truncate" title={prods.map(p => p.produto).join(', ')}>
                         {formatProdutosDesc(prods)}
@@ -273,7 +274,7 @@ export default function HistoricoPage() {
             return (
               <div key={c.id} className="bg-white rounded-xl border border-black/[0.08] shadow-sm p-4 space-y-2">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-[#757575]">#{c.id}</span>
+                  <span className="text-xs text-[#757575]">{rotuloCompra(c)}</span>
                   <DecisionStatus status={c.status} cotacao={c} />
                 </div>
                 <p className="text-sm font-medium text-[#212121]">{c.fornecedor}</p>

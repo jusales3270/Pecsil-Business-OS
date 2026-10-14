@@ -44,6 +44,21 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-14-compras-diretas",
+    data: "2026-10-14",
+    area: "Compras e Almoxarifado",
+    funcionalidades: ["compras.cotacoes", "compras.aprovacoes", "compras.realizadas", "almoxarifado.recebimento"],
+    modulos: ["compras", "almoxarifado"],
+    titulo: "Compras diretas e o nome pela fase: Cotação nº até a aprovação, OC nº depois",
+    itens: [
+      "Uma compra é \"Cotação nº\" enquanto espera a aprovação e passa a ser \"OC nº\" depois de aprovada, com o mesmo número do começo ao fim.",
+      "Nova aba \"Compras diretas\" no Compras e no Almoxarifado, com a mesma lista e os mesmos números: compras autorizadas sem cotação, que já nascem como OC.",
+      "No Almoxarifado, a \"Nota sem pedido\" vem com \"É compra direta (gerar OC)\" marcado: ao gravar, a OC nasce preenchida com os dados da nota e o Compras é avisado, sem digitar de novo. Desmarque para remessa, conserto, devolução ou amostra.",
+      "Todo recebimento agora informa o tipo e o centro (Fundição, Usinagem, Administrativo): a nota entra completa no Painel do ICMS.",
+      "No Compras, \"Nova compra direta\" registra a compra pedida pela diretoria: a OC sai na hora para o fornecedor e o material aparece em \"A caminho\" para o Almoxarifado.",
+    ],
+  },
+  {
     id: "2026-10-13-auditoria-central",
     data: "2026-10-13",
     area: "Plataforma",

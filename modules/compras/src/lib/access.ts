@@ -50,12 +50,14 @@ export function tabsFor(role: UserRole | undefined, caps: ComprasCaps): { page: 
         { page: 'pendentes', label: 'Pendentes de Aprovação', icon: 'clock', show: caps.verAprovacoes },
         { page: 'historico', label: 'Histórico de Decisões', icon: 'check', show: caps.verAprovacoes },
         { page: 'compras', label: 'Compras', icon: 'cart', show: caps.verRealizadas },
+        { page: 'diretas', label: 'Compras diretas', icon: 'inbox', show: caps.verAprovacoes || caps.verRealizadas },
         { page: 'fornecedores', label: 'Fornecedores', icon: 'factory', show: caps.verFornecedores },
       ]
     : [
         { page: 'dashboard', label: 'Dashboard', icon: 'grid', show: true },
         { page: 'solicitacoes', label: 'Pedidos de material', icon: 'box', show: caps.verCotacoes },
         { page: 'cotacoes', label: 'Minhas Cotações', icon: 'file', show: caps.verCotacoes },
+        { page: 'diretas', label: 'Compras diretas', icon: 'inbox', show: caps.verCotacoes || caps.verRealizadas },
         { page: 'compras', label: 'Compras Realizadas', icon: 'cart', show: caps.verRealizadas },
         { page: 'fornecedores', label: 'Fornecedores', icon: 'factory', show: caps.verFornecedores },
       ];

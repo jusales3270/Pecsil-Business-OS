@@ -9,6 +9,7 @@ import { CnpjAConferir } from '@/app/components/cnpj-a-conferir';
 import SugestaoInput from '@/components/SugestaoInput';
 import type { Suggestion } from '../../../../lib/compras/sugestoes-core';
 import { priceHistory } from '../../../../lib/compras/fornecedores-core';
+import { rotuloCompra } from '../../../../lib/compras/rotulo';
 
 type Summary = {
   cotacoes: number;
@@ -536,7 +537,7 @@ function FornecedorPainel({
                     const itens = c.produtos?.length ? c.produtos : [];
                     return (
                       <tr key={c.id} onClick={() => setDetalhe(c)} className="border-b border-black/[0.04] hover:bg-[#fafafa] cursor-pointer">
-                        <td className="py-2 px-3 font-medium text-[#212121]">#{c.id}</td>
+                        <td className="py-2 px-3 font-medium text-[#212121] whitespace-nowrap">{rotuloCompra(c, { curto: true })}</td>
                         <td className="py-2 px-3 text-[#757575] whitespace-nowrap">{formatDate(c.createdAt)}</td>
                         <td className="py-2 px-3 text-[#757575]">{DIVISOES[c.divisao] ?? c.divisao}</td>
                         <td className="py-2 px-3 text-[#212121]">

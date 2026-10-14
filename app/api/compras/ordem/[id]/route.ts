@@ -20,7 +20,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
   const { data: c, error } = await guard.supabase
     .from("cotacoes")
-    .select("id, status, fornecedor, supplier_id, material_request_id, aprovado_por, data_decisao, deleted_at, frete_tipo, frete_valor, seguro_valor, outras_despesas, prazo_entrega, observacao, produto, valor_unit, quantidade, unidade, icms, ipi, prazo")
+    .select("id, status, origem, fornecedor, supplier_id, material_request_id, aprovado_por, data_decisao, deleted_at, frete_tipo, frete_valor, seguro_valor, outras_despesas, prazo_entrega, observacao, produto, valor_unit, quantidade, unidade, icms, ipi, prazo")
     .eq("id", Number(id))
     .maybeSingle();
   if (error) return NextResponse.json({ error: "Não foi possível carregar a cotação." }, { status: 500 });
@@ -59,7 +59,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       {
         id: Number(c.id), status: c.status, fornecedor: c.fornecedor, aprovadoPor: c.aprovado_por, dataDecisao: c.data_decisao,
         freteTipo: (c.frete_tipo ?? "CIF") as FreteTipo, freteValor: num(c.frete_valor), seguroValor: num(c.seguro_valor), outrasDespesas: num(c.outras_despesas),
-        prazoEntrega: c.prazo_entrega, observacao: c.observacao,
+        prazoEntrega: c.prazo_entrega, observacao: c.observacao, direta: c.origem === "direta",
       },
       itens,
       {

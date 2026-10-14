@@ -14,7 +14,7 @@ test("diretor vê só a visão de Gestor, mesmo com cotações liberadas", () =>
   const ricardo = conta({ "compras.aprovacoes": "aprovar", "compras.realizadas": "operar" }, { jobTitle: "diretor" });
   assert.deepEqual(visoes(ricardo), ["GESTOR"]);
   const abas = tabsFor("GESTOR", comprasCaps(ricardo)).map((t) => t.page);
-  assert.deepEqual(abas, ["dashboard", "pendentes", "historico", "compras"]);
+  assert.deepEqual(abas, ["dashboard", "pendentes", "historico", "compras", "diretas"]);
 });
 
 test("gerente, assistente e estagiário veem só a visão de Orçamentista", () => {
@@ -32,4 +32,14 @@ test("proprietário e contas sem cargo seguem as funcionalidades liberadas", () 
   assert.deepEqual(visoes(conta(tudo, { isOwner: true, jobTitle: "diretor" })), ["ORCAMENTISTA", "GESTOR"]);
   assert.deepEqual(visoes(conta(tudo)), ["ORCAMENTISTA", "GESTOR"]);
   assert.deepEqual(visoes(conta({ "compras.cotacoes": "operar" })), ["ORCAMENTISTA"]);
+});
+
+test("Compras diretas: logo abaixo de Minhas Cotações (Orçamentista) e depois de Compras (Gestor)", () => {
+  const caps = comprasCaps(conta(tudo));
+  const orc = tabsFor("ORCAMENTISTA", caps).map((t) => t.page);
+  assert.equal(orc[orc.indexOf("cotacoes") + 1], "diretas");
+  const gestor = tabsFor("GESTOR", caps).map((t) => t.page);
+  assert.equal(gestor[gestor.indexOf("compras") + 1], "diretas");
+  // Quem só vê pedidos de fornecedor não ganha a aba.
+  assert.ok(!tabsFor("ORCAMENTISTA", comprasCaps(conta({ "compras.fornecedores": "ver" }))).some((t) => t.page === "diretas"));
 });

@@ -11,6 +11,7 @@ import { DocumentosLigados } from "../../../app/components/documentos-ligados";
 
 import { api, cnpjFormatado, curto, date, hoje, money, nomeMes } from "./comum";
 import { obsDoServico } from "../../../lib/fiscal/nfse";
+import { TIPOS_ICMS } from "../../../lib/fiscal/icms-campos";
 import { NotasRecebidas } from "./NotasRecebidas";
 import { NotasEmitidas } from "./NotasEmitidas";
 import { AFaturar } from "./AFaturar";
@@ -36,7 +37,7 @@ type Dados = { mes: string; canEdit: boolean; meses: string[]; entradas: Entrada
 
 type FiltroCentro = "todos" | "fundicao" | "usinagem" | "administrativo" | "sem";
 type FiltroSituacao = "todas" | "sem_xml" | "nao_lancada" | "nao_autorizada";
-const TIPOS = ["Material", "Uso e consumo", "Serviço", "Ativo imobilizado", "Frete", "Energia", "Outros"];
+const TIPOS = TIPOS_ICMS;
 const ORIGEM: Record<Entrada["origem"], string> = { almoxarifado: "Almoxarifado", manual: "Lançada aqui", historico: "Planilha antiga" };
 
 const num = (t: string) => { const s = t.trim().replace(/[R$\s]/g, ""); return Number(s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s) || 0; };

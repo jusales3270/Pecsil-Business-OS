@@ -421,7 +421,8 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
             </section>
           )}
 
-          <section className="almox-bloco nfe-acoes-lado">
+          {/* Quem só vê o orçamento não tem botões: o quadro de ações nem aparece. */}
+          {podeOperar && <section className="almox-bloco nfe-acoes-lado">
             {podeOperar && aberto && (
               <>
                 <Button onClick={() => void salvar()} disabled={ocupado !== null || !cab.customer_id || (!!id && !sujo)}>{ocupado === "salvar" ? "Salvando…" : id ? "Salvar" : "Criar orçamento"}</Button>
@@ -441,7 +442,7 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
               </>
             )}
             {sujo && <p className="fiscal-nota-ajuda">Há alterações não salvas.</p>}
-          </section>
+          </section>}
         </aside>
       </div>
 

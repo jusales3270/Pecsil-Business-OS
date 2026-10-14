@@ -204,6 +204,7 @@ export function Segmented<T extends string>({
       {items.map(item => (
         <button
           key={item.value}
+          type="button"
           role="tab"
           aria-selected={item.value === value}
           className={item.value === value ? "active" : ""}

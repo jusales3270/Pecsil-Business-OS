@@ -5,6 +5,7 @@ import { Eye, CheckCircle, XCircle, Scale, Search, Calendar, FilterX } from 'luc
 import { toast } from 'sonner';
 import DetalhesCotacaoModal from '@/components/DetalhesCotacaoModal';
 import DivisaoTabs from '@/components/DivisaoTabs';
+import { rotuloCompra } from '../../../../lib/compras/rotulo';
 
 export default function PendentesPage() {
   const { cotacoes, approveCotacao, rejectCotacao, currentDivisao, activeCotacaoIdForModal, setActiveCotacaoIdForModal } = useStore();
@@ -76,7 +77,7 @@ export default function PendentesPage() {
     } else {
       try {
         await approveCotacao(cotacao.id);
-        toast.success(`Cotação #${cotacao.id} aprovada com sucesso!`);
+        toast.success(`Cotação nº ${cotacao.id} aprovada: agora é a OC nº ${cotacao.id}.`);
       } catch (err) {
         console.error(err);
         toast.error('Erro ao aprovar cotação no banco de dados.');
@@ -88,7 +89,7 @@ export default function PendentesPage() {
     if (confirmModal) {
       try {
         await approveCotacao(confirmModal.id);
-        toast.success(`Cotação #${confirmModal.id} aprovada com sucesso!`);
+        toast.success(`Cotação nº ${confirmModal.id} aprovada: agora é a OC nº ${confirmModal.id}.`);
         setConfirmModal(null);
       } catch (err) {
         console.error(err);
@@ -105,7 +106,7 @@ export default function PendentesPage() {
     }
     try {
       await rejectCotacao(rejectModal.id, rejectReason.trim());
-      toast.warning(`Cotação #${rejectModal.id} rejeitada. Orçamentista será notificado.`);
+      toast.warning(`Cotação nº ${rejectModal.id} rejeitada. Orçamentista será notificado.`);
       setRejectModal(null);
       setRejectReason('');
       setRejectError('');
@@ -291,7 +292,7 @@ export default function PendentesPage() {
             return (
               <div key={c.id} className="bg-white rounded-xl border border-black/[0.08] shadow-sm p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-[#757575]">#{c.id}</span>
+                  <span className="text-xs text-[#757575]">{rotuloCompra(c, { curto: true })}</span>
                   {isHighValue && (
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-400 text-[#212121]">
                       Alto Valor
@@ -372,7 +373,7 @@ export default function PendentesPage() {
       {rejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-[#212121] mb-1">Rejeitar Cotação #{rejectModal.id}</h3>
+            <h3 className="text-lg font-semibold text-[#212121] mb-1">Rejeitar Cotação nº {rejectModal.id}</h3>
             <p className="text-sm text-[#757575] mb-4">{rejectModal.fornecedor} — {formatCotacaoProdutosDesc(rejectModal)}</p>
 
             <label className="text-sm font-medium text-[#212121] mb-1.5 block">

@@ -4,6 +4,7 @@ import { Search, ShoppingCart, Calendar, FilterX } from 'lucide-react';
 import DivisaoTabs from '@/components/DivisaoTabs';
 
 import { useEffect } from 'react';
+import { rotuloOC } from '../../../../lib/compras/rotulo';
 
 export default function ComprasPage() {
   const { user, compras, cotacoes, currentDivisao, activeCotacaoIdForModal, setActiveCotacaoIdForModal } = useStore();
@@ -134,7 +135,7 @@ export default function ComprasPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-black/[0.08] bg-[#fafafa]">
-                  <th className="text-left py-3 px-4 font-medium text-[#757575] text-xs uppercase">ID</th>
+                  <th className="text-left py-3 px-4 font-medium text-[#757575] text-xs uppercase">OC</th>
                   <th className="text-left py-3 px-4 font-medium text-[#757575] text-xs uppercase">Fornecedor</th>
                   <th className="text-left py-3 px-4 font-medium text-[#757575] text-xs uppercase">Produto</th>
                   <th className="text-right py-3 px-4 font-medium text-[#757575] text-xs uppercase">Qtd</th>
@@ -146,7 +147,7 @@ export default function ComprasPage() {
               <tbody>
                 {filteredCompras.map(c => (
                   <tr key={c.id} className="border-b border-black/[0.04] hover:bg-[#fafafa] transition-colors">
-                    <td className="py-3 px-4 font-medium text-[#212121]">#{c.id}</td>
+                    <td className="py-3 px-4 font-medium text-[#212121] whitespace-nowrap">{rotuloOC(c.cotacaoId)}</td>
                     <td className="py-3 px-4 text-[#212121] max-w-[180px] truncate">{c.fornecedor}</td>
                     <td className="py-3 px-4 text-[#212121] max-w-[220px] truncate">{c.produto}</td>
                     <td className="py-3 px-4 text-right text-[#212121]">{c.quantidade} {c.unidade}</td>
@@ -172,7 +173,7 @@ export default function ComprasPage() {
           filteredCompras.map(c => (
             <div key={c.id} className="bg-white rounded-xl border border-black/[0.08] shadow-sm p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-[#757575]">#{c.id}</span>
+                <span className="text-xs text-[#757575]">{rotuloOC(c.cotacaoId)}</span>
                 <span className="text-xs text-[#757575]">{formatDate(c.dataCompra)}</span>
               </div>
               <p className="text-sm font-medium text-[#212121]">{c.fornecedor}</p>

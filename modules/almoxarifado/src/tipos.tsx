@@ -24,6 +24,9 @@ export type ACaminho = {
   supplierId: string | null;
   cnpj: string | null;
   divisao: string | null;
+  /** Compra direta (sem cotação, autorizada fora da plataforma). */
+  direta?: boolean;
+  autorizadoPor?: string | null;
   pedidoId: string | null;
   pedidoNumero: number | null;
   origem: "ALMOXARIFADO" | "FUNDICAO" | null;
