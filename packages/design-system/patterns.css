@@ -7113,6 +7113,8 @@ button.holiday-row:hover {
 .vnd-campo-produto > span { display: block; margin: 0 0 2px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
 .vnd-campo-produto > span small { font-weight: 400; color: var(--text-muted); }
 .vnd-itens-acoes { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.vnd-abrir-orcamento { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.vnd-abrir-orcamento:hover, .vnd-abrir-orcamento:focus-visible { color: var(--accent-blue); text-decoration: underline; text-underline-offset: 3px; }
 .vnd-busca-lista { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30; max-height: 320px; overflow-y: auto; margin: 0; padding: 4px 0; list-style: none; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); box-shadow: var(--shadow-md, var(--shadow-sm)); }
 .vnd-busca-lista > li { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px var(--sp-3); align-items: baseline; padding: 8px 12px; cursor: pointer; font-size: var(--fs-sm); color: var(--text-primary); }
 .vnd-busca-lista > li small { grid-column: 2; font-size: var(--fs-xs); color: var(--text-muted); }

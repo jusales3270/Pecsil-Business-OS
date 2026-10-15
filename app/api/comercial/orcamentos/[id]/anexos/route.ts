@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { dbError, requireFeature } from "../../../../../../lib/auth/feature-guard";
-import { guardarOriginal } from "../../../../../../lib/documentos/guardar";
+import { dbError, requireAnyFeature, requireFeature } from "../../../../../../lib/auth/feature-guard";
+import { guardarOriginal, linkDeDownload } from "../../../../../../lib/documentos/guardar";
+import { createSupabaseAdminClient } from "../../../../../../lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,6 +44,31 @@ export async function POST(request: Request, context: Contexto) {
   } catch (e) {
     console.error("Falha ao anexar no orçamento", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Não foi possível guardar o arquivo." }, { status: 500 });
+  }
+}
+
+/**
+ * Baixar um anexo pelo orçamento: quem vê o orçamento (inclusive o Fiscal, que confere a nota pelo pedido
+ * e pela cotação) abre o arquivo mesmo sem acesso aos documentos do Comercial. A sessão confere (RLS) que
+ * a pessoa vê o orçamento e o anexo; só então a chave de serviço lê o caminho do arquivo. Link de 60 s.
+ */
+export async function GET(request: Request, context: Contexto) {
+  const { id } = await context.params;
+  const guard = await requireAnyFeature(["comercial.orcamentos", "producao.entrada", "fiscal.nfe"], "ver");
+  if ("error" in guard) return guard.error;
+  const anexo = new URL(request.url).searchParams.get("anexo");
+  if (!anexo || !/^[0-9a-f-]{36}$/i.test(anexo)) return NextResponse.json({ error: "Informe o anexo." }, { status: 400 });
+  const { data: a, error } = await guard.supabase.from("sales_quote_attachments").select("document_id, organization_id").eq("id", anexo).eq("quote_id", id).maybeSingle();
+  if (error) return dbError(error);
+  if (!a) return NextResponse.json({ error: "Anexo não encontrado." }, { status: 404 });
+  const { data: doc } = await createSupabaseAdminClient().from("company_documents").select("storage_path, original_name")
+    .eq("id", a.document_id).eq("organization_id", a.organization_id).maybeSingle();
+  if (!doc) return NextResponse.json({ error: "Arquivo não encontrado." }, { status: 404 });
+  try {
+    return NextResponse.redirect(await linkDeDownload(doc.storage_path, doc.original_name), 302);
+  } catch (e) {
+    console.error("Falha ao gerar link do anexo", e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "Não foi possível abrir o arquivo agora." }, { status: 503 });
   }
 }
 

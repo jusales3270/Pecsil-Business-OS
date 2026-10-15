@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-15-abrir-orcamento-a-faturar",
+    data: "2026-10-15",
+    area: "Fiscal",
+    funcionalidades: ["fiscal.nfe"],
+    modulos: ["fiscal"],
+    titulo: "Abrir o orçamento pelo A faturar",
+    itens: [
+      "Em Fiscal › A faturar, clique no nome do orçamento (ou em \"Abrir orçamento\") para ver tudo antes de faturar: cliente, pedido de compra, máscara de impostos, itens com os impostos, produção e notas já emitidas, anotações.",
+      "O pedido do cliente e a cotação enviada abrem direto dali para conferir a nota. \"Voltar ao A faturar\" retorna à lista.",
+    ],
+  },
+  {
     id: "2026-10-15-produtos-no-orcamento",
     data: "2026-10-15",
     area: "Vendas",

@@ -56,3 +56,18 @@ test("sincronização da Forja manda os artigos para o cadastro de produtos", ()
   assert.ok(/revoke all on function public\.comercial_produtos_do_forja\(uuid, jsonb\) from public, anon, authenticated/.test(sql));
   assert.ok(!/update public\.products set (descricao|ncm|unidade)/.test(sql));
 });
+
+test("produtos: a API lê o catálogo da Forja em páginas (nada de corte em 1000)", () => {
+  const src = readFileSync(new URL("../app/api/comercial/produtos/route.ts", import.meta.url), "utf8");
+  assert.ok(!/from\("products"\)[^;]*\.limit\(/.test(src) && src.includes(".range(de, de + POR_PAGINA - 1)"));
+});
+
+test("Fiscal abre o orçamento pelo A faturar e baixa os anexos pelo orçamento", () => {
+  const af = readFileSync(new URL("../modules/fiscal/src/AFaturar.tsx", import.meta.url), "utf8");
+  assert.ok(af.includes("<EditorOrcamento") && af.includes("Abrir orçamento"));
+  const anexos = readFileSync(new URL("../app/api/comercial/orcamentos/[id]/anexos/route.ts", import.meta.url), "utf8");
+  // Quem vê o orçamento (inclusive fiscal.nfe) baixa; a sessão confere o anexo antes da chave de serviço.
+  assert.ok(/export async function GET[\s\S]*requireAnyFeature\(\["comercial\.orcamentos", "producao\.entrada", "fiscal\.nfe"\], "ver"\)[\s\S]*\.eq\("quote_id", id\)[\s\S]*createSupabaseAdminClient/.test(anexos));
+  // Anexar e tirar continuam só para quem opera orçamentos.
+  assert.equal((anexos.match(/requireFeature\("comercial\.orcamentos", "operar"\)/g) ?? []).length, 2);
+});
