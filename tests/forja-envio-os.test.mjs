@@ -30,8 +30,11 @@ test("rascunho de OS: tudo o que o Rafael montou no orçamento vai para a Forja"
   assert.match(p.observacoes, /^Orçamento nº 212 · item 2 · Entrega parcial aceita$/);
 });
 
-test("rascunho: recusas claras (treino, item apagado, quantidade fracionada) e ids inválidos não vão", () => {
-  assert.match(montarRascunhoOS(envio({ quote: { ...envio().quote, treino: true } }), null).erro, /treino/);
+test("rascunho: treino vai marcado; recusas claras (item apagado, quantidade fracionada) e ids inválidos não vão", () => {
+  const treino = montarRascunhoOS(envio({ quote: { ...envio().quote, treino: true } }), null).payload;
+  assert.equal(treino.treino, true);
+  assert.equal(treino.codigoProvisorio, "TREINO-T-212/2");
+  assert.match(treino.observacoes, /^TREINO \(não vai para produção\)/);
   assert.match(montarRascunhoOS(envio({ item: null }), null).erro, /apagado/);
   assert.match(montarRascunhoOS(envio({ item: { ...envio().item, quantidade: "2.5" } }), null).erro, /inteira.*2,5/);
   const semVinculo = montarRascunhoOS(envio({ item: { ...envio().item, produto: { ...envio().item.produto, forja_artigo_id: "abc" } } }), "x");
@@ -51,7 +54,6 @@ test("nova tentativa: rede dobra até 6 h; recusa de dado de hora em hora", () =
 
 test("migração: ganho enfileira, reabrir cancela ou recusa se a OS já foi liberada; fila só pelo servidor", () => {
   const sql = readFileSync(new URL("../supabase/migrations/202610160002_forja_os_envios.sql", import.meta.url), "utf8");
-  assert.ok(/if new\.treino then return new; end if;/.test(sql), "treino não vai para a Forja");
   assert.ok(sql.includes("já foi liberada para produção na Forja: cancele lá primeiro"));
   assert.ok(/revoke insert, update, delete on public\.forja_os_envios, public\.integration_cursors from anon, authenticated/.test(sql));
   assert.ok(/create trigger sales_quotes_forja_os after update of situacao on public\.sales_quotes/.test(sql));
@@ -65,4 +67,11 @@ test("plataforma: ganho dispara o envio sem prender a resposta; sync de 10 min e
   assert.ok(rota.includes("after(async () =>") && rota.includes("processarEnviosForja"));
   const sync = readFileSync(new URL("../app/api/producao/sync-os/route.ts", import.meta.url), "utf8");
   assert.ok(sync.indexOf("processarEnviosForja(admin)") < sync.indexOf("sincronizarOrdens(admin"));
+});
+
+test("treino também vai à Forja (16/10): gatilho sem exceção de treino; apagar o treino cancela os rascunhos", () => {
+  const sql = readFileSync(new URL("../supabase/migrations/202610160004_forja_os_treino.sql", import.meta.url), "utf8");
+  const gatilho = sql.slice(sql.indexOf("function public.forja_os_envios_do_orcamento"), sql.indexOf("function public.comercial_treino_apagar"));
+  assert.ok(!gatilho.includes("new.treino"));
+  assert.ok(/comercial_treino_apagar[\s\S]*update public\.forja_os_envios set status = case when forja_os_id is null then 'cancelado' else 'cancelar' end/.test(sql));
 });

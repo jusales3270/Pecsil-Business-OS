@@ -354,7 +354,7 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
 
       {ehTreino && <FaixaTreino texto="Este orçamento é de treino: siga o fluxo de verdade (anexos, ganho, produção, nota) para treinar e achar erro. Nada daqui vira pedido, previsão a receber ou nota real." />}
       {situacao === "perdido" && o?.motivo_perda && <Callout variant="danger" title="Perdido">{o.motivo_perda}</Callout>}
-      {situacao === "ganho" && <Callout variant="success" title="Ganho: pedido aprovado">Itens travados. {ehTreino ? "No treino, a OS não é criada na Forja." : "Cada item abriu uma OS em rascunho na Forja: o PCP completa roteiro, desenhos e materiais e libera para produção."} A produção lança o que ficar pronto e o Fiscal fatura, em uma ou mais notas, nunca acima do pedido.</Callout>}
+      {situacao === "ganho" && <Callout variant="success" title="Ganho: pedido aprovado">Itens travados. {ehTreino ? "No treino, cada item abriu um rascunho TREINO na Forja: dá para praticar roteiro, desenhos e materiais, mas ele não pode ser liberado para produção." : "Cada item abriu uma OS em rascunho na Forja: o PCP completa roteiro, desenhos e materiais e libera para produção."} A produção lança o que ficar pronto e o Fiscal fatura, em uma ou mais notas, nunca acima do pedido.</Callout>}
 
       <div className="nfe-editor">
         <div className="nfe-form">
@@ -439,7 +439,7 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
                     )}
                     {banco && (() => {
                       const envio = det?.forja?.find((f) => f.quote_item_id === banco.id);
-                      if (!((situacao === "ganho" && !ehTreino) || (envio && (envio.status === "cancelar" || envio.status === "erro")))) return null;
+                      if (!(situacao === "ganho" || (envio && (envio.status === "cancelar" || envio.status === "erro")))) return null;
                       return (
                         <p className={`nfe-item-calculo vnd-forja${envio?.status === "erro" ? " vnd-forja-erro" : ""}`} role={envio?.status === "erro" ? "alert" : undefined}>
                           <b>OS na Forja:</b>{" "}

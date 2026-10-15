@@ -24,6 +24,8 @@ export type EnvioFila = {
 
 export type RascunhoOS = {
   refExterna: string;
+  /** Orçamento de treino: a Forja guarda como TREINO e não deixa liberar. */
+  treino: boolean;
   codigoProvisorio: string;
   cliente: { forjaId: string | null; nome: string };
   artigo: { forjaId: string | null; codigo: string; descricao: string; tipoProduto: string | null; material: string | null };
@@ -49,7 +51,6 @@ export function montarRascunhoOS(e: EnvioFila, clienteForjaId: string | null): {
   const q = e.quote;
   const i = e.item;
   if (!q) return { erro: "O orçamento deste item não existe mais." };
-  if (q.treino) return { erro: "Orçamento de treino não vai para a Forja." };
   if (!i) return { erro: "O item do orçamento foi apagado: reabra e ganhe de novo para enviar." };
   if (!i.produto) return { erro: "O item está sem produto." };
   const quantidade = Number(i.quantidade);
@@ -60,7 +61,8 @@ export function montarRascunhoOS(e: EnvioFila, clienteForjaId: string | null): {
   return {
     payload: {
       refExterna: e.ref,
-      codigoProvisorio: `ORC-${q.numero}/${i.ordem ?? 1}`,
+      treino: q.treino,
+      codigoProvisorio: q.treino ? `TREINO-T-${q.numero}/${i.ordem ?? 1}` : `ORC-${q.numero}/${i.ordem ?? 1}`,
       cliente: { forjaId: clienteForjaId && UUID.test(clienteForjaId) ? clienteForjaId : null, nome: q.cliente.name.slice(0, 200) },
       artigo: {
         forjaId: i.produto.forja_artigo_id && UUID.test(i.produto.forja_artigo_id) ? i.produto.forja_artigo_id : null,
@@ -74,7 +76,7 @@ export function montarRascunhoOS(e: EnvioFila, clienteForjaId: string | null): {
       poCliente: pedido,
       pedidoClienteItem: pedido ? `Pedido ${pedido}${i.item_pedido ? ` · item ${i.item_pedido}` : ""}` : null,
       desenhoInformado: limpo(i.desenho, 200),
-      observacoes: limpo([`Orçamento nº ${q.numero} · item ${i.ordem ?? 1}`, q.observacoes, i.observacao].filter(Boolean).join(" · "), 2000),
+      observacoes: limpo([q.treino ? `TREINO (não vai para produção) · orçamento de treino T-${q.numero} · item ${i.ordem ?? 1}` : `Orçamento nº ${q.numero} · item ${i.ordem ?? 1}`, q.observacoes, i.observacao].filter(Boolean).join(" · "), 2000),
     },
   };
 }
