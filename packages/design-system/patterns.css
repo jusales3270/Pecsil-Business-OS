@@ -7524,6 +7524,18 @@ button.holiday-row:hover {
 .vnd-grupos { grid-template-columns: max-content minmax(140px, 1fr) max-content max-content; }
 /* Nº · Cliente · Data · Pedido · Total · Situação · ação */
 .vnd-orcamentos { grid-template-columns: max-content minmax(240px, 1fr) repeat(5, max-content); }
+/* Fiscal › Máscaras de impostos: Código · CFOP · Descrição · ICMS · IPI · PIS/COFINS · Situação; e o IPI por NCM. */
+.msk-tabela { grid-template-columns: max-content max-content minmax(240px, 1fr) repeat(4, max-content); }
+.msk-tabela > button[role="row"] { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; width: 100%; border: 0; border-top: 1px solid var(--border-subtle); background: none; font: inherit; text-align: left; color: var(--text-primary); cursor: pointer; }
+.msk-tabela > button[role="row"]:hover { background: var(--bg-hover); }
+.msk-tabela > [role="row"] > span small { display: block; font-size: var(--fs-xs); color: var(--text-muted); }
+.msk-tabela > .msk-inativa { opacity: 0.55; }
+.msk-ncm { grid-template-columns: max-content max-content minmax(140px, max-content) minmax(160px, 1fr) max-content; }
+.msk-input { height: 34px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); min-width: 0; width: 100%; }
+.msk-ncm-novo { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); max-width: 420px; }
+.msk-ncm-novo .msk-input { flex: 1 1 180px; }
+.vnd-mascara-ajuda { display: block; margin-top: 4px; font-size: var(--fs-xs); color: var(--text-muted); white-space: normal; }
+.msk-blocos { display: flex; flex-direction: column; gap: var(--sp-3); margin: 0; padding: 0; border: 0; min-width: 0; }
 /* Código · Item · Pedido · Produzido · Faturado · Falta · ações */
 .vnd-entrada { grid-template-columns: max-content minmax(220px, 1fr) repeat(4, max-content) minmax(120px, max-content); }
 /* ☐ · Código · Item · Pedido · Produzido · Faturado · Disponível · Falta · Faturar agora */

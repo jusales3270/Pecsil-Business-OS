@@ -45,6 +45,17 @@ export type ItemNfe = {
   pisAliquota: number;
   cofinsCst: string;
   cofinsAliquota: number;
+  /** Enquadramento legal do IPI (cEnq): 999 tributação normal; 108 suspensão… Sem: 999. */
+  ipiEnquadramento?: string;
+  /** IBS/CBS (reforma, 2026): CST, classificação tributária e alíquotas (IBS da UF e CBS). Sem CST: o grupo não vai. */
+  ibsCbsCst?: string;
+  cClassTrib?: string;
+  ibsAliquota?: number;
+  cbsAliquota?: number;
+  /** Base do PIS/COFINS sem o ICMS (opção da máscara; o contador decide). */
+  pisCofinsExcluiIcms?: boolean;
+  /** Código da máscara de impostos que preencheu o item (Fiscal › Máscaras de impostos). */
+  mascara?: string;
   /** Item do orçamento que esta linha fatura (o teto do pedido é conferido no banco). */
   itemOrcamento?: string;
   /** Pedido de compra do cliente e o nº do item nele (xPed/nItemPed; o GRV leva os dois). */
@@ -80,8 +91,9 @@ export type Emitente = {
   logradouro: string; numero: string; complemento: string | null; bairro: string; codigoMunicipio: string; municipio: string; uf: string; cep: string; telefone: string | null;
 };
 
-export type TotaisItem = { vProd: number; vDesc: number; vBC: number; vICMS: number; vIPI: number; vBCIPI: number; vPIS: number; vCOFINS: number; vFrete: number; vSeg: number; vOutro: number };
+export type TotaisItem = { vProd: number; vDesc: number; vBC: number; vICMS: number; vIPI: number; vBCIPI: number; vBCPisCofins: number; vPIS: number; vCOFINS: number; vBCIBSCBS: number; vIBS: number; vCBS: number; vFrete: number; vSeg: number; vOutro: number };
 export type Totais = {
   vProd: number; vDesc: number; vBC: number; vICMS: number; vIPI: number; vPIS: number; vCOFINS: number;
+  vBCIBSCBS: number; vIBS: number; vCBS: number;
   vFrete: number; vSeg: number; vOutro: number; vNF: number;
 };

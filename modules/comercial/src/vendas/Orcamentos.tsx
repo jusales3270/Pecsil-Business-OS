@@ -5,6 +5,7 @@ import { Button, Callout, EscolherArquivo, Kpi, KpiGrid, Modal, Segmented, Statu
 import { MODALIDADES_FRETE, SITUACOES_ORCAMENTO } from "../../../../lib/comercial/vendas";
 import { api, curto, date, dataHora, hoje, money } from "../../../fiscal/src/comum";
 import { lerNumeroBr } from "../../../../lib/numero-br";
+import { SITUACAO_MASCARA, ehSaida, impostosDoOrcamento, mascaraDoBanco, situacaoDaMascara, sugerirMascara, type Mascara } from "../../../../lib/fiscal/mascaras";
 import type { Produto } from "./Produtos";
 
 /**
@@ -26,7 +27,7 @@ type ItemBanco = {
   prazo_entrega: string | null; item_pedido: string | null; observacao: string | null; produto: { codigo: string; ncm: string | null } | null;
 };
 type Detalhe = {
-  orcamento: Resumo & { condicao_pagamento: string | null; frete_modalidade: number; observacoes: string | null; ganho_por_nome: string | null; cliente: { name: string; tax_id: string | null; uf: string | null } | null };
+  orcamento: Resumo & { condicao_pagamento: string | null; frete_modalidade: number; observacoes: string | null; ganho_por_nome: string | null; mascara_id: string | null; cliente: { name: string; tax_id: string | null; uf: string | null; ind_ie: number | null } | null };
   itens: ItemBanco[];
   anotacoes: { id: string; texto: string; autor_nome: string | null; created_at: string }[];
   anexos: { id: string; tipo: "pedido" | "cotacao" | "outro"; created_by_name: string | null; created_at: string; documento: { id: string; title: string; original_name: string } | null }[];
@@ -122,7 +123,9 @@ export function Orcamentos({ notify }: { notify: (m: string) => void }) {
 /* --- Editor ------------------------------------------------------------------------------- */
 
 type ItemForm = { chave: string; product_id: string; busca: string; descricao: string; desenho: string; unidade: string; quantidade: string; preco_unitario: string; prazo_entrega: string; item_pedido: string; observacao: string };
-type Cab = { customer_id: string; contato: string; data_orcamento: string; validade: string; pedido_cliente: string; condicao_pagamento: string; frete_modalidade: string; prazo_entrega: string; observacoes: string };
+type Cab = { customer_id: string; contato: string; data_orcamento: string; validade: string; pedido_cliente: string; condicao_pagamento: string; frete_modalidade: string; prazo_entrega: string; observacoes: string; mascara_id: string };
+type Cliente = { id: string; name: string; uf?: string | null; ind_ie?: number | null };
+type DadosMascaras = { mascaras: Mascara[]; ipiPorNcm: Map<string, number | null>; ufEmpresa: string | null };
 let seq = 0;
 const novaChave = () => `i${++seq}`;
 const rotuloProduto = (p: Pick<Produto, "codigo" | "descricao">) => `${p.codigo} — ${p.descricao}`;
@@ -130,9 +133,12 @@ const rotuloProduto = (p: Pick<Produto, "codigo" | "descricao">) => `${p.codigo}
 function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null; notify: (m: string) => void; onAbrir: (id: string) => void; onFechar: () => void }) {
   const [det, setDet] = useState<Detalhe | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [clientes, setClientes] = useState<{ id: string; name: string }[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [fiscal, setFiscal] = useState<DadosMascaras | null>(null);
+  // Escolheu a máscara à mão: trocar o cliente não troca mais a máscara sozinha.
+  const [mascaraManual, setMascaraManual] = useState(false);
   const [podeOperar, setPodeOperar] = useState(false);
-  const [cab, setCab] = useState<Cab>(() => ({ customer_id: "", contato: "", data_orcamento: hoje(), validade: "", pedido_cliente: "", condicao_pagamento: "", frete_modalidade: "9", prazo_entrega: "", observacoes: "" }));
+  const [cab, setCab] = useState<Cab>(() => ({ customer_id: "", contato: "", data_orcamento: hoje(), validade: "", pedido_cliente: "", condicao_pagamento: "", frete_modalidade: "9", prazo_entrega: "", observacoes: "", mascara_id: "" }));
   const [itens, setItens] = useState<ItemForm[]>([]);
   const [sujo, setSujo] = useState(false);
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -141,8 +147,12 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
   const [nota, setNota] = useState("");
 
   const carregarProdutos = useCallback(async () => {
-    const r = await api<{ produtos: Produto[]; clientes: { id: string; name: string }[] }>("/api/comercial/produtos?ativos=1");
+    const [r, f] = await Promise.all([
+      api<{ produtos: Produto[]; clientes: Cliente[] }>("/api/comercial/produtos?ativos=1"),
+      api<{ mascaras: Record<string, unknown>[]; ncms: { ncm: string; ipi_aliquota: number | null }[]; ufEmpresa: string | null }>("/api/fiscal/mascaras"),
+    ]);
     if (r.ok) { setProdutos(r.data.produtos); setClientes(r.data.clientes); }
+    if (f.ok) setFiscal({ mascaras: f.data.mascaras.map(mascaraDoBanco).filter((m) => ehSaida(m)), ipiPorNcm: new Map(f.data.ncms.map((n) => [n.ncm, n.ipi_aliquota === null ? null : Number(n.ipi_aliquota)])), ufEmpresa: f.data.ufEmpresa });
   }, []);
   const carregar = useCallback(async (qid: string) => {
     const r = await api<Detalhe>(`/api/comercial/orcamentos/${qid}`);
@@ -154,7 +164,9 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
     setCab({
       customer_id: o.customer_id, contato: o.contato ?? "", data_orcamento: o.data_orcamento, validade: o.validade ?? "", pedido_cliente: o.pedido_cliente ?? "",
       condicao_pagamento: o.condicao_pagamento ?? "", frete_modalidade: String(o.frete_modalidade ?? 9), prazo_entrega: o.prazo_entrega ?? "", observacoes: o.observacoes ?? "",
+      mascara_id: o.mascara_id ?? "",
     });
+    setMascaraManual(Boolean(o.mascara_id));
     setItens(d.itens.map((i) => ({
       chave: novaChave(), product_id: i.product_id, busca: i.produto ? rotuloProduto({ codigo: i.produto.codigo, descricao: i.descricao }) : i.descricao,
       descricao: i.descricao, desenho: i.desenho ?? "", unidade: i.unidade, quantidade: br(Number(i.quantidade), 0), preco_unitario: br(Number(i.preco_unitario)),
@@ -186,6 +198,21 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
   ].filter(Boolean) as string[];
 
   const mudarCab = (k: keyof Cab, v: string) => { setCab((c) => ({ ...c, [k]: v })); setSujo(true); };
+  const clienteAtual = clientes.find((c) => c.id === cab.customer_id) ?? (det?.orcamento.cliente ? { id: cab.customer_id, ...det.orcamento.cliente } : null);
+  const sugestao = fiscal ? sugerirMascara(fiscal.mascaras, clienteAtual?.uf, fiscal.ufEmpresa) : null;
+  const mascara = fiscal?.mascaras.find((m) => m.id === cab.mascara_id) ?? null;
+  const ncmDe = (productId: string) => produtos.find((p) => p.id === productId)?.ncm ?? det?.itens.find((x) => x.product_id === productId)?.produto?.ncm ?? null;
+  const impostos = useMemo(() => impostosDoOrcamento({
+    itens: itens.map((i) => ({ quantidade: lerNumero(i.quantidade), preco: lerNumero(i.preco_unitario), ncm: i.product_id ? ncmDe(i.product_id) : null, descricao: i.descricao })),
+    mascara, ipiPorNcm: fiscal?.ipiPorNcm ?? new Map(), consumidorFinal: clienteAtual?.ind_ie === 9,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [itens, mascara, fiscal, clienteAtual?.ind_ie, produtos, det]);
+  const trocarCliente = (id: string) => {
+    const c = clientes.find((x) => x.id === id);
+    const s = fiscal ? sugerirMascara(fiscal.mascaras, c?.uf, fiscal.ufEmpresa) : null;
+    setCab((atual) => ({ ...atual, customer_id: id, mascara_id: !mascaraManual && s?.mascara ? s.mascara.id : atual.mascara_id }));
+    setSujo(true);
+  };
   const mudarItem = (chave: string, parcial: Partial<ItemForm>) => { setItens((l) => l.map((i) => (i.chave === chave ? { ...i, ...parcial } : i))); setSujo(true); };
   const escolherProduto = (chave: string, texto: string) => {
     const p = porRotulo.get(texto);
@@ -282,7 +309,7 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
               <header><h2>Cliente e pedido</h2></header>
               <div className="fiscal-campos nfe-campos">
                 <label className="nfe-largo"><span>Cliente</span>
-                  <select value={cab.customer_id} onChange={(e) => mudarCab("customer_id", e.target.value)} disabled={!aberto}>
+                  <select value={cab.customer_id} onChange={(e) => trocarCliente(e.target.value)} disabled={!aberto}>
                     <option value="">Escolha…</option>
                     {clientes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
@@ -296,6 +323,18 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
                   <select value={cab.frete_modalidade} onChange={(e) => mudarCab("frete_modalidade", e.target.value)} disabled={!aberto}>{Object.entries(MODALIDADES_FRETE).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
                 </label>
                 <label><span>Prazo de entrega</span><input type="date" value={cab.prazo_entrega} onChange={(e) => mudarCab("prazo_entrega", e.target.value)} /></label>
+                <label className="nfe-largo"><span>Máscara de impostos<small> · a nota sai com ela</small></span>
+                  <select value={cab.mascara_id} onChange={(e) => { mudarCab("mascara_id", e.target.value); setMascaraManual(Boolean(e.target.value)); }} disabled={!aberto}>
+                    <option value="">Escolha…</option>
+                    {(fiscal?.mascaras ?? []).filter((m) => m.ativo || m.id === cab.mascara_id).map((m) => <option key={m.id} value={m.id}>{m.codigo} · {m.cfop} · {m.descricao}</option>)}
+                  </select>
+                  <small className="vnd-mascara-ajuda">
+                    {mascara ? <>{SITUACAO_MASCARA[situacaoDaMascara(mascara)]}{mascara.ufs.length ? ` · para ${mascara.ufs.join(", ")}` : ""}</> : sugestao?.motivo ?? ""}
+                    {aberto && sugestao?.mascara && sugestao.mascara.id !== cab.mascara_id && (
+                      <> {mascara ? `Sugerida pelo estado do cliente: ${sugestao.mascara.codigo}.` : ""} <button type="button" className="almox-link" onClick={() => { mudarCab("mascara_id", sugestao.mascara!.id); setMascaraManual(false); }}>Usar a {sugestao.mascara.codigo}</button></>
+                    )}
+                  </small>
+                </label>
                 <label className="nfe-cheio nfe-texto"><span>Observações</span><textarea rows={2} maxLength={2000} value={cab.observacoes} onChange={(e) => mudarCab("observacoes", e.target.value)} /></label>
               </div>
             </section>
@@ -334,6 +373,9 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
                       <label><span>Item no pedido<small> · ex.: 060</small></span><input value={i.item_pedido} maxLength={20} disabled={!aberto} onChange={(e) => mudarItem(i.chave, { item_pedido: e.target.value })} /></label>
                       <label><span>Prazo</span><input type="date" value={i.prazo_entrega} disabled={!aberto} onChange={(e) => mudarItem(i.chave, { prazo_entrega: e.target.value })} /></label>
                     </div>
+                    {impostos.ok && impostos.itens[k] && (
+                      <p className="nfe-item-calculo">ICMS {money(impostos.itens[k].vICMS)}{impostos.aliquotas.reducao ? ` (base ${money(impostos.itens[k].vBC)})` : ""} · IPI {money(impostos.itens[k].vIPI)}{impostos.aliquotas.ipi[k] !== null ? ` (${String(impostos.aliquotas.ipi[k]).replace(".", ",")}%)` : ""} · com IPI {money(impostos.itens[k].vProd + impostos.itens[k].vIPI)}</p>
+                    )}
                     {hist.length > 0 && aberto && (
                       <p className="nfe-item-calculo">Já cobrado: {hist.map((h) => `${money(Number(h.preco_unitario))} (#${h.orcamento.numero}, ${h.orcamento.cliente?.name ?? "—"}, ${date(h.orcamento.data_orcamento)}${h.orcamento.situacao === "ganho" ? ", ganho" : ""})`).join(" · ")}</p>
                     )}
@@ -409,9 +451,19 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
             <h2>Total</h2>
             <dl>
               <div><dt>Itens</dt><dd>{itens.length}</dd></div>
-              <div className="nfe-total"><dt>Total do orçamento</dt><dd>{money(total)}</dd></div>
+              <div><dt>Produtos</dt><dd>{money(total)}</dd></div>
+              {impostos.ok && (
+                <>
+                  <div><dt>Base do ICMS</dt><dd>{money(impostos.totais.vBC)}</dd></div>
+                  <div><dt>ICMS{impostos.aliquotas.icms ? ` (${String(impostos.aliquotas.icms).replace(".", ",")}%)` : ""}</dt><dd>{money(impostos.totais.vICMS)}</dd></div>
+                  <div><dt>IPI</dt><dd>{money(impostos.totais.vIPI)}</dd></div>
+                </>
+              )}
+              <div className="nfe-total"><dt>{impostos.ok ? "Total com IPI" : "Total do orçamento"}</dt><dd>{money(impostos.ok ? impostos.totais.vNF : total)}</dd></div>
             </dl>
-            <p className="fiscal-nota-ajuda">Preços sem IPI. Os impostos são calculados na nota.</p>
+            {impostos.ok
+              ? <p className="fiscal-nota-ajuda">Preços com o ICMS incluído; o IPI soma por fora, como na nota. Máscara {mascara?.codigo}{mascara && situacaoDaMascara(mascara) !== "confirmada" ? " ainda não confirmada com o contador" : ""}.</p>
+              : <p className="fiscal-nota-ajuda">Impostos ainda não calculados: falta {impostos.faltando.join(", ")}.</p>}
           </section>
 
           {aberto && o && (

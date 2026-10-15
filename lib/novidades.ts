@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-15-mascaras-impostos",
+    data: "2026-10-15",
+    area: "Fiscal e Vendas",
+    funcionalidades: ["fiscal.config", "fiscal.nfe", "comercial.orcamentos"],
+    modulos: ["fiscal", "comercial"],
+    titulo: "Máscaras de impostos: o orçamento mostra ICMS e IPI e a nota nasce com eles",
+    itens: [
+      "Fiscal › Máscaras de impostos traz as 23 máscaras do GRV (código, CFOP, situação tributária). Cada uma mostra o que falta para calcular e se já foi confirmada com o contador.",
+      "No orçamento, a máscara é sugerida pelo estado do cliente (5101 dentro do estado, 6101 para fora, 7101 exportação) e pode ser trocada pelo código. Com a máscara completa, aparecem base do ICMS, ICMS, IPI e o total com IPI.",
+      "A nota que o Fiscal gera do orçamento sai com a mesma máscara: CFOP, CSTs e alíquotas iguais ao que o orçamento mostrou.",
+      "A alíquota do IPI fica por NCM (Fiscal › Máscaras de impostos › IPI por NCM).",
+    ],
+  },
+  {
     id: "2026-10-14-quadro-terceiros",
     data: "2026-10-14",
     area: "RH e Portaria",
