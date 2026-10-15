@@ -7,7 +7,9 @@
  * - Base do ICMS = vProd − desconto + frete + seguro + outras (+ IPI quando o destinatário é
  *   consumidor final), reduzida pelo % de redução da base.
  * - IPI: base = vProd − desconto + frete + seguro + outras.
- * - PIS/COFINS: base = vProd − desconto (simplificação do treino; o Jefferson confirma).
+ * - PIS/COFINS: base = vProd − desconto (− ICMS quando a máscara manda excluir).
+ * - IBS/CBS (2026, como o GRV emite): base = vProd − desconto − ICMS − PIS − COFINS, só nos CST que
+ *   tributam (000…); IBS da UF e CBS pelas alíquotas da máscara. Não somam no vNF em 2026.
  * - vNF = vProd − vDesc + vFrete + vSeg + vOutro + vIPI (sem ST nesta etapa).
  */
 import type { ItemNfe, NotaNfe, Totais, TotaisItem } from "./tipos";
@@ -42,19 +44,25 @@ export function calcularItens(nota: Pick<NotaNfe, "itens" | "frete" | "seguro" |
     const baseCheia = vProd - vDesc + acessorias + (nota.consumidorFinal ? vIPI : 0);
     const vBC = ICMS_TRIBUTADO.has(i.icmsCst) && i.icmsCst !== "101" ? r2(baseCheia * (1 - (i.icmsReducaoBase || 0) / 100)) : 0;
     const vICMS = vBC ? r2((vBC * (i.icmsAliquota || 0)) / 100) : 0;
-    const basePisCofins = r2(vProd - vDesc);
+    const basePisCofins = r2(vProd - vDesc - (i.pisCofinsExcluiIcms ? vICMS : 0));
     const vPIS = PIS_COFINS_ALIQ.has(i.pisCst) ? r2((basePisCofins * (i.pisAliquota || 0)) / 100) : 0;
     const vCOFINS = PIS_COFINS_ALIQ.has(i.cofinsCst) ? r2((basePisCofins * (i.cofinsAliquota || 0)) / 100) : 0;
-    return { vProd, vDesc, vBC, vICMS, vIPI, vBCIPI, vPIS, vCOFINS, vFrete: fretes[k], vSeg: seguros[k], vOutro: outros[k] };
+    const ibsCbs = ibsCbsTributa(i.ibsCbsCst);
+    const vBCIBSCBS = ibsCbs ? r2(vProd - vDesc - vICMS - vPIS - vCOFINS) : 0;
+    const vIBS = ibsCbs ? r2((vBCIBSCBS * (i.ibsAliquota || 0)) / 100) : 0;
+    const vCBS = ibsCbs ? r2((vBCIBSCBS * (i.cbsAliquota || 0)) / 100) : 0;
+    return { vProd, vDesc, vBC, vICMS, vIPI, vBCIPI, vBCPisCofins: basePisCofins, vPIS, vCOFINS, vBCIBSCBS, vIBS, vCBS, vFrete: fretes[k], vSeg: seguros[k], vOutro: outros[k] };
   });
 }
 
 export function calcularTotais(itens: TotaisItem[]): Totais {
-  const s = (k: keyof TotaisItem) => r2(itens.reduce((a, i) => a + i[k], 0));
-  const t = { vProd: s("vProd"), vDesc: s("vDesc"), vBC: s("vBC"), vICMS: s("vICMS"), vIPI: s("vIPI"), vPIS: s("vPIS"), vCOFINS: s("vCOFINS"), vFrete: s("vFrete"), vSeg: s("vSeg"), vOutro: s("vOutro") };
+  const s = (k: keyof TotaisItem) => r2(itens.reduce((a, i) => a + (i[k] ?? 0), 0));
+  const t = { vProd: s("vProd"), vDesc: s("vDesc"), vBC: s("vBC"), vICMS: s("vICMS"), vIPI: s("vIPI"), vPIS: s("vPIS"), vCOFINS: s("vCOFINS"), vBCIBSCBS: s("vBCIBSCBS"), vIBS: s("vIBS"), vCBS: s("vCBS"), vFrete: s("vFrete"), vSeg: s("vSeg"), vOutro: s("vOutro") };
   return { ...t, vNF: r2(t.vProd - t.vDesc + t.vFrete + t.vSeg + t.vOutro + t.vIPI) };
 }
 
 export const icmsDestaca = (cst: string) => ICMS_TRIBUTADO.has(cst) && cst !== "101";
 export const ipiTributado = (cst: string) => IPI_TRIBUTADO.has(cst);
 export const pisCofinsComAliquota = (cst: string) => PIS_COFINS_ALIQ.has(cst);
+/** CST de IBS/CBS que levam o grupo de valores (gIBSCBS): tributação integral (000) e com redução (2xx). */
+export const ibsCbsTributa = (cst: string | undefined) => Boolean(cst && /^(000|2\d\d)$/.test(cst));

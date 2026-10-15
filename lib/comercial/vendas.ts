@@ -61,6 +61,8 @@ export type ItemOrcamentoEntrada = {
 export type OrcamentoEntrada = {
   customer_id: string | null; contato: string | null; crm_card_id: string | null; data_orcamento: string | null; validade: string | null;
   pedido_cliente: string | null; condicao_pagamento: string | null; frete_modalidade: number; prazo_entrega: string | null; observacoes: string | null;
+  /** Máscara de impostos (Fiscal): a nota nasce com ela. */
+  mascara_id: string | null;
   itens: ItemOrcamentoEntrada[];
 };
 
@@ -93,7 +95,8 @@ export function normalizarOrcamento(v: unknown): { orcamento: OrcamentoEntrada; 
     orcamento: {
       customer_id: customer, contato: opc(b.contato, 120), crm_card_id: uuid(b.crm_card_id), data_orcamento: data(b.data_orcamento),
       validade: data(b.validade), pedido_cliente: opc(b.pedido_cliente, 60), condicao_pagamento: opc(b.condicao_pagamento, 120),
-      frete_modalidade: [0, 1, 2, 9].includes(frete) ? frete : 9, prazo_entrega: data(b.prazo_entrega), observacoes: opc(b.observacoes, 2000), itens,
+      frete_modalidade: [0, 1, 2, 9].includes(frete) ? frete : 9, prazo_entrega: data(b.prazo_entrega), observacoes: opc(b.observacoes, 2000),
+      mascara_id: uuid(b.mascara_id), itens,
     },
   };
 }

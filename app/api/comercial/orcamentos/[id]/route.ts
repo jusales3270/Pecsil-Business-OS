@@ -14,7 +14,7 @@ export async function GET(_request: Request, context: Contexto) {
   const { id } = await context.params;
   const guard = await requireAnyFeature(["comercial.orcamentos", "producao.entrada", "fiscal.nfe"], "ver");
   if ("error" in guard) return guard.error;
-  const { data: q, error } = await guard.supabase.from("sales_quotes").select("*, cliente:customers(name, tax_id, uf)").eq("id", id).maybeSingle();
+  const { data: q, error } = await guard.supabase.from("sales_quotes").select("*, cliente:customers(name, tax_id, uf, ind_ie)").eq("id", id).maybeSingle();
   if (error) return dbError(error);
   if (!q) return NextResponse.json({ error: "Orçamento não encontrado." }, { status: 404 });
   const [{ data: itens }, { data: notas }, { data: anexos }, { data: notasFiscais }] = await Promise.all([

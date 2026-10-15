@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { dbError, requireFeature } from "../../../../lib/auth/feature-guard";
 import { notaDoOrcamento, type ClienteFiscal, type LinhaAFaturar, type ProdutoFiscal } from "../../../../lib/fiscal/emissao/do-orcamento";
+import { aliquotaIpi, mascaraDoBanco, type Mascara } from "../../../../lib/fiscal/mascaras";
 import { ambienteLiberado, auditar, autorDaSessao, definirOrigens, emitenteDaOrganizacao, resumoDaNota } from "../../../../lib/fiscal/emissao/servidor";
 import { lerNumeroBr } from "../../../../lib/numero-br";
 import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
@@ -54,9 +55,23 @@ export async function POST(request: Request) {
   ]);
   if (!cliente) return NextResponse.json({ error: "Cliente não encontrado." }, { status: 404 });
   const porProduto = new Map((produtos ?? []).map((p) => [p.id, p as ProdutoFiscal & { id: string }]));
+  // Máscara de impostos de cada orçamento: a nota sai com os mesmos números que o orçamento mostrou.
+  const { data: quotes } = await admin.from("sales_quotes").select("id, mascara_id").eq("organization_id", autor.org).in("id", [...new Set(escolhidas.map((e) => e.linha!.quote_id))]);
+  const idsMascara = [...new Set((quotes ?? []).map((q) => q.mascara_id).filter(Boolean))] as string[];
+  const [{ data: mascarasBanco }, { data: ncms }] = await Promise.all([
+    idsMascara.length ? admin.from("fiscal_mascaras").select("*").eq("organization_id", autor.org).in("id", idsMascara) : Promise.resolve({ data: [] }),
+    admin.from("fiscal_ncm").select("ncm, ipi_aliquota").eq("organization_id", autor.org),
+  ]);
+  const mascaraPorId = new Map(((mascarasBanco ?? []) as Record<string, unknown>[]).map((m) => [String(m.id), mascaraDoBanco(m)]));
+  const mascaraDoQuote = new Map((quotes ?? []).map((q) => [q.id, q.mascara_id ? mascaraPorId.get(q.mascara_id) ?? null : null] as [string, Mascara | null]));
+  const ipiPorNcm = new Map((ncms ?? []).map((n) => [n.ncm, n.ipi_aliquota === null ? null : Number(n.ipi_aliquota)]));
   const nota = notaDoOrcamento({
     cliente: cliente as ClienteFiscal,
-    linhas: escolhidas.map((e) => ({ linha: e.linha!, quantidade: e.quantidade, produto: porProduto.get(e.linha!.product_id)! })),
+    linhas: escolhidas.map((e) => {
+      const produto = porProduto.get(e.linha!.product_id)!;
+      const mascara = mascaraDoQuote.get(e.linha!.quote_id) ?? null;
+      return { linha: e.linha!, quantidade: e.quantidade, produto, mascara, ipiAliquota: mascara ? aliquotaIpi(mascara, produto?.ncm, ipiPorNcm) : null };
+    }),
     ufEmitente: emitente?.uf ?? "", crt: emitente?.crt ?? 3,
   });
   const { data: criada, error: e1 } = await admin.from("fiscal_nfe").insert({

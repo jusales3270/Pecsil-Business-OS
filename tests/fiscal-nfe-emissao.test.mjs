@@ -126,7 +126,7 @@ test("XML: leiaute 4.00 com chave no Id, tpAmb 2 no treino, impostos e cobrança
   const { xml, chave, totais } = gerarXmlNfe({ nota: n, emitente: EMITENTE, serie: 1, numero: 7, emissao: new Date("2026-10-13T15:00:00Z"), codigoNumerico: "87654321", tpAmb: 2 });
   assert.match(xml, new RegExp(`<infNFe versao="4.00" Id="NFe${chave}">`));
   assert.match(xml, /<tpAmb>2<\/tpAmb>/);
-  assert.match(xml, /<ICMS00><orig>0<\/orig><CST>00<\/CST><modBC>3<\/modBC><vBC>1000.00<\/vBC><pICMS>18.00<\/pICMS><vICMS>180.00<\/vICMS><\/ICMS00>/);
+  assert.match(xml, /<ICMS00><orig>0<\/orig><CST>00<\/CST><modBC>3<\/modBC><vBC>1000.00<\/vBC><pICMS>18.0000<\/pICMS><vICMS>180.00<\/vICMS><\/ICMS00>/);
   assert.match(xml, /<PISAliq><CST>01<\/CST>/);
   assert.match(xml, /<cobr><fat><nFat>7<\/nFat>/);
   assert.match(xml, /<vNF>1000.00<\/vNF>/);

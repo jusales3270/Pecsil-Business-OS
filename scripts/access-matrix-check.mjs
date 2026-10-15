@@ -279,6 +279,20 @@ try {
     const merge = await client.rpc("merge_suppliers", { keep_id: anySupplier.id, drop_id: anySupplier.id });
     check(n, "não unifica fornecedores sem Cadastros", Boolean(merge.error), merge.error?.code);
 
+    // Máscaras de impostos: leem o Fiscal (config/notas) e quem orça; altera só Configuração fiscal (operar) ou quem aprova notas.
+    const veMascaras = ["fiscal.config", "fiscal.nfe", "comercial.orcamentos"].some((f) => f in scenario.grants);
+    const mascarasVistas = await total(client, "fiscal_mascaras");
+    check(n, veMascaras ? "lê as máscaras de impostos" : "não lê as máscaras de impostos", veMascaras ? mascarasVistas > 0 : mascarasVistas === 0, mascarasVistas);
+    const editaMascaras = scenario.grants["fiscal.config"] === "operar" || scenario.grants["fiscal.nfe"] === "aprovar";
+    if (!editaMascaras) {
+      const { data: umaMascara } = await admin.from("fiscal_mascaras").select("id, descricao").limit(1).single();
+      await client.from("fiscal_mascaras").update({ descricao: "ALTERADO PELA MATRIZ" }).eq("id", umaMascara.id);
+      const { data: depois } = await admin.from("fiscal_mascaras").select("descricao").eq("id", umaMascara.id).single();
+      check(n, "não altera máscara de impostos", depois.descricao === umaMascara.descricao, depois.descricao);
+      const ncmFalso = await client.from("fiscal_ncm").insert({ organization_id: org.id, ncm: "99999999", ipi_aliquota: 1 });
+      check(n, "não grava IPI por NCM", Boolean(ncmFalso.error), ncmFalso.error?.code ?? "GRAVOU");
+    }
+
     // Compras diretas: a lista é de quem vê o Compras ou recebe material; registrar, só quem opera no
     // Compras; ninguém marca a origem "direta" escrevendo na tabela (só pelas funções).
     const g = scenario.grants;

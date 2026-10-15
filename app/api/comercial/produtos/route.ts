@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const [{ data: produtos, error }, { data: grupos }, { data: clientes }] = await Promise.all([
     consulta,
     guard.supabase.from("product_groups").select("id, codigo, nome, prefixo, proximo").order("codigo"),
-    guard.supabase.from("customers").select("id, name").eq("active", true).is("merged_into", null).order("name").limit(1000),
+    guard.supabase.from("customers").select("id, name, uf, ind_ie").eq("active", true).is("merged_into", null).order("name").limit(1000),
   ]);
   if (error) return dbError(error);
   return NextResponse.json({

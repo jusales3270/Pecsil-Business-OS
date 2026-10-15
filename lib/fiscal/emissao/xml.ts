@@ -6,7 +6,7 @@
  * No TREINO a nota não é assinada (não há certificado): entra uma assinatura de estrutura válida e
  * conteúdo fictício, só para o esquema conferir o resto. Ela nunca sai da plataforma.
  */
-import { calcularItens, calcularTotais, icmsDestaca, ipiTributado, pisCofinsComAliquota, r2 } from "./calculo";
+import { calcularItens, calcularTotais, ibsCbsTributa, icmsDestaca, ipiTributado, pisCofinsComAliquota, r2 } from "./calculo";
 import type { Emitente, NotaNfe, Totais } from "./tipos";
 
 const UF_IBGE: Record<string, string> = {
@@ -114,9 +114,9 @@ export function gerarXmlNfe(g: GerarXml): { xml: string; chave: string; totais: 
         ? `<ICMSSN101>${orig}${tag("CSOSN", "101")}${tag("pCredSN", d2(i.icmsAliquota))}${tag("vCredICMSSN", d2((c.vProd - c.vDesc) * i.icmsAliquota / 100))}</ICMSSN101>`
         : `<ICMSSN102>${orig}${tag("CSOSN", i.icmsCst)}</ICMSSN102>`;
     } else if (i.icmsCst === "00") {
-      icms = `<ICMS00>${orig}${tag("CST", "00")}${tag("modBC", "3")}${tag("vBC", d2(c.vBC))}${tag("pICMS", d2(i.icmsAliquota))}${tag("vICMS", d2(c.vICMS))}</ICMS00>`;
+      icms = `<ICMS00>${orig}${tag("CST", "00")}${tag("modBC", "3")}${tag("vBC", d2(c.vBC))}${tag("pICMS", d4(i.icmsAliquota))}${tag("vICMS", d2(c.vICMS))}</ICMS00>`;
     } else if (i.icmsCst === "20") {
-      icms = `<ICMS20>${orig}${tag("CST", "20")}${tag("modBC", "3")}${tag("pRedBC", d2(i.icmsReducaoBase))}${tag("vBC", d2(c.vBC))}${tag("pICMS", d2(i.icmsAliquota))}${tag("vICMS", d2(c.vICMS))}</ICMS20>`;
+      icms = `<ICMS20>${orig}${tag("CST", "20")}${tag("modBC", "3")}${tag("pRedBC", d4(i.icmsReducaoBase))}${tag("vBC", d2(c.vBC))}${tag("pICMS", d4(i.icmsAliquota))}${tag("vICMS", d2(c.vICMS))}</ICMS20>`;
     } else if (["40", "41", "50"].includes(i.icmsCst)) {
       icms = `<ICMS40>${orig}${tag("CST", i.icmsCst)}</ICMS40>`;
     } else if (i.icmsCst === "51") {
@@ -124,10 +124,11 @@ export function gerarXmlNfe(g: GerarXml): { xml: string; chave: string; totais: 
     } else {
       icms = `<ICMS90>${orig}${tag("CST", "90")}${icmsDestaca("90") && c.vBC ? `${tag("modBC", "3")}${tag("vBC", d2(c.vBC))}${tag("pICMS", d2(i.icmsAliquota))}${tag("vICMS", d2(c.vICMS))}` : ""}</ICMS90>`;
     }
+    const cEnq = /^\d{3}$/.test(i.ipiEnquadramento ?? "") ? i.ipiEnquadramento! : "999";
     const ipi = ipiTributado(i.ipiCst)
-      ? `<IPI>${tag("cEnq", "999")}<IPITrib>${tag("CST", i.ipiCst)}${tag("vBC", d2(c.vBCIPI))}${tag("pIPI", d2(i.ipiAliquota))}${tag("vIPI", d2(c.vIPI))}</IPITrib></IPI>`
-      : `<IPI>${tag("cEnq", "999")}<IPINT>${tag("CST", i.ipiCst)}</IPINT></IPI>`;
-    const baseP = d2(c.vProd - c.vDesc);
+      ? `<IPI>${tag("cEnq", cEnq)}<IPITrib>${tag("CST", i.ipiCst)}${tag("vBC", d2(c.vBCIPI))}${tag("pIPI", d4(i.ipiAliquota))}${tag("vIPI", d2(c.vIPI))}</IPITrib></IPI>`
+      : `<IPI>${tag("cEnq", cEnq)}<IPINT>${tag("CST", i.ipiCst)}</IPINT></IPI>`;
+    const baseP = d2(c.vBCPisCofins);
     const pis = pisCofinsComAliquota(i.pisCst)
       ? (["01", "02"].includes(i.pisCst)
         ? `<PISAliq>${tag("CST", i.pisCst)}${tag("vBC", baseP)}${tag("pPIS", d4(i.pisAliquota))}${tag("vPIS", d2(c.vPIS))}</PISAliq>`
@@ -139,7 +140,13 @@ export function gerarXmlNfe(g: GerarXml): { xml: string; chave: string; totais: 
         : `<COFINSOutr>${tag("CST", i.cofinsCst)}${tag("vBC", baseP)}${tag("pCOFINS", d4(i.cofinsAliquota))}${tag("vCOFINS", d2(c.vCOFINS))}</COFINSOutr>`)
       : `<COFINSNT>${tag("CST", i.cofinsCst)}</COFINSNT>`;
     const infAdProd = i.pedidoCompra ? tag("infAdProd", tx(`Nº Pedido: ${i.pedidoCompra}${i.itemPedido ? ` Nº Pedido Item: ${i.itemPedido}` : ""}`, 500)) : "";
-    return `<det nItem="${k + 1}"><prod>${prod}</prod><imposto><ICMS>${icms}</ICMS>${ipi}<PIS>${pis}</PIS><COFINS>${cofins}</COFINS></imposto>${infAdProd}</det>`;
+    // IBS/CBS (reforma, 2026): o mesmo grupo que o GRV já emite.
+    const ibsCbs = i.ibsCbsCst
+      ? `<IBSCBS>${tag("CST", i.ibsCbsCst)}${tag("cClassTrib", i.cClassTrib || "000001")}${ibsCbsTributa(i.ibsCbsCst)
+        ? `<gIBSCBS>${tag("vBC", d2(c.vBCIBSCBS))}<gIBSUF>${tag("pIBSUF", d4(i.ibsAliquota ?? 0))}${tag("vIBSUF", d2(c.vIBS))}</gIBSUF><gIBSMun>${tag("pIBSMun", "0.0000")}${tag("vIBSMun", "0.00")}</gIBSMun>${tag("vIBS", d2(c.vIBS))}<gCBS>${tag("pCBS", d4(i.cbsAliquota ?? 0))}${tag("vCBS", d2(c.vCBS))}</gCBS></gIBSCBS>`
+        : ""}</IBSCBS>`
+      : "";
+    return `<det nItem="${k + 1}"><prod>${prod}</prod><imposto><ICMS>${icms}</ICMS>${ipi}<PIS>${pis}</PIS><COFINS>${cofins}</COFINS>${ibsCbs}</imposto>${infAdProd}</det>`;
   }).join("");
 
   const t = totais;
@@ -148,6 +155,12 @@ export function gerarXmlNfe(g: GerarXml): { xml: string; chave: string; totais: 
     tag("vFCPST", "0.00"), tag("vFCPSTRet", "0.00"), tag("vProd", d2(t.vProd)), tag("vFrete", d2(t.vFrete)), tag("vSeg", d2(t.vSeg)), tag("vDesc", d2(t.vDesc)),
     tag("vII", "0.00"), tag("vIPI", d2(t.vIPI)), tag("vIPIDevol", "0.00"), tag("vPIS", d2(t.vPIS)), tag("vCOFINS", d2(t.vCOFINS)), tag("vOutro", d2(t.vOutro)), tag("vNF", d2(t.vNF)),
   ].join("");
+
+  const comIbsCbs = nota.itens.some((i) => i.ibsCbsCst);
+  const z = "0.00";
+  const ibsCbsTot = comIbsCbs
+    ? `<IBSCBSTot>${tag("vBCIBSCBS", d2(t.vBCIBSCBS))}<gIBS><gIBSUF>${tag("vDif", z)}${tag("vDevTrib", z)}${tag("vIBSUF", d2(t.vIBS))}</gIBSUF><gIBSMun>${tag("vDif", z)}${tag("vDevTrib", z)}${tag("vIBSMun", z)}</gIBSMun>${tag("vIBS", d2(t.vIBS))}${tag("vCredPres", z)}${tag("vCredPresCondSus", z)}</gIBS><gCBS>${tag("vDif", z)}${tag("vDevTrib", z)}${tag("vCBS", d2(t.vCBS))}${tag("vCredPres", z)}${tag("vCredPresCondSus", z)}</gCBS><gMono>${tag("vIBSMono", z)}${tag("vCBSMono", z)}${tag("vIBSMonoReten", z)}${tag("vCBSMonoReten", z)}${tag("vIBSMonoRet", z)}${tag("vCBSMonoRet", z)}</gMono></IBSCBSTot>${tag("vNFTot", d2(t.vNF))}`
+    : "";
 
   const f = nota.frete;
   const transp = [
@@ -164,7 +177,7 @@ export function gerarXmlNfe(g: GerarXml): { xml: string; chave: string; totais: 
   const pag = `<pag><detPag>${semPagamento ? "" : tag("indPag", dups.length > 1 || (dups[0] && dups[0].vencimento > dataHoraBrasilia(g.emissao).slice(0, 10)) ? "1" : "0")}${tag("tPag", nota.pagamento.forma)}${nota.pagamento.forma === "99" ? tag("xPag", "Outros") : ""}${tag("vPag", semPagamento ? "0.00" : d2(t.vNF))}</detPag></pag>`;
   const infAdic = nota.infoComplementar.trim() ? `<infAdic>${tag("infCpl", tx(nota.infoComplementar, 5000))}</infAdic>` : "";
 
-  const infNFe = `<infNFe versao="4.00" Id="NFe${chave}"><ide>${ide}</ide><emit>${emit}</emit><dest>${destXml}</dest>${det}<total><ICMSTot>${icmsTot}</ICMSTot></total><transp>${transp}</transp>${cobr}${pag}${infAdic}</infNFe>`;
+  const infNFe = `<infNFe versao="4.00" Id="NFe${chave}"><ide>${ide}</ide><emit>${emit}</emit><dest>${destXml}</dest>${det}<total><ICMSTot>${icmsTot}</ICMSTot>${ibsCbsTot}</total><transp>${transp}</transp>${cobr}${pag}${infAdic}</infNFe>`;
   return { xml: `<NFe xmlns="http://www.portalfiscal.inf.br/nfe">${infNFe}</NFe>`, chave, totais };
 }
 
