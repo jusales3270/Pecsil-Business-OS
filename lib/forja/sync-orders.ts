@@ -14,6 +14,9 @@ import { normalizePartyName, parseClients, parseOrders, similarPairs, type Mirro
  *    sozinho: nomes parecidos vão para o relatório.
  * 2. OS: espelho só de leitura, gravado só quando algo mudou. OS que some da
  *    lista do Forja é marcada, não apagada.
+ * 3. Produtos: os artigos do Forja (código do GRV, descrição, tipo, cliente) entram
+ *    no cadastro de produtos pela função `comercial_produtos_do_forja`, que só
+ *    cria o que falta e liga o artigo; nunca sobrescreve o que foi editado aqui.
  *
  * Em modo simulação, lê tudo e monta o mesmo relatório sem gravar nada além
  * do registro da rodada.
@@ -28,6 +31,7 @@ export type RelatorioSync = {
   modo: "apply" | "simulate";
   clientes: { noForja: number; jaVinculados: number; vinculadosAExistente: number; criados: number; parecidos: [string, string][] };
   ordens: { noForja: number; rejeitadas: number; novas: number; alteradas: number; iguais: number; removidas: number; semCliente: number };
+  produtos?: { noForja: number; novos: number; vinculados: number; gruposNovos: number; aviso?: string };
   erro?: string;
 };
 
@@ -76,7 +80,7 @@ export async function sincronizarOrdens(admin: SupabaseClient, { simular }: { si
     if (!run) return;
     await admin.from("integration_sync_runs").update({
       finished_at: new Date().toISOString(), ok, error: erro ?? null,
-      counts: { clientes: { ...relatorio.clientes, parecidos: relatorio.clientes.parecidos.length }, ordens: relatorio.ordens },
+      counts: { clientes: { ...relatorio.clientes, parecidos: relatorio.clientes.parecidos.length }, ordens: relatorio.ordens, produtos: relatorio.produtos ?? null },
     }).eq("id", run.id);
   };
 
@@ -178,6 +182,27 @@ export async function sincronizarOrdens(admin: SupabaseClient, { simular }: { si
         const { error } = await admin.from("production_orders").update({ removed_from_source_at: agora }).in("id", parte);
         if (error) throw new Error(`OS removidas: ${error.message}`);
       }
+    }
+
+    // --- Produtos (artigos do Forja) ------------------------------------------
+    // Falha aqui não derruba a sincronização das OS: vira aviso no relatório.
+    try {
+      const resposta = await forja.getData("/api/artigos");
+      const artigos = (Array.isArray(resposta) ? resposta : []) as Row[];
+      const lista = artigos.map((a) => ({
+        codigo: String(a.codigo ?? ""), descricao: String(a.descricao ?? ""), tipo: String(a.tipoProduto ?? ""),
+        material: a.material ? String(a.material) : null, forja_id: a.id ? String(a.id) : null,
+        cliente_id: a.clienteId ? clienteDe.get(String(a.clienteId)) ?? null : null,
+      }));
+      relatorio.produtos = { noForja: lista.length, novos: 0, vinculados: 0, gruposNovos: 0 };
+      if (!simular && lista.length) {
+        const { data, error } = await admin.rpc("comercial_produtos_do_forja", { p_org: org, p_artigos: lista });
+        if (error) throw new Error(error.message);
+        const res = (data ?? {}) as { novos?: number; vinculados?: number; grupos_novos?: number };
+        relatorio.produtos = { noForja: lista.length, novos: res.novos ?? 0, vinculados: res.vinculados ?? 0, gruposNovos: res.grupos_novos ?? 0 };
+      }
+    } catch (e) {
+      relatorio.produtos = { noForja: 0, novos: 0, vinculados: 0, gruposNovos: 0, aviso: `artigos: ${e instanceof Error ? e.message : String(e)}` };
     }
 
     await finish(true);

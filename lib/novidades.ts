@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-15-produtos-no-orcamento",
+    data: "2026-10-15",
+    area: "Vendas",
+    funcionalidades: ["comercial.orcamentos", "comercial.produtos"],
+    modulos: ["comercial"],
+    titulo: "Produtos no orçamento: busca e cadastro",
+    itens: [
+      "O cadastro de produtos já vem com as peças da Forja (código do GRV, descrição, tipo e cliente), e as peças novas da Forja entram sozinhas a cada sincronização.",
+      "No item do orçamento, digite o começo do código (5-01, 50100339) ou palavras da descrição e a lista abre: escolha a peça e a descrição, a unidade e o desenho já vêm preenchidos. Sem cliente escolhido, o orçamento fica com o dono da peça.",
+      "Peça que ainda não existe: \"Cadastrar produto\" no fim da lista (ou embaixo dos itens) abre o cadastro ali mesmo, e o item já sai com a peça nova.",
+    ],
+  },
+  {
     id: "2026-10-15-digital-no-tablet",
     data: "2026-10-15",
     area: "Plataforma",

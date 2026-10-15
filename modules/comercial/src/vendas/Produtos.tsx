@@ -17,13 +17,14 @@ export type Produto = {
   nome_cliente: string | null; peso_liquido: number | null; observacoes: string | null; ativo: boolean; cloned_from: string | null;
   created_by_name: string | null; updated_at: string;
 };
-type Grupo = { id: string; codigo: string; nome: string; prefixo: string; proximo: number };
+export type Grupo = { id: string; codigo: string; nome: string; prefixo: string; proximo: number };
 type Cliente = { id: string; name: string };
-type Dados = { produtos: Produto[]; grupos: Grupo[]; clientes: Cliente[]; podeOperar: boolean };
+export type DadosProdutos = { produtos: Produto[]; grupos: Grupo[]; clientes: Cliente[]; podeOperar: boolean };
+type Dados = DadosProdutos;
 
 const ORIGENS = ["0 · Nacional", "1 · Estrangeira, importação direta", "2 · Estrangeira, mercado interno", "3 · Nacional, mais de 40% importado", "4 · Nacional, processo básico", "5 · Nacional, até 40% importado", "6 · Estrangeira direta, sem similar", "7 · Estrangeira mercado interno, sem similar", "8 · Nacional, mais de 70% importado"];
-type Form = Record<string, string>;
-const vazio = (): Form => ({ codigo: "", descricao: "", group_id: "", customer_id: "", tipo_peca: "", unidade: "PC", ncm: "", origem: "0", material: "", desenho_codigo: "", desenho_revisao: "", nome_cliente: "", peso_liquido: "", observacoes: "", cloned_from: "" });
+export type Form = Record<string, string>;
+export const vazio = (): Form => ({ codigo: "", descricao: "", group_id: "", customer_id: "", tipo_peca: "", unidade: "PC", ncm: "", origem: "0", material: "", desenho_codigo: "", desenho_revisao: "", nome_cliente: "", peso_liquido: "", observacoes: "", cloned_from: "" });
 const doProduto = (p: Produto, clone = false): Form => ({
   codigo: clone ? "" : p.codigo, descricao: p.descricao, group_id: p.group_id ?? "", customer_id: p.customer_id ?? "", tipo_peca: p.tipo_peca ?? "",
   unidade: p.unidade, ncm: p.ncm ?? "", origem: String(p.origem ?? 0), material: p.material ?? "", desenho_codigo: p.desenho_codigo ?? "",
@@ -111,8 +112,9 @@ export function Produtos({ notify }: { notify: (m: string) => void }) {
   );
 }
 
-function ProdutoModal({ inicial, produto, dados, notify, onClose, onSalvo, onClonar }: {
-  inicial: Form; produto: Produto | null; dados: Dados; notify: (m: string) => void; onClose: () => void; onSalvo: () => void; onClonar: (p: Produto) => void;
+/** Também usado no orçamento: "Cadastrar produto" abre este mesmo formulário e o item já sai com a peça nova. */
+export function ProdutoModal({ inicial, produto, dados, notify, onClose, onSalvo, onClonar }: {
+  inicial: Form; produto: Produto | null; dados: Dados; notify: (m: string) => void; onClose: () => void; onSalvo: (novo?: { id: string; codigo: string }) => void; onClonar?: (p: Produto) => void;
 }) {
   const [f, setF] = useState<Form>(inicial);
   const [erro, setErro] = useState("");
@@ -132,7 +134,7 @@ function ProdutoModal({ inicial, produto, dados, notify, onClose, onSalvo, onClo
     setEnviando(false);
     if (!r.ok) { setErro(r.error); return; }
     notify(produto ? "Produto atualizado." : `Produto ${(r.data as { codigo: string }).codigo} cadastrado.`);
-    onSalvo();
+    onSalvo(produto ? undefined : (r.data as { id: string; codigo: string }));
   };
   const alternarAtivo = async () => {
     if (!produto) return;
@@ -199,7 +201,7 @@ function ProdutoModal({ inicial, produto, dados, notify, onClose, onSalvo, onClo
             <>
               <Button type="button" variant="ghost" className="almox-perigo" onClick={() => void excluir()} disabled={enviando}>Excluir</Button>
               <Button type="button" variant="secondary" onClick={() => void alternarAtivo()} disabled={enviando}>{produto.ativo ? "Desativar" : "Reativar"}</Button>
-              <Button type="button" variant="secondary" onClick={() => onClonar(produto)} disabled={enviando}>Clonar</Button>
+              {onClonar && <Button type="button" variant="secondary" onClick={() => onClonar(produto)} disabled={enviando}>Clonar</Button>}
             </>
           )}
           <Button type="button" variant="secondary" onClick={onClose} disabled={enviando}>Fechar</Button>
