@@ -4,7 +4,7 @@
  * - A chave fica presa ao ENDEREÇO (rpID) em que foi criada: o celular só a usa nesse mesmo
  *   endereço. Por isso o endereço vem do próprio pedido (multiempresa: cada instalação o seu) e
  *   só vale por HTTPS — ou localhost, para desenvolvimento.
- * - Decisão do proprietário (13/10/2026): só no celular.
+ * - Decisão do proprietário: só no celular (13/10/2026); celular e tablet (15/10/2026). Computador, não.
  */
 
 export type Origem = { rpID: string; origem: string };
@@ -23,19 +23,24 @@ export function origemDoPedido(h: { host: string | null; forwardedHost?: string 
   return { rpID, origem };
 }
 
-/** Celular ou tablet (a decisão é "só no celular"). */
-export function ehCelular(userAgent: string | null | undefined): boolean {
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent ?? "");
+/**
+ * Celular ou tablet. O iPad atual se apresenta como Mac ("Macintosh"); o que o separa do
+ * computador é a tela de toque, que o navegador informa (`toque`, de navigator.maxTouchPoints).
+ */
+export function ehCelularOuTablet(userAgent: string | null | undefined, toque = false): boolean {
+  const ua = userAgent ?? "";
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (toque && /Macintosh/i.test(ua));
 }
 
 /** Nome amigável do aparelho, para a lista de aparelhos ("iPhone · Safari", "Android · Chrome"). */
-export function nomeDoAparelho(userAgent: string | null | undefined): string {
+export function nomeDoAparelho(userAgent: string | null | undefined, toque = false): string {
   const ua = userAgent ?? "";
   // O Chrome moderno esconde o modelo ("Android 10; K"): aí fica só "Android".
   const modelo = ua.match(/Android [\d.]+; ([^;)]+?)(?: Build|\))/)?.[1]?.trim();
-  const sistema = /iPhone/i.test(ua) ? "iPhone" : /iPad/i.test(ua) ? "iPad" : /Android/i.test(ua)
-    ? `Android${modelo && modelo !== "K" ? ` (${modelo})` : ""}`
-    : "Celular";
+  // Tablet Android: o Chrome não põe "Mobile" no navegador do tablet.
+  const sistema = /iPhone/i.test(ua) ? "iPhone" : /iPad/i.test(ua) || (toque && /Macintosh/i.test(ua)) ? "iPad" : /Android/i.test(ua)
+    ? `${/Mobile/i.test(ua) ? "Android" : "Tablet Android"}${modelo && modelo !== "K" ? ` (${modelo})` : ""}`
+    : "Aparelho";
   const navegador = /SamsungBrowser/i.test(ua) ? "Samsung Internet" : /EdgA|EdgiOS/i.test(ua) ? "Edge" : /CriOS|Chrome/i.test(ua) ? "Chrome" : /FxiOS|Firefox/i.test(ua) ? "Firefox" : /Safari/i.test(ua) ? "Safari" : "";
   return `${sistema}${navegador ? ` · ${navegador}` : ""}`.slice(0, 120);
 }

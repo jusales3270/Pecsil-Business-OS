@@ -6,7 +6,7 @@ import { ativarDigital, digitalAtivaNesteAparelho, digitalDisponivel } from "../
 
 /**
  * Aparelhos com "Entrar com a digital" ativa (passkey). Dois usos:
- *   - painel da conta (sem `perfil`): os da própria pessoa, com "Ativar neste celular";
+ *   - painel da conta (sem `perfil`): os da própria pessoa, com "Ativar neste aparelho";
  *   - Pessoas e Acessos (`perfil`): os de outra pessoa, para o proprietário remover.
  * Remover vai para a auditoria (no banco). A biometria nunca chega à plataforma.
  */
@@ -38,7 +38,7 @@ export function AparelhosDigital({ perfil, email, notify }: { perfil?: string; e
     setOcupado("ativar");
     const r = await ativarDigital(email);
     setOcupado(null);
-    notify(r.ok ? `Digital ativada neste celular (${r.aparelho}).` : r.erro);
+    notify(r.ok ? `Digital ativada neste aparelho (${r.aparelho}).` : r.erro);
     if (r.ok) { setPodeAtivar(false); void carregar(); }
   };
   const remover = async (id: string) => {
@@ -53,22 +53,22 @@ export function AparelhosDigital({ perfil, email, notify }: { perfil?: string; e
     <div className="digital-aparelhos field-wide">
       <div className="digital-topo">
         <span><b>Entrar com a digital</b><small>{perfil
-          ? "Celulares em que esta pessoa ativou a digital. Remova se o aparelho foi perdido ou a pessoa saiu."
-          : "No celular, entre com a digital ou o rosto em vez da senha. A biometria fica só no aparelho; a senha continua valendo."}</small></span>
-        {!perfil && podeAtivar && <Button compact onClick={() => void ativar()} disabled={ocupado === "ativar"} aria-busy={ocupado === "ativar"}>{ocupado === "ativar" ? "Aguardando a digital…" : "Ativar neste celular"}</Button>}
+          ? "Celulares e tablets em que esta pessoa ativou a digital. Remova se o aparelho foi perdido ou a pessoa saiu."
+          : "No celular ou no tablet, entre com a digital ou o rosto em vez da senha. A biometria fica só no aparelho; a senha continua valendo."}</small></span>
+        {!perfil && podeAtivar && <Button compact onClick={() => void ativar()} disabled={ocupado === "ativar"} aria-busy={ocupado === "ativar"}>{ocupado === "ativar" ? "Aguardando a digital…" : "Ativar neste aparelho"}</Button>}
       </div>
       {lista === null ? <small className="digital-vazio">Carregando…</small> : lista.length ? (
         <ul>
           {lista.map((a) => (
             <li key={a.id}>
-              <span><b>{a.aparelho ?? "Celular"}</b><small>Ativada em {quando(a.created_at)} · último uso: {quando(a.last_used_at)}</small></span>
+              <span><b>{a.aparelho ?? "Aparelho"}</b><small>Ativada em {quando(a.created_at)} · último uso: {quando(a.last_used_at)}</small></span>
               {confirmar === a.id
                 ? <span className="digital-confirmar"><Button compact variant="ghost" onClick={() => setConfirmar(null)}>Cancelar</Button><Button compact className="almox-perigo-cheio" onClick={() => void remover(a.id)} disabled={ocupado === a.id}>Remover</Button></span>
                 : <Button compact variant="ghost" className="almox-perigo" onClick={() => setConfirmar(a.id)}>Remover</Button>}
             </li>
           ))}
         </ul>
-      ) : <small className="digital-vazio">{perfil ? "Nenhum celular com digital ativa." : podeAtivar ? "Nenhum celular com digital ativa ainda." : "Nenhum celular com digital ativa. Para ativar, entre na plataforma pelo celular."}</small>}
+      ) : <small className="digital-vazio">{perfil ? "Nenhum aparelho com digital ativa." : podeAtivar ? "Nenhum aparelho com digital ativa ainda." : "Nenhum aparelho com digital ativa. Para ativar, entre na plataforma pelo celular ou pelo tablet."}</small>}
     </div>
   );
 }

@@ -44,6 +44,16 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-15-digital-no-tablet",
+    data: "2026-10-15",
+    area: "Plataforma",
+    titulo: "Entrar com a digital também no tablet",
+    itens: [
+      "A entrada com a digital (ou o rosto) agora vale no tablet além do celular, inclusive no iPad. Depois de entrar com a senha, a plataforma oferece ativar; da próxima vez, é só tocar em \"Entrar com a digital\".",
+      "No computador continua só com a senha. Os aparelhos com digital ativa aparecem em Minha conta, e dá para remover um que foi perdido.",
+    ],
+  },
+  {
     id: "2026-10-15-app-no-tablet",
     data: "2026-10-15",
     area: "Plataforma",

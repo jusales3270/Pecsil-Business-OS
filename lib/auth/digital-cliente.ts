@@ -1,11 +1,11 @@
 "use client";
 
 import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startAuthentication, startRegistration } from "@simplewebauthn/browser";
-import { ehCelular } from "./digital-regras";
+import { ehCelularOuTablet } from "./digital-regras";
 
 /**
- * "Entrar com a digital" no navegador (passkey). Só no celular com biometria (digital, rosto ou o
- * bloqueio do aparelho). A biometria é do celular; aqui só passa a assinatura do desafio.
+ * "Entrar com a digital" no navegador (passkey). No celular e no tablet com biometria (digital, rosto ou
+ * o bloqueio do aparelho). A biometria fica no aparelho; aqui só passa a assinatura do desafio.
  */
 
 /** E-mail de quem ativou a digital NESTE aparelho (para mostrar "Entrar com a digital" no login). */
@@ -23,7 +23,7 @@ export const dispensarOferta = () => gravar(CHAVE_DIGITAL_DISPENSADA, String(Dat
 export const ofertaDispensada = () => Date.now() - Number(ler(CHAVE_DIGITAL_DISPENSADA) ?? 0) < 30 * 86_400_000;
 
 export async function digitalDisponivel(): Promise<boolean> {
-  if (typeof window === "undefined" || !ehCelular(navigator.userAgent) || !browserSupportsWebAuthn()) return false;
+  if (typeof window === "undefined" || !ehCelularOuTablet(navigator.userAgent, temToque()) || !browserSupportsWebAuthn()) return false;
   try { return await platformAuthenticatorIsAvailable(); } catch { return false; }
 }
 
@@ -36,16 +36,19 @@ async function post<T>(url: string, corpo: unknown): Promise<{ ok: true; data: T
   return { ok: true, data: b as T };
 }
 
-/** Ativa a digital neste celular para a conta da sessão aberta. */
+/** Tela de toque: separa o iPad (que se apresenta como Mac) do computador. */
+const temToque = () => typeof navigator !== "undefined" && navigator.maxTouchPoints > 1;
+
+/** Ativa a digital neste celular ou tablet para a conta da sessão aberta. */
 export async function ativarDigital(email: string): Promise<{ ok: true; aparelho: string } | { ok: false; erro: string }> {
-  const o = await post<{ desafio: string; opcoes: Parameters<typeof startRegistration>[0]["optionsJSON"] }>("/api/auth/digital/registro", { etapa: "opcoes" });
+  const o = await post<{ desafio: string; opcoes: Parameters<typeof startRegistration>[0]["optionsJSON"] }>("/api/auth/digital/registro", { etapa: "opcoes", toque: temToque() });
   if (!o.ok) return { ok: false, erro: o.error };
   let resposta;
   try { resposta = await startRegistration({ optionsJSON: o.data.opcoes }); } catch (e) {
-    if (e instanceof Error && e.name === "InvalidStateError") return { ok: false, erro: "Este celular já está com a digital ativa." };
-    return { ok: false, erro: cancelou(e) ? "Ativação cancelada." : "O celular não conseguiu ativar a digital." };
+    if (e instanceof Error && e.name === "InvalidStateError") return { ok: false, erro: "Este aparelho já está com a digital ativa." };
+    return { ok: false, erro: cancelou(e) ? "Ativação cancelada." : "O aparelho não conseguiu ativar a digital." };
   }
-  const v = await post<{ aparelho: string }>("/api/auth/digital/registro", { etapa: "verificar", desafio: o.data.desafio, resposta });
+  const v = await post<{ aparelho: string }>("/api/auth/digital/registro", { etapa: "verificar", desafio: o.data.desafio, resposta, toque: temToque() });
   if (!v.ok) return { ok: false, erro: v.error };
   gravar(CHAVE_DIGITAL_ATIVA, email);
   return { ok: true, aparelho: v.data.aparelho };
@@ -57,7 +60,7 @@ export async function entrarComDigital(): Promise<{ ok: true } | { ok: false; er
   if (!o.ok) return { ok: false, erro: o.error };
   let resposta;
   try { resposta = await startAuthentication({ optionsJSON: o.data.opcoes }); } catch (e) {
-    return { ok: false, erro: cancelou(e) ? "Entrada com a digital cancelada." : "O celular não encontrou uma digital ativa para esta plataforma. Entre com a senha." };
+    return { ok: false, erro: cancelou(e) ? "Entrada com a digital cancelada." : "O aparelho não encontrou uma digital ativa para esta plataforma. Entre com a senha." };
   }
   const v = await post<{ ok: true }>("/api/auth/digital/login", { etapa: "verificar", desafio: o.data.desafio, resposta });
   if (!v.ok) {
