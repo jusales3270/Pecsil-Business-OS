@@ -18,7 +18,7 @@ export async function POST(request: Request, context: Contexto) {
   const { id } = await context.params;
   const guard = await requireFeature("comercial.orcamentos", "operar");
   if ("error" in guard) return guard.error;
-  const { data: q } = await guard.supabase.from("sales_quotes").select("id, organization_id, numero, situacao").eq("id", id).maybeSingle();
+  const { data: q } = await guard.supabase.from("sales_quotes").select("id, organization_id, numero, situacao, treino").eq("id", id).maybeSingle();
   if (!q) return NextResponse.json({ error: "Orçamento não encontrado." }, { status: 404 });
   if (q.situacao !== "rascunho" && q.situacao !== "enviado") return NextResponse.json({ error: "Orçamento fechado: reabra para anexar." }, { status: 409 });
   const form = await request.formData().catch(() => null);
@@ -31,7 +31,7 @@ export async function POST(request: Request, context: Contexto) {
     const guardado = await guardarOriginal(guard.supabase, {
       modulo: "comercial", feature: "comercial.orcamentos", origem: "envio",
       arquivo: { nome: arquivo.name, tipo: arquivo.type, dados: new Uint8Array(await arquivo.arrayBuffer()) },
-      titulo: `${TIPOS[tipo]} · orçamento #${q.numero}`, categoria: TIPOS[tipo], entidade: { tipo: "orcamento", id: q.id },
+      titulo: q.treino ? `TREINO · ${TIPOS[tipo]} · orçamento T-${q.numero}` : `${TIPOS[tipo]} · orçamento #${q.numero}`, categoria: TIPOS[tipo], entidade: { tipo: "orcamento", id: q.id },
     });
     const { data: perfil } = await guard.supabase.rpc("current_profile_id");
     const { data: autor } = await guard.supabase.from("profiles").select("full_name, email").eq("id", perfil).maybeSingle();

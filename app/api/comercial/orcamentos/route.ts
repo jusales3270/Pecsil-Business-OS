@@ -6,19 +6,21 @@ export const dynamic = "force-dynamic";
 
 const SITUACOES = new Set(["rascunho", "enviado", "ganho", "perdido", "cancelado"]);
 
-/** Comercial › Orçamentos: a lista, com o total de cada um. */
+/** Comercial › Orçamentos: a lista, com o total de cada um (?treino=1: a do treino, com a numeração T-). */
 export async function GET(request: Request) {
   const guard = await requireAnyFeature(["comercial.orcamentos", "producao.entrada", "fiscal.nfe"], "ver");
   if ("error" in guard) return guard.error;
-  const situacao = new URL(request.url).searchParams.get("situacao");
+  const params = new URL(request.url).searchParams;
+  const situacao = params.get("situacao");
+  const treino = params.get("treino") === "1";
   let consulta = guard.supabase.from("sales_quotes")
-    .select("id, numero, customer_id, contato, data_orcamento, validade, situacao, pedido_cliente, prazo_entrega, ganho_em, motivo_perda, created_by_name, updated_at, cliente:customers(name)")
-    .order("numero", { ascending: false }).limit(300);
+    .select("id, numero, treino, customer_id, contato, data_orcamento, validade, situacao, pedido_cliente, prazo_entrega, ganho_em, motivo_perda, created_by_name, updated_at, cliente:customers(name)")
+    .eq("treino", treino).order("numero", { ascending: false }).limit(300);
   if (situacao && SITUACOES.has(situacao)) consulta = consulta.eq("situacao", situacao);
   const [{ data: orcamentos, error }, { data: clientes }, { data: numeracao }] = await Promise.all([
     consulta,
     guard.supabase.from("customers").select("id, name").eq("active", true).is("merged_into", null).order("name").limit(1000),
-    guard.supabase.from("sales_quote_numbering").select("proximo").maybeSingle(),
+    guard.supabase.from("sales_quote_numbering").select("proximo, proximo_treino").maybeSingle(),
   ]);
   if (error) return dbError(error);
   const ids = (orcamentos ?? []).map((o) => o.id);
@@ -28,7 +30,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     orcamentos: (orcamentos ?? []).map((o) => ({ ...o, total: totalOrcamento(porOrcamento.get(o.id) ?? []), itens: (porOrcamento.get(o.id) ?? []).length })),
     clientes: clientes ?? [],
-    proximoNumero: numeracao?.proximo ?? 1,
+    proximoNumero: (treino ? numeracao?.proximo_treino : numeracao?.proximo) ?? 1,
     podeOperar: guard.access.can("comercial.orcamentos", "operar"),
     podeNumeracao: guard.access.isOwner,
   });

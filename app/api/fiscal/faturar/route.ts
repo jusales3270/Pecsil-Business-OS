@@ -72,7 +72,7 @@ export async function POST(request: Request) {
       const mascara = mascaraDoQuote.get(e.linha!.quote_id) ?? null;
       return { linha: e.linha!, quantidade: e.quantidade, produto, mascara, ipiAliquota: mascara ? aliquotaIpi(mascara, produto?.ncm, ipiPorNcm) : null };
     }),
-    ufEmitente: emitente?.uf ?? "", crt: emitente?.crt ?? 3,
+    ufEmitente: emitente?.uf ?? "", crt: emitente?.crt ?? 3, treino: ambiente === "treino",
   });
   const { data: criada, error: e1 } = await admin.from("fiscal_nfe").insert({
     organization_id: autor.org, ambiente, situacao: "rascunho", nota, ...resumoDaNota(nota), customer_id: clienteId,

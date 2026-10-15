@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Modal } from "../../../../packages/design-system";
+import { Button, Modal, Segmented } from "../../../../packages/design-system";
+import { FaixaTreino, gravarModoTreino, lerModoTreino, numeroOrcamento } from "../../../../app/components/faixa-treino";
 import { api, dataHora } from "../../../fiscal/src/comum";
 
 /**
@@ -22,13 +23,16 @@ export function EntradaProducao({ notify }: { notify: (m: string) => void }) {
   const [erro, setErro] = useState("");
   const [lancar, setLancar] = useState<Item | null>(null);
   const [historico, setHistorico] = useState<Item | null>(null);
+  // Treino: os orçamentos de treino do Comercial (aviso com ?treino=1 abre direto nele).
+  const [treino, setTreino] = useState<boolean>(lerModoTreino);
+  const trocarModo = (t: boolean) => { setTreino(t); setDados(null); gravarModoTreino(t); };
 
   const carregar = useCallback(async () => {
-    const r = await api<Dados>("/api/producao/entrada");
+    const r = await api<Dados>(`/api/producao/entrada${treino ? "?treino=1" : ""}`);
     if (!r.ok) { setErro(r.error); return; }
     setErro("");
     setDados({ ...r.data, itens: r.data.itens.map((i) => ({ ...i, pedido: Number(i.pedido), produzido: Number(i.produzido), faturado: Number(i.faturado), falta: Number(i.falta) })) });
-  }, []);
+  }, [treino]);
   useEffect(() => { const t = setTimeout(() => { void carregar(); }, 0); return () => clearTimeout(t); }, [carregar]);
 
   const porOrcamento = useMemo(() => {
@@ -40,8 +44,12 @@ export function EntradaProducao({ notify }: { notify: (m: string) => void }) {
   return (
     <div className="icms-modulo">
       <div className="finance-page-head">
-        <div><p className="eyebrow">PRODUÇÃO · ENTRADA</p><h1>Entrada de produção</h1><p>Peças prontas dos orçamentos ganhos. O que entra aqui fica disponível para o Fiscal faturar, nunca acima do pedido.</p></div>
+        <div><p className="eyebrow">PRODUÇÃO · ENTRADA{treino ? " · TREINO" : ""}</p><h1>Entrada de produção</h1><p>Peças prontas dos orçamentos ganhos. O que entra aqui fica disponível para o Fiscal faturar, nunca acima do pedido.</p></div>
+        <div className="icms-acoes">
+          <Segmented<"real" | "treino"> options={[{ value: "real", label: "Reais" }, { value: "treino", label: "Treino" }]} value={treino ? "treino" : "real"} onChange={(v) => trocarModo(v === "treino")} ariaLabel="Pedidos reais ou de treino" compact />
+        </div>
       </div>
+      {treino && <FaixaTreino texto="Entradas dos orçamentos de treino (T-1, T-2…): liberam o faturamento no treino do Fiscal, nunca o real. Serão apagadas quando a plataforma entrar em produção." />}
       {erro && <div className="finance-empty almox-vazio"><b>{erro}</b></div>}
       {!dados && !erro && <div className="finance-empty almox-vazio"><small>Carregando…</small></div>}
       {dados && !porOrcamento.length && (
@@ -49,7 +57,7 @@ export function EntradaProducao({ notify }: { notify: (m: string) => void }) {
       )}
       {porOrcamento.map((itens) => (
         <section className="almox-bloco" key={itens[0].quote_id}>
-          <header className="almox-bloco-topo"><h2>Orçamento #{itens[0].numero} · {itens[0].cliente}</h2><span className="nfe-contagem">Pedido {itens[0].pedido_cliente ?? "—"}</span></header>
+          <header className="almox-bloco-topo"><h2>Orçamento {treino ? "de treino " : ""}{numeroOrcamento(itens[0].numero, treino)} · {itens[0].cliente}</h2><span className="nfe-contagem">Pedido {itens[0].pedido_cliente ?? "—"}</span></header>
           <div className="vnd-tabela vnd-entrada" role="table">
             <div className="cabeca" role="row"><span>Código</span><span>Item</span><span className="r">Pedido</span><span className="r">Produzido</span><span className="r">Faturado</span><span className="r">Falta produzir</span><span /></div>
             {itens.map((i) => (
