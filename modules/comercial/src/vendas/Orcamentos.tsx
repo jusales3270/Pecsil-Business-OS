@@ -7,6 +7,7 @@ import { api, curto, date, dataHora, hoje, money } from "../../../fiscal/src/com
 import { lerNumeroBr } from "../../../../lib/numero-br";
 import { SITUACAO_MASCARA, ehSaida, impostosDoOrcamento, mascaraDoBanco, situacaoDaMascara, sugerirMascara, type Mascara } from "../../../../lib/fiscal/mascaras";
 import type { Produto } from "./Produtos";
+import { FaixaTreino, gravarModoTreino, lerModoTreino, numeroOrcamento } from "../../../../app/components/faixa-treino";
 
 /**
  * Comercial › Vendas › Orçamentos — o orçamento do GRV (P88) na plataforma (docs/PLANO-ORCAMENTO.md,
@@ -17,7 +18,7 @@ import type { Produto } from "./Produtos";
 
 type Situacao = "rascunho" | "enviado" | "ganho" | "perdido" | "cancelado";
 type Resumo = {
-  id: string; numero: number; customer_id: string; contato: string | null; data_orcamento: string; validade: string | null; situacao: Situacao;
+  id: string; numero: number; treino?: boolean; customer_id: string; contato: string | null; data_orcamento: string; validade: string | null; situacao: Situacao;
   pedido_cliente: string | null; prazo_entrega: string | null; ganho_em: string | null; motivo_perda: string | null; created_by_name: string | null;
   updated_at: string; cliente: { name: string } | null; total: number; itens: number;
 };
@@ -43,6 +44,7 @@ const NO_FILTRO: Record<Filtro, (s: Situacao) => boolean> = {
   abertos: (s) => s === "rascunho" || s === "enviado", ganho: (s) => s === "ganho", perdido: (s) => s === "perdido" || s === "cancelado", todos: () => true,
 };
 const lerNumero = (t: string) => lerNumeroBr(t);
+
 const br = (v: number, casas = 2) => (v ? v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: 4 }) : "");
 const qtd = (v: number) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 4 });
 
@@ -52,16 +54,19 @@ export function Orcamentos({ notify }: { notify: (m: string) => void }) {
   const [filtro, setFiltro] = useState<Filtro>("abertos");
   const [aberto, setAberto] = useState<string | "novo" | null>(null);
   const [numeracao, setNumeracao] = useState(false);
+  // Treino (pedido do proprietário): orçamentos para treinar e caçar erro antes da produção, separados dos reais.
+  const [treino, setTreino] = useState<boolean>(lerModoTreino);
+  const trocarModo = (t: boolean) => { setTreino(t); setDados(null); gravarModoTreino(t); };
 
   const carregar = useCallback(async () => {
-    const r = await api<Lista>("/api/comercial/orcamentos");
+    const r = await api<Lista>(`/api/comercial/orcamentos${treino ? "?treino=1" : ""}`);
     if (!r.ok) { setErro(r.error); return; }
     setErro("");
     setDados(r.data);
-  }, []);
+  }, [treino]);
   useEffect(() => { const t = setTimeout(() => { void carregar(); }, 0); return () => clearTimeout(t); }, [carregar]);
 
-  if (aberto) return <EditorOrcamento id={aberto === "novo" ? null : aberto} notify={notify} onAbrir={setAberto} onFechar={() => { setAberto(null); void carregar(); }} />;
+  if (aberto) return <EditorOrcamento id={aberto === "novo" ? null : aberto} treinoNovo={treino} notify={notify} onAbrir={setAberto} onFechar={() => { setAberto(null); void carregar(); }} />;
 
   const todos = dados?.orcamentos ?? [];
   const lista = todos.filter((o) => NO_FILTRO[filtro](o.situacao));
@@ -71,12 +76,14 @@ export function Orcamentos({ notify }: { notify: (m: string) => void }) {
   return (
     <div className="icms-modulo">
       <div className="finance-page-head">
-        <div><p className="eyebrow">COMERCIAL · VENDAS</p><h1>Orçamentos</h1><p>Do pedido do cliente à aprovação: itens, cotação e pedido de compra anexados. O orçamento ganho é o que a produção faz e o Fiscal fatura.</p></div>
+        <div><p className="eyebrow">COMERCIAL · VENDAS{treino ? " · TREINO" : ""}</p><h1>{treino ? "Orçamentos de treino" : "Orçamentos"}</h1><p>Do pedido do cliente à aprovação: itens, cotação e pedido de compra anexados. O orçamento ganho é o que a produção faz e o Fiscal fatura.</p></div>
         <div className="icms-acoes">
-          {dados?.podeNumeracao && <Button variant="secondary" onClick={() => setNumeracao(true)}>Numeração</Button>}
-          {dados?.podeOperar && <Button onClick={() => setAberto("novo")}>Novo orçamento</Button>}
+          <Segmented<"real" | "treino"> options={[{ value: "real", label: "Reais" }, { value: "treino", label: "Treino" }]} value={treino ? "treino" : "real"} onChange={(v) => trocarModo(v === "treino")} ariaLabel="Orçamentos reais ou de treino" compact />
+          {dados?.podeNumeracao && !treino && <Button variant="secondary" onClick={() => setNumeracao(true)}>Numeração</Button>}
+          {dados?.podeOperar && <Button onClick={() => setAberto("novo")}>{treino ? "Novo orçamento de treino" : "Novo orçamento"}</Button>}
         </div>
       </div>
+      {treino && <FaixaTreino texto="Orçamentos de treino (T-1, T-2…), separados dos reais: o ganho não cria previsão a receber nem mexe no funil, a entrada de produção e as notas ficam no treino. Tudo será apagado quando a plataforma entrar em produção." />}
       {erro && <div className="finance-empty almox-vazio"><b>{erro}</b></div>}
       {!dados && !erro && <div className="finance-empty almox-vazio"><small>Carregando…</small></div>}
       {dados && (
@@ -85,7 +92,7 @@ export function Orcamentos({ notify }: { notify: (m: string) => void }) {
             <Kpi label="Em aberto" value={String(abertos.length)} caption={curto(abertos.reduce((a, o) => a + o.total, 0))} tone="blue" onOpen={() => setFiltro("abertos")} />
             <Kpi label="Ganhos" value={String(ganhos.length)} caption={curto(ganhos.reduce((a, o) => a + o.total, 0))} tone="green" onOpen={() => setFiltro("ganho")} />
             <Kpi label="Perdidos ou cancelados" value={String(todos.length - abertos.length - ganhos.length)} caption="Com o motivo registrado" tone="neutral" onOpen={() => setFiltro("perdido")} />
-            <Kpi label="Próximo número" value={`#${dados.proximoNumero}`} caption="Continua a numeração do GRV" tone="neutral" />
+            <Kpi label="Próximo número" value={numeroOrcamento(dados.proximoNumero, treino)} caption={treino ? "Numeração do treino" : "Continua a numeração do GRV"} tone="neutral" />
           </KpiGrid>
           <div className="almox-filtros">
             <Segmented<Filtro> options={[{ value: "abertos", label: "Em aberto" }, { value: "ganho", label: "Ganhos" }, { value: "perdido", label: "Perdidos" }, { value: "todos", label: "Todos" }]} value={filtro} onChange={setFiltro} ariaLabel="Filtro" compact />
@@ -96,7 +103,7 @@ export function Orcamentos({ notify }: { notify: (m: string) => void }) {
                 <div className="cabeca" role="row"><span>Nº</span><span>Cliente</span><span>Data</span><span>Pedido do cliente</span><span className="r">Total</span><span>Situação</span><span /></div>
                 {lista.map((o) => (
                   <div role="row" key={o.id}>
-                    <span className="vnd-codigo">#{o.numero}</span>
+                    <span className="vnd-codigo">{numeroOrcamento(o.numero, treino)}</span>
                     <span className="nome">{o.cliente?.name ?? "—"}<small>{o.itens} {o.itens === 1 ? "item" : "itens"}{o.contato ? ` · ${o.contato}` : ""}{o.motivo_perda ? ` · ${o.motivo_perda}` : ""}</small></span>
                     <span>{date(o.data_orcamento)}</span>
                     <span>{o.pedido_cliente ?? "—"}</span>
@@ -130,7 +137,7 @@ let seq = 0;
 const novaChave = () => `i${++seq}`;
 const rotuloProduto = (p: Pick<Produto, "codigo" | "descricao">) => `${p.codigo} — ${p.descricao}`;
 
-function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null; notify: (m: string) => void; onAbrir: (id: string) => void; onFechar: () => void }) {
+function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: string | null; treinoNovo: boolean; notify: (m: string) => void; onAbrir: (id: string) => void; onFechar: () => void }) {
   const [det, setDet] = useState<Detalhe | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -221,8 +228,9 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
       : { busca: texto, product_id: "" });
   };
 
+  const ehTreino = det ? Boolean(det.orcamento.treino) : treinoNovo;
   const corpo = () => JSON.stringify({
-    ...cab, frete_modalidade: Number(cab.frete_modalidade),
+    ...cab, treino: ehTreino, frete_modalidade: Number(cab.frete_modalidade),
     itens: itens.map((i) => ({ product_id: i.product_id, descricao: i.descricao, desenho: i.desenho, unidade: i.unidade, quantidade: lerNumero(i.quantidade), preco_unitario: lerNumero(i.preco_unitario), prazo_entrega: i.prazo_entrega, item_pedido: i.item_pedido, observacao: i.observacao })),
   });
   const rodar = async (rotulo: string, fn: () => Promise<void>) => { setOcupado(rotulo); try { await fn(); } finally { setOcupado(null); } };
@@ -230,7 +238,7 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
   const salvar = () => rodar("salvar", async () => {
     const r = id ? await api(`/api/comercial/orcamentos/${id}`, { method: "PUT", body: corpo() }) : await api<{ id: string; numero: number }>("/api/comercial/orcamentos", { method: "POST", body: corpo() });
     if (!r.ok) { notify(r.error); return; }
-    if (!id) { notify(`Orçamento #${(r.data as { numero: number }).numero} criado.`); onAbrir((r.data as { id: string }).id); return; }
+    if (!id) { notify(`Orçamento ${ehTreino ? "de treino " : ""}${numeroOrcamento((r.data as { numero: number }).numero, ehTreino)} criado.`); onAbrir((r.data as { id: string }).id); return; }
     notify("Orçamento salvo.");
     void carregar(id);
   });
@@ -244,7 +252,7 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
   const clonar = () => rodar("clonar", async () => {
     const r = await api<{ id: string; numero: number }>("/api/comercial/orcamentos", { method: "POST", body: JSON.stringify({ clonarDe: id }) });
     if (!r.ok) { notify(r.error); return; }
-    notify(`Clonado como orçamento #${r.data.numero}: ajuste as quantidades, o pedido e os anexos.`);
+    notify(`Clonado como orçamento ${numeroOrcamento(r.data.numero, ehTreino)}: ajuste as quantidades, o pedido e os anexos.`);
     onAbrir(r.data.id);
   });
   const excluir = () => rodar("excluir", async () => {
@@ -288,8 +296,8 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
     <div className="icms-modulo nfe-editor-pagina">
       <div className="finance-page-head">
         <div>
-          <p className="eyebrow">COMERCIAL · ORÇAMENTO</p>
-          <h1>{o ? `Orçamento #${o.numero}` : "Novo orçamento"}</h1>
+          <p className="eyebrow">COMERCIAL · ORÇAMENTO{ehTreino ? " · TREINO" : ""}</p>
+          <h1>{o ? `Orçamento ${ehTreino ? "de treino " : ""}${numeroOrcamento(o.numero, ehTreino)}` : ehTreino ? "Novo orçamento de treino" : "Novo orçamento"}</h1>
           <p>{o ? <>Montado por {o.created_by_name ?? "—"}{o.ganho_por_nome ? ` · ganho por ${o.ganho_por_nome} em ${dataHora(o.ganho_em)}` : ""}</> : "Escolha o cliente, inclua os itens e salve. Depois anexe o pedido do cliente e a cotação."}</p>
         </div>
         <div className="icms-acoes">
@@ -299,6 +307,7 @@ function EditorOrcamento({ id, notify, onAbrir, onFechar }: { id: string | null;
         </div>
       </div>
 
+      {ehTreino && <FaixaTreino texto="Este orçamento é de treino: siga o fluxo de verdade (anexos, ganho, produção, nota) para treinar e achar erro. Nada daqui vira pedido, previsão a receber ou nota real." />}
       {situacao === "perdido" && o?.motivo_perda && <Callout variant="danger" title="Perdido">{o.motivo_perda}</Callout>}
       {situacao === "ganho" && <Callout variant="success" title="Ganho: pedido aprovado">Itens travados. A produção lança o que ficar pronto e o Fiscal fatura, em uma ou mais notas, nunca acima do pedido.</Callout>}
 

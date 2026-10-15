@@ -71,7 +71,7 @@ export function AFaturar({ notify, onAbrirNota }: { notify: (m: string) => void;
       </div>
       <div className="nfe-faixa-treino" role="note">
         <b>TREINO — SEM VALOR FISCAL</b>
-        <span>As notas geradas aqui são do treino: seguem as mesmas regras (pedido e produção), mas não consomem o saldo real do pedido.</span>
+        <span>As notas daqui faturam os orçamentos de treino do Comercial (T-1, T-2…), com as mesmas regras de pedido e produção. Nada vira nota real; tudo será apagado quando a plataforma entrar em produção.</span>
       </div>
       {erro && <div className="finance-empty almox-vazio"><b>{erro}</b></div>}
       {!itens && !erro && <div className="finance-empty almox-vazio"><small>Carregando…</small></div>}
@@ -81,7 +81,7 @@ export function AFaturar({ notify, onAbrirNota }: { notify: (m: string) => void;
         const outroCliente = clienteEscolhido !== null && lista[0].cliente_id !== clienteEscolhido;
         return (
           <section className="almox-bloco" key={lista[0].quote_id}>
-            <header className="almox-bloco-topo"><h2>Orçamento #{lista[0].numero} · {lista[0].cliente}</h2><span className="nfe-contagem">Pedido de compra {lista[0].pedido_cliente ?? "—"}</span></header>
+            <header className="almox-bloco-topo"><h2>Orçamento de treino T-{lista[0].numero} · {lista[0].cliente}</h2><span className="nfe-contagem">Pedido de compra {lista[0].pedido_cliente ?? "—"}</span></header>
             <div className="vnd-tabela vnd-faturar" role="table">
               <div className="cabeca" role="row"><span /><span>Código</span><span>Item</span><span className="r">Pedido</span><span className="r">Produzido</span><span className="r">Faturado</span><span className="r">Disponível</span><span className="r">Falta</span><span>Faturar agora</span></div>
               {lista.map((i) => {

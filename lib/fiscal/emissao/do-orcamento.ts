@@ -35,6 +35,8 @@ export function notaDoOrcamento(a: {
   linhas: { linha: LinhaAFaturar; quantidade: number; produto: ProdutoFiscal; mascara?: Mascara | null; ipiAliquota?: number | null }[];
   ufEmitente: string;
   crt: number;
+  /** Nota do treino (fatura orçamentos de treino, numerados T-). */
+  treino?: boolean;
 }): NotaNfe {
   const destinatario = destinatarioDoCliente(a.cliente);
   const fora = Boolean(destinatario.uf && a.ufEmitente && destinatario.uf !== a.ufEmitente);
@@ -59,7 +61,7 @@ export function notaDoOrcamento(a: {
       ...(linha.item_pedido ? { itemPedido: linha.item_pedido } : {}),
     })),
     infoComplementar: [
-      `Orçamento ${orcamentos.map((n) => `#${n}`).join(", ")}`,
+      a.treino ? `Orçamento de treino ${orcamentos.map((n) => `T-${n}`).join(", ")}` : `Orçamento ${orcamentos.map((n) => `#${n}`).join(", ")}`,
       pedidos.length ? `Pedido de compra ${pedidos.join(", ")}` : "",
       ...obsLegais,
     ].filter(Boolean).join(" · "),

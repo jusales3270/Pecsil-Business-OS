@@ -50,7 +50,9 @@ export async function PUT(request: Request, context: Contexto) {
   if (!atual) return NextResponse.json({ error: "Orçamento não encontrado." }, { status: 404 });
   const { orcamento, erros } = normalizarOrcamento(await request.json().catch(() => null));
   if (erros.length) return NextResponse.json({ error: erros.join(" ") }, { status: 400 });
-  const { itens, ...cabecalho } = orcamento;
+  // Treino ou real é decidido na criação (o banco recusa trocar).
+  const { itens, treino: _treino, ...cabecalho } = orcamento;
+  void _treino;
   const aberto = atual.situacao === "rascunho" || atual.situacao === "enviado";
   // Fechado: só observações, contato, validade e prazo mudam (o banco recusa cliente e pedido).
   const mudancas = aberto ? cabecalho : { contato: cabecalho.contato, validade: cabecalho.validade, prazo_entrega: cabecalho.prazo_entrega, observacoes: cabecalho.observacoes, condicao_pagamento: cabecalho.condicao_pagamento };

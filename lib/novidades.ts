@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-15-treino-orcamento",
+    data: "2026-10-15",
+    area: "Vendas, Produção e Fiscal",
+    funcionalidades: ["comercial.orcamentos", "producao.entrada", "fiscal.nfe"],
+    modulos: ["comercial", "producao", "fiscal"],
+    titulo: "Treino do orçamento à nota",
+    itens: [
+      "Em Comercial › Orçamentos, a chave Reais / Treino abre os orçamentos de treino, com numeração própria (T-1, T-2…). Siga o fluxo de verdade: itens, anexos, ganho.",
+      "No treino, o ganho não cria previsão a receber nem mexe no funil. A entrada de produção (também com a chave Reais / Treino) libera o faturamento no treino do Fiscal.",
+      "O Fiscal › A faturar (treino) passa a mostrar só os orçamentos de treino. Nada do treino vira pedido, previsão ou nota real, e tudo será apagado quando a plataforma entrar em produção.",
+    ],
+  },
+  {
     id: "2026-10-15-mascaras-impostos",
     data: "2026-10-15",
     area: "Fiscal e Vendas",

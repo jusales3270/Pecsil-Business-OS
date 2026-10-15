@@ -125,3 +125,15 @@ test("XML gerado pela máscara bate com a NF 11092 real do GRV (impostos e totai
   const x2 = gerarXmlNfe({ nota: n2, emitente, serie: 1, numero: 2, emissao: new Date("2026-10-05T18:05:53Z"), codigoNumerico: "12345678", tpAmb: 2 }).xml;
   assert.equal(x2.match(/<imposto>.*?<\/imposto>/)[0], "<imposto><ICMS><ICMS40><orig>0</orig><CST>50</CST></ICMS40></ICMS><IPI><cEnq>108</cEnq><IPINT><CST>55</CST></IPINT></IPI><PIS><PISNT><CST>08</CST></PISNT></PIS><COFINS><COFINSNT><CST>08</CST></COFINSNT></COFINS><IBSCBS><CST>410</CST><cClassTrib>410999</cClassTrib></IBSCBS></imposto>");
 });
+
+test("treino: a nota cita o orçamento de treino (T-) e o orçamento novo nasce marcado", async () => {
+  const { notaDoOrcamento } = await import("../lib/fiscal/emissao/do-orcamento.ts");
+  const { normalizarOrcamento } = await import("../lib/comercial/vendas.ts");
+  const cliente = { name: "C", tax_id: null, ie: null, ind_ie: 1, email_nfe: null, cep: null, logradouro: null, numero: null, complemento: null, bairro: null, municipio: null, codigo_municipio: null, uf: "SP", telefone: null };
+  const linha = { item_id: "00000000-0000-0000-0000-000000000001", numero: 3, pedido_cliente: "P", descricao: "X", preco_unitario: 1, item_pedido: null };
+  const produto = { codigo: "1", ncm: "84805000", unidade: "PC", origem: 0 };
+  assert.match(notaDoOrcamento({ cliente, linhas: [{ linha, quantidade: 1, produto }], ufEmitente: "SP", crt: 3, treino: true }).infoComplementar, /^Orçamento de treino T-3/);
+  assert.match(notaDoOrcamento({ cliente, linhas: [{ linha, quantidade: 1, produto }], ufEmitente: "SP", crt: 3 }).infoComplementar, /^Orçamento #3/);
+  assert.equal(normalizarOrcamento({ customer_id: "00000000-0000-0000-0000-000000000009", treino: true, itens: [] }).orcamento.treino, true);
+  assert.equal(normalizarOrcamento({ customer_id: "00000000-0000-0000-0000-000000000009", treino: "sim", itens: [] }).orcamento.treino, false);
+});

@@ -8,10 +8,12 @@ export const dynamic = "force-dynamic";
  * Produção › Entrada de produção (Rafael; decisão O3: manual). Itens dos orçamentos ganhos com o
  * que já foi produzido e faturado; lançar libera o faturamento, estornar corrige engano.
  */
-export async function GET() {
+export async function GET(request: Request) {
   const guard = await requireFeature("producao.entrada", "ver");
   if ("error" in guard) return guard.error;
-  const { data: linhas, error } = await guard.supabase.rpc("fiscal_a_faturar", { p_ambiente: "producao" });
+  // ?treino=1: os orçamentos de treino (o faturamento deles é o do treino do Fiscal).
+  const treino = new URL(request.url).searchParams.get("treino") === "1";
+  const { data: linhas, error } = await guard.supabase.rpc("fiscal_a_faturar", { p_ambiente: treino ? "treino" : "producao" });
   if (error) return dbError(error);
   // Também os itens já todo produzidos e não faturados aparecem (falta > 0); os totalmente faturados saem.
   const itens = (linhas ?? []) as { item_id: string }[];
