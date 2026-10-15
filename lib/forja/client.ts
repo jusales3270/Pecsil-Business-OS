@@ -17,7 +17,8 @@ import { createForjaSession, ForjaError, type ForjaTransport } from "./forja-ses
  * - FORJA_SERVICE_CODE / FORJA_SERVICE_PIN: conta de integração (papel Chefe)
  */
 
-const TIMEOUT_MS = { POST: 5_000, GET: 10_000 } as const;
+// PUT manda o catálogo de materiais em lotes de até 1000: leva mais.
+const TIMEOUT_MS = { POST: 10_000, GET: 10_000, PUT: 30_000 } as const;
 const MAX_BODY_BYTES = 20 * 1024 * 1024;
 
 function forjaTransport(baseUrl: string, hostHeader: string | undefined): ForjaTransport {

@@ -34,7 +34,7 @@ export interface ForjaResponse {
 }
 
 export type ForjaTransport = (request: {
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "PUT";
   path: string;
   token?: string;
   body?: unknown;
@@ -108,6 +108,17 @@ export function createForjaSession({
     return response;
   }
 
+  /** Escrita autenticada (rascunho de OS, catálogo de materiais), com novo login no 401. */
+  async function authorizedSend(method: "POST" | "PUT", path: string, body?: unknown): Promise<ForjaResponse> {
+    let response = await transport({ method, path, token: await validToken(), body });
+    if (response.status === 401) {
+      token = null;
+      response = await transport({ method, path, token: await validToken(), body });
+    }
+    if (response.status === 401) throw new ForjaError("AUTH_FAILED", "O Forja recusou o token da conta de integração.");
+    return response;
+  }
+
   async function fetchDashboard(): Promise<ForjaDashboardResult> {
     const response = await authorizedGet("/api/dashboard");
     if (response.status === 403) {
@@ -129,6 +140,18 @@ export function createForjaSession({
       }
       if (response.status !== 200) throw new ForjaError("BAD_RESPONSE", `O Forja respondeu ${response.status} em ${path}.`);
       return record(response.body).data;
+    },
+    /**
+     * Envio para o Forja (só as rotas /api/integracao/*, da conta de integração). Devolve status e
+     * corpo para quem chama decidir (409 de OS já liberada, 400 de dado inválido…); 403 vira
+     * FORBIDDEN_MODULE (conta sem a marca de integração no Forja).
+     */
+    async send(method: "POST" | "PUT", path: string, body?: unknown): Promise<ForjaResponse> {
+      const response = await authorizedSend(method, path, body);
+      if (response.status === 403) {
+        throw new ForjaError("FORBIDDEN_MODULE", "A conta de integração não está marcada como integração no Forja.");
+      }
+      return response;
     },
     /** Painel do Forja, com cache curto e chamadas simultâneas agrupadas. */
     async getDashboard(): Promise<ForjaDashboardResult> {

@@ -57,7 +57,7 @@ export async function gravarNoCadastroDoCliente(admin: SupabaseClient, autor: Au
 
 /**
  * Itens de orçamento que a nota fatura (pela marca `itemOrcamento` de cada item). O banco confere
- * o teto — nunca acima do pedido nem do produzido — com as linhas travadas. Devolve a mensagem de
+ * o teto — nunca acima do pedido (soma das notas não canceladas) — com as linhas travadas. Devolve a mensagem de
  * recusa, ou null.
  */
 export async function definirOrigens(admin: SupabaseClient, org: string, nfeId: string, nota: NotaNfe): Promise<string | null> {

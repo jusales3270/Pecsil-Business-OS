@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 import { dbError, requireFeature } from "../../../../lib/auth/feature-guard";
 import { sincronizarOrdens } from "../../../../lib/forja/sync-orders";
+import { processarEnviosForja, type ResultadoEnvios } from "../../../../lib/forja/envio-os";
 
 export const dynamic = "force-dynamic";
 
@@ -42,8 +43,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Configuração do banco ausente." }, { status: 503 });
   }
   const simular = new URL(request.url).searchParams.get("simular") === "1";
+  // Antes do espelho: orçamentos ganhos viram OS em rascunho na Forja, reabertos cancelam, e o
+  // catálogo de materiais vai junto. Falha aqui não impede o espelho.
+  let envios: ResultadoEnvios | { erro: string } | null = null;
+  if (!simular) {
+    try { envios = await processarEnviosForja(admin); } catch (e) { envios = { erro: e instanceof Error ? e.message : String(e) }; }
+  }
   const relatorio = await sincronizarOrdens(admin, { simular });
-  return NextResponse.json(relatorio, { status: relatorio.erro ? 502 : 200 });
+  return NextResponse.json({ ...relatorio, envios }, { status: relatorio.erro ? 502 : 200 });
 }
 
 export async function GET() {

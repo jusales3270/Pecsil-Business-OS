@@ -8,6 +8,7 @@ import type { ModuleRuntimeProps } from "../../runtime";
 import { PedidoModal } from "./PedidoModal";
 import { CancelarModal, CartaoPedido, ListaPedidos } from "./pedidos-ui";
 import { RecebimentoModal } from "./RecebimentoModal";
+import { Materiais } from "./Materiais";
 import { DocumentosLigados } from "../../../app/components/documentos-ligados";
 import { ComprasDiretas } from "../../../app/components/compras-diretas";
 import { rotuloOC } from "../../../lib/compras/rotulo";
@@ -24,6 +25,7 @@ const SECOES = [
   { id: "Solicitações", icon: "inbox" },
   { id: "A caminho", icon: "truck" },
   { id: "Compras diretas", icon: "cart" },
+  { id: "Materiais", icon: "box" },
   { id: "Recebidos", icon: "check" },
 ] as const;
 type Secao = (typeof SECOES)[number]["id"];
@@ -163,6 +165,8 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
   const vazio = (titulo: string, texto: string) => <div className="finance-empty almox-vazio"><b>{titulo}</b><small>{texto}</small></div>;
 
   const conteudo = () => {
+    // O catálogo não depende dos pedidos: abre mesmo antes de eles carregarem.
+    if (secao === "Materiais") return <Materiais notify={notify} />;
     if (erro) return vazio(erro, "Tente de novo em instantes.");
     if (!pedidos || !caminho) return vazio("Carregando…", "");
 

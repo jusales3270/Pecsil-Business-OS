@@ -152,6 +152,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     features: [
       { code: "almoxarifado.solicitacoes", label: "Solicitações", description: "Pedidos de material ao Compras; operar pede e cancela.", levels: VER_OPERAR },
       { code: "almoxarifado.recebimento", label: "Recebimento", description: "Material a caminho e entrada da nota fiscal; operar confere e lança a nota, que vira conta a pagar.", levels: VER_OPERAR },
+      { code: "almoxarifado.materiais", label: "Materiais", description: "Catálogo de materiais com o código do GRV (matéria-prima, embalagem, intermediário, uso e consumo). Quem pede, compra ou recebe já consulta; operar cadastra, edita e inativa (o Compras com cotações também cadastra).", levels: VER_OPERAR },
       coleta("almoxarifado"),
     ],
   },

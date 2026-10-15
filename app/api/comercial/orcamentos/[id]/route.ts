@@ -18,11 +18,13 @@ export async function GET(_request: Request, context: Contexto) {
   const { data: q, error } = await guard.supabase.from("sales_quotes").select("*, cliente:customers(name, tax_id, uf, ind_ie)").eq("id", id).maybeSingle();
   if (error) return dbError(error);
   if (!q) return NextResponse.json({ error: "Orçamento não encontrado." }, { status: 404 });
-  const [{ data: itens }, { data: notas }, { data: anexos }, { data: notasFiscais }] = await Promise.all([
+  const [{ data: itens }, { data: notas }, { data: anexos }, { data: notasFiscais }, { data: forja }] = await Promise.all([
     guard.supabase.from("sales_quote_items").select("*, produto:products(codigo, ncm, unidade, desenho_codigo, desenho_revisao, material)").eq("quote_id", id).order("ordem"),
     guard.supabase.from("sales_quote_notes").select("id, texto, autor_nome, created_at").eq("quote_id", id).order("created_at"),
     guard.supabase.from("sales_quote_attachments").select("id, tipo, document_id, created_by_name, created_at, documento:company_documents(id, title, original_name)").eq("quote_id", id).order("created_at"),
     guard.supabase.rpc("comercial_orcamento_notas", { p_quote: id }),
+    // OS em rascunho na Forja, por item (orçamento ganho).
+    guard.supabase.from("forja_os_envios").select("quote_item_id, status, ultimo_erro, forja_codigo, forja_status, proxima_tentativa").eq("quote_id", id),
   ]);
   // Quem vê o orçamento sem ver os documentos do Comercial (o Fiscal) recebe o nome do anexo pela chave
   // de serviço: o arquivo abre por /anexos?anexo=, que confere o orçamento antes.
@@ -45,6 +47,7 @@ export async function GET(_request: Request, context: Contexto) {
   return NextResponse.json({
     orcamento: q, itens: itens ?? [], anotacoes: notas ?? [], anexos: anexos ?? [], notasFiscais: notasFiscais ?? [], entradas: entradas ?? [],
     historico: historico ?? [],
+    forja: forja ?? [],
     podeOperar: guard.access.can("comercial.orcamentos", "operar"),
   });
 }
