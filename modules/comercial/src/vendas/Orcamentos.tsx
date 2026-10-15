@@ -6,7 +6,9 @@ import { MODALIDADES_FRETE, SITUACOES_ORCAMENTO } from "../../../../lib/comercia
 import { api, curto, date, dataHora, hoje, money } from "../../../fiscal/src/comum";
 import { lerNumeroBr } from "../../../../lib/numero-br";
 import { SITUACAO_MASCARA, ehSaida, impostosDoOrcamento, mascaraDoBanco, situacaoDaMascara, sugerirMascara, type Mascara } from "../../../../lib/fiscal/mascaras";
-import type { Produto } from "./Produtos";
+import { ProdutoModal, vazio as produtoVazio, type DadosProdutos, type Grupo, type Produto } from "./Produtos";
+import { BuscaProduto } from "./BuscaProduto";
+import { pareceCodigo } from "../../../../lib/comercial/busca-produto";
 import { FaixaTreino, gravarModoTreino, lerModoTreino, numeroOrcamento } from "../../../../app/components/faixa-treino";
 
 /**
@@ -145,6 +147,10 @@ function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: st
   // Escolheu a máscara à mão: trocar o cliente não troca mais a máscara sozinha.
   const [mascaraManual, setMascaraManual] = useState(false);
   const [podeOperar, setPodeOperar] = useState(false);
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
+  const [podeCadastrar, setPodeCadastrar] = useState(false);
+  // Cadastro de produto aberto a partir do orçamento: o item (chave) recebe a peça nova; sem chave, vira um item novo.
+  const [cadastro, setCadastro] = useState<{ chave: string | null; texto: string } | null>(null);
   const [cab, setCab] = useState<Cab>(() => ({ customer_id: "", contato: "", data_orcamento: hoje(), validade: "", pedido_cliente: "", condicao_pagamento: "", frete_modalidade: "9", prazo_entrega: "", observacoes: "", mascara_id: "" }));
   const [itens, setItens] = useState<ItemForm[]>([]);
   const [sujo, setSujo] = useState(false);
@@ -155,11 +161,12 @@ function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: st
 
   const carregarProdutos = useCallback(async () => {
     const [r, f] = await Promise.all([
-      api<{ produtos: Produto[]; clientes: Cliente[] }>("/api/comercial/produtos?ativos=1"),
+      api<{ produtos: Produto[]; clientes: Cliente[]; grupos: Grupo[]; podeOperar: boolean }>("/api/comercial/produtos?ativos=1"),
       api<{ mascaras: Record<string, unknown>[]; ncms: { ncm: string; ipi_aliquota: number | null }[]; ufEmpresa: string | null }>("/api/fiscal/mascaras"),
     ]);
-    if (r.ok) { setProdutos(r.data.produtos); setClientes(r.data.clientes); }
+    if (r.ok) { setProdutos(r.data.produtos); setClientes(r.data.clientes); setGrupos(r.data.grupos); setPodeCadastrar(r.data.podeOperar); }
     if (f.ok) setFiscal({ mascaras: f.data.mascaras.map(mascaraDoBanco).filter((m) => ehSaida(m)), ipiPorNcm: new Map(f.data.ncms.map((n) => [n.ncm, n.ipi_aliquota === null ? null : Number(n.ipi_aliquota)])), ufEmpresa: f.data.ufEmpresa });
+    return r.ok ? r.data.produtos : null;
   }, []);
   const carregar = useCallback(async (qid: string) => {
     const r = await api<Detalhe>(`/api/comercial/orcamentos/${qid}`);
@@ -194,7 +201,6 @@ function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: st
   const aberto = situacao === "rascunho" || situacao === "enviado";
   const editavel = podeOperar && aberto;
   const total = useMemo(() => itens.reduce((a, i) => a + lerNumero(i.quantidade) * lerNumero(i.preco_unitario), 0), [itens]);
-  const porRotulo = useMemo(() => new Map(produtos.map((p) => [rotuloProduto(p), p])), [produtos]);
   const anexoPedido = det?.anexos.some((a) => a.tipo === "pedido") ?? false;
   const anexoCotacao = det?.anexos.some((a) => a.tipo === "cotacao") ?? false;
   const faltamParaGanhar = [
@@ -221,11 +227,34 @@ function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: st
     setSujo(true);
   };
   const mudarItem = (chave: string, parcial: Partial<ItemForm>) => { setItens((l) => l.map((i) => (i.chave === chave ? { ...i, ...parcial } : i))); setSujo(true); };
-  const escolherProduto = (chave: string, texto: string) => {
-    const p = porRotulo.get(texto);
-    mudarItem(chave, p
-      ? { busca: texto, product_id: p.id, descricao: p.descricao, unidade: p.unidade, desenho: p.desenho_codigo ? `${p.desenho_codigo}${p.desenho_revisao ? ` rev. ${p.desenho_revisao}` : ""}` : "" }
-      : { busca: texto, product_id: "" });
+  // Escolheu a peça na lista: o item ganha descrição, unidade e desenho do cadastro; o NCM entra no cálculo
+  // dos impostos. Sem cliente ainda, o orçamento fica com o cliente dono da peça.
+  const doProduto = (p: Produto): Partial<ItemForm> => ({
+    busca: rotuloProduto(p), product_id: p.id, descricao: p.descricao, unidade: p.unidade || "PC",
+    desenho: p.desenho_codigo ? `${p.desenho_codigo}${p.desenho_revisao ? ` rev. ${p.desenho_revisao}` : ""}` : "",
+  });
+  const escolherProduto = (chave: string, p: Produto) => {
+    mudarItem(chave, doProduto(p));
+    if (!cab.customer_id && p.customer_id && clientes.some((c) => c.id === p.customer_id)) trocarCliente(p.customer_id);
+  };
+  const nomeCliente = (cid: string | null) => (cid ? clientes.find((c) => c.id === cid)?.name ?? null : null);
+  const itemVazio = (): ItemForm => ({ chave: novaChave(), product_id: "", busca: "", descricao: "", desenho: "", unidade: "PC", quantidade: "", preco_unitario: "", prazo_entrega: "", item_pedido: "", observacao: "" });
+  const produtoCadastrado = async (novo?: { id: string; codigo: string }) => {
+    const alvo = cadastro;
+    setCadastro(null);
+    const lista = await carregarProdutos();
+    const p = novo && lista?.find((x) => x.id === novo.id);
+    if (!p || !alvo) return;
+    if (alvo.chave) escolherProduto(alvo.chave, p);
+    else {
+      setItens((l) => [...l, { ...itemVazio(), ...doProduto(p) }]);
+      setSujo(true);
+      if (!cab.customer_id && p.customer_id && clientes.some((c) => c.id === p.customer_id)) trocarCliente(p.customer_id);
+    }
+  };
+  const formCadastro = (texto: string) => {
+    const t = texto.trim().toUpperCase();
+    return { ...produtoVazio(), customer_id: cab.customer_id, ...(pareceCodigo(t) ? { codigo: t } : { descricao: t.slice(0, 120) }) };
   };
 
   const ehTreino = det ? Boolean(det.orcamento.treino) : treinoNovo;
@@ -350,8 +379,7 @@ function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: st
 
             <section className="almox-bloco fiscal-config-bloco">
               <header><h2>Itens</h2><span className="nfe-contagem">{itens.length} {itens.length === 1 ? "item" : "itens"} · {money(total)}</span></header>
-              {!produtos.length && editavel && <p className="fiscal-nota-ajuda">Nenhum produto cadastrado ainda: cadastre em Comercial › Vendas › Produtos (ou aguarde a importação do GRV).</p>}
-              <datalist id="vnd-lista-produtos">{produtos.map((p) => <option key={p.id} value={rotuloProduto(p)} />)}</datalist>
+              {!produtos.length && editavel && <p className="fiscal-nota-ajuda">Nenhum produto cadastrado ainda{podeCadastrar ? ": use Cadastrar produto abaixo." : ": peça a quem cuida de Comercial › Vendas › Produtos para cadastrar."}</p>}
               {itens.map((i, k) => {
                 const banco = det?.itens[k] && det.itens[k].product_id === i.product_id ? det.itens[k] : null;
                 const produzido = banco ? produzidoDoItem(banco.id) : 0;
@@ -371,9 +399,14 @@ function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: st
                       )}
                     </header>
                     <div className="fiscal-campos nfe-campos">
-                      <label className="nfe-cheio"><span>Produto<small> · digite o código ou a descrição</small></span>
-                        <input list="vnd-lista-produtos" value={i.busca} disabled={!aberto} onChange={(e) => escolherProduto(i.chave, e.target.value)} placeholder="5-24-00040 — ANEL…" />
-                      </label>
+                      <div className="nfe-cheio vnd-campo-produto"><span id={`${i.chave}-produto`}>Produto<small> · digite o começo do código ou da descrição e escolha na lista</small></span>
+                        <BuscaProduto valor={i.busca} produtos={produtos} clienteId={cab.customer_id || null} nomeCliente={nomeCliente} escolhido={Boolean(i.product_id)}
+                          disabled={!aberto} podeCadastrar={editavel && podeCadastrar} labelledBy={`${i.chave}-produto`}
+                          onDigitar={(texto) => mudarItem(i.chave, { busca: texto, product_id: "" })}
+                          onEscolher={(p) => escolherProduto(i.chave, p)}
+                          onCadastrar={(texto) => setCadastro({ chave: i.chave, texto })} />
+                        {aberto && i.busca.trim() && !i.product_id && <small className="vnd-dica">Escolha uma peça da lista{podeCadastrar ? " ou cadastre a nova" : ""}: sem isso o item não grava.</small>}
+                      </div>
                       <label className="nfe-cheio"><span>Descrição no orçamento</span><input value={i.descricao} maxLength={120} disabled={!aberto} onChange={(e) => mudarItem(i.chave, { descricao: e.target.value.toUpperCase() })} /></label>
                       <label><span>Desenho</span><input value={i.desenho} maxLength={80} disabled={!aberto} onChange={(e) => mudarItem(i.chave, { desenho: e.target.value })} /></label>
                       <label><span>Unidade</span><input value={i.unidade} maxLength={6} disabled={!aberto} onChange={(e) => mudarItem(i.chave, { unidade: e.target.value.toUpperCase() })} /></label>
@@ -409,7 +442,12 @@ function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: st
                   </div>
                 );
               })}
-              {editavel && <div><Button variant="secondary" compact onClick={() => { setItens((l) => [...l, { chave: novaChave(), product_id: "", busca: "", descricao: "", desenho: "", unidade: "PC", quantidade: "", preco_unitario: "", prazo_entrega: "", item_pedido: "", observacao: "" }]); setSujo(true); }}>Adicionar item</Button></div>}
+              {editavel && (
+                <div className="vnd-itens-acoes">
+                  <Button variant="secondary" compact onClick={() => { setItens((l) => [...l, itemVazio()]); setSujo(true); }}>Adicionar item</Button>
+                  {podeCadastrar && <Button variant="ghost" compact onClick={() => setCadastro({ chave: null, texto: "" })}>Cadastrar produto</Button>}
+                </div>
+              )}
             </section>
           </fieldset>
 
@@ -509,6 +547,10 @@ function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: st
 
       {perder && (
         <MotivoModal onClose={() => setPerder(false)} onConfirmar={async (motivo) => { setPerder(false); await mudarSituacao("perdido", "Orçamento marcado como perdido.", motivo); }} />
+      )}
+      {cadastro && (
+        <ProdutoModal inicial={formCadastro(cadastro.texto)} produto={null} notify={notify} onClose={() => setCadastro(null)} onSalvo={(novo) => void produtoCadastrado(novo)}
+          dados={{ produtos, grupos, clientes, podeOperar: podeCadastrar } satisfies DadosProdutos} />
       )}
     </div>
   );
