@@ -253,3 +253,5 @@ sem migração aplicada nem deploy:
 | 13/10/2026 | O4 | Previsão a receber no orçamento ganho; título real na nota autorizada | Proprietário |
 | 13/10/2026 | O5 | A lista de materiais e a calculadora de caixa entram antes da virada | Proprietário |
 | 13/10/2026 | O6 | A nota de exportação entra antes da virada | Proprietário |
+| 15/10/2026 | O1 (ajuste) | O orçamento ganho cria, por item, uma OS em **rascunho** na Forja (sem lotes nem OPs, fora do Tótem e do Painel). O Rafael completa na Forja o roteiro, os desenhos e a lista de materiais e libera para produção. Motivo: a Forja exige artigo com roteiro para abrir OS, e os 3.872 artigos importados não têm roteiro | Proprietário |
+| 15/10/2026 | E7 (ajuste) | A lista de materiais fica na Forja, por artigo e por peça, escolhida no catálogo do Almoxarifado (docs/PLANO-ALMOXARIFADO.md). A OS copia a lista na liberação, já com o total | Proprietário |

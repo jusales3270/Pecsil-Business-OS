@@ -38,7 +38,7 @@ export async function PUT(request: Request, context: Contexto) {
   if (!autor) return NextResponse.json({ error: "Sessão sem organização." }, { status: 400 });
   const admin = createSupabaseAdminClient();
   const nota = normalizarNota(corpo?.nota);
-  // Item que veio de orçamento: o banco confere o teto do pedido e do produzido antes de salvar.
+  // Item que veio de orçamento: o banco confere o teto do pedido antes de salvar.
   const recusa = await definirOrigens(admin, autor.org, id, nota);
   if (recusa) return NextResponse.json({ error: recusa }, { status: 409 });
   const customer = await gravarNoCadastroDoCliente(admin, autor, await clienteDaOrganizacao(admin, autor.org, corpo?.customer_id), nota.destinatario);

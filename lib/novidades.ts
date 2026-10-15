@@ -44,6 +44,32 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-16-faturar-ate-o-pedido",
+    data: "2026-10-16",
+    area: "Fiscal e Vendas",
+    funcionalidades: ["fiscal.nfe", "comercial.orcamentos"],
+    modulos: ["fiscal", "comercial"],
+    titulo: "Faturar em partes até o total do pedido",
+    itens: [
+      "Em Fiscal › A faturar, clique em \"Escolher quantidade\" e digite quantas peças vão nesta nota: a tela mostra o saldo que fica (pedido de 50, faturou 10, sobram 40). Não precisa mais da entrada de produção para faturar.",
+      "A soma das notas nunca passa do pedido: com 48 já faturadas de 50, a próxima nota aceita no máximo 2. O sistema recusa o que estourar, mesmo editando a nota depois.",
+      "O orçamento mostra \"Notas fiscais deste pedido\" com as peças e o preço praticado de cada nota; clicando, a nota abre num popup com o DANFE para conferir e imprimir.",
+    ],
+  },
+  {
+    id: "2026-10-16-materiais-almoxarifado",
+    data: "2026-10-16",
+    area: "Almoxarifado",
+    funcionalidades: ["almoxarifado.materiais", "almoxarifado.solicitacoes", "almoxarifado.recebimento"],
+    modulos: ["almoxarifado"],
+    titulo: "Catálogo de materiais",
+    itens: [
+      "Almoxarifado › Materiais traz os itens do cadastro do GRV com o mesmo código (matéria-prima, embalagem, produto intermediário e uso e consumo). Busque pelo código, com ou sem traço (2-07-00589 ou 20700589), ou pelo nome, sem precisar de acento.",
+      "Material novo ganha o código pelo grupo, continuando a numeração do GRV. Material não se apaga: inativa e sai da busca do dia a dia.",
+      "É deste catálogo que a lista de materiais da OS vai escolher os itens.",
+    ],
+  },
+  {
     id: "2026-10-15-abrir-orcamento-a-faturar",
     data: "2026-10-15",
     area: "Fiscal",

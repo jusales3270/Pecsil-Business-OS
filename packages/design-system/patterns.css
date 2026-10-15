@@ -7113,6 +7113,26 @@ button.holiday-row:hover {
 .vnd-campo-produto > span { display: block; margin: 0 0 2px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
 .vnd-campo-produto > span small { font-weight: 400; color: var(--text-muted); }
 .vnd-itens-acoes { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.vnd-forja { color: var(--text-secondary); }
+/* Notas fiscais do pedido (orçamento) e popup da nota com o DANFE */
+.vnd-notas-pedido { grid-template-columns: max-content max-content minmax(220px, 1fr) max-content max-content; }
+.vnd-notas-pedido .nome small { display: block; }
+.vnd-notas-pedido > .vnd-nota-cancelada { color: var(--text-muted); text-decoration: line-through; }
+.vnd-nota-link { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.vnd-nota-link:hover b, .vnd-nota-link:focus-visible b { color: var(--accent-blue); text-decoration: underline; text-underline-offset: 3px; }
+.ds-modal:has(.vnd-nota-popup) { width: min(1100px, calc(100vw - 32px)); }
+.vnd-nota-popup { display: flex; flex-direction: column; gap: var(--sp-3); }
+.vnd-nota-itens { grid-template-columns: max-content minmax(200px, 1fr) repeat(3, max-content); }
+.vnd-nota-imprimir-titulo { display: none; }
+.vnd-danfe { width: 100%; height: min(70vh, 900px); border: 1px solid var(--border); border-radius: var(--radius-md); background: #fff; }
+.vnd-nota-acoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-2); }
+@media print {
+  body:has(.vnd-nota-popup) * { visibility: hidden; }
+  body:has(.vnd-nota-popup) .vnd-nota-imprimir, body:has(.vnd-nota-popup) .vnd-nota-imprimir * { visibility: visible; }
+  body:has(.vnd-nota-popup) .vnd-nota-imprimir { position: absolute; inset: 0 auto auto 0; width: 100%; }
+  .vnd-nota-imprimir-titulo { display: block; }
+}
+.vnd-forja-erro { color: var(--accent-red); }
 .vnd-abrir-orcamento { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .vnd-abrir-orcamento:hover, .vnd-abrir-orcamento:focus-visible { color: var(--accent-blue); text-decoration: underline; text-underline-offset: 3px; }
 .vnd-busca-lista { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30; max-height: 320px; overflow-y: auto; margin: 0; padding: 4px 0; list-style: none; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); box-shadow: var(--shadow-md, var(--shadow-sm)); }
@@ -7557,7 +7577,9 @@ button.holiday-row:hover {
 /* Código · Item · Pedido · Produzido · Faturado · Falta · ações */
 .vnd-entrada { grid-template-columns: max-content minmax(220px, 1fr) repeat(4, max-content) minmax(120px, max-content); }
 /* ☐ · Código · Item · Pedido · Produzido · Faturado · Disponível · Falta · Faturar agora */
-.vnd-faturar { grid-template-columns: max-content max-content minmax(220px, 1fr) repeat(5, max-content) minmax(110px, max-content); }
+.vnd-faturar { grid-template-columns: max-content max-content minmax(220px, 1fr) repeat(4, max-content) minmax(150px, max-content); }
+.vnd-faturar-agora { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.vnd-dica-erro { color: var(--accent-red); font-weight: 600; }
 /* Auditoria: Quando · Quem · O quê · Módulo · caminho */
 .aud-tabela { grid-template-columns: max-content minmax(150px, max-content) minmax(280px, 1fr) max-content max-content; }
 .aud-tabela > [role="row"] { align-items: start; padding: 8px 6px; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
@@ -7567,6 +7589,13 @@ button.holiday-row:hover {
 .aud-tabela > [role="row"] > :not(.nome) { white-space: nowrap; }
 /* Almoxarifado: data · fornecedor/nome · demais colunas · marcas */
 .almox-tabela { grid-template-columns: max-content minmax(220px, 2fr) repeat(4, max-content) minmax(150px, 1fr); }
+/* Materiais: Código · Material · Grupo · Unid. · NCM · Estoque · abrir */
+.almox-tabela.almox-materiais { grid-template-columns: max-content minmax(260px, 2fr) minmax(150px, max-content) repeat(3, max-content) max-content; }
+.almox-materiais .nome { display: flex; flex-direction: column; white-space: normal; overflow: visible; }
+.almox-materiais .nome small { font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); }
+.almox-materiais > .almox-inativo { color: var(--text-muted); }
+.almox-filtro-select { flex: 0 1 220px; }
+.almox-pendencias { display: flex; flex-wrap: wrap; gap: 6px; }
 /* Vencimento · Lançamento · Histórico · Valor · Situação */
 .rev-parcelas { grid-template-columns: max-content max-content minmax(200px, 1fr) max-content max-content; }
 

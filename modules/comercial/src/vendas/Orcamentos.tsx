@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Callout, EscolherArquivo, Kpi, KpiGrid, Modal, Segmented, Status } from "../../../../packages/design-system";
 import { MODALIDADES_FRETE, SITUACOES_ORCAMENTO } from "../../../../lib/comercial/vendas";
 import { api, curto, date, dataHora, hoje, money } from "../../../fiscal/src/comum";
@@ -9,6 +9,7 @@ import { SITUACAO_MASCARA, ehSaida, impostosDoOrcamento, mascaraDoBanco, situaca
 import { ProdutoModal, vazio as produtoVazio, type DadosProdutos, type Grupo, type Produto } from "./Produtos";
 import { BuscaProduto } from "./BuscaProduto";
 import { pareceCodigo } from "../../../../lib/comercial/busca-produto";
+import { SITUACAO_OS_FORJA } from "../../../../lib/forja/envio-os-core";
 import { FaixaTreino, gravarModoTreino, lerModoTreino, numeroOrcamento } from "../../../../app/components/faixa-treino";
 
 /**
@@ -24,6 +25,10 @@ type Resumo = {
   pedido_cliente: string | null; prazo_entrega: string | null; ganho_em: string | null; motivo_perda: string | null; created_by_name: string | null;
   updated_at: string; cliente: { name: string } | null; total: number; itens: number;
 };
+type NotaDoOrcamento = {
+  item_id: string; nfe_id: string; ambiente: string; situacao: string; serie: number | null; numero: number | null; emissao: string | null; quantidade: number;
+  valor_unitario: number | null; valor_nota: number | null; chave: string | null; tem_danfe: boolean;
+};
 type Lista = { orcamentos: Resumo[]; clientes: { id: string; name: string }[]; proximoNumero: number; podeOperar: boolean; podeNumeracao: boolean };
 type ItemBanco = {
   id: string; ordem: number; product_id: string; descricao: string; desenho: string | null; unidade: string; quantidade: number; preco_unitario: number;
@@ -34,9 +39,11 @@ type Detalhe = {
   itens: ItemBanco[];
   anotacoes: { id: string; texto: string; autor_nome: string | null; created_at: string }[];
   anexos: { id: string; tipo: "pedido" | "cotacao" | "outro"; created_by_name: string | null; created_at: string; documento: { id: string; title: string; original_name: string } | null }[];
-  notasFiscais: { item_id: string; nfe_id: string; ambiente: string; situacao: string; serie: number | null; numero: number | null; emissao: string | null; quantidade: number }[];
+  notasFiscais: NotaDoOrcamento[];
   entradas: { id: string; quote_item_id: string; quantidade: number; data: string; created_by_name: string | null }[];
   historico: { product_id: string; preco_unitario: number; quantidade: number; orcamento: { id: string; numero: number; data_orcamento: string; situacao: string; cliente: { name: string } | null } }[];
+  /** OS em rascunho na Forja, por item (orçamento ganho). */
+  forja?: { quote_item_id: string | null; status: "pendente" | "enviado" | "erro" | "cancelar" | "cancelado"; ultimo_erro: string | null; forja_codigo: string | null; forja_status: string | null }[];
   podeOperar: boolean;
 };
 
@@ -159,6 +166,8 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
   const [erro, setErro] = useState("");
   const [perder, setPerder] = useState(false);
   const [nota, setNota] = useState("");
+  // Nota fiscal aberta no popup (DANFE para conferir e imprimir).
+  const [notaAberta, setNotaAberta] = useState<string | null>(null);
 
   const carregarProdutos = useCallback(async () => {
     const [r, f] = await Promise.all([
@@ -306,6 +315,12 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
     notify(r.ok ? "Anexo retirado do orçamento (o arquivo continua em Documentos)." : r.error);
     void carregar(id);
   });
+  const reenviarForja = () => rodar("forja", async () => {
+    if (!id) return;
+    const r = await api<{ reenviados: number }>(`/api/comercial/orcamentos/${id}/forja`, { method: "POST" });
+    notify(r.ok ? "Enviando de novo para a Forja…" : r.error);
+    setTimeout(() => { void carregar(id); }, 2500);
+  });
   const anotar = () => rodar("nota", async () => {
     if (!id || !nota.trim()) return;
     const r = await api(`/api/comercial/orcamentos/${id}/notas`, { method: "POST", body: JSON.stringify({ texto: nota }) });
@@ -339,7 +354,7 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
 
       {ehTreino && <FaixaTreino texto="Este orçamento é de treino: siga o fluxo de verdade (anexos, ganho, produção, nota) para treinar e achar erro. Nada daqui vira pedido, previsão a receber ou nota real." />}
       {situacao === "perdido" && o?.motivo_perda && <Callout variant="danger" title="Perdido">{o.motivo_perda}</Callout>}
-      {situacao === "ganho" && <Callout variant="success" title="Ganho: pedido aprovado">Itens travados. A produção lança o que ficar pronto e o Fiscal fatura, em uma ou mais notas, nunca acima do pedido.</Callout>}
+      {situacao === "ganho" && <Callout variant="success" title="Ganho: pedido aprovado">Itens travados. {ehTreino ? "No treino, a OS não é criada na Forja." : "Cada item abriu uma OS em rascunho na Forja: o PCP completa roteiro, desenhos e materiais e libera para produção."} A produção lança o que ficar pronto e o Fiscal fatura, em uma ou mais notas, nunca acima do pedido.</Callout>}
 
       <div className="nfe-editor">
         <div className="nfe-form">
@@ -422,6 +437,21 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
                     {hist.length > 0 && aberto && (
                       <p className="nfe-item-calculo">Já cobrado: {hist.map((h) => `${money(Number(h.preco_unitario))} (#${h.orcamento.numero}, ${h.orcamento.cliente?.name ?? "—"}, ${date(h.orcamento.data_orcamento)}${h.orcamento.situacao === "ganho" ? ", ganho" : ""})`).join(" · ")}</p>
                     )}
+                    {banco && (() => {
+                      const envio = det?.forja?.find((f) => f.quote_item_id === banco.id);
+                      if (!((situacao === "ganho" && !ehTreino) || (envio && (envio.status === "cancelar" || envio.status === "erro")))) return null;
+                      return (
+                        <p className={`nfe-item-calculo vnd-forja${envio?.status === "erro" ? " vnd-forja-erro" : ""}`} role={envio?.status === "erro" ? "alert" : undefined}>
+                          <b>OS na Forja:</b>{" "}
+                          {!envio ? "entra na fila na próxima sincronização."
+                            : envio.status === "pendente" ? "enviando o rascunho…"
+                            : envio.status === "enviado" ? <><span className="vnd-codigo">{envio.forja_codigo}</span> · {SITUACAO_OS_FORJA[envio.forja_status ?? ""] ?? envio.forja_status ?? "rascunho"}</>
+                            : envio.status === "cancelar" ? "cancelando o rascunho…"
+                            : envio.status === "cancelado" ? "rascunho cancelado."
+                            : <>não foi {situacao === "ganho" ? "criada" : "cancelada"}: {envio.ultimo_erro}{podeOperar && <> <button type="button" className="almox-link" onClick={() => void reenviarForja()} disabled={ocupado !== null}>Tentar de novo</button></>}</>}
+                        </p>
+                      );
+                    })()}
                     {banco && situacao === "ganho" && (
                       <div className="vnd-saldo">
                         <span>Pedido <b>{qtd(banco.quantidade)}</b></span>
@@ -434,8 +464,10 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
                       <ul className="nfe-eventos">
                         {notas.map((n) => (
                           <li key={`${n.nfe_id}-${n.item_id}`}>
-                            <b>NF-e {n.numero ? `nº ${n.numero}` : "(rascunho)"}{n.ambiente !== "producao" ? ` · ${n.ambiente === "treino" ? "TREINO" : "homologação"}` : ""} · {qtd(n.quantidade)} {i.unidade}</b>
-                            <small>{n.situacao === "cancelada" ? "Cancelada: a quantidade voltou para faturar" : n.situacao}{n.emissao ? ` · ${dataHora(n.emissao)}` : ""}</small>
+                            <button type="button" className="vnd-nota-link" onClick={() => setNotaAberta(n.nfe_id)}>
+                              <b>NF-e {n.numero ? `nº ${n.numero}` : "(rascunho)"}{n.ambiente !== "producao" ? ` · ${n.ambiente === "treino" ? "TREINO" : "homologação"}` : ""} · {qtd(n.quantidade)} {i.unidade}{n.valor_unitario !== null ? ` × ${money(Number(n.valor_unitario))} = ${money(Number(n.quantidade) * Number(n.valor_unitario))}` : ""}</b>
+                              <small>{n.situacao === "cancelada" ? "Cancelada: a quantidade voltou para faturar" : n.situacao}{n.emissao ? ` · ${dataHora(n.emissao)}` : ""} · ver a nota</small>
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -451,6 +483,10 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
               )}
             </section>
           </fieldset>
+
+          {o && (det?.notasFiscais.length ?? 0) > 0 && (
+            <NotasDoPedido notas={det!.notasFiscais} itens={det!.itens} onAbrir={setNotaAberta} />
+          )}
 
           {o && (
             <section className="almox-bloco fiscal-config-bloco">
@@ -549,6 +585,9 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
       {perder && (
         <MotivoModal onClose={() => setPerder(false)} onConfirmar={async (motivo) => { setPerder(false); await mudarSituacao("perdido", "Orçamento marcado como perdido.", motivo); }} />
       )}
+      {notaAberta && id && det && (
+        <NotaModal quoteId={id} nfeId={notaAberta} notas={det.notasFiscais.filter((n) => n.nfe_id === notaAberta)} itens={det.itens} onClose={() => setNotaAberta(null)} />
+      )}
       {cadastro && (
         <ProdutoModal inicial={formCadastro(cadastro.texto)} produto={null} notify={notify} onClose={() => setCadastro(null)} onSalvo={(novo) => void produtoCadastrado(novo)}
           dados={{ produtos, grupos, clientes, podeOperar: podeCadastrar } satisfies DadosProdutos} />
@@ -593,6 +632,79 @@ function NumeracaoModal({ atual, onClose, onFeito }: { atual: number; onClose: (
           <Button type="submit" disabled={!valor}>Gravar</Button>
         </footer>
       </form>
+    </Modal>
+  );
+}
+
+/* --- Notas fiscais do pedido ----------------------------------------------------------------- */
+
+type ItemDaNota = Pick<ItemBanco, "id" | "descricao" | "unidade" | "quantidade"> & { produto: { codigo: string } | null };
+const rotuloNota = (n: NotaDoOrcamento) => `NF-e ${n.numero ? `nº ${n.numero}${n.serie ? `/${n.serie}` : ""}` : "(rascunho)"}${n.ambiente !== "producao" ? ` · ${n.ambiente === "treino" ? "TREINO" : "homologação"}` : ""}`;
+
+/** Todas as notas que faturaram este pedido, com quantidade e valor praticado; clicar abre a nota. */
+function NotasDoPedido({ notas, itens, onAbrir }: { notas: NotaDoOrcamento[]; itens: ItemDaNota[]; onAbrir: (nfe: string) => void }) {
+  const porNota = [...new Map(notas.map((n) => [n.nfe_id, n])).values()];
+  const item = (id: string) => itens.find((i) => i.id === id);
+  return (
+    <section className="almox-bloco fiscal-config-bloco">
+      <header><h2>Notas fiscais deste pedido</h2><span className="nfe-contagem">{porNota.length} {porNota.length === 1 ? "nota" : "notas"}</span></header>
+      <p className="fiscal-nota-ajuda">Cada nota emitida a partir deste orçamento entra aqui sozinha, com as peças e o preço praticado. Clique para conferir e imprimir.</p>
+      <div className="vnd-tabela vnd-notas-pedido" role="table" aria-label="Notas fiscais deste pedido">
+        <div className="cabeca" role="row"><span>Nota</span><span>Situação</span><span>Itens</span><span className="r">Valor da nota</span><span /></div>
+        {porNota.map((n) => (
+          <div role="row" key={n.nfe_id} className={n.situacao === "cancelada" ? "vnd-nota-cancelada" : undefined}>
+            <span className="nome">{rotuloNota(n)}<small>{n.emissao ? dataHora(n.emissao) : "ainda não emitida"}</small></span>
+            <span>{n.situacao}</span>
+            <span className="nome">{notas.filter((x) => x.nfe_id === n.nfe_id).map((x) => (
+              <small key={x.item_id}>{item(x.item_id)?.produto?.codigo ?? "—"} · {qtd(x.quantidade)} {item(x.item_id)?.unidade ?? ""}{x.valor_unitario !== null ? ` × ${money(Number(x.valor_unitario))}` : ""}</small>
+            ))}</span>
+            <span className="r">{n.valor_nota !== null ? money(Number(n.valor_nota)) : "—"}</span>
+            <span><button type="button" className="almox-link" onClick={() => onAbrir(n.nfe_id)}>Ver nota</button></span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Popup da nota: DANFE (quando autorizada) para conferir e imprimir; antes disso, o resumo do que ela fatura. */
+function NotaModal({ quoteId, nfeId, notas, itens, onClose }: { quoteId: string; nfeId: string; notas: NotaDoOrcamento[]; itens: ItemDaNota[]; onClose: () => void }) {
+  const n = notas[0];
+  const quadro = useRef<HTMLIFrameElement>(null);
+  if (!n) return null;
+  const url = `/api/comercial/orcamentos/${quoteId}/notas-fiscais/${nfeId}/danfe`;
+  const item = (id: string) => itens.find((i) => i.id === id);
+  const total = notas.reduce((a, x) => a + Number(x.quantidade) * Number(x.valor_unitario ?? 0), 0);
+  return (
+    <Modal eyebrow="ORÇAMENTO · NOTA FISCAL" title={rotuloNota(n)} subtitle={`${n.situacao}${n.emissao ? ` · emitida em ${dataHora(n.emissao)}` : ""}${n.chave ? ` · chave ${n.chave}` : ""}`} onClose={onClose}>
+      <div className="vnd-nota-popup">
+        <div className="vnd-nota-imprimir">
+          <h3 className="vnd-nota-imprimir-titulo">{rotuloNota(n)} · deste pedido</h3>
+          <div className="vnd-tabela vnd-nota-itens" role="table" aria-label="Itens deste pedido na nota">
+            <div className="cabeca" role="row"><span>Código</span><span>Item</span><span className="r">Quantidade</span><span className="r">Preço praticado</span><span className="r">Total</span></div>
+            {notas.map((x) => (
+              <div role="row" key={x.item_id}>
+                <span className="vnd-codigo">{item(x.item_id)?.produto?.codigo ?? "—"}</span>
+                <span className="nome">{item(x.item_id)?.descricao ?? "—"}</span>
+                <span className="r">{qtd(x.quantidade)} {item(x.item_id)?.unidade ?? ""}</span>
+                <span className="r">{x.valor_unitario !== null ? money(Number(x.valor_unitario)) : "—"}</span>
+                <span className="r">{money(Number(x.quantidade) * Number(x.valor_unitario ?? 0))}</span>
+              </div>
+            ))}
+          </div>
+          <p className="fiscal-nota-ajuda">Deste pedido nesta nota: <b>{money(total)}</b>{n.valor_nota !== null ? ` · valor total da nota (com impostos e outros itens): ${money(Number(n.valor_nota))}` : ""}</p>
+        </div>
+        {n.tem_danfe ? (
+          <iframe ref={quadro} className="vnd-danfe" src={url} title={`DANFE da ${rotuloNota(n)}`} />
+        ) : (
+          <p className="fiscal-nota-ajuda">{n.situacao === "cancelada" ? "Nota cancelada: as peças voltaram para o saldo a faturar." : "O DANFE sai quando a nota for autorizada. Por enquanto dá para imprimir o resumo acima."}</p>
+        )}
+        <footer className="vnd-nota-acoes">
+          {n.tem_danfe && <a className="almox-link" href={url} target="_blank" rel="noreferrer">Abrir em nova aba</a>}
+          <Button variant="secondary" onClick={onClose}>Fechar</Button>
+          <Button onClick={() => { if (n.tem_danfe && quadro.current?.contentWindow) quadro.current.contentWindow.print(); else window.print(); }}>{n.tem_danfe ? "Imprimir DANFE" : "Imprimir resumo"}</Button>
+        </footer>
+      </div>
     </Modal>
   );
 }
