@@ -8,14 +8,19 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
-/** Plataformas sem prompt nativo: a instalação é manual, com guia na tela. */
-type GuidePlatform = "ios" | "mac-safari";
+/**
+ * Plataformas sem prompt nativo: a instalação é manual, com guia na tela. No Android o Chrome
+ * normalmente oferece o prompt; quando não oferece (outro navegador, prompt recusado antes), o guia
+ * explica o caminho pelo menu — em celular e em tablet.
+ */
+type GuidePlatform = "iphone" | "ipad" | "android" | "mac-safari";
 
 interface PwaContextType {
   isInstallable: boolean;
   isInstalled: boolean;
   isIos: boolean;
   isMacSafari: boolean;
+  isAndroid: boolean;
   /** true quando há algum caminho de instalação a oferecer (prompt nativo ou guia). */
   canInstall: boolean;
   promptInstall: () => Promise<void>;
@@ -28,6 +33,7 @@ const PwaContext = createContext<PwaContextType>({
   isInstalled: false,
   isIos: false,
   isMacSafari: false,
+  isAndroid: false,
   canInstall: false,
   promptInstall: async () => {},
   showIosGuide: false,
@@ -38,13 +44,39 @@ export function usePwa() {
   return useContext(PwaContext);
 }
 
+/** O botão Compartilhar do iPhone/iPad: quadrado com a seta para cima (o símbolo ⎋ parecia "recarregar"). */
+function IconeCompartilhar() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Compartilhar">
+      <path d="M12 3v12M8 7l4-4 4 4" />
+      <path d="M6 11H5v10h14V11h-1" />
+    </svg>
+  );
+}
+
 const guides: Record<GuidePlatform, { subtitle: string; steps: React.ReactNode[] }> = {
-  ios: {
-    subtitle: "Instale no seu iPhone/iPad para abrir direto em tela cheia.",
+  iphone: {
+    subtitle: "Instale no seu iPhone para abrir direto em tela cheia.",
     steps: [
-      <>Toque no botão <b>Compartilhar</b> <span className="ios-icon-share">⎋</span> na barra inferior do Safari.</>,
-      <>Role para cima e selecione <b>Adicionar à Tela de Início</b> <span className="ios-icon-plus">＋</span>.</>,
+      <>Toque no botão <b>Compartilhar</b> <span className="ios-icon-share"><IconeCompartilhar /></span> na barra de baixo do Safari (no Chrome, ao lado do endereço).</>,
+      <>Role a lista e selecione <b>Adicionar à Tela de Início</b> <span className="ios-icon-plus">＋</span>.</>,
       <>Toque em <b>Adicionar</b> no canto superior direito para confirmar.</>,
+    ],
+  },
+  ipad: {
+    subtitle: "Instale no seu iPad para abrir direto em tela cheia, deitado ou em pé.",
+    steps: [
+      <>Toque no botão <b>Compartilhar</b> <span className="ios-icon-share"><IconeCompartilhar /></span> no alto da tela, à direita do endereço.</>,
+      <>Na lista que abre, selecione <b>Adicionar à Tela de Início</b> <span className="ios-icon-plus">＋</span>.</>,
+      <>Toque em <b>Adicionar</b> para confirmar. O ícone do Pecsil OS aparece na tela de início do iPad.</>,
+    ],
+  },
+  android: {
+    subtitle: "Instale no seu tablet ou celular Android para abrir direto em tela cheia.",
+    steps: [
+      <>No <b>Chrome</b>, toque no menu <b>⋮</b> no canto superior direito (no Samsung Internet, no menu <b>☰</b> embaixo).</>,
+      <>Selecione <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</>,
+      <>Confirme em <b>Instalar</b>. O Pecsil OS aparece entre os aplicativos do aparelho.</>,
     ],
   },
   "mac-safari": {
@@ -63,6 +95,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [isMacSafari, setIsMacSafari] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
+  const [isIpad, setIsIpad] = useState(false);
   const [guide, setGuide] = useState<GuidePlatform | null>(null);
 
   useEffect(() => {
@@ -92,6 +126,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         (/macintosh/.test(userAgent) && navigator.maxTouchPoints > 1)) &&
       !isStandalone;
     setIsIos(isAppleMobile);
+    setIsIpad(isAppleMobile && (/ipad/.test(userAgent) || /macintosh/.test(userAgent)));
+    setIsAndroid(/android/.test(userAgent) && !isStandalone);
     // Safari do macOS (Sonoma+) instala por "Arquivo → Adicionar ao Dock"
     const isSafariEngineOnly = /safari/.test(userAgent) && !/chrome|chromium|crios|edg|opr|firefox|fxios/.test(userAgent);
     setIsMacSafari(/macintosh/.test(userAgent) && isSafariEngineOnly && !isAppleMobile && !isStandalone);
@@ -128,13 +164,15 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       }
       setDeferredPrompt(null);
     } else if (isIos) {
-      setGuide("ios");
+      setGuide(isIpad ? "ipad" : "iphone");
+    } else if (isAndroid) {
+      setGuide("android");
     } else if (isMacSafari) {
       setGuide("mac-safari");
     }
   };
 
-  const canInstall = !isInstalled && (isInstallable || isIos || isMacSafari);
+  const canInstall = !isInstalled && (isInstallable || isIos || isAndroid || isMacSafari);
   const activeGuide = guide ? guides[guide] : null;
 
   return (
@@ -144,17 +182,18 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         isInstalled,
         isIos,
         isMacSafari,
+        isAndroid,
         canInstall,
         promptInstall,
         showIosGuide: guide !== null,
-        setShowIosGuide: (show) => setGuide(show ? (isMacSafari ? "mac-safari" : "ios") : null),
+        setShowIosGuide: (show) => setGuide(show ? (isMacSafari ? "mac-safari" : isAndroid ? "android" : isIpad ? "ipad" : "iphone") : null),
       }}
     >
       {children}
 
       <UpdateNotice />
 
-      {/* Instruções de instalação para plataformas sem prompt nativo (iOS e Safari do Mac) */}
+      {/* Instruções de instalação sem prompt nativo (iPhone, iPad, Android sem prompt e Safari do Mac) */}
       {activeGuide && (
         <div className="pwa-ios-modal-overlay" onClick={() => setGuide(null)}>
           <div className="pwa-ios-modal" onClick={(e) => e.stopPropagation()}>

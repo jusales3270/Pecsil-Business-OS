@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
+import { usePwa } from "../components/pwa-provider";
 import { ativarDigital, digitalAtivaNesteAparelho, digitalDisponivel, dispensarOferta, entrarComDigital, ofertaDispensada } from "../../lib/auth/digital-cliente";
 
 const IconeDigital = () => (
@@ -17,6 +18,7 @@ const configured = Boolean(
 );
 
 export default function LoginPage() {
+  const pwa = usePwa();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -189,6 +191,12 @@ export default function LoginPage() {
           {digital.disponivel && !digital.ativa && (
             <button type="button" className="login-link" onClick={() => void entrarDigital()} disabled={usandoDigital}>
               {usandoDigital ? "Aguardando a digital…" : "Entrar com a digital"}
+            </button>
+          )}
+          {/* Instalar já na entrada: útil no tablet compartilhado (portaria, fábrica) e no celular. */}
+          {pwa.canInstall && (
+            <button type="button" className="login-link login-instalar" onClick={() => void pwa.promptInstall()}>
+              Instalar o app neste aparelho
             </button>
           )}
         </form>

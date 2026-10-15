@@ -44,6 +44,16 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-15-app-no-tablet",
+    data: "2026-10-15",
+    area: "Plataforma",
+    titulo: "Instalar o app no tablet",
+    itens: [
+      "O botão \"Instalar app\" agora também aparece no tablet Android (com o passo a passo pelo menu ⋮ quando o Chrome não oferece sozinho) e explica certo o iPad (Compartilhar fica no alto da tela).",
+      "Na tela de entrada há \"Instalar o app neste aparelho\": dá para instalar no tablet da portaria ou da fábrica antes de entrar.",
+    ],
+  },
+  {
     id: "2026-10-15-treino-orcamento",
     data: "2026-10-15",
     area: "Vendas, Produção e Fiscal",
