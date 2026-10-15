@@ -226,7 +226,7 @@ export function AccountPanel({
             </Button>
           </div>
 
-          {/* --- Entrar com a digital (celular) ----------------------------- */}
+          {/* --- Entrar com a digital (celular ou tablet) ------------------ */}
           <AparelhosDigital email={profile.email ?? undefined} notify={notify} />
 
           {/* --- Somente leitura -------------------------------------------- */}

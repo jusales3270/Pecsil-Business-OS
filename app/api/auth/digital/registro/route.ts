@@ -1,7 +1,7 @@
 import { generateRegistrationOptions, verifyRegistrationResponse, type RegistrationResponseJSON } from "@simplewebauthn/server";
 import { NextResponse } from "next/server";
 import { auditarDigital, base64url, consumirDesafio, guardarDesafio, origemDaRequest } from "../../../../../lib/auth/digital";
-import { MAX_APARELHOS, ehCelular, nomeDoAparelho } from "../../../../../lib/auth/digital-regras";
+import { MAX_APARELHOS, ehCelularOuTablet, nomeDoAparelho } from "../../../../../lib/auth/digital-regras";
 import { createSupabaseAdminClient } from "../../../../../lib/supabase/admin";
 import { requireUserSession } from "../../../../../lib/supabase/session";
 
@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * Ativar a digital neste celular (passkey). Só com sessão aberta e só no celular.
- *   { etapa: "opcoes" }                          → desafio para o celular assinar
+ * Ativar a digital neste celular ou tablet (passkey). Só com sessão aberta; computador, não.
+ *   { etapa: "opcoes", toque }                   → desafio para o aparelho assinar (toque: o iPad se apresenta como Mac)
  *   { etapa: "verificar", desafio, resposta }    → confere a assinatura e guarda a chave PÚBLICA
  * A digital não sai do aparelho. Cada cadastro vai para a auditoria.
  */
@@ -21,14 +21,15 @@ export async function POST(request: Request) {
   const origem = origemDaRequest(request);
   if ("erro" in origem) return NextResponse.json({ error: origem.erro }, { status: 400 });
   const ua = request.headers.get("user-agent");
-  if (!ehCelular(ua)) return NextResponse.json({ error: "A entrada com a digital é ativada pelo celular." }, { status: 400 });
+  const corpo = (await request.json().catch(() => ({}))) as { etapa?: string; desafio?: string; resposta?: RegistrationResponseJSON; toque?: boolean };
+  const toque = corpo.toque === true;
+  if (!ehCelularOuTablet(ua, toque)) return NextResponse.json({ error: "A entrada com a digital é ativada pelo celular ou pelo tablet." }, { status: 400 });
 
   const [{ data: profileId }, { data: org }] = await Promise.all([supabase.rpc("current_profile_id"), supabase.rpc("current_organization_id")]);
   if (!profileId || !org) return NextResponse.json({ error: "Conta sem acesso ativo." }, { status: 403 });
   const admin = createSupabaseAdminClient();
   const { data: ativos } = await admin.from("access_passkeys").select("credential_id, transports").eq("user_id", user.id).is("revoked_at", null);
 
-  const corpo = (await request.json().catch(() => ({}))) as { etapa?: string; desafio?: string; resposta?: RegistrationResponseJSON };
   if (corpo.etapa === "opcoes") {
     if ((ativos?.length ?? 0) >= MAX_APARELHOS) return NextResponse.json({ error: `Limite de ${MAX_APARELHOS} aparelhos com digital. Remova um no painel da conta.` }, { status: 409 });
     const [{ data: perfil }, { data: empresa }] = await Promise.all([
@@ -60,11 +61,11 @@ export async function POST(request: Request) {
         response: corpo.resposta, expectedChallenge: challenge, expectedOrigin: origem.origem, expectedRPID: origem.rpID, requireUserVerification: true,
       });
     } catch {
-      return NextResponse.json({ error: "O celular não confirmou a digital." }, { status: 400 });
+      return NextResponse.json({ error: "O aparelho não confirmou a digital." }, { status: 400 });
     }
-    if (!verificado.verified) return NextResponse.json({ error: "O celular não confirmou a digital." }, { status: 400 });
+    if (!verificado.verified) return NextResponse.json({ error: "O aparelho não confirmou a digital." }, { status: 400 });
     const c = verificado.registrationInfo.credential;
-    const aparelho = nomeDoAparelho(ua);
+    const aparelho = nomeDoAparelho(ua, toque);
     const { data: nova, error } = await admin.from("access_passkeys").insert({
       organization_id: org, profile_id: profileId, user_id: user.id, credential_id: c.id, public_key: base64url.para(c.publicKey),
       counter: c.counter, transports: c.transports ?? null, aparelho,

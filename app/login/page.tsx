@@ -23,7 +23,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  // Entrar com a digital (passkey): só no celular com biometria. "ativa" = alguém já ativou neste aparelho.
+  // Entrar com a digital (passkey): no celular ou tablet com biometria. "ativa" = alguém já ativou neste aparelho.
   const [digital, setDigital] = useState<{ disponivel: boolean; ativa: string | null }>({ disponivel: false, ativa: null });
   const [oferta, setOferta] = useState(false);
   const [usandoDigital, setUsandoDigital] = useState(false);
@@ -119,7 +119,7 @@ export default function LoginPage() {
       }
     }
 
-    // No celular com biometria, oferece ativar a digital antes de seguir (uma vez a cada 30 dias, se dispensada).
+    // No celular ou tablet com biometria, oferece ativar a digital antes de seguir (uma vez a cada 30 dias, se dispensada).
     if (digital.disponivel && digital.ativa !== email && !ofertaDispensada()) { setOferta(true); return; }
     window.location.assign("/");
   }
@@ -143,7 +143,7 @@ export default function LoginPage() {
           <div className="login-oferta">
             <span className="login-oferta-icone"><IconeDigital /></span>
             <b>Entrar mais rápido da próxima vez?</b>
-            <p>Ative a digital (ou o rosto) neste celular. Ela fica só no aparelho: a plataforma nunca recebe a sua biometria. A senha continua valendo.</p>
+            <p>Ative a digital (ou o rosto) neste aparelho. Ela fica só nele: a plataforma nunca recebe a sua biometria. A senha continua valendo.</p>
             <button type="button" className="login-digital" onClick={() => void ativarEEntrar()} disabled={usandoDigital}>
               {usandoDigital ? "Aguardando a digital…" : <><IconeDigital /> Ativar a digital</>}
             </button>

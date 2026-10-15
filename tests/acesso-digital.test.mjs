@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import "./ts-resolver.mjs";
 
-const { origemDoPedido, ehCelular, nomeDoAparelho, MAX_APARELHOS } = await import("../lib/auth/digital-regras.ts");
+const { origemDoPedido, ehCelularOuTablet, nomeDoAparelho, MAX_APARELHOS } = await import("../lib/auth/digital-regras.ts");
 const sql = readFileSync(new URL("../supabase/migrations/202610130001_acesso_digital.sql", import.meta.url), "utf8");
 const ler = (c) => readFileSync(new URL(c, import.meta.url), "utf8");
 
@@ -20,10 +20,16 @@ test("digital: só pelo endereço seguro, conferido com o Origin", () => {
   assert.match(origemDoPedido({ host: "home.pecsil.com.br", forwardedProto: "https", origin: "https://outro.site" }).erro, /origem/);
 });
 
-test("digital: só no celular, com nome amigável do aparelho", () => {
-  assert.equal(ehCelular(IPHONE), true);
-  assert.equal(ehCelular(ANDROID), true);
-  assert.equal(ehCelular(MAC), false);
+test("digital: no celular e no tablet (computador não), com nome amigável do aparelho", () => {
+  assert.equal(ehCelularOuTablet(IPHONE), true);
+  assert.equal(ehCelularOuTablet(ANDROID), true);
+  assert.equal(ehCelularOuTablet(MAC), false);
+  // iPad se apresenta como Mac: o que o separa é a tela de toque.
+  assert.equal(ehCelularOuTablet(MAC, true), true);
+  assert.equal(nomeDoAparelho(MAC, true), "iPad · Chrome");
+  const TABLET = "Mozilla/5.0 (Linux; Android 13; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36";
+  assert.equal(ehCelularOuTablet(TABLET), true);
+  assert.equal(nomeDoAparelho(TABLET), "Tablet Android (SM-X710) · Chrome");
   assert.equal(nomeDoAparelho(IPHONE), "iPhone · Safari");
   assert.equal(nomeDoAparelho(ANDROID), "Android (SM-S918B) · Chrome");
   assert.equal(nomeDoAparelho(ANDROID_K), "Android · Chrome");
@@ -44,7 +50,7 @@ test("digital: rotas exigem verificação da pessoa e conta ativa; desafio de us
   const lib = ler("../lib/auth/digital.ts");
   for (const r of [login, registro]) assert.match(r, /requireUserVerification: true/);
   assert.match(registro, /authenticatorAttachment: "platform"/);
-  assert.match(registro, /if \(!ehCelular\(ua\)\)/);
+  assert.match(registro, /if \(!ehCelularOuTablet\(ua, toque\)\)/);
   assert.match(login, /perfil\.status !== "active"/);
   assert.match(login, /access_expires_at/);
   assert.match(login, /\.is\("revoked_at", null\)/);
