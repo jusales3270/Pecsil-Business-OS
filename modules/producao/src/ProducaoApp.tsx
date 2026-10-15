@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { ordenarPorRotulo } from "../../../lib/menu-ordem";
 import type { ModuleRuntimeProps } from "@/modules/runtime";
 import { useModuleNav } from "@/lib/module-nav-context";
 import { canUseFeature } from "@/modules/access";
@@ -211,7 +212,7 @@ export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleR
           </Button>
         )}
         <Segmented
-          options={allowedSections.map(([label]) => label)}
+          options={ordenarPorRotulo(allowedSections, ([label]) => label).map(([label]) => label)}
           value={section}
           onChange={(val) => setSection(val as ProducaoSection)}
           ariaLabel="Seções do módulo de Produção"

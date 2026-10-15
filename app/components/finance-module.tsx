@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ordenarPorRotulo } from "../../lib/menu-ordem";
 import { Button, Callout, Card, Kpi, KpiGrid, Segmented, Status } from "../../packages/design-system";
 import { canUseFeature, type ModuleAccessContext } from "../../modules";
 import type { FinanceSnapshot, FinanceTitle } from "../../lib/data/finance";
@@ -222,7 +223,7 @@ export function FinanceModule({notify,onEvent,onExit,access,initialSection}:{not
   return <div className="finance-module">
     <div className="ds-module-bar">
       {isOwner && <Button variant="secondary" compact onClick={onExit}><FIcon name="back"/> Ecossistema</Button>}
-      <Segmented options={accessibleSections.map(([label])=>label)} value={section} onChange={setSection} ariaLabel="Seções do módulo Financeiro"/>
+      <Segmented options={ordenarPorRotulo(accessibleSections, ([label]) => label).map(([label])=>label)} value={section} onChange={setSection} ariaLabel="Seções do módulo Financeiro"/>
       <Status tone="info">{access.scopeLabel}</Status>
     </div>
     <main className="finance-workspace">{render()}</main>

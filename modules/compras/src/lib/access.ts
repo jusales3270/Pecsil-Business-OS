@@ -1,5 +1,6 @@
 import type { ComprasCaps, Page, UserRole } from '@/types';
 import { canUseFeature, type ModuleAccessContext } from '@/modules/access';
+import { ordenarMenu } from '../../../../lib/menu-ordem';
 
 /** Capacidades no Compras a partir das funcionalidades liberadas ao usuário. */
 export function comprasCaps(access: ModuleAccessContext): ComprasCaps {
@@ -42,7 +43,7 @@ export function currentView(views: UserRole[], role: UserRole | undefined): User
   return role && views.includes(role) ? role : views[0];
 }
 
-/** Abas da visão atual, só as liberadas. */
+/** Abas da visão atual, só as liberadas, em ordem alfabética (Dashboard no topo). */
 export function tabsFor(role: UserRole | undefined, caps: ComprasCaps): { page: Page; label: string; icon: string }[] {
   const tabs: { page: Page; label: string; icon: string; show: boolean }[] = role === 'GESTOR'
     ? [
@@ -61,5 +62,5 @@ export function tabsFor(role: UserRole | undefined, caps: ComprasCaps): { page: 
         { page: 'compras', label: 'Compras Realizadas', icon: 'cart', show: caps.verRealizadas },
         { page: 'fornecedores', label: 'Fornecedores', icon: 'factory', show: caps.verFornecedores },
       ];
-  return tabs.filter((tab) => tab.show).map(({ page, label, icon }) => ({ page, label, icon }));
+  return ordenarMenu(tabs.filter((tab) => tab.show).map(({ page, label, icon }) => ({ page, label, icon })));
 }

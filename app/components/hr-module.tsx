@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ordenarPorRotulo } from "../../lib/menu-ordem";
 import type { FoundationSummary, Person } from "../../lib/data/foundation";
 import { canUseFeature, type ModuleAccessContext } from "../../modules";
 import { Button, Card, DetailRows, EscolherArquivo, Kpi, KpiGrid, Modal, Segmented, Status, type DetailRow } from "../../packages/design-system";
@@ -252,7 +253,7 @@ export function HrModule({
   return <div className="ds-module-body">
     <div className="ds-module-bar">
       {isOwner && <Button variant="secondary" compact onClick={onExit}><HrIcon name="back"/> Ecossistema</Button>}
-      <Segmented options={accessibleSections.map(([label]) => label)} value={section} onChange={setSection} ariaLabel="Seções do módulo de Recursos Humanos"/>
+      <Segmented options={ordenarPorRotulo(accessibleSections, ([label]) => label).map(([label]) => label)} value={section} onChange={setSection} ariaLabel="Seções do módulo de Recursos Humanos"/>
       <Status tone="info">{access.scopeLabel}</Status>
     </div>
 

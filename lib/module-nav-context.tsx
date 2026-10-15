@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import { ordenarMenu } from "./menu-ordem";
 
 export interface ModuleNavItem {
   id: string;
@@ -79,8 +80,10 @@ export function ModuleNavProvider({ children }: { children: React.ReactNode }) {
 
   // Só troca o estado quando o conteúdo muda de verdade. Sem isso, cada render
   // do módulo registraria um objeto novo e a plataforma entraria em laço.
+  // Os menus de todo módulo saem em ordem alfabética (Painel/Dashboard no topo): lib/menu-ordem.ts.
   const registerNav = useCallback((state: ModuleNavState | null) => {
-    setNavState(prev => (mesmoEstadoNav(prev, state) ? prev : state));
+    const ordenado = state ? { ...state, items: ordenarMenu(state.items), ...(state.areas ? { areas: ordenarMenu(state.areas) } : {}) } : null;
+    setNavState(prev => (mesmoEstadoNav(prev, ordenado) ? prev : ordenado));
   }, []);
 
   const value = useMemo(() => ({ navState, registerNav }), [navState, registerNav]);
