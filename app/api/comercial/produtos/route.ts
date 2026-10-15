@@ -4,6 +4,8 @@ import { normalizarProduto } from "../../../../lib/comercial/vendas";
 
 export const dynamic = "force-dynamic";
 
+const POR_PAGINA = 1000;
+const MAXIMO = 50000;
 const COLUNAS = "id, codigo, descricao, group_id, customer_id, tipo_peca, unidade, ncm, origem, material, desenho_codigo, desenho_revisao, nome_cliente, peso_liquido, observacoes, ativo, cloned_from, created_by_name, created_at, updated_at";
 
 /**
@@ -15,13 +17,28 @@ export async function GET(request: Request) {
   if ("error" in guard) return guard.error;
   const p = new URL(request.url).searchParams;
   const termo = (p.get("q") ?? "").trim().replace(/[%,()]/g, " ").slice(0, 80);
-  let consulta = guard.supabase.from("products").select(COLUNAS).order("codigo").limit(1000);
-  if (termo) consulta = consulta.or(`codigo.ilike.%${termo}%,descricao.ilike.%${termo}%,desenho_codigo.ilike.%${termo}%`);
-  if (p.get("ativos") === "1") consulta = consulta.eq("ativo", true);
   const cliente = p.get("cliente");
-  if (cliente && /^[0-9a-f-]{36}$/i.test(cliente)) consulta = consulta.eq("customer_id", cliente);
+  // O catálogo vem da Forja (milhares de peças) e o banco entrega no máximo 1000 linhas por vez:
+  // lê em páginas para a busca do orçamento enxergar todas.
+  const pagina = (de: number) => {
+    let consulta = guard.supabase.from("products").select(COLUNAS).order("codigo").order("id").range(de, de + POR_PAGINA - 1);
+    if (termo) consulta = consulta.or(`codigo.ilike.%${termo}%,descricao.ilike.%${termo}%,desenho_codigo.ilike.%${termo}%`);
+    if (p.get("ativos") === "1") consulta = consulta.eq("ativo", true);
+    if (cliente && /^[0-9a-f-]{36}$/i.test(cliente)) consulta = consulta.eq("customer_id", cliente);
+    return consulta;
+  };
+  const todos = async () => {
+    const lista: Record<string, unknown>[] = [];
+    for (let de = 0; de < MAXIMO; de += POR_PAGINA) {
+      const { data, error } = await pagina(de);
+      if (error) return { data: null, error };
+      lista.push(...(data ?? []));
+      if ((data ?? []).length < POR_PAGINA) break;
+    }
+    return { data: lista, error: null };
+  };
   const [{ data: produtos, error }, { data: grupos }, { data: clientes }] = await Promise.all([
-    consulta,
+    todos(),
     guard.supabase.from("product_groups").select("id, codigo, nome, prefixo, proximo").order("codigo"),
     guard.supabase.from("customers").select("id, name, uf, ind_ie").eq("active", true).is("merged_into", null).order("name").limit(1000),
   ]);

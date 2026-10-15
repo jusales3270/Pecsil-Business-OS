@@ -32,6 +32,8 @@ const doProduto = (p: Produto, clone = false): Form => ({
   observacoes: p.observacoes ?? "", cloned_from: clone ? p.id : "",
 });
 
+const LIMITE_TABELA = 300;
+
 export function Produtos({ notify }: { notify: (m: string) => void }) {
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState("");
@@ -52,6 +54,8 @@ export function Produtos({ notify }: { notify: (m: string) => void }) {
   const termo = busca.trim().toLowerCase();
   const lista = (dados?.produtos ?? []).filter((p) => (filtro === "todos" || p.ativo)
     && (!termo || [p.codigo, p.descricao, p.desenho_codigo ?? "", clientes.get(p.customer_id ?? "") ?? ""].some((t) => t.toLowerCase().includes(termo))));
+  // O catálogo da Forja tem milhares de peças: a tabela mostra as primeiras e a busca acha o resto.
+  const visiveis = lista.slice(0, LIMITE_TABELA);
 
   return (
     <div className="icms-modulo">
@@ -77,7 +81,7 @@ export function Produtos({ notify }: { notify: (m: string) => void }) {
             {lista.length ? (
               <div className="vnd-tabela vnd-produtos" role="table">
                 <div className="cabeca" role="row"><span>Código</span><span>Descrição</span><span>Cliente</span><span>NCM</span><span>Desenho</span><span /></div>
-                {lista.map((p) => (
+                {visiveis.map((p) => (
                   <div role="row" key={p.id}>
                     <span className="vnd-codigo">{p.codigo}</span>
                     <span className="nome">{p.descricao}<small>{[p.tipo_peca ? TIPOS_PECA[p.tipo_peca] : null, p.material, p.nome_cliente].filter(Boolean).join(" · ") || "—"}</small></span>
@@ -92,7 +96,9 @@ export function Produtos({ notify }: { notify: (m: string) => void }) {
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : null}
+            {lista.length > visiveis.length && <p className="fiscal-nota-ajuda">Mostrando {visiveis.length} de {lista.length.toLocaleString("pt-BR")} produtos: digite na busca para achar os outros.</p>}
+            {lista.length ? null : (
               <div className="finance-empty">
                 <b>{dados.produtos.length ? "Nenhum produto nesta busca" : "Nenhum produto cadastrado ainda"}</b>
                 <small>{dados.produtos.length ? "Troque a busca ou o filtro." : "Cadastre o primeiro produto, ou aguarde a importação dos materiais do GRV."}</small>

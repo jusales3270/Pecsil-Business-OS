@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Callout, Status } from "../../../packages/design-system";
 import { lerNumeroBr } from "../../../lib/numero-br";
 import { api, money } from "./comum";
+import { EditorOrcamento } from "../../comercial/src/vendas/Orcamentos";
 
 /**
  * Fiscal › A faturar — o assistente de faturamento do GRV (docs/PLANO-ORCAMENTO.md, E4): itens dos
@@ -25,6 +26,8 @@ export function AFaturar({ notify, onAbrirNota }: { notify: (m: string) => void;
   const [erro, setErro] = useState("");
   const [escolha, setEscolha] = useState<Record<string, string>>({});
   const [gerando, setGerando] = useState(false);
+  // Orçamento aberto para conferir antes de faturar (cliente, pedido, máscara, anexos, anotações).
+  const [orcamento, setOrcamento] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     const r = await api<{ itens: Item[]; podeOperar: boolean }>("/api/fiscal/faturar?ambiente=treino");
@@ -64,6 +67,8 @@ export function AFaturar({ notify, onAbrirNota }: { notify: (m: string) => void;
     onAbrirNota(r.data.id);
   };
 
+  if (orcamento) return <EditorOrcamento id={orcamento} treinoNovo={false} notify={notify} onAbrir={setOrcamento} onFechar={() => { setOrcamento(null); void carregar(); }} voltar="Voltar ao A faturar" />;
+
   return (
     <div className="icms-modulo">
       <div className="finance-page-head">
@@ -81,7 +86,10 @@ export function AFaturar({ notify, onAbrirNota }: { notify: (m: string) => void;
         const outroCliente = clienteEscolhido !== null && lista[0].cliente_id !== clienteEscolhido;
         return (
           <section className="almox-bloco" key={lista[0].quote_id}>
-            <header className="almox-bloco-topo"><h2>Orçamento de treino T-{lista[0].numero} · {lista[0].cliente}</h2><span className="nfe-contagem">Pedido de compra {lista[0].pedido_cliente ?? "—"}</span></header>
+            <header className="almox-bloco-topo">
+              <h2><button type="button" className="vnd-abrir-orcamento" onClick={() => setOrcamento(lista[0].quote_id)} title="Abrir o orçamento inteiro: cliente, pedido, máscara, anexos e anotações">Orçamento de treino T-{lista[0].numero} · {lista[0].cliente}</button></h2>
+              <span className="nfe-contagem">Pedido de compra {lista[0].pedido_cliente ?? "—"} · <button type="button" className="almox-link" onClick={() => setOrcamento(lista[0].quote_id)}>Abrir orçamento</button></span>
+            </header>
             <div className="vnd-tabela vnd-faturar" role="table">
               <div className="cabeca" role="row"><span /><span>Código</span><span>Item</span><span className="r">Pedido</span><span className="r">Produzido</span><span className="r">Faturado</span><span className="r">Disponível</span><span className="r">Falta</span><span>Faturar agora</span></div>
               {lista.map((i) => {

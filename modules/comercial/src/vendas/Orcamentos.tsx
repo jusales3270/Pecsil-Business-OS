@@ -139,7 +139,8 @@ let seq = 0;
 const novaChave = () => `i${++seq}`;
 const rotuloProduto = (p: Pick<Produto, "codigo" | "descricao">) => `${p.codigo} — ${p.descricao}`;
 
-function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: string | null; treinoNovo: boolean; notify: (m: string) => void; onAbrir: (id: string) => void; onFechar: () => void }) {
+/** Também aberto pelo Fiscal › A faturar: o Jefferson vê o orçamento inteiro (só leitura, sem comercial.orcamentos). */
+export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, voltar = "Voltar à lista" }: { id: string | null; treinoNovo: boolean; notify: (m: string) => void; onAbrir: (id: string) => void; onFechar: () => void; voltar?: string }) {
   const [det, setDet] = useState<Detalhe | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -332,7 +333,7 @@ function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: st
         <div className="icms-acoes">
           <Status tone={TOM[situacao]}>{SITUACOES_ORCAMENTO[situacao]}</Status>
           {o && podeOperar && <Button variant="secondary" onClick={() => void clonar()} disabled={ocupado !== null}>Clonar</Button>}
-          <Button variant="secondary" onClick={onFechar}>Voltar à lista</Button>
+          <Button variant="secondary" onClick={onFechar}>{voltar}</Button>
         </div>
       </div>
 
@@ -399,7 +400,7 @@ function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: st
                       )}
                     </header>
                     <div className="fiscal-campos nfe-campos">
-                      <div className="nfe-cheio vnd-campo-produto"><span id={`${i.chave}-produto`}>Produto<small> · digite o começo do código ou da descrição e escolha na lista</small></span>
+                      <div className="nfe-cheio vnd-campo-produto"><span id={`${i.chave}-produto`}>Produto{editavel && <small> · digite o começo do código ou da descrição e escolha na lista</small>}</span>
                         <BuscaProduto valor={i.busca} produtos={produtos} clienteId={cab.customer_id || null} nomeCliente={nomeCliente} escolhido={Boolean(i.product_id)}
                           disabled={!aberto} podeCadastrar={editavel && podeCadastrar} labelledBy={`${i.chave}-produto`}
                           onDigitar={(texto) => mudarItem(i.chave, { busca: texto, product_id: "" })}
@@ -463,7 +464,7 @@ function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar }: { id: st
                       <b>{tipo === "pedido" ? "Pedido do cliente" : tipo === "cotacao" ? "Cotação enviada" : "Outros"}</b>
                       {lista.map((a) => (
                         <span key={a.id} className="vnd-anexo-linha">
-                          {a.documento ? <a className="almox-link" href={`/api/documentos/${a.documento.id}/baixar`} target="_blank" rel="noreferrer">{a.documento.original_name}</a> : "—"}
+                          {a.documento && id ? <a className="almox-link" href={`/api/comercial/orcamentos/${id}/anexos?anexo=${a.id}`} target="_blank" rel="noreferrer">{a.documento.original_name}</a> : "—"}
                           {editavel && <button type="button" className="almox-link almox-perigo" onClick={() => void tirarAnexo(a.id)} disabled={ocupado !== null}>Tirar</button>}
                         </span>
                       ))}

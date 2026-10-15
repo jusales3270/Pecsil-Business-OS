@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { dbError, requireAnyFeature, requireFeature } from "../../../../../lib/auth/feature-guard";
 import { normalizarOrcamento } from "../../../../../lib/comercial/vendas";
+import { createSupabaseAdminClient } from "../../../../../lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +21,16 @@ export async function GET(_request: Request, context: Contexto) {
   const [{ data: itens }, { data: notas }, { data: anexos }, { data: notasFiscais }] = await Promise.all([
     guard.supabase.from("sales_quote_items").select("*, produto:products(codigo, ncm, unidade, desenho_codigo, desenho_revisao, material)").eq("quote_id", id).order("ordem"),
     guard.supabase.from("sales_quote_notes").select("id, texto, autor_nome, created_at").eq("quote_id", id).order("created_at"),
-    guard.supabase.from("sales_quote_attachments").select("id, tipo, created_by_name, created_at, documento:company_documents(id, title, original_name)").eq("quote_id", id).order("created_at"),
+    guard.supabase.from("sales_quote_attachments").select("id, tipo, document_id, created_by_name, created_at, documento:company_documents(id, title, original_name)").eq("quote_id", id).order("created_at"),
     guard.supabase.rpc("comercial_orcamento_notas", { p_quote: id }),
   ]);
+  // Quem vê o orçamento sem ver os documentos do Comercial (o Fiscal) recebe o nome do anexo pela chave
+  // de serviço: o arquivo abre por /anexos?anexo=, que confere o orçamento antes.
+  const semNome = (anexos ?? []).filter((a) => !a.documento).map((a) => a.document_id);
+  if (semNome.length) {
+    const { data: docs } = await createSupabaseAdminClient().from("company_documents").select("id, title, original_name").in("id", semNome).eq("organization_id", q.organization_id);
+    for (const a of anexos ?? []) if (!a.documento) (a as { documento: unknown }).documento = docs?.find((d) => d.id === a.document_id) ?? null;
+  }
   const idsItens = (itens ?? []).map((i) => i.id);
   const { data: entradas } = idsItens.length
     ? await guard.supabase.from("production_entries").select("id, quote_item_id, quantidade, data, observacao, created_by_name, created_at").in("quote_item_id", idsItens).order("created_at")
