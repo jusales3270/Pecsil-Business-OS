@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAnyFeature } from "../../../../../lib/auth/feature-guard";
-import { OrdemIndisponivel, montarOrdemCompra, type FreteTipo, type ItemCotacao } from "../../../../../lib/compras/ordem-compra";
+import { OrdemIndisponivel, montarEmitente, montarOrdemCompra, type FreteTipo, type ItemCotacao } from "../../../../../lib/compras/ordem-compra";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +70,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       },
       solicitante,
     );
-    return NextResponse.json({ ordem });
+    // Quem compra: da configuração da organização (Fiscal › Configuração), nunca fixo no código.
+    const { data: empresa } = await guard.supabase.rpc("empresa_documento_compra");
+    return NextResponse.json({ ordem, emitente: montarEmitente(empresa as Record<string, unknown> | null) });
   } catch (e) {
     if (e instanceof OrdemIndisponivel) return NextResponse.json({ error: e.message }, { status: 409 });
     throw e;

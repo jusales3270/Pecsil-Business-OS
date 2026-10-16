@@ -3,7 +3,7 @@ import { requireUserSession } from "../../../../../lib/supabase/session";
 
 export const dynamic = "force-dynamic";
 
-/** Próximo número de orçamento, para continuar a numeração do GRV (decisão O2). Só o proprietário. */
+/** Próximo número de orçamento, para continuar a numeração do GRV (decisão O2). De quem opera os orçamentos (o banco confere). */
 export async function POST(request: Request) {
   const session = await requireUserSession();
   if ("error" in session && session.error) return session.error;

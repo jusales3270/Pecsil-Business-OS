@@ -44,6 +44,54 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-16-linha-de-base-por-area",
+    data: "2026-10-16",
+    area: "Financeiro, Compras e Produção",
+    funcionalidades: ["financeiro.pagar", "financeiro.receber", "compras.aprovacoes", "producao.entrada"],
+    modulos: ["financeiro", "compras", "producao"],
+    titulo: "Linha de base: os números de antes da virada, revisados por cada área",
+    itens: [
+      "Em Fundação › Linha de base estão os números de hoje (16/10), antes de desligar o GRV, para comparar o antes × depois. Cada cartão diz qual área revisa.",
+      "Quem responde pela área confere os seus e, se o dado de origem estiver errado, usa \"Corrigir valor\" com o motivo; o número calculado fica guardado ao lado e dá para voltar a ele.",
+    ],
+  },
+  {
+    id: "2026-10-16-numeracao-orcamentos-comercial",
+    data: "2026-10-16",
+    area: "Comercial",
+    funcionalidades: ["comercial.orcamentos"],
+    modulos: ["comercial"],
+    titulo: "A numeração dos orçamentos é do Comercial",
+    itens: [
+      "Quem opera os orçamentos define o próximo número (botão \"Numeração\"), para continuar a sequência do GRV na virada.",
+    ],
+  },
+  {
+    id: "2026-10-16-alcadas-e-estorno",
+    data: "2026-10-16",
+    area: "Financeiro",
+    funcionalidades: ["financeiro.pagar", "financeiro.receber", "financeiro.homologacao"],
+    modulos: ["financeiro"],
+    titulo: "Alçadas de aprovação e estorno de baixa",
+    itens: [
+      "Em Financeiro › Homologação › Alçadas cadastre faixas de valor com níveis e quem aprova cada nível. Sem nenhuma alçada, tudo continua como antes.",
+      "Com alçada, a conta que cai na faixa fica em aprovação e só recebe baixa depois de aprovada em todos os níveis. A mesma pessoa não aprova dois níveis da mesma conta; recusar pede o motivo e avisa quem lançou.",
+      "No detalhe da conta aparecem os níveis de aprovação e todas as baixas. \"Estornar\" desfaz uma baixa com motivo: ela continua visível, riscada, e o valor volta a ficar em aberto. O valor original da conta não muda.",
+    ],
+  },
+  {
+    id: "2026-10-16-oc-dados-da-empresa",
+    data: "2026-10-16",
+    area: "Compras e Fiscal",
+    funcionalidades: ["compras.cotacoes", "compras.aprovacoes", "fiscal.config"],
+    modulos: ["compras", "fiscal"],
+    titulo: "Ordem de Compra com os dados da configuração da empresa",
+    itens: [
+      "O cabeçalho da Ordem de Compra usa o emitente de Fiscal › Configuração (o mesmo da NF-e).",
+      "Telefones, site, e-mail para NF-e e as notas do rodapé da OC ficam em Fiscal › Configuração › Documentos para fornecedores; o trecho entre **asteriscos duplos** sai em negrito.",
+    ],
+  },
+  {
     id: "2026-10-16-faturar-ate-o-pedido",
     data: "2026-10-16",
     area: "Fiscal e Vendas",

@@ -73,6 +73,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const amount = Math.round(Number(body.amount) * 100) / 100;
     if (!Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "Informe um valor maior que zero." }, { status: 400 });
     if (installments.length > 1) return NextResponse.json({ error: "Título com mais de uma parcela: o valor é alterado nas parcelas." }, { status: 400 });
+    // O valor original não muda depois de uma baixa (Blueprint, Fase 3): estorne antes.
+    if (installments.some((i) => Number(i.settled_amount) > 0)) return NextResponse.json({ error: "Título com baixa: estorne a baixa antes de mudar o valor." }, { status: 400 });
     changes.original_amount = amount;
   }
 

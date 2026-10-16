@@ -4,10 +4,11 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { Button, Card, Kpi, KpiGrid, Status, ThemeToggle } from "../packages/design-system";
 import type { FoundationSummary, OrganizationData, Person } from "../lib/data/foundation";
 import { useFoundationData } from "../lib/data/use-foundation-data";
-import { canAccessModule, getCatalogModules, getModuleById, getVisibleModules, hasPermission, moduleRegistry, renderModuleComponent, type ModuleAccessContext, type ModuleManifest } from "../modules";
+import { canAccessModule, canUseFeature, getCatalogModules, getModuleById, getVisibleModules, hasPermission, moduleRegistry, renderModuleComponent, type ModuleAccessContext, type ModuleManifest } from "../modules";
 import { useSessionAccess } from "../lib/data/use-session-access";
 import { ModuleNavProvider, useModuleNav } from "../lib/module-nav-context";
 import { AuditoriaCentral } from "./components/auditoria-central";
+import { LinhaDeBase } from "./components/linha-de-base";
 import { HrModule } from "./components/hr-module";
 import { UserManagement } from "./components/user-management";
 import { MasterDataView } from "./components/master-data";
@@ -20,7 +21,7 @@ import { ACCESS_CATALOG, ACCESS_LEVELS, LEVEL_LABELS, levelRank, type AccessGran
 import { usePwa } from "./components/pwa-provider";
 import { useInbox, type InboxItem } from "../lib/use-inbox";
 
-type View = "Visão Geral" | "Módulos" | "Pessoas e Acessos" | "Estrutura" | "Cadastros" | "Eventos" | "Sugestões da IA" | "Permissões e Segurança" | "Busca Corporativa" | "Documentos" | "Notificações" | "Auditoria" | "Banco e Autenticação" | "Configurações";
+type View = "Visão Geral" | "Módulos" | "Pessoas e Acessos" | "Estrutura" | "Cadastros" | "Eventos" | "Sugestões da IA" | "Permissões e Segurança" | "Busca Corporativa" | "Documentos" | "Notificações" | "Auditoria" | "Linha de base" | "Banco e Autenticação" | "Configurações";
 
 type OperationalEvent = {
   id: number;
@@ -45,7 +46,7 @@ const nav: { label: View; icon: string }[] = [
   { label: "Permissões e Segurança", icon: "lock" },
   ...(BUSCA_CORPORATIVA_ATIVA ? [{ label: "Busca Corporativa" as View, icon: "search" }] : []),
   { label: "Documentos", icon: "file" }, { label: "Notificações", icon: "bell" },
-  { label: "Auditoria", icon: "shield" }, { label: "Banco e Autenticação", icon: "database" }, { label: "Configurações", icon: "settings" },
+  { label: "Auditoria", icon: "shield" }, { label: "Linha de base", icon: "chart" }, { label: "Banco e Autenticação", icon: "database" }, { label: "Configurações", icon: "settings" },
 ];
 
 /** Título e subtítulo que o cabeçalho exibe para cada área. Sempre presente:
@@ -63,9 +64,15 @@ const headerCopy: Record<View, [string, string]> = {
   "Documentos": ["Documentos", "Arquivos de cada setor, guardados com a permissão das telas"],
   "Notificações": ["Notificações", "Alertas e pendências consolidados dos módulos"],
   "Auditoria": ["Auditoria", "Rastreabilidade imutável de acessos e operações críticas"],
+  "Linha de base": ["Linha de base", "Os números de antes da virada, para comparar o antes × depois"],
   "Banco e Autenticação": ["Banco e autenticação", "Fundação PostgreSQL, RLS e provisionamento"],
   "Configurações": ["Configurações", "Parâmetros centrais herdados por todos os módulos"],
 };
+
+/** Linha de base: vê quem responde por alguma área dos indicadores (e o proprietário, que acompanha). */
+const LINHA_DE_BASE_AREAS: [string, "ver" | "operar" | "aprovar"][] = [
+  ["financeiro.pagar", "aprovar"], ["financeiro.receber", "aprovar"], ["compras.aprovacoes", "aprovar"], ["producao.entrada", "operar"], ["financeiro.relatorios", "ver"],
+];
 
 /** Áreas exclusivas do proprietário: acessos de usuários, segurança e infraestrutura. */
 const OWNER_ONLY_VIEWS: View[] = ["Pessoas e Acessos", "Permissões e Segurança", "Banco e Autenticação", "Configurações"];
@@ -404,7 +411,8 @@ function HomeContent() {
   const foundationNav=useMemo(()=>{
     // Áreas do proprietário ficam fora para os demais; o resto segue a
     // funcionalidade liberada (Estrutura, Auditoria) ou é comum a todos.
-    return nav.slice(2).filter(item=>(!OWNER_ONLY_VIEWS.includes(item.label)||isOwner)&&(!viewPermissions[item.label]||hasPermission(access,viewPermissions[item.label]!)));
+    return nav.slice(2).filter(item=>(!OWNER_ONLY_VIEWS.includes(item.label)||isOwner)&&(!viewPermissions[item.label]||hasPermission(access,viewPermissions[item.label]!))
+      &&(item.label!=="Linha de base"||isOwner||LINHA_DE_BASE_AREAS.some(([f,n])=>canUseFeature(access,f,n))));
   },[access, isOwner]);
 
   const notify=(message:string)=>{setToast(message);setTimeout(()=>setToast(""),2600)};
@@ -438,6 +446,8 @@ function HomeContent() {
     if(!item.read) void inbox.markRead([item.id]);
     if(!item.actionUrl) return;
     const params=new URL(item.actionUrl, window.location.origin).searchParams;
+    const destino=params.get("view");
+    if(destino&&nav.some(n=>n.label===destino)){change(destino as View);return}
     const target=params.get("module");
     if(!target) return;
     openModule(target, params.get("secao") ?? undefined);
@@ -572,7 +582,7 @@ function HomeContent() {
           {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{canInstall && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar aplicativo</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
         </div>
       </header>
-      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={snapshot.loadedAt} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?<ModuloComColeta key={`${activeModuleId}-${moduleSection?.n??0}`} moduloId={activeModuleId} moduloNome={activeModule?.name??activeModuleId} access={access} notify={notify}>{renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined,initialSection:moduleSection?.secao})}</ModuloComColeta>:view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule} onOpenDocumentos={(busca)=>{change("Documentos");setBuscaDocumentos(busca)}}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Sugestões da IA"?<SugestoesIaView notify={notify}/>:view==="Documentos"?<DocumentosSetorView key={buscaDocumentos} notify={notify} buscaInicial={buscaDocumentos}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents} inbox={inbox.items} unread={inbox.unread} onOpen={openInboxItem} onMarkAll={()=>void inbox.markRead("all")}/>:view==="Auditoria"?<AuditoriaCentral/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
+      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={snapshot.loadedAt} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?<ModuloComColeta key={`${activeModuleId}-${moduleSection?.n??0}`} moduloId={activeModuleId} moduloNome={activeModule?.name??activeModuleId} access={access} notify={notify}>{renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined,initialSection:moduleSection?.secao})}</ModuloComColeta>:view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule} onOpenDocumentos={(busca)=>{change("Documentos");setBuscaDocumentos(busca)}}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Sugestões da IA"?<SugestoesIaView notify={notify}/>:view==="Documentos"?<DocumentosSetorView key={buscaDocumentos} notify={notify} buscaInicial={buscaDocumentos}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents} inbox={inbox.items} unread={inbox.unread} onOpen={openInboxItem} onMarkAll={()=>void inbox.markRead("all")}/>:view==="Auditoria"?<AuditoriaCentral/>:view==="Linha de base"?<LinhaDeBase notify={notify}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
       <nav className="mobile-bottom-nav" aria-label="Navegação rápida móvel">
         <button
           type="button"

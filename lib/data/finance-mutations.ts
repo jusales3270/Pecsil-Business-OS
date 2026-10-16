@@ -18,6 +18,8 @@ export type FinanceTitleDraft = {
 
 export type FinanceMutation =
   | { type: "approve"; titleId: string }
+  | { type: "reject"; titleId: string; reason: string }
+  | { type: "reverse"; settlementId: string; reason: string }
   | { type: "settle"; titleId: string; date?: string; amount?: number; notes?: string }
   | { type: "cancel"; titleId: string };
 
@@ -136,14 +138,22 @@ export async function applyFinanceMutation(mutation: FinanceMutation) {
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user) throw new Error("UNAUTHENTICATED");
 
-  if (mutation.type === "approve") {
-    const { data: changed, error } = await supabase
-      .from("finance_titles")
-      .update({ status: "approved", approved_at: new Date().toISOString() })
-      .eq("id", mutation.titleId)
-      .select("id");
+  // Aprovar e recusar passam pela alçada do banco (níveis, quem decide, a mesma pessoa não
+  // aprova dois níveis). Sem alçada configurada, aprova numa etapa só, como antes.
+  if (mutation.type === "approve" || mutation.type === "reject") {
+    const { data, error } = await supabase.rpc("finance_aprovar_titulo", {
+      p_title: mutation.titleId,
+      p_decisao: mutation.type === "approve" ? "aprovar" : "recusar",
+      p_motivo: mutation.type === "reject" ? mutation.reason : null,
+    });
     if (error) throw error;
-    denyIfUntouched(changed);
+    return { success: true, ...(data as Record<string, unknown>) };
+  }
+
+  // Estorno: a baixa fica guardada, marcada como estornada; o título volta a ter saldo.
+  if (mutation.type === "reverse") {
+    const { error } = await supabase.rpc("finance_estornar_baixa", { p_settlement: mutation.settlementId, p_motivo: mutation.reason });
+    if (error) throw error;
     return { success: true };
   }
 

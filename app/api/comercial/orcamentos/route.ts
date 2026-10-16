@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     clientes: clientes ?? [],
     proximoNumero: (treino ? numeracao?.proximo_treino : numeracao?.proximo) ?? 1,
     podeOperar: guard.access.can("comercial.orcamentos", "operar"),
-    podeNumeracao: guard.access.isOwner,
+    podeNumeracao: guard.access.can("comercial.orcamentos", "operar"),
   });
 }
 

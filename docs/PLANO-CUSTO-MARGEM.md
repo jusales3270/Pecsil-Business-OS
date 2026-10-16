@@ -44,6 +44,8 @@ a margem sai da camada analítica sem engenharia de dados posterior.
 para ela; não há custo-hora, consumo de material, plano de contas nem centros de
 custo; e o salário (necessário ao custo de mão de obra) não está em lugar nenhum.
 
+> **16/10/2026:** quem decide cada D é a área responsável, não o proprietário (ver `ROADMAP.md`, "Quem decide o quê").
+
 ## 3. Decisões de negócio (antes de qualquer código)
 
 Estas decisões são da PecSil. O Claude prepara as opções e a simulação; o
@@ -51,13 +53,13 @@ proprietário decide e registra na seção 8.
 
 | # | Decisão | Por que trava | Quem decide |
 |---|---|---|---|
-| D1 | **Plano de contas e centros de custo** da PecSil (estrutura e nomes) | Sem eles, nenhum custo tem onde ser classificado | Proprietário + contabilidade |
-| D2 | **Modelo de custo-hora de máquina:** o que entra (depreciação, energia, manutenção, ferramental) e como se calcula por máquina ou por etapa | Horas do Forja sem custo não viram dinheiro | Proprietário + Produção |
-| D3 | **Custo de mão de obra:** onde fica o salário (RH ou Financeiro, o "item 3" pendente), quem vê e como vira custo-hora por centro | Sem isso, o maior custo da OS fica fora | Proprietário |
-| D4 | **Rateio do indireto:** administração, fundição, qualidade e manutenção, e por qual critério (hora-máquina, peso, receita) | Decide se a margem é bruta ou de contribuição | Proprietário + contabilidade |
-| D5 | **Custo de material:** como medir o que cada OS consome (requisição de estoque, peso de fundição, lista do artigo) | Material é custo direto | Proprietário + Produção + Compras |
-| D6 | **Regra de lançamento:** a partir de qual data nenhuma compra, requisição ou título entra sem OS ou centro de custo | É a disciplina que fez o case funcionar | Proprietário |
-| D7 | **Tratamento do histórico:** recuperar OS e centro de custo das 266 compras e 191 cotações existentes, ou começar a medir da data da D6 | Esforço × valor do histórico | Proprietário |
+| D1 | **Plano de contas e centros de custo** da PecSil (estrutura e nomes) | Sem eles, nenhum custo tem onde ser classificado | Ana (Financeiro) + contabilidade |
+| D2 | **Modelo de custo-hora de máquina:** o que entra (depreciação, energia, manutenção, ferramental) e como se calcula por máquina ou por etapa | Horas do Forja sem custo não viram dinheiro | Rafael (Produção) + Ana (Financeiro) |
+| D3 | **Custo de mão de obra:** onde fica o salário (RH ou Financeiro, o "item 3" pendente), quem vê e como vira custo-hora por centro | Sem isso, o maior custo da OS fica fora | Rosana (RH) + Ana (Financeiro) |
+| D4 | **Rateio do indireto:** administração, fundição, qualidade e manutenção, e por qual critério (hora-máquina, peso, receita) | Decide se a margem é bruta ou de contribuição | Ana (Financeiro) + contabilidade |
+| D5 | **Custo de material:** como medir o que cada OS consome (requisição de estoque, peso de fundição, lista do artigo) | Material é custo direto | Rafael (Produção) + Henrique (Almoxarifado) + Compras |
+| D6 | **Regra de lançamento:** a partir de qual data nenhuma compra, requisição ou título entra sem OS ou centro de custo | É a disciplina que fez o case funcionar | Ana (Financeiro), com as áreas que lançam |
+| D7 | **Tratamento do histórico:** recuperar OS e centro de custo das 266 compras e 191 cotações existentes, ou começar a medir da data da D6 | Esforço × valor do histórico | Ana (Financeiro) + Compras |
 
 ## 4. Etapas
 

@@ -141,3 +141,53 @@ export function montarOrdemCompra(cab: CabecalhoCotacao, itens: ItemCotacao[], f
     avisos,
   };
 }
+
+// ---------------- Emitente (quem compra) ----------------
+
+/** Cabeçalho da OC: a empresa que compra, vinda da configuração da organização (nunca fixa no código). */
+export type EmitenteOrdem = {
+  razaoSocial: string;
+  endereco: string;
+  cidade: string;
+  telefones: string;
+  cnpj: string;
+  ie: string;
+  site: string;
+  /** Uma nota por linha; cada linha em trechos normais e em negrito (**texto**). */
+  notas: { negrito: boolean; texto: string }[][];
+};
+
+const soDigitos = (v: unknown) => (typeof v === "string" ? v.replace(/\D/g, "") : "");
+const limpo = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+
+const formatarCnpj = (v: string) => (/^\d{14}$/.test(v) ? v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : v);
+const formatarCep = (v: string) => (/^\d{8}$/.test(v) ? v.replace(/^(\d{5})(\d{3})$/, "$1-$2") : v);
+/** IE com 12 dígitos (padrão de SP) sai em grupos de 3; as outras ficam como estão. */
+const formatarIe = (v: string) => (/^\d{12}$/.test(v) ? v.replace(/^(\d{3})(\d{3})(\d{3})(\d{3})$/, "$1.$2.$3.$4") : v);
+const formatarTelefone = (v: string) =>
+  /^\d{10,11}$/.test(v) ? v.replace(/^(\d{2})(\d{4,5})(\d{4})$/, "($1) $2-$3") : v;
+
+/** "a **b** c" → trechos normais e em negrito. */
+export function trechosDaNota(linha: string): { negrito: boolean; texto: string }[] {
+  return linha.split("**").map((texto, i) => ({ negrito: i % 2 === 1, texto })).filter((t) => t.texto);
+}
+
+/** Monta o cabeçalho a partir de empresa_documento_compra() (campos crus do banco). */
+export function montarEmitente(d: Record<string, unknown> | null): EmitenteOrdem {
+  const r = d ?? {};
+  const endereco = [limpo(r.logradouro), limpo(r.numero)].filter(Boolean).join(", ");
+  const bairro = limpo(r.bairro);
+  const cidade = [limpo(r.municipio), limpo(r.uf)].filter(Boolean).join(" / ");
+  const cep = formatarCep(soDigitos(r.cep));
+  const ie = limpo(r.ie);
+  return {
+    razaoSocial: limpo(r.razao_social),
+    endereco: [endereco + (limpo(r.complemento) ? ` ${limpo(r.complemento)}` : ""), bairro].filter(Boolean).join(" - "),
+    cidade: [cidade, cep ? `CEP: ${cep}` : ""].filter(Boolean).join(" - "),
+    telefones: limpo(r.telefones) || formatarTelefone(soDigitos(r.telefone)),
+    cnpj: formatarCnpj(soDigitos(r.cnpj)),
+    ie: ie.toUpperCase() === "ISENTO" ? "ISENTO" : formatarIe(soDigitos(ie)),
+    site: limpo(r.site),
+    notas: limpo(r.notas_ordem_compra).split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map(trechosDaNota),
+  };
+}

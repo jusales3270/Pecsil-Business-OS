@@ -62,3 +62,32 @@ test("OC: compra direta sai marcada, com quem autorizou", () => {
   assert.equal(oc.aprovadoPor, "Ricardo");
   assert.equal(montarOrdemCompra(cab(), modelo, fornecedor, null).direta, false);
 });
+
+test("OC: emitente vem da configuração (nada da empresa fixo no código)", async () => {
+  const { montarEmitente } = await import("../lib/compras/ordem-compra.ts");
+  const e = montarEmitente({
+    razao_social: "PECSIL METALÚRGICA E FUNDIÇÃO LTDA.", cnpj: "46839106000184", ie: "387016885115",
+    logradouro: "RUA FRANCISCO FARIA", numero: "243", complemento: null, bairro: "PROGRESSO", municipio: "ITU", uf: "SP", cep: "13313531",
+    telefone: "1140232301", telefones: "(11) 4013-4870 / (11) 4023-2301", site: "www.pecsil.com.br",
+    notas_ordem_compra: "Primeira nota.\n\nHorário de recebimento: **De segunda a quinta**\n**TUDO EM NEGRITO**",
+  });
+  assert.equal(e.endereco, "RUA FRANCISCO FARIA, 243 - PROGRESSO");
+  assert.equal(e.cidade, "ITU / SP - CEP: 13313-531");
+  assert.equal(e.cnpj, "46.839.106/0001-84");
+  assert.equal(e.ie, "387.016.885.115");
+  assert.equal(e.telefones, "(11) 4013-4870 / (11) 4023-2301");
+  assert.equal(e.notas.length, 3, "linha em branco não vira nota");
+  assert.deepEqual(e.notas[1], [{ negrito: false, texto: "Horário de recebimento: " }, { negrito: true, texto: "De segunda a quinta" }]);
+  assert.deepEqual(e.notas[2], [{ negrito: true, texto: "TUDO EM NEGRITO" }]);
+});
+
+test("OC: outra empresa sem configuração de documentos cai no cadastro da organização", async () => {
+  const { montarEmitente } = await import("../lib/compras/ordem-compra.ts");
+  const e = montarEmitente({ razao_social: "OUTRA INDÚSTRIA LTDA", cnpj: "11222333000181", ie: "ISENTO", telefone: "11987654321" });
+  assert.equal(e.razaoSocial, "OUTRA INDÚSTRIA LTDA");
+  assert.equal(e.ie, "ISENTO");
+  assert.equal(e.telefones, "(11) 98765-4321");
+  assert.equal(e.endereco, "");
+  assert.deepEqual(e.notas, []);
+  assert.deepEqual(montarEmitente(null).notas, []);
+});

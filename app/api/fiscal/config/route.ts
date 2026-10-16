@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 const CAMPOS = [
   "razao_social", "nome_fantasia", "cnpj", "ie", "im", "cnae", "crt", "logradouro", "numero", "complemento", "bairro",
   "codigo_municipio", "municipio", "uf", "cep", "telefone", "email", "ambiente", "serie_padrao", "proximo_numero",
-  "dfe_ativo", "ciencia_automatica",
+  "dfe_ativo", "ciencia_automatica", "doc_telefones", "doc_site", "doc_email_nfe", "doc_notas_ordem_compra",
 ] as const;
 
 /**
@@ -29,7 +29,7 @@ export async function GET() {
     config,
     series: series ?? [],
     podeEditar: guard.access.can("fiscal.config", "operar"),
-    ehDono: guard.access.isOwner,
+    podeProducao: guard.access.can("fiscal.nfe", "aprovar"),
     podeCertificado: guard.access.isOwner || guard.access.can("fiscal.certificado", "operar"),
     transmissor: transmissorConfigurado(),
   });
