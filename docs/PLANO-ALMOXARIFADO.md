@@ -1,5 +1,7 @@
 # Plano: catálogo de materiais e estoque no Almoxarifado
 
+> **A ordem de construção está em [`ROADMAP.md`](ROADMAP.md)** (fonte única desde 16/10/2026). Este documento guarda o desenho, as decisões e os critérios de aceite.
+
 > Documento de referência. Nenhuma etapa começa sem a anterior cumprir o critério de
 > aceite, e nenhuma decisão da seção 5 muda sem registro na seção 10.
 >
@@ -247,6 +249,9 @@ São 9.340 itens com códigos únicos, sem repetição entre os quatro arquivos.
 - **Depende de:** M1 a M5.
 
 ## 8. Ordem e portões
+
+> Desde 16/10/2026 a ordem entre os itens é decidida em [`ROADMAP.md`](ROADMAP.md). O que segue fica só como dependências internas e portões deste plano.
+
 
 | Ordem | Etapa | Travada por |
 |---|---|---|

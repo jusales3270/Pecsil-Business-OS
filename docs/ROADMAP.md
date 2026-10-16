@@ -1,0 +1,347 @@
+# Roadmap único — PecSil Business OS + Forja
+
+> **Fonte única da ordem de construção.** Os planos de detalhe (Blueprint, Plano do Jev, custo e margem,
+> orçamento, almoxarifado, Segundo Cérebro, Visão de produto e o roadmap da Forja) guardam o desenho
+> técnico, as decisões e os critérios de aceite de cada item. **A ordem é decidida só aqui.**
+>
+> Criado em 16/10/2026 · Dono: proprietário da PecSil · Execução: Claude
+> Painel visual: publicado a partir deste documento (seção 9).
+
+---
+
+## 0. Quadro de agora
+
+**Em construção** (no máximo 3 frentes ao mesmo tempo)
+
+| Item | O quê | Situação |
+|---|---|---|
+| I-01 | Unificação de fornecedores e clientes pelo Clef (Jev, Etapa 1) | Calibração; fila "para unificar" a partir de 17/10 |
+
+**Próximos 5** — pela nota (seção 2), entre os itens do Marco 1 com os portões abertos. Os de nota maior que estão fora (C-10, P-04, C-02, A-10, F-02, B-04, C-09) esperam uma dependência ou um OK
+
+| Ordem | Item | O quê | Nota | Por que agora |
+|---|---|---|---|---|
+| 1 | B-02 | Backup externo do banco e da Forja, com restore testado | 13 | É o maior risco sem dono hoje |
+| 2 | P-01 | Forja: roteiro-padrão aplicado em massa por tipo de peça | 10 | Sem roteiro, o rascunho de OS não vira produção; 3.872 artigos estão sem roteiro |
+| 3 | P-03 | Forja: horas previstas e previsto × realizado | 10 | Paridade com o GRV; base do custo-hora (K-03) |
+| 4 | P-07 | Hardening da Forja | 10 | Pré-requisito do go-live (P-08) |
+| 5 | C-08 | Nota de exportação | 9,3 | Bloqueador direto do Marco 1; não depende de ninguém |
+
+**Travados** — o que destrava cada um
+
+| Item | Travado por | Quem destrava |
+|---|---|---|
+| B-01 Perímetro do servidor | Senha SSH perdida | Proprietário (quem instalou o servidor ou o modo de recuperação) |
+| B-05 VPN · B-06 Porta 443 | Roteador e operadora; SSH | Proprietário |
+| A-02 Estoque (saldo, custo médio, saída) | Decisões A4 e A5 | Proprietário e Henrique |
+| A-03 Inventário inicial | A3 e agenda da contagem física | Proprietário e Henrique |
+| C-14 Microsoft 365 | Ação do administrador no tenant (caixa, app, escopo) | Administrador do M365 |
+| F-01 Financeiro sem números fixos | Lista de "pequenos bugs" | Proprietário |
+| F-03 Contas a pagar de BOLLORÉ em diante | Arquivo do relatório | Proprietário |
+| K-02 a K-05 Custo e margem | Decisões D1 a D7 | Proprietário |
+| I-08 SARA | Fase 5 (custo e margem no ar) | — |
+
+**Decisões pendentes do proprietário** — cada uma com o que destrava
+
+| Decisão | Destrava | Origem |
+|---|---|---|
+| OK para reenviar o certificado A1 e homologar a NF-e — **"não" em 16/10**; reabrir quando quiser | C-09 → C-10, C-12, C-13 | FISCAL-NFE |
+| Número de WhatsApp dedicado (chip) para os alertas da plataforma e da Forja | B-04, P-06 | 16/10 |
+| Duas OS por item (fundição e usinagem)? *(Rafael)* | C-13, P-08 | PLANO-ORCAMENTO, O1 |
+| A3 contagem · A4 custo médio · A5 saída no balcão | A-02, A-03, A-06 | PLANO-ALMOXARIFADO |
+| A8 EPI do RH = material · A9 reposição · A10 locais | A-04, A-05 | PLANO-ALMOXARIFADO |
+| Respostas das máscaras (UFs, B2, operações do Rafael, quem edita) e Tema 69 com o contador | C-11 | Máscaras de impostos |
+| Lista de "pequenos bugs" do Financeiro e deploy da branch | F-01, F-13 | Financeiro |
+| OK para commitar o classificador do Santander e a conta garantida; extrato do Bradesco de 03/07 a 05/10 | F-02 | Conciliação |
+| D1 a D7 (centros de custo, custo-hora, salário, rateio, material, data de corte, histórico) | K-01 a K-07, F-05, I-03 | PLANO-CUSTO-MARGEM |
+| D6 do Segundo Cérebro (teto de uso de IA por setor) | I-05, I-08 | PLANO-SEGUNDO-CEREBRO |
+| Quem opera o Comercial · régua de cobrança · WhatsApp do diretor | C-15, C-16 | PROCESSOS-PECSIL, Cadeia 3 |
+| Cadeia 2 (desligamento): bloqueio automático? Portaria lê os ativos? | R-04 | PROCESSOS-PECSIL |
+| Conciliação assistida pelo Clef × "nada do extrato vai a serviço externo" | I-04 | PLANO-JEV, Etapa 4 |
+| VERALLIA × "Verallia / Saint-Gobain – Campo Bom": mesma empresa? | C-01 | Integração Forja |
+| Permissões: `fiscal.nfe` ao Jefferson, `operar` do quadro de terceiros ao RH, Almoxarifado/ICMS à equipe | Uso real | Vários |
+| Auditoria 0008 (esconder o rastro dos usuários de teste) | — | Auditoria central |
+| Histórico do ICMS (1.577 notas) — "ainda não" em 12/10 | — | Almoxarifado e Fiscal |
+
+**Pedidos à equipe** (dados que não dependem de construção, mas destravam itens)
+
+| Quem | O quê | Destrava |
+|---|---|---|
+| Jefferson | Exportações do GRV: clientes, orçamentos em aberto, últimos números (orçamento, OS, nota), movimentação de 12 meses, próximo número de cada grupo de material | C-01, C-13, A-03, A-10 |
+| Jefferson e contador | Revisar os 844 materiais sem NCM e o plano de contas trocado (relatório na Área de Trabalho) | A-10 |
+| Rafael | 758 produtos sem NCM; os 98 "produto acabado" no meio da matéria-prima; planilha da calculadora de caixa; os 28 modelos de cotação | C-02, C-07, C-06 |
+| Henrique | Onde fica cada material; se a Fundição tem estoque separado | A-10, A10 |
+| Ana | Revisar as sobras da conciliação e os 383 títulos "histórico a conferir" | F-04 |
+| RH | 37 linhas recusadas do histórico, 10 pessoas do EPI sem CPF, 7 períodos de férias vencidas | R-02 |
+| Chefe e PCP da Forja | Visita: crédito do "+1 peça", OPs rápidas, subetapas da fundição, status fiscais, CAB/LOC | P-04 |
+
+---
+
+## 1. Linha de chegada
+
+**Marco 1 — GRV desligado.** Uma semana inteira de pedidos, OS, notas, compras, estoque e financeiro só pela
+plataforma e pela Forja, sem voltar ao GRV. Os critérios de aceite estão na E8 do plano do orçamento e na M7 do
+almoxarifado. Pré-requisitos fora da construção: NF-e em produção e a contagem física do estoque.
+
+**Marco 2 — Pronta para escalar.** Uma segunda empresa de teste é criada do zero, sem nenhum código ou texto
+da PecSil fixo:
+- identidade, regras e numeração como configuração;
+- isolamento por empresa testado;
+- custo e margem no ar como prova de resultado;
+- cadastro, cobrança e suporte da nova empresa, só quando o proprietário pedir.
+
+Origem: `VISAO-PRODUTO-ESCALA` §6 e P3.1.
+
+**Fora do caminho crítico (+).** Melhorias de valor que não aproximam nenhum marco. Entram quando a nota
+justifica e nenhum item de marco com portão aberto está parado esperando.
+
+---
+
+## 2. Critério de construção
+
+Cada item recebe quatro notas:
+
+| Nota | O que mede | Escala |
+|---|---|---|
+| **V** valor | Quanto tira de trabalho manual ou de risco, e quantas pessoas ganham | 1 a 5 |
+| **D** destrava | Quanto aproxima o marco do item (bloqueador direto = 5) | 1 a 5 |
+| **E** esforço | Semanas de construção comigo (0,5 = poucos dias) | número |
+| **R** risco | Dependência fora da construção: 1 nenhuma · 2 um OK ou um dado · 3 decisão, terceiro ou infraestrutura | 1 a 3 |
+
+**Nota de prioridade = (V + 2·D) ÷ E.** Item com **R3** só entra na fila com a dependência resolvida.
+
+**Como a fila é montada:**
+1. Primeiro os itens do **Marco 1** com os portões abertos, pela nota.
+2. Depois os do **Marco 2**.
+3. Os itens **+** só quando abrir uma frente livre, e nunca mais de 3 frentes ao mesmo tempo.
+
+**Portões** (valem acima da nota):
+- **(a)** pré-requisito pronto;
+- **(b)** decisão do proprietário registrada, quando houver;
+- **(c)** uso novo de IA registrado no Plano do Jev (o modelo só sugere e uma pessoa confirma; vai o
+  mínimo de dados para fora, nunca CPF, extrato ou dado de saúde);
+- **(d)** aceite verificado em produção antes de marcar como entregue.
+
+**Mudar a ordem = mudar uma nota**, com o motivo no registro (seção 8).
+
+---
+
+## 3. Itens por raia
+
+Situação: `no ar` · `em construção` · `próximo` · `na fila` · `travado` · `decisão` · `não fazer`.
+Marco: **1**, **2** ou **+**.
+
+### B — Base (infraestrutura e segurança)
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| B-01 | Recuperar o SSH e fechar o perímetro (portas do Supabase, porta 80 da Forja) | 1 | 5 | 3 | 1 | 3 | 11,0 | travado | Senha SSH | INFRA-SSH/PERIM; BP Fase 0 |
+| B-02 | Backup externo do banco e da Forja, com restore testado | 1 | 5 | 4 | 1 | 1 | 13,0 | próximo | — | INFRA-BACKUP; Forja H3 |
+| B-03 | Cofre de segredos e troca das chaves | 1 | 4 | 2 | 1,5 | 2 | 5,3 | na fila | B-01 | VIS 6.3a |
+| B-04 | Monitoramento com alertas pelo WhatsApp (canal compartilhado com o P-06) | 1 | 4 | 3 | 0,5 | 2 | 20,0 | decisão | Número de WhatsApp dedicado | INFRA-MON |
+| B-05 | VPN: só o Business OS público | 1 | 4 | 2 | 1 | 3 | 8,0 | travado | Roteador | INFRA-VPN |
+| B-06 | Estabilizar a porta 443 | 1 | 4 | 3 | 0,5 | 3 | 20,0 | travado | Operadora; SSH | INFRA-443 |
+| B-07 | Build fora do servidor e webhook de deploy | 2 | 3 | 2 | 1 | 1 | 7,0 | na fila | — | INFRA-BUILD; VIS P1.1e |
+| B-08 | 2FA próprio dos administradores e trava por horário e por IP | 1 | 4 | 2 | 1 | 1 | 8,0 | na fila | — | Novo (16/10) |
+| B-09 | Infraestrutura documentada no Git | 2 | 2 | 2 | 0,5 | 1 | 12,0 | na fila | — | INFRA-DOC |
+| B-10 | Plano B: nobreak, link reserva, réplica do banco | 2 | 3 | 1 | 1 | 3 | 5,0 | travado | Compra | INFRA-PLANOB |
+| B-11 | IP do login na auditoria (passa pelo proxy) | + | 2 | 1 | 0,5 | 1 | 8,0 | na fila | — | AUD-IP |
+
+### C — Comercial e faturamento
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| C-01 | Clientes completos: CNPJ de todos, unificar os repetidos | 1 | 4 | 4 | 1 | 2 | 12,0 | na fila | Exportação 1 | ORC E1 |
+| C-02 | Produtos limpos: NCM dos 758, os 98 "produto acabado", próximo número dos grupos | 1 | 4 | 4 | 0,5 | 2 | 24,0 | pedido à equipe | Rafael | ORC E1; produtos da Forja |
+| C-03 | Duas OS por item (fundição e usinagem)? | 1 | — | — | — | — | — | decisão | Rafael | ORC O1 |
+| C-05 | Pedido do cliente → itens do orçamento (o texto sai por regra, o Clef sugere o produto, o Rafael confirma) | + | 5 | 2 | 2 | 2 | 4,5 | na fila | Registro no Jev | Novo (16/10) |
+| C-06 | Cotação ao cliente em PDF/Excel pelos modelos | + | 4 | 2 | 2 | 2 | 4,0 | na fila | Os 28 modelos | ORC E6 |
+| C-07 | Calculadora de caixa | 1 | 3 | 4 | 1 | 2 | 11,0 | na fila | Planilha do Rafael | ORC E7; O5 |
+| C-08 | Nota de exportação | 1 | 4 | 5 | 1,5 | 1 | 9,3 | próximo | — | ORC O6 |
+| C-09 | NF-e em homologação (reenviar o A1, SEFAZ, assinatura real) | 1 | 5 | 5 | 1 | 2 | 15,0 | decisão | Seu OK ("não" em 16/10) | FISCAL-NFE |
+| C-10 | NF-e em produção e ciência das notas recebidas | 1 | 5 | 5 | 0,5 | 2 | 30,0 | na fila | C-09 | FISCAL-NFE |
+| C-11 | ST, DIFAL, regras do Jefferson e respostas das máscaras | 1 | 4 | 4 | 1,5 | 2 | 8,0 | decisão | Respostas | Máscaras; FISCAL-NFE |
+| C-12 | Título a receber pelas duplicatas da nota autorizada | 1 | 5 | 5 | 1 | 1 | 15,0 | na fila | C-09 | ORC E5 |
+| C-13 | Virada do GRV no comercial e fiscal (orçamentos em aberto, últimos números, apagar o treino) | 1 | 5 | 5 | 1 | 2 | 15,0 | na fila | C-10, C-12, exportações | ORC E8 |
+| C-14 | Microsoft 365 (caixa comercial@, app, escopo, credenciais) | + | 4 | 2 | 0,5 | 3 | 16,0 | travado | Administrador do M365 | CONEXAO-EMAIL |
+| C-15 | Caixa de entrada e classificação dos pedidos por e-mail | + | 4 | 1 | 2 | 3 | 3,0 | travado | C-14 | CRM E4; Jev E5 |
+| C-16 | Cobrança: régua ligada ao Financeiro | + | 4 | 1 | 2 | 3 | 3,0 | decisão | Régua e operador | CRM E6; Jev E6 |
+| C-17 | Ordem de compra lê o emitente da configuração fiscal | 2 | 2 | 4 | 0,5 | 1 | 20,0 | na fila | — | VIS 6.1a |
+
+### A — Compras e almoxarifado
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| A-01 | Material ligado no fluxo de compra (de-para do código do fornecedor) | 1 | 4 | 4 | 2 | 1 | 6,0 | na fila | — | ALM M2 |
+| A-02 | Estoque: saldo, custo médio, saída no balcão, kardex | 1 | 5 | 5 | 3 | 2 | 5,0 | decisão | A-01; A4, A5 | ALM M3 |
+| A-03 | Inventário inicial por contagem | 1 | 5 | 5 | 1 | 3 | 15,0 | travado | A-02; A3; contagem | ALM M4 |
+| A-04 | EPI ligado ao estoque (inclui o catálogo de EPI do Jev, Etapa 2) | 1 | 4 | 4 | 1,5 | 2 | 8,0 | decisão | A-02; A8 | ALM M5; Jev E2 |
+| A-05 | Reposição: mínimo, máximo e solicitação sugerida | + | 4 | 2 | 1,5 | 2 | 5,3 | decisão | A-02; A9 | ALM M6 |
+| A-06 | Virada do estoque (o GRV deixa de controlar) | 1 | 5 | 5 | 1 | 1 | 15,0 | na fila | A-01 a A-04 | ALM M7 |
+| A-07 | Cotações: selos (preço, prazo, pagamento), regra "prazo depois preço" e saving na OC | + | 4 | 1 | 1 | 1 | 6,0 | na fila | — | Novo (16/10) |
+| A-08 | Equivalência de itens em cotações | + | 3 | 1 | 1,5 | 2 | 3,3 | na fila | Rever depois de A-01 | Jev E7 |
+| A-09 | Portal do fornecedor (conta de terceiro com validade, como o do escritório) | + | 4 | 1 | 3 | 1 | 2,0 | na fila | — | Novo (16/10) |
+| A-10 | Dados do GRV para o estoque (movimentação, próximo número, locais, NCM) | 1 | 3 | 4 | 0,5 | 2 | 22,0 | pedido à equipe | Jefferson, Henrique | ALM §6 |
+| A-11 | Lista de "parados há X dias" (cotação, pedido, rascunho de OS, nota), sem escalonar | + | 4 | 2 | 1 | 1 | 8,0 | na fila | — | Novo (16/10) |
+
+### P — Produção (Forja)
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| P-01 | Roteiro-padrão aplicado em massa por tipo de peça | 1 | 5 | 5 | 1,5 | 1 | 10,0 | próximo | — | Forja 6c-D |
+| P-02 | Serviço de terceiros por operação (campos prontos; falta a tela) | 1 | 4 | 4 | 0,5 | 1 | 24,0 | pronto, aguarda deploy | — | Forja 6c-B |
+| P-03 | Horas previstas e previsto × realizado | 1 | 4 | 3 | 1 | 1 | 10,0 | próximo | — | Forja 6c-C |
+| P-04 | Visita ao PCP e validação com 5 OS reais (Forja × GRV) | 1 | 5 | 5 | 0,5 | 2 | 30,0 | na fila | P-01, P-02; agenda da visita | Forja v5.1 |
+| P-06 | Alertas por WhatsApp e SLA por etapa, com horário silencioso (um canal só, servindo a Forja e o Business OS) | + | 4 | 2 | 2 | 2 | 4,0 | na fila | Número oficial | Forja Sprint 7 |
+| P-07 | Hardening da Forja (limite de requisições, CORS, chave JWT única, logs) | 1 | 4 | 3 | 1 | 1 | 10,0 | próximo | — | Forja Sprint 7 |
+| P-08 | Go-live da Forja (paralelo, critérios de liberação) | 1 | 5 | 5 | 1 | 2 | 15,0 | na fila | P-01 a P-04 | Forja v5.1 |
+| P-09 | Painel financeiro do PCP | — | — | — | — | — | — | decisão | Foi coberto pelo "A faturar"? | Forja 6b |
+| P-10 | OEE (SpindleOps) | + | 4 | 1 | 3 | 2 | 2,0 | na fila | P-08 | Forja Fase 2 |
+| P-11 | Visualizador de desenhos e migração da pasta física | + | 3 | 1 | 2 | 1 | 2,5 | na fila | — | Forja Fase 2 |
+| P-12 | Inteligência da produção (previsão de prazo, gargalo) | + | 4 | 1 | 4 | 2 | 1,5 | na fila | P-10 | Forja Fase 3 |
+| P-13 | Causa-raiz dos motivos de parada | + | 3 | 1 | 1 | 2 | 5,0 | decisão | Taxonomia | Jev E8 |
+
+### F — Financeiro
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| F-01 | Financeiro sem números fixos: lista de bugs e deploy da branch de recebíveis | 1 | 5 | 5 | 1 | 2 | 15,0 | decisão | Sua lista | BP Fase 3; VIS P1.1d |
+| F-02 | Commits pendentes: classificador do Santander, Bradesco, conta garantida | 1 | 4 | 3 | 0,5 | 2 | 20,0 | decisão | Seu OK; extrato do Bradesco | Conciliação |
+| F-03 | Contas a pagar de BOLLORÉ em diante | 1 | 3 | 3 | 0,5 | 3 | 18,0 | travado | Arquivo | Carga legada |
+| F-04 | Revisão das sobras e dos históricos a conferir | 1 | 4 | 4 | 0,5 | 2 | 24,0 | pedido à equipe | Ana | Carga legada |
+| F-05 | Centros de custo e cadastros financeiros reais | + | 4 | 2 | 1 | 3 | 8,0 | decisão | D1 | CM E1 |
+| F-06 | Alçadas de aprovação e baixa parcial ou reversível | 1 | 4 | 3 | 1,5 | 1 | 6,7 | na fila | — | BP Fase 3 |
+| F-07 | Fluxo de caixa de 90 dias (cenários por regra; a explicação fica para a SARA) | + | 4 | 2 | 2 | 1 | 4,0 | na fila | — | BP Fase 3 |
+| F-08 | Conciliação: regra com CNPJ e explicação da divergência (sempre com confirmação) | + | 3 | 2 | 1 | 1 | 7,0 | na fila | — | Conciliação |
+| F-09 | Portal do escritório, Entrega B (guias viram contas a pagar) | + | 4 | 2 | 1,5 | 1 | 5,3 | na fila | — | Portal do escritório |
+| F-10 | Pix e boleto registrados, Open Finance | + | 4 | 1 | 5 | 3 | 1,2 | decisão | Escolher o banco | Novo (16/10) |
+| F-13 | Homologação do Financeiro com a Tesouraria | 1 | 5 | 5 | 1 | 2 | 15,0 | na fila | F-01 | BP Fase 3 |
+
+### R — RH
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| R-01 | Fechar a Fase 2 (sem mocks, testes, homologar com 2 perfis) | 2 | 4 | 3 | 1,5 | 1 | 6,7 | na fila | — | BP Fase 2 |
+| R-02 | Dados do RH (37 linhas, 10 sem CPF, 7 férias vencidas) | + | 3 | 1 | 0,5 | 2 | 10,0 | pedido à equipe | RH | Importações do RH |
+| R-03 | Função define as exigências (EPI, exames, validades) e mapa de férias por setor | + | 4 | 1 | 2 | 1 | 3,0 | na fila | — | BP Fase 2 |
+| R-04 | Cadeia 2: desligamento | + | — | — | — | — | — | decisão | Q1, Q2 | PROCESSOS-PECSIL |
+
+### I — IA (Clef, Jev, Segundo Cérebro, SARA)
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| I-01 | Unificação de fornecedores e clientes | + | 4 | 2 | 1 | 1 | 8,0 | em construção | — | Jev E1 |
+| I-03 | Classificação de gastos (conta e centro) | + | 4 | 1 | 1,5 | 3 | 4,0 | decisão | F-05 | Jev E3 |
+| I-04 | Conciliação assistida | + | — | — | — | — | — | decisão | Privacidade do extrato | Jev E4 |
+| I-05 | Segundo Cérebro em uso real (coleta e triagem pelo Clef) | + | 3 | 1 | 1 | 2 | 5,0 | na fila | D6 | Segundo Cérebro |
+| I-07 | Religar a Busca Corporativa com os dados dos módulos | + | 3 | 1 | 2 | 1 | 2,5 | na fila | — | Busca |
+| I-08 | SARA nível 1: perguntas cruzando módulos, com as permissões de cada um | 2 | 5 | 3 | 4 | 3 | 2,8 | travado | Fase 5 (K-05) | BP Fase 6 |
+| I-09 | SARA níveis 2 a 4 e voz | 2 | 5 | 2 | 6 | 3 | 1,5 | travado | I-08 | BP Fase 6 |
+| I-10 | "Como faço?" (encaminhar a pergunta para a tela certa) | + | 3 | 1 | 1 | 3 | 5,0 | travado | I-08 | Jev E9 |
+| I-11 | Tutoriais em vídeo (piloto do orçamento) | + | 3 | 1 | 1 | 2 | 5,0 | decisão | HeyGen? | Tutoriais |
+
+### K — Custo e análise
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| K-01 | Decisões D1 a D7 | 2 | — | — | — | — | — | decisão | — | CM §3 |
+| K-02 | Fio da OS: centro e OS obrigatórios nas cotações, compras e títulos | 2 | 4 | 4 | 1,5 | 3 | 8,0 | travado | D6; F-05 | CM E4 |
+| K-03 | Custo-hora de máquina e de pessoa | 2 | 4 | 4 | 2 | 3 | 6,0 | travado | D2, D3 | CM E5 |
+| K-04 | Consumo de material por OS | 2 | 4 | 4 | 1 | 3 | 12,0 | travado | D5; A-02 | CM E6 |
+| K-05 | Custo e margem e dicionário de KPIs (1ª entrega da Fase 5) | 2 | 5 | 5 | 3 | 3 | 5,0 | travado | K-02 a K-04; D4 | CM E7 |
+| K-06 | Margem na cotação e preço mínimo | 2 | 4 | 3 | 1,5 | 1 | 6,7 | na fila | K-05 | CM E8 |
+| K-07 | Painel executivo cruzado no celular | 2 | 4 | 3 | 2 | 1 | 5,0 | na fila | K-05 | VIS P2.1 |
+| K-08 | Linha de base "antes × depois" (registrar antes da virada) | 2 | 4 | 4 | 0,5 | 1 | 24,0 | na fila | — | VIS P3.2 |
+
+### Z — Produto (multiempresa)
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Z-01 | Fundação testada: contrato, isolamento por empresa, status "Homologado" | 2 | 4 | 5 | 1 | 1 | 14,0 | na fila | — | BP Fase 1 |
+| Z-02 | Tudo da empresa como configuração (marca, setores, triagem, conector da Forja, cookie) | 2 | 4 | 5 | 3 | 1 | 4,7 | na fila | Z-01 | VIS 6.1 |
+| Z-03 | Design System extraído (RH no DS) | 2 | 3 | 3 | 2 | 1 | 4,5 | na fila | — | BP D2 |
+| Z-04 | Blueprint atualizado (stack real, os 10 domínios) | 2 | 2 | 2 | 0,5 | 1 | 12,0 | na fila | — | BP D3, D4 |
+| Z-05 | Cadastro, cobrança e suporte da nova empresa | 2 | — | — | — | — | — | decisão | Pedido do proprietário | VIS 6.2 |
+| Z-06 | Reações entre módulos (cadeias confirmadas) | + | 4 | 2 | 3 | 3 | 2,7 | travado | Cadeias 2 e 3 | VIS P2.3 |
+
+---
+
+## 4. Entregue (histórico)
+
+| Quando | O quê | Commit |
+|---|---|---|
+| 16/10 | Compras só com o menu lateral; "Pedidos almoxarifado" | `f21cf52` |
+| 15–16/10 | Treino também cria o rascunho TREINO na Forja | `9eaf076` · Forja `724b25c` |
+| 15–16/10 | Catálogo de materiais (9.340), OS em rascunho na Forja, lista de materiais, teto de faturamento só no pedido | `e3bbbe9` · Forja `4ab26b2` |
+| 15/10 | "Abrir orçamento" no A faturar; produtos sem o corte em 1000 | `b8ebacb` |
+| 15/10 | Produtos da Forja (3.902) e busca no item do orçamento | `e5a78a1` |
+| 15/10 | Digital no celular e no tablet; app no tablet; menus em ordem alfabética | `37b847e` · `034ddc7` · `ebf694a` |
+| 15/10 | Treino do orçamento ao faturamento; máscaras de impostos | `4bba7a9` · `ff31033` |
+| 14/10 | Compras diretas; quadro de terceiros | `c145cff` · `dda5160` · `608ef71` |
+| 13/10 | Orçamentos e faturamento; NF-e no treino e NFS-e; destinatário pelo cadastro; auditoria central | `76e0916` · `9553b7f` · `b842fdf` · `205801e` |
+| 12/10 | Base da NF-e (transmissor, Vault, notas recebidas); entrar com a digital; fornecedores com CNPJ | `d672877` · `26d8246` · `f950bae` |
+| 10–11/10 | Segundo Cérebro (coleta, leitura, ligações, busca); modelo de decisão (Clef) | `bc14397`…`2dec6a2` · `5a1e35c` |
+| 09/10 | Pedidos da Fundição; ordem de compra | `ab8d9b9` · `1382aa4` |
+| 01–08/10 | Fluxo Compras → Almoxarifado → Financeiro → ICMS; conciliação Itaú, Santander e Bradesco | `6affba4` · `238cde9` · `dcf00fa` · `35b37fa` |
+| 27–30/09 | Compras na nuvem, Portaria, RH (terceiros, SST), contas a receber | `1601c24` · `4d1f348` · `09b13b6` · `34db4ae` |
+
+---
+
+## 5. Não fazer (decidido)
+
+| O quê | Por quê |
+|---|---|
+| Folha de pagamento | O escritório contábil faz (BP §8) |
+| Contabilidade própria | O escritório contábil faz; o portal liga vocês a ele |
+| Conciliar sozinho | O proprietário escolheu "sobras vão para revisão" |
+| SARA como chatbot sobre o ERP | BP §8 |
+| Module Builder e personalização por conversa agora | BP Fase 7; nem o GRV liberou |
+| Composio como hub agora; nunca no e-mail do Comercial | Integrações ficam nativas |
+| IoT e DNC nas máquinas | Depende de hardware; o Tótem cobre |
+| RFID como solução primária; `travaMaquina` | Decisões da Forja |
+| Regras de aprovação escritas por frase | As regras da PecSil são poucas e fixas |
+
+---
+
+## 6. Desduplicações
+
+| Assunto | Fica assim |
+|---|---|
+| SLA e WhatsApp | Um item só (P-06), da Forja, servindo também o Business OS |
+| Lista de materiais | Vive na Forja (no ar); a E7 do orçamento fica com a calculadora de caixa (C-07) |
+| Conciliação | Regra (F-08) agora; a assistida (I-04) depende de decisão; "sozinha" é `não fazer` |
+| Painel executivo | VIS P2.1 = Fase 5 do Blueprint = K-07 |
+| Equivalência em cotações | Jev E7 (A-08), revista depois do catálogo ligado nas compras (A-01) |
+
+---
+
+## 7. Regras de manutenção
+
+1. Toda entrega atualiza a situação do item **no mesmo commit**.
+2. Item novo só entra com as quatro notas, o marco e a raia.
+3. Os planos de detalhe **não têm mais a sua própria ordem**: cada um aponta para este documento. Decisões e
+   aceites continuam neles.
+4. O quadro de agora (seção 0) é revisto a cada entrega: no máximo 3 frentes em construção.
+5. Mudar a ordem é mudar uma nota, com o motivo no registro.
+
+---
+
+## 8. Registro
+
+| Data | O que mudou | Quem |
+|---|---|---|
+| 16/10/2026 | Roadmap único criado: Marco 1 (GRV desligado) e Marco 2 (pronta para escalar); critério (V + 2·D) ÷ E e portões; os planos de detalhe passam a apontar para cá | Proprietário |
+| 16/10/2026 | Entram os itens novos da comparação com o GRV Max: A-07, C-05, A-11, B-08, A-09 e F-10. Os 14 da lista ficam assim: 1 C-05 · 2 A-07, A-08 · 3 A-11, P-06 · 4 B-08 · 5 A-09 · 6 I-08 · 7 F-07 · 8 F-08, I-04 · 9 I-10 · 10 K-05, K-06, P-03 · 11 P-10 · 12 R-03, A-04 · 13 P-06 · 14 F-10 | Proprietário |
+| 16/10/2026 | P-02 construído na Forja (branch `feat/terceiros-operacao`): tela de terceiros na operação do artigo e a correção da aba de lotes, que mostrava toda OP como interna; teste de navegador 15/15 | Claude |
+| 16/10/2026 | Respostas do proprietário: alerta do B-04 pelo WhatsApp (precisa de número dedicado, mesmo canal do P-06); C-09 "não" por ora. Fila refeita: B-02, P-01, P-03, P-07, C-08 | Proprietário |
+| 16/10/2026 | Certificado A1 confirmado (enviado e removido em 13/10 de propósito); C-09 só depende do OK | Proprietário |
+
+---
+
+## 9. Painel
+
+O proprietário não acompanha painel (16/10): quem segue este roadmap é o Claude, e o andamento é reportado
+na conversa de trabalho. O painel só é regerado quando pedido.
+
+- Endereço: https://claude.ai/artifact/XQv2ZVFfz8RGBiPXGwUnVz (privado; compartilhar pelo menu da página)
+- Gerar: `node scripts/roadmap-painel.mjs <saida.html>` e republicar o arquivo no mesmo endereço

@@ -1,5 +1,7 @@
 # Plano do Segundo Cérebro da PecSil
 
+> **A ordem de construção está em [`ROADMAP.md`](ROADMAP.md)** (fonte única desde 16/10/2026). Este documento guarda o desenho, as decisões e os critérios de aceite.
+
 > Documento de referência. Cada etapa só começa quando a anterior cumprir o
 > critério de aceite, e nenhuma etapa muda de escopo sem decisão registrada
 > aqui (seção 8).
@@ -265,6 +267,9 @@ enquanto carregado (descarrega após 10 min parado); servidor com 15 GB.
 ---
 
 ## 5. Ordem de execução
+
+> Desde 16/10/2026 a ordem entre os itens é decidida em [`ROADMAP.md`](ROADMAP.md). O que segue fica só como dependências internas e portões deste plano.
+
 
 | Ordem | Etapa | Pronta para começar? |
 |---|---|---|
