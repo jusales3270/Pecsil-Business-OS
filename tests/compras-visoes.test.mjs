@@ -36,7 +36,7 @@ test("proprietário e contas sem cargo seguem as funcionalidades liberadas", () 
 
 test("abas em ordem alfabética, com o Dashboard no topo (Compras diretas aparece nas duas visões)", () => {
   const caps = comprasCaps(conta(tudo));
-  assert.deepEqual(tabsFor("ORCAMENTISTA", caps).map((t) => t.label), ["Dashboard", "Compras diretas", "Compras Realizadas", "Minhas Cotações", "Pedidos de material"]);
+  assert.deepEqual(tabsFor("ORCAMENTISTA", caps).map((t) => t.label), ["Dashboard", "Compras diretas", "Compras Realizadas", "Minhas Cotações", "Pedidos almoxarifado"]);
   assert.deepEqual(tabsFor("GESTOR", caps).map((t) => t.label), ["Dashboard", "Compras", "Compras diretas", "Histórico de Decisões", "Pendentes de Aprovação"]);
   // Quem só vê fornecedores não ganha a aba de compras diretas.
   assert.ok(!tabsFor("ORCAMENTISTA", comprasCaps(conta({ "compras.fornecedores": "ver" }))).some((t) => t.page === "diretas"));

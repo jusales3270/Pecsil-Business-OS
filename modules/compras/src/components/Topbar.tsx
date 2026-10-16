@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '@/store';
-import { tabsFor } from '../lib/access';
 import {
   Bell,
   CheckCircle,
@@ -30,7 +29,6 @@ const tipoIcon = {
 export default function Topbar({ onExit, canExit, canSwitch }: TopbarProps) {
   const {
     user,
-    currentPage,
     setPage,
     notificacoes,
     markNotificacaoLida,
@@ -40,13 +38,11 @@ export default function Topbar({ onExit, canExit, canSwitch }: TopbarProps) {
     cotacoes,
     setActiveCotacaoIdForModal,
     login,
-    caps,
   } = useStore();
 
   const [showNotifs, setShowNotifs] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const tabs = tabsFor(user?.role, caps);
 
   const unreadCount = notificacoes.filter(
     n => n.userId === user?.id && !n.lida
@@ -123,28 +119,6 @@ export default function Topbar({ onExit, canExit, canSwitch }: TopbarProps) {
           </span>
         )}
       </div>
-
-      {/* Centro: Submenus do Módulo de Compras (Estilo Segmented Tabs do Business OS) - escondido no mobile e transferido para o menu lateral */}
-      <nav className="hidden md:flex items-center gap-1 p-1 bg-[var(--bg-subtle)] rounded-lg border border-[var(--border)] overflow-x-auto w-full md:w-auto order-3 md:order-2 scrollbar-none">
-        {tabs.map((tab) => {
-          const isActive = currentPage === tab.page;
-          return (
-            <button
-              key={tab.page}
-              type="button"
-              onClick={() => setPage(tab.page)}
-              aria-current={isActive ? 'page' : undefined}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
-                isActive
-                  ? 'bg-[var(--tint-blue)] text-[var(--accent-blue)] shadow-xs border border-[var(--accent-blue)] ring-1 ring-[var(--accent-blue)]'
-                  : 'border border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </nav>
 
       {/* Direita: Divisão ativa + Notificações + Usuário */}
       <div className="flex items-center gap-2 sm:gap-3 order-2 md:order-3">
