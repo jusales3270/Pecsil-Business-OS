@@ -1,5 +1,7 @@
 # Plano: Orçamento → OS → faturamento → NF-e (desligar o GRV)
 
+> **A ordem de construção está em [`ROADMAP.md`](ROADMAP.md)** (fonte única desde 16/10/2026). Este documento guarda o desenho, as decisões e os critérios de aceite.
+
 > Documento de referência. Nenhuma etapa começa sem a anterior cumprir o critério de
 > aceite, e nenhuma decisão da seção 4 muda sem registro na seção 9.
 >
@@ -192,6 +194,9 @@ Formato: objetivo · entregas · aceite · depende de.
 - **Depende de:** E1 a E5 (E6 e E7 conforme O5) e os pré-requisitos acima.
 
 ## 7. Ordem e portões
+
+> Desde 16/10/2026 a ordem entre os itens é decidida em [`ROADMAP.md`](ROADMAP.md). O que segue fica só como dependências internas e portões deste plano.
+
 
 | Ordem | Etapa | Travada por |
 |---|---|---|

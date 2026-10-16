@@ -1,5 +1,7 @@
 # Blueprint Mestre — PecSil Business OS
 
+> **A ordem de construção está em [`ROADMAP.md`](ROADMAP.md)** (fonte única desde 16/10/2026). Este documento guarda o desenho, as decisões e os critérios de aceite.
+
 > **Documento vivo.** Descreve a direção, não uma prisão. As regras aqui existem para
 > evitar retrabalho e decisões contraditórias — não para bloquear boas ideias.
 > Toda regra pode ser alterada; o que se pede é que a mudança seja **explícita e
@@ -103,6 +105,9 @@ para quem for criar o próximo módulo.
 ---
 
 ## 4 — Roadmap por fases
+
+> Desde 16/10/2026 a ordem entre os itens é decidida em [`ROADMAP.md`](ROADMAP.md). O que segue fica só como dependências internas e portões deste plano.
+
 
 Cada fase tem **critérios de saída objetivos**. Fase não termina por sensação de pronto.
 

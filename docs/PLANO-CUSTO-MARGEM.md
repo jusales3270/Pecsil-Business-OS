@@ -1,5 +1,7 @@
 # Plano: custo real por OS e margem por cliente
 
+> **A ordem de construção está em [`ROADMAP.md`](ROADMAP.md)** (fonte única desde 16/10/2026). Este documento guarda o desenho, as decisões e os critérios de aceite.
+
 > Documento de referência. Nenhuma etapa começa sem a anterior cumprir o critério
 > de aceite, e nenhuma decisão da seção 3 muda sem registro na seção 8.
 >
@@ -160,6 +162,9 @@ Formato: objetivo · entregas · aceite · depende de.
 - **Depende de:** Etapa 7 e a Fase 6 do blueprint.
 
 ## 5. Ordem e portões
+
+> Desde 16/10/2026 a ordem entre os itens é decidida em [`ROADMAP.md`](ROADMAP.md). O que segue fica só como dependências internas e portões deste plano.
+
 
 | Ordem | Etapa | Travada por |
 |---|---|---|

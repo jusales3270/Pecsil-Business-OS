@@ -1,5 +1,7 @@
 # Visão de produto — do PecSil Business OS para outras indústrias
 
+> **A ordem de construção está em [`ROADMAP.md`](ROADMAP.md)** (fonte única desde 16/10/2026). Este documento guarda o desenho, as decisões e os critérios de aceite.
+
 > **Status:** as frentes comerciais (prova de resultado, modelo de negócio, produtização)
 > continuam estacionadas até concluir o roadmap do Business OS
 > (`docs/BLUEPRINT-PECSIL-BUSINESS-OS.md`, Fases 0–7). **Desde 11/10/2026, porém, o jeito de
@@ -44,6 +46,9 @@ convence é o dono ver no celular "quanto custa cada item".
 ---
 
 ## 3. O que incluir, por prioridade
+
+> Desde 16/10/2026 a ordem entre os itens é decidida em [`ROADMAP.md`](ROADMAP.md). O que segue fica só como dependências internas e portões deste plano.
+
 
 Legenda:
 - **P1:** sem isso não dá para vender nem mostrar o "número que arrepia";
