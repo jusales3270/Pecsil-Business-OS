@@ -95,7 +95,7 @@ export default function SolicitacoesPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[#212121]">Pedidos de material</h1>
+          <h1 className="text-xl font-bold text-[#212121]">Pedidos almoxarifado</h1>
           <p className="text-sm text-[#757575]">Material que está faltando, pedido pelo Almoxarifado ou pela Fundição. Cote a partir do pedido: quem pediu acompanha cada passo e é avisado.</p>
         </div>
         <button type="button" onClick={() => void carregar()} className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] px-3 py-2 text-xs font-semibold text-[#555] hover:bg-slate-50">
