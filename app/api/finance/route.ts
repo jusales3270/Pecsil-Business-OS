@@ -80,6 +80,7 @@ export async function PATCH(request: Request) {
     const detail = error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : "";
     const code = error && typeof error === "object" && "code" in error ? String((error as { code: unknown }).code) : "";
     if (code === "P0001" && detail) return NextResponse.json({ error: detail }, { status: 400 });
+    if (code === "42501" && detail) return NextResponse.json({ error: detail }, { status: 403 });
     console.error("Falha na operação financeira", error);
     return NextResponse.json({ error: "FINANCE_MUTATION_DENIED" }, { status: 403 });
   }

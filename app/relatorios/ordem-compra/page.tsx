@@ -3,17 +3,16 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReportDocument } from "../../components/report-layout";
-import { EMPRESA_PECSIL, NOTAS_ORDEM_COMPRA } from "../../../lib/empresa";
-import type { OrdemCompra } from "../../../lib/compras/ordem-compra";
+import type { EmitenteOrdem, OrdemCompra } from "../../../lib/compras/ordem-compra";
 
 /**
  * Ordem de Compra da cotação aprovada, no modelo do sistema antigo (nº 14805):
- * cabeçalho com logo e dados da PecSil, quadro do fornecedor, materiais,
+ * cabeçalho com logo e os dados da empresa (Fiscal › Configuração), quadro do fornecedor, materiais,
  * frete/pagamento/prazos, totais, observação e as notas fixas. A4 paisagem;
  * o PDF sai pelo "Salvar como PDF" do navegador. O número é o da cotação.
  */
 
-type Estado = { status: "loading" } | { status: "error"; mensagem: string } | { status: "ready"; ordem: OrdemCompra };
+type Estado = { status: "loading" } | { status: "error"; mensagem: string } | { status: "ready"; ordem: OrdemCompra; emitente: EmitenteOrdem };
 
 const reais = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const unitario = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
@@ -31,7 +30,7 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string | null | undef
   return <p><b>{rotulo}:</b> <span>{valor || ""}</span></p>;
 }
 
-function OrdemDeCompra({ ordem }: { ordem: OrdemCompra }) {
+function OrdemDeCompra({ ordem, emitente: e }: { ordem: OrdemCompra; emitente: EmitenteOrdem }) {
   const f = ordem.fornecedor;
   return (
     <div className="oc">
@@ -42,12 +41,12 @@ function OrdemDeCompra({ ordem }: { ordem: OrdemCompra }) {
         </div>
         <div className="oc-titulo"><h1>Ordem de Compra</h1><p>Nº: {ordem.numero}</p></div>
         <div className="oc-empresa">
-          <b>{EMPRESA_PECSIL.razaoSocial}</b>
-          <span>{EMPRESA_PECSIL.endereco}</span>
-          <span>{EMPRESA_PECSIL.cidade}</span>
-          <span>Fone: {EMPRESA_PECSIL.telefones}</span>
-          <span>CNPJ: {EMPRESA_PECSIL.cnpj} - IE: {EMPRESA_PECSIL.ie}</span>
-          <span>{EMPRESA_PECSIL.site}</span>
+          <b>{e.razaoSocial}</b>
+          {e.endereco && <span>{e.endereco}</span>}
+          {e.cidade && <span>{e.cidade}</span>}
+          {e.telefones && <span>Fone: {e.telefones}</span>}
+          <span>CNPJ: {e.cnpj}{e.ie ? ` - IE: ${e.ie}` : ""}</span>
+          {e.site && <span>{e.site}</span>}
         </div>
       </header>
 
@@ -117,14 +116,14 @@ function OrdemDeCompra({ ordem }: { ordem: OrdemCompra }) {
 
       <footer className="oc-rodape">
         <div className="oc-notas">
-          <b>Notas:</b>
-          <ol>
-            {NOTAS_ORDEM_COMPRA.map((n, i) => {
-              // Como no modelo: da nota 3 em diante o texto é em negrito (na 3, depois do rótulo).
-              const [rotulo, resto] = i === 2 && n.includes(": ") ? [n.slice(0, n.indexOf(": ") + 2), n.slice(n.indexOf(": ") + 2)] : ["", n];
-              return <li key={i}>{i + 1} - {rotulo}{i >= 2 ? <strong>{resto}</strong> : resto}</li>;
-            })}
-          </ol>
+          {e.notas.length > 0 && <b>Notas:</b>}
+          {e.notas.length > 0 && (
+            <ol>
+              {e.notas.map((trechos, i) => (
+                <li key={i}>{i + 1} - {trechos.map((t, k) => (t.negrito ? <strong key={k}>{t.texto}</strong> : <span key={k}>{t.texto}</span>))}</li>
+              ))}
+            </ol>
+          )}
         </div>
         <div className="oc-assinaturas">
           {ordem.direta
@@ -151,9 +150,9 @@ function OrdemCompraPage() {
         if (response.status === 401) throw new Error("Sua sessão expirou. Entre na plataforma e abra a ordem de compra de novo.");
         if (response.status === 403) throw new Error("Você não tem acesso ao Compras.");
         if (!response.ok) throw new Error(body?.error || "Não foi possível montar a ordem de compra agora.");
-        return body as { ordem: OrdemCompra };
+        return body as { ordem: OrdemCompra; emitente: EmitenteOrdem };
       })
-      .then(({ ordem }) => { if (ativo) setEstado({ status: "ready", ordem }); })
+      .then(({ ordem, emitente }) => { if (ativo) setEstado({ status: "ready", ordem, emitente }); })
       .catch((error: Error) => { if (ativo) setEstado({ status: "error", mensagem: error.message }); });
     return () => { ativo = false; };
   }, [id, valido]);
@@ -176,7 +175,7 @@ function OrdemCompraPage() {
       {/* Só esta página imprime em A4 paisagem, como o modelo; sai junto quando a página fecha. */}
       <style>{"@page { size: A4 landscape; margin: 8mm 10mm 12mm; }"}</style>
       {estado.ordem.avisos.length > 0 && <p className="oc-avisos" role="note">{estado.ordem.avisos.join(" ")} Complete em Compras › Fornecedores para sair na ordem de compra.</p>}
-      <OrdemDeCompra ordem={estado.ordem} />
+      <OrdemDeCompra ordem={estado.ordem} emitente={estado.emitente} />
     </ReportDocument>
   );
 }

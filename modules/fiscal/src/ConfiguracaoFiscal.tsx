@@ -14,7 +14,7 @@ type Config = Record<string, string | number | boolean | null> & {
   ambiente: "homologacao" | "producao"; dfe_ativo: boolean; ciencia_automatica: boolean;
   cert_titular: string | null; cert_cnpj: string | null; cert_validade: string | null; cert_enviado_por_nome: string | null; cert_enviado_em: string | null;
 };
-type Dados = { config: Config | null; series: { serie: number; proximo_numero: number }[]; podeEditar: boolean; ehDono: boolean; podeCertificado: boolean; transmissor: boolean; carregadoEm: number };
+type Dados = { config: Config | null; series: { serie: number; proximo_numero: number }[]; podeEditar: boolean; podeProducao: boolean; podeCertificado: boolean; transmissor: boolean; carregadoEm: number };
 
 const EMITENTE: { campo: string; rotulo: string; largo?: boolean; max?: number; ajuda?: string }[] = [
   { campo: "razao_social", rotulo: "Razão social", largo: true, max: 60 },
@@ -33,6 +33,12 @@ const EMITENTE: { campo: string; rotulo: string; largo?: boolean; max?: number; 
   { campo: "cep", rotulo: "CEP" },
   { campo: "telefone", rotulo: "Telefone" },
   { campo: "email", rotulo: "E-mail fiscal", max: 60 },
+];
+/** O que sai nos documentos para fornecedores (Ordem de Compra), além do emitente. */
+const DOCUMENTOS: { campo: string; rotulo: string; max: number; ajuda?: string }[] = [
+  { campo: "doc_telefones", rotulo: "Telefones", max: 120, ajuda: "como devem sair impressos" },
+  { campo: "doc_site", rotulo: "Site", max: 120 },
+  { campo: "doc_email_nfe", rotulo: "E-mail para receber NF-e e XML", max: 120 },
 ];
 const CRT = [["", "—"], ["1", "1 · Simples Nacional"], ["2", "2 · Simples Nacional, excesso de sublimite"], ["3", "3 · Regime normal"], ["4", "4 · MEI"]];
 
@@ -53,6 +59,8 @@ export function ConfiguracaoFiscal({ notify }: { notify: (m: string) => void }) 
     const serie = Number(c.serie_padrao ?? 1);
     const valores: Record<string, string> = {};
     for (const { campo } of EMITENTE) valores[campo] = c[campo] == null ? "" : String(c[campo]);
+    for (const { campo } of DOCUMENTOS) valores[campo] = c[campo] == null ? "" : String(c[campo]);
+    valores.doc_notas_ordem_compra = c.doc_notas_ordem_compra == null ? "" : String(c.doc_notas_ordem_compra);
     valores.crt = c.crt == null ? "" : String(c.crt);
     valores.serie_padrao = String(serie);
     valores.proximo_numero = String(r.data.series.find((s) => s.serie === serie)?.proximo_numero ?? "");
@@ -83,6 +91,13 @@ export function ConfiguracaoFiscal({ notify }: { notify: (m: string) => void }) 
   const salvarEmissao = (event: React.FormEvent) => {
     event.preventDefault();
     void gravar({ serie_padrao: f.serie_padrao, ...(f.proximo_numero ? { proximo_numero: f.proximo_numero } : {}) }, "Série e numeração gravadas.");
+  };
+
+  const salvarDocumentos = (event: React.FormEvent) => {
+    event.preventDefault();
+    const corpo: Record<string, unknown> = { doc_notas_ordem_compra: f.doc_notas_ordem_compra ?? "" };
+    for (const { campo } of DOCUMENTOS) corpo[campo] = f[campo] ?? "";
+    void gravar(corpo, "Dados dos documentos para fornecedores gravados.");
   };
 
   const buscarNaSefaz = async () => {
@@ -155,9 +170,27 @@ export function ConfiguracaoFiscal({ notify }: { notify: (m: string) => void }) 
         {pode && <footer><Button type="submit" disabled={ocupado === "gravar"}>{ocupado === "gravar" ? "Gravando…" : "Gravar emitente"}</Button></footer>}
       </form>
 
+      <form className="almox-bloco fiscal-config-bloco" onSubmit={salvarDocumentos}>
+        <header><h2>Documentos para fornecedores</h2></header>
+        <p className="fiscal-nota-ajuda">O cabeçalho da Ordem de Compra usa o emitente acima (razão social, endereço, CNPJ e IE) e estes dados. As notas saem no rodapé, uma por linha; o trecho entre **asteriscos duplos** sai em negrito.</p>
+        <div className="fiscal-campos">
+          {DOCUMENTOS.map(({ campo, rotulo, max, ajuda }) => (
+            <label key={campo}>
+              <span>{rotulo}{ajuda ? <small> · {ajuda}</small> : null}</span>
+              <input value={f[campo] ?? ""} onChange={(e) => set(campo, e.target.value)} maxLength={max} disabled={!pode} />
+            </label>
+          ))}
+          <label className="fiscal-inteiro">
+            <span>Notas da Ordem de Compra<small> · uma por linha</small></span>
+            <textarea rows={5} value={f.doc_notas_ordem_compra ?? ""} onChange={(e) => set("doc_notas_ordem_compra", e.target.value)} maxLength={3000} disabled={!pode} />
+          </label>
+        </div>
+        {pode && <footer><Button type="submit" disabled={ocupado === "gravar"}>Gravar documentos</Button></footer>}
+      </form>
+
       <form className="almox-bloco fiscal-config-bloco" onSubmit={salvarEmissao}>
         <header><h2>Emissão</h2><Status tone={c?.ambiente === "producao" ? "danger" : "info"}>{c?.ambiente === "producao" ? "Produção" : "Homologação (sem valor fiscal)"}</Status></header>
-        <p className="fiscal-nota-ajuda">A emissão começa sempre em homologação, o ambiente de teste da SEFAZ. Passar para produção é decisão do proprietário, depois de conferidas as regras fiscais.</p>
+        <p className="fiscal-nota-ajuda">A emissão começa sempre em homologação, o ambiente de teste da SEFAZ. Passar para produção é decisão de quem aprova NF-e no Fiscal, depois de conferidas as regras fiscais.</p>
         <div className="fiscal-campos">
           <label><span>Série padrão</span><input inputMode="numeric" value={f.serie_padrao ?? ""} onChange={(e) => set("serie_padrao", e.target.value.replace(/\D/g, "").slice(0, 3))} disabled={!pode} /></label>
           <label><span>Próximo número<small> · para continuar a numeração do sistema anterior</small></span><input inputMode="numeric" value={f.proximo_numero ?? ""} onChange={(e) => set("proximo_numero", e.target.value.replace(/\D/g, "").slice(0, 9))} disabled={!pode} /></label>

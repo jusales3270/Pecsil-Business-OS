@@ -38,8 +38,21 @@ test("financeiro: nenhum dado inventado no módulo (só o que está no banco)", 
 
 test("financeiro: homologação cobre critérios, alçadas, evidências e decisão final", () => {
   assert.match(source, /Critérios funcionais/);
-  assert.match(source, /Matriz proposta de aprovação/);
+  assert.match(source, /Alçadas de aprovação/);
+  assert.match(source, /<FinanceAlcadas notify=\{track\}\/>/);
   assert.match(source, /Evidências da homologação/);
   assert.match(source, /Homologar versão/);
   assert.match(source, /Supabase, RLS e arquivos não bloqueiam o aceite funcional/);
+});
+
+test("financeiro: aprovar, recusar e estornar passam pelas funções do banco (alçada e estorno)", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const mut = await readFile(new URL("../../../lib/data/finance-mutations.ts", import.meta.url), "utf8");
+  assert.match(mut, /rpc\("finance_aprovar_titulo"/);
+  assert.match(mut, /rpc\("finance_estornar_baixa"/);
+  assert.doesNotMatch(mut, /update\(\{ status: "approved"/, "aprovar não pode mais mudar a linha direto");
+  const sql = await readFile(new URL("../../../supabase/migrations/202610160006_financeiro_alcadas_estorno.sql", import.meta.url), "utf8");
+  assert.match(sql, /Título em aprovação: aprove antes de dar baixa/);
+  assert.match(sql, /set reversed_at = now\(\), reversed_by_profile_id = me/);
+  assert.doesNotMatch(sql, /delete from public\.finance_settlements/i, "estorno nunca apaga a baixa");
 });

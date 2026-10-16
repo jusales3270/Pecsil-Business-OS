@@ -328,6 +328,63 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
 
 const TIPOS = ["BOL", "TRA", "DEP", "DIN", "CRE", "DEB", "CHE", "GUI", "TAR", "ENC"];
 
+type Historico = {
+  aprovacao: {
+    niveis: { nivel: number; regra: string; quem: string; aprovadoPor: string | null; aprovadoEm: string | null }[];
+    recusas: { nivel: number; por: string | null; em: string | null; motivo: string | null }[];
+    aprovadoPor: string | null;
+    aprovadoEm: string | null;
+  };
+  baixas: { id: string; data: string; valor: number; juros: number; observacao: string | null; por: string | null; estornadaEm: string | null; estornadaPor: string | null; motivoEstorno: string | null; conciliada: boolean }[];
+};
+const dataHora = (iso: string | null) => (iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
+
+/** Alçada (níveis e quem decidiu) e baixas do título, inclusive as estornadas. */
+function HistoricoTitulo({ hist, canSettle, onEstornar }: { hist: Historico; canSettle: boolean; onEstornar: (b: Historico["baixas"][number]) => void }) {
+  const { niveis, recusas } = hist.aprovacao;
+  return (
+    <>
+      {niveis.length > 0 && (
+        <section className="fin-historico" aria-label="Aprovação por alçada">
+          <h3>Aprovação por alçada</h3>
+          <ol>
+            {niveis.map((n) => (
+              <li key={n.nivel}>
+                <span className="fin-historico-marca">{n.aprovadoPor ? "✓" : n.nivel}</span>
+                <span><b>Nível {n.nivel} · {n.regra}</b><small>{n.aprovadoPor ? `Aprovado por ${n.aprovadoPor} em ${dataHora(n.aprovadoEm)}` : `Aguardando: ${n.quem}`}</small></span>
+                <Status tone={n.aprovadoPor ? "success" : "attention"}>{n.aprovadoPor ? "Aprovado" : "Pendente"}</Status>
+              </li>
+            ))}
+          </ol>
+          {recusas.map((r, i) => <p key={i} className="fin-historico-recusa">Recusado no nível {r.nivel} por {r.por} em {dataHora(r.em)}: {r.motivo}</p>)}
+        </section>
+      )}
+      {hist.baixas.length > 0 && (
+        <section className="fin-historico" aria-label="Baixas">
+          <h3>Baixas</h3>
+          <ol>
+            {hist.baixas.map((b) => (
+              <li key={b.id} className={b.estornadaEm ? "estornada" : undefined}>
+                <span className="fin-historico-marca">{b.estornadaEm ? "↺" : "$"}</span>
+                <span>
+                  <b>{money(b.valor)}</b> em {date(b.data)}{b.por ? ` · ${b.por}` : ""}{b.observacao ? ` · ${b.observacao}` : ""}
+                  {b.estornadaEm && <small>Estornada por {b.estornadaPor} em {dataHora(b.estornadaEm)}: {b.motivoEstorno}</small>}
+                  {!b.estornadaEm && b.conciliada && <small>Conciliada com o extrato: para estornar, desfaça a conciliação em Bancos e conciliação.</small>}
+                </span>
+                {b.estornadaEm
+                  ? <Status tone="neutral">Estornada</Status>
+                  : canSettle && !b.conciliada
+                    ? <Button type="button" variant="secondary" compact className="perigo-texto" onClick={() => onEstornar(b)}>Estornar</Button>
+                    : <Status tone="success">Ativa</Status>}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+    </>
+  );
+}
+
 function Detalhe({ direction, titulo, hoje: today, accounts, canEdit, canSettle, onClose, onChanged }: {
   direction: Direction;
   titulo: FinanceTitle;
@@ -341,8 +398,19 @@ function Detalhe({ direction, titulo, hoje: today, accounts, canEdit, canSettle,
   const texto = TEXTO[direction];
   const [modo, setModo] = useState<"ver" | "editar" | "baixar">("ver");
   const [confirmar, setConfirmar] = useState<"cancelar" | "excluir" | null>(null);
+  const [motivoDe, setMotivoDe] = useState<{ tipo: "recusar" } | { tipo: "estornar"; id: string; valor: number } | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [hist, setHist] = useState<Historico | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState("");
+  useEffect(() => {
+    let vivo = true;
+    fetch(`/api/finance/titulos/${titulo.id}/historico`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (vivo && d) setHist(d as Historico); })
+      .catch(() => undefined);
+    return () => { vivo = false; };
+  }, [titulo.id]);
   const situacao = situacaoRecebivel(titulo, today);
   const aberto = EM_ABERTO.includes(situacao);
   const saldo = emAberto(titulo);
@@ -392,8 +460,22 @@ function Detalhe({ direction, titulo, hoje: today, accounts, canEdit, canSettle,
           {titulo.notes && <div className="largo"><dt>Observação</dt><dd className="obs">{titulo.notes}</dd></div>}
           {titulo.source === "legado" && <div className="largo"><dt>Origem</dt><dd>Carga do sistema antigo (relatório de 30/09/2026)</dd></div>}
         </dl>
+        {hist && <HistoricoTitulo hist={hist} canSettle={canSettle} onEstornar={(b) => { setMotivo(""); setErro(""); setMotivoDe({ tipo: "estornar", id: b.id, valor: b.valor }); }} />}
         {erro && <p className="receber-erro" role="alert">{erro}</p>}
-        {confirmar ? (
+        {motivoDe ? (
+          <footer>
+            <p>{motivoDe.tipo === "recusar"
+              ? "Recusar a aprovação deste título? Quem lançou é avisado com o motivo; o título continua em aprovação até ser corrigido ou cancelado."
+              : `Estornar a baixa de ${money(motivoDe.valor)}? Ela fica guardada como estornada e o valor volta a ficar em aberto. O valor original do título não muda.`}</p>
+            <label className="fin-motivo"><span>Motivo *</span><input value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={500} autoFocus placeholder={motivoDe.tipo === "recusar" ? "Ex.: valor diferente do pedido" : "Ex.: pagamento em duplicidade"} /></label>
+            <Button type="button" variant="secondary" onClick={() => { setMotivoDe(null); setErro(""); }} disabled={ocupado}>Voltar</Button>
+            <Button type="button" className="perigo" disabled={ocupado || !motivo.trim()} onClick={() => motivoDe.tipo === "recusar"
+              ? operar(() => chamar("/api/finance", "PATCH", { type: "reject", titleId: titulo.id, reason: motivo.trim() }), `Aprovação recusada: ${quem}.`)
+              : operar(() => chamar("/api/finance", "PATCH", { type: "reverse", settlementId: motivoDe.id, reason: motivo.trim() }), `Baixa estornada: ${titulo.counterparty} · ${money(motivoDe.valor)}.`)}>
+              {ocupado ? "Gravando…" : motivoDe.tipo === "recusar" ? "Recusar" : "Estornar baixa"}
+            </Button>
+          </footer>
+        ) : confirmar ? (
           <footer>
             <p>{confirmar === "cancelar" ? "Cancelar este título? Ele sai do total em aberto e fica em Cancelados."
               : `Excluir este título? O registro é apagado de vez, com parcela, rateio${titulo.paidAmount > 0 ? " e a baixa já registrada" : ""}. Para só tirar do total, prefira Cancelar.`}</p>
@@ -410,7 +492,8 @@ function Detalhe({ direction, titulo, hoje: today, accounts, canEdit, canSettle,
             {canEdit && <Button type="button" variant="secondary" onClick={() => setModo("editar")}>Editar</Button>}
             {canEdit && titulo.historical && aberto && <Button type="button" variant="secondary" disabled={ocupado} onClick={() => operar(() => chamar(`/api/finance/titulos/${titulo.id}`, "PATCH", { historical: false }), `Histórico conferido, volta para ${texto.abaAberto}: ${quem}.`)}>Manter em aberto</Button>}
             {canSettle && aberto && <Button type="button" variant="secondary" className="perigo-texto" onClick={() => setConfirmar("cancelar")}>Cancelar título</Button>}
-            {canSettle && situacao === "Em aprovação" && <Button type="button" disabled={ocupado} onClick={() => operar(() => chamar("/api/finance", "PATCH", { type: "approve", titleId: titulo.id }), `Conta a pagar aprovada: ${quem}.`)}>Aprovar</Button>}
+            {canSettle && situacao === "Em aprovação" && (hist?.aprovacao.niveis.length ?? 0) > 0 && <Button type="button" variant="secondary" className="perigo-texto" disabled={ocupado} onClick={() => { setMotivo(""); setErro(""); setMotivoDe({ tipo: "recusar" }); }}>Recusar</Button>}
+            {canSettle && situacao === "Em aprovação" && <Button type="button" disabled={ocupado} onClick={() => operar(() => chamar("/api/finance", "PATCH", { type: "approve", titleId: titulo.id }), (hist?.aprovacao.niveis.filter((n) => !n.aprovadoPor).length ?? 0) > 1 ? `Nível aprovado; falta o próximo nível: ${quem}.` : `${texto.eyebrowTitulo} aprovada: ${quem}.`)}>Aprovar</Button>}
             {canSettle && aberto && situacao !== "Em aprovação" && <Button type="button" className="sucesso" onClick={() => setModo("baixar")}>{titulo.isForecast ? "Dar baixa" : texto.baixar}</Button>}
             {!(canSettle && aberto) && <Button type="button" variant="secondary" onClick={onClose}>Fechar</Button>}
           </footer>
