@@ -8,11 +8,14 @@ import { TIPOS_ICMS } from "../../../lib/fiscal/icms-campos";
 import { rotuloOC } from "../../../lib/compras/rotulo";
 import { useSoltarArquivo } from "../../../app/components/enviar-arquivo";
 import { type ACaminho, DIVISAO, Icone, UNIDADES, chamar, date, hoje, lerNotaArquivo, money, qtd, type NotaLidaResposta } from "./tipos";
+import { BuscaMaterial, type MaterialEscolhido } from "./BuscaMaterial";
 
 type Modo = "xml" | "manual";
 type Dup = { numero: string; vencimento: string; valor: string };
-type ItemManual = { produto: string; quantidade: string; unidade: string; valor: string };
-const itemVazio = (): ItemManual => ({ produto: "", quantidade: "", unidade: "UN", valor: "" });
+type ItemManual = { produto: string; quantidade: string; unidade: string; valor: string; material: MaterialEscolhido | null };
+const itemVazio = (): ItemManual => ({ produto: "", quantidade: "", unidade: "UN", valor: "", material: null });
+/** Item da nota (XML) ligado a um material do catálogo; o fator converte a unidade da nota na do estoque. */
+type Ligacao = { texto: string; material: MaterialEscolhido | null; origem: string | null; fator: string };
 type Centro = { fundicao: boolean; usinagem: boolean; administrativo: boolean };
 const centroDa = (divisao: string | null | undefined): Centro => ({ fundicao: divisao === "FUNDICAO", usinagem: divisao !== "FUNDICAO", administrativo: false });
 
@@ -35,6 +38,7 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, modoInicial 
   const [xml, setXml] = useState<string | null>(null);
   const [doPdf, setDoPdf] = useState(false);
   const [nfe, setNfe] = useState<Nfe | null>(null);
+  const [ligacoes, setLigacoes] = useState<Record<number, Ligacao>>({});
   const [lendo, setLendo] = useState(false);
   const [aviso, setAviso] = useState("");
 
@@ -76,6 +80,28 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, modoInicial 
 
   const faltaReceber = compra ? Math.max(0, compra.totalComprado - compra.jaRecebido) : 0;
 
+  /** De-para do fornecedor: os códigos da nota que já foram ligados a um material chegam ligados. */
+  const sugerirMateriais = async (n: Nfe) => {
+    const cnpj = n.emitente.cnpj?.replace(/\D/g, "") ?? "";
+    const codigos = n.itens.map((i) => i.codigo).filter(Boolean);
+    if (cnpj.length !== 14 || !codigos.length) return;
+    const r = await chamar<{ ligacoes: Record<string, { material: MaterialEscolhido; fator: number }> }>(`/api/almoxarifado/depara?cnpj=${cnpj}&codigos=${encodeURIComponent(codigos.join(","))}`);
+    if (!r.ok) return;
+    setLigacoes((atual) => {
+      const novo = { ...atual };
+      for (const item of n.itens) {
+        const l = item.codigo ? r.data.ligacoes[item.codigo.trim().toUpperCase()] : undefined;
+        if (l && !novo[item.numero]?.material) novo[item.numero] = { texto: l.material.descricao, material: l.material, origem: "pelo código do fornecedor", fator: String(l.fator).replace(".", ",") };
+      }
+      return novo;
+    });
+  };
+  const ligar = (numeroItem: number, mudanca: Partial<Ligacao>) =>
+    setLigacoes((atual) => {
+      const base: Ligacao = atual[numeroItem] ?? { texto: "", material: null, origem: null, fator: "1" };
+      return { ...atual, [numeroItem]: { ...base, ...mudanca } };
+    });
+
   /** Preenche a nota a partir do que o servidor leu (NF-e ou NFS-e; XML ou PDF). */
   const aplicar = (lida: NotaLidaResposta) => {
     if (lida.jaRecebida) { setErro(`Esta nota já foi recebida (recebimento #${lida.jaRecebida.numero}, ${date(lida.jaRecebida.em)}).`); return; }
@@ -83,6 +109,8 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, modoInicial 
     setXml(lida.xml);
     setDoPdf(lida.origem === "pdf");
     setNfe(n);
+    setLigacoes({});
+    void sugerirMateriais(n);
     // Nota de serviço (NFS-e): sem ICMS/IPI; entra no Painel do ICMS com tipo "Serviço".
     if (lida.modelo === "nfse") setTipo("Serviço");
     if (lida.modelo === "nfse" && lida.servico) setObservacao((o) => o || obsDoServico(lida.servico!, lida.origem === "pdf"));
@@ -145,7 +173,7 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, modoInicial 
     if (!valorTocado) setValor(campoValor(total));
     if (!dupTocada) setDups((atual) => (atual.length === 1 ? [{ ...atual[0], valor: campoValor(total) }] : atual));
   };
-  const mudarItem = (index: number, campo: keyof ItemManual, texto: string) => {
+  const mudarItem = (index: number, campo: "quantidade" | "unidade" | "valor", texto: string) => {
     const linhas = itensManuais.map((l, i) => (i === index ? { ...l, [campo]: texto } : l));
     setItensManuais(linhas);
     seguirItens(linhas, ipi);
@@ -187,8 +215,14 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, modoInicial 
         tipo, centro,
         compra_direta: direta, autorizado_por: direta ? autorizado.trim() : "",
         itens: nfe
-          ? nfe.itens.map((item) => ({ descricao: item.descricao, quantidade: item.quantidade, unidade: item.unidade, valor_total: item.valorTotal }))
-          : linhasManuais.map((l) => ({ descricao: l.produto.trim(), quantidade: numero(l.quantidade), unidade: l.unidade, valor_total: Math.round(numero(l.quantidade) * numero(l.valor) * 100) / 100 })),
+          ? nfe.itens.map((item) => {
+              const l = ligacoes[item.numero];
+              return {
+                descricao: item.descricao, quantidade: item.quantidade, unidade: item.unidade, valor_total: item.valorTotal,
+                codigo: item.codigo, cfop: item.cfop, material_id: l?.material?.id ?? null, fator: l?.material ? numero(l.fator) || 1 : null,
+              };
+            })
+          : linhasManuais.map((l) => ({ descricao: l.produto.trim(), quantidade: numero(l.quantidade), unidade: l.unidade, valor_total: Math.round(numero(l.quantidade) * numero(l.valor) * 100) / 100, material_id: l.material?.id ?? null })),
         duplicatas: dups.map((d) => ({ numero: d.numero, vencimento: d.vencimento, valor: numero(d.valor) })),
       }),
     });
@@ -276,7 +310,9 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, modoInicial 
                     <div className="cabeca" role="row"><span>Material</span><span>Quantidade</span><span>Unidade</span><span>Valor unitário (R$)</span><span /></div>
                     {itensManuais.map((linha, index) => (
                       <div key={index} role="row">
-                        <input value={linha.produto} onChange={(e) => mudarItem(index, "produto", e.target.value)} placeholder="Ex.: Broca HSS 10 mm" aria-label={`Material ${index + 1}`} />
+                        <BuscaMaterial valor={linha.produto} material={linha.material} ariaLabel={`Material ${index + 1}`} placeholder="Código ou nome: broca HSS 10, 2-01-00893…"
+                          onDigitar={(v) => { const linhas = itensManuais.map((l, i) => (i === index ? { ...l, produto: v, material: null } : l)); setItensManuais(linhas); seguirItens(linhas, ipi); }}
+                          onEscolher={(m) => { const linhas = itensManuais.map((l, i) => (i === index ? { ...l, produto: m.descricao, material: m, unidade: UNIDADES.includes(m.unidade) ? m.unidade : l.unidade } : l)); setItensManuais(linhas); }} />
                         <input value={linha.quantidade} onChange={(e) => mudarItem(index, "quantidade", e.target.value)} inputMode="decimal" placeholder="0" aria-label={`Quantidade ${index + 1}`} />
                         <select value={linha.unidade} onChange={(e) => mudarItem(index, "unidade", e.target.value)} aria-label={`Unidade ${index + 1}`}>
                           {UNIDADES.map((u) => <option key={u}>{u}</option>)}
@@ -338,7 +374,26 @@ export function RecebimentoModal({ compra, inicial, arquivoInicial, modoInicial 
                 {nfe && (
                   <div>
                     <p className="almox-rotulo">Na nota</p>
-                    {nfe.itens.map((item) => <p key={item.numero} className="almox-item"><b>{qtd(item.quantidade)} {item.unidade}</b> {item.descricao}<em>{money(item.valorTotal)}</em></p>)}
+                    {nfe.itens.map((item) => {
+                      const l = ligacoes[item.numero];
+                      const unidadeDiferente = l?.material && l.material.unidade.toUpperCase() !== (item.unidade ?? "").toUpperCase();
+                      return (
+                        <div key={item.numero} className="almox-item-nota">
+                          <p className="almox-item"><b>{qtd(item.quantidade)} {item.unidade}</b> {item.descricao}{item.codigo ? <span className="almox-item-cod"> · cód. {item.codigo}</span> : null}<em>{money(item.valorTotal)}</em></p>
+                          <BuscaMaterial valor={l?.texto ?? ""} material={l?.material ?? null} origem={l?.origem ?? null} ariaLabel={`Material do catálogo para o item ${item.numero}`}
+                            placeholder="Ligar a um material do catálogo (opcional)"
+                            onDigitar={(v) => ligar(item.numero, { texto: v, material: null, origem: null })}
+                            onEscolher={(m) => ligar(item.numero, { texto: m.descricao, material: m, origem: null, fator: m.unidade.toUpperCase() === (item.unidade ?? "").toUpperCase() ? "1" : (l?.fator ?? "1") })} />
+                          {unidadeDiferente && (
+                            <label className="almox-fator"><span>1 {item.unidade} =</span>
+                              <input value={l!.fator} onChange={(e) => ligar(item.numero, { fator: e.target.value.replace(/[^\d.,]/g, "") })} inputMode="decimal" aria-label={`Quantos ${l!.material!.unidade} vêm em 1 ${item.unidade}`} />
+                              <span>{l!.material!.unidade}</span>
+                            </label>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {nfe.itens.length > 0 && <p className="almox-nota-ajuda">Ligar ao material é opcional e não trava o recebimento. Ligado uma vez, o próximo recebimento deste fornecedor já chega ligado.</p>}
                   </div>
                 )}
               </div>

@@ -187,13 +187,13 @@ Marco: **1**, **2** ou **+**.
 | C-14 | Microsoft 365 (caixa comercial@, app, escopo, credenciais) | + | 4 | 2 | 0,5 | 3 | 16,0 | travado | Administrador do M365 | CONEXAO-EMAIL |
 | C-15 | Caixa de entrada e classificação dos pedidos por e-mail | + | 4 | 1 | 2 | 3 | 3,0 | travado | C-14 | CRM E4; Jev E5 |
 | C-16 | Cobrança: régua ligada ao Financeiro | + | 4 | 1 | 2 | 3 | 3,0 | decisão | Régua e operador | CRM E6; Jev E6 |
-| C-17 | Ordem de compra lê o emitente da configuração fiscal | 2 | 2 | 4 | 0,5 | 1 | 20,0 | pronto, aguarda deploy | — | VIS 6.1a |
+| C-17 | Ordem de compra lê o emitente da configuração fiscal | 2 | 2 | 4 | 0,5 | 1 | 20,0 | no ar (conferir em produção) | — | VIS 6.1a |
 
 ### A — Compras e almoxarifado
 
 | Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
 |---|---|---|---|---|---|---|---|---|---|---|
-| A-01 | Material ligado no fluxo de compra (de-para do código do fornecedor) | 1 | 4 | 4 | 2 | 1 | 6,0 | em construção | — | ALM M2 |
+| A-01 | Material ligado no fluxo de compra (de-para do código do fornecedor) | 1 | 4 | 4 | 2 | 1 | 6,0 | pronto, aguarda deploy | — | ALM M2 |
 | A-02 | Estoque: saldo, custo médio, saída no balcão, kardex | 1 | 5 | 5 | 3 | 2 | 5,0 | decisão | A-01; A4, A5 | ALM M3 |
 | A-03 | Inventário inicial por contagem | 1 | 5 | 5 | 1 | 3 | 15,0 | travado | A-02; A3; contagem | ALM M4 |
 | A-04 | EPI ligado ao estoque (inclui o catálogo de EPI do Jev, Etapa 2) | 1 | 4 | 4 | 1,5 | 2 | 8,0 | decisão | A-02; A8 | ALM M5; Jev E2 |
@@ -231,7 +231,7 @@ Marco: **1**, **2** ou **+**.
 | F-03 | Contas a pagar de BOLLORÉ em diante | 1 | 3 | 3 | 0,5 | 3 | 18,0 | travado | Arquivo | Carga legada |
 | F-04 | Revisão das sobras e dos históricos a conferir | 1 | 4 | 4 | 0,5 | 2 | 24,0 | pedido à equipe | Ana | Carga legada |
 | F-05 | Centros de custo e cadastros financeiros reais | + | 4 | 2 | 1 | 3 | 8,0 | decisão | D1 | CM E1 |
-| F-06 | Alçadas de aprovação e baixa parcial ou reversível | 1 | 4 | 3 | 1,5 | 1 | 6,7 | pronto, aguarda deploy | — | BP Fase 3 |
+| F-06 | Alçadas de aprovação e baixa parcial ou reversível | 1 | 4 | 3 | 1,5 | 1 | 6,7 | no ar (conferir em produção) | — | BP Fase 3 |
 | F-07 | Fluxo de caixa de 90 dias (cenários por regra; a explicação fica para a SARA) | + | 4 | 2 | 2 | 1 | 4,0 | na fila | — | BP Fase 3 |
 | F-08 | Conciliação: regra com CNPJ e explicação da divergência (sempre com confirmação) | + | 3 | 2 | 1 | 1 | 7,0 | na fila | — | Conciliação |
 | F-09 | Portal do escritório, Entrega B (guias viram contas a pagar) | + | 4 | 2 | 1,5 | 1 | 5,3 | na fila | — | Portal do escritório |
@@ -272,7 +272,7 @@ Marco: **1**, **2** ou **+**.
 | K-05 | Custo e margem e dicionário de KPIs (1ª entrega da Fase 5) | 2 | 5 | 5 | 3 | 3 | 5,0 | travado | K-02 a K-04; D4 | CM E7 |
 | K-06 | Margem na cotação e preço mínimo | 2 | 4 | 3 | 1,5 | 1 | 6,7 | na fila | K-05 | CM E8 |
 | K-07 | Painel executivo cruzado no celular | 2 | 4 | 3 | 2 | 1 | 5,0 | na fila | K-05 | VIS P2.1 |
-| K-08 | Linha de base "antes × depois" (registrar antes da virada) | 2 | 4 | 4 | 0,5 | 1 | 24,0 | pronto, aguarda deploy | — | VIS P3.2 |
+| K-08 | Linha de base "antes × depois" (registrar antes da virada) | 2 | 4 | 4 | 0,5 | 1 | 24,0 | no ar (conferir em produção) | — | VIS P3.2 |
 
 ### Z — Produto (multiempresa)
 
@@ -354,6 +354,8 @@ Marco: **1**, **2** ou **+**.
 | 16/10/2026 | Roadmap único criado: Marco 1 (GRV desligado) e Marco 2 (pronta para escalar); critério (V + 2·D) ÷ E e portões; os planos de detalhe passam a apontar para cá | Proprietário |
 | 16/10/2026 | Entram os itens novos da comparação com o GRV Max: A-07, C-05, A-11, B-08, A-09 e F-10. Os 14 da lista ficam assim: 1 C-05 · 2 A-07, A-08 · 3 A-11, P-06 · 4 B-08 · 5 A-09 · 6 I-08 · 7 F-07 · 8 F-08, I-04 · 9 I-10 · 10 K-05, K-06, P-03 · 11 P-10 · 12 R-03, A-04 · 13 P-06 · 14 F-10 | Proprietário |
 | 16/10/2026 | P-02 construído na Forja (branch `feat/terceiros-operacao`): tela de terceiros na operação do artigo e a correção da aba de lotes, que mostrava toda OP como interna; teste de navegador 15/15 | Claude |
+| 17/10/2026 | A-01 construído: material do catálogo na solicitação, cotação, compra, compra direta e recebimento; de-para por fornecedor (CNPJ + código → material, com fator de unidade); tela Almoxarifado › Ligar histórico (420 textos, sugestão por regra). Migração 202610170001 aplicada (17/10); teste de navegador 8/8. Aceite: Henrique e o Compras com dados reais | Claude |
+| 16/10/2026 | Deploy de `fffcfe8` (F-06, C-17, K-08 e decisões por área); avisos de revisão da linha de base enviados à Ana, Domingo, Ricardo e Rafael | Proprietário / Claude |
 | 16/10/2026 | **Decisões vão para a área, não para o proprietário** (pedido dele): quadro "Quem decide o quê"; D1–D7 e A3–A10 redistribuídas; na plataforma (migração 0008) a linha de base é revisada por área, numeração e treino do orçamento são do Comercial, ligar a NF-e em produção é de quem aprova NF-e, e as alçadas não têm mais exceção do proprietário | Proprietário |
 | 16/10/2026 | Migrações 202610160005 a 0007 aplicadas; linha de base registrada (corte 16/10, 14 indicadores; revisão e correção pela tela Fundação › Linha de base, a pedido do proprietário); teste de navegador 22/22 | Proprietário / Claude |
 | 16/10/2026 | C-17, F-06 e K-08 construídos e testados em transação desfeita na produção (migrações 202610160005 a 0007, aguardam o OK); A-01 começa | Claude |

@@ -39,8 +39,10 @@ const ORIGEM: Record<PedidoMaterial['origem'], string> = { ALMOXARIFADO: 'Almoxa
 type Row = {
   id: string; numero: number; divisao: PedidoMaterial['divisao']; origem: PedidoMaterial['origem'] | null; urgencia: PedidoMaterial['urgencia']; observacao: string | null;
   status: PedidoMaterial['status']; created_at: string; requested_by_name: string | null;
-  material_request_items: { produto: string; quantidade: number; unidade: string; observacao: string | null; ordem: number }[] | null;
+  material_request_items: { produto: string; quantidade: number; unidade: string; observacao: string | null; ordem: number; material_id: string | null; materials: MatRow | MatRow[] | null }[] | null;
 };
+type MatRow = { codigo: string; descricao: string; unidade: string };
+const umMaterial = (id: string | null, m: MatRow | MatRow[] | null) => { const x = Array.isArray(m) ? m[0] : m; return id && x ? { id, codigo: x.codigo, descricao: x.descricao, unidade: x.unidade } : null; };
 
 export default function SolicitacoesPage() {
   const caps = useStore((state) => state.caps);
@@ -56,7 +58,7 @@ export default function SolicitacoesPage() {
   const carregar = useCallback(async () => {
     const { data, error } = await supabase
       .from('material_requests')
-      .select('id, numero, divisao, origem, urgencia, observacao, status, created_at, requested_by_name, material_request_items(produto, quantidade, unidade, observacao, ordem)')
+      .select('id, numero, divisao, origem, urgencia, observacao, status, created_at, requested_by_name, material_request_items(produto, quantidade, unidade, observacao, ordem, material_id, materials(codigo, descricao, unidade))')
       .order('created_at', { ascending: false })
       .limit(300);
     if (error) { setErro('Não foi possível carregar os pedidos.'); return; }
@@ -64,7 +66,7 @@ export default function SolicitacoesPage() {
     setPedidos(((data ?? []) as Row[]).map((r) => ({
       id: r.id, numero: Number(r.numero), divisao: r.divisao, origem: r.origem === 'FUNDICAO' ? 'FUNDICAO' : 'ALMOXARIFADO', urgencia: r.urgencia, observacao: r.observacao, status: r.status,
       createdAt: r.created_at, solicitante: r.requested_by_name,
-      itens: [...(r.material_request_items ?? [])].sort((a, b) => a.ordem - b.ordem).map((i) => ({ produto: i.produto, quantidade: Number(i.quantidade), unidade: i.unidade, observacao: i.observacao })),
+      itens: [...(r.material_request_items ?? [])].sort((a, b) => a.ordem - b.ordem).map((i) => ({ produto: i.produto, quantidade: Number(i.quantidade), unidade: i.unidade, observacao: i.observacao, material: umMaterial(i.material_id, i.materials) })),
     })));
   }, []);
 

@@ -4,6 +4,7 @@ import type { Cotacao, Divisao, CotacaoProduto, PedidoMaterial, FreteTipo } from
 import { X, Cog, Flame, Plus, Trash2, Edit, Lock, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import SugestaoInput from '@/components/SugestaoInput';
+import { BuscaMaterial, type MaterialEscolhido } from '../../../almoxarifado/src/BuscaMaterial';
 import { useSugestoesCompras } from '@/hooks/useSugestoesCompras';
 import {  } from '../../../../lib/compras/rotulo';
 
@@ -42,6 +43,8 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
     prazo: '',
     obs: '',
   });
+  // Material do catálogo ligado ao item em edição (A-01); texto livre continua valendo.
+  const [materialForm, setMaterialForm] = useState<{ texto: string; material: MaterialEscolhido | null }>({ texto: '', material: null });
   const [productErrors, setProductErrors] = useState<Record<string, string>>({});
   // Dados do pedido que saem na Ordem de Compra.
   const [pedidoOc, setPedidoOc] = useState({ freteTipo: 'CIF' as FreteTipo, freteValor: '', seguroValor: '', outrasDespesas: '', prazoEntrega: '', observacao: '' });
@@ -98,6 +101,7 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
       prazo: '',
       obs: '',
     });
+    setMaterialForm({ texto: '', material: null });
     setProductErrors({});
   };
 
@@ -114,6 +118,7 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
       prazo: '',
       obs: item.observacao ?? '',
     });
+    setMaterialForm({ texto: item.material?.descricao ?? '', material: item.material ?? null });
     setProductErrors({});
   };
   const jaNoOrcamento = (produto: string) => produtos.some((p) => p.produto.trim().toLowerCase() === produto.trim().toLowerCase());
@@ -130,6 +135,7 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
       prazo: p.prazo,
       obs: p.obs,
     });
+    setMaterialForm({ texto: p.material?.descricao ?? '', material: p.material ?? null });
     setProductErrors({});
   };
 
@@ -179,6 +185,7 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
       ipi: parseFloat(productForm.ipi) || 0,
       prazo: productForm.prazo,
       obs: productForm.obs.trim(),
+      material: materialForm.material,
     };
 
     setProdutos(prev => {
@@ -582,6 +589,24 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
                       }`}
                     />
                     {productErrors.produto && <p className="text-[10px] text-red-500 mt-0.5">{productErrors.produto}</p>}
+                  </div>
+
+                  {/* Material do catálogo (A-01) */}
+                  <div className="sm:col-span-2">
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-[#212121] mb-1">
+                      Material do catálogo <span className="text-[10px] font-normal text-black/40">opcional · liga o item ao Almoxarifado</span>
+                    </label>
+                    <BuscaMaterial
+                      valor={materialForm.texto}
+                      material={materialForm.material}
+                      ariaLabel="Material do catálogo"
+                      placeholder="Código ou nome do material: 2-01-00893, parafuso…"
+                      onDigitar={(v) => setMaterialForm({ texto: v, material: null })}
+                      onEscolher={(m) => {
+                        setMaterialForm({ texto: m.descricao, material: m });
+                        setProductForm(f => ({ ...f, produto: f.produto.trim() ? f.produto : m.descricao, unidade: UNIDADES.includes(m.unidade.toLowerCase()) ? m.unidade.toLowerCase() : f.unidade }));
+                      }}
+                    />
                   </div>
 
                   {/* Valor Unit */}

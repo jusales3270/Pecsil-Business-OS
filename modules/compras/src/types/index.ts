@@ -48,6 +48,8 @@ export interface CotacaoProduto {
   obs: string;
   status?: StatusProduto;
   motivoRejeicao?: string;
+  /** Material do catálogo do Almoxarifado (A-01); sem ele, o item é texto livre. */
+  material?: { id: string; codigo: string; descricao: string; unidade: string } | null;
 }
 
 export interface Cotacao {
@@ -103,7 +105,7 @@ export interface PedidoMaterial {
   status: 'aberta' | 'em_cotacao' | 'aprovada' | 'rejeitada' | 'comprada' | 'parcial' | 'recebida' | 'cancelada';
   createdAt: string;
   solicitante: string | null;
-  itens: { produto: string; quantidade: number; unidade: string; observacao: string | null }[];
+  itens: { produto: string; quantidade: number; unidade: string; observacao: string | null; material?: { id: string; codigo: string; descricao: string; unidade: string } | null }[];
 }
 
 export interface Compra {

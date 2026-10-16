@@ -9,6 +9,7 @@ import { PedidoModal } from "./PedidoModal";
 import { CancelarModal, CartaoPedido, ListaPedidos } from "./pedidos-ui";
 import { RecebimentoModal } from "./RecebimentoModal";
 import { Materiais } from "./Materiais";
+import { LigarHistorico } from "./LigarHistorico";
 import { DocumentosLigados } from "../../../app/components/documentos-ligados";
 import { ComprasDiretas } from "../../../app/components/compras-diretas";
 import { rotuloOC } from "../../../lib/compras/rotulo";
@@ -26,6 +27,7 @@ const SECOES = [
   { id: "A caminho", icon: "truck" },
   { id: "Compras diretas", icon: "cart" },
   { id: "Materiais", icon: "box" },
+  { id: "Ligar histórico", icon: "link" },
   { id: "Recebidos", icon: "check" },
 ] as const;
 type Secao = (typeof SECOES)[number]["id"];
@@ -36,6 +38,8 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
   const [secao, setSecao] = useState<Secao>(() => (initialSection === "Recebimento" ? "A caminho" : SECOES.some((s) => s.id === initialSection) ? (initialSection as Secao) : "Painel"));
   const podePedir = canUseFeature(access, "almoxarifado.solicitacoes", "operar");
   const podeReceber = canUseFeature(access, "almoxarifado.recebimento", "operar");
+  // Ligar o histórico ao catálogo: Almoxarifado (materiais) ou Compras (cotações).
+  const podeLigarHistorico = canUseFeature(access, "almoxarifado.materiais", "operar") || canUseFeature(access, "compras.cotacoes", "operar");
 
   const [pedidos, setPedidos] = useState<Pedido[] | null>(null);
   const [caminho, setCaminho] = useState<ACaminho[] | null>(null);
@@ -104,14 +108,14 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
       moduleId: "almoxarifado",
       moduleName: "Almoxarifado",
       sidebarTree: true,
-      items: SECOES.map(({ id, icon }) => ({
+      items: SECOES.filter((s) => s.id !== "Ligar histórico" || podeLigarHistorico).map(({ id, icon }) => ({
         id, label: id, icon,
         ...(id === "A caminho" && caminho?.length ? { badge: caminho.length, badgeTone: "attention" as const } : {}),
       })),
       activeId: secao,
       onSelect: (id) => setSecao(id as Secao),
     });
-  }, [registerNav, secao, caminho?.length]);
+  }, [registerNav, secao, caminho?.length, podeLigarHistorico]);
   useEffect(() => () => registerNav(null), [registerNav]);
 
   // Recarrega a lista de compras diretas depois de um recebimento (a OC pode ter nascido agora).
@@ -167,6 +171,7 @@ export default function AlmoxarifadoApp({ access, notify, initialSection }: Modu
   const conteudo = () => {
     // O catálogo não depende dos pedidos: abre mesmo antes de eles carregarem.
     if (secao === "Materiais") return <Materiais notify={notify} />;
+    if (secao === "Ligar histórico") return <LigarHistorico notify={notify} />;
     if (erro) return vazio(erro, "Tente de novo em instantes.");
     if (!pedidos || !caminho) return vazio("Carregando…", "");
 

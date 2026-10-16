@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { Button, Modal, Segmented } from "../../../packages/design-system";
 import { Icone, UNIDADES, chamar } from "./tipos";
+import { BuscaMaterial, type MaterialEscolhido } from "./BuscaMaterial";
 
-type Linha = { produto: string; quantidade: string; unidade: string; observacao: string };
-const vazia = (): Linha => ({ produto: "", quantidade: "", unidade: "UN", observacao: "" });
+type Linha = { produto: string; quantidade: string; unidade: string; observacao: string; material: MaterialEscolhido | null };
+const vazia = (): Linha => ({ produto: "", quantidade: "", unidade: "UN", observacao: "", material: null });
 
 /** Pedido de material ao Compras: itens, divisão e urgência. Quem cota é avisado na hora. */
 export function PedidoModal({ onClose, onCriado, endpoint = "/api/almoxarifado/solicitacoes", divisaoFixa, eyebrow = "Almoxarifado · novo pedido" }: {
@@ -24,7 +25,10 @@ export function PedidoModal({ onClose, onCriado, endpoint = "/api/almoxarifado/s
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
-  const mudar = (index: number, campo: keyof Linha, valor: string) => setLinhas((atual) => atual.map((linha, i) => (i === index ? { ...linha, [campo]: valor } : linha)));
+  const mudar = (index: number, campo: "quantidade" | "unidade" | "observacao", valor: string) => setLinhas((atual) => atual.map((linha, i) => (i === index ? { ...linha, [campo]: valor } : linha)));
+  // Digitar desfaz a ligação com o catálogo; escolher traz a descrição e a unidade do material.
+  const digitar = (index: number, valor: string) => setLinhas((atual) => atual.map((linha, i) => (i === index ? { ...linha, produto: valor, material: null } : linha)));
+  const escolher = (index: number, m: MaterialEscolhido) => setLinhas((atual) => atual.map((linha, i) => (i === index ? { ...linha, produto: m.descricao, material: m, unidade: UNIDADES.includes(m.unidade as (typeof UNIDADES)[number]) ? m.unidade : linha.unidade } : linha)));
   const numero = (texto: string) => Number(texto.replace(/\./g, "").replace(",", "."));
 
   const salvar = async (event: React.FormEvent) => {
@@ -38,7 +42,7 @@ export function PedidoModal({ onClose, onCriado, endpoint = "/api/almoxarifado/s
       method: "POST",
       body: JSON.stringify({
         divisao, urgencia: urgente ? "urgente" : "normal", observacao,
-        itens: itens.map((linha) => ({ produto: linha.produto.trim(), quantidade: numero(linha.quantidade), unidade: linha.unidade, observacao: linha.observacao.trim() })),
+        itens: itens.map((linha) => ({ produto: linha.produto.trim(), quantidade: numero(linha.quantidade), unidade: linha.unidade, observacao: linha.observacao.trim(), material_id: linha.material?.id ?? null })),
       }),
     });
     setSalvando(false);
@@ -62,7 +66,7 @@ export function PedidoModal({ onClose, onCriado, endpoint = "/api/almoxarifado/s
           <div className="cabeca" role="row"><span>Material</span><span>Quantidade</span><span>Unidade</span><span>Observação</span><span /></div>
           {linhas.map((linha, index) => (
             <div key={index} role="row">
-              <input value={linha.produto} onChange={(event) => mudar(index, "produto", event.target.value)} placeholder="Ex.: Broca HSS 10 mm" aria-label={`Material ${index + 1}`} autoFocus={index === 0} />
+              <BuscaMaterial valor={linha.produto} material={linha.material} onDigitar={(v) => digitar(index, v)} onEscolher={(m) => escolher(index, m)} ariaLabel={`Material ${index + 1}`} autoFocus={index === 0} placeholder="Código ou nome: broca HSS 10, 2-01-00893…" />
               <input value={linha.quantidade} onChange={(event) => mudar(index, "quantidade", event.target.value)} inputMode="decimal" placeholder="0" aria-label={`Quantidade ${index + 1}`} />
               <select value={linha.unidade} onChange={(event) => mudar(index, "unidade", event.target.value)} aria-label={`Unidade ${index + 1}`}>
                 {UNIDADES.map((unidade) => <option key={unidade}>{unidade}</option>)}
