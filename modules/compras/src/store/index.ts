@@ -220,7 +220,7 @@ export const useStore = create<AppState>((set, get) => ({
 
       const { data: produtosData, error: prodError } = await supabase
         .from('cotacao_produtos')
-        .select('*');
+        .select('*, materials(codigo, descricao, unidade)');
 
       if (prodError) throw prodError;
 
@@ -272,6 +272,10 @@ export const useStore = create<AppState>((set, get) => ({
             obs: p.obs,
             status: p.status,
             motivoRejeicao: p.motivo_rejeicao,
+            material: (() => {
+              const m = Array.isArray(p.materials) ? p.materials[0] : p.materials;
+              return p.material_id && m ? { id: p.material_id, codigo: m.codigo, descricao: m.descricao, unidade: m.unidade } : null;
+            })(),
           })),
           produto: c.produto || undefined,
           valorUnit: c.valor_unit ? Number(c.valor_unit) : undefined,
@@ -362,6 +366,7 @@ export const useStore = create<AppState>((set, get) => ({
           prazo: p.prazo,
           obs: p.obs,
           status: 'PENDENTE',
+          material_id: p.material?.id ?? null,
         }));
 
         if (productsToInsert.length > 0) {
@@ -518,6 +523,7 @@ export const useStore = create<AppState>((set, get) => ({
         obs: p.obs,
         status: p.status || 'PENDENTE',
         motivo_rejeicao: p.motivoRejeicao || null,
+        material_id: p.material?.id ?? null,
       }));
 
       if (productsToInsert.length > 0) {
@@ -739,11 +745,21 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   comprarCotacao: async (cotacaoId, compraData) => {
+    // O material do catálogo (A-01) vem do item da cotação com o mesmo produto.
+    const { data: itemCotado } = await supabase
+      .from('cotacao_produtos')
+      .select('material_id')
+      .eq('cotacao_id', cotacaoId)
+      .eq('produto', compraData.produto)
+      .not('material_id', 'is', null)
+      .limit(1)
+      .maybeSingle();
     // 1. Insert purchase record
     const { error: compErr } = await supabase
       .from('compras')
       .insert({
         cotacao_id: cotacaoId,
+        material_id: itemCotado?.material_id ?? null,
         fornecedor: compraData.fornecedor,
         produto: compraData.produto,
         quantidade: compraData.quantidade,

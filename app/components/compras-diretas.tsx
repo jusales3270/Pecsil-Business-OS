@@ -5,6 +5,7 @@ import { Button, Modal, Segmented, Status } from "../../packages/design-system";
 import { DocumentosLigados } from "./documentos-ligados";
 import { DIVISAO, Icone, UNIDADES, chamar, date, money, qtd } from "../../modules/almoxarifado/src/tipos";
 import { rotuloOC } from "../../lib/compras/rotulo";
+import { BuscaMaterial, type MaterialEscolhido } from "../../modules/almoxarifado/src/BuscaMaterial";
 
 /**
  * Compras diretas: compra sem cotação, autorizada fora da plataforma, que nasce
@@ -188,8 +189,8 @@ function DetalheCompraDireta({ compra: c, podeAbrirOC, onClose }: { compra: Comp
   );
 }
 
-type Linha = { produto: string; quantidade: string; unidade: string; valor: string };
-const vazia = (): Linha => ({ produto: "", quantidade: "", unidade: "UN", valor: "" });
+type Linha = { produto: string; quantidade: string; unidade: string; valor: string; material: MaterialEscolhido | null };
+const vazia = (): Linha => ({ produto: "", quantidade: "", unidade: "UN", valor: "", material: null });
 
 function NovaCompraDireta({ autorizadores, onClose, onCriada }: { autorizadores: string[]; onClose: () => void; onCriada: (id: number) => void }) {
   const [fornecedor, setFornecedor] = useState("");
@@ -211,7 +212,7 @@ function NovaCompraDireta({ autorizadores, onClose, onCriada }: { autorizadores:
     return () => { vivo = false; };
   }, []);
 
-  const mudar = (index: number, campo: keyof Linha, valor: string) => setLinhas((atual) => atual.map((linha, i) => (i === index ? { ...linha, [campo]: valor } : linha)));
+  const mudar = (index: number, campo: "quantidade" | "unidade" | "valor", valor: string) => setLinhas((atual) => atual.map((linha, i) => (i === index ? { ...linha, [campo]: valor } : linha)));
   const total = linhas.reduce((acc, l) => acc + (numero(l.quantidade) || 0) * (numero(l.valor) || 0), 0);
 
   const salvar = async (event: React.FormEvent) => {
@@ -228,7 +229,7 @@ function NovaCompraDireta({ autorizadores, onClose, onCriada }: { autorizadores:
       body: JSON.stringify({
         fornecedor: fornecedor.trim(), divisao, autorizado_por: autorizado.trim(),
         frete_tipo: freteTipo, frete_valor: numero(frete) || 0, prazo_entrega: entrega || null, observacao: observacao.trim(),
-        itens: itens.map((l) => ({ produto: l.produto.trim(), quantidade: numero(l.quantidade), unidade: l.unidade, valor_unit: numero(l.valor) })),
+        itens: itens.map((l) => ({ produto: l.produto.trim(), quantidade: numero(l.quantidade), unidade: l.unidade, valor_unit: numero(l.valor), material_id: l.material?.id ?? null })),
       }),
     });
     setSalvando(false);
@@ -253,7 +254,9 @@ function NovaCompraDireta({ autorizadores, onClose, onCriada }: { autorizadores:
           <div className="cabeca" role="row"><span>Material</span><span>Quantidade</span><span>Unidade</span><span>Valor unitário (R$)</span><span /></div>
           {linhas.map((linha, index) => (
             <div key={index} role="row">
-              <input value={linha.produto} onChange={(e) => mudar(index, "produto", e.target.value)} placeholder="Ex.: Broca HSS 10 mm" aria-label={`Material ${index + 1}`} />
+              <BuscaMaterial valor={linha.produto} material={linha.material} ariaLabel={`Material ${index + 1}`} placeholder="Código ou nome: broca HSS 10, 2-01-00893…"
+                onDigitar={(v) => setLinhas((atual) => atual.map((l, i) => (i === index ? { ...l, produto: v, material: null } : l)))}
+                onEscolher={(m) => setLinhas((atual) => atual.map((l, i) => (i === index ? { ...l, produto: m.descricao, material: m, unidade: UNIDADES.includes(m.unidade) ? m.unidade : l.unidade } : l)))} />
               <input value={linha.quantidade} onChange={(e) => mudar(index, "quantidade", e.target.value)} inputMode="decimal" placeholder="0" aria-label={`Quantidade ${index + 1}`} />
               <select value={linha.unidade} onChange={(e) => mudar(index, "unidade", e.target.value)} aria-label={`Unidade ${index + 1}`}>
                 {UNIDADES.map((u) => <option key={u}>{u}</option>)}

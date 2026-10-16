@@ -7756,3 +7756,31 @@ button.holiday-row:hover {
 .lb-editar input { width: 100%; min-height: 36px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
 .lb-editar input:focus { outline: none; border-color: var(--accent-blue); box-shadow: var(--shadow-focus); }
 .lb-editar footer { display: flex; justify-content: flex-end; gap: var(--sp-2); }
+
+/* A-01: material do catálogo no item (solicitação, cotação, recebimento) */
+.almox-busca-material { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.almox-material-ligado { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--accent-green); font-weight: 600; }
+.almox-material-ligado .vnd-codigo { color: var(--accent-green); }
+.almox-material-livre { font-size: var(--fs-xs); color: var(--text-muted); }
+.almox-item-nota { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); }
+.almox-item-nota .almox-item { margin: 0; }
+.almox-item-nota .almox-item-cod { color: var(--text-muted); font-size: var(--fs-xs); white-space: nowrap; }
+.almox-item-nota .almox-busca-material input { width: 100%; min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.almox-fator, .almox-item-nota .almox-fator { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; width: auto; font-size: var(--fs-xs); color: var(--text-secondary); white-space: nowrap; }
+.almox-item-nota .almox-fator > span { margin: 0; }
+.almox-fator input, .almox-item-nota .almox-fator input { flex: none; width: 90px; min-height: 30px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.almox-nota-ajuda { margin: var(--sp-2) 0 0; font-size: var(--fs-xs); color: var(--text-muted); }
+.almox-historico { display: flex; flex-direction: column; gap: var(--sp-4); }
+.almox-historico-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--sp-3); }
+.almox-historico-item { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-md, 10px); background: var(--bg-surface); min-width: 0; }
+.almox-historico-item header b { display: block; font-size: var(--fs-sm); color: var(--text-primary); overflow-wrap: anywhere; }
+.almox-historico-item header small { font-size: var(--fs-xs); color: var(--text-muted); }
+.almox-historico-sugestao { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; font-size: var(--fs-sm); color: var(--text-primary); }
+.almox-historico-sugestao small { color: var(--text-muted); }
+.almox-historico-sugestao.sem { color: var(--text-muted); }
+.almox-historico-item .almox-busca-material input { width: 100%; min-height: 36px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.almox-historico-item footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--sp-2); margin-top: auto; }
+.almox-historico-sugestao.fraca { color: var(--text-secondary); }
+.almox-historico-sugestao.fraca em { font-style: normal; font-weight: 600; color: var(--text-muted); }
+
+.almox-form .almox-item-nota .almox-fator input { flex: none; width: 90px; }
