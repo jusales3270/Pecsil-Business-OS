@@ -4,6 +4,7 @@ import { useStore } from '@/store';
 import { supabase } from '@/lib/supabase';
 import type { Divisao, PedidoMaterial } from '@/types';
 import CotacaoModal from '@/components/CotacaoModal';
+import ConviteFornecedorModal from '@/components/ConviteFornecedorModal';
 import DivisaoTabs from '@/components/DivisaoTabs';
 
 /**
@@ -14,6 +15,7 @@ import DivisaoTabs from '@/components/DivisaoTabs';
  */
 
 type Filtro = 'abertos' | 'andamento' | 'todos';
+type Convite = { id: string; material_request_id: string; fornecedor: string; situacao: 'aberto' | 'respondido' | 'cancelado'; expira_em: string; cotacao_id: number | null; aberto_em: string | null };
 
 const SITUACAO: Record<PedidoMaterial['status'], { label: string; cls: string }> = {
   aberta: { label: 'Aguardando cotação', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -54,6 +56,8 @@ export default function SolicitacoesPage() {
   const [filtro, setFiltro] = useState<Filtro>('abertos');
   const [busca, setBusca] = useState('');
   const [cotando, setCotando] = useState<PedidoMaterial | null>(null);
+  const [convidando, setConvidando] = useState<PedidoMaterial | null>(null);
+  const [convites, setConvites] = useState<Convite[]>([]);
 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase
@@ -63,6 +67,9 @@ export default function SolicitacoesPage() {
       .limit(300);
     if (error) { setErro('Não foi possível carregar os pedidos.'); return; }
     setErro('');
+    // Convites por link (A-09) dos pedidos carregados.
+    const ids = (data ?? []).map((r) => (r as { id: string }).id);
+    if (ids.length) void fetch(`/api/compras/convites?pedidos=${ids.join(',')}`, { cache: 'no-store' }).then((x) => x.json()).then((b) => setConvites((b?.convites ?? []) as Convite[])).catch(() => setConvites([]));
     setPedidos(((data ?? []) as Row[]).map((r) => ({
       id: r.id, numero: Number(r.numero), divisao: r.divisao, origem: r.origem === 'FUNDICAO' ? 'FUNDICAO' : 'ALMOXARIFADO', urgencia: r.urgencia, observacao: r.observacao, status: r.status,
       createdAt: r.created_at, solicitante: r.requested_by_name, precisaAte: r.precisa_ate,
@@ -87,6 +94,13 @@ export default function SolicitacoesPage() {
     USINAGEM: filtrados.filter((p) => divisaoDaAba(p) === 'USINAGEM').length,
     FUNDICAO: filtrados.filter((p) => divisaoDaAba(p) === 'FUNDICAO').length,
   }), [filtrados]);
+
+  const convitesDo = (id: string) => convites.filter((c) => c.material_request_id === id);
+  const cancelarConvite = async (id: string) => {
+    const r = await fetch('/api/compras/convites', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ acao: 'cancelar', id }) });
+    if (!r.ok) { setErro((await r.json().catch(() => null))?.error ?? 'Não foi possível cancelar o convite.'); return; }
+    void carregar();
+  };
 
   const contagem = (f: Filtro) => {
     const regra = FILTROS.find((x) => x.value === f)?.status;
@@ -154,16 +168,39 @@ export default function SolicitacoesPage() {
               {ligadas.length > 0 && (
                 <p className="text-xs text-[#757575]">Cotações: {ligadas.map((c) => `#${c.id} ${c.fornecedor} (${c.status.toLowerCase()})`).join(' · ')}</p>
               )}
+              {convitesDo(p.id).length > 0 && (
+                <div className="space-y-1 text-xs">
+                  <p className="font-semibold text-[#555]">Convites por link</p>
+                  {convitesDo(p.id).map((c) => (
+                    <p key={c.id} className="flex flex-wrap items-center gap-x-2 text-[#757575]">
+                      <span className="text-[#212121]">{c.fornecedor}</span>
+                      {c.situacao === 'respondido' ? <span className="text-emerald-700">respondeu · cotação #{c.cotacao_id}</span>
+                        : c.situacao === 'cancelado' ? <span>cancelado</span>
+                        : new Date(c.expira_em) < new Date() ? <span>venceu em {new Date(c.expira_em).toLocaleDateString('pt-BR')}</span>
+                        : <><span className="text-blue-700">aberto até {new Date(c.expira_em).toLocaleDateString('pt-BR')}{c.aberto_em ? ' · já abriu o link' : ''}</span>
+                          {caps?.cotar && <button type="button" className="font-semibold text-red-600 hover:underline" onClick={() => void cancelarConvite(c.id)}>Cancelar</button>}</>}
+                    </p>
+                  ))}
+                </div>
+              )}
               {podeCotar && (
-                <button type="button" onClick={() => setCotando(p)} className="mt-auto rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-90">
-                  {ligadas.length ? 'Cotar com outro fornecedor' : 'Cotar'}
-                </button>
+                <div className="mt-auto flex gap-2">
+                  <button type="button" onClick={() => setCotando(p)} className="flex-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-90">
+                    {ligadas.length ? 'Cotar com outro fornecedor' : 'Cotar'}
+                  </button>
+                  <button type="button" onClick={() => setConvidando(p)} className="rounded-lg border border-primary px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/5">
+                    Convidar fornecedor
+                  </button>
+                </div>
               )}
             </article>
           );
         })}
       </div>
 
+      {convidando && (
+        <ConviteFornecedorModal pedido={convidando} onClose={(mudou) => { setConvidando(null); if (mudou) void carregar(); }} />
+      )}
       {cotando && (
         <CotacaoModal cotacao={null} pedido={cotando} onClose={() => { setCotando(null); void fetchInitialData(); void carregar(); }} />
       )}
