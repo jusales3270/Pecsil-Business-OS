@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-17-exigencias-por-funcao",
+    data: "2026-10-17",
+    area: "RH",
+    funcionalidades: ["rh.sst"],
+    modulos: ["rh"],
+    titulo: "Exigências por função: EPI e exames que cada colaborador precisa ter",
+    itens: [
+      "Em Saúde e segurança, a aba Exigências por função diz o que cada função precisa ter (EPI do catálogo, exames e treinamentos) e a validade de cada um.",
+      "Sugestões pelo histórico: os EPIs já entregues a pelo menos metade da função nos últimos 12 meses. Dá para confirmar uma a uma ou a função inteira; nada vale sem confirmação.",
+      "Pendências por colaborador: nunca entregue, sem registro, vencida, a vencer em 30 dias ou em dia, com filtro por setor. Quem define as exigências é quem aprova em Saúde e segurança.",
+    ],
+  },
+  {
     id: "2026-10-17-fluxo-90-dias",
     data: "2026-10-17",
     area: "Financeiro",
