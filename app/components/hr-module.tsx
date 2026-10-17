@@ -13,6 +13,7 @@ import { HolidaysSection } from "./hr-holidays";
 import { JANELA_ALERTA_DIAS, diasAte, hojeBrasilia, situacaoSst } from "../../lib/rh/sst-situacao";
 import { PpeSection, usePpeData } from "./hr-epi";
 import { TerceirosSection } from "./hr-terceiros";
+import { ExigenciasFuncao } from "./rh-exigencias";
 
 const sections = [
   ["Painel", "grid"],
@@ -1251,7 +1252,7 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
   const [selected,setSelected]=useState<SstRecord|null>(null);
   const [creating,setCreating]=useState(false);
   const [editing,setEditing]=useState<SstRecord|null>(null);
-  const [tab,setTab]=useState<"Prioridades"|"Exames"|"Treinamentos"|"EPIs"|"Ocorrências">("Prioridades");
+  const [tab,setTab]=useState<"Prioridades"|"Exames"|"Treinamentos"|"EPIs"|"Ocorrências"|"Exigências por função">("Prioridades");
   const [status,setStatus]=useState("Todos os status");
   const canManage=canUseFeature(access,"rh.sst","operar");
   const canApprove=canUseFeature(access,"rh.sst","aprovar");
@@ -1272,8 +1273,8 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
   const openCompliance=()=>setDetail({eyebrow:"RH · SST",title:"Conformidade",subtitle:records.length?`${records.filter(r=>r.status==="Conforme").length} de ${records.length} registros conformes · abaixo, os que ainda não estão`:"Sem registros",rows:sstRows(records.filter(r=>r.status!=="Conforme")),empty:"Todos os registros estão conformes."});
   const alerts=records.filter(record=>["Vencido","A vencer","Em análise"].includes(record.status)).length;
   const filtered=status==="Todos os status"?records:records.filter(record=>record.status===status);
-  const categoryMap:Record<Exclude<typeof tab,"Prioridades">,SstRecord["category"]>={"Exames":"Exame","Treinamentos":"Treinamento","EPIs":"EPI","Ocorrências":"Ocorrência"};
-  const categoryRecords=tab==="Prioridades"?filtered:filtered.filter(record=>record.category===categoryMap[tab]);
+  const categoryMap:Record<Exclude<typeof tab,"Prioridades"|"Exigências por função">,SstRecord["category"]>={"Exames":"Exame","Treinamentos":"Treinamento","EPIs":"EPI","Ocorrências":"Ocorrência"};
+  const categoryRecords=tab==="Prioridades"||tab==="Exigências por função"?filtered:filtered.filter(record=>record.category===categoryMap[tab]);
   const conclude=async()=>{
     if(!selected)return;
     const target=selected;
@@ -1340,10 +1341,11 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · SST</p><h1>Saúde e segurança</h1><p>Exames, treinamentos, EPIs, ocorrências e obrigações organizados por risco e vencimento.</p></div>{canManage&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Novo registro</Button>}</div>
     {tab!=="EPIs"&&<KpiGrid><HrStat value={String(records.filter(r => r.category === "Exame" && (r.status === "A vencer" || r.status === "Vencido")).length)} label="Exames a vencer" meta="Vencidos ou na janela" icon="heart" tone="orange" onOpen={openExams}/><HrStat value={String(records.filter(r => r.category === "Treinamento").length)} label="Treinamentos" meta="No período" icon="shield" tone="blue" onOpen={openTrainings}/><HrStat value={String(records.filter(r => r.risk === "Crítico").length)} label="Pendências críticas" meta="Exigem tratamento" icon="alert" tone="red" onOpen={openCritical}/><HrStat value={records.length ? `${Math.round((records.filter(r => r.status === "Conforme").length / records.length) * 100)}%` : "—"} label="Conformidade" meta="Registros conformes" icon="check" tone="green" onOpen={openCompliance}/></KpiGrid>}{detail&&<KpiDetailModal detail={detail} onClose={()=>setDetail(null)}/>}
-    <div className="sst-tabs" role="tablist">{(["Prioridades","Exames","Treinamentos","EPIs","Ocorrências"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Prioridades"&&<i>{alerts+ppeUnsigned}</i>}</button>)}</div>
+    <div className="sst-tabs" role="tablist">{(["Prioridades","Exames","Treinamentos","EPIs","Ocorrências","Exigências por função"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Prioridades"&&<i>{alerts+ppeUnsigned}</i>}</button>)}</div>
     {tab==="Prioridades"&&<div className="sst-overview"><SstRecordTable title="Prioridades de SST" eyebrow="VENCIMENTOS E PENDÊNCIAS" records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/><Card className="sst-health-card"><p className="eyebrow">CONFORMIDADE</p><h2>Saúde dos registros</h2><div className="sst-score"><strong>{asoPct}%</strong><span><i style={{width:`${asoPct}%`}}/></span></div><ul><li className={comAso<ativos?"warning":undefined}><i>{comAso<ativos?"!":"✓"}</i><span><b>ASO em dia</b><small>{comAso} de {ativos} colaboradores ativos</small></span></li><li className={treinosEmDia<treinos.length?"warning":undefined}><i>{treinosEmDia<treinos.length?"!":"✓"}</i><span><b>Treinamentos</b><small>{treinos.length?`${treinosEmDia} de ${treinos.length} em dia`:"Nenhum treinamento registrado ainda"}</small></span></li><li className="warning"><i>!</i><span><b>{alerts} pendências abertas</b><small>Tratamento por risco e vencimento</small></span></li>{ppeUnsigned>0&&<li className="warning"><i>!</i><span><b>{ppeUnsigned} {ppeUnsigned===1?"entrega de EPI sem assinatura":"entregas de EPI sem assinatura"}</b><small>Recebimento a comprovar (NR-6) · aba EPIs</small></span></li>}</ul><div className="sst-risk-legend"><span><i className="critical"/> Crítico</span><span><i className="attention"/> Atenção</span><span><i className="regular"/> Regular</span></div></Card></div>}
     {tab==="EPIs"&&<PpeSection state={rh.source==="supabase"?ppe:{status:"ready",deliveries:[]}}/>}
-    {tab!=="Prioridades"&&tab!=="EPIs"&&<SstRecordTable title={`Gestão de ${tab.toLowerCase()}`} eyebrow={`SST · ${tab.toUpperCase()}`} records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/>} 
+    {tab==="Exigências por função"&&<ExigenciasFuncao notify={notify}/>}
+    {tab!=="Prioridades"&&tab!=="EPIs"&&tab!=="Exigências por função"&&<SstRecordTable title={`Gestão de ${tab.toLowerCase()}`} eyebrow={`SST · ${tab.toUpperCase()}`} records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/>} 
     {selected&&<SstDrawer record={selected} canApprove={canApprove} canManage={canManage} onClose={()=>setSelected(null)} onConclude={conclude} onEdit={()=>setEditing(selected)}/>}
     {editing&&<SstEditForm record={editing} onClose={()=>setEditing(null)} onSave={saveEdit}/>}
     {creating&&<SstForm nextId={Math.max(0,...records.map(record=>record.id))+1} employees={rh.source==="supabase"?rh.employees:[]} onClose={()=>setCreating(false)} onSave={createRecord}/>}
