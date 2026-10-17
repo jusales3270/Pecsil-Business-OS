@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-17-ip-do-login",
+    data: "2026-10-17",
+    area: "Auditoria",
+    funcionalidades: ["fundacao.auditoria"],
+    modulos: ["fundacao"],
+    titulo: "A Auditoria mostra de onde cada pessoa entrou",
+    itens: [
+      "Em Fundação › Auditoria, cada login passa a mostrar o IP de onde a pessoa entrou e o aparelho (navegador), com senha ou com a digital.",
+      "Vale a partir desta versão: os logins anteriores ficam sem IP, porque esse dado não era guardado.",
+    ],
+  },
+  {
     id: "2026-10-17-guias-do-escritorio",
     data: "2026-10-17",
     area: "Fiscal e Financeiro",
