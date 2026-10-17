@@ -316,6 +316,31 @@ fluxo · limites iniciais · aceite · depende de**.
 
 ---
 
+### Etapa 10: Pedido do cliente → produto do orçamento (Comercial) · C-05 do roadmap
+
+- **Objetivo:** ao ler o pedido de compra do cliente, desempatar qual produto do catálogo é cada
+  linha quando a regra não decide sozinha.
+- **Dados:** o texto do PDF do pedido (lido por regra local em `lib/comercial/pedido-cliente.ts`:
+  item, código, descrição, quantidade, unidade, preço — com o "por 100" —, entrega e valor) e o
+  catálogo `products` (3.902 peças).
+- **Pré-filtro local (sem modelo):** 1) de-para exato do código do cliente (`products.nome_cliente`);
+  2) artigo de 6 dígitos + tipo pelo prefixo (BM, BL, BP, BF, a confirmar pelo Comercial) + material
+  (CI-882, NI-806); 3) palavras da descrição. O Clef só é consultado com mais de um candidato e sem
+  de-para.
+- **Pergunta:** `choice:produto = "Qual produto do catálogo é a peça pedida?"` com até 5 candidatos e
+  "nenhum destes".
+- **Envia:** a descrição da linha (código da peça no cliente) e as descrições dos candidatos.
+  **Não envia:** preço, quantidade, nome do cliente, número do pedido, CNPJ.
+- **Fluxo:** a tela mostra a sugestão da regra (com o motivo) e, à parte, "Sugestão do Clef · %"; a
+  pessoa escolhe; ao adicionar, o código do cliente vira o de-para do produto e a decisão sobre a
+  sugestão é gravada (aceita/corrigida).
+- **Limites iniciais:** alto 0,85 · baixo 0,50.
+- **Aceite:** em 50 linhas reais, 90% ou mais de acerto na faixa alta; nenhuma linha adicionada sem
+  confirmação.
+- **Começa desligada:** registrada em `ai_uses` (`comercial.pedido_produto`) desligada em 17/10/2026;
+  só o proprietário liga, depois da simulação (`scripts/decisao-simular.mjs`) conferida.
+- **Depende de:** Etapa 0. Sem o Clef, a regra sozinha já entrega a leitura e os candidatos.
+
 ## 5. Ordem de execução
 
 > Desde 16/10/2026 a ordem entre os itens é decidida em [`ROADMAP.md`](ROADMAP.md). O que segue fica só como dependências internas e portões deste plano.
@@ -374,3 +399,4 @@ ser feito.
 | 10/10/2026 | 0 | A Etapa 0 (base comum) é construída já com o Clef e passa a servir também ao Segundo Cérebro (triagem de arquivos e mapeamento de colunas). Antes de ligar, simulação em português com casos reais | Proprietário |
 | 10/10/2026 | 0 | Etapa 0 construída com nomes neutros: `lib/decisao/` (guard, core, client), tabelas `ai_uses` e `ai_judgments`, funcionalidade `fundacao.sugestoes`, tela Fundação › Sugestões da IA, componente `SugestaoModelo`, `scripts/clef.mjs` e `scripts/decisao-simular.mjs`. Nenhum uso real ligado; só o uso `fundacao.teste` do proprietário | Claude, plano aprovado pelo proprietário |
 | 10/10/2026 | 1 | Simulação de demonstração com 30 pares de nomes de fornecedores: só com o nome o Clef fica cauteloso (27 de 30 em confiança média; acerta os casos claros). A Etapa 1 precisa mandar mais contexto que o nome (CNPJ quando houver, cidade, o que foi comprado) | Claude, relatório em ~/Downloads |
+| 17/10/2026 | 10 (C-05) | Uso novo registrado desligado: Clef só desempata o produto de cada linha do pedido do cliente entre candidatos da regra; vai só descrição. A leitura do pedido e o de-para são por regra. Ligar depende de simulação conferida | Proprietário autorizou construir; ligar é decisão dele |

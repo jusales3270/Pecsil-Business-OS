@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-17-ler-pedido-do-cliente",
+    data: "2026-10-17",
+    area: "Comercial",
+    funcionalidades: ["comercial.orcamentos"],
+    modulos: ["comercial"],
+    titulo: "Ler o pedido do cliente direto para o orçamento",
+    itens: [
+      "No orçamento, o botão Ler pedido do cliente lê o PDF do pedido de compra (ou o texto colado): item, código da peça, quantidade, unidade, preço (já dividido quando vem \"por 100\"), entrega, o número do pedido, a condição de pagamento e o cliente.",
+      "Para cada linha a plataforma sugere o produto do catálogo e diz por quê (pelo código já ligado ao cliente, pelo artigo e tipo da peça, ou pela descrição). Você confere e adiciona; nada entra sem confirmar.",
+      "Ao confirmar, o código do cliente fica ligado ao produto: no próximo pedido a peça já casa sozinha.",
+    ],
+  },
+  {
     id: "2026-10-17-portal-do-fornecedor",
     data: "2026-10-17",
     area: "Compras",

@@ -7290,6 +7290,27 @@ button.holiday-row:hover {
 /* RH · Exigências por função (R-03) */
 /* RH · Mapa de férias por setor (R-03, parte 2) */
 /* Portal do fornecedor por link (A-09): página pública /cotar/<código> */
+/* Comercial · Ler pedido do cliente (C-05) */
+.vnd-pedido { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.vnd-pedido > footer { display: flex; justify-content: flex-end; gap: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border-subtle); }
+.vnd-pedido-texto { display: flex; flex-direction: column; gap: 6px; }
+.vnd-pedido-texto > span { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.vnd-pedido-texto textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); resize: vertical; }
+.vnd-pedido-linhas { display: flex; flex-direction: column; max-height: 56vh; overflow-y: auto; }
+.vnd-pedido-linha { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; padding: var(--sp-3) 2px; border-top: 1px solid var(--border-subtle); }
+.vnd-pedido-linha:first-child { border-top: 0; }
+.vnd-pedido-linha.fora > :not(.vnd-pedido-produto) { opacity: 0.55; }
+.vnd-pedido-lido { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vnd-pedido-lido b { font-size: var(--fs-sm); color: var(--text-primary); overflow-wrap: anywhere; }
+.vnd-pedido-lido small { font-size: var(--fs-xs); color: var(--text-muted); }
+.vnd-pedido-produto { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 0; text-align: left; }
+.vnd-pedido-produto > span { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.vnd-pedido-produto select { width: 100%; max-width: 100%; text-overflow: ellipsis; }
+.vnd-pedido-porque { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.vnd-pedido-porque small { font-size: var(--fs-xs); color: var(--text-muted); }
+/* O que vem do modelo de decisão fala em azul (regra do repositório). */
+.vnd-pedido-clef { display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid var(--accent-blue); border-radius: 999px; color: var(--accent-blue); font-size: var(--fs-xs); font-weight: 600; }
+
 .cotar { min-height: 100vh; display: flex; flex-direction: column; gap: var(--sp-4); max-width: 920px; margin: 0 auto; padding-block: var(--sp-6);
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: var(--bg-canvas, var(--bg-app)); color: var(--text-primary); }
 .cotar-carregando { margin: 20vh auto; color: var(--text-muted); font-size: var(--fs-sm); }
