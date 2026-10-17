@@ -7803,3 +7803,16 @@ button.holiday-row:hover {
 .parados-texto em { font-style: normal; font-size: var(--fs-micro); color: var(--text-muted); }
 .banco-explicacao { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
 .banco-prontos-acoes { display: flex; gap: var(--sp-2); }
+.doc-drawer footer .doc-motivo { flex: 1 1 100%; display: flex; flex-direction: column; gap: 4px; }
+.doc-motivo span { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.doc-motivo input { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.doc-drawer footer { flex-wrap: wrap; }
+.homologation-vazio { margin: 0; padding: var(--sp-2) 0; font-size: var(--fs-sm); color: var(--text-muted); }
+.homologation-form { display: grid; grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) auto; align-items: end; gap: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border-subtle); }
+.homologation-form label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.homologation-form label > span { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.homologation-form input, .homologation-form select { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+@media (max-width: 760px) { .homologation-form { grid-template-columns: 1fr; } }
+.homologation-checks > div:not(.card-head) > .ds-status { flex: 0 0 auto; width: auto; min-width: 0; margin-left: auto; }
+.homologation-form, .homologation-form label > span { text-align: left; }
+.homologation-form { grid-column: 1 / -1; }

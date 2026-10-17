@@ -21,6 +21,6 @@ test("rh: movimentação de benefício possui fluxo protegido", () => {
 });
 
 test("rh: gestão de benefícios não inclui folha de pagamento", () => {
-  assert.match(source, /sem integração com folha de pagamento/i);
+  assert.match(source, /A folha de pagamento fica com o escritório contábil/);
   assert.match(source, /Dados protegidos por escopo/);
 });

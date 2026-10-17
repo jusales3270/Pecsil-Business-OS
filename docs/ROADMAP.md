@@ -245,7 +245,7 @@ Marco: **1**, **2** ou **+**.
 
 | Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
 |---|---|---|---|---|---|---|---|---|---|---|
-| R-01 | Fechar a Fase 2 (sem mocks, testes, homologar com 2 perfis) | 2 | 4 | 3 | 1,5 | 1 | 6,7 | na fila | — | BP Fase 2 |
+| R-01 | Fechar a Fase 2 (sem mocks, testes, homologar com 2 perfis) | 2 | 4 | 3 | 1,5 | 1 | 6,7 | pronto, aguarda deploy | — | BP Fase 2 |
 | R-02 | Dados do RH (37 linhas, 10 sem CPF, 7 férias vencidas) | + | 3 | 1 | 0,5 | 2 | 10,0 | pedido à equipe | RH | Importações do RH |
 | R-03 | Função define as exigências (EPI, exames, validades) e mapa de férias por setor | + | 4 | 1 | 2 | 1 | 3,0 | na fila | — | BP Fase 2 |
 | R-04 | Cadeia 2: desligamento | + | — | — | — | — | — | decisão | Q1, Q2 | PROCESSOS-PECSIL |
@@ -357,6 +357,7 @@ Marco: **1**, **2** ou **+**.
 | 16/10/2026 | Roadmap único criado: Marco 1 (GRV desligado) e Marco 2 (pronta para escalar); critério (V + 2·D) ÷ E e portões; os planos de detalhe passam a apontar para cá | Proprietário |
 | 16/10/2026 | Entram os itens novos da comparação com o GRV Max: A-07, C-05, A-11, B-08, A-09 e F-10. Os 14 da lista ficam assim: 1 C-05 · 2 A-07, A-08 · 3 A-11, P-06 · 4 B-08 · 5 A-09 · 6 I-08 · 7 F-07 · 8 F-08, I-04 · 9 I-10 · 10 K-05, K-06, P-03 · 11 P-10 · 12 R-03, A-04 · 13 P-06 · 14 F-10 | Proprietário |
 | 16/10/2026 | P-02 construído na Forja (branch `feat/terceiros-operacao`): tela de terceiros na operação do artigo e a correção da aba de lotes, que mostrava toda OP como interna; teste de navegador 15/15 | Claude |
+| 17/10/2026 | R-01 construído: RH sem caminho de demonstração (ação sem banco vira erro), cartão de SST calculado, conferência de documento gravada, aba Homologação real (critérios, conferência dos dados, registro por perfil). Migração 202610170003 aplicada; teste com dois perfis de RH 9/9. Homologação final: Rosana e Bianca (precisam da permissão Homologação do RH) | Claude |
 | 17/10/2026 | A-11 (Fundação › Parados, migração 202610170002 aplicada, teste 4/4) e F-08 (conciliação: CNPJ nas sugestões, motivo de cada uma, explicação da linha sem par, pares de mesmo CNPJ e valor para confirmar em lote; sem migração) construídos. Achado: consultas do Financeiro paravam em 1.000 linhas (limite do Supabase) e passaram a ler em páginas | Claude |
 | 17/10/2026 | Foco só no PecSil até o projeto pronto e validado; raia Z (tenants, white label) adiada. Fila: A-11, F-08, R-01, A-07, F-09 | Proprietário |
 | 17/10/2026 | A-01 construído: material do catálogo na solicitação, cotação, compra, compra direta e recebimento; de-para por fornecedor (CNPJ + código → material, com fator de unidade); tela Almoxarifado › Ligar histórico (420 textos, sugestão por regra). Migração 202610170001 aplicada (17/10); teste de navegador 8/8. Aceite: Henrique e o Compras com dados reais | Claude |

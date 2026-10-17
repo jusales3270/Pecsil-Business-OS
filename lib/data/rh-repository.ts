@@ -96,12 +96,12 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
       .eq("organization_id", organizationId).eq("active", true).order("full_name"),
     supabase
       .from("documents")
-      .select("id,title,category,version,object_path,review_due_at,signature_status,classification,updated_at,employees(full_name)")
+      .select("id,title,category,version,object_path,review_due_at,signature_status,classification,updated_at,review_status,reviewed_by_name,reviewed_at,review_note,employees(full_name)")
       .eq("organization_id", organizationId)
       .eq("module_code", "rh")
       .eq("active", true)
       .order("updated_at", { ascending:false })
-      .limit(50),
+      .limit(1000),
     supabase
       .from("rh_absences")
       .select("id,start_date,end_date,days,employees(full_name,departments(name))")
@@ -281,6 +281,10 @@ function toDocument(row: Row): RhDocument {
     // Documento sensível = classificação confidencial ou restrita.
     sensitive: classification === "confidential" || classification === "restricted",
     updatedAt: formatDateTime(row.updated_at),
+    reviewStatus: row.review_status === "aprovado" || row.review_status === "reprovado" ? row.review_status : null,
+    reviewedBy: row.reviewed_by_name ? String(row.reviewed_by_name) : null,
+    reviewedAt: row.reviewed_at ? formatDateTime(row.reviewed_at) : null,
+    reviewNote: row.review_note ? String(row.review_note) : null,
   };
 }
 
