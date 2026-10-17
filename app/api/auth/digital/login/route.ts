@@ -1,6 +1,7 @@
 import { generateAuthenticationOptions, verifyAuthenticationResponse, type AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { NextResponse } from "next/server";
 import { auditarDigital, base64url, consumirDesafio, guardarDesafio, origemDaRequest } from "../../../../../lib/auth/digital";
+import { registrarIpDoLogin } from "../../../../../lib/auth/ip-login";
 import { createSupabaseAdminClient } from "../../../../../lib/supabase/admin";
 import { createSupabaseServerClient } from "../../../../../lib/supabase/server";
 
@@ -70,5 +71,6 @@ export async function POST(request: Request) {
   if (eSessao) return NextResponse.json({ error: "Não foi possível abrir a sessão agora." }, { status: 503 });
 
   await auditarDigital(admin, { org: chave.organization_id, userId: chave.user_id, profileId: chave.profile_id, evento: "login", passkeyId: chave.id, risco: "normal", dados: { aparelho: chave.aparelho } });
+  await registrarIpDoLogin(admin, { userId: chave.user_id, headers: request.headers, via: "digital" });
   return NextResponse.json({ ok: true });
 }

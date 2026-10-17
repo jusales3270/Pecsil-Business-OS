@@ -171,7 +171,7 @@ Marco: **1**, **2** ou **+**.
 | B-08 | 2FA próprio dos administradores e trava por horário e por IP | 1 | 4 | 2 | 1 | 1 | 8,0 | adiado | — | Novo (16/10) |
 | B-09 | Infraestrutura documentada no Git | 2 | 2 | 2 | 0,5 | 1 | 12,0 | feito ([INFRA.md](INFRA.md)) | — | INFRA-DOC |
 | B-10 | Plano B: nobreak, link reserva, réplica do banco | 2 | 3 | 1 | 1 | 3 | 5,0 | travado | Compra | INFRA-PLANOB |
-| B-11 | IP do login na auditoria (passa pelo proxy) | + | 2 | 1 | 0,5 | 1 | 8,0 | na fila | — | AUD-IP |
+| B-11 | IP do login na auditoria (passa pelo proxy) | + | 2 | 1 | 0,5 | 1 | 8,0 | pronto, aguarda deploy | — | AUD-IP |
 
 ### C — Comercial e faturamento
 
@@ -360,6 +360,7 @@ Marco: **1**, **2** ou **+**.
 | 16/10/2026 | Entram os itens novos da comparação com o GRV Max: A-07, C-05, A-11, B-08, A-09 e F-10. Os 14 da lista ficam assim: 1 C-05 · 2 A-07, A-08 · 3 A-11, P-06 · 4 B-08 · 5 A-09 · 6 I-08 · 7 F-07 · 8 F-08, I-04 · 9 I-10 · 10 K-05, K-06, P-03 · 11 P-10 · 12 R-03, A-04 · 13 P-06 · 14 F-10 | Proprietário |
 | 16/10/2026 | P-02 construído na Forja (branch `feat/terceiros-operacao`): tela de terceiros na operação do artigo e a correção da aba de lotes, que mostrava toda OP como interna; teste de navegador 15/15 | Claude |
 | 17/10/2026 | F-09 construído: o escritório (ou o Fiscal) envia o PDF da guia no portal, a plataforma lê tipo, valor, vencimento e linha digitável por regra (valor conferido com o código de barras), quem envia confere e a guia vira conta a pagar EM APROVAÇÃO; aviso para quem aprova contas a pagar; guia repetida recusada; cancelamento com motivo enquanto não paga; o escritório vê só a situação do pagamento. Migração 202610170005 aplicada; teste de navegador 17/17 (contador, empresa e Financeiro) | Claude |
+| 17/10/2026 | B-11 construído: o GoTrue v2.189.0 grava o login com o IP vazio de propósito (nenhum dos 6.996 registros desde 01/09 tem IP); a plataforma passa a guardar o IP que o Traefik entrega (último do X-Forwarded-For) e o aparelho, no login por senha (gateway /sb) e pela digital, e a Auditoria mostra "IP …" no login. Migração 202610170006 aplicada; teste de navegador 6/6 | Claude |
 | 17/10/2026 | B-09 feito: `docs/INFRA.md` (topologia, portas, serviços com os ids do Coolify, nomes das variáveis, tarefas agendadas, migrações, recuperação por tipo de pane, lacunas), conferido pela API do Coolify. Achados: Coolify aberto em HTTP na porta 8001 pública; senha do Postgres e chaves do MinIO da Forja vazias no Coolify; nenhum backup dos bancos | Claude |
 | 17/10/2026 | Nova fila, pela nota, entre os itens com portões abertos: B-09, B-11, B-07, F-07, A-08 | Claude |
 | 17/10/2026 | A-07 construído: "precisa até" no pedido de material, comparativo na cotação (selos de preço, entrega e pagamento; regra entrega no prazo e depois menor custo), economia gravada na aprovação e impressa na OC. Migração 202610170004 aplicada; teste 7/7 | Claude |

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { registrarIpDoLogin } from "../../../lib/auth/ip-login";
+import { createSupabaseAdminClient } from "../../../lib/supabase/admin";
 import { SUPABASE_ENV_KEYS } from "../../../lib/supabase/config";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +89,12 @@ async function forward(request: Request, context: { params: Promise<{ path: stri
   } catch (error) {
     console.error("[sb-gateway] Supabase interno inacessível:", error instanceof Error ? error.message : error);
     return NextResponse.json({ error: "Supabase indisponível." }, { status: 502 });
+  }
+
+  // Login por senha: o GoTrue grava o login sem IP; a plataforma guarda o IP que o proxy entregou (B-11).
+  if (request.method === "POST" && joined === "auth/v1/token" && source.searchParams.get("grant_type") === "password" && upstream.ok) {
+    const sessao = (await upstream.clone().json().catch(() => null)) as { user?: { id?: string } } | null;
+    if (sessao?.user?.id) await registrarIpDoLogin(createSupabaseAdminClient(), { userId: sessao.user.id, headers: request.headers, via: "senha" });
   }
 
   const responseHeaders = new Headers();
