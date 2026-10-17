@@ -131,7 +131,8 @@ export function prepararMaterial(linha: Record<string, Celula>, regras: RegrasCa
   else if (PLANOS_SUSPEITOS.has(plano)) pendencias.push("plano_suspeito");
   if (unidade !== unidadeOriginal) pendencias.push("unidade_ajustada");
 
-  const imobilizado = tipoNum === "08";
+  // Decisão A7: ativo imobilizado entra inativo e sem estoque, pelo tipo do item OU pela família 08 do GRV.
+  const imobilizado = tipoNum === "08" || String(linha["*Família"] ?? "").trim().startsWith("08");
   const ativo = !imobilizado && (saldo > 0 || custo > 0 || regras.comprados.has(codigo));
   const controla = !imobilizado && (regras.familiasComEstoque.has(familia) || (grupoNome !== null && regras.gruposComEstoque.has(grupoNome)));
 
