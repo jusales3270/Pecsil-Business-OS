@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-17-guias-do-escritorio",
+    data: "2026-10-17",
+    area: "Fiscal e Financeiro",
+    funcionalidades: ["fiscal.portal", "fiscal.escritorio", "financeiro.pagar"],
+    modulos: ["fiscal", "financeiro"],
+    titulo: "Guias de imposto do escritório viram contas a pagar",
+    itens: [
+      "No portal do escritório, cada competência tem a seção Guias de imposto: o escritório envia o PDF do DARF, DCTFWeb, DAS, GARE, FGTS ou ISS, a plataforma lê o tipo, o valor, o vencimento e a linha digitável, e quem envia confere antes de mandar.",
+      "A guia vira conta a pagar em aprovação no Financeiro, com o PDF junto, e quem aprova contas a pagar é avisado. A mesma guia não entra duas vezes.",
+      "O escritório acompanha se cada guia está em aprovação, aprovada ou paga. Guia enviada errada pode ser cancelada com o motivo enquanto não foi paga; a conta a pagar é cancelada junto.",
+    ],
+  },
+  {
     id: "2026-10-17-conciliacao-cnpj",
     data: "2026-10-17",
     area: "Financeiro",

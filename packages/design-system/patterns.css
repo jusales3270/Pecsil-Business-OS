@@ -7232,6 +7232,24 @@ button.holiday-row:hover {
 .portal-form textarea, .portal-responder textarea { resize: vertical; }
 .portal-form { display: grid; grid-template-columns: minmax(0, 1fr) 170px auto; align-items: end; gap: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border-subtle); }
 .portal-form > label { display: flex; flex-direction: column; min-width: 0; }
+/* Guias de imposto do portal (F-09) */
+.portal-guias { display: flex; flex-direction: column; overflow-x: auto; }
+.portal-guias > [role="row"] { display: grid; grid-template-columns: minmax(260px, 1.6fr) 120px 100px minmax(170px, auto) minmax(110px, auto); align-items: center; gap: var(--sp-3); min-width: 820px; padding: 8px 6px; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
+.portal-guias > .cabeca { border-top: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.portal-guias .r { text-align: right; font-variant-numeric: tabular-nums; }
+.portal-guias .nome { display: flex; flex-direction: column; min-width: 0; font-weight: 600; }
+.portal-guias .nome small { font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.portal-guias .portal-linha { font-family: var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
+.portal-guias > .cancelada > span:not(.fiscal-dfe-acoes) { opacity: 0.6; }
+.portal-guias > .cancelada .r { text-decoration: line-through; }
+.portal-guia-cancelar { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: end; gap: var(--sp-3); padding: var(--sp-2) 0 var(--sp-1); }
+.portal-guia-cancelar > label { display: flex; flex-direction: column; min-width: 0; }
+.portal-guia-cancelar > label > span { margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.portal-guia-cancelar input { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.portal-guia-form { display: flex; flex-direction: column; gap: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border-subtle); }
+.portal-guia-form > footer { display: flex; justify-content: flex-end; gap: var(--sp-3); }
+.portal-aviso { display: block; }
+@media (max-width: 720px) { .portal-guia-cancelar { grid-template-columns: 1fr; } }
 .portal-form > label > span { display: block; margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
 .portal-form > label.largo, .portal-form > .portal-form-acoes { grid-column: 1 / -1; }
 .portal-form-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sp-2); }
