@@ -7784,3 +7784,22 @@ button.holiday-row:hover {
 .almox-historico-sugestao.fraca em { font-style: normal; font-weight: 600; color: var(--text-muted); }
 
 .almox-form .almox-item-nota .almox-fator input { flex: none; width: 90px; }
+
+/* Fundação › Parados (A-11) */
+.parados-area { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-5); }
+.parados-area > header { display: flex; align-items: center; gap: var(--sp-2); }
+.parados-area > header h2 { margin: 0; font-size: var(--fs-md); color: var(--text-primary); }
+.parados-area ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle); border-radius: var(--radius-md, 10px); background: var(--bg-surface); }
+.parados-area li { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: var(--sp-3); padding: 10px 14px; border-bottom: 1px solid var(--border-subtle); }
+.parados-area li:last-child { border-bottom: 0; }
+.parados-dias { display: flex; flex-direction: column; align-items: center; line-height: 1.1; color: var(--text-secondary); }
+.parados-dias b { font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }
+.parados-dias small { font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: 0.04em; }
+.parados-dias.bastante { color: var(--accent-amber); }
+.parados-dias.muito { color: var(--accent-red); }
+.parados-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.parados-texto b { font-size: var(--fs-sm); color: var(--text-primary); }
+.parados-texto small { font-size: var(--fs-xs); color: var(--text-secondary); }
+.parados-texto em { font-style: normal; font-size: var(--fs-micro); color: var(--text-muted); }
+.banco-explicacao { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
+.banco-prontos-acoes { display: flex; gap: var(--sp-2); }

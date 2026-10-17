@@ -17,14 +17,15 @@
 |---|---|---|
 | I-01 | Unificação de fornecedores e clientes pelo Clef (Jev, Etapa 1) | Calibração; fila "para unificar" a partir de 17/10 |
 
-**Próximos 5** — pela nota (seção 2), entre os itens do Marco 1 com os portões abertos. Os de nota maior que estão fora esperam uma dependência ou um OK; B-02, P-01, P-03, P-07 e C-08 foram adiados pelo proprietário em 16/10. Só sobram 3 itens do Marco 1 livres, então a fila completa com os do Marco 2
+**Próximos 5** — pela nota (seção 2), entre os itens que melhoram o PecSil com os portões abertos (17/10: white label e tenants ficam para depois). Os de nota maior que estão fora esperam uma dependência ou um OK; B-02, P-01, P-03, P-07 e C-08 foram adiados pelo proprietário em 16/10. Só sobram 3 itens do Marco 1 livres, então a fila completa com os do Marco 2
 
 | Ordem | Item | O quê | Nota | Por que agora |
 |---|---|---|---|---|
-| 1 | F-06 | Alçadas de aprovação e baixa parcial ou reversível no Financeiro | 6,7 | Marco 1; não depende de ninguém |
-| 2 | A-01 | Material do catálogo ligado ao pedido, à cotação e ao recebimento | 6,0 | Marco 1; abre o caminho do estoque (A-02) |
-| 3 | K-08 | Linha de base "antes × depois" | 24 | Marco 2, mas precisa ser registrada antes da virada do GRV |
-| 4 | C-17 | Ordem de compra lê o emitente da configuração fiscal | 20 | Marco 2; tira o último dado da PecSil fixo na OC |
+| 1 | A-11 | Lista de "parados há X dias" (cotação, pedido, rascunho de OS, nota), sem escalonar | 8,0 | Mostra onde o trabalho travou, em todas as áreas |
+| 2 | F-08 | Conciliação: regra com CNPJ e explicação da divergência (sempre com confirmação) | 7,0 | Menos sobra manual para a Ana |
+| 3 | R-01 | Fechar a Fase 2 do RH (sem dados de demonstração, testes, homologar com 2 perfis) | 6,7 | RH validado de verdade |
+| 4 | A-07 | Cotações: selos (preço, prazo, pagamento), regra "prazo depois preço" e saving na OC | 6,0 | Compra melhor e mede a economia |
+| 5 | F-09 | Portal do escritório, Entrega B: guias do contador viram contas a pagar | 5,3 | Tira lançamento manual do Financeiro |
 
 **Quem decide o quê** (regra de 16/10/2026): o proprietário cuida da **construção e dos recursos** da
 plataforma: ordem do roadmap, acessos e permissões, infraestrutura, caixas de e-mail conectadas, uso e custo
@@ -103,6 +104,8 @@ cotações, aprovar NF-e…), nunca para "só o proprietário".
 **Marco 1 — GRV desligado.** Uma semana inteira de pedidos, OS, notas, compras, estoque e financeiro só pela
 plataforma e pela Forja, sem voltar ao GRV. Os critérios de aceite estão na E8 do plano do orçamento e na M7 do
 almoxarifado. Pré-requisitos fora da construção: NF-e em produção e a contagem física do estoque.
+
+> **17/10/2026, decisão do proprietário:** primeiro fechar a construção do PecSil Business OS pronto e validado. Abertura de outras empresas (tenants) e venda white label ficam para depois: a raia Z está adiada e o Marco 2 só volta quando o proprietário decidir.
 
 **Marco 2 — Pronta para escalar.** Uma segunda empresa de teste é criada do zero, sem nenhum código ou texto
 da PecSil fixo:
@@ -203,7 +206,7 @@ Marco: **1**, **2** ou **+**.
 | A-08 | Equivalência de itens em cotações | + | 3 | 1 | 1,5 | 2 | 3,3 | na fila | Rever depois de A-01 | Jev E7 |
 | A-09 | Portal do fornecedor (conta de terceiro com validade, como o do escritório) | + | 4 | 1 | 3 | 1 | 2,0 | na fila | — | Novo (16/10) |
 | A-10 | Dados do GRV para o estoque (movimentação, próximo número, locais, NCM) | 1 | 3 | 4 | 0,5 | 2 | 22,0 | pedido à equipe | Jefferson, Henrique | ALM §6 |
-| A-11 | Lista de "parados há X dias" (cotação, pedido, rascunho de OS, nota), sem escalonar | + | 4 | 2 | 1 | 1 | 8,0 | na fila | — | Novo (16/10) |
+| A-11 | Lista de "parados há X dias" (cotação, pedido, rascunho de OS, nota), sem escalonar | + | 4 | 2 | 1 | 1 | 8,0 | pronto, aguarda deploy | — | Novo (16/10) |
 
 ### P — Produção (Forja)
 
@@ -233,7 +236,7 @@ Marco: **1**, **2** ou **+**.
 | F-05 | Centros de custo e cadastros financeiros reais | + | 4 | 2 | 1 | 3 | 8,0 | decisão | D1 | CM E1 |
 | F-06 | Alçadas de aprovação e baixa parcial ou reversível | 1 | 4 | 3 | 1,5 | 1 | 6,7 | no ar (conferir em produção) | — | BP Fase 3 |
 | F-07 | Fluxo de caixa de 90 dias (cenários por regra; a explicação fica para a SARA) | + | 4 | 2 | 2 | 1 | 4,0 | na fila | — | BP Fase 3 |
-| F-08 | Conciliação: regra com CNPJ e explicação da divergência (sempre com confirmação) | + | 3 | 2 | 1 | 1 | 7,0 | na fila | — | Conciliação |
+| F-08 | Conciliação: regra com CNPJ e explicação da divergência (sempre com confirmação) | + | 3 | 2 | 1 | 1 | 7,0 | pronto, aguarda deploy | — | Conciliação |
 | F-09 | Portal do escritório, Entrega B (guias viram contas a pagar) | + | 4 | 2 | 1,5 | 1 | 5,3 | na fila | — | Portal do escritório |
 | F-10 | Pix e boleto registrados, Open Finance | + | 4 | 1 | 5 | 3 | 1,2 | decisão | Escolher o banco | Novo (16/10) |
 | F-13 | Homologação do Financeiro com a Tesouraria | 1 | 5 | 5 | 1 | 2 | 15,0 | na fila | F-01 | BP Fase 3 |
@@ -278,12 +281,12 @@ Marco: **1**, **2** ou **+**.
 
 | Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Z-01 | Fundação testada: contrato, isolamento por empresa, status "Homologado" | 2 | 4 | 5 | 1 | 1 | 14,0 | na fila | — | BP Fase 1 |
-| Z-02 | Tudo da empresa como configuração (marca, setores, triagem, conector da Forja, cookie) | 2 | 4 | 5 | 3 | 1 | 4,7 | na fila | Z-01 | VIS 6.1 |
-| Z-03 | Design System extraído (RH no DS) | 2 | 3 | 3 | 2 | 1 | 4,5 | na fila | — | BP D2 |
-| Z-04 | Blueprint atualizado (stack real, os 10 domínios) | 2 | 2 | 2 | 0,5 | 1 | 12,0 | na fila | — | BP D3, D4 |
-| Z-05 | Cadastro, cobrança e suporte da nova empresa | 2 | — | — | — | — | — | decisão | Pedido do proprietário | VIS 6.2 |
-| Z-06 | Reações entre módulos (cadeias confirmadas) | + | 4 | 2 | 3 | 3 | 2,7 | travado | Cadeias 2 e 3 | VIS P2.3 |
+| Z-01 | Fundação testada: contrato, isolamento por empresa, status "Homologado" | 2 | 4 | 5 | 1 | 1 | 14,0 | adiado (white label) | — | BP Fase 1 |
+| Z-02 | Tudo da empresa como configuração (marca, setores, triagem, conector da Forja, cookie) | 2 | 4 | 5 | 3 | 1 | 4,7 | adiado (white label) | Z-01 | VIS 6.1 |
+| Z-03 | Design System extraído (RH no DS) | 2 | 3 | 3 | 2 | 1 | 4,5 | adiado (white label) | — | BP D2 |
+| Z-04 | Blueprint atualizado (stack real, os 10 domínios) | 2 | 2 | 2 | 0,5 | 1 | 12,0 | adiado (white label) | — | BP D3, D4 |
+| Z-05 | Cadastro, cobrança e suporte da nova empresa | 2 | — | — | — | — | — | adiado (white label) | Pedido do proprietário | VIS 6.2 |
+| Z-06 | Reações entre módulos (cadeias confirmadas) | + | 4 | 2 | 3 | 3 | 2,7 | adiado (white label) | Cadeias 2 e 3 | VIS P2.3 |
 
 ---
 
@@ -354,6 +357,8 @@ Marco: **1**, **2** ou **+**.
 | 16/10/2026 | Roadmap único criado: Marco 1 (GRV desligado) e Marco 2 (pronta para escalar); critério (V + 2·D) ÷ E e portões; os planos de detalhe passam a apontar para cá | Proprietário |
 | 16/10/2026 | Entram os itens novos da comparação com o GRV Max: A-07, C-05, A-11, B-08, A-09 e F-10. Os 14 da lista ficam assim: 1 C-05 · 2 A-07, A-08 · 3 A-11, P-06 · 4 B-08 · 5 A-09 · 6 I-08 · 7 F-07 · 8 F-08, I-04 · 9 I-10 · 10 K-05, K-06, P-03 · 11 P-10 · 12 R-03, A-04 · 13 P-06 · 14 F-10 | Proprietário |
 | 16/10/2026 | P-02 construído na Forja (branch `feat/terceiros-operacao`): tela de terceiros na operação do artigo e a correção da aba de lotes, que mostrava toda OP como interna; teste de navegador 15/15 | Claude |
+| 17/10/2026 | A-11 (Fundação › Parados, migração 202610170002 aplicada, teste 4/4) e F-08 (conciliação: CNPJ nas sugestões, motivo de cada uma, explicação da linha sem par, pares de mesmo CNPJ e valor para confirmar em lote; sem migração) construídos. Achado: consultas do Financeiro paravam em 1.000 linhas (limite do Supabase) e passaram a ler em páginas | Claude |
+| 17/10/2026 | Foco só no PecSil até o projeto pronto e validado; raia Z (tenants, white label) adiada. Fila: A-11, F-08, R-01, A-07, F-09 | Proprietário |
 | 17/10/2026 | A-01 construído: material do catálogo na solicitação, cotação, compra, compra direta e recebimento; de-para por fornecedor (CNPJ + código → material, com fator de unidade); tela Almoxarifado › Ligar histórico (420 textos, sugestão por regra). Migração 202610170001 aplicada (17/10); teste de navegador 8/8. Aceite: Henrique e o Compras com dados reais | Claude |
 | 16/10/2026 | Deploy de `fffcfe8` (F-06, C-17, K-08 e decisões por área); avisos de revisão da linha de base enviados à Ana, Domingo, Ricardo e Rafael | Proprietário / Claude |
 | 16/10/2026 | **Decisões vão para a área, não para o proprietário** (pedido dele): quadro "Quem decide o quê"; D1–D7 e A3–A10 redistribuídas; na plataforma (migração 0008) a linha de base é revisada por área, numeração e treino do orçamento são do Comercial, ligar a NF-e em produção é de quem aprova NF-e, e as alçadas não têm mais exceção do proprietário | Proprietário |
