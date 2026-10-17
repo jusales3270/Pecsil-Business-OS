@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-17-portal-do-fornecedor",
+    data: "2026-10-17",
+    area: "Compras",
+    funcionalidades: ["compras.cotacoes"],
+    modulos: ["compras"],
+    titulo: "Convidar fornecedor por link",
+    itens: [
+      "Em Pedidos almoxarifado, o botão Convidar fornecedor gera um link só daquele pedido e daquele fornecedor, com validade, e uma mensagem pronta para mandar por e-mail ou WhatsApp.",
+      "O fornecedor abre sem login, preenche preço, IPI, quantidade, prazo de entrega, frete e condição de pagamento e anexa o PDF da proposta. A resposta vira uma cotação pendente ligada ao pedido, e você recebe um aviso.",
+      "O pedido mostra cada convite: aberto, já aberto pelo fornecedor, respondido (com o número da cotação), vencido ou cancelado. Por segurança, o link só aparece na hora de gerar.",
+    ],
+  },
+  {
     id: "2026-10-17-mapa-de-ferias",
     data: "2026-10-17",
     area: "RH",
