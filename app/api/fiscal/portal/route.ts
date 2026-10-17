@@ -51,13 +51,14 @@ export async function GET(request: Request) {
   if (eInd) return NextResponse.json({ error: eInd.message }, { status: 400 });
 
   const compId = competencia?.id ?? null;
-  const [{ data: itens }, { data: malotes }, { data: pendencias }] = await Promise.all([
+  const [{ data: itens }, { data: malotes }, { data: pendencias }, { data: guias }] = await Promise.all([
     compId ? sb.from("fiscal_competencia_itens").select("*").eq("competencia_id", compId).order("ordem") : Promise.resolve({ data: [] }),
     compId ? sb.from("fiscal_malotes").select("*").eq("competencia_id", compId).order("numero") : Promise.resolve({ data: [] }),
     // Pendências: todas as abertas, mais as resolvidas desta competência.
     compId
       ? sb.from("fiscal_pendencias").select("*").or(`situacao.neq.resolvida,competencia_id.eq.${compId}`).order("updated_at", { ascending: false }).limit(100)
       : sb.from("fiscal_pendencias").select("*").neq("situacao", "resolvida").order("updated_at", { ascending: false }).limit(100),
+    compId ? sb.rpc("fiscal_portal_guias", { p_competencia: compId }) : Promise.resolve({ data: [] }),
   ]);
   const idsPend = (pendencias ?? []).map((p) => p.id);
   const [{ data: mensagens }, { data: anexos }] = await Promise.all([
@@ -73,7 +74,7 @@ export async function GET(request: Request) {
     lado, precisaAceite: false, mes,
     podeOperar: lado === "escritorio" || guard.access.isOwner || guard.access.can("fiscal.escritorio", "operar"),
     competencias: competencias ?? [], competencia: competencia ?? null, itens: itens ?? [], indicadores,
-    malotes: malotes ?? [], pendencias: pendencias ?? [], mensagens: mensagens ?? [], anexos: anexos ?? [],
+    malotes: malotes ?? [], pendencias: pendencias ?? [], mensagens: mensagens ?? [], anexos: anexos ?? [], guias: guias ?? [],
   });
 }
 
@@ -86,7 +87,8 @@ type Acao =
   | { acao: "receber"; malote: string; observacao?: string }
   | { acao: "pendencia"; competencia?: string | null; assunto: string; texto: string }
   | { acao: "responder"; pendencia: string; texto: string }
-  | { acao: "resolver"; pendencia: string };
+  | { acao: "resolver"; pendencia: string }
+  | { acao: "cancelar_guia"; guia: string; motivo: string };
 
 export async function POST(request: Request) {
   const guard = await requireAnyFeature(["fiscal.escritorio", "fiscal.portal"]);
@@ -106,6 +108,7 @@ export async function POST(request: Request) {
     case "pendencia": if (texto(a.assunto, 160).length >= 3 && texto(a.texto, 4000)) chamada = { fn: "fiscal_portal_pendencia_abrir", args: { p_competencia: id(a.competencia), p_assunto: texto(a.assunto, 160), p_texto: texto(a.texto, 4000) } }; break;
     case "responder": if (texto(a.texto, 4000)) chamada = { fn: "fiscal_portal_pendencia_responder", args: { p_pendencia: id(a.pendencia), p_texto: texto(a.texto, 4000) } }; break;
     case "resolver": chamada = { fn: "fiscal_portal_pendencia_resolver", args: { p_pendencia: id(a.pendencia) } }; break;
+    case "cancelar_guia": if (texto(a.motivo, 500)) chamada = { fn: "fiscal_portal_guia_cancelar", args: { p_guia: id(a.guia), p_motivo: texto(a.motivo, 500) } }; break;
   }
   if (!chamada) return NextResponse.json({ error: "Preencha os campos da ação." }, { status: 400 });
   const { data, error } = await guard.supabase.rpc(chamada.fn, chamada.args);

@@ -21,11 +21,13 @@
 
 | Ordem | Item | O quê | Nota | Por que agora |
 |---|---|---|---|---|
-| 1 | A-11 | Lista de "parados há X dias" (cotação, pedido, rascunho de OS, nota), sem escalonar | 8,0 | Mostra onde o trabalho travou, em todas as áreas |
-| 2 | F-08 | Conciliação: regra com CNPJ e explicação da divergência (sempre com confirmação) | 7,0 | Menos sobra manual para a Ana |
-| 3 | R-01 | Fechar a Fase 2 do RH (sem dados de demonstração, testes, homologar com 2 perfis) | 6,7 | RH validado de verdade |
-| 4 | A-07 | Cotações: selos (preço, prazo, pagamento), regra "prazo depois preço" e saving na OC | 6,0 | Compra melhor e mede a economia |
-| 5 | F-09 | Portal do escritório, Entrega B: guias do contador viram contas a pagar | 5,3 | Tira lançamento manual do Financeiro |
+| 1 | B-09 | Infraestrutura documentada no Git (Coolify, serviços, variáveis sem os valores, rotina de recuperação) | 12,0 | Sem isso, uma pane no servidor depende de memória |
+| 2 | B-11 | IP do login na auditoria (passa pelo proxy) | 8,0 | A trilha de auditoria fica completa |
+| 3 | B-07 | Build fora do servidor e webhook de deploy | 7,0 | O build deixa de pesar no servidor da produção (muda o jeito do Deploy: OK do proprietário antes) |
+| 4 | F-07 | Fluxo de caixa de 90 dias (cenários por regra) | 4,0 | A Ana vê o caixa à frente, não só o passado |
+| 5 | A-08 | Equivalência de itens em cotações (revisto depois do A-01) | 3,3 | Comparativo de cotação mais preciso |
+
+A fila de 17/10 (A-11, F-08, R-01, A-07, F-09) foi toda construída e aguarda o Deploy.
 
 **Quem decide o quê** (regra de 16/10/2026): o proprietário cuida da **construção e dos recursos** da
 plataforma: ordem do roadmap, acessos e permissões, infraestrutura, caixas de e-mail conectadas, uso e custo
@@ -237,7 +239,7 @@ Marco: **1**, **2** ou **+**.
 | F-06 | Alçadas de aprovação e baixa parcial ou reversível | 1 | 4 | 3 | 1,5 | 1 | 6,7 | no ar (conferir em produção) | — | BP Fase 3 |
 | F-07 | Fluxo de caixa de 90 dias (cenários por regra; a explicação fica para a SARA) | + | 4 | 2 | 2 | 1 | 4,0 | na fila | — | BP Fase 3 |
 | F-08 | Conciliação: regra com CNPJ e explicação da divergência (sempre com confirmação) | + | 3 | 2 | 1 | 1 | 7,0 | pronto, aguarda deploy | — | Conciliação |
-| F-09 | Portal do escritório, Entrega B (guias viram contas a pagar) | + | 4 | 2 | 1,5 | 1 | 5,3 | na fila | — | Portal do escritório |
+| F-09 | Portal do escritório, Entrega B (guias viram contas a pagar) | + | 4 | 2 | 1,5 | 1 | 5,3 | pronto, aguarda deploy | — | Portal do escritório |
 | F-10 | Pix e boleto registrados, Open Finance | + | 4 | 1 | 5 | 3 | 1,2 | decisão | Escolher o banco | Novo (16/10) |
 | F-13 | Homologação do Financeiro com a Tesouraria | 1 | 5 | 5 | 1 | 2 | 15,0 | na fila | F-01 | BP Fase 3 |
 
@@ -357,6 +359,8 @@ Marco: **1**, **2** ou **+**.
 | 16/10/2026 | Roadmap único criado: Marco 1 (GRV desligado) e Marco 2 (pronta para escalar); critério (V + 2·D) ÷ E e portões; os planos de detalhe passam a apontar para cá | Proprietário |
 | 16/10/2026 | Entram os itens novos da comparação com o GRV Max: A-07, C-05, A-11, B-08, A-09 e F-10. Os 14 da lista ficam assim: 1 C-05 · 2 A-07, A-08 · 3 A-11, P-06 · 4 B-08 · 5 A-09 · 6 I-08 · 7 F-07 · 8 F-08, I-04 · 9 I-10 · 10 K-05, K-06, P-03 · 11 P-10 · 12 R-03, A-04 · 13 P-06 · 14 F-10 | Proprietário |
 | 16/10/2026 | P-02 construído na Forja (branch `feat/terceiros-operacao`): tela de terceiros na operação do artigo e a correção da aba de lotes, que mostrava toda OP como interna; teste de navegador 15/15 | Claude |
+| 17/10/2026 | F-09 construído: o escritório (ou o Fiscal) envia o PDF da guia no portal, a plataforma lê tipo, valor, vencimento e linha digitável por regra (valor conferido com o código de barras), quem envia confere e a guia vira conta a pagar EM APROVAÇÃO; aviso para quem aprova contas a pagar; guia repetida recusada; cancelamento com motivo enquanto não paga; o escritório vê só a situação do pagamento. Migração 202610170005 aplicada; teste de navegador 17/17 (contador, empresa e Financeiro) | Claude |
+| 17/10/2026 | Nova fila, pela nota, entre os itens com portões abertos: B-09, B-11, B-07, F-07, A-08 | Claude |
 | 17/10/2026 | A-07 construído: "precisa até" no pedido de material, comparativo na cotação (selos de preço, entrega e pagamento; regra entrega no prazo e depois menor custo), economia gravada na aprovação e impressa na OC. Migração 202610170004 aplicada; teste 7/7 | Claude |
 | 17/10/2026 | R-01 construído: RH sem caminho de demonstração (ação sem banco vira erro), cartão de SST calculado, conferência de documento gravada, aba Homologação real (critérios, conferência dos dados, registro por perfil). Migração 202610170003 aplicada; teste com dois perfis de RH 9/9. Homologação final: Rosana e Bianca (precisam da permissão Homologação do RH) | Claude |
 | 17/10/2026 | A-11 (Fundação › Parados, migração 202610170002 aplicada, teste 4/4) e F-08 (conciliação: CNPJ nas sugestões, motivo de cada uma, explicação da linha sem par, pares de mesmo CNPJ e valor para confirmar em lote; sem migração) construídos. Achado: consultas do Financeiro paravam em 1.000 linhas (limite do Supabase) e passaram a ler em páginas | Claude |

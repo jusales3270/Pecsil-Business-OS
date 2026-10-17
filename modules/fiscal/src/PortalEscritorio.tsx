@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button, Callout, EscolherArquivo, Status } from "../../../packages/design-system";
-import { api, curto, dataHora, hoje, money, nomeMes } from "./comum";
+import { CREDOR_GUIA, TIPOS_GUIA, valorDigitado, type GuiaLida, type TipoGuia } from "../../../lib/fiscal/guia-parser";
+import { api, curto, dataHora, date, hoje, money, nomeMes } from "./comum";
 
 /**
  * Portal do escritório de contabilidade (Fiscal). Uma tela, dois lados:
  *   empresa    — "Escritório contábil": prepara o fechamento do mês, registra o malote, responde;
  *   escritorio — "Portal do contador": acompanha, confirma o malote, abre e responde pendências,
- *                envia anexos e confere a competência.
+ *                envia anexos e guias e confere a competência.
+ * As guias de imposto viram contas a pagar em aprovação no Financeiro (F-09).
  * O malote continua levando o papel; o andamento fica aqui. O escritório vê só os totais do mês.
  */
 
@@ -20,6 +22,11 @@ type Malote = { id: string; numero: number; enviado_em: string; conteudo: string
 type Pendencia = { id: string; competencia_id: string | null; assunto: string; aberta_por_lado: Lado; aberta_por_nome: string | null; situacao: "aguardando_empresa" | "aguardando_escritorio" | "resolvida"; resolvida_por_nome: string | null; updated_at: string };
 type Mensagem = { id: string; pendencia_id: string; lado: Lado; autor_nome: string | null; texto: string; created_at: string };
 type Anexo = { id: string; document_id: string; competencia_id: string | null; pendencia_id: string | null; lado: Lado; nome: string; tamanho: number; enviado_por_nome: string | null; created_at: string };
+type Guia = {
+  id: string; tipo: TipoGuia; credor: string; valor: number; vencimento: string; linha_digitavel: string | null; observacao: string | null; situacao: "enviada" | "cancelada";
+  pagamento: "em_aprovacao" | "aprovada" | "paga" | "paga_em_parte" | "cancelada"; pago_em: string | null; cancelada_motivo: string | null; cancelada_por_nome: string | null;
+  document_id: string; nome_arquivo: string | null; lado: Lado; enviado_por_nome: string | null; created_at: string;
+};
 type Indicadores = {
   notas_entrada: { quantidade: number; valor: number; icms: number; sem_xml: number };
   notas_sefaz: { quantidade: number; fora_do_painel: number; canceladas: number };
@@ -31,7 +38,7 @@ type Dados =
   | {
     lado: Lado; precisaAceite: false; mes: string; podeOperar: boolean;
     competencias: { id: string; competencia: string; situacao: Situacao }[]; competencia: Competencia | null; itens: Item[]; indicadores: Indicadores;
-    malotes: Malote[]; pendencias: Pendencia[]; mensagens: Mensagem[]; anexos: Anexo[];
+    malotes: Malote[]; pendencias: Pendencia[]; mensagens: Mensagem[]; anexos: Anexo[]; guias: Guia[];
   };
 
 const ETAPAS: { id: Situacao; rotulo: string }[] = [
@@ -106,7 +113,9 @@ export function PortalEscritorio({ notify }: { notify: (m: string) => void }) {
   const pode = dados.podeOperar;
   // Fechada: todas as etapas concluídas.
   const etapa = !c ? -1 : c.situacao === "fechada" ? ETAPAS.length : ETAPAS.findIndex((e) => e.id === c.situacao);
-  const anexosComp = dados.anexos.filter((a) => a.competencia_id && a.competencia_id === c?.id && !a.pendencia_id);
+  // O PDF de cada guia aparece na própria guia, não repetido nos documentos do mês.
+  const docsDeGuia = new Set(dados.guias.map((g) => g.document_id));
+  const anexosComp = dados.anexos.filter((a) => a.competencia_id && a.competencia_id === c?.id && !a.pendencia_id && !docsDeGuia.has(a.document_id));
   const abertas = dados.pendencias.filter((p) => p.situacao !== "resolvida");
   const resolvidas = dados.pendencias.filter((p) => p.situacao === "resolvida");
   const prontos = dados.itens.filter((i) => i.situacao !== "pendente").length;
@@ -170,6 +179,7 @@ export function PortalEscritorio({ notify }: { notify: (m: string) => void }) {
           </section>
 
           <Malotes competencia={c} malotes={dados.malotes} lado={dados.lado} pode={pode} ocupado={ocupado} agir={agir} />
+          <Guias competencia={c} mes={mes} guias={dados.guias} lado={dados.lado} pode={pode} ocupado={ocupado} agir={agir} notify={notify} onMudou={() => void carregar(mes)} />
         </>
       )}
 
@@ -324,5 +334,152 @@ function Anexos({ titulo, anexos, pode, alvo, notify, onMudou }: { titulo: strin
       ))}
       {pode && <EscolherArquivo rotulo="Anexar arquivo" compacto ocupado={enviando} textoOcupado="Enviando o arquivo…" onEscolher={(a) => void enviar(a[0])} />}
     </div>
+  );
+}
+
+const PAGAMENTO: Record<Guia["pagamento"], [string, "success" | "attention" | "neutral" | "info"]> = {
+  em_aprovacao: ["Em aprovação no Financeiro", "attention"], aprovada: ["Aprovada, a pagar", "info"], paga: ["Paga", "success"],
+  paga_em_parte: ["Paga em parte", "attention"], cancelada: ["Cancelada", "neutral"],
+};
+const linhaFormatada = (l: string | null) => (l && l.length === 48 ? l.match(/.{12}/g)!.map((b) => `${b.slice(0, 11)}-${b[11]}`).join(" ") : l ?? "");
+type Rascunho = { arquivo: File; tipo: TipoGuia | ""; valor: string; vencimento: string; linha: string; observacao: string; lida: GuiaLida; erro?: string };
+
+/**
+ * Guias de imposto (F-09). Quem envia escolhe o PDF, a plataforma lê por regra e mostra os campos para
+ * conferir; ao enviar, a guia vira conta a pagar EM APROVAÇÃO no Financeiro (quem aprova contas a pagar
+ * é avisado). Guia errada se cancela enquanto não foi paga; paga, só o Financeiro estorna.
+ */
+function Guias({ competencia, mes, guias, lado, pode, ocupado, agir, notify, onMudou }: {
+  competencia: Competencia; mes: string; guias: Guia[]; lado: Lado; pode: boolean; ocupado: string | null; agir: Agir; notify: (m: string) => void; onMudou: () => void;
+}) {
+  const [lendo, setLendo] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [rascunho, setRascunho] = useState<Rascunho | null>(null);
+  const [cancelando, setCancelando] = useState<string | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const ativas = guias.filter((g) => g.situacao !== "cancelada");
+  const total = ativas.reduce((s, g) => s + Number(g.valor), 0);
+
+  const ler = async (arquivo: File | undefined) => {
+    if (!arquivo) return;
+    setLendo(true);
+    const corpo = new FormData();
+    corpo.append("acao", "ler");
+    corpo.append("arquivo", arquivo);
+    const r = await api<{ guia: GuiaLida }>("/api/fiscal/portal/guia", { method: "POST", body: corpo });
+    setLendo(false);
+    if (!r.ok) { notify(r.error); return; }
+    const g = r.data.guia;
+    setRascunho({ arquivo, tipo: g.tipo ?? "", valor: g.valor === null ? "" : g.valor.toFixed(2).replace(".", ","), vencimento: g.vencimento ?? "", linha: g.linhaDigitavel ?? "", observacao: "", lida: g });
+  };
+  const enviar = async () => {
+    if (!rascunho) return;
+    setEnviando(true);
+    const corpo = new FormData();
+    corpo.append("acao", "enviar");
+    corpo.append("arquivo", rascunho.arquivo);
+    corpo.append("competencia", competencia.id);
+    corpo.append("tipo", rascunho.tipo);
+    corpo.append("valor", rascunho.valor);
+    corpo.append("vencimento", rascunho.vencimento);
+    corpo.append("linha", rascunho.linha);
+    corpo.append("observacao", rascunho.observacao);
+    const r = await api<{ guia: string }>("/api/fiscal/portal/guia", { method: "POST", body: corpo });
+    setEnviando(false);
+    // O erro fica no formulário (o aviso some em segundos): guia repetida, competência, arquivo.
+    if (!r.ok) { notify(r.error); setRascunho({ ...rascunho, erro: r.error }); return; }
+    notify(`Guia ${rascunho.tipo} enviada: virou conta a pagar em aprovação no Financeiro.`);
+    setRascunho(null);
+    onMudou();
+  };
+  const cancelar = async (g: Guia) => {
+    if (await agir(`guia-${g.id}`, { acao: "cancelar_guia", guia: g.id, motivo }, `Guia ${g.tipo} cancelada; a conta a pagar foi cancelada junto.`)) { setCancelando(null); setMotivo(""); }
+  };
+
+  const avisos = rascunho ? [
+    ...rascunho.lida.avisos,
+    ...(rascunho.lida.competencia && rascunho.lida.competencia !== mes ? [`O PDF diz competência ${nomeMes(rascunho.lida.competencia)}, mas a tela está em ${nomeMes(mes)}: a guia entra em ${nomeMes(mes)}. Se for de outro mês, troque a competência no alto.`] : []),
+    ...(!rascunho.lida.tipo ? ["Não reconheci o tipo da guia: escolha abaixo."] : []),
+  ] : [];
+  const valorNum = rascunho ? valorDigitado(rascunho.valor) : NaN;
+  const linhaDig = rascunho?.linha.replace(/\D/g, "") ?? "";
+  const completo = Boolean(rascunho && rascunho.tipo && valorNum > 0 && /^\d{4}-\d{2}-\d{2}$/.test(rascunho.vencimento) && (!linhaDig || linhaDig.length === 44 || linhaDig.length === 48));
+
+  if (!guias.length && !pode) return null;
+  return (
+    <section className="almox-bloco fiscal-config-bloco" aria-label="Guias de imposto">
+      <header>
+        <h2>Guias de imposto</h2>
+        {ativas.length > 0 && <Status tone="info">{ativas.length} {ativas.length === 1 ? "guia" : "guias"} · {money(total)}</Status>}
+      </header>
+      <p className="fiscal-nota-ajuda">{lado === "escritorio"
+        ? "Envie aqui o PDF de cada guia do mês (DARF, DCTFWeb, DAS, GARE, FGTS, ISS). A guia vira conta a pagar no Financeiro da empresa, que aprova e paga; a situação do pagamento aparece abaixo."
+        : "As guias que o escritório envia (ou que você envia daqui) viram contas a pagar em aprovação no Financeiro. Quem aprova contas a pagar é avisado."}</p>
+
+      {guias.length > 0 && (
+        <div className="portal-guias" role="table" aria-label="Guias da competência">
+          <div className="cabeca" role="row"><span>Guia</span><span className="r">Valor</span><span>Vencimento</span><span>Pagamento</span><span /></div>
+          {guias.map((g) => (
+            <div role="row" key={g.id} className={g.situacao === "cancelada" ? "cancelada" : ""}>
+              <span className="nome">
+                {g.tipo} · {g.credor}
+                <small>{g.lado === "escritorio" ? "Escritório" : "Empresa"}{g.enviado_por_nome ? ` · ${g.enviado_por_nome}` : ""} · {dataHora(g.created_at)}</small>
+                {g.linha_digitavel && <small className="portal-linha" title={g.linha_digitavel}>{linhaFormatada(g.linha_digitavel)}</small>}
+                {g.situacao === "cancelada" && <small>Cancelada{g.cancelada_por_nome ? ` por ${g.cancelada_por_nome}` : ""}: {g.cancelada_motivo}</small>}
+              </span>
+              <span className="r">{money(Number(g.valor))}</span>
+              <span>{date(g.vencimento)}</span>
+              <span><Status tone={PAGAMENTO[g.pagamento][1]}>{PAGAMENTO[g.pagamento][0]}{g.pagamento === "paga" && g.pago_em ? ` em ${date(g.pago_em)}` : ""}</Status></span>
+              <span className="fiscal-dfe-acoes">
+                <a className="almox-link" href={`/api/fiscal/portal/anexo/${g.document_id}`} target="_blank" rel="noreferrer">PDF</a>
+                {pode && g.situacao === "enviada" && (g.pagamento === "em_aprovacao" || g.pagamento === "aprovada") && cancelando !== g.id && (
+                  <button type="button" className="almox-link" onClick={() => { setCancelando(g.id); setMotivo(""); }}>Cancelar</button>
+                )}
+              </span>
+              {cancelando === g.id && (
+                <div className="portal-guia-cancelar">
+                  <label><span>Motivo do cancelamento</span><input value={motivo} maxLength={500} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: valor errado, guia reemitida" autoFocus /></label>
+                  <Button variant="ghost" onClick={() => setCancelando(null)}>Voltar</Button>
+                  <Button onClick={() => void cancelar(g)} disabled={!motivo.trim() || ocupado === `guia-${g.id}`}>{ocupado === `guia-${g.id}` ? "Cancelando…" : "Cancelar guia e conta"}</Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {pode && !rascunho && (
+        <div className="portal-anexos">
+          <EscolherArquivo rotulo="Enviar guia (PDF)" aceita=".pdf,application/pdf" compacto ocupado={lendo} textoOcupado="Lendo a guia…" onEscolher={(a) => void ler(a[0])} />
+        </div>
+      )}
+
+      {rascunho && (
+        <div className="portal-guia-form">
+          <span className="almox-rotulo">Confira a guia antes de enviar · {rascunho.arquivo.name}</span>
+          {avisos.length > 0 && <Callout variant="warning" title="Confira">{avisos.map((a) => <span key={a} className="portal-aviso">{a}</span>)}</Callout>}
+          <div className="fiscal-campos">
+            <label><span>Tipo</span>
+              <select className="icms-select" value={rascunho.tipo} onChange={(e) => setRascunho({ ...rascunho, tipo: e.target.value as TipoGuia })}>
+                <option value="">Escolha…</option>
+                {TIPOS_GUIA.map((t) => <option key={t} value={t}>{t === "Outra" ? "Outra guia" : `${t} · ${CREDOR_GUIA[t]}`}</option>)}
+              </select>
+            </label>
+            <label><span>Valor (R$)</span><input inputMode="decimal" placeholder="0,00" value={rascunho.valor} onChange={(e) => setRascunho({ ...rascunho, valor: e.target.value })} /></label>
+            <label><span>Vencimento</span><input type="date" value={rascunho.vencimento} onChange={(e) => setRascunho({ ...rascunho, vencimento: e.target.value })} /></label>
+            <label className="fiscal-inteiro"><span>Linha digitável <small>(48 dígitos; pode ficar em branco se a guia não tiver)</small></span><input inputMode="numeric" value={rascunho.linha} onChange={(e) => setRascunho({ ...rascunho, linha: e.target.value })} /></label>
+            <label className="fiscal-inteiro"><span>Observação para o Financeiro <small>(opcional)</small></span><input maxLength={500} value={rascunho.observacao} onChange={(e) => setRascunho({ ...rascunho, observacao: e.target.value })} /></label>
+          </div>
+          {rascunho.lida.valorDoCodigo !== null && Math.abs(rascunho.lida.valorDoCodigo - valorNum) > 0.009 && valorNum > 0 && (
+            <small className="fiscal-erro">O código de barras diz {money(rascunho.lida.valorDoCodigo)}; o valor digitado é {money(valorNum)}.</small>
+          )}
+          {rascunho.erro && <small className="fiscal-erro" role="alert">{rascunho.erro}</small>}
+          <footer>
+            <Button variant="ghost" onClick={() => setRascunho(null)} disabled={enviando}>Descartar</Button>
+            <Button onClick={() => void enviar()} disabled={!completo || enviando}>{enviando ? "Enviando…" : "Enviar ao Financeiro"}</Button>
+          </footer>
+        </div>
+      )}
+    </section>
   );
 }
