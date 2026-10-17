@@ -171,7 +171,7 @@ Marco: **1**, **2** ou **+**.
 | B-08 | 2FA próprio dos administradores e trava por horário e por IP | 1 | 4 | 2 | 1 | 1 | 8,0 | adiado | — | Novo (16/10) |
 | B-09 | Infraestrutura documentada no Git | 2 | 2 | 2 | 0,5 | 1 | 12,0 | feito ([INFRA.md](INFRA.md)) | — | INFRA-DOC |
 | B-10 | Plano B: nobreak, link reserva, réplica do banco | 2 | 3 | 1 | 1 | 3 | 5,0 | travado | Compra | INFRA-PLANOB |
-| B-11 | IP do login na auditoria (passa pelo proxy) | + | 2 | 1 | 0,5 | 1 | 8,0 | pronto, aguarda deploy | — | AUD-IP |
+| B-11 | IP do login na auditoria (passa pelo proxy) | + | 2 | 1 | 0,5 | 1 | 8,0 | no ar (conferir em produção) | — | AUD-IP |
 
 ### C — Comercial e faturamento
 
@@ -180,7 +180,7 @@ Marco: **1**, **2** ou **+**.
 | C-01 | Clientes completos: CNPJ de todos, unificar os repetidos | 1 | 4 | 4 | 1 | 2 | 12,0 | na fila | Exportação 1 | ORC E1 |
 | C-02 | Produtos limpos: NCM dos 758, os 98 "produto acabado", próximo número dos grupos | 1 | 4 | 4 | 0,5 | 2 | 24,0 | pedido à equipe | Rafael | ORC E1; produtos da Forja |
 | C-03 | Duas OS por item (fundição e usinagem)? | 1 | — | — | — | — | — | decisão | Rafael | ORC O1 |
-| C-05 | Pedido do cliente → itens do orçamento (o texto sai por regra, o Clef sugere o produto, o Rafael confirma) | + | 5 | 2 | 2 | 2 | 4,5 | na fila | Registro no Jev | Novo (16/10) |
+| C-05 | Pedido do cliente → itens do orçamento (o texto sai por regra, o Clef sugere o produto, o Rafael confirma) | + | 5 | 2 | 2 | 2 | 4,5 | pronto, aguarda deploy | Registro no Jev | Novo (16/10) |
 | C-06 | Cotação ao cliente em PDF/Excel pelos modelos | + | 4 | 2 | 2 | 2 | 4,0 | na fila | Os 28 modelos | ORC E6 |
 | C-07 | Calculadora de caixa | 1 | 3 | 4 | 1 | 2 | 11,0 | na fila | Planilha do Rafael | ORC E7; O5 |
 | C-08 | Nota de exportação | 1 | 4 | 5 | 1,5 | 1 | 9,3 | adiado | — | ORC O6 |
@@ -206,7 +206,7 @@ Marco: **1**, **2** ou **+**.
 | A-06 | Virada do estoque (o GRV deixa de controlar) | 1 | 5 | 5 | 1 | 1 | 15,0 | na fila | A-01 a A-04 | ALM M7 |
 | A-07 | Cotações: selos (preço, prazo, pagamento), regra "prazo depois preço" e saving na OC | + | 4 | 1 | 1 | 1 | 6,0 | no ar (conferir em produção) | — | Novo (16/10) |
 | A-08 | Equivalência de itens em cotações | + | 3 | 1 | 1,5 | 2 | 3,3 | travado (portão do Jev) | Etapas 1 e 2 do Jev com aceite; o caminho por regra é o material do catálogo (A-01 + A-07) | Jev E7 |
-| A-09 | Portal do fornecedor por link (decisão de 17/10: link por cotação, sem conta) | + | 4 | 1 | 3 | 1 | 2,0 | pronto, aguarda deploy | — | Novo (16/10) |
+| A-09 | Portal do fornecedor por link (decisão de 17/10: link por cotação, sem conta) | + | 4 | 1 | 3 | 1 | 2,0 | no ar (conferir em produção) | — | Novo (16/10) |
 | A-10 | Dados do GRV para o estoque (movimentação, próximo número, locais, NCM) | 1 | 3 | 4 | 0,5 | 2 | 22,0 | pedido à equipe | Jefferson, Henrique | ALM §6 |
 | A-11 | Lista de "parados há X dias" (cotação, pedido, rascunho de OS, nota), sem escalonar | + | 4 | 2 | 1 | 1 | 8,0 | no ar (conferir em produção) | — | Novo (16/10) |
 
@@ -237,7 +237,7 @@ Marco: **1**, **2** ou **+**.
 | F-04 | Revisão das sobras e dos históricos a conferir | 1 | 4 | 4 | 0,5 | 2 | 24,0 | pedido à equipe | Ana | Carga legada |
 | F-05 | Centros de custo e cadastros financeiros reais | + | 4 | 2 | 1 | 3 | 8,0 | decisão | D1 | CM E1 |
 | F-06 | Alçadas de aprovação e baixa parcial ou reversível | 1 | 4 | 3 | 1,5 | 1 | 6,7 | no ar (conferir em produção) | — | BP Fase 3 |
-| F-07 | Fluxo de caixa de 90 dias (cenários por regra; a explicação fica para a SARA) | + | 4 | 2 | 2 | 1 | 4,0 | pronto, aguarda deploy | — | BP Fase 3 |
+| F-07 | Fluxo de caixa de 90 dias (cenários por regra; a explicação fica para a SARA) | + | 4 | 2 | 2 | 1 | 4,0 | no ar (conferir em produção) | — | BP Fase 3 |
 | F-08 | Conciliação: regra com CNPJ e explicação da divergência (sempre com confirmação) | + | 3 | 2 | 1 | 1 | 7,0 | no ar (conferir em produção) | — | Conciliação |
 | F-09 | Portal do escritório, Entrega B (guias viram contas a pagar) | + | 4 | 2 | 1,5 | 1 | 5,3 | no ar (conferir em produção) | — | Portal do escritório |
 | F-10 | Pix e boleto registrados, Open Finance | + | 4 | 1 | 5 | 3 | 1,2 | decisão | Escolher o banco | Novo (16/10) |
@@ -249,7 +249,7 @@ Marco: **1**, **2** ou **+**.
 |---|---|---|---|---|---|---|---|---|---|---|
 | R-01 | Fechar a Fase 2 (sem mocks, testes, homologar com 2 perfis) | 2 | 4 | 3 | 1,5 | 1 | 6,7 | no ar (conferir em produção) | — | BP Fase 2 |
 | R-02 | Dados do RH (37 linhas, 10 sem CPF, 7 férias vencidas) | + | 3 | 1 | 0,5 | 2 | 10,0 | pedido à equipe | RH | Importações do RH |
-| R-03 | Função define as exigências (EPI, exames, validades) e mapa de férias por setor | + | 4 | 1 | 2 | 1 | 3,0 | pronto, aguarda deploy | — | BP Fase 2 |
+| R-03 | Função define as exigências (EPI, exames, validades) e mapa de férias por setor | + | 4 | 1 | 2 | 1 | 3,0 | no ar (conferir em produção) | — | BP Fase 2 |
 | R-04 | Cadeia 2: desligamento | + | — | — | — | — | — | decisão | Q1, Q2 | PROCESSOS-PECSIL |
 
 ### I — IA (Clef, Jev, Segundo Cérebro, SARA)
@@ -361,6 +361,8 @@ Marco: **1**, **2** ou **+**.
 | 16/10/2026 | P-02 construído na Forja (branch `feat/terceiros-operacao`): tela de terceiros na operação do artigo e a correção da aba de lotes, que mostrava toda OP como interna; teste de navegador 15/15 | Claude |
 | 17/10/2026 | F-09 construído: o escritório (ou o Fiscal) envia o PDF da guia no portal, a plataforma lê tipo, valor, vencimento e linha digitável por regra (valor conferido com o código de barras), quem envia confere e a guia vira conta a pagar EM APROVAÇÃO; aviso para quem aprova contas a pagar; guia repetida recusada; cancelamento com motivo enquanto não paga; o escritório vê só a situação do pagamento. Migração 202610170005 aplicada; teste de navegador 17/17 (contador, empresa e Financeiro) | Claude |
 | 17/10/2026 | Deploy de `5e2e354` (A-01, A-11, F-08, R-01, A-07, F-09 e tudo o que estava no main): terminou 23h29 | Proprietário |
+| 17/10/2026 | C-05 construído: "Ler pedido do cliente" no orçamento. Leitura por regra do pedido (testada no PDF real da O-I: 5 itens, preço "por 100", soma igual ao total), cliente pelo CNPJ ou pelo nome escrito no pedido, produto por de-para do código do cliente, depois artigo + tipo (prefixo) + material, depois descrição; ao confirmar grava o de-para. Clef registrado DESLIGADO no Plano do Jev (Etapa 10), só desempata candidatos com as descrições. Migração 202610170011 aplicada; teste de navegador 15/15. A tabela de prefixos (BM, BL, BP, BF) é proposta: decisão do Rafael | Claude |
+| 17/10/2026 | Deploy de `95e1c67` (B-11, F-07, R-03 e A-09) | Proprietário |
 | 17/10/2026 | A-09 construído com a decisão do proprietário (link por cotação, sem conta, no lugar da conta de terceiro): o Compras convida o fornecedor a partir do pedido de material; o fornecedor responde sem login (preço, IPI, quantidade, prazo, frete, pagamento e PDF), uma vez, dentro da validade; vira cotação pendente ligada ao pedido. Sem IA: o fornecedor digita, o PDF é a prova. Só o hash do link fica no banco. Migração 202610170010 aplicada; teste de navegador 19/19. Achado: só 2 pedidos de material no sistema contra 234 cotações; o portal e o comparativo rendem quando o pedido passar a ser feito pela plataforma (decisão do Compras e do Almoxarifado) | Claude / Proprietário |
 | 17/10/2026 | R-03, parte 2: mapa de férias por setor (12 meses: pessoas fora por mês e parte do setor, prazo de concessão vencendo no mês, vencidos à parte) no lugar do "Calendário consolidado", que tinha o período fixo no código (julho a setembro de 2026). Migração 202610170009 aplicada; teste de navegador 9/9. Achado para o RH: 7 saldos com o prazo vencido, alguns de 2000–2001 (provável gozo não lançado) | Claude |
 | 17/10/2026 | R-03, parte 1: exigências por função (EPI do catálogo, exame, treinamento, com validade) em RH › Saúde e segurança; 193 sugestões em 40 funções pela regra "entregue a ≥ metade da função em 12 meses", confirmáveis em lote; pendências por colaborador. Decide quem aprova SST (permissão da área; o proprietário não decide pelo RH). Migração 202610170008 aplicada; teste de navegador 13/13. Validades dos EPIs: decisão da Rosana | Claude |

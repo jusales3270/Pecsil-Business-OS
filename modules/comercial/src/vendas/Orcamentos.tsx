@@ -8,6 +8,7 @@ import { lerNumeroBr } from "../../../../lib/numero-br";
 import { SITUACAO_MASCARA, ehSaida, impostosDoOrcamento, mascaraDoBanco, situacaoDaMascara, sugerirMascara, type Mascara } from "../../../../lib/fiscal/mascaras";
 import { ProdutoModal, vazio as produtoVazio, type DadosProdutos, type Grupo, type Produto } from "./Produtos";
 import { BuscaProduto } from "./BuscaProduto";
+import { LerPedidoCliente, type ItemLido } from "./LerPedidoCliente";
 import { pareceCodigo } from "../../../../lib/comercial/busca-produto";
 import { SITUACAO_OS_FORJA } from "../../../../lib/forja/envio-os-core";
 import { FaixaTreino, gravarModoTreino, lerModoTreino, numeroOrcamento } from "../../../../app/components/faixa-treino";
@@ -159,6 +160,8 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
   const [podeCadastrar, setPodeCadastrar] = useState(false);
   // Cadastro de produto aberto a partir do orçamento: o item (chave) recebe a peça nova; sem chave, vira um item novo.
   const [cadastro, setCadastro] = useState<{ chave: string | null; texto: string } | null>(null);
+  // Pedido do cliente lido por regra (C-05): as linhas confirmadas viram itens.
+  const [lendoPedido, setLendoPedido] = useState(false);
   const [cab, setCab] = useState<Cab>(() => ({ customer_id: "", contato: "", data_orcamento: hoje(), validade: "", pedido_cliente: "", condicao_pagamento: "", frete_modalidade: "9", prazo_entrega: "", observacoes: "", mascara_id: "" }));
   const [itens, setItens] = useState<ItemForm[]>([]);
   const [sujo, setSujo] = useState(false);
@@ -246,6 +249,21 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
   const escolherProduto = (chave: string, p: Produto) => {
     mudarItem(chave, doProduto(p));
     if (!cab.customer_id && p.customer_id && clientes.some((c) => c.id === p.customer_id)) trocarCliente(p.customer_id);
+  };
+  const adicionarDoPedido = (lidos: ItemLido[], cabecalho: { numero: string | null; condicaoPagamento: string | null; cliente?: { id: string } | null }) => {
+    const novos = lidos.flatMap((l) => {
+      const p = produtos.find((x) => x.id === l.produtoId);
+      if (!p) return [];
+      return [{ ...itemVazio(), ...doProduto(p), unidade: /^[A-Z0-9]{1,6}$/.test(l.unidade) ? l.unidade : p.unidade || "PC", quantidade: br(l.quantidade, 0),
+        preco_unitario: l.precoUnitario !== null ? br(l.precoUnitario) : "", prazo_entrega: l.entrega ?? "", item_pedido: l.itemPedido.slice(0, 20) }];
+    });
+    setItens((lista) => [...lista.filter((x) => x.product_id || x.busca.trim()), ...novos]);
+    setCab((c) => ({ ...c, pedido_cliente: c.pedido_cliente || cabecalho.numero || "", condicao_pagamento: c.condicao_pagamento || cabecalho.condicaoPagamento || "" }));
+    // O cliente vem do pedido (CNPJ ou nome), nunca do dono da peça: peças do catálogo interno não são do cliente.
+    if (!cab.customer_id && cabecalho.cliente && clientes.some((c) => c.id === cabecalho.cliente!.id)) trocarCliente(cabecalho.cliente.id);
+    setSujo(true);
+    setLendoPedido(false);
+    notify(`${novos.length} item(ns) do pedido adicionados. Confira e grave o orçamento.`);
   };
   const nomeCliente = (cid: string | null) => (cid ? clientes.find((c) => c.id === cid)?.name ?? null : null);
   const itemVazio = (): ItemForm => ({ chave: novaChave(), product_id: "", busca: "", descricao: "", desenho: "", unidade: "PC", quantidade: "", preco_unitario: "", prazo_entrega: "", item_pedido: "", observacao: "" });
@@ -478,6 +496,7 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
               {editavel && (
                 <div className="vnd-itens-acoes">
                   <Button variant="secondary" compact onClick={() => { setItens((l) => [...l, itemVazio()]); setSujo(true); }}>Adicionar item</Button>
+                  <Button variant="secondary" compact onClick={() => setLendoPedido(true)}>Ler pedido do cliente</Button>
                   {podeCadastrar && <Button variant="ghost" compact onClick={() => setCadastro({ chave: null, texto: "" })}>Cadastrar produto</Button>}
                 </div>
               )}
@@ -588,6 +607,7 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
       {notaAberta && id && det && (
         <NotaModal quoteId={id} nfeId={notaAberta} notas={det.notasFiscais.filter((n) => n.nfe_id === notaAberta)} itens={det.itens} onClose={() => setNotaAberta(null)} />
       )}
+      {lendoPedido && <LerPedidoCliente onAdicionar={adicionarDoPedido} onFechar={() => setLendoPedido(false)} notify={notify} />}
       {cadastro && (
         <ProdutoModal inicial={formCadastro(cadastro.texto)} produto={null} notify={notify} onClose={() => setCadastro(null)} onSalvo={(novo) => void produtoCadastrado(novo)}
           dados={{ produtos, grupos, clientes, podeOperar: podeCadastrar } satisfies DadosProdutos} />
