@@ -4,9 +4,11 @@ import test from "node:test";
 
 const source = await readFile(new URL("../../../app/components/hr-module.tsx", import.meta.url), "utf8");
 
-test("rh: férias e ausências cobre solicitação, calendário e políticas", () => {
+test("rh: férias e ausências cobre solicitação, mapa por setor e políticas", () => {
   assert.match(source, /Nova solicitação/);
-  assert.match(source, /AbsenceCalendar/);
+  // O calendário com período fixo (julho a setembro de 2026) deu lugar ao mapa por setor (R-03).
+  assert.match(source, /<FeriasPorSetor\/>/);
+  assert.doesNotMatch(source, /Julho a setembro de 2026/);
   assert.match(source, /AbsencePolicies/);
   assert.match(source, /Saldo projetado após aprovação/);
   assert.match(source, /Conflito de planejamento/);

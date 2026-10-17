@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-17-mapa-de-ferias",
+    data: "2026-10-17",
+    area: "RH",
+    funcionalidades: ["rh.ferias"],
+    modulos: ["rh"],
+    titulo: "Mapa de férias por setor",
+    itens: [
+      "Em Férias e ausências, a aba Mapa por setor mostra os próximos 12 meses: quantas pessoas de cada setor estão de férias em cada mês (cor mais forte quando sai uma parte maior do setor; borda vermelha com metade ou mais).",
+      "Marca o mês em que vence o prazo para conceder cada saldo de férias e mostra à parte os que já venceram (férias em dobro). Clique num mês para ver os nomes e as datas.",
+    ],
+  },
+  {
     id: "2026-10-17-exigencias-por-funcao",
     data: "2026-10-17",
     area: "RH",
