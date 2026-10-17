@@ -22,6 +22,8 @@ export function PedidoModal({ onClose, onCriado, endpoint = "/api/almoxarifado/s
   const [urgente, setUrgente] = useState(false);
   const [linhas, setLinhas] = useState<Linha[]>([vazia()]);
   const [observacao, setObservacao] = useState("");
+  // Até quando a produção precisa do material: o Compras escolhe primeiro quem entrega até lá.
+  const [precisaAte, setPrecisaAte] = useState("");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
@@ -41,7 +43,7 @@ export function PedidoModal({ onClose, onCriado, endpoint = "/api/almoxarifado/s
     const res = await chamar<{ numero: number }>(endpoint, {
       method: "POST",
       body: JSON.stringify({
-        divisao, urgencia: urgente ? "urgente" : "normal", observacao,
+        divisao, urgencia: urgente ? "urgente" : "normal", observacao, precisaAte: precisaAte || null,
         itens: itens.map((linha) => ({ produto: linha.produto.trim(), quantidade: numero(linha.quantidade), unidade: linha.unidade, observacao: linha.observacao.trim(), material_id: linha.material?.id ?? null })),
       }),
     });
@@ -59,6 +61,7 @@ export function PedidoModal({ onClose, onCriado, endpoint = "/api/almoxarifado/s
               <Segmented<"USINAGEM" | "FUNDICAO"> options={[{ value: "USINAGEM", label: "Usinagem" }, { value: "FUNDICAO", label: "Fundição" }]} value={divisao} onChange={setDivisao} ariaLabel="Divisão" />
             </label>
           )}
+          <label className="almox-precisa"><span>A produção precisa até</span><input type="date" value={precisaAte} min={new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })} onChange={(event) => setPrecisaAte(event.target.value)} aria-label="Data em que a produção precisa do material" /></label>
           <label className="almox-marca"><input type="checkbox" checked={urgente} onChange={(event) => setUrgente(event.target.checked)} /> <span>Urgente — está parando o trabalho</span></label>
         </div>
 

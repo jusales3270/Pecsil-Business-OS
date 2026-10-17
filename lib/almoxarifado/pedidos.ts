@@ -3,7 +3,7 @@
  * Almoxarifado (vê todos) e pela Fundição (vê só os pedidos dela).
  */
 export const COLUNAS_PEDIDO =
-  "id, numero, divisao, origem, urgencia, observacao, status, requested_by_name, cancel_reason, created_at, updated_at, material_request_items(produto, quantidade, unidade, observacao, ordem, material_id, materials(codigo, descricao, unidade))";
+  "id, numero, divisao, origem, urgencia, observacao, status, requested_by_name, cancel_reason, created_at, updated_at, precisa_ate, material_request_items(produto, quantidade, unidade, observacao, ordem, material_id, materials(codigo, descricao, unidade))";
 
 type ItemLinha = {
   produto: string; quantidade: number | string; unidade: string; observacao: string | null; ordem: number;
@@ -13,7 +13,7 @@ type MaterialEmbutido = { codigo: string; descricao: string; unidade: string };
 const umSo = <T,>(v: T | T[] | null | undefined) => (Array.isArray(v) ? v[0] ?? null : v ?? null);
 export type PedidoLinha = {
   id: string; numero: number | string; divisao: string; origem: string | null; urgencia: string; observacao: string | null; status: string;
-  requested_by_name: string | null; cancel_reason: string | null; created_at: string; updated_at: string; material_request_items: ItemLinha[] | null;
+  requested_by_name: string | null; cancel_reason: string | null; created_at: string; updated_at: string; precisa_ate?: string | null; material_request_items: ItemLinha[] | null;
 };
 
 export function pedidoParaTela(row: PedidoLinha) {
@@ -29,6 +29,8 @@ export function pedidoParaTela(row: PedidoLinha) {
     motivoCancelamento: row.cancel_reason,
     criadoEm: row.created_at,
     atualizadoEm: row.updated_at,
+    /** Até quando a produção precisa do material (A-07). */
+    precisaAte: row.precisa_ate ?? null,
     itens: [...(row.material_request_items ?? [])].sort((a, b) => a.ordem - b.ordem)
       .map((item) => ({
         produto: item.produto, quantidade: Number(item.quantidade), unidade: item.unidade, observacao: item.observacao,

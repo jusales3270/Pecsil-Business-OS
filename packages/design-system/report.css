@@ -407,3 +407,5 @@
     print-color-adjust: exact;
   }
 }
+/* A-07: economia da compra na Ordem de Compra */
+.oc-saving { margin-top: 1.5mm; padding: 1.2mm 2mm; border: 0.3mm solid #b7dfc4; border-radius: 1mm; background: #eef8f1; color: #14532d; font-size: 7.5pt; }
