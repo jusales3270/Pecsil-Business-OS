@@ -167,7 +167,7 @@ Marco: **1**, **2** ou **+**.
 | B-04 | Monitoramento com alertas pelo WhatsApp (canal compartilhado com o P-06) | 1 | 4 | 3 | 0,5 | 2 | 20,0 | decisão | Número de WhatsApp dedicado | INFRA-MON |
 | B-05 | VPN: só o Business OS público | 1 | 4 | 2 | 1 | 3 | 8,0 | travado | Roteador | INFRA-VPN |
 | B-06 | Estabilizar a porta 443 | 1 | 4 | 3 | 0,5 | 3 | 20,0 | travado | Operadora; SSH | INFRA-443 |
-| B-07 | Build fora do servidor e webhook de deploy | 2 | 3 | 2 | 1 | 1 | 7,0 | na fila | — | INFRA-BUILD; VIS P1.1e |
+| B-07 | Build fora do servidor e webhook de deploy | 2 | 3 | 2 | 1 | 1 | 7,0 | não fazer (proprietário 17/10: o Deploy manual pelo painel está funcionando) | — | INFRA-BUILD; VIS P1.1e |
 | B-08 | 2FA próprio dos administradores e trava por horário e por IP | 1 | 4 | 2 | 1 | 1 | 8,0 | adiado | — | Novo (16/10) |
 | B-09 | Infraestrutura documentada no Git | 2 | 2 | 2 | 0,5 | 1 | 12,0 | feito ([INFRA.md](INFRA.md)) | — | INFRA-DOC |
 | B-10 | Plano B: nobreak, link reserva, réplica do banco | 2 | 3 | 1 | 1 | 3 | 5,0 | travado | Compra | INFRA-PLANOB |
@@ -361,6 +361,7 @@ Marco: **1**, **2** ou **+**.
 | 16/10/2026 | P-02 construído na Forja (branch `feat/terceiros-operacao`): tela de terceiros na operação do artigo e a correção da aba de lotes, que mostrava toda OP como interna; teste de navegador 15/15 | Claude |
 | 17/10/2026 | F-09 construído: o escritório (ou o Fiscal) envia o PDF da guia no portal, a plataforma lê tipo, valor, vencimento e linha digitável por regra (valor conferido com o código de barras), quem envia confere e a guia vira conta a pagar EM APROVAÇÃO; aviso para quem aprova contas a pagar; guia repetida recusada; cancelamento com motivo enquanto não paga; o escritório vê só a situação do pagamento. Migração 202610170005 aplicada; teste de navegador 17/17 (contador, empresa e Financeiro) | Claude |
 | 17/10/2026 | Deploy de `5e2e354` (A-01, A-11, F-08, R-01, A-07, F-09 e tudo o que estava no main): terminou 23h29 | Proprietário |
+| 17/10/2026 | B-07 (build fora do servidor) sai: o proprietário faz o Deploy manual pelo painel e está funcionando | Proprietário |
 | 17/10/2026 | Cargas do GRV (pedido do proprietário): 543 fornecedores completados pela exportação FORNECEDORES.xlsx, só campos vazios (CNPJ 30→519, endereço 16→534, e-mail 16→414…), sem pessoa física, ambíguos e novos para o Compras decidir (relatório); 3.123 itens do ATIVO IMOBILIZADO.xlsx no catálogo, inativos e sem estoque pela decisão A7 (12.463 materiais). 10 fornecedores duplicados (mesmo CNPJ) ficam para a unificação I-01 | Proprietário / Claude |
 | 17/10/2026 | C-05 construído: "Ler pedido do cliente" no orçamento. Leitura por regra do pedido (testada no PDF real da O-I: 5 itens, preço "por 100", soma igual ao total), cliente pelo CNPJ ou pelo nome escrito no pedido, produto por de-para do código do cliente, depois artigo + tipo (prefixo) + material, depois descrição; ao confirmar grava o de-para. Clef registrado DESLIGADO no Plano do Jev (Etapa 10), só desempata candidatos com as descrições. Migração 202610170011 aplicada; teste de navegador 15/15. A tabela de prefixos (BM, BL, BP, BF) é proposta: decisão do Rafael | Claude |
 | 17/10/2026 | Deploy de `95e1c67` (B-11, F-07, R-03 e A-09) | Proprietário |
