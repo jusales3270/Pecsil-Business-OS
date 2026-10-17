@@ -441,3 +441,45 @@ test("nota: XML pelo arquivo; fornecedor pelo CNPJ ou pelo nome; pedido a caminh
   assert.deepEqual(pedidos.map((p) => [p.cotacaoId, p.motivo, p.valorConfere]), [[1, "fornecedor", true]]);
   await assert.rejects(() => lerNotaDoArquivo(new TextEncoder().encode("OFXHEADER:100\n<OFX>")), /extrato bancário/);
 });
+
+// F-08: CNPJ entra no casamento e a linha sem par explica por quê (só regra, sempre com confirmação).
+test("conciliação: mesmo CNPJ e valor é a sugestão mais forte; raiz do CNPJ junta matriz e filial", async () => {
+  const { sugerirBaixas, mesmoCnpj } = await import("../lib/finance/conciliacao-match.ts");
+  assert.equal(mesmoCnpj("11.222.333/0001-81", "11222333000262"), true);
+  assert.equal(mesmoCnpj("11222333000181", "99222333000181"), false);
+  assert.equal(mesmoCnpj(null, "11222333000181"), false);
+  const entrada = { id: "e", data: "2026-10-10", centavos: 150000, contraparte: "PIX ENVIADO", cnpj: "11222333000181" };
+  const s = sugerirBaixas(entrada, [
+    { id: "nome", data: "2026-10-10", centavos: 150000, contraparte: "OUTRA EMPRESA", cnpj: null },
+    { id: "cnpj", data: "2026-10-11", centavos: 150000, contraparte: "FORNECEDOR X", cnpj: "11222333000181" },
+    { id: "cnpj-perto", data: "2026-10-10", centavos: 140000, contraparte: "FORNECEDOR X", cnpj: "11222333000181" },
+  ]);
+  assert.deepEqual(s.map((x) => [x.baixaId, x.motivo]), [["cnpj", "cnpj_e_valor"], ["cnpj-perto", "cnpj"], ["nome", "valor"]]);
+});
+
+test("conciliação: explica a linha sem par (CNPJ, janela, parcela mais próxima, juros, soma)", async () => {
+  const { explicarSemPar } = await import("../lib/finance/conciliacao-match.ts");
+  const entrada = { id: "e", data: "2026-10-10", centavos: 103000, contraparte: "TED", cnpj: "11222333000181" };
+  const m = explicarSemPar({ entrada, dono: { nome: "AÇOS QA", tipo: "fornecedor" }, baixasNaJanela: 0, parcelasDoCnpj: [{ saldo: 100000, vencimento: "2026-10-08", documento: "123" }] });
+  assert.match(m[0], /11\.222\.333\/0001-81 é de AÇOS QA \(fornecedor\)/);
+  assert.match(m[1], /entre 07\/10\/2026 e 13\/10\/2026/);
+  assert.match(m[2], /mais próxima é de R\$\s?1\.000,00.*diferença de R\$\s?30,00 a mais no extrato/);
+  assert.match(m[3], /juros, multa ou tarifa/);
+  const soma = explicarSemPar({ entrada: { ...entrada, centavos: 30000 }, dono: { nome: "AÇOS QA", tipo: "fornecedor" }, baixasNaJanela: 2,
+    parcelasDoCnpj: [{ saldo: 10000, vencimento: "2026-10-01", documento: null }, { saldo: 20000, vencimento: "2026-10-05", documento: null }] });
+  assert.ok(soma.some((x) => /soma das 2 parcelas/.test(x)));
+  assert.match(explicarSemPar({ entrada: { ...entrada, cnpj: null }, dono: null, baixasNaJanela: 1, parcelasDoCnpj: [] })[0], /não traz CNPJ/);
+  assert.match(explicarSemPar({ entrada, dono: null, baixasNaJanela: 1, parcelasDoCnpj: [] })[0], /não está no cadastro/);
+});
+
+test("conciliação: pares prontos só quando é inequívoco (um lançamento, uma parcela)", async () => {
+  const { paresProntos } = await import("../lib/finance/conciliacao-match.ts");
+  const e = (id, centavos, cnpj = "11222333000181", data = "2026-10-10") => ({ id, data, centavos, direcao: "debit", cnpj });
+  const p = (id, saldo, cnpj = "11222333000181", vencimento = "2026-10-08", direcao = "debit") => ({ id, vencimento, saldo, direcao, cnpj });
+  assert.deepEqual(paresProntos([e("e1", 1000)], [p("p1", 1000)]), [{ entrada: "e1", parcela: "p1" }]);
+  assert.deepEqual(paresProntos([e("e1", 1000)], [p("p1", 1000), p("p2", 1000)]), [], "duas parcelas iguais: ambíguo");
+  assert.deepEqual(paresProntos([e("e1", 1000), e("e2", 1000)], [p("p1", 1000)]), [], "dois lançamentos disputando: ambíguo");
+  assert.deepEqual(paresProntos([e("e1", 1000)], [p("p1", 1000, "99999999000199")]), [], "outro CNPJ");
+  assert.deepEqual(paresProntos([e("e1", 1000)], [p("p1", 1000, undefined, "2026-06-01")]), [], "vencimento longe");
+  assert.deepEqual(paresProntos([e("e1", 1000)], [p("p1", 1000, undefined, undefined, "credit")]), [], "sentido contrário");
+});

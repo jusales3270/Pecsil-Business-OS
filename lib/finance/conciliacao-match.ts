@@ -12,8 +12,14 @@
  * Valores em centavos inteiros e positivos (o sentido já foi decidido por quem chama).
  */
 
-export type EntradaMatch = { id: string; data: string; centavos: number; contraparte: string | null };
-export type BaixaMatch = { id: string; data: string; centavos: number; contraparte: string | null };
+export type EntradaMatch = { id: string; data: string; centavos: number; contraparte: string | null; cnpj?: string | null };
+export type BaixaMatch = { id: string; data: string; centavos: number; contraparte: string | null; cnpj?: string | null };
+
+/** Mesma empresa pelo CNPJ: a raiz (8 primeiros dígitos) junta matriz e filiais. */
+export function mesmoCnpj(a: string | null | undefined, b: string | null | undefined): boolean {
+  const x = (a ?? "").replace(/\D/g, ""), y = (b ?? "").replace(/\D/g, "");
+  return x.length === 14 && y.length === 14 && x.slice(0, 8) === y.slice(0, 8);
+}
 
 export type Vinculo = {
   entradaId: string;
@@ -167,7 +173,7 @@ export function conciliarSaidas(entradas: EntradaMatch[], baixas: BaixaMatch[]):
   return { vinculos, entradasSemVinculo: [...livresE.keys()], baixasSemVinculo: [...livresB.keys()], lotesGrandesIgnorados };
 }
 
-export type SugestaoBaixa = { baixaId: string; motivo: "valor" | "valor_e_nome" | "nome"; distanciaDias: number };
+export type SugestaoBaixa = { baixaId: string; motivo: "cnpj_e_valor" | "cnpj" | "valor" | "valor_e_nome" | "nome"; distanciaDias: number };
 
 /**
  * Candidatos para a tela, quando o casamento automático não resolveu: baixas sem
@@ -182,7 +188,10 @@ export function sugerirBaixas(entrada: EntradaMatch, baixas: BaixaMatch[]): Suge
     const mesmoValor = Math.abs(b.centavos - entrada.centavos) <= 5;
     const nome = parecenca(entrada.contraparte, b.contraparte);
     const quase = Math.abs(b.centavos - entrada.centavos) <= entrada.centavos * 0.02;
-    if (mesmoValor && nome >= 0.5) resultado.push({ baixaId: b.id, motivo: "valor_e_nome", distanciaDias: d, nota: 3 - d * 0.1 });
+    const cnpj = mesmoCnpj(entrada.cnpj, b.cnpj);
+    if (cnpj && mesmoValor) resultado.push({ baixaId: b.id, motivo: "cnpj_e_valor", distanciaDias: d, nota: 4 - d * 0.1 });
+    else if (cnpj && Math.abs(b.centavos - entrada.centavos) <= entrada.centavos * 0.1) resultado.push({ baixaId: b.id, motivo: "cnpj", distanciaDias: d, nota: 2.5 - d * 0.1 });
+    else if (mesmoValor && nome >= 0.5) resultado.push({ baixaId: b.id, motivo: "valor_e_nome", distanciaDias: d, nota: 3 - d * 0.1 });
     else if (mesmoValor) resultado.push({ baixaId: b.id, motivo: "valor", distanciaDias: d, nota: 2 - d * 0.1 });
     else if (quase && nome >= 0.6) resultado.push({ baixaId: b.id, motivo: "nome", distanciaDias: d, nota: 1 - d * 0.1 });
   }
@@ -190,4 +199,63 @@ export function sugerirBaixas(entrada: EntradaMatch, baixas: BaixaMatch[]): Suge
     .sort((a, b) => b.nota - a.nota)
     .slice(0, 5)
     .map((r) => ({ baixaId: r.baixaId, motivo: r.motivo, distanciaDias: r.distanciaDias }));
+}
+
+const reais = (centavos: number) => (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const dataBr = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
+export const cnpjFormatado = (v: string) => (/^\d{14}$/.test(v) ? v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : v);
+
+/**
+ * Por que uma linha do extrato não casou (F-08): só regra, sem IA e sem mandar o extrato para fora.
+ * A pessoa lê o motivo e decide (conciliar, criar a conta ou ignorar): nada é ligado sozinho.
+ */
+export function explicarSemPar(args: {
+  entrada: EntradaMatch;
+  /** Quem é o CNPJ do extrato no cadastro (fornecedor ou cliente), se for de alguém. */
+  dono: { nome: string; tipo: "fornecedor" | "cliente" } | null;
+  baixasNaJanela: number;
+  /** Parcelas em aberto do mesmo CNPJ (±90 dias), com o saldo em centavos. */
+  parcelasDoCnpj: { saldo: number; vencimento: string; documento: string | null }[];
+}): string[] {
+  const { entrada, dono, baixasNaJanela, parcelasDoCnpj } = args;
+  const motivos: string[] = [];
+  const cnpj = (entrada.cnpj ?? "").replace(/\D/g, "");
+  if (cnpj.length !== 14) motivos.push("O extrato não traz CNPJ nesta linha: a busca usou só valor, data e nome.");
+  else if (!dono) motivos.push(`O CNPJ ${cnpjFormatado(cnpj)} do extrato não está no cadastro de fornecedores nem de clientes.`);
+  else motivos.push(`O CNPJ ${cnpjFormatado(cnpj)} é de ${dono.nome} (${dono.tipo}).`);
+  if (!baixasNaJanela) motivos.push(`Nenhum pagamento ou recebimento registrado sem banco entre ${dataBr(diaMais(entrada.data, -3))} e ${dataBr(diaMais(entrada.data, 3))}.`);
+  if (dono && parcelasDoCnpj.length) {
+    const perto = [...parcelasDoCnpj].sort((a, b) => Math.abs(a.saldo - entrada.centavos) - Math.abs(b.saldo - entrada.centavos))[0];
+    const dif = entrada.centavos - perto.saldo;
+    const soma = parcelasDoCnpj.reduce((s, p) => s + p.saldo, 0);
+    motivos.push(`${dono.nome} tem ${parcelasDoCnpj.length} parcela(s) em aberto, nenhuma com este valor: a mais próxima é de ${reais(perto.saldo)}, vence ${dataBr(perto.vencimento)}${perto.documento ? ` (doc. ${perto.documento})` : ""}, diferença de ${reais(Math.abs(dif))} ${dif > 0 ? "a mais no extrato" : "a menos no extrato"}.`);
+    if (dif > 0 && dif <= perto.saldo * 0.1) motivos.push("A diferença pequena a mais costuma ser juros, multa ou tarifa: concilie com a parcela e registre a diferença.");
+    else if (dif < 0) motivos.push("Valor menor que a parcela: pode ser um pagamento parcial.");
+    if (parcelasDoCnpj.length > 1 && Math.abs(soma - entrada.centavos) <= 5) motivos.push(`A soma das ${parcelasDoCnpj.length} parcelas em aberto dá exatamente o valor do extrato: pode ser o pagamento de todas juntas.`);
+  } else if (dono) motivos.push(`${dono.nome} não tem parcela em aberto entre 90 dias antes e depois: pode ser uma conta que ainda não foi lançada (use Criar conta).`);
+  return motivos;
+}
+
+function diaMais(iso: string, dias: number) {
+  return new Date(Date.parse(`${iso.slice(0, 10)}T00:00:00Z`) + dias * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * Pares prontos (F-08): para cada lançamento com CNPJ, a ÚNICA parcela em aberto do mesmo CNPJ
+ * (raiz), mesmo sentido, mesmo valor (±R$ 0,05) e vencimento até 60 dias. Se dois lançamentos
+ * disputam a mesma parcela, ou um lançamento tem duas parcelas assim, fica de fora (ambíguo).
+ * Só sugere: quem concilia confirma cada par.
+ */
+export function paresProntos(
+  entradas: { id: string; data: string; centavos: number; direcao: string; cnpj: string | null }[],
+  parcelas: { id: string; vencimento: string; saldo: number; direcao: string; cnpj: string | null }[],
+): { entrada: string; parcela: string }[] {
+  const candidatos = new Map<string, string[]>();
+  for (const e of entradas) {
+    const lista = parcelas.filter((p) => p.direcao === e.direcao && mesmoCnpj(e.cnpj, p.cnpj) && Math.abs(p.saldo - e.centavos) <= 5 && distancia(p.vencimento, e.data) <= 60);
+    if (lista.length === 1) candidatos.set(e.id, [lista[0].id]);
+  }
+  const disputa = new Map<string, number>();
+  for (const [, [p]] of candidatos) disputa.set(p, (disputa.get(p) ?? 0) + 1);
+  return [...candidatos].filter(([, [p]]) => disputa.get(p) === 1).map(([entrada, [parcela]]) => ({ entrada, parcela }));
 }

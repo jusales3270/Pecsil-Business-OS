@@ -44,6 +44,29 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-17-conciliacao-cnpj",
+    data: "2026-10-17",
+    area: "Financeiro",
+    funcionalidades: ["financeiro.bancos"],
+    modulos: ["financeiro"],
+    titulo: "Conciliação pelo CNPJ e com o motivo de cada sugestão",
+    itens: [
+      "Em Bancos e conciliação, as sugestões usam também o CNPJ que vem no extrato (matriz e filiais juntas) e mostram o critério: mesmo CNPJ e valor, valor e nome, mesmo valor ou nome parecido.",
+      "Quando a linha não casa, a janela explica por quê: o CNPJ não está no cadastro, não há pagamento na janela de 3 dias, a parcela mais próxima tem diferença de tanto (juros? pagamento parcial? várias parcelas juntas?).",
+      "Os lançamentos que têm uma única parcela em aberto do mesmo CNPJ e do mesmo valor aparecem num aviso no topo: \"Revisar e confirmar\" abre a lista, você marca os certos e confirma de uma vez. Nada é conciliado sem você marcar.",
+    ],
+  },
+  {
+    id: "2026-10-17-parados",
+    data: "2026-10-17",
+    area: "Todas as áreas",
+    titulo: "Parados: o que está esperando alguém da sua área",
+    itens: [
+      "Em Fundação › Parados aparece o que está esperando há mais dias que o normal: pedido de material sem cotação, cotação sem aprovação, compra atrasada, rascunho de OS na Forja, orçamento sem resposta, pedido a faturar, conta a pagar sem aprovação e nota sem lançamento.",
+      "Cada pessoa vê só o que a sua área resolve, do mais antigo para o mais novo, com o botão Abrir que leva direto à tela certa. Ninguém é cobrado por mensagem: é só a lista.",
+    ],
+  },
+  {
     id: "2026-10-16-linha-de-base-por-area",
     data: "2026-10-16",
     area: "Financeiro, Compras e Produção",

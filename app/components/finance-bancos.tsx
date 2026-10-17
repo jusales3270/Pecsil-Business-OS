@@ -27,8 +27,18 @@ type Dados = {
   plano: { id: string; code: string; name: string; type: string; allowsPosting: boolean }[];
   podeOperar: boolean; podePagar: boolean; podeReceber: boolean;
 };
-type Baixa = { id: string; data: string; valor: number; fornecedor: string | null; descricao: string | null; documento: string | null; sugerida: boolean };
-type Parcela = { id: string; numero: number; vencimento: string; saldo: number; fornecedor: string | null; descricao: string | null; documento: string | null; previsao: boolean; historico: boolean; valorIgual: boolean };
+type Baixa = { id: string; data: string; valor: number; fornecedor: string | null; descricao: string | null; documento: string | null; sugerida: boolean; motivo: MotivoSugestao | null };
+type Parcela = { id: string; numero: number; vencimento: string; saldo: number; fornecedor: string | null; descricao: string | null; documento: string | null; previsao: boolean; historico: boolean; valorIgual: boolean; mesmoCnpj?: boolean };
+type Pronto = { entryId: string; installmentId: string; data: string; valor: number; extrato: string; titulo: string | null; documento: string | null; vencimento: string; parcela: number };
+type MotivoSugestao = "cnpj_e_valor" | "cnpj" | "valor" | "valor_e_nome" | "nome";
+/** Por que a baixa foi sugerida (F-08): a pessoa vê o critério e decide. */
+const MOTIVO: Record<MotivoSugestao, string> = {
+  cnpj_e_valor: "Mesmo CNPJ e valor",
+  cnpj: "Mesmo CNPJ",
+  valor_e_nome: "Valor e nome",
+  valor: "Mesmo valor",
+  nome: "Nome parecido",
+};
 
 const money = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const date = (v: string | null | undefined) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10).split("-").reverse().join("/") : "—");
@@ -61,6 +71,14 @@ export function FinanceBancos({ accounts, onChanged }: { accounts: FinanceBankAc
   const [conciliar, setConciliar] = useState<Lancamento | null>(null);
   const [criar, setCriar] = useState<Lancamento[] | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
+  // F-08: lançamentos com parcela do mesmo CNPJ e mesmo valor, para confirmar em lote.
+  const [prontos, setProntos] = useState<Pronto[] | null>(null);
+  const [revisarProntos, setRevisarProntos] = useState(false);
+  const carregarProntos = useCallback(async () => {
+    const res = await api<{ pares: Pronto[] }>("/api/finance/bancos/prontos");
+    setProntos(res.ok ? res.data.pares : []);
+  }, []);
+  useEffect(() => { const t = setTimeout(() => { void carregarProntos(); }, 0); return () => clearTimeout(t); }, [carregarProntos]);
 
   useEffect(() => { const t = setTimeout(() => { setBuscaAplicada(busca.trim()); setPagina(1); }, 300); return () => clearTimeout(t); }, [busca]);
 
@@ -140,9 +158,15 @@ export function FinanceBancos({ accounts, onChanged }: { accounts: FinanceBankAc
       )}
 
       <Callout variant="info" title="Como a conciliação funciona">
-        Cada linha do extrato precisa ter uma correspondência no Financeiro. Conciliar liga o lançamento a pagamentos já registrados (ou dá baixa numa parcela em aberto); Criar conta registra o que ainda não existe, como tarifas, tributos e folha; Ignorar serve para o que não pede conta. As sugestões usam só valor, data e nome, e nada é ligado sem você confirmar.
+        Cada linha do extrato precisa ter uma correspondência no Financeiro. Conciliar liga o lançamento a pagamentos já registrados (ou dá baixa numa parcela em aberto); Criar conta registra o que ainda não existe, como tarifas, tributos e folha; Ignorar serve para o que não pede conta. Ao carregar o extrato, só entra conciliado o que casa com segurança (mesmo dia e mesmo valor, valor único em até 3 dias, ou o lote do SISPAG que fecha a soma do dia); o resto fica aqui para revisão. Nas sugestões, o critério aparece em cada uma (CNPJ, valor, nome), a linha sem par mostra por que não casou, e nada é ligado sem você confirmar. O extrato não vai para serviço externo.
       </Callout>
 
+      {(prontos?.length ?? 0) > 0 && (
+        <Callout variant="success" title={`${prontos!.length} lançamento(s) com parcela do mesmo CNPJ e do mesmo valor`}>
+          Cada um tem uma única parcela em aberto do mesmo fornecedor ou cliente (pelo CNPJ) com o valor exato. Revise e confirme os que estiverem certos.{" "}
+          <Button type="button" compact onClick={() => setRevisarProntos(true)}>Revisar e confirmar</Button>
+        </Callout>
+      )}
       {totais.pendente > 0 && (
         <Callout variant="warning" title="Conciliação pendente">
           {plural(totais.pendente, "lançamento do extrato ainda não tem correspondência no Financeiro", "lançamentos do extrato ainda não têm correspondência no Financeiro")}.
@@ -231,14 +255,59 @@ export function FinanceBancos({ accounts, onChanged }: { accounts: FinanceBankAc
         </div>
       )}
 
+      {revisarProntos && prontos && <ProntosModal pares={prontos} onClose={() => setRevisarProntos(false)} onFeito={async (m) => { setRevisarProntos(false); await carregarProntos(); await depois(m); }} />}
       {conciliar && <ConciliarModal lancamento={conciliar} onClose={() => setConciliar(null)} onFeito={async (m) => { setConciliar(null); await depois(m); }} />}
       {criar && dados && <CriarModal lancamentos={criar} plano={dados.plano} onClose={() => setCriar(null)} onFeito={async (m) => { setCriar(null); await depois(m); }} />}
     </div>
   );
 }
 
+/** F-08: confirmar em lote os pares de mesmo CNPJ e mesmo valor. Nada vem marcado: a pessoa escolhe. */
+function ProntosModal({ pares, onClose, onFeito }: { pares: Pronto[]; onClose: () => void; onFeito: (m: string) => Promise<void> }) {
+  const [marcados, setMarcados] = useState<Set<string>>(new Set());
+  const [salvando, setSalvando] = useState(false);
+  const [erros, setErros] = useState<string[]>([]);
+  const alternar = (id: string) => setMarcados((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const confirmar = async () => {
+    setSalvando(true); setErros([]);
+    let ok = 0; const falhas: string[] = [];
+    for (const p of pares.filter((x) => marcados.has(x.entryId))) {
+      const res = await api<unknown>("/api/finance/bancos/acoes", { method: "POST", body: JSON.stringify({ acao: "baixar", entryId: p.entryId, installmentId: p.installmentId }) });
+      if (res.ok) ok++; else falhas.push(`${p.titulo ?? p.extrato} (${money(Math.abs(p.valor))}): ${res.error}`);
+    }
+    setSalvando(false);
+    if (falhas.length) { setErros(falhas); if (!ok) return; }
+    await onFeito(`${ok} lançamento(s) conciliado(s) com baixa na parcela${falhas.length ? `; ${falhas.length} não foram` : ""}.`);
+  };
+  return (
+    <Modal eyebrow="Bancos e conciliação" title="Mesmo CNPJ e mesmo valor" subtitle="Marque os que estão certos: cada um dá baixa na parcela e concilia com o extrato." onClose={onClose}>
+      <div className="almox-form">
+        <div className="banco-prontos-acoes">
+          <Button type="button" variant="secondary" compact onClick={() => setMarcados(new Set(pares.map((p) => p.entryId)))}>Marcar todos</Button>
+          <Button type="button" variant="secondary" compact onClick={() => setMarcados(new Set())}>Desmarcar</Button>
+        </div>
+        <section className="banco-cand">
+          {pares.map((p) => (
+            <label key={p.entryId} className={`banco-opcao ${marcados.has(p.entryId) ? "on" : ""}`}>
+              <input type="checkbox" checked={marcados.has(p.entryId)} onChange={() => alternar(p.entryId)} />
+              <span><b>{p.titulo ?? "—"}</b><Status tone="success">Mesmo CNPJ e valor</Status>
+                <small>Extrato {date(p.data)} · {p.extrato} · parcela {p.parcela} vence {date(p.vencimento)}{p.documento ? ` · ${p.documento}` : ""}</small></span>
+              <strong>{money(p.valor)}</strong>
+            </label>
+          ))}
+        </section>
+        {erros.length > 0 && <div className="almox-erro" role="alert">{erros.map((e, i) => <p key={i}>{e}</p>)}</div>}
+        <footer>
+          <Button variant="secondary" onClick={onClose} disabled={salvando}>Cancelar</Button>
+          <Button onClick={() => void confirmar()} disabled={salvando || !marcados.size}>{salvando ? "Conciliando…" : `Confirmar ${marcados.size}`}</Button>
+        </footer>
+      </div>
+    </Modal>
+  );
+}
+
 function ConciliarModal({ lancamento, onClose, onFeito }: { lancamento: Lancamento; onClose: () => void; onFeito: (m: string) => Promise<void> }) {
-  const [cand, setCand] = useState<{ baixas: Baixa[]; parcelas: Parcela[] } | null>(null);
+  const [cand, setCand] = useState<{ baixas: Baixa[]; parcelas: Parcela[]; explicacao?: string[] } | null>(null);
   const [erro, setErro] = useState("");
   const [baixas, setBaixas] = useState<Set<string>>(new Set());
   const [parcela, setParcela] = useState<string>("");
@@ -248,7 +317,7 @@ function ConciliarModal({ lancamento, onClose, onFeito }: { lancamento: Lancamen
 
   useEffect(() => {
     let vivo = true;
-    void api<{ baixas: Baixa[]; parcelas: Parcela[] }>(`/api/finance/bancos/${lancamento.id}/sugestoes`).then((res) => {
+    void api<{ baixas: Baixa[]; parcelas: Parcela[]; explicacao?: string[] }>(`/api/finance/bancos/${lancamento.id}/sugestoes`).then((res) => {
       if (!vivo) return;
       if (res.ok) setCand(res.data); else setErro(res.error);
     });
@@ -276,13 +345,18 @@ function ConciliarModal({ lancamento, onClose, onFeito }: { lancamento: Lancamen
         {!cand && !erro && <small>Procurando correspondências…</small>}
         {cand && (
           <>
+            {(cand.explicacao?.length ?? 0) > 0 && (
+              <Callout variant="info" title="Por que não casou sozinho">
+                <ul className="banco-explicacao">{cand.explicacao!.map((m, i) => <li key={i}>{m}</li>)}</ul>
+              </Callout>
+            )}
             <section className="banco-cand">
               <h3>{saida ? "Pagamentos já registrados" : "Recebimentos já registrados"} <small>sem conta bancária, até 3 dias de diferença</small></h3>
               {!cand.baixas.length && <p className="banco-nada">Nenhuma baixa encontrada nessa janela.</p>}
               {cand.baixas.map((b) => (
                 <label key={b.id} className={`banco-opcao ${baixas.has(b.id) ? "on" : ""}`}>
                   <input type="checkbox" checked={baixas.has(b.id)} onChange={() => alternar(b.id)} />
-                  <span><b>{b.fornecedor ?? "—"}</b>{b.sugerida && <Status tone="success">Sugerida</Status>}<small>{date(b.data)} · {b.descricao ?? ""}{b.documento ? ` · ${b.documento}` : ""}</small></span>
+                  <span><b>{b.fornecedor ?? "—"}</b>{b.sugerida && <Status tone="success">{b.motivo ? MOTIVO[b.motivo] : "Sugerida"}</Status>}<small>{date(b.data)} · {b.descricao ?? ""}{b.documento ? ` · ${b.documento}` : ""}</small></span>
                   <strong>{money(b.valor)}</strong>
                 </label>
               ))}
@@ -293,12 +367,12 @@ function ConciliarModal({ lancamento, onClose, onFeito }: { lancamento: Lancamen
               )}
             </section>
             <section className="banco-cand">
-              <h3>{saida ? "Ou dar baixa numa parcela em aberto" : "Ou receber uma parcela em aberto"} <small>com o valor deste lançamento</small></h3>
+              <h3>{saida ? "Ou dar baixa numa parcela em aberto" : "Ou receber uma parcela em aberto"} <small>com o valor deste lançamento ou do mesmo CNPJ</small></h3>
               {!cand.parcelas.length && <p className="banco-nada">Nenhuma parcela em aberto com valor parecido.</p>}
               {cand.parcelas.map((p) => (
                 <label key={p.id} className={`banco-opcao ${parcela === p.id ? "on" : ""}`}>
                   <input type="radio" name="parcela" checked={parcela === p.id} onChange={() => { setBaixas(new Set()); setParcela(p.id); }} />
-                  <span><b>{p.fornecedor ?? "—"}</b>{p.valorIgual && <Status tone="success">Valor igual</Status>}{p.previsao && <Status tone="neutral">Previsão</Status>}{p.historico && <Status tone="attention">Histórico</Status>}<small>vence {date(p.vencimento)} · parcela {p.numero} · {p.descricao ?? ""}{p.documento ? ` · ${p.documento}` : ""}</small></span>
+                  <span><b>{p.fornecedor ?? "—"}</b>{p.valorIgual && <Status tone="success">Valor igual</Status>}{p.mesmoCnpj && <Status tone="info">Mesmo CNPJ</Status>}{p.previsao && <Status tone="neutral">Previsão</Status>}{p.historico && <Status tone="attention">Histórico</Status>}<small>vence {date(p.vencimento)} · parcela {p.numero} · {p.descricao ?? ""}{p.documento ? ` · ${p.documento}` : ""}</small></span>
                   <strong>{money(p.saldo)}</strong>
                 </label>
               ))}
