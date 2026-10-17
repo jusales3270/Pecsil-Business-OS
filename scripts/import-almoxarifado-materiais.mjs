@@ -19,7 +19,10 @@
  *
  * Uso (simulação por padrão; nada é gravado sem --apply):
  *   node scripts/import-almoxarifado-materiais.mjs [--dir ~/Downloads] [--url http://<supabase>]
- *        [--relatorio <arquivo.csv>] [--apply]
+ *        [--arquivos "ATIVO IMOBILIZADO.xlsx"] [--relatorio <arquivo.csv>] [--apply]
+ *
+ * --arquivos troca a lista de planilhas (ex.: a do ativo imobilizado, que ficou fora da carga de
+ * 15/10; pela decisão A7 entra inativa e sem estoque). Só acrescenta o que ainda não existe.
  * ============================================================================
  */
 
@@ -45,7 +48,9 @@ const arg = (flag) => { const i = args.indexOf(flag); return i >= 0 && args[i + 
 const apply = args.includes("--apply");
 const dir = (arg("--dir") ?? "~/Downloads").replace(/^~/, homedir());
 const relatorio = (arg("--relatorio") ?? "~/Desktop/PecSil - Materiais do GRV (pendências).csv").replace(/^~/, homedir());
-const ARQUIVOS = ["MATERIA PRIMA.xlsx", "EMBALAGEM.xlsx", "PRODUTO INTERMEDIÁRIO.xlsx", "MATERIAL DE USO E CONSUMO.xlsx"];
+const ARQUIVOS = arg("--arquivos")?.split(",").map((s) => s.trim()).filter(Boolean)
+  ?? ["MATERIA PRIMA.xlsx", "EMBALAGEM.xlsx", "PRODUTO INTERMEDIÁRIO.xlsx", "MATERIAL DE USO E CONSUMO.xlsx"];
+const HOJE = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
 // Decisão A2 (por empresa; aqui, a da PecSil).
 const REGRAS = {
@@ -157,7 +162,7 @@ const linhasBanco = novos.map((m) => ({
   organization_id: org, codigo: m.codigo, descricao: m.descricao, group_id: m.grupo ? idDoGrupo.get(`${m.grupo.prefixo}-${m.grupo.codigo}`) ?? null : null,
   familia: m.familia, grupo_nome: m.grupo_nome, subgrupo: m.subgrupo, unidade: m.unidade, unidade_compra: m.unidade_compra, ncm: m.ncm,
   plano_contas: m.plano_contas, tipo_item: m.tipo_item, custo_referencia: m.custo_referencia, saldo_grv: m.saldo_grv,
-  controla_estoque: m.controla_estoque, ativo: m.ativo, origem: "grv", pendencias: m.pendencias, created_by_name: "GRV (carga de 15/10/2026)",
+  controla_estoque: m.controla_estoque, ativo: m.ativo, origem: "grv", pendencias: m.pendencias, created_by_name: arg("--arquivos") ? `GRV (carga de ${HOJE})` : "GRV (carga de 15/10/2026)",
 }));
 for (let i = 0; i < linhasBanco.length; i += 500) {
   const { error } = await supabase.from("materials").upsert(linhasBanco.slice(i, i + 500), { onConflict: "organization_id,codigo", ignoreDuplicates: true });
