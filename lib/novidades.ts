@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-17-fluxo-90-dias",
+    data: "2026-10-17",
+    area: "Financeiro",
+    funcionalidades: ["financeiro.fluxo", "financeiro.relatorios"],
+    modulos: ["financeiro"],
+    titulo: "Fluxo de caixa dos próximos 90 dias",
+    itens: [
+      "Em Fluxo de caixa, a tela abre nos próximos 90 dias: parte do saldo dos bancos e soma, dia a dia, o que está a pagar e a receber, em três cenários (conservador, pelo vencimento e otimista). A visão por mês continua em \"Por mês\".",
+      "Mostra o menor saldo do período, o dia em que o caixa fica negativo e a semana a semana, com as maiores parcelas de cada semana.",
+      "As regras de cada cenário ficam escritas na tela e podem ser ajustadas para simular, assim como o saldo de hoje de uma conta com extrato atrasado. Nada do que se ajusta ali é gravado.",
+    ],
+  },
+  {
     id: "2026-10-17-ip-do-login",
     data: "2026-10-17",
     area: "Auditoria",
