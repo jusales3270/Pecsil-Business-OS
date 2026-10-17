@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Callout, Card, Kpi, KpiGrid, Segmented } from "../../packages/design-system";
 import { MANAGEMENT_TYPES, type ManagementType } from "../../lib/finance/plano-contas-core";
+import { FinanceFluxo90 } from "./finance-fluxo-90";
 
 /**
  * Fluxo de caixa e gasto por conta do plano. Os números vêm somados do banco
@@ -51,7 +52,29 @@ function Ano({ ano, setAno }: { ano: number; setAno: (ano: number) => void }) {
 
 export type CashRow = { month: number; direction: "payable" | "receivable"; realized: number; open: number; forecast: number };
 
+type Vista = "90" | "mes";
+
+/** Fluxo de caixa: os próximos 90 dias (F-07, abre aqui) ou o ano por mês. */
 export function FinanceCashFlow() {
+  const [vista, setVista] = useState<Vista>("90");
+  const troca = <Segmented<Vista> options={[{ value: "90", label: "Próximos 90 dias" }, { value: "mes", label: "Por mês" }]} value={vista} onChange={setVista} ariaLabel="Visão do fluxo de caixa" compact />;
+  if (vista === "mes") return <FluxoPorMes troca={troca} />;
+  return (
+    <>
+      <div className="finance-page-head">
+        <div>
+          <p className="eyebrow">FINANCEIRO · TESOURARIA</p>
+          <h1>Fluxo de caixa</h1>
+          <p>Os próximos 90 dias a partir do saldo dos bancos: o que está a pagar e a receber, dia a dia, em três cenários. As regras de cada cenário ficam à vista.</p>
+        </div>
+        <div className="icms-acoes">{troca}</div>
+      </div>
+      <FinanceFluxo90 />
+    </>
+  );
+}
+
+function FluxoPorMes({ troca }: { troca: ReactNode }) {
   const [ano, setAno] = useState(anoAtual);
   const { carregando, dados, erro } = useAno<{ months: CashRow[] }>((year) => `/api/finance/fluxo?ano=${year}`, ano);
   const meses = useMemo(() => MESES.map((nome, index) => {
@@ -74,7 +97,7 @@ export function FinanceCashFlow() {
           <h1>Fluxo de caixa</h1>
           <p>Por mês: o que já entrou e saiu (baixas) e o que está em aberto, pelo vencimento. Previsão aparece à parte.</p>
         </div>
-        <Ano ano={ano} setAno={setAno} />
+        <div className="icms-acoes">{troca}<Ano ano={ano} setAno={setAno} /></div>
       </div>
 
       <KpiGrid>

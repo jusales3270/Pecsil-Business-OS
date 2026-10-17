@@ -27,7 +27,7 @@
 | 4 | F-07 | Fluxo de caixa de 90 dias (cenários por regra) | 4,0 | A Ana vê o caixa à frente, não só o passado |
 | 5 | A-08 | Equivalência de itens em cotações (revisto depois do A-01) | 3,3 | Comparativo de cotação mais preciso |
 
-A fila de 17/10 (A-11, F-08, R-01, A-07, F-09) foi toda construída e aguarda o Deploy.
+A fila de 17/10 (A-11, F-08, R-01, A-07, F-09) foi toda construída e está no ar (Deploy de `5e2e354` em 17/10, 23h29).
 
 **Quem decide o quê** (regra de 16/10/2026): o proprietário cuida da **construção e dos recursos** da
 plataforma: ordem do roadmap, acessos e permissões, infraestrutura, caixas de e-mail conectadas, uso e custo
@@ -198,17 +198,17 @@ Marco: **1**, **2** ou **+**.
 
 | Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
 |---|---|---|---|---|---|---|---|---|---|---|
-| A-01 | Material ligado no fluxo de compra (de-para do código do fornecedor) | 1 | 4 | 4 | 2 | 1 | 6,0 | pronto, aguarda deploy | — | ALM M2 |
+| A-01 | Material ligado no fluxo de compra (de-para do código do fornecedor) | 1 | 4 | 4 | 2 | 1 | 6,0 | no ar (conferir em produção) | — | ALM M2 |
 | A-02 | Estoque: saldo, custo médio, saída no balcão, kardex | 1 | 5 | 5 | 3 | 2 | 5,0 | decisão | A-01; A4, A5 | ALM M3 |
 | A-03 | Inventário inicial por contagem | 1 | 5 | 5 | 1 | 3 | 15,0 | travado | A-02; A3; contagem | ALM M4 |
 | A-04 | EPI ligado ao estoque (inclui o catálogo de EPI do Jev, Etapa 2) | 1 | 4 | 4 | 1,5 | 2 | 8,0 | decisão | A-02; A8 | ALM M5; Jev E2 |
 | A-05 | Reposição: mínimo, máximo e solicitação sugerida | + | 4 | 2 | 1,5 | 2 | 5,3 | decisão | A-02; A9 | ALM M6 |
 | A-06 | Virada do estoque (o GRV deixa de controlar) | 1 | 5 | 5 | 1 | 1 | 15,0 | na fila | A-01 a A-04 | ALM M7 |
-| A-07 | Cotações: selos (preço, prazo, pagamento), regra "prazo depois preço" e saving na OC | + | 4 | 1 | 1 | 1 | 6,0 | pronto, aguarda deploy | — | Novo (16/10) |
+| A-07 | Cotações: selos (preço, prazo, pagamento), regra "prazo depois preço" e saving na OC | + | 4 | 1 | 1 | 1 | 6,0 | no ar (conferir em produção) | — | Novo (16/10) |
 | A-08 | Equivalência de itens em cotações | + | 3 | 1 | 1,5 | 2 | 3,3 | na fila | Rever depois de A-01 | Jev E7 |
 | A-09 | Portal do fornecedor (conta de terceiro com validade, como o do escritório) | + | 4 | 1 | 3 | 1 | 2,0 | na fila | — | Novo (16/10) |
 | A-10 | Dados do GRV para o estoque (movimentação, próximo número, locais, NCM) | 1 | 3 | 4 | 0,5 | 2 | 22,0 | pedido à equipe | Jefferson, Henrique | ALM §6 |
-| A-11 | Lista de "parados há X dias" (cotação, pedido, rascunho de OS, nota), sem escalonar | + | 4 | 2 | 1 | 1 | 8,0 | pronto, aguarda deploy | — | Novo (16/10) |
+| A-11 | Lista de "parados há X dias" (cotação, pedido, rascunho de OS, nota), sem escalonar | + | 4 | 2 | 1 | 1 | 8,0 | no ar (conferir em produção) | — | Novo (16/10) |
 
 ### P — Produção (Forja)
 
@@ -237,9 +237,9 @@ Marco: **1**, **2** ou **+**.
 | F-04 | Revisão das sobras e dos históricos a conferir | 1 | 4 | 4 | 0,5 | 2 | 24,0 | pedido à equipe | Ana | Carga legada |
 | F-05 | Centros de custo e cadastros financeiros reais | + | 4 | 2 | 1 | 3 | 8,0 | decisão | D1 | CM E1 |
 | F-06 | Alçadas de aprovação e baixa parcial ou reversível | 1 | 4 | 3 | 1,5 | 1 | 6,7 | no ar (conferir em produção) | — | BP Fase 3 |
-| F-07 | Fluxo de caixa de 90 dias (cenários por regra; a explicação fica para a SARA) | + | 4 | 2 | 2 | 1 | 4,0 | na fila | — | BP Fase 3 |
-| F-08 | Conciliação: regra com CNPJ e explicação da divergência (sempre com confirmação) | + | 3 | 2 | 1 | 1 | 7,0 | pronto, aguarda deploy | — | Conciliação |
-| F-09 | Portal do escritório, Entrega B (guias viram contas a pagar) | + | 4 | 2 | 1,5 | 1 | 5,3 | pronto, aguarda deploy | — | Portal do escritório |
+| F-07 | Fluxo de caixa de 90 dias (cenários por regra; a explicação fica para a SARA) | + | 4 | 2 | 2 | 1 | 4,0 | pronto, aguarda deploy | — | BP Fase 3 |
+| F-08 | Conciliação: regra com CNPJ e explicação da divergência (sempre com confirmação) | + | 3 | 2 | 1 | 1 | 7,0 | no ar (conferir em produção) | — | Conciliação |
+| F-09 | Portal do escritório, Entrega B (guias viram contas a pagar) | + | 4 | 2 | 1,5 | 1 | 5,3 | no ar (conferir em produção) | — | Portal do escritório |
 | F-10 | Pix e boleto registrados, Open Finance | + | 4 | 1 | 5 | 3 | 1,2 | decisão | Escolher o banco | Novo (16/10) |
 | F-13 | Homologação do Financeiro com a Tesouraria | 1 | 5 | 5 | 1 | 2 | 15,0 | na fila | F-01 | BP Fase 3 |
 
@@ -247,7 +247,7 @@ Marco: **1**, **2** ou **+**.
 
 | Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
 |---|---|---|---|---|---|---|---|---|---|---|
-| R-01 | Fechar a Fase 2 (sem mocks, testes, homologar com 2 perfis) | 2 | 4 | 3 | 1,5 | 1 | 6,7 | pronto, aguarda deploy | — | BP Fase 2 |
+| R-01 | Fechar a Fase 2 (sem mocks, testes, homologar com 2 perfis) | 2 | 4 | 3 | 1,5 | 1 | 6,7 | no ar (conferir em produção) | — | BP Fase 2 |
 | R-02 | Dados do RH (37 linhas, 10 sem CPF, 7 férias vencidas) | + | 3 | 1 | 0,5 | 2 | 10,0 | pedido à equipe | RH | Importações do RH |
 | R-03 | Função define as exigências (EPI, exames, validades) e mapa de férias por setor | + | 4 | 1 | 2 | 1 | 3,0 | na fila | — | BP Fase 2 |
 | R-04 | Cadeia 2: desligamento | + | — | — | — | — | — | decisão | Q1, Q2 | PROCESSOS-PECSIL |
@@ -360,6 +360,8 @@ Marco: **1**, **2** ou **+**.
 | 16/10/2026 | Entram os itens novos da comparação com o GRV Max: A-07, C-05, A-11, B-08, A-09 e F-10. Os 14 da lista ficam assim: 1 C-05 · 2 A-07, A-08 · 3 A-11, P-06 · 4 B-08 · 5 A-09 · 6 I-08 · 7 F-07 · 8 F-08, I-04 · 9 I-10 · 10 K-05, K-06, P-03 · 11 P-10 · 12 R-03, A-04 · 13 P-06 · 14 F-10 | Proprietário |
 | 16/10/2026 | P-02 construído na Forja (branch `feat/terceiros-operacao`): tela de terceiros na operação do artigo e a correção da aba de lotes, que mostrava toda OP como interna; teste de navegador 15/15 | Claude |
 | 17/10/2026 | F-09 construído: o escritório (ou o Fiscal) envia o PDF da guia no portal, a plataforma lê tipo, valor, vencimento e linha digitável por regra (valor conferido com o código de barras), quem envia confere e a guia vira conta a pagar EM APROVAÇÃO; aviso para quem aprova contas a pagar; guia repetida recusada; cancelamento com motivo enquanto não paga; o escritório vê só a situação do pagamento. Migração 202610170005 aplicada; teste de navegador 17/17 (contador, empresa e Financeiro) | Claude |
+| 17/10/2026 | Deploy de `5e2e354` (A-01, A-11, F-08, R-01, A-07, F-09 e tudo o que estava no main): terminou 23h29 | Proprietário |
+| 17/10/2026 | F-07 construído: Fluxo de caixa abre nos próximos 90 dias, do saldo dos bancos pelo extrato, em três cenários por regra (conservador: recebe 15 dias depois, vencido a receber fora, previsões de saída; pelo vencimento; otimista), regras ajustáveis na tela sem gravar, saldo de hoje digitável para conta com extrato atrasado, semana a semana com as maiores parcelas e aviso do que distorce (R$ 1,06 mi a pagar vencido, antigos e previsões velhas fora). Migração 202610170007 aplicada; teste de navegador 14/14. Regras padrão: decisão da Ana | Claude |
 | 17/10/2026 | B-11 construído: o GoTrue v2.189.0 grava o login com o IP vazio de propósito (nenhum dos 6.996 registros desde 01/09 tem IP); a plataforma passa a guardar o IP que o Traefik entrega (último do X-Forwarded-For) e o aparelho, no login por senha (gateway /sb) e pela digital, e a Auditoria mostra "IP …" no login. Migração 202610170006 aplicada; teste de navegador 6/6 | Claude |
 | 17/10/2026 | B-09 feito: `docs/INFRA.md` (topologia, portas, serviços com os ids do Coolify, nomes das variáveis, tarefas agendadas, migrações, recuperação por tipo de pane, lacunas), conferido pela API do Coolify. Achados: Coolify aberto em HTTP na porta 8001 pública; senha do Postgres e chaves do MinIO da Forja vazias no Coolify; nenhum backup dos bancos | Claude |
 | 17/10/2026 | Nova fila, pela nota, entre os itens com portões abertos: B-09, B-11, B-07, F-07, A-08 | Claude |

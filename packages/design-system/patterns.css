@@ -6743,6 +6743,60 @@ button.holiday-row:hover {
 .fin-grafico-numero strong { font-size: var(--fs-metric-sm); font-weight: 650; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--text-primary); }
 .fin-link { padding: 6px 10px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--accent-blue); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
 .fin-link:hover { background: var(--bg-hover); }
+/* Fluxo de caixa dos próximos 90 dias (F-07) */
+.fluxo90 { display: flex; flex-direction: column; gap: var(--sp-4); }
+.fluxo90-cabeca { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.fluxo90-comparar { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.fluxo90-comparar > button { display: grid; grid-template-columns: 10px auto; column-gap: 8px; align-items: center; padding: 8px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; }
+.fluxo90-comparar > button:hover { background: var(--bg-hover); }
+.fluxo90-comparar > button.ativo { border-color: var(--accent-blue); box-shadow: 0 0 0 1px var(--accent-blue) inset; }
+.fluxo90-comparar i { grid-row: span 3; width: 10px; height: 10px; border-radius: 50%; }
+.fluxo90-comparar span { font-size: var(--fs-xs); color: var(--text-secondary); }
+.fluxo90-comparar b { font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.fluxo90-comparar b.neg { color: var(--accent-red); }
+.fluxo90-comparar small { font-size: var(--fs-micro); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.fluxo90-grafico { position: relative; margin: 0; padding-left: 64px; }
+.fluxo90-grafico svg { display: block; width: 100%; height: 220px; overflow: visible; }
+.fluxo90-grafico path { fill: none; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.fluxo90-grafico path.atual { stroke-width: 2.5; }
+.fluxo90-grafico path.outro { stroke-width: 1.5; opacity: 0.45; }
+.fluxo90-grafico line.zero { stroke: var(--border-strong); stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.fluxo90-grafico figcaption { display: flex; justify-content: space-between; margin-top: 6px; font-size: var(--fs-micro); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.fluxo90-eixo { position: absolute; top: 0; left: 0; bottom: 20px; display: flex; flex-direction: column; justify-content: space-between; font-size: var(--fs-micro); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.fluxo90-regras { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border-subtle); }
+.fluxo90-lista { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.fluxo90-lista p { margin: 0; padding-left: 14px; position: relative; font-size: var(--fs-sm); color: var(--text-secondary); }
+.fluxo90-lista p::before { content: "·"; position: absolute; left: 2px; font-weight: 700; color: var(--text-muted); }
+.fluxo90-ajuste { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-3); }
+.fluxo90-ajuste > label:not(.fluxo90-check) { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.fluxo90-ajuste > label > span { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.fluxo90-ajuste input[type="number"] { width: 110px; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.fluxo90-check { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; font-size: var(--fs-sm); color: var(--text-primary); }
+.fluxo90-titulo { margin: 0 0 var(--sp-3); font-size: var(--fs-md); color: var(--text-primary); }
+.fluxo90-semanas th .fin-link { padding: 4px 6px; margin-left: -6px; }
+.fluxo90-detalhe td { text-align: left; white-space: normal; background: var(--bg-subtle); }
+.fluxo90-itens { display: flex; flex-direction: column; gap: 6px; }
+.fluxo90-itens .item { display: grid; grid-template-columns: 44px minmax(160px, 1fr) minmax(0, 2fr) auto auto 120px; align-items: center; gap: var(--sp-3); font-size: var(--fs-sm); }
+.fluxo90-itens .item > span.entra { color: var(--accent-green); font-weight: 600; }
+.fluxo90-itens .item > span.sai { color: var(--accent-amber); font-weight: 600; }
+.fluxo90-itens .item > small { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fluxo90-itens .item > em { font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.fluxo90-itens .mais { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); }
+.fluxo90-contas { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-3); }
+.fluxo90-contas > div { display: flex; flex-direction: column; gap: 4px; padding: var(--sp-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); }
+.fluxo90-contas > div.atrasada { border-color: var(--accent-amber); }
+.fluxo90-contas small { font-size: var(--fs-xs); color: var(--text-muted); }
+.fluxo90-contas strong { font-size: var(--fs-md); font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.fluxo90-contas label { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.fluxo90-contas label span { font-size: var(--fs-xs); font-weight: 600; color: var(--accent-amber); }
+.fluxo90-contas input { min-height: 36px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+@media (max-width: 760px) {
+  .fluxo90-regras { grid-template-columns: 1fr; }
+  .fluxo90-grafico { padding-left: 0; }
+  .fluxo90-eixo { display: none; }
+  .fluxo90-itens .item { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .fluxo90-itens .item > small, .fluxo90-itens .item > .ds-status { grid-column: 2 / -1; }
+}
 
 .fin-delta { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--radius-pill); font-size: var(--fs-xs); font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fin-delta.bom { color: var(--accent-green); background: color-mix(in srgb, var(--accent-green) 12%, transparent); }
