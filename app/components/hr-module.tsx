@@ -14,6 +14,7 @@ import { JANELA_ALERTA_DIAS, diasAte, hojeBrasilia, situacaoSst } from "../../li
 import { PpeSection, usePpeData } from "./hr-epi";
 import { TerceirosSection } from "./hr-terceiros";
 import { ExigenciasFuncao } from "./rh-exigencias";
+import { FeriasPorSetor } from "./rh-ferias-mapa";
 
 const sections = [
   ["Painel", "grid"],
@@ -898,7 +899,7 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
   const [creating, setCreating] = useState(false);
   const [editingAbsence, setEditingAbsence] = useState<AbsenceRecord | null>(null);
   const [deletingAbsence, setDeletingAbsence] = useState<AbsenceRecord | null>(null);
-  const [tab, setTab] = useState<"Solicitações" | "Calendário" | "Políticas">("Solicitações");
+  const [tab, setTab] = useState<"Solicitações" | "Mapa por setor" | "Políticas">("Solicitações");
   const [status, setStatus] = useState("Todos os status");
   const canCreate = canUseFeature(access, "rh.ferias", "operar");
   const canApprove = canUseFeature(access, "rh.ferias", "aprovar");
@@ -1033,9 +1034,9 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · AUSÊNCIAS</p><h1>Férias e ausências</h1><p>Solicitações, saldos, aprovações e conflitos de equipe em uma única visão.</p></div>{canCreate && <Button onClick={() => setCreating(true)}><HrIcon name="plus"/> Nova solicitação</Button>}</div>
     {detail && <KpiDetailModal detail={detail} onClose={() => setDetail(null)}/>}
     <KpiGrid><HrStat value={String(rh.summary.scheduledVacationDays)} label="Férias programadas" meta="Dias no período" icon="calendar" tone="blue" onOpen={openScheduled}/><HrStat value={String(pending)} label="Em aprovação" meta="Aguardando decisão" icon="clock" tone="orange" onOpen={openPending}/><HrStat value={String(rh.summary.vacationsOverdue + rh.summary.vacationsDueSoon)} label="Férias a vencer" meta={rh.summary.vacationsOverdue ? `${rh.summary.vacationsOverdue} com concessivo vencido` : "Concessivo em até 60 dias"} icon="alert" tone={rh.summary.vacationsOverdue ? "orange" : "purple"} onOpen={openExpiring}/><HrStat value={String(conflicts)} label="Conflitos de equipe" meta={conflicts ? "Exigem avaliação" : "Planejamento saudável"} icon={conflicts ? "alert" : "check"} tone={conflicts ? "orange" : "green"} onOpen={openConflicts}/></KpiGrid>
-    <div className="absence-tabs" role="tablist">{(["Solicitações","Calendário","Políticas"] as const).map(item => <button role="tab" aria-selected={tab === item} className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}{item === "Solicitações" && <i>{pending}</i>}</button>)}</div>
+    <div className="absence-tabs" role="tablist">{(["Solicitações","Mapa por setor","Políticas"] as const).map(item => <button role="tab" aria-selected={tab === item} className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}{item === "Solicitações" && <i>{pending}</i>}</button>)}</div>
     {tab === "Solicitações" && <Card className="absence-card"><div className="absence-toolbar"><div><p className="eyebrow">FLUXO DE APROVAÇÃO</p><h2>Solicitações recentes</h2></div><label><span>Status</span><select value={status} onChange={event => setStatus(event.target.value)} aria-label="Filtrar solicitações por status"><option>Todos os status</option><option>Pendente</option><option>Em análise</option><option>Aprovada</option><option>Registrado</option><option>Reprovada</option></select></label></div><div className="absence-table"><div className="absence-table-head"><span>Colaborador</span><span>Tipo e período</span><span>Duração</span><span>Situação</span><span/></div>{filtered.map(record => <button onClick={() => setSelected(record)} key={record.id}><span className="absence-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department} · {record.unit}</small></span></span><span><b>{record.type}</b><small>{formatPeriod(record.start,record.end)}</small></span><span><b>{durationLabel(record)}</b>{record.conflict ? <small className="conflict-label">⚠ Conflito identificado</small> : <small>Sem conflito</small>}</span><Status tone={absenceTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!filtered.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhuma solicitação encontrada</b><small>Altere o filtro de situação.</small></div>}</div></Card>}
-    {tab === "Calendário" && <AbsenceCalendar records={records} onSelect={setSelected}/>} 
+    {tab === "Mapa por setor" && <FeriasPorSetor/>} 
     {tab === "Políticas" && <AbsencePolicies/>}
     {selected && <AbsenceDrawer record={selected} canApprove={canApprove} canSeeClinical={canUseFeature(access, "rh.clinico")} onClose={() => setSelected(null)} onDecision={decide} onEdit={canApprove ? () => { setEditingAbsence(selected); setSelected(null); } : undefined} onDelete={canApprove ? () => { setDeletingAbsence(selected); setSelected(null); } : undefined}/>} 
     {creating && <AbsenceForm nextId={Math.max(0, ...records.map(record => record.id)) + 1} employees={rh.source === "supabase" ? rh.employees : []} onClose={() => setCreating(false)} onSave={createRequest}/>}
@@ -1047,11 +1048,6 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
       </div>
     </Modal>}
   </>;
-}
-
-function AbsenceCalendar({ records, onSelect }: { records: AbsenceRecord[]; onSelect: (record: AbsenceRecord) => void }) {
-  const visible = records.filter(record => record.status !== "Reprovada");
-  return <Card className="absence-calendar"><div className="card-head"><div><p className="eyebrow">PLANEJAMENTO DE EQUIPE</p><h2>Calendário consolidado</h2><p>Julho a setembro de 2026</p></div><Status tone="info">{visible.length} movimentações</Status></div><div className="calendar-scale"><span>Colaborador</span><div><b>Julho</b><b>Agosto</b><b>Setembro</b></div></div><div className="calendar-rows">{visible.map(record => { const month = Number(record.start.slice(5,7)); const left = month === 7 ? 3 : month === 8 ? 35 : 68; const width = Math.max(7,Math.min(29,record.days * 1.4)); return <button key={record.id} onClick={() => onSelect(record)}><span><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department}</small></span></span><em><i className={record.conflict ? "conflict" : ""} style={{left:`${left}%`,width:`${width}%`}} title={`${record.type} · ${durationLabel(record)}${record.conflict ? " · exige avaliação de conflito" : ""}`}/></em></button>; })}</div><div className="calendar-legend"><span><i/> Programação regular</span><span><i className="conflict"/> Exige avaliação de conflito</span></div></Card>;
 }
 
 function AbsencePolicies() {

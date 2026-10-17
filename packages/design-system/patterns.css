@@ -7288,6 +7288,37 @@ button.holiday-row:hover {
 .portal-form > label { display: flex; flex-direction: column; min-width: 0; }
 /* Guias de imposto do portal (F-09) */
 /* RH · Exigências por função (R-03) */
+/* RH · Mapa de férias por setor (R-03, parte 2) */
+.ferias-mapa { display: flex; flex-direction: column; gap: var(--sp-4); padding: var(--sp-5); }
+.ferias-mapa-resumo { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ferias-mapa-rolagem { overflow-x: auto; }
+.ferias-mapa-tabela { border-collapse: separate; border-spacing: 4px; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.ferias-mapa-tabela thead th { font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); text-align: center; white-space: nowrap; padding: 0 2px 4px; }
+.ferias-mapa-tabela thead th:first-child { text-align: left; }
+.ferias-mapa-tabela tbody th { position: sticky; left: 0; z-index: 1; min-width: 150px; padding: 4px 12px 4px 0; text-align: left; background: var(--bg-surface); }
+.ferias-mapa-tabela tbody th b { display: block; font-size: var(--fs-sm); color: var(--text-primary); white-space: nowrap; }
+.ferias-mapa-tabela tbody th small { font-size: var(--fs-xs); color: var(--text-muted); }
+.ferias-mapa-tabela td { padding: 0; text-align: center; }
+.ferias-zero { display: grid; place-items: center; width: 52px; height: 38px; border-radius: var(--radius-sm); background: var(--bg-subtle); color: var(--text-muted); font-size: var(--fs-xs); }
+.ferias-cel { position: relative; display: grid; place-items: center; width: 52px; height: 38px; padding: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-blue) calc(12% + var(--parte, 0) * 70%), var(--bg-surface)); color: var(--text-primary); font: inherit; font-weight: 650; cursor: pointer; }
+.ferias-cel:hover { outline: 2px solid var(--accent-blue); outline-offset: -1px; }
+.ferias-cel.metade { border-color: var(--accent-red); box-shadow: inset 0 0 0 1px var(--accent-red); }
+.ferias-cel.vencidas { background: color-mix(in srgb, var(--accent-red) 18%, var(--bg-surface)); border-color: var(--accent-red); color: var(--accent-red); }
+.ferias-cel > i { position: absolute; top: 2px; right: 3px; font-style: normal; font-size: var(--fs-micro); font-weight: 700; color: var(--accent-amber); }
+.ferias-mapa-legenda { display: flex; flex-wrap: wrap; gap: var(--sp-4); font-size: var(--fs-xs); color: var(--text-secondary); }
+.ferias-mapa-legenda i { display: inline-grid; place-items: center; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; border-radius: 3px; font-style: normal; font-size: 10px; font-weight: 700; }
+.ferias-mapa-legenda i.fora { background: color-mix(in srgb, var(--accent-blue) 55%, var(--bg-surface)); }
+.ferias-mapa-legenda i.vence { color: var(--accent-amber); border: 1px solid var(--border-subtle); }
+.ferias-mapa-legenda i.metade { border: 2px solid var(--accent-red); }
+.ferias-mapa .ferias-mapa-detalhe { align-self: stretch; width: 100%; max-width: none; margin: 0; text-align: left; align-items: stretch; }
+.ferias-mapa-detalhe { display: flex; flex-direction: column; gap: 6px; padding: var(--sp-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-subtle); }
+.ferias-mapa-detalhe header { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.ferias-mapa-detalhe header b { font-size: var(--fs-sm); color: var(--text-primary); }
+.ferias-mapa-detalhe .item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 0; border-top: 1px solid var(--border-subtle); }
+.ferias-mapa-detalhe .item b { font-size: var(--fs-sm); color: var(--text-primary); }
+.ferias-mapa-detalhe .item small { font-size: var(--fs-xs); color: var(--text-muted); }
+
 .rh-exig { display: flex; flex-direction: column; gap: var(--sp-4); margin-top: var(--sp-4); }
 .rh-exig-card { display: flex; flex-direction: column; gap: var(--sp-4); padding: var(--sp-5); }
 .rh-exig-vazio { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-5); }
