@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ordenarPorRotulo } from "../../lib/menu-ordem";
 import type { FoundationSummary, Person } from "../../lib/data/foundation";
 import { canUseFeature, type ModuleAccessContext } from "../../modules";
@@ -87,7 +87,7 @@ function toEmployee(person: Person): EmployeeRecord {
   };
 }
 
-/** Identidade estável de uma pessoa: id do banco (dados reais) ou e-mail (demonstração). */
+/** Identidade estável de uma pessoa: id do banco, ou o e-mail para quem ainda não tem ficha no RH. */
 function personKey(person: Pick<Person, "id" | "email">) {
   return person.id ?? person.email;
 }
@@ -142,6 +142,10 @@ type HrDocumentRecord = {
   signature: "Assinado" | "Assinatura pendente" | "Não exigida";
   sensitive: boolean;
   updatedAt: string;
+  /** Conferência gravada pelo RH (quem, quando e o motivo da reprovação). */
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  reviewNote?: string | null;
 };
 
 const initialHrDocuments: HrDocumentRecord[] = [];
@@ -211,7 +215,7 @@ export function HrModule({
 }) {
   const [section, setSection] = useState<HrSection>("Painel");
   const [query, setQuery] = useState("");
-  // Dados reais do RH (rh_*), com fallback demonstrativo automático quando não
+  // Dados reais do RH (rh_*). Sem conexão, a tela fica vazia e nada é gravado: não
   // há sessão ou conexão — mesmo contrato do Financeiro.
   const { snapshot: rh } = useRhData();
   const [employees, setEmployees] = useState<EmployeeRecord[]>(() => people.map(toEmployee));
@@ -270,7 +274,7 @@ export function HrModule({
           {section === "Saúde e segurança" && <SafetySection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Documentos" && <DocumentsSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Relatórios" && <ReportsSection notify={track} access={access}/>} 
-          {section === "Homologação" && <HomologationSection notify={track} access={access}/>} 
+          {section === "Homologação" && <HomologationSection notify={track} rh={rh}/>} 
         </>
     </div>
   </div>;
@@ -344,8 +348,8 @@ function buildPendingItems(rh: RhSnapshot): PendingItem[] {
 // mantêm os mocks ricos originais.
 // ---------------------------------------------------------------------------
 
-// Envia uma decisão do RH ao servidor. Retorna true se persistiu; false se o
-// backend está em modo demonstrativo (409) — a UI então mantém só o local.
+// Envia uma decisão do RH ao servidor. Retorna true se persistiu; sem banco
+// (409 DEMO_MODE) vira erro e a UI desfaz a mudança — nunca mantém só o local.
 // Lança em 401/403 para o chamador tratar (sessão expirada, sem permissão).
 async function sendRhMutation(body: Record<string, unknown>): Promise<boolean> {
   const response = await fetch("/api/rh", {
@@ -355,7 +359,8 @@ async function sendRhMutation(body: Record<string, unknown>): Promise<boolean> {
   });
   if (response.ok) return true;
   const code = ((await response.json().catch(() => ({}))) as { error?: string }).error;
-  if (code === "DEMO_MODE") return false; // modo demonstrativo
+  // Sem banco não há o que gravar: vira erro e a tela desfaz a mudança (nada fica só na tela).
+  if (code === "DEMO_MODE") throw new Error("RH_SEM_BANCO");
   if (response.status === 401) throw new Error("UNAUTHENTICATED");
   if (response.status === 403) throw new Error("RH_MUTATION_DENIED");
   throw new Error(code || "RH_MUTATION_FAILED");
@@ -366,6 +371,7 @@ function mutationFailure(error: unknown, who: string, what: string) {
   const code = error instanceof Error ? error.message : "";
   if (code === "UNAUTHENTICATED") return `${who}: sua sessão expirou. Entre novamente para ${what}.`;
   if (code === "RH_MUTATION_DENIED") return `${who}: você não tem permissão para ${what}.`;
+  if (code === "RH_SEM_BANCO") return `${who}: sem conexão com o banco. Nada foi gravado.`;
   if (code === "RH_INVALID") return `${who}: confira as datas e os campos obrigatórios. Nada foi alterado.`;
   if (code === "RH_CONFIRMATION") return `${who}: o nome digitado não confere. Nada foi excluído.`;
   if (code === "RH_CPF_DUPLICADO") return `${who}: este CPF já está no cadastro de outro colaborador. Nada foi alterado.`;
@@ -469,9 +475,15 @@ function toDocumentUiRecord(doc: RhDocument, index: number): HrDocumentRecord {
   const fileName = doc.objectPath ? doc.objectPath.split("/").pop() ?? doc.objectPath : "—";
   // Deriva um status simples a partir da validade, já que a Fundação não guarda
   // um "status" de documento — a data de revisão é o sinal disponível.
-  const status: HrDocumentStatus = doc.reviewDueAt
-    ? (new Date(`${doc.reviewDueAt}T12:00:00`) < new Date() ? "Expirado" : "A vencer")
-    : "Válido";
+  // Situação: reprovado pelo RH, validade vencida ou a vencer em 30 dias, aprovado na conferência,
+  // ou aguardando a conferência (nada é "válido" sem alguém do RH ter conferido).
+  const vence = doc.reviewDueAt ? new Date(`${doc.reviewDueAt}T12:00:00`).getTime() : null;
+  const agora = Date.now();
+  const status: HrDocumentStatus = doc.reviewStatus === "reprovado" ? "Reprovado"
+    : vence !== null && vence < agora ? "Expirado"
+    : vence !== null && vence < agora + 30 * 86_400_000 ? "A vencer"
+    : doc.reviewStatus === "aprovado" ? "Válido"
+    : "Pendente";
   return {
     id: index + 1,
     sourceId: doc.id,
@@ -488,6 +500,9 @@ function toDocumentUiRecord(doc: RhDocument, index: number): HrDocumentRecord {
     signature: doc.signature ? docSignaturePt[doc.signature] : "Não exigida",
     sensitive: doc.sensitive,
     updatedAt: doc.updatedAt,
+    reviewedBy: doc.reviewedBy,
+    reviewedAt: doc.reviewedAt,
+    reviewNote: doc.reviewNote,
   };
 }
 
@@ -667,7 +682,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
       }
       return;
     }
-    notify(isNew ? `${employee.name} foi incluído nos dados demonstrativos.` : `Cadastro de ${employee.name} atualizado.`);
+    notify(isNew ? `${employee.name}: não foi gravado (sem conexão com o banco).` : `Cadastro de ${employee.name} atualizado.`);
   };
 
   const [deleting, setDeleting] = useState<EmployeeRecord | null>(null);
@@ -676,14 +691,6 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
     setDeleting(null);
     setSelected(null);
     notify(`${employee.name}: cadastro excluído.`);
-  };
-
-  const changeStatus = (status: Person["status"]) => {
-    if (!selected) return;
-    const updated = { ...selected, status };
-    setPeople(current => current.map(item => personKey(item) === personKey(selected) ? updated : item));
-    setSelected(updated);
-    notify(`${selected.name}: situação alterada para ${status}.`);
   };
 
   return <>
@@ -696,13 +703,13 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
         : <Card><span><HrIcon name="file"/></span><div><strong>{allPeople.filter(person => person.documentStatus === "Pendente").length}</strong><small>cadastros pendentes</small></div></Card>}
     </div>
     <Card className="hr-table-card"><div className="hr-tools"><label><HrIcon name="search"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, matrícula, cargo ou departamento..."/></label><select value={unit} onChange={event => setUnit(event.target.value)} aria-label="Filtrar unidade"><option>Todas as unidades</option>{Array.from(new Set(allPeople.map(person => person.unit))).sort().map(name => <option key={name}>{name}</option>)}</select><button onClick={() => { setQuery(""); setUnit("Todas as unidades"); }}><HrIcon name="filter"/> Limpar filtros</button></div><div className="hr-people-table"><div className="hr-table-header"><span>Colaborador</span><span>Cargo</span><span>Departamento</span><span>Status</span><span/></div>{visiblePeople.map(person => <button key={personKey(person)} onClick={() => setSelected(person)}><span className="hr-person"><i>{person.initials}</i><span><b>{person.name}</b><small>Matrícula {person.registration}{person.email ? ` · ${person.email}` : ""}</small></span></span><span><b>{person.role}</b><small>{person.unit}</small></span><span>{person.department}</span><Status tone={person.status === "Ativo" ? "success" : person.status === "Pendente" ? "info" : "neutral"}>{person.status}</Status><HrIcon name="arrow"/></button>)}{!visiblePeople.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhum colaborador encontrado</b><small>Ajuste a busca ou a unidade selecionada.</small></div>}</div></Card>
-    {selected && <EmployeeDrawer employee={selected} canEdit={canCreate} canViewDocs={canViewDocs} notify={notify} onClose={() => setSelected(null)} onEdit={(withPersonal) => { setEditing(withPersonal); setSelected(null); }} onStatus={changeStatus} onDelete={persists && selected.id ? () => { setDeleting(selected); setSelected(null); } : undefined}/>}
+    {selected && <EmployeeDrawer employee={selected} canEdit={canCreate} canViewDocs={canViewDocs} notify={notify} onClose={() => setSelected(null)} onEdit={(withPersonal) => { setEditing(withPersonal); setSelected(null); }} onDelete={persists && selected.id ? () => { setDeleting(selected); setSelected(null); } : undefined}/>}
     {deleting && <EmployeeDeleteDialog employee={deleting} onClose={() => setDeleting(null)} onDeleted={() => removeEmployee(deleting)}/>} 
     {(creating || editing) && <EmployeeForm employee={editing} nextRegistration={String(allPeople.length + 1).padStart(4,"0")} units={Array.from(new Set(allPeople.map(person => person.unit).filter(Boolean))).sort()} departments={Array.from(new Set(allPeople.map(person => person.department).filter(Boolean))).sort()} onClose={() => { setCreating(false); setEditing(null); onCreateHandled(); }} onSave={saveEmployee}/>} 
   </>;
 }
 
-function EmployeeDrawer({ employee, canEdit, canViewDocs, notify, onClose, onEdit, onStatus, onDelete }: { employee: EmployeeRecord; canEdit: boolean; canViewDocs: boolean; notify: (message: string) => void; onClose: () => void; onEdit: (withPersonal: EmployeeRecord) => void; onStatus: (status: Person["status"]) => void; onDelete?: () => void }) {
+function EmployeeDrawer({ employee, canEdit, canViewDocs, notify, onClose, onEdit, onDelete }: { employee: EmployeeRecord; canEdit: boolean; canViewDocs: boolean; notify: (message: string) => void; onClose: () => void; onEdit: (withPersonal: EmployeeRecord) => void; onDelete?: () => void }) {
   const [tab, setTab] = useState<"Resumo" | "Vínculo" | "Documentos" | "Histórico">("Resumo");
   // CPF e telefone: tabela protegida, lida ao abrir a ficha (só quem pode).
   const [personal, setPersonal] = useState<{ id: string; data: RhPersonalData } | null>(null);
@@ -724,13 +731,13 @@ function EmployeeDrawer({ employee, canEdit, canViewDocs, notify, onClose, onEdi
       <nav className="employee-tabs" aria-label="Seções da ficha">{(["Resumo","Vínculo","Documentos","Histórico"] as const).map(item => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</nav>
       <div className="employee-detail-content">
         {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div><div><small>Admissão</small><strong>{admission}</strong></div>{termination && <div><small>Demissão</small><strong>{termination}</strong></div>}</section><DetailGroup title="Contato" rows={[["E-mail",employee.email || "Não informado"],["Telefone",phoneShown],["CPF",cpfShown]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/></>}
-        {tab === "Vínculo" && <><DetailGroup title="Dados contratuais" rows={[["Tipo de contrato",employee.contractType],["Cargo",employee.role],["Gestor responsável",employee.manager],["Jornada",employee.schedule]]}/><div className="employee-callout"><HrIcon name="shield"/><span><b>Escopo protegido</b><small>Alterações de vínculo serão registradas na auditoria quando o banco estiver conectado.</small></span></div></>}
+        {tab === "Vínculo" && <><DetailGroup title="Dados contratuais" rows={[["Tipo de contrato",employee.contractType],["Cargo",employee.role],["Gestor responsável",employee.manager],["Jornada",employee.schedule]]}/><div className="employee-callout"><HrIcon name="shield"/><span><b>Escopo protegido</b><small>Alterações do cadastro ficam registradas em Fundação › Auditoria.</small></span></div></>}
         {tab === "Documentos" && employee.id && <EmployeeDocuments employeeId={employee.id} canView={canViewDocs} notify={notify}/>}
-        {tab === "Documentos" && !employee.id && <><div className={`employee-document-health ${employee.documentStatus === "Completo" ? "complete" : "pending"}`}><HrIcon name={employee.documentStatus === "Completo" ? "check" : "alert"}/><span><b>Cadastro documental {employee.documentStatus.toLowerCase()}</b><small>{employee.documentStatus === "Completo" ? "Documentos obrigatórios conferidos." : "Existem documentos que exigem conferência."}</small></span></div>{[["Documento de identidade","Conferido"],["Contrato de trabalho","Assinado"],["Comprovante de residência",employee.documentStatus === "Completo" ? "Conferido" : "Pendente"],["ASO admissional","Válido"]].map(([name,status]) => <div className="employee-document-row" key={name}><span><HrIcon name="file"/></span><div><b>{name}</b><small>Arquivo protegido</small></div><Status tone={status === "Pendente" ? "attention" : "success"}>{status}</Status></div>)}</>}
+        {tab === "Documentos" && !employee.id && <div className="employee-callout"><HrIcon name="alert"/><span><b>Sem ficha no RH</b><small>Esta pessoa tem acesso à plataforma, mas ainda não tem cadastro de colaborador. Os documentos aparecem depois que o RH cadastrar.</small></span></div>}
         {tab === "Histórico" && employee.id && <div className="employee-history"><div><i>1</i><span><b>Admissão</b><small>{admission}</small></span></div><div><i>2</i><span><b>Cadastro importado da folha</b><small>Matrícula {employee.registration}</small></span></div>{termination && <div><i>3</i><span><b>Demissão</b><small>{termination}</small></span></div>}</div>}
-        {tab === "Histórico" && !employee.id && <div className="employee-history">{[["Cadastro funcional revisado","Hoje · RH"],["Perfil de acesso vinculado",employee.profile],["Admissão registrada",admission]].map(([title,meta],index) => <div key={title}><i>{index + 1}</i><span><b>{title}</b><small>{meta}</small></span></div>)}</div>}
+        {tab === "Histórico" && !employee.id && <div className="employee-callout"><HrIcon name="alert"/><span><b>Sem ficha no RH</b><small>O histórico começa quando o RH cadastrar esta pessoa como colaborador.</small></span></div>}
       </div>
-      {canEdit && <footer>{onDelete ? <button type="button" className="absence-reject drawer-delete" onClick={onDelete}><HrIcon name="close"/> Excluir cadastro</button> : <select value={employee.status} onChange={event => onStatus(event.target.value as Person["status"])} aria-label="Alterar situação do vínculo"><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select>}<Button variant="secondary" onClick={editWithPersonal}><HrIcon name="edit"/> Editar cadastro</Button></footer>}
+      {canEdit && <footer>{onDelete ? <button type="button" className="absence-reject drawer-delete" onClick={onDelete}><HrIcon name="close"/> Excluir cadastro</button> : null}<Button variant="secondary" onClick={editWithPersonal}><HrIcon name="edit"/> Editar cadastro</Button></footer>}
     </aside>
   </div>;
 }
@@ -880,7 +887,7 @@ function JourneySection({ access }: { notify: (message: string) => void; access:
 }
 
 function AbsenceSection({ notify, access, rh }: { notify: (message: string) => void; access: ModuleAccessContext; rh: RhSnapshot }) {
-  // Dados reais quando logado; mocks ricos em modo demonstrativo. O componente
+  // Dados reais quando logado; sem sessão, listas vazias. O componente
   // é remontado (key={rh.loadedAt}) quando o snapshot chega, então basta o
   // inicializador do useState — sem efeito de sincronização.
   const [records, setRecords] = useState<AbsenceRecord[]>(
@@ -945,7 +952,7 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
         : false;
       notify(persisted
         ? `${target.employee}: solicitação ${decision.toLowerCase()} e registrada no banco.`
-        : `${target.employee}: solicitação ${decision.toLowerCase()} nos dados demonstrativos.`);
+        : `${target.employee}: este registro não está no banco; recarregue a página.`);
     } catch (error) {
       // Reverte a decisão otimista quando o servidor recusa (sem permissão) ou falha.
       setRecords(current => current.map(record => record.id === target.id ? target : record));
@@ -960,7 +967,7 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
     setEditingAbsence(null);
     setRecords(current => current.map(record => record.id === updated.id ? updated : record));
     setSelected(updated);
-    if (!updated.sourceId) { notify(`${updated.employee}: alteração aplicada nos dados demonstrativos.`); return; }
+    if (!updated.sourceId) { notify(`${updated.employee}: este registro não está no banco; recarregue a página.`); return; }
     try {
       await sendRhMutation({
         entity: "absence", id: updated.sourceId, action: "update",
@@ -977,7 +984,7 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
     setDeletingAbsence(null);
     setSelected(null);
     setRecords(current => current.filter(record => record.id !== target.id));
-    if (!target.sourceId) { notify(`${target.employee}: movimentação removida dos dados demonstrativos.`); return; }
+    if (!target.sourceId) { notify(`${target.employee}: este registro não está no banco; recarregue a página.`); return; }
     try {
       await sendRhMutation({ entity: "absence", id: target.sourceId, action: "delete" });
       notify(`${target.employee}: ${target.type.toLowerCase()} de ${formatPeriod(target.start, target.end)} excluída.`);
@@ -1018,7 +1025,7 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
       }
       return;
     }
-    notify(`${request.employee}: nova solicitação registrada nos dados demonstrativos.`);
+    notify(`${request.employee}: não foi gravado (sem conexão com o banco).`);
   };
 
   return <>
@@ -1053,7 +1060,7 @@ function AbsencePolicies() {
     ["Atestados médicos","Até 48 horas","Documento deve ser enviado ao RH dentro do prazo definido pela empresa.","heart"],
     ["Licenças","Conforme categoria","Prazo e documentação variam conforme a natureza da licença registrada.","file"],
   ];
-  return <div className="absence-policy-grid">{policies.map(([title,rule,description,icon]) => <Card key={title}><span><HrIcon name={icon}/></span><h2>{title}</h2><strong>{rule}</strong><p>{description}</p><button>Ver política completa <HrIcon name="arrow"/></button></Card>)}</div>;
+  return <div className="absence-policy-grid">{policies.map(([title,rule,description,icon]) => <Card key={title}><span><HrIcon name={icon}/></span><h2>{title}</h2><strong>{rule}</strong><p>{description}</p></Card>)}</div>;
 }
 
 type AbsenceClinicalData = { cidCodes: string[]; diagnosis: string | null; note: string | null };
@@ -1128,7 +1135,7 @@ function AbsenceForm({ nextId, employees, editing, onClose, onSave }: { nextId: 
   };
   return <div className="employee-layer form-layer"><form className="absence-form" onSubmit={submit} onMouseDown={event => event.stopPropagation()}><header><div><p className="eyebrow">{editing ? "RH · EDITAR MOVIMENTAÇÃO" : "RH · NOVA MOVIMENTAÇÃO"}</p><h2>{editing ? `Editar ${editing.type.toLowerCase()}` : "Nova solicitação"}</h2><p>{editing ? `${editing.employee} · ${editing.department}` : "Registre férias, compensações, atestados ou licenças."}</p></div><button type="button" onClick={onClose} aria-label={editing ? "Fechar edição" : "Fechar nova solicitação"}><HrIcon name="close"/></button></header><div className="absence-form-fields">{editing
     ? <label className="field-wide"><span>Colaborador</span><div className="absence-readonly">{editing.employee}</div></label>
-    : <label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event => setEmployeeId(event.target.value)}>{options.map(option => <option key={option.id} value={option.id}>{option.name}{option.department ? ` · ${option.department}` : ""}</option>)}</select></label>}<label><span>Tipo de movimentação *</span><select value={type} onChange={event => setType(event.target.value as AbsenceRecord["type"])}>{editing ? (Object.values(absenceTypeLabel) as AbsenceRecord["type"][]).map(label => <option key={label}>{label}</option>) : <><option>Férias</option><option>Banco de horas</option><option>Atestado médico</option><option>Licença</option></>}</select></label><label><span>Unidade</span><div className="absence-readonly">{editing ? editing.unit : chosen?.unit ?? "—"}</div></label><label><span>Data inicial *</span><input type="date" value={start} onChange={event => setStart(event.target.value)}/></label><label><span>Data final *</span><input type="date" min={start} value={end} onChange={event => setEnd(event.target.value)}/></label><label className="field-wide"><span>{editing ? "Motivo ou observação" : "Motivo ou observação *"}</span><textarea value={reason} onChange={event => setReason(event.target.value)} placeholder="Descreva a solicitação para o fluxo de aprovação..."/></label>{(days > 0 || partial) && <div className="absence-preview field-wide"><HrIcon name="calendar"/><span><b>{partial && editing ? durationLabel(editing) : `${days} ${days === 1 ? (editing ? "dia" : "dia solicitado") : (editing ? "dias" : "dias solicitados")}`}</b><small>{editing ? (editing.sourceId ? "A alteração será gravada no banco" : "Registro demonstrativo") : persists ? "Será registrado no banco" : "Registro demonstrativo"}</small></span></div>}</div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>{editing ? <>Salvar alterações <HrIcon name="check"/></> : <>Enviar para aprovação <HrIcon name="arrow"/></>}</Button></footer></form></div>;
+    : <label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event => setEmployeeId(event.target.value)}>{options.map(option => <option key={option.id} value={option.id}>{option.name}{option.department ? ` · ${option.department}` : ""}</option>)}</select></label>}<label><span>Tipo de movimentação *</span><select value={type} onChange={event => setType(event.target.value as AbsenceRecord["type"])}>{editing ? (Object.values(absenceTypeLabel) as AbsenceRecord["type"][]).map(label => <option key={label}>{label}</option>) : <><option>Férias</option><option>Banco de horas</option><option>Atestado médico</option><option>Licença</option></>}</select></label><label><span>Unidade</span><div className="absence-readonly">{editing ? editing.unit : chosen?.unit ?? "—"}</div></label><label><span>Data inicial *</span><input type="date" value={start} onChange={event => setStart(event.target.value)}/></label><label><span>Data final *</span><input type="date" min={start} value={end} onChange={event => setEnd(event.target.value)}/></label><label className="field-wide"><span>{editing ? "Motivo ou observação" : "Motivo ou observação *"}</span><textarea value={reason} onChange={event => setReason(event.target.value)} placeholder="Descreva a solicitação para o fluxo de aprovação..."/></label>{(days > 0 || partial) && <div className="absence-preview field-wide"><HrIcon name="calendar"/><span><b>{partial && editing ? durationLabel(editing) : `${days} ${days === 1 ? (editing ? "dia" : "dia solicitado") : (editing ? "dias" : "dias solicitados")}`}</b><small>{editing ? (editing.sourceId ? "A alteração será gravada no banco" : "Registro fora do banco: recarregue a página") : persists ? "Será registrado no banco" : "Sem conexão com o banco: nada será gravado"}</small></span></div>}</div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>{editing ? <>Salvar alterações <HrIcon name="check"/></> : <>Enviar para aprovação <HrIcon name="arrow"/></>}</Button></footer></form></div>;
 }
 
 function formatDate(value: string) { if (!value || !/^\d{4}-\d{2}-\d{2}/.test(value)) return value || "—"; const date = new Date(`${value}T12:00:00Z`); return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("pt-BR",{timeZone:"UTC"}).format(date); }
@@ -1167,7 +1174,7 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
     setSelectedRequest(updated);
     try{
       const persisted=target.sourceId?await sendRhMutation({entity:"benefit_request",id:target.sourceId,decision:status==="Aprovada"?"approved":"rejected"}):false;
-      notify(persisted?`${target.employee}: solicitação de benefício ${status.toLowerCase()} no banco.`:`${target.employee}: solicitação de benefício ${status.toLowerCase()} (demonstrativo).`);
+      notify(persisted?`${target.employee}: solicitação de benefício ${status.toLowerCase()} no banco.`:`${target.employee}: este registro não está no banco; recarregue a página.`);
     }catch(error){
       setRequests(current=>current.map(request=>request.id===target.id?target:request));setSelectedRequest(target);
       notify(mutationFailure(error, `${target.employee}`, "decidir esta solicitação"));
@@ -1192,7 +1199,7 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
       }
       return;
     }
-    notify(`${request.employee}: solicitação de benefício registrada nos dados demonstrativos.`);
+    notify(`${request.employee}: não foi gravado (sem conexão com o banco).`);
   };
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · BENEFÍCIOS</p><h1>Benefícios</h1><p>Planos, elegibilidade, adesões, custos estimados e solicitações em uma única visão.</p></div>{canManage&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Nova movimentação</Button>}</div>
@@ -1219,7 +1226,7 @@ function BenefitParticipants({ plans }: { plans: BenefitPlan[]; notify: (message
 
 function BenefitPolicies(){return <div className="benefit-policy-grid">{[["Elegibilidade","Vínculo ativo","Cada plano valida categoria, unidade e tipo de contrato.","users"],["Movimentações","Até o dia 20","Solicitações aprovadas entram na competência seguinte.","calendar"],["Dependentes","Documentação obrigatória","Inclusões exigem comprovação e validação do RH.","file"],["Proteção de dados","Acesso restrito","Informações de saúde seguem escopo sensível e auditável.","shield"]].map(([title,rule,description,icon])=><Card key={title}><span><HrIcon name={icon}/></span><div><h2>{title}</h2><strong>{rule}</strong><p>{description}</p></div></Card>)}</div>}
 
-function BenefitPlanDrawer({plan,onClose,onParticipants}:{plan:BenefitPlan;onClose:()=>void;onParticipants:()=>void}){return <div className="employee-layer"><aside className="benefit-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Gestão de ${plan.name}`}><header><button onClick={onClose} aria-label="Fechar benefício"><HrIcon name="close"/></button><span><HrIcon name={plan.icon}/></span><div><p className="eyebrow">{plan.category.toUpperCase()}</p><h2>{plan.name}</h2><p>{plan.provider}</p></div><Status tone="success">{plan.status}</Status></header><div className="benefit-drawer-content"><section className="benefit-drawer-stats"><span><small>Participantes</small><b>{plan.members}</b></span><span><small>Elegíveis</small><b>{plan.eligible}</b></span><span><small>Adesão</small><b>{Math.round(plan.members/plan.eligible*100)}%</b></span></section><section className="benefit-cost-card"><div><span><small>Custo mensal estimado</small><b>{formatCurrency(plan.monthlyCost)}</b></span><span><small>Média por participante</small><b>{formatCurrency(plan.monthlyCost/plan.members)}</b></span></div><i><em style={{width:`${plan.members/plan.eligible*100}%`}}/></i><p>Estimativa demonstrativa, sem integração com folha de pagamento.</p></section><DetailGroup title="Regras do benefício" rows={[["Elegibilidade",plan.rule],["Contribuição do colaborador",plan.employeeContribution],["Fornecedor ou operação",plan.provider],["Próxima revisão","Janeiro de 2027"]]}/><section className="benefit-security-note"><HrIcon name="shield"/><span><b>Dados protegidos por escopo</b><small>Informações sensíveis de saúde não são exibidas nesta visão gerencial.</small></span></section></div><footer><button className="employee-cancel" onClick={onClose}>Fechar</button><Button onClick={onParticipants}>Ver participantes <HrIcon name="arrow"/></Button></footer></aside></div>}
+function BenefitPlanDrawer({plan,onClose,onParticipants}:{plan:BenefitPlan;onClose:()=>void;onParticipants:()=>void}){return <div className="employee-layer"><aside className="benefit-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Gestão de ${plan.name}`}><header><button onClick={onClose} aria-label="Fechar benefício"><HrIcon name="close"/></button><span><HrIcon name={plan.icon}/></span><div><p className="eyebrow">{plan.category.toUpperCase()}</p><h2>{plan.name}</h2><p>{plan.provider}</p></div><Status tone="success">{plan.status}</Status></header><div className="benefit-drawer-content"><section className="benefit-drawer-stats"><span><small>Participantes</small><b>{plan.members}</b></span><span><small>Elegíveis</small><b>{plan.eligible}</b></span><span><small>Adesão</small><b>{Math.round(plan.members/plan.eligible*100)}%</b></span></section><section className="benefit-cost-card"><div><span><small>Custo mensal estimado</small><b>{formatCurrency(plan.monthlyCost)}</b></span><span><small>Média por participante</small><b>{formatCurrency(plan.monthlyCost/plan.members)}</b></span></div><i><em style={{width:`${plan.members/plan.eligible*100}%`}}/></i><p>Adesão sobre os elegíveis. A folha de pagamento fica com o escritório contábil.</p></section><DetailGroup title="Regras do benefício" rows={[["Elegibilidade",plan.rule],["Contribuição do colaborador",plan.employeeContribution],["Fornecedor ou operação",plan.provider]]}/><section className="benefit-security-note"><HrIcon name="shield"/><span><b>Dados protegidos por escopo</b><small>Informações sensíveis de saúde não são exibidas nesta visão gerencial.</small></span></section></div><footer><button className="employee-cancel" onClick={onClose}>Fechar</button><Button onClick={onParticipants}>Ver participantes <HrIcon name="arrow"/></Button></footer></aside></div>}
 
 function BenefitRequestDrawer({request,canApprove,onClose,onDecision}:{request:BenefitRequest;canApprove:boolean;onClose:()=>void;onDecision:(status:"Aprovada"|"Reprovada")=>void}){const actionable=request.status==="Pendente"||request.status==="Em análise";return <div className="employee-layer"><aside className="benefit-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Solicitação de ${request.employee}`}><header><button onClick={onClose} aria-label="Fechar solicitação de benefício"><HrIcon name="close"/></button><span><HrIcon name="heart"/></span><div><p className="eyebrow">SOLICITAÇÃO #{String(request.id).padStart(4,"0")}</p><h2>{request.action}</h2><p>{request.employee} · {request.department}</p></div><Status tone={benefitRequestTone(request.status)}>{request.status}</Status></header><div className="benefit-drawer-content"><section className="benefit-request-highlight"><span><small>Benefício solicitado</small><b>{request.plan}</b></span><span><small>Vigência pretendida</small><b>{formatDate(request.effectiveDate)}</b></span></section><DetailGroup title="Informações da solicitação" rows={[["Colaborador",request.employee],["Movimentação",request.action],["Justificativa",request.reason],["Solicitado em",request.requestedAt]]}/><section className="absence-workflow"><h3>Histórico da solicitação</h3><div><i>✓</i><span><b>Solicitação registrada</b><small>{request.requestedAt}</small></span></div><div><i>{actionable?"2":"✓"}</i><span><b>{actionable?"Aguardando decisão":`Solicitação ${request.status.toLowerCase()}`}</b><small>{actionable?"RH responsável foi notificado":"Movimentação registrada no histórico"}</small></span></div></section><section className="benefit-security-note"><HrIcon name="shield"/><span><b>Auditoria preparada</b><small>A decisão será vinculada ao aprovador quando a persistência estiver conectada.</small></span></section></div>{canApprove&&actionable&&<footer><button className="absence-reject" onClick={()=>onDecision("Reprovada")}><HrIcon name="close"/> Reprovar</button><Button onClick={()=>onDecision("Aprovada")}><HrIcon name="check"/> Aprovar solicitação</Button></footer>}</aside></div>}
 
@@ -1251,6 +1258,12 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
   // Ficha de EPI: vem de rota própria, fora do snapshot do RH.
   const ppe=usePpeData(rh.source==="supabase");
   const ppeUnsigned=ppe.status==="ready"?ppe.deliveries.filter(delivery=>!delivery.signedOn).length:0;
+  // Saúde dos registros (calculada, nada fixo): colaboradores ativos com ASO em dia e treinamentos.
+  const ativos=rh.summary.activeEmployees;
+  const comAso=new Set(records.filter(r=>r.category==="Exame"&&(r.status==="Conforme"||r.status==="A vencer")).map(r=>r.employee)).size;
+  const asoPct=ativos?Math.min(100,Math.round(comAso/ativos*100)):0;
+  const treinos=records.filter(r=>r.category==="Treinamento");
+  const treinosEmDia=treinos.filter(r=>r.status==="Conforme"||r.status==="A vencer"||r.status==="Programado").length;
   const [detail,setDetail]=useState<KpiDetail|null>(null);
   const sstRows=(list:SstRecord[])=>list.map(r=>({key:String(r.id),title:r.employee,subtitle:`${r.category} · ${r.title}`,status:{tone:sstTone(r.status),label:r.status},meta:r.dueDate?formatDate(r.dueDate):"—"}));
   const openExams=()=>setDetail({eyebrow:"RH · SST",title:"Exames a vencer",subtitle:"Exames vencidos ou dentro da janela de vencimento",rows:sstRows(records.filter(r=>r.category==="Exame"&&(r.status==="A vencer"||r.status==="Vencido"))),empty:"Nenhum exame vencido ou a vencer."});
@@ -1268,7 +1281,7 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
     setRecords(current=>current.map(record=>record.id===target.id?updated:record));setSelected(updated);
     try{
       const persisted=target.sourceId?await sendRhMutation({entity:"sst",id:target.sourceId,action:"mark_compliant"}):false;
-      notify(persisted?`${target.employee}: registro de SST conforme, gravado no banco.`:`${target.employee}: registro de SST marcado como conforme (demonstrativo).`);
+      notify(persisted?`${target.employee}: registro de SST conforme, gravado no banco.`:`${target.employee}: este registro não está no banco; recarregue a página.`);
     }catch(error){
       setRecords(current=>current.map(record=>record.id===target.id?target:record));setSelected(target);
       notify(mutationFailure(error, `${target.employee}`, "concluir este registro"));
@@ -1286,7 +1299,7 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
     setRecords(current=>current.map(record=>record.id===antes.id?depois:record));
     if(selected?.id===antes.id)setSelected(depois);
     setEditing(null);
-    if(!antes.sourceId){notify(`${antes.employee}: alteração aplicada nos dados demonstrativos.`);return;}
+    if(!antes.sourceId){notify(`${antes.employee}: este registro não está no banco; recarregue a página.`);return;}
     try{
       const gravou=await sendRhMutation({entity:"sst",id:antes.sourceId,action:"update",changes:{
         title:changes.title,
@@ -1322,13 +1335,13 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
       }
       return;
     }
-    notify(`${record.employee}: registro de SST incluído nos dados demonstrativos.`);
+    notify(`${record.employee}: não foi gravado (sem conexão com o banco).`);
   };
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · SST</p><h1>Saúde e segurança</h1><p>Exames, treinamentos, EPIs, ocorrências e obrigações organizados por risco e vencimento.</p></div>{canManage&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Novo registro</Button>}</div>
     {tab!=="EPIs"&&<KpiGrid><HrStat value={String(records.filter(r => r.category === "Exame" && (r.status === "A vencer" || r.status === "Vencido")).length)} label="Exames a vencer" meta="Vencidos ou na janela" icon="heart" tone="orange" onOpen={openExams}/><HrStat value={String(records.filter(r => r.category === "Treinamento").length)} label="Treinamentos" meta="No período" icon="shield" tone="blue" onOpen={openTrainings}/><HrStat value={String(records.filter(r => r.risk === "Crítico").length)} label="Pendências críticas" meta="Exigem tratamento" icon="alert" tone="red" onOpen={openCritical}/><HrStat value={records.length ? `${Math.round((records.filter(r => r.status === "Conforme").length / records.length) * 100)}%` : "—"} label="Conformidade" meta="Registros conformes" icon="check" tone="green" onOpen={openCompliance}/></KpiGrid>}{detail&&<KpiDetailModal detail={detail} onClose={()=>setDetail(null)}/>}
     <div className="sst-tabs" role="tablist">{(["Prioridades","Exames","Treinamentos","EPIs","Ocorrências"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Prioridades"&&<i>{alerts+ppeUnsigned}</i>}</button>)}</div>
-    {tab==="Prioridades"&&<div className="sst-overview"><SstRecordTable title="Prioridades de SST" eyebrow="VENCIMENTOS E PENDÊNCIAS" records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/><Card className="sst-health-card"><p className="eyebrow">CONFORMIDADE</p><h2>Saúde dos registros</h2><div className="sst-score"><strong>96%</strong><span><i style={{width:"96%"}}/></span></div><ul><li><i>✓</i><span><b>ASOs vinculados</b><small>236 de 246 colaboradores ativos</small></span></li><li><i>✓</i><span><b>Treinamentos controlados</b><small>Validades e certificados mapeados</small></span></li><li className="warning"><i>!</i><span><b>{alerts} pendências abertas</b><small>Tratamento por risco e vencimento</small></span></li>{ppeUnsigned>0&&<li className="warning"><i>!</i><span><b>{ppeUnsigned} {ppeUnsigned===1?"entrega de EPI sem assinatura":"entregas de EPI sem assinatura"}</b><small>Recebimento a comprovar (NR-6) · aba EPIs</small></span></li>}</ul><div className="sst-risk-legend"><span><i className="critical"/> Crítico</span><span><i className="attention"/> Atenção</span><span><i className="regular"/> Regular</span></div></Card></div>}
+    {tab==="Prioridades"&&<div className="sst-overview"><SstRecordTable title="Prioridades de SST" eyebrow="VENCIMENTOS E PENDÊNCIAS" records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/><Card className="sst-health-card"><p className="eyebrow">CONFORMIDADE</p><h2>Saúde dos registros</h2><div className="sst-score"><strong>{asoPct}%</strong><span><i style={{width:`${asoPct}%`}}/></span></div><ul><li className={comAso<ativos?"warning":undefined}><i>{comAso<ativos?"!":"✓"}</i><span><b>ASO em dia</b><small>{comAso} de {ativos} colaboradores ativos</small></span></li><li className={treinosEmDia<treinos.length?"warning":undefined}><i>{treinosEmDia<treinos.length?"!":"✓"}</i><span><b>Treinamentos</b><small>{treinos.length?`${treinosEmDia} de ${treinos.length} em dia`:"Nenhum treinamento registrado ainda"}</small></span></li><li className="warning"><i>!</i><span><b>{alerts} pendências abertas</b><small>Tratamento por risco e vencimento</small></span></li>{ppeUnsigned>0&&<li className="warning"><i>!</i><span><b>{ppeUnsigned} {ppeUnsigned===1?"entrega de EPI sem assinatura":"entregas de EPI sem assinatura"}</b><small>Recebimento a comprovar (NR-6) · aba EPIs</small></span></li>}</ul><div className="sst-risk-legend"><span><i className="critical"/> Crítico</span><span><i className="attention"/> Atenção</span><span><i className="regular"/> Regular</span></div></Card></div>}
     {tab==="EPIs"&&<PpeSection state={rh.source==="supabase"?ppe:{status:"ready",deliveries:[]}}/>}
     {tab!=="Prioridades"&&tab!=="EPIs"&&<SstRecordTable title={`Gestão de ${tab.toLowerCase()}`} eyebrow={`SST · ${tab.toUpperCase()}`} records={categoryRecords} status={status} setStatus={setStatus} onSelect={setSelected}/>} 
     {selected&&<SstDrawer record={selected} canApprove={canApprove} canManage={canManage} onClose={()=>setSelected(null)} onConclude={conclude} onEdit={()=>setEditing(selected)}/>}
@@ -1339,7 +1352,7 @@ function SafetySection({ notify, access, rh }: { notify: (message: string) => vo
 
 function SstRecordTable({title,eyebrow,records,status,setStatus,onSelect}:{title:string;eyebrow:string;records:SstRecord[];status:string;setStatus:(status:string)=>void;onSelect:(record:SstRecord)=>void}){return <Card className="sst-record-card"><div className="sst-record-toolbar"><div><p className="eyebrow">{eyebrow}</p><h2>{title}</h2><p>Informações operacionais sem exposição de resultados clínicos.</p></div><label><span>Status</span><select value={status} onChange={event=>setStatus(event.target.value)}><option>Todos os status</option><option>Vencido</option><option>A vencer</option><option>Programado</option><option>Conforme</option><option>Em análise</option></select></label></div><div className="sst-record-table"><div className="sst-record-head"><span>Colaborador</span><span>Obrigação</span><span>Vencimento</span><span>Risco</span><span>Situação</span><span/></div>{records.map(record=><button key={record.id} onClick={()=>onSelect(record)}><span className="sst-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department} · {record.unit}</small></span></span><span><b>{record.title}</b><small>{record.category} · {record.document}</small></span><span><b>{formatDate(record.dueDate)}</b><small>{sstDueLabel(record)}</small></span><strong className={`sst-risk ${record.risk.toLowerCase().replace("ç","c")}`}>{record.risk}</strong><Status tone={sstTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!records.length&&<div className="hr-empty"><HrIcon name="search"/><b>Nenhum registro encontrado</b><small>Altere o filtro de situação.</small></div>}</div></Card>}
 
-function SstDrawer({record,canApprove,canManage,onClose,onConclude,onEdit}:{record:SstRecord;canApprove:boolean;canManage:boolean;onClose:()=>void;onConclude:()=>void;onEdit:()=>void}){const actionable=record.status!=="Conforme";return <div className="employee-layer"><aside className="sst-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Registro de SST de ${record.employee}`}><header><button onClick={onClose} aria-label="Fechar registro de SST"><HrIcon name="close"/></button><span><HrIcon name={record.category==="Exame"?"heart":"shield"}/></span><div><p className="eyebrow">SST · {record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={sstTone(record.status)}>{record.status}</Status></header><div className="sst-drawer-content">{record.risk!=="Regular"&&<div className={`sst-alert ${record.risk==="Crítico"?"critical":""}`}><HrIcon name="alert"/><span><b>{record.risk==="Crítico"?"Ação imediata necessária":"Atenção necessária"}</b><small>{record.note}</small></span></div>}<section className="sst-deadline"><span><small>Vencimento ou prazo</small><b>{formatDate(record.dueDate)}</b></span><Status tone={record.risk==="Crítico"?"attention":"info"}>{record.risk}</Status></section><DetailGroup title="Informações operacionais" rows={[["Colaborador",record.employee],["Unidade",record.unit],["Categoria",record.category],["Documento",record.document],["Observação",record.note]]}/>{record.sensitive&&<section className="sst-sensitive-note"><HrIcon name="lock"/><span><b>Conteúdo sensível protegido</b><small>Resultados clínicos, diagnósticos e anexos médicos não são exibidos nesta visão. O acesso depende de permissão específica e auditoria.</small></span></section>}<section className="absence-workflow"><h3>Histórico do registro</h3><div><i>✓</i><span><b>Obrigação cadastrada</b><small>Registro demonstrativo do RH</small></span></div><div><i>{actionable?"2":"✓"}</i><span><b>{actionable?"Aguardando tratamento":"Registro conforme"}</b><small>{actionable?"Responsáveis notificados por escopo":"Validade e documento conferidos"}</small></span></div></section></div>{/* O rodapé aparece sempre que houver ação: editar é de quem opera o SST, e
+function SstDrawer({record,canApprove,canManage,onClose,onConclude,onEdit}:{record:SstRecord;canApprove:boolean;canManage:boolean;onClose:()=>void;onConclude:()=>void;onEdit:()=>void}){const actionable=record.status!=="Conforme";return <div className="employee-layer"><aside className="sst-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Registro de SST de ${record.employee}`}><header><button onClick={onClose} aria-label="Fechar registro de SST"><HrIcon name="close"/></button><span><HrIcon name={record.category==="Exame"?"heart":"shield"}/></span><div><p className="eyebrow">SST · {record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={sstTone(record.status)}>{record.status}</Status></header><div className="sst-drawer-content">{record.risk!=="Regular"&&<div className={`sst-alert ${record.risk==="Crítico"?"critical":""}`}><HrIcon name="alert"/><span><b>{record.risk==="Crítico"?"Ação imediata necessária":"Atenção necessária"}</b><small>{record.note}</small></span></div>}<section className="sst-deadline"><span><small>Vencimento ou prazo</small><b>{formatDate(record.dueDate)}</b></span><Status tone={record.risk==="Crítico"?"attention":"info"}>{record.risk}</Status></section><DetailGroup title="Informações operacionais" rows={[["Colaborador",record.employee],["Unidade",record.unit],["Categoria",record.category],["Documento",record.document],["Observação",record.note]]}/>{record.sensitive&&<section className="sst-sensitive-note"><HrIcon name="lock"/><span><b>Conteúdo sensível protegido</b><small>Resultados clínicos, diagnósticos e anexos médicos não são exibidos nesta visão. O acesso depende de permissão específica e auditoria.</small></span></section>}<section className="absence-workflow"><h3>Histórico do registro</h3><div><i>✓</i><span><b>Obrigação cadastrada</b><small>Registrado no RH</small></span></div><div><i>{actionable?"2":"✓"}</i><span><b>{actionable?"Aguardando tratamento":"Registro conforme"}</b><small>{actionable?"Responsáveis notificados por escopo":"Validade e documento conferidos"}</small></span></div></section></div>{/* O rodapé aparece sempre que houver ação: editar é de quem opera o SST, e
     marcar como conforme só faz sentido em registro ainda pendente. Registro já
     conforme continuava sem rodapé nenhum — e sem como corrigir um dado errado. */}
 {(canManage||(canApprove&&actionable))&&<footer><button className="employee-cancel" onClick={onClose}>Fechar</button>{canManage&&<button className="employee-cancel" onClick={onEdit}><HrIcon name="edit"/> Editar</button>}{canApprove&&actionable&&!sstComValidade(record.category)&&<Button onClick={onConclude}><HrIcon name="check"/> Marcar como conforme</Button>}{canManage&&actionable&&sstComValidade(record.category)&&<Button onClick={onEdit}><HrIcon name="calendar"/> Registrar nova validade</Button>}</footer>}</aside></div>}
@@ -1418,7 +1431,7 @@ function SstForm({nextId,employees,onClose,onSave}:{nextId:number;employees:RhEm
   const chosen=options.find(option=>option.id===employeeId)??options[0];
   const valid=Boolean(chosen&&title&&dueDate&&note);
   const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid||!chosen)return;onSave(comSituacaoSst({id:nextId,employee:chosen.name,initials:initialsOf(chosen.name),department:chosen.department??"—",unit:chosen.unit??"—",category,title,dueDate,status:"Programado",risk:"Atenção",document:"Documento pendente",note,sensitive:category==="Exame"||category==="Ocorrência"}),persists?chosen.id:undefined)};
-  return <div className="employee-layer form-layer"><form className="sst-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · SST</p><h2>Novo registro</h2><p>Cadastre uma obrigação ocupacional sem expor conteúdo clínico.</p></div><button type="button" onClick={onClose} aria-label="Fechar novo registro de SST"><HrIcon name="close"/></button></header><div className="sst-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label><label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as SstRecord["category"])}><option>Exame</option><option>Treinamento</option><option>EPI</option><option>Ocorrência</option></select></label><ObligationField category={category} value={title} onChange={setTitle}/><label className="field-wide"><span>Vencimento ou prazo *</span><input type="date" value={dueDate} onChange={event=>setDueDate(event.target.value)}/></label><label className="field-wide"><span>Observação operacional *</span><textarea value={note} onChange={event=>setNote(event.target.value)} placeholder="Descreva somente informações necessárias ao acompanhamento..."/></label><div className="sst-form-note field-wide"><HrIcon name="lock"/><span><b>Não inclua diagnóstico ou resultado clínico</b><small>{persists?"O registro será gravado no banco; anexos clínicos terão armazenamento e permissão próprios.":"Registro demonstrativo enquanto não há conexão."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Salvar registro <HrIcon name="check"/></Button></footer></form></div>}
+  return <div className="employee-layer form-layer"><form className="sst-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · SST</p><h2>Novo registro</h2><p>Cadastre uma obrigação ocupacional sem expor conteúdo clínico.</p></div><button type="button" onClick={onClose} aria-label="Fechar novo registro de SST"><HrIcon name="close"/></button></header><div className="sst-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label><label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as SstRecord["category"])}><option>Exame</option><option>Treinamento</option><option>EPI</option><option>Ocorrência</option></select></label><ObligationField category={category} value={title} onChange={setTitle}/><label className="field-wide"><span>Vencimento ou prazo *</span><input type="date" value={dueDate} onChange={event=>setDueDate(event.target.value)}/></label><label className="field-wide"><span>Observação operacional *</span><textarea value={note} onChange={event=>setNote(event.target.value)} placeholder="Descreva somente informações necessárias ao acompanhamento..."/></label><div className="sst-form-note field-wide"><HrIcon name="lock"/><span><b>Não inclua diagnóstico ou resultado clínico</b><small>{persists?"O registro será gravado no banco; anexos clínicos terão armazenamento e permissão próprios.":"Sem conexão com o banco: nada será gravado."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Salvar registro <HrIcon name="check"/></Button></footer></form></div>}
 
 /** Exame/treinamento: a situação vem da data — o formulário mostra o que ela dá. */
 function SstSituacaoCalculada({record}:{record:SstRecord}){
@@ -1447,7 +1460,18 @@ function DocumentsSection({ notify, access, rh }: { notify: (message: string) =>
   const openDocs=(title:string,subtitle:string,list:HrDocumentRecord[],empty:string)=>setDetail({eyebrow:"RH · DOCUMENTOS",title,subtitle,rows:docRows(list),empty});
   const filtered=visible.filter(record=>`${record.employee} ${record.title} ${record.fileName}`.toLowerCase().includes(query.toLowerCase())&&(status==="Todos os status"||record.status===status)&&(category==="Todas as categorias"||record.category===category)&&(tab!=="Assinaturas"||record.signature==="Assinatura pendente"));
   const categories=Array.from(new Set(records.map(record=>record.category))).map(name=>({name,count:records.filter(record=>record.category===name).length,pending:records.filter(record=>record.category===name&&record.status!=="Válido").length}));
-  const updateStatus=(record:HrDocumentRecord,next:HrDocumentStatus)=>{setRecords(current=>current.map(item=>item.id===record.id?{...item,status:next,signature:next==="Válido"&&item.signature==="Assinatura pendente"?"Assinado":item.signature,updatedAt:"Agora · demonstração local"}:item));setSelected(null);notify(`${record.title}: situação alterada para ${next}.`)};
+  // Conferência gravada no banco (aprovar ou reprovar com motivo); a lista só muda depois do OK.
+  const conferir=async(record:HrDocumentRecord,decisao:"aprovado"|"reprovado",motivo:string)=>{
+    if(!record.sourceId){notify(`${record.title}: este documento não está no banco; recarregue a página.`);return false;}
+    const r=await fetch(`/api/rh/documentos/${record.sourceId}/conferir`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({decisao,motivo})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){notify(`${record.title}: ${(d as {error?:string}).error||"não foi possível conferir agora."}`);return false;}
+    const status:HrDocumentStatus=decisao==="reprovado"?"Reprovado":record.status==="Expirado"||record.status==="A vencer"?record.status:"Válido";
+    setRecords(current=>current.map(item=>item.id===record.id?{...item,status,reviewedBy:"você",reviewedAt:"agora",reviewNote:decisao==="reprovado"?motivo:null}:item));
+    setSelected(null);
+    notify(`${record.title}: documento ${decisao}.`);
+    return true;
+  };
   const signatureEnum:Record<HrDocumentRecord["signature"],RhDocument["signature"]>={"Assinado":"signed","Assinatura pendente":"pending","Não exigida":"not_required"};
   const createRecord=async(record:HrDocumentRecord,file?:File,employeeId?:string)=>{
     if(persists&&file&&rh.organizationId){
@@ -1461,7 +1485,7 @@ function DocumentsSection({ notify, access, rh }: { notify: (message: string) =>
       return;
     }
     setRecords(current=>[record,...current]);setCreating(false);
-    notify(`${record.title}: documento registrado em modo demonstrativo.`);
+    notify(`${record.title}: não foi gravado (sem conexão com o banco).`);
   };
   const removeDocument=async(record:HrDocumentRecord)=>{
     if(!record.sourceId){setRecords(current=>current.filter(item=>item.id!==record.id));setDeletingDoc(null);return;}
@@ -1476,7 +1500,7 @@ function DocumentsSection({ notify, access, rh }: { notify: (message: string) =>
     }finally{setDeletingBusy(false)}
   };
   const openDocument=async(record:HrDocumentRecord)=>{
-    if(!record.objectPath){notify("Documento demonstrativo — sem arquivo para abrir.");return;}
+    if(!record.objectPath){notify("Este documento não tem arquivo anexado.");return;}
     try{ window.open(await getRhDocumentUrl(record.objectPath),"_blank","noopener"); }
     catch{ notify("Não foi possível gerar o link do documento."); }
   };
@@ -1485,9 +1509,9 @@ function DocumentsSection({ notify, access, rh }: { notify: (message: string) =>
     <div className="hr-stats doc-stats"><HrStat value={String(visible.length)} label="Documentos visíveis" meta="Conforme seu escopo" icon="file" tone="blue" onOpen={()=>openDocs("Documentos visíveis","Conforme o seu escopo de acesso",visible,"Nenhum documento visível.")}/><HrStat value={String(visible.filter(item=>item.status==="Pendente").length)} label="Pendentes" meta="Aguardam conferência" icon="alert" tone="orange" onOpen={()=>openDocs("Pendentes","Documentos aguardando conferência",visible.filter(item=>item.status==="Pendente"),"Nenhum documento pendente.")}/><HrStat value={String(visible.filter(item=>item.status==="A vencer"||item.status==="Expirado").length)} label="Validades" meta="Exigem atenção" icon="calendar" tone="purple" onOpen={()=>openDocs("Validades","Documentos a vencer ou expirados",visible.filter(item=>item.status==="A vencer"||item.status==="Expirado"),"Nenhum documento a vencer.")}/><HrStat value={String(visible.filter(item=>item.signature==="Assinatura pendente").length)} label="Assinaturas" meta="Aguardando aceite" icon="edit" tone="green" onOpen={()=>openDocs("Assinaturas pendentes","Documentos aguardando aceite do colaborador",visible.filter(item=>item.signature==="Assinatura pendente"),"Nenhuma assinatura pendente.")}/></div>{detail&&<KpiDetailModal detail={detail} onClose={()=>setDetail(null)}/>}
     <div className="doc-tabs" role="tablist">{(["Documentos","Assinaturas","Categorias"] as const).map(item=><button key={item} role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item}{item==="Assinaturas"&&<i>{visible.filter(record=>record.signature==="Assinatura pendente").length}</i>}</button>)}</div>
     {tab!=="Categorias"&&<Card className="doc-card"><div className="doc-toolbar"><label className="doc-search"><HrIcon name="search"/><input aria-label="Buscar documentos" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar colaborador ou documento..."/></label><select aria-label="Filtrar categoria" value={category} onChange={event=>setCategory(event.target.value)}><option>Todas as categorias</option>{categories.map(item=><option key={item.name}>{item.name}</option>)}</select><select aria-label="Filtrar status" value={status} onChange={event=>setStatus(event.target.value)}><option>Todos os status</option><option>Válido</option><option>Pendente</option><option>A vencer</option><option>Expirado</option><option>Reprovado</option></select></div><div className="doc-table"><div className="doc-table-head"><span>Colaborador</span><span>Documento</span><span>Validade</span><span>Assinatura</span><span>Situação</span><span/></div>{filtered.map(record=><button key={record.id} onClick={()=>setSelected(record)}><span className="doc-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department}</small></span></span><span><b>{record.title}</b><small>{record.category} · v{record.version}</small></span><span><b>{record.validUntil?formatDate(record.validUntil):"Sem validade"}</b><small>{record.updatedAt}</small></span><span><b>{record.signature}</b><small>{record.fileName}</small></span><Status tone={documentTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!filtered.length&&<div className="hr-empty"><HrIcon name="search"/><b>Nenhum documento encontrado</b><small>Ajuste os filtros para ampliar a consulta.</small></div>}</div></Card>}
-    {tab==="Categorias"&&<div className="doc-category-grid">{categories.map(item=><Card key={item.name}><span><HrIcon name="folder"/></span><div><h2>{item.name}</h2><p>{item.count} documentos demonstrativos</p><small>{item.pending?`${item.pending} exigem atenção`:"Categoria regular"}</small></div><Status tone={item.pending?"attention":"success"}>{item.pending?"Atenção":"Regular"}</Status></Card>)}</div>}
-    <div className="doc-security"><HrIcon name="lock"/><span><b>Privacidade aplicada por escopo</b><small>Documentos sensíveis só aparecem para perfis autorizados. O conteúdo real será versionado, auditado e protegido quando o Supabase for conectado.</small></span></div>
-    {selected&&<DocumentDrawer record={selected} canApprove={canApprove} onClose={()=>setSelected(null)} onStatus={next=>updateStatus(selected,next)} onOpen={()=>openDocument(selected)} onDelete={canCreate?()=>{setDeletingDoc(selected);setSelected(null)}:undefined}/>}
+    {tab==="Categorias"&&<div className="doc-category-grid">{categories.map(item=><Card key={item.name}><span><HrIcon name="folder"/></span><div><h2>{item.name}</h2><p>{item.count} documento(s)</p><small>{item.pending?`${item.pending} exigem atenção`:"Categoria regular"}</small></div><Status tone={item.pending?"attention":"success"}>{item.pending?"Atenção":"Regular"}</Status></Card>)}</div>}
+    <div className="doc-security"><HrIcon name="lock"/><span><b>Privacidade aplicada por escopo</b><small>Documentos sensíveis só aparecem para perfis autorizados. Cada arquivo fica no armazenamento privado do RH, com acesso por permissão e registro na auditoria.</small></span></div>
+    {selected&&<DocumentDrawer record={selected} canApprove={canApprove} onClose={()=>setSelected(null)} onConferir={(decisao,motivo)=>conferir(selected,decisao,motivo)} onOpen={()=>openDocument(selected)} onDelete={canCreate?()=>{setDeletingDoc(selected);setSelected(null)}:undefined}/>}
     {deletingDoc&&<Modal eyebrow="RH · EXCLUIR DOCUMENTO" title={`Excluir ${deletingDoc.title}?`} subtitle={`${deletingDoc.employee} · ${deletingDoc.category} · ${deletingDoc.fileName}`} onClose={()=>setDeletingDoc(null)}>
       <div className="employee-delete"><p className="employee-delete-muted">O registro e o arquivo são apagados. Não dá para desfazer.</p><footer><button type="button" className="employee-cancel" onClick={()=>setDeletingDoc(null)}>Cancelar</button><button type="button" className="absence-reject" disabled={deletingBusy} onClick={()=>removeDocument(deletingDoc)}><HrIcon name="close"/> {deletingBusy?"Excluindo…":"Excluir documento"}</button></footer></div>
     </Modal>}
@@ -1495,7 +1519,14 @@ function DocumentsSection({ notify, access, rh }: { notify: (message: string) =>
   </>;
 }
 
-function DocumentDrawer({record,canApprove,onClose,onStatus,onOpen,onDelete}:{record:HrDocumentRecord;canApprove:boolean;onClose:()=>void;onStatus:(status:HrDocumentStatus)=>void;onOpen:()=>void;onDelete?:()=>void}){return <div className="employee-layer"><aside className="doc-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Documento ${record.title}`}><header><button onClick={onClose} aria-label="Fechar documento"><HrIcon name="close"/></button><span><HrIcon name="file"/></span><div><p className="eyebrow">{record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={documentTone(record.status)}>{record.status}</Status></header><div className="doc-drawer-content">{record.signature==="Assinatura pendente"&&<div className="doc-warning"><HrIcon name="edit"/><span><b>Assinatura aguardando aceite</b><small>O colaborador verá esta pendência somente em sua área pessoal.</small></span></div>}<DetailGroup title="Dados do documento" rows={[["Arquivo",record.fileName],["Versão",`v${record.version}`],["Validade",record.validUntil?formatDate(record.validUntil):"Sem validade"],["Assinatura",record.signature],["Última atualização",record.updatedAt]]}/>{record.objectPath&&<Button variant="secondary" onClick={onOpen}><HrIcon name="eye"/> Visualizar documento</Button>}{record.sensitive&&<section className="doc-sensitive"><HrIcon name="lock"/><span><b>Documento sensível</b><small>Visualização e ações dependem de permissão específica e serão registradas na auditoria central.</small></span></section>}<section className="absence-workflow"><h3>Histórico de versões</h3><div><i>✓</i><span><b>Versão {record.version} registrada</b><small>{record.updatedAt}</small></span></div><div><i>{record.status==="Válido"?"✓":"2"}</i><span><b>{record.status==="Válido"?"Conferência concluída":"Aguardando conferência"}</b><small>{record.objectPath?"Documento armazenado com segurança":"Fluxo demonstrativo do RH"}</small></span></div></section></div>{canApprove&&record.status!=="Válido"&&<footer><button className="doc-reject" onClick={()=>onStatus("Reprovado")}>Reprovar</button><Button onClick={()=>onStatus("Válido")}><HrIcon name="check"/> Aprovar documento</Button></footer>}{onDelete&&<footer className="absence-drawer-manage"><button className="doc-reject drawer-delete" onClick={onDelete}><HrIcon name="close"/> Excluir documento</button></footer>}</aside></div>}
+function DocumentDrawer({record,canApprove,onClose,onConferir,onOpen,onDelete}:{record:HrDocumentRecord;canApprove:boolean;onClose:()=>void;onConferir:(decisao:"aprovado"|"reprovado",motivo:string)=>Promise<boolean>;onOpen:()=>void;onDelete?:()=>void}){
+  const [reprovando,setReprovando]=useState(false);
+  const [motivo,setMotivo]=useState("");
+  const [gravando,setGravando]=useState(false);
+  const decidir=async(decisao:"aprovado"|"reprovado")=>{setGravando(true);await onConferir(decisao,motivo.trim());setGravando(false);};
+  const conferido=record.reviewedBy?`${record.status==="Reprovado"?"Reprovado":"Conferido"} por ${record.reviewedBy} · ${record.reviewedAt}`:null;
+  return <div className="employee-layer"><aside className="doc-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Documento ${record.title}`}><header><button onClick={onClose} aria-label="Fechar documento"><HrIcon name="close"/></button><span><HrIcon name="file"/></span><div><p className="eyebrow">{record.category.toUpperCase()}</p><h2>{record.title}</h2><p>{record.employee} · {record.department}</p></div><Status tone={documentTone(record.status)}>{record.status}</Status></header><div className="doc-drawer-content">{record.signature==="Assinatura pendente"&&<div className="doc-warning"><HrIcon name="edit"/><span><b>Assinatura aguardando aceite</b><small>O colaborador verá esta pendência somente em sua área pessoal.</small></span></div>}<DetailGroup title="Dados do documento" rows={[["Arquivo",record.fileName],["Versão",`v${record.version}`],["Validade",record.validUntil?formatDate(record.validUntil):"Sem validade"],["Assinatura",record.signature],["Última atualização",record.updatedAt]]}/>{record.objectPath&&<Button variant="secondary" onClick={onOpen}><HrIcon name="eye"/> Visualizar documento</Button>}{record.sensitive&&<section className="doc-sensitive"><HrIcon name="lock"/><span><b>Documento sensível</b><small>Visualização e ações dependem de permissão específica e ficam registradas na auditoria central.</small></span></section>}<section className="absence-workflow"><h3>Histórico</h3><div><i>✓</i><span><b>Versão {record.version} registrada</b><small>{record.updatedAt}</small></span></div><div><i>{conferido?"✓":"2"}</i><span><b>{conferido??"Aguardando conferência do RH"}</b><small>{record.reviewNote?`Motivo: ${record.reviewNote}`:record.objectPath?"Documento armazenado com segurança":"Sem arquivo anexado"}</small></span></div></section></div>{canApprove&&!record.reviewedBy&&<footer>{reprovando?<><label className="doc-motivo"><span>Motivo da reprovação *</span><input value={motivo} onChange={event=>setMotivo(event.target.value)} maxLength={500} autoFocus placeholder="Ex.: documento ilegível, fora da validade"/></label><button className="doc-reject" onClick={()=>setReprovando(false)} disabled={gravando}>Voltar</button><Button onClick={()=>void decidir("reprovado")} disabled={gravando||!motivo.trim()}>{gravando?"Gravando…":"Reprovar documento"}</Button></>:<><button className="doc-reject" onClick={()=>setReprovando(true)}>Reprovar</button><Button onClick={()=>void decidir("aprovado")} disabled={gravando}><HrIcon name="check"/> {gravando?"Gravando…":"Aprovar documento"}</Button></>}</footer>}{onDelete&&<footer className="absence-drawer-manage"><button className="doc-reject drawer-delete" onClick={onDelete}><HrIcon name="close"/> Excluir documento</button></footer>}</aside></div>;
+}
 
 function DocumentForm({nextId,employees,persists,onClose,onSave}:{nextId:number;employees:RhEmployeeOption[];persists:boolean;onClose:()=>void;onSave:(record:HrDocumentRecord,file?:File,employeeId?:string)=>Promise<void>|void}){
   // Trava o envio enquanto o arquivo sobe: antes, cada clique a mais gravava
@@ -1512,7 +1543,7 @@ function DocumentForm({nextId,employees,persists,onClose,onSave}:{nextId:number;
   // Em modo real o arquivo é obrigatório (vai ao Storage); em demo, opcional.
   const valid=Boolean(chosen&&title&&(persists?file:true));
   const submit=async(event:React.FormEvent)=>{event.preventDefault();if(!valid||!chosen||busy)return;setBusy(true);try{await onSave({id:nextId,employee:chosen.name,initials:initialsOf(chosen.name),department:chosen.department??"—",category,title,fileName:file?.name??"documento",version:1,validUntil:validUntil||null,status:"Pendente",signature:category==="Contrato e termo"||category==="Férias e ausência"?"Assinatura pendente":"Não exigida",sensitive,updatedAt:"Agora"},file??undefined,persists?chosen.id:undefined)}finally{setBusy(false)}};
-  return <div className="employee-layer form-layer"><form className="doc-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · DOCUMENTOS</p><h2>Adicionar documento</h2><p>{persists?"Envie o arquivo para o armazenamento privado do RH.":"Registro demonstrativo enquanto não há conexão."}</p></div><button type="button" onClick={onClose} aria-label="Fechar formulário"><HrIcon name="close"/></button></header><div className="doc-form-fields"><label><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label><label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as HrDocumentRecord["category"])}><option>Admissional</option><option>Contrato e termo</option><option>Férias e ausência</option><option>Saúde ocupacional</option><option>Treinamento</option></select></label><label className="field-wide"><span>Título do documento *</span><input value={title} onChange={event=>setTitle(event.target.value)} placeholder="Ex.: Termo de alteração contratual"/></label><label className="field-wide"><span>Arquivo {persists?"*":"(opcional)"}</span><EscolherArquivo arquivo={file?.name} onEscolher={(arquivos)=>setFile(arquivos[0]??null)}/></label><label><span>Validade</span><input type="date" value={validUntil} onChange={event=>setValidUntil(event.target.value)}/></label><label className="doc-check"><input type="checkbox" checked={sensitive} onChange={event=>setSensitive(event.target.checked)}/><span>Conteúdo sensível</span></label><div className="doc-form-note field-wide"><HrIcon name="lock"/><span><b>{persists?"Armazenamento privado com RLS":"Envio demonstrativo nesta fase"}</b><small>{persists?"O arquivo vai para o bucket rh-documents, acessível só por URL assinada a quem tem permissão.":"O arquivo não é armazenado sem conexão com o Supabase."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid||busy}>{busy?"Enviando…":persists?"Enviar documento":"Registrar documento"} <HrIcon name="check"/></Button></footer></form></div>}
+  return <div className="employee-layer form-layer"><form className="doc-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · DOCUMENTOS</p><h2>Adicionar documento</h2><p>{persists?"Envie o arquivo para o armazenamento privado do RH.":"Sem conexão com o banco: nada será gravado."}</p></div><button type="button" onClick={onClose} aria-label="Fechar formulário"><HrIcon name="close"/></button></header><div className="doc-form-fields"><label><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label><label><span>Categoria *</span><select value={category} onChange={event=>setCategory(event.target.value as HrDocumentRecord["category"])}><option>Admissional</option><option>Contrato e termo</option><option>Férias e ausência</option><option>Saúde ocupacional</option><option>Treinamento</option></select></label><label className="field-wide"><span>Título do documento *</span><input value={title} onChange={event=>setTitle(event.target.value)} placeholder="Ex.: Termo de alteração contratual"/></label><label className="field-wide"><span>Arquivo {persists?"*":"(opcional)"}</span><EscolherArquivo arquivo={file?.name} onEscolher={(arquivos)=>setFile(arquivos[0]??null)}/></label><label><span>Validade</span><input type="date" value={validUntil} onChange={event=>setValidUntil(event.target.value)}/></label><label className="doc-check"><input type="checkbox" checked={sensitive} onChange={event=>setSensitive(event.target.checked)}/><span>Conteúdo sensível</span></label><div className="doc-form-note field-wide"><HrIcon name="lock"/><span><b>{persists?"Armazenamento privado com RLS":"Sem conexão com o banco"}</b><small>{persists?"O arquivo vai para o bucket rh-documents, acessível só por URL assinada a quem tem permissão.":"O arquivo não é armazenado sem conexão com o Supabase."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid||busy}>{busy?"Enviando…":persists?"Enviar documento":"Registrar documento"} <HrIcon name="check"/></Button></footer></form></div>}
 
 function documentTone(status:HrDocumentStatus):"success"|"attention"|"info"|"neutral"{return status==="Válido"?"success":status==="A vencer"||status==="Expirado"?"attention":status==="Pendente"?"info":"neutral"}
 
@@ -1550,34 +1581,69 @@ function ReportsSection({ access }: { notify: (message: string) => void; access:
     {!podeTerceiros && <HrEmpty icon="chart" title="Nenhum indicador disponível" description="Os relatórios serão gerados a partir do ponto, dos benefícios e da SST, quando essas rotinas tiverem registros reais."/>}
   </>;
 }
-function HomologationSection({notify,access}:{notify:(message:string)=>void;access:ModuleAccessContext}){
-  const[lastRun,setLastRun]=useState("16 jul 2026 · validação inicial");
-  const areas=[
-    ["Cadastro de colaboradores","Criação, edição, detalhe e integridade","employee"],
-    ["Ponto e jornada","Marcações, ajustes, banco de horas e aprovação","journey"],
-    ["Férias e ausências","Solicitação, conflito, decisão e histórico","absence"],
-    ["Benefícios","Planos, adesões, movimentações e políticas","benefit"],
-    ["Saúde e segurança","Exames, treinamentos, EPIs e conteúdo sensível","sst"],
-    ["Documentos","Validades, assinaturas, versões e privacidade","document"],
-    ["Relatórios","Indicadores, catálogo de métricas e exportação","report"],
-    ["Experiência responsiva","Hierarquia tipográfica, menu e dispositivos","ux"],
+type HomologacaoRegistro = { id: string; resultado: "aprovado" | "com_ressalvas" | "reprovado"; observacao: string | null; profile_id: string | null; profile_name: string | null; created_at: string };
+const RESULTADO_PT: Record<HomologacaoRegistro["resultado"], string> = { aprovado: "Aprovado", com_ressalvas: "Aprovado com ressalvas", reprovado: "Reprovado" };
+
+/**
+ * RH › Homologação (R-01 · Blueprint Fase 2): critérios de saída com a situação real, a conferência
+ * dos dados calculada do banco e o registro de quem homologou. A fase fecha com dois perfis
+ * diferentes aprovando (quem tem a Homologação do RH; a Rosana e mais alguém do RH).
+ */
+function HomologationSection({notify,rh}:{notify:(message:string)=>void;rh:RhSnapshot}){
+  const [registros,setRegistros]=useState<HomologacaoRegistro[]|null>(null);
+  const [podeRegistrar,setPodeRegistrar]=useState(false);
+  const [resultado,setResultado]=useState<HomologacaoRegistro["resultado"]>("aprovado");
+  const [observacao,setObservacao]=useState("");
+  const [gravando,setGravando]=useState(false);
+  const carregar=useCallback(async()=>{
+    const r=await fetch("/api/rh/homologacao",{cache:"no-store"});
+    const d=await r.json().catch(()=>({}));
+    if(r.ok){setRegistros((d as {registros:HomologacaoRegistro[]}).registros);setPodeRegistrar(Boolean((d as {podeRegistrar?:boolean}).podeRegistrar));}else setRegistros([]);
+  },[]);
+  useEffect(()=>{const t=setTimeout(()=>{void carregar();},0);return()=>clearTimeout(t);},[carregar]);
+
+  const aprovadores=new Set((registros??[]).filter(r=>r.resultado!=="reprovado").map(r=>r.profile_id));
+  const hoje=new Date().toISOString().slice(0,10);
+  const docsSemConferencia=rh.documents.filter(d=>!d.reviewStatus).length;
+  const docsVencidos=rh.documents.filter(d=>d.reviewDueAt&&d.reviewDueAt<hoje).length;
+  type Situacao="ok"|"parcial"|"pendente";
+  const criterios:[string,string,Situacao][]=[
+    ["Dados vindos do banco",rh.source==="supabase"?"Colaboradores, ausências, férias, benefícios, SST e documentos lidos do banco da empresa.":"Sem conexão com o banco agora.",rh.source==="supabase"?"ok":"pendente"],
+    ["Acesso por permissão","As tabelas do RH só respondem a quem tem a funcionalidade liberada (RLS por empresa, módulo e permissão).","ok"],
+    ["Sem dados inventados na tela","Sem listas, números ou situações fixas no código; ação que não grava mostra erro (17/10/2026).","ok"],
+    ["Componentes do Design System","Parte da tela ainda usa componentes próprios do RH; a troca fica para depois da homologação.","parcial"],
+    ["Teste de fluxo com dados gravados","Teste de navegador com perfis de RH em 17/10/2026 (documento conferido, homologação registrada).","ok"],
+    ["Homologado por dois perfis reais",aprovadores.size>=2?`${aprovadores.size} perfis aprovaram.`:`${aprovadores.size} de 2: falta${aprovadores.size===1?"":"m"} ${2-aprovadores.size} perfil(is) do RH registrar abaixo.`,aprovadores.size>=2?"ok":"pendente"],
   ];
-  // O acesso é por usuário: cada funcionalidade do RH é liberada com um nível.
-  const personas=[
-    ["Proprietário","Empresa inteira","Tudo, inclusive Pessoas e Acessos","Total"],
-    ["Aprovar","Funcionalidade liberada","Consulta, lançamento, decisão e conteúdo sensível","3/3"],
-    ["Operar","Funcionalidade liberada","Consulta, cadastro e edição","2/3"],
-    ["Ver","Funcionalidade liberada","Somente consulta","1/3"],
-    ["Colaborador","Somente dados próprios","Próprias férias, benefícios e documentos","Próprio"],
+  const conferencia:[string,number,string][]=[
+    ["Colaboradores ativos",rh.summary.activeEmployees,"no cadastro do RH"],
+    ["Férias vencidas",rh.summary.vacationsOverdue,"períodos com o concessivo já vencido"],
+    ["Férias vencendo",rh.summary.vacationsDueSoon,"concessivo vence nos próximos 60 dias"],
+    ["Ausências sem decisão",rh.summary.pendingAbsences,"aguardando aprovar ou reprovar"],
+    ["SST vencido ou a vencer",rh.sstAlertList.length,"exames, treinamentos e EPIs"],
+    ["Documentos sem conferência",docsSemConferencia,"aguardando aprovar ou reprovar"],
+    ["Documentos vencidos",docsVencidos,"validade passada"],
   ];
-  const run=()=>{setLastRun("Agora · executada por "+access.name);notify("Homologação do módulo RH executada: 30 verificações aprovadas e evidência registrada.")};
+  const fechada=criterios.every(([,,s])=>s!=="pendente");
+  const registrar=async()=>{
+    setGravando(true);
+    const r=await fetch("/api/rh/homologacao",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({resultado,observacao})});
+    const d=await r.json().catch(()=>({}));
+    setGravando(false);
+    if(!r.ok){notify((d as {error?:string}).error||"Não foi possível registrar a homologação.");return;}
+    setObservacao("");notify(`Homologação do RH registrada: ${RESULTADO_PT[resultado].toLowerCase()}.`);void carregar();
+  };
+  const tom=(s:Situacao)=>s==="ok"?"success":s==="parcial"?"attention":"info";
   return <>
-    <div className="page-head hr-page-head homologation-head"><div><p className="eyebrow">RH · HOMOLOGAÇÃO</p><h1>Qualidade e aceite do módulo</h1><p>Painel administrativo para validar fluxos, acessos, integrações e consistência antes da persistência real.</p></div><Button onClick={run}><HrIcon name="check"/> Executar validação</Button></div>
-    <div className="homologation-release"><span><HrIcon name="shield"/></span><div><p className="eyebrow">MARCO FUNCIONAL</p><h2>RH v1 homologado para protótipo</h2><p>Todos os fluxos previstos estão navegáveis, protegidos por perfil e preparados para receber dados reais.</p></div><Status tone="success">Aprovado</Status></div>
-    <div className="hr-stats homologation-stats"><HrStat value="8/8" label="Áreas validadas" meta="Cobertura funcional" icon="check" tone="green"/><HrStat value="3" label="Níveis de acesso" meta="Ver, operar e aprovar por funcionalidade" icon="users" tone="blue"/><HrStat value="6" label="Permissões do RH" meta="Menor privilégio" icon="lock" tone="purple"/><HrStat value="30" label="Testes aprovados" meta="Build e regressão" icon="shield" tone="orange"/></div>
-    <div className="homologation-grid"><Card className="homologation-checks"><div className="card-head"><div><p className="eyebrow">ACEITE FUNCIONAL</p><h2>Cobertura por área</h2><p>Última execução: {lastRun}</p></div><Status tone="success">100%</Status></div>{areas.map(([name,description,code])=><div key={code}><i>✓</i><span><b>{name}</b><small>{description}</small></span><Status tone="success">Conforme</Status></div>)}</Card><Card className="homologation-services"><p className="eyebrow">FUNDAÇÃO COMPARTILHADA</p><h2>Integrações homologadas</h2>{[["Notificações","Ações do RH alimentam a central durante a sessão","bell"],["Auditoria","Ator, ação, escopo e criticidade são registrados","shield"],["Documentos","Privacidade e classificação seguem o contrato central","file"],["Busca corporativa","Permissões continuam limitando a descoberta","search"]].map(([name,description,icon])=><div key={name}><span><HrIcon name={icon}/></span><span><b>{name}</b><small>{description}</small></span><Status tone="success">Contrato válido</Status></div>)}<section><HrIcon name="alert"/><span><b>Dependência conhecida: persistência</b><small>Supabase, arquivos reais e RLS serão conectados posteriormente por HTTPS. Isso não invalida o aceite funcional do protótipo.</small></span></section></Card></div>
-    <Card className="homologation-access"><div className="card-head"><div><p className="eyebrow">MATRIZ HOMOLOGADA</p><h2>Comportamento por nível</h2><p>Menu, conteúdo e ações mudam conforme as funcionalidades liberadas ao usuário.</p></div><Status tone="info">Negação por padrão</Status></div><div className="homologation-access-table"><div><span>Perfil</span><span>Escopo</span><span>Experiência validada</span><span>Permissões</span></div>{personas.map(([role,scope,experience,count])=><section key={role}><span><b>{role}</b><small>{role==="Colaborador"?"Autosserviço":"Visão administrativa"}</small></span><span>{scope}</span><span>{experience}</span><Status tone={role==="Colaborador"?"info":"success"}>{count}</Status></section>)}</div></Card>
-    <div className="homologation-evidence"><HrIcon name="check"/><span><b>Critério de saída atendido</b><small>O módulo pode ser considerado funcionalmente fechado no ambiente demonstrativo. Novas alterações passam a ser evolução de produto ou integração de dados.</small></span><button onClick={()=>notify("Evidência de homologação do RH preparada para a auditoria central.")}>Registrar evidência <HrIcon name="arrow"/></button></div>
+    <div className="page-head hr-page-head homologation-head"><div><p className="eyebrow">RH · HOMOLOGAÇÃO</p><h1>Qualidade e aceite do módulo</h1><p>Os critérios de saída da Fase 2 do Blueprint, a conferência dos dados do RH e o registro de quem homologou. A fase fecha com dois perfis diferentes do RH aprovando.</p></div></div>
+    <div className="homologation-release"><span><HrIcon name="shield"/></span><div><p className="eyebrow">FASE 2 · INTEGRAR O RH</p><h2>{fechada?"Critérios de saída atendidos":"Homologação em andamento"}</h2><p>{fechada?"Os critérios estão atendidos; o que resta é evolução do módulo.":"Veja abaixo o que ainda falta."}</p></div><Status tone={fechada?"success":"attention"}>{fechada?"Homologado":"Em homologação"}</Status></div>
+    <div className="homologation-grid"><Card className="homologation-checks"><div className="card-head"><div><p className="eyebrow">CRITÉRIOS DE SAÍDA</p><h2>Situação de cada critério</h2></div></div>{criterios.map(([nome,descricao,s])=><div key={nome}><i>{s==="ok"?"✓":s==="parcial"?"½":"…"}</i><span><b>{nome}</b><small>{descricao}</small></span><Status tone={tom(s)}>{s==="ok"?"Atendido":s==="parcial"?"Parcial":"Pendente"}</Status></div>)}</Card>
+    <Card className="homologation-checks"><div className="card-head"><div><p className="eyebrow">CONFERÊNCIA DOS DADOS</p><h2>O que está no banco agora</h2></div></div>{conferencia.map(([nome,n,descricao])=><div key={nome}><i>{n}</i><span><b>{nome}</b><small>{descricao}</small></span>{nome!=="Colaboradores ativos"&&<Status tone={n?"attention":"success"}>{n?"Conferir":"Em dia"}</Status>}</div>)}</Card></div>
+    <Card className="homologation-checks"><div className="card-head"><div><p className="eyebrow">REGISTRO</p><h2>Quem homologou</h2></div></div>
+      {!registros?<small>Carregando…</small>:!registros.length?<p className="homologation-vazio">Ninguém registrou a homologação ainda.</p>:registros.map(r=><div key={r.id}><i>{r.resultado==="reprovado"?"✕":"✓"}</i><span><b>{r.profile_name??"—"} · {RESULTADO_PT[r.resultado]}</b><small>{new Date(r.created_at).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"})}{r.observacao?` · ${r.observacao}`:""}</small></span></div>)}
+      {podeRegistrar?<div className="homologation-form"><label><span>Resultado</span><select value={resultado} onChange={event=>setResultado(event.target.value as HomologacaoRegistro["resultado"])}><option value="aprovado">Aprovado</option><option value="com_ressalvas">Aprovado com ressalvas</option><option value="reprovado">Reprovado</option></select></label><label className="largo"><span>Observação{resultado!=="aprovado"?" *":""}</span><input value={observacao} onChange={event=>setObservacao(event.target.value)} maxLength={2000} placeholder={resultado==="aprovado"?"Opcional":"Descreva a ressalva ou o motivo"}/></label><Button onClick={()=>void registrar()} disabled={gravando||(resultado!=="aprovado"&&!observacao.trim())}>{gravando?"Gravando…":"Registrar minha homologação"}</Button></div>
+        :<p className="homologation-vazio">Registrar a homologação é de quem tem a Homologação do RH (o proprietário dá esse acesso em Pessoas e Acessos).</p>}
+    </Card>
   </>;
 }
 

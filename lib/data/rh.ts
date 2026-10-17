@@ -79,6 +79,11 @@ export type RhDocument = {
   signature: RhDocumentSignature | null;
   sensitive: boolean;
   updatedAt: string;
+  /** Conferência do RH (R-01): gravada no banco, com quem decidiu e o motivo. */
+  reviewStatus: "aprovado" | "reprovado" | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
 };
 
 export type RhSstCategory = "exam" | "training" | "ppe" | "incident";

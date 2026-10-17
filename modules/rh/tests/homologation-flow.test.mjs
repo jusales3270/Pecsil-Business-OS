@@ -11,11 +11,19 @@ test("homologação é exclusiva para administração do RH", () => {
   assert.match(hr, /section === "Homologação" && <HomologationSection/);
 });
 
-test("aceite cobre áreas, perfis e dependência conhecida", () => {
-  assert.match(hr, /8\/8/);
-  assert.match(hr, /Comportamento por nível/);
-  assert.match(hr, /Dependência conhecida: persistência/);
-  assert.match(hr, /funcionalmente fechado no ambiente demonstrativo/);
+test("homologação real: critérios da Fase 2, conferência do banco e registro por perfil (R-01)", () => {
+  assert.match(hr, /CRITÉRIOS DE SAÍDA/);
+  assert.match(hr, /Homologado por dois perfis reais/);
+  assert.match(hr, /CONFERÊNCIA DOS DADOS/);
+  assert.match(hr, /fetch\("\/api\/rh\/homologacao"/);
+  // Nada de aceite cenográfico: nem placar fixo nem "100%" escrito à mão.
+  assert.doesNotMatch(hr, /8\/8|30 verificações aprovadas|ambiente demonstrativo|236 de 246/);
+});
+
+test("RH sem caminho de demonstração: ação sem banco vira erro e nada fica só na tela", () => {
+  assert.match(hr, /if \(code === "DEMO_MODE"\) throw new Error\("RH_SEM_BANCO"\)/);
+  assert.doesNotMatch(hr, /dados demonstrativos|demonstração local|Estimativa demonstrativa|Janeiro de 2027/);
+  assert.match(hr, /\/api\/rh\/documentos\/\$\{record\.sourceId\}\/conferir/);
 });
 
 test("ações do RH alimentam notificações e auditoria centrais", () => {
