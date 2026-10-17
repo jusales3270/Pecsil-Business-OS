@@ -106,6 +106,8 @@ export interface PedidoMaterial {
   createdAt: string;
   solicitante: string | null;
   itens: { produto: string; quantidade: number; unidade: string; observacao: string | null; material?: { id: string; codigo: string; descricao: string; unidade: string } | null }[];
+  /** Até quando a produção precisa do material (A-07). */
+  precisaAte?: string | null;
 }
 
 export interface Compra {

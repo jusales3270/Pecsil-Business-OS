@@ -4,6 +4,7 @@ import type { Cotacao, StatusProduto } from '@/types';
 import { X, ShoppingCart, CheckCircle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import CompraModal from './CompraModal';
+import ComparativoCotacoes from './ComparativoCotacoes';
 import { DocumentosLigados } from '@/app/components/documentos-ligados';
 import { rotuloCompra } from '../../../../lib/compras/rotulo';
 
@@ -123,6 +124,9 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
             <DetailItem label="Divisão" value={currentCotacao.divisao === 'USINAGEM' ? 'Usinagem' : 'Fundição'} />
             <DetailItem label="Data de Criação" value={formatDate(currentCotacao.createdAt)} />
           </div>
+
+          {/* A-07: comparativo das cotações do mesmo pedido (selos e regra de decisão) */}
+          <ComparativoCotacoes cotacao={currentCotacao} cotacoes={cotacoes} />
 
           {/* Produtos List */}
           <div className="space-y-2 border-t border-black/[0.06] pt-4">

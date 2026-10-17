@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReportDocument } from "../../components/report-layout";
 import type { EmitenteOrdem, OrdemCompra } from "../../../lib/compras/ordem-compra";
+import type { Saving } from "../../../lib/compras/comparativo";
 
 /**
  * Ordem de Compra da cotação aprovada, no modelo do sistema antigo (nº 14805):
@@ -12,7 +13,7 @@ import type { EmitenteOrdem, OrdemCompra } from "../../../lib/compras/ordem-comp
  * o PDF sai pelo "Salvar como PDF" do navegador. O número é o da cotação.
  */
 
-type Estado = { status: "loading" } | { status: "error"; mensagem: string } | { status: "ready"; ordem: OrdemCompra; emitente: EmitenteOrdem };
+type Estado = { status: "loading" } | { status: "error"; mensagem: string } | { status: "ready"; ordem: OrdemCompra; emitente: EmitenteOrdem; saving: Saving | null };
 
 const reais = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const unitario = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
@@ -30,7 +31,7 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string | null | undef
   return <p><b>{rotulo}:</b> <span>{valor || ""}</span></p>;
 }
 
-function OrdemDeCompra({ ordem, emitente: e }: { ordem: OrdemCompra; emitente: EmitenteOrdem }) {
+function OrdemDeCompra({ ordem, emitente: e, saving }: { ordem: OrdemCompra; emitente: EmitenteOrdem; saving: Saving | null }) {
   const f = ordem.fornecedor;
   return (
     <div className="oc">
@@ -112,6 +113,16 @@ function OrdemDeCompra({ ordem, emitente: e }: { ordem: OrdemCompra; emitente: E
           <tr><td colSpan={7} className="oc-esq oc-obs"><b>Observação:</b> {ordem.observacao ?? ""}</td></tr>
         </tbody>
       </table>
+      {saving && (saving.vsMaior > 0 || (saving.vsUltimaCompra ?? 0) !== 0 || (saving.ganhoPagamentoDias ?? 0) > 0) && (
+        <p className="oc-saving">
+          <b>Economia na compra:</b>{" "}
+          {[
+            saving.vsMaior > 0 ? `R$ ${reais(saving.vsMaior)} frente à maior das ${saving.concorrentes + 1} cotações` : null,
+            saving.vsUltimaCompra !== null && saving.vsUltimaCompra !== 0 ? (saving.vsUltimaCompra > 0 ? `R$ ${reais(saving.vsUltimaCompra)} abaixo da última compra` : `R$ ${reais(-saving.vsUltimaCompra)} acima da última compra`) : null,
+            saving.ganhoPagamentoDias && saving.ganhoPagamentoDias > 0 ? `${saving.ganhoPagamentoDias} dias a mais de prazo de pagamento` : null,
+          ].filter(Boolean).join(" · ")}
+        </p>
+      )}
       {ordem.parcial && <p className="oc-aviso-parcial">Itens rejeitados ou ainda em aprovação nesta cotação não constam desta ordem de compra.</p>}
 
       <footer className="oc-rodape">
@@ -150,9 +161,9 @@ function OrdemCompraPage() {
         if (response.status === 401) throw new Error("Sua sessão expirou. Entre na plataforma e abra a ordem de compra de novo.");
         if (response.status === 403) throw new Error("Você não tem acesso ao Compras.");
         if (!response.ok) throw new Error(body?.error || "Não foi possível montar a ordem de compra agora.");
-        return body as { ordem: OrdemCompra; emitente: EmitenteOrdem };
+        return body as { ordem: OrdemCompra; emitente: EmitenteOrdem; saving: Saving | null };
       })
-      .then(({ ordem, emitente }) => { if (ativo) setEstado({ status: "ready", ordem, emitente }); })
+      .then(({ ordem, emitente, saving }) => { if (ativo) setEstado({ status: "ready", ordem, emitente, saving: saving ?? null }); })
       .catch((error: Error) => { if (ativo) setEstado({ status: "error", mensagem: error.message }); });
     return () => { ativo = false; };
   }, [id, valido]);
@@ -175,7 +186,7 @@ function OrdemCompraPage() {
       {/* Só esta página imprime em A4 paisagem, como o modelo; sai junto quando a página fecha. */}
       <style>{"@page { size: A4 landscape; margin: 8mm 10mm 12mm; }"}</style>
       {estado.ordem.avisos.length > 0 && <p className="oc-avisos" role="note">{estado.ordem.avisos.join(" ")} Complete em Compras › Fornecedores para sair na ordem de compra.</p>}
-      <OrdemDeCompra ordem={estado.ordem} emitente={estado.emitente} />
+      <OrdemDeCompra ordem={estado.ordem} emitente={estado.emitente} saving={estado.saving} />
     </ReportDocument>
   );
 }

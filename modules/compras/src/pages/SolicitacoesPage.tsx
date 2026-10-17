@@ -38,7 +38,7 @@ const ORIGEM: Record<PedidoMaterial['origem'], string> = { ALMOXARIFADO: 'Almoxa
 
 type Row = {
   id: string; numero: number; divisao: PedidoMaterial['divisao']; origem: PedidoMaterial['origem'] | null; urgencia: PedidoMaterial['urgencia']; observacao: string | null;
-  status: PedidoMaterial['status']; created_at: string; requested_by_name: string | null;
+  status: PedidoMaterial['status']; created_at: string; requested_by_name: string | null; precisa_ate: string | null;
   material_request_items: { produto: string; quantidade: number; unidade: string; observacao: string | null; ordem: number; material_id: string | null; materials: MatRow | MatRow[] | null }[] | null;
 };
 type MatRow = { codigo: string; descricao: string; unidade: string };
@@ -58,14 +58,14 @@ export default function SolicitacoesPage() {
   const carregar = useCallback(async () => {
     const { data, error } = await supabase
       .from('material_requests')
-      .select('id, numero, divisao, origem, urgencia, observacao, status, created_at, requested_by_name, material_request_items(produto, quantidade, unidade, observacao, ordem, material_id, materials(codigo, descricao, unidade))')
+      .select('id, numero, divisao, origem, urgencia, observacao, status, created_at, requested_by_name, precisa_ate, material_request_items(produto, quantidade, unidade, observacao, ordem, material_id, materials(codigo, descricao, unidade))')
       .order('created_at', { ascending: false })
       .limit(300);
     if (error) { setErro('Não foi possível carregar os pedidos.'); return; }
     setErro('');
     setPedidos(((data ?? []) as Row[]).map((r) => ({
       id: r.id, numero: Number(r.numero), divisao: r.divisao, origem: r.origem === 'FUNDICAO' ? 'FUNDICAO' : 'ALMOXARIFADO', urgencia: r.urgencia, observacao: r.observacao, status: r.status,
-      createdAt: r.created_at, solicitante: r.requested_by_name,
+      createdAt: r.created_at, solicitante: r.requested_by_name, precisaAte: r.precisa_ate,
       itens: [...(r.material_request_items ?? [])].sort((a, b) => a.ordem - b.ordem).map((i) => ({ produto: i.produto, quantidade: Number(i.quantidade), unidade: i.unidade, observacao: i.observacao, material: umMaterial(i.material_id, i.materials) })),
     })));
   }, []);
@@ -143,6 +143,7 @@ export default function SolicitacoesPage() {
                     {p.urgencia === 'urgente' && <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">URGENTE</span>}
                   </p>
                   <p className="text-xs text-[#757575]">{ORIGEM[p.origem]} · {p.solicitante ?? '—'} · {new Date(p.createdAt).toLocaleDateString('pt-BR')}</p>
+                  {p.precisaAte && <p className="text-xs font-semibold text-amber-700">A produção precisa até {p.precisaAte.split('-').reverse().join('/')}</p>}
                 </div>
                 <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${SITUACAO[p.status].cls}`}>{SITUACAO[p.status].label}</span>
               </header>

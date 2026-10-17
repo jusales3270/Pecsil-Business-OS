@@ -30,7 +30,9 @@ export async function GET() {
 export async function POST(request: Request) {
   const guard = await requireFeature("almoxarifado.solicitacoes", "operar");
   if ("error" in guard) return guard.error;
-  const body = (await request.json().catch(() => ({}))) as { divisao?: string; urgencia?: string; observacao?: string; itens?: Parameters<typeof itensDoPedido>[0] };
+  const body = (await request.json().catch(() => ({}))) as { divisao?: string; urgencia?: string; observacao?: string; precisaAte?: string | null; itens?: Parameters<typeof itensDoPedido>[0] };
+  const precisaAte = typeof body.precisaAte === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.precisaAte) ? body.precisaAte : null;
+
   const lidos = itensDoPedido(body.itens);
   if ("erro" in lidos) return NextResponse.json({ error: lidos.erro }, { status: 400 });
   const { data, error } = await guard.supabase.rpc("almoxarifado_criar_solicitacao", {
@@ -38,6 +40,7 @@ export async function POST(request: Request) {
     p_urgencia: body.urgencia === "urgente" ? "urgente" : "normal",
     p_observacao: body.observacao ?? "",
     p_itens: lidos.itens,
+    p_precisa_ate: precisaAte,
   });
   if (error) return NextResponse.json({ error: error.code === "P0001" || error.code === "42501" ? error.message : "Não foi possível registrar o pedido." }, { status: error.code === "42501" ? 403 : 400 });
   return NextResponse.json(data, { status: 201 });

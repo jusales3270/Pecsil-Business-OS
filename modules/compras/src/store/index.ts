@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { ComprasCaps, User, UserRole, Cotacao, Compra, Notificacao, Page, TipoNotificacao, Divisao } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { calcularSaving, type Proposta } from '../../../../lib/compras/comparativo';
 
 /** Caixa de cada visão (ver `User`): 1 = compras, 2 = aprovação. */
 const ROLE_INBOX: Record<UserRole, number> = { ORCAMENTISTA: 1, GESTOR: 2 };
@@ -712,6 +713,27 @@ export const useStore = create<AppState>((set, get) => ({
       const newStatus = hasApproved ? 'APROVADO' : 'REJEITADO';
       const dataDecisao = new Date().toISOString();
 
+      // A-07: economia gravada na OC — contra a maior cotação concorrente do mesmo pedido, contra a
+      // última compra dos mesmos itens e o ganho em dias de pagamento (lib/compras/comparativo).
+      let saving: ReturnType<typeof calcularSaving> | null = null;
+      if (newStatus === 'APROVADO') {
+        const escolhida: Proposta = {
+          cotacaoId, fornecedor: cotacao.fornecedor, prazoEntrega: cotacao.prazoEntrega ?? null,
+          itens: updatedProdutos.filter(p => p.status === 'APROVADO').map(p => ({
+            produto: String(p.produto), materialId: (p.material_id as string | null) ?? null, quantidade: Number(p.quantidade), valorUnit: Number(p.valor_unit), ipi: Number(p.ipi) || 0, prazo: (p.prazo as string | null) ?? null,
+          })),
+        };
+        const concorrentes: Proposta[] = cotacao.materialRequestId
+          ? state.cotacoes.filter(c => c.id !== cotacaoId && c.materialRequestId === cotacao.materialRequestId && !c.deletedAt && c.status !== 'REJEITADO').map(c => ({
+              cotacaoId: c.id, fornecedor: c.fornecedor, prazoEntrega: c.prazoEntrega ?? null,
+              itens: (c.produtos ?? []).map(p => ({ produto: p.produto, materialId: p.material?.id ?? null, quantidade: p.quantidade, valorUnit: p.valorUnit, ipi: p.ipi, prazo: p.prazo || null })),
+            }))
+          : [];
+        const anteriores = state.compras.filter(c => c.cotacaoId !== cotacaoId).map(c => ({ produto: c.produto, valorUnit: c.valorUnit, data: c.dataCompra || c.createdAt }));
+        const s = calcularSaving(escolhida, concorrentes, anteriores, dataDecisao);
+        if (s.concorrentes > 0 || s.vsUltimaCompra !== null) saving = s;
+      }
+
       await supabase
         .from('cotacoes')
         .update({
@@ -719,6 +741,7 @@ export const useStore = create<AppState>((set, get) => ({
           aprovado_por: user.name,
           data_decisao: dataDecisao,
           updated_at: dataDecisao,
+          ...(saving ? { saving } : {}),
         })
         .eq('id', cotacaoId);
 

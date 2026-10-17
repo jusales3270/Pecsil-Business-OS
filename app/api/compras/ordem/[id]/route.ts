@@ -20,7 +20,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
   const { data: c, error } = await guard.supabase
     .from("cotacoes")
-    .select("id, status, origem, fornecedor, supplier_id, material_request_id, aprovado_por, data_decisao, deleted_at, frete_tipo, frete_valor, seguro_valor, outras_despesas, prazo_entrega, observacao, produto, valor_unit, quantidade, unidade, icms, ipi, prazo")
+    .select("id, status, origem, fornecedor, supplier_id, material_request_id, aprovado_por, data_decisao, deleted_at, saving, frete_tipo, frete_valor, seguro_valor, outras_despesas, prazo_entrega, observacao, produto, valor_unit, quantidade, unidade, icms, ipi, prazo")
     .eq("id", Number(id))
     .maybeSingle();
   if (error) return NextResponse.json({ error: "Não foi possível carregar a cotação." }, { status: 500 });
@@ -72,7 +72,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     );
     // Quem compra: da configuração da organização (Fiscal › Configuração), nunca fixo no código.
     const { data: empresa } = await guard.supabase.rpc("empresa_documento_compra");
-    return NextResponse.json({ ordem, emitente: montarEmitente(empresa as Record<string, unknown> | null) });
+    return NextResponse.json({ ordem, emitente: montarEmitente(empresa as Record<string, unknown> | null), saving: c.saving ?? null });
   } catch (e) {
     if (e instanceof OrdemIndisponivel) return NextResponse.json({ error: e.message }, { status: 409 });
     throw e;

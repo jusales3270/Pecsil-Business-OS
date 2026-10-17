@@ -7816,3 +7816,5 @@ button.holiday-row:hover {
 .homologation-checks > div:not(.card-head) > .ds-status { flex: 0 0 auto; width: auto; min-width: 0; margin-left: auto; }
 .homologation-form, .homologation-form label > span { text-align: left; }
 .homologation-form { grid-column: 1 / -1; }
+.almox-precisa { display: flex; flex-direction: column; gap: 4px; }
+.almox-precisa input { min-height: 38px; }

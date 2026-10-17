@@ -202,7 +202,7 @@ Marco: **1**, **2** ou **+**.
 | A-04 | EPI ligado ao estoque (inclui o catálogo de EPI do Jev, Etapa 2) | 1 | 4 | 4 | 1,5 | 2 | 8,0 | decisão | A-02; A8 | ALM M5; Jev E2 |
 | A-05 | Reposição: mínimo, máximo e solicitação sugerida | + | 4 | 2 | 1,5 | 2 | 5,3 | decisão | A-02; A9 | ALM M6 |
 | A-06 | Virada do estoque (o GRV deixa de controlar) | 1 | 5 | 5 | 1 | 1 | 15,0 | na fila | A-01 a A-04 | ALM M7 |
-| A-07 | Cotações: selos (preço, prazo, pagamento), regra "prazo depois preço" e saving na OC | + | 4 | 1 | 1 | 1 | 6,0 | na fila | — | Novo (16/10) |
+| A-07 | Cotações: selos (preço, prazo, pagamento), regra "prazo depois preço" e saving na OC | + | 4 | 1 | 1 | 1 | 6,0 | pronto, aguarda deploy | — | Novo (16/10) |
 | A-08 | Equivalência de itens em cotações | + | 3 | 1 | 1,5 | 2 | 3,3 | na fila | Rever depois de A-01 | Jev E7 |
 | A-09 | Portal do fornecedor (conta de terceiro com validade, como o do escritório) | + | 4 | 1 | 3 | 1 | 2,0 | na fila | — | Novo (16/10) |
 | A-10 | Dados do GRV para o estoque (movimentação, próximo número, locais, NCM) | 1 | 3 | 4 | 0,5 | 2 | 22,0 | pedido à equipe | Jefferson, Henrique | ALM §6 |
@@ -357,6 +357,7 @@ Marco: **1**, **2** ou **+**.
 | 16/10/2026 | Roadmap único criado: Marco 1 (GRV desligado) e Marco 2 (pronta para escalar); critério (V + 2·D) ÷ E e portões; os planos de detalhe passam a apontar para cá | Proprietário |
 | 16/10/2026 | Entram os itens novos da comparação com o GRV Max: A-07, C-05, A-11, B-08, A-09 e F-10. Os 14 da lista ficam assim: 1 C-05 · 2 A-07, A-08 · 3 A-11, P-06 · 4 B-08 · 5 A-09 · 6 I-08 · 7 F-07 · 8 F-08, I-04 · 9 I-10 · 10 K-05, K-06, P-03 · 11 P-10 · 12 R-03, A-04 · 13 P-06 · 14 F-10 | Proprietário |
 | 16/10/2026 | P-02 construído na Forja (branch `feat/terceiros-operacao`): tela de terceiros na operação do artigo e a correção da aba de lotes, que mostrava toda OP como interna; teste de navegador 15/15 | Claude |
+| 17/10/2026 | A-07 construído: "precisa até" no pedido de material, comparativo na cotação (selos de preço, entrega e pagamento; regra entrega no prazo e depois menor custo), economia gravada na aprovação e impressa na OC. Migração 202610170004 aplicada; teste 7/7 | Claude |
 | 17/10/2026 | R-01 construído: RH sem caminho de demonstração (ação sem banco vira erro), cartão de SST calculado, conferência de documento gravada, aba Homologação real (critérios, conferência dos dados, registro por perfil). Migração 202610170003 aplicada; teste com dois perfis de RH 9/9. Homologação final: Rosana e Bianca (precisam da permissão Homologação do RH) | Claude |
 | 17/10/2026 | A-11 (Fundação › Parados, migração 202610170002 aplicada, teste 4/4) e F-08 (conciliação: CNPJ nas sugestões, motivo de cada uma, explicação da linha sem par, pares de mesmo CNPJ e valor para confirmar em lote; sem migração) construídos. Achado: consultas do Financeiro paravam em 1.000 linhas (limite do Supabase) e passaram a ler em páginas | Claude |
 | 17/10/2026 | Foco só no PecSil até o projeto pronto e validado; raia Z (tenants, white label) adiada. Fila: A-11, F-08, R-01, A-07, F-09 | Proprietário |
