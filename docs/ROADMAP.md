@@ -38,7 +38,8 @@ da IA, deploy. **Decisão do negócio é de quem responde pela área**:
 | Financeiro | Ana |
 | RH | Rosana |
 | Almoxarifado | Henrique |
-| Compras | quem aprova cotações (Domingo, Ricardo) |
+| Compras: aprovar cotações | quem aprova cotações (Domingo, Ricardo) |
+| Cadastro de fornecedores (completar, unificar, incluir) | a equipe de Compras e o Rafael |
 | Fiscal e faturamento | Jefferson (com o contador nas regras fiscais) |
 | Comercial, orçamento e PCP | Rafael |
 | Fundição | Guilherme |
