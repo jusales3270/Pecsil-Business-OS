@@ -1,6 +1,7 @@
 /**
  * Pedido para abrir um registro exato dentro de uma tela (a SARA navega até o módulo e a tela pega o
  * pedido quando monta, ou na hora, se já estiver aberta). Fica na memória da página: um pedido por vez.
+ * Quem pede manda depois da navegação (a tela antiga, se for a mesma, já foi desmontada).
  */
 
 export type PedidoRegistro = { tipo: "titulo"; id: string; direcao: "payable" | "receivable"; aba: "aberto" | "previsoes" | "quitados"; mes: string | null };

@@ -5,7 +5,7 @@
 
 /** Tela que a SARA pode abrir para a pessoa (só se ela tiver a funcionalidade). */
 export type Tela = { id: string; modulo: string; secao?: string; rotulo: string; exige: string[]; serve: string };
-export type SaraModulo = { modulo: string; nome: string; feature: string; manual: string; ferramentas: string[]; telas: Tela[]; sugestoes: string[] };
+export type SaraModulo = { modulo: string; nome: string; /** Nome do módulo para as mensagens ("Financeiro"). */ rotulo: string; feature: string; manual: string; ferramentas: string[]; telas: Tela[]; sugestoes: string[] };
 
 const TELAS_FINANCEIRO: Tela[] = [
   { id: "financeiro_painel", modulo: "financeiro", secao: "Painel", rotulo: "Financeiro › Painel", exige: ["financeiro.pagar", "financeiro.receber", "financeiro.fluxo", "financeiro.relatorios"], serve: "totais e gráficos do mês" },
@@ -36,7 +36,7 @@ Compra aprovada no Compras vira conta a pagar quando a nota é recebida no Almox
 
 export const SARAS: Record<string, SaraModulo> = {
   financeiro: {
-    modulo: "financeiro", nome: "SARA do Financeiro", feature: "financeiro", manual: FINANCEIRO,
+    modulo: "financeiro", nome: "SARA do Financeiro", rotulo: "Financeiro", feature: "financeiro", manual: FINANCEIRO,
     ferramentas: ["contas_a_pagar", "contas_a_receber", "buscar_contas_a_pagar", "buscar_contas_a_receber", "abrir_lancamento", "fluxo_de_caixa_90_dias", "bancos_e_conciliacao", "compras_aprovadas_a_pagar"],
     telas: TELAS_FINANCEIRO,
     sugestoes: ["O que está vencido a pagar?", "Como fica o caixa nos próximos 90 dias?", "Quais compras aprovadas ainda vão virar conta a pagar?", "Como dou baixa parcial numa conta?"],
@@ -50,7 +50,7 @@ export const REGRAS_SARA = `Regras:
 - Os números das suas respostas anteriores nesta conversa já vieram de consultas: não os reconfirme nem volte a eles, a menos que a pessoa peça. Responda só o que ela perguntou agora.
 - Você só CONSULTA. Não aprova, não dá baixa, não grava nada: quando a pessoa quiser fazer algo, explique o caminho e abra a tela para ela com a ferramenta abrir_tela.
 - Quando a pessoa pedir para ver algo ("onde está…", "me mostra…"), abra a tela certa com abrir_tela, além de responder.
-- Quando ela pedir um lançamento específico ("me mostre o último lançamento do financiamento da Grob"), ache-o com a busca e abra o lançamento exato com abrir_lancamento. Diga qual você abriu (fornecedor, histórico, data e valor) e, se "último" puder ser outro (o último pago ou a última parcela prevista), diga qual escolheu e ofereça o outro.
+- Quando ela pedir um lançamento específico ("me mostre o último lançamento do financiamento da Grob"), ache-o com a busca e abra o lançamento exato com abrir_lancamento. "Último lançamento", sem mais detalhe, é o último pago (o movimento mais recente): abra esse e ofereça a última parcela prevista. Diga qual você abriu (fornecedor, histórico, data e valor).
 - Se uma ferramenta não estiver disponível, é porque a pessoa não tem essa permissão: diga isso com naturalidade, sem tentar contornar.
 - Valores em reais no formato brasileiro (R$ 1.234,56) e datas em dd/mm/aaaa.
 - Não invente regra da empresa. Quando a decisão é de uma pessoa ou área (aprovação, alçada, classificação), diga quem decide.`;

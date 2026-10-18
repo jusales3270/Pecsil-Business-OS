@@ -15,7 +15,7 @@ type Estado = {
   ferramentas: string[]; sugestoes: string[];
 };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
-type Mensagem = { papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean };
+type Mensagem = { papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean };
 
 const CONSULTA: Record<string, string> = {
   contas_a_pagar: "contas a pagar", contas_a_receber: "contas a receber", fluxo_de_caixa_90_dias: "fluxo de caixa",
@@ -69,14 +69,17 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
     setPensando(false);
     if (!r.ok) { setMsgs((m) => [...m, { papel: "sara", texto: r.body?.error ?? "A SARA está indisponível agora.", erro: true }]); return; }
     setConversa(r.body.conversa ?? conversa);
-    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem }]);
+    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo) }]);
     // A SARA pediu para mostrar uma tela: abre por dentro da plataforma (o painel continua aberto).
     if (r.body.abrir) abrir(r.body.abrir);
     void carregar();
   };
   const abrir = (a: Abrir) => {
     navegar(a.modulo, a.secao ?? undefined);
-    if (a.registro) pedirRegistro(a.registro);
+    // O pedido sai depois da troca de tela: se a pessoa já estava nela, a tela antiga é desmontada e
+    // não pode "pegar" o pedido no lugar da nova. Até alguém atender, ele fica guardado.
+    const registro = a.registro;
+    if (registro) setTimeout(() => pedirRegistro(registro), 400);
   };
   const avaliar = async (i: number, nota: number) => {
     const m = msgs[i];
@@ -115,8 +118,8 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
               </div>
             )}
             {msgs.map((m, i) => (
-              <div key={i} className={`sara-msg ${m.papel}${m.erro ? " erro" : ""}`}>
-                {m.papel === "sara" && !m.erro && <span className="sara-selo">SARA (IA)</span>}
+              <div key={i} className={`sara-msg ${m.papel}${m.erro ? " erro" : ""}${m.fora ? " fora" : ""}`}>
+                {m.papel === "sara" && !m.erro && <span className="sara-selo">{m.fora ? "SARA (IA) · fora do escopo" : "SARA (IA)"}</span>}
                 <div className="sara-texto">{m.papel === "sara" ? <Texto texto={m.texto} /> : <p>{m.texto}</p>}</div>
                 {m.consultas && m.consultas.length > 0 && <small className="sara-consultas">Consultou: {[...new Set(m.consultas)].map((c) => CONSULTA[c] ?? c).join(", ")}</small>}
                 {m.abrir && <button type="button" className="sara-abrir" onClick={() => abrir(m.abrir!)}>Abrir {m.abrir.rotulo}</button>}

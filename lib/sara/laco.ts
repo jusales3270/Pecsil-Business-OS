@@ -11,6 +11,9 @@ import type { Abrir, Ferramenta, Fonte } from "./ferramentas.ts";
  * Cache de prompt da Anthropic: a parte fixa (ferramentas + manual + regras) é marcada para cache e
  * cobrada bem mais barato quando se repete; a parte do dia (data, nome, permissões) vem depois dela.
  * A última mensagem também é marcada, para a rodada seguinte da mesma pergunta reaproveitar a conversa.
+ *
+ * Sem "pensamento" (thinking) no copiloto: medido em 17/10, ele não mudou as consultas escolhidas e
+ * custava ~23% de tempo e ~29% dos tokens de saída. O raciocínio profundo fica para o modo conselheiro.
  */
 
 export type MensagemHistorico = { papel: "pessoa" | "sara"; texto: string };
@@ -39,6 +42,8 @@ type Bloco = { type: "text"; text: string } | { type: "tool_use"; id: string; na
 
 export async function conversarCom(sb: SupabaseClient, a: {
   chave: string; buscar?: typeof fetch; modelo: string; sistema: Sistema; historico: MensagemHistorico[]; pergunta: string; ferramentas: Ferramenta[];
+  /** Cancela a conversa (o verificador de escopo deu FORA). */
+  sinal?: AbortSignal;
 }): Promise<RespostaSara> {
   const chave = a.chave;
   const buscar = a.buscar ?? fetch;
@@ -69,16 +74,22 @@ export async function conversarCom(sb: SupabaseClient, a: {
 
 
   for (let rodada = 0; rodada < RODADAS; rodada++) {
+    if (a.sinal?.aborted) throw new Error("CANCELADA");
     const ctrl = new AbortController();
     const relogio = setTimeout(() => ctrl.abort(), 60_000);
+    const cancelar = () => ctrl.abort();
+    a.sinal?.addEventListener("abort", cancelar);
     let r: Response;
     try {
       r = await buscar(API, {
         method: "POST", signal: ctrl.signal,
         headers: { "content-type": "application/json", "x-api-key": chave, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({ model: a.modelo, max_tokens: 1500, system: blocosDoSistema(a.sistema), messages: comCacheNoFim(mensagens), ...(tools.length ? { tools } : {}) }),
+        body: JSON.stringify({ model: a.modelo, max_tokens: 1500, thinking: { type: "disabled" }, system: blocosDoSistema(a.sistema), messages: comCacheNoFim(mensagens), ...(tools.length ? { tools } : {}) }),
       });
-    } finally { clearTimeout(relogio); }
+    } catch (e) {
+      if (a.sinal?.aborted) throw new Error("CANCELADA");
+      throw e;
+    } finally { clearTimeout(relogio); a.sinal?.removeEventListener("abort", cancelar); }
     const corpo = await r.json().catch(() => null) as { content?: Bloco[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }; error?: { message?: string } } | null;
     if (!r.ok || !corpo?.content) throw new Error(`MODELO_INDISPONIVEL: ${r.status} ${corpo?.error?.message ?? ""}`.trim());
     cacheLido += corpo.usage?.cache_read_input_tokens ?? 0;
