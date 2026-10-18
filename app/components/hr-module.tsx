@@ -207,6 +207,7 @@ export function HrModule({
   onEvent,
   onExit,
   access,
+  initialSection,
 }: {
   people: Person[];
   summary: FoundationSummary;
@@ -214,8 +215,16 @@ export function HrModule({
   onEvent: (message: string) => void;
   onExit: () => void;
   access: ModuleAccessContext;
+  /** Aba pedida (link, SARA); vale só se a pessoa puder vê-la. */
+  initialSection?: string;
 }) {
-  const [section, setSection] = useState<HrSection>("Painel");
+  const [section, setSection] = useState<HrSection>(() => {
+    const pedida = sections.find(([label]) => label === initialSection)?.[0];
+    if (!pedida) return "Painel";
+    const feature = SECTION_FEATURE[pedida];
+    const pode = pedida === "Colaboradores" ? canUseFeature(access, "rh.colaboradores") || canUseFeature(access, "rh.terceiros") : !feature || canUseFeature(access, feature);
+    return pode ? pedida : "Painel";
+  });
   const [query, setQuery] = useState("");
   // Dados reais do RH (rh_*). Sem conexão, a tela fica vazia e nada é gravado: não
   // há sessão ou conexão — mesmo contrato do Financeiro.

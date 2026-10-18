@@ -16,7 +16,7 @@ import { pedirRegistro, type PedidoRegistro } from "../../lib/abrir-registro";
  */
 
 type Salva = { id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean };
-type Estado = { nome: string; configurada: boolean; ferramentas: string[]; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
+type Estado = { nome: string; configurada: boolean; ferramentas: string[]; rotulos?: Record<string, string>; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
 type Mensagem = { papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string };
 
@@ -24,9 +24,10 @@ const CONSULTA: Record<string, string> = {
   contas_a_pagar: "contas a pagar", contas_a_receber: "contas a receber", fluxo_de_caixa_90_dias: "fluxo de caixa",
   bancos_e_conciliacao: "bancos e conciliação", compras_aprovadas_a_pagar: "ordens de compra (Compras)", abrir_tela: "abriu uma tela",
   buscar_contas_a_pagar: "busca em contas a pagar", buscar_contas_a_receber: "busca em contas a receber", abrir_lancamento: "abriu um lançamento",
+  registrar_lacuna: "anotou o pedido",
 };
 // Navegação, não consulta: não entram no "Posso consultar".
-const NAVEGA = new Set(["abrir_tela", "abrir_lancamento"]);
+const NAVEGA = new Set(["abrir_tela", "abrir_lancamento", "registrar_lacuna"]);
 const AVATAR = "/favicon.png?v=2";
 // Para quem usa é só "SARA": o módulo ("do Financeiro", "de Compras") é identificação interna dos agentes.
 const NOME = "SARA";
@@ -233,6 +234,7 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
 
   if (semAcesso || !estado) return null;
   const pode = estado.configurada;
+  const rotulo = (nome: string) => estado.rotulos?.[nome] ?? CONSULTA[nome] ?? nome.replace(/_/g, " ");
   const naoVistos = avisos.filter((a) => !a.visto);
   const pulso = naoVistos.some((a) => a.nivel === "urgente") ? "urgente" : naoVistos.length ? "aviso" : null;
   return (
@@ -289,7 +291,7 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
                 <b className="sara-ola">{estado.saudacao}{estado.pessoa ? `, ${estado.pessoa}` : ""}!</b>
                 <p>Pergunte sobre o módulo ou peça um dado. Eu consulto com as suas permissões e mostro de onde veio cada número.</p>
                 <div className="sara-sugestoes">{estado.sugestoes.map((s) => <button key={s} type="button" onClick={() => void perguntar(s)}>{s}</button>)}</div>
-                {estado.ferramentas.some((f) => !NAVEGA.has(f)) && <small>Posso consultar: {estado.ferramentas.filter((f) => !NAVEGA.has(f)).map((f) => CONSULTA[f] ?? f).join(", ")}{estado.ferramentas.some((f) => NAVEGA.has(f)) ? ", e abrir as telas e os lançamentos que você usa" : ""}.</small>}
+                {estado.ferramentas.some((f) => !NAVEGA.has(f)) && <small>Posso consultar: {estado.ferramentas.filter((f) => !NAVEGA.has(f)).map(rotulo).join(", ")}{estado.ferramentas.some((f) => f === "abrir_tela" || f === "abrir_lancamento") ? ", e abrir as telas e os lançamentos que você usa" : ""}.</small>}
               </div>
             )}
             {msgs.map((m, i) => (
@@ -298,7 +300,7 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
               <div className={`sara-msg ${m.papel}${m.erro ? " erro" : ""}${m.fora ? " fora" : ""}`}>
                 {m.papel === "sara" && !m.erro && <span className="sara-selo">{m.fora ? "SARA (IA) · fora do escopo" : "SARA (IA)"}{m.quando ? <i> · {horaSP(m.quando)}</i> : null}</span>}
                 <div className="sara-texto">{m.papel === "sara" ? <Texto texto={m.texto} /> : <p>{m.texto}</p>}</div>
-                {m.consultas && m.consultas.length > 0 && <small className="sara-consultas">Consultou: {[...new Set(m.consultas)].map((c) => CONSULTA[c] ?? c).join(", ")}</small>}
+                {m.consultas && m.consultas.length > 0 && <small className="sara-consultas">Consultou: {[...new Set(m.consultas)].map(rotulo).join(", ")}</small>}
                 {m.abrir && <button type="button" className="sara-abrir" onClick={() => abrir(m.abrir!)}>Abrir {m.abrir.rotulo}</button>}
                 {m.fontes && m.fontes.length > 0 && <div className="sara-fontes">{m.fontes.map((f) => <a key={f.link} href={f.link}>{f.rotulo}</a>)}</div>}
                 {m.papel === "sara" && m.id && (

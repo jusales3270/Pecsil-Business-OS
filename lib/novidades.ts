@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-18-sara-equipe",
+    data: "2026-10-18",
+    area: "Plataforma",
+    funcionalidades: ["compras.sara", "almoxarifado.sara", "fundicao.sara", "comercial.sara", "fiscal.sara", "rh.sara", "portaria.sara", "producao.sara"],
+    modulos: ["compras", "almoxarifado", "fundicao", "comercial", "fiscal", "rh", "portaria", "producao"],
+    titulo: "A SARA chegou ao seu módulo",
+    itens: [
+      "Cada módulo tem a sua SARA: o botão no canto da tela abre a assistente, que responde em português com os dados do módulo, sempre com as suas permissões, mostra de onde veio cada número e abre a tela certa.",
+      "Avisos: o botão pulsa em vermelho quando há algo urgente no módulo e em azul para lembretes e novidades. Ao abrir a SARA você vê os avisos e ele para de pulsar.",
+      "Ela também procura nos documentos do setor guardados na plataforma. A SARA só trata do trabalho da empresa e não grava nada.",
+    ],
+  },
+  {
     id: "2026-10-18-sara-financeiro",
     data: "2026-10-18",
     area: "Financeiro",

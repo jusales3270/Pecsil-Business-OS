@@ -5,7 +5,8 @@ import { chaveConfigurada, conversar, verificar } from "../../../../lib/sara/cla
 import { MODELO_VERIFICADOR, recusa, regrasDeEscopo } from "../../../../lib/sara/escopo";
 import type { RespostaSara } from "../../../../lib/sara/laco";
 import { abertura, agoraSP, comAbertura, contextoDeTempo, primeiroNome, saudacao, situacaoDaConversa } from "../../../../lib/sara/tempo";
-import { ferramentaDeTelas, ferramentasDe } from "../../../../lib/sara/ferramentas";
+import { ferramentaDeDocumentos } from "../../../../lib/sara/documentos";
+import { LACUNA, ferramentaDeTelas, ferramentasDe } from "../../../../lib/sara/ferramentas";
 import { REGRAS_SARA, SARAS } from "../../../../lib/sara/modulos";
 import { requireUserSession } from "../../../../lib/supabase/session";
 
@@ -38,7 +39,9 @@ async function preparar(modulo: string) {
   const cfg = { modelo: linha?.modelo ?? "claude-haiku-5-5", teto_tokens_mes: linha?.teto_tokens_mes ?? 2_000_000 };
   const telas = sara.telas.filter((t) => t.exige.some((f) => access.can(f, "ver")));
   const navegar = ferramentaDeTelas(telas);
-  const ferramentas = [...ferramentasDe((f) => access.can(f, "ver"), sara.ferramentas), ...(navegar ? [navegar] : [])];
+  // Leitura do Segundo Cérebro: os documentos do setor, se a pessoa pode vê-los.
+  const documentos = ferramentaDeDocumentos(modulo, (f) => access.can(f, "ver"));
+  const ferramentas = [...ferramentasDe((f) => access.can(f, "ver"), sara.ferramentas), ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), LACUNA];
   return { sara, sb: session.supabase, access, cfg, ferramentas } as const;
 }
 
@@ -70,6 +73,8 @@ export async function GET(_request: Request, context: { params: Promise<{ modulo
   ]);
   return NextResponse.json({
     nome: p.sara.nome, configurada: chaveConfigurada(), ferramentas: p.ferramentas.map((f) => f.nome), sugestoes: p.sara.sugestoes,
+    // Como cada consulta aparece para quem usa.
+    rotulos: Object.fromEntries(p.ferramentas.filter((f) => f.rotulo).map((f) => [f.nome, f.rotulo])),
     // Cumprimento pelo relógio do servidor, no fuso de São Paulo, com o nome de quem está logado.
     pessoa: primeiroNome(me?.full_name), saudacao: saudacao(agoraSP().hora24), conversa,
   });
@@ -133,7 +138,8 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   r = { ...r, texto: comAbertura(r.texto, abertura({ nome: nomeCurto, situacao }), nomeCurto) };
   const { data: reg, error } = await p.sb.rpc("sara_registrar", {
     p_conversa: conversa, p_modulo: modulo, p_pergunta: pergunta, p_resposta: r.texto,
-    p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou } }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
+    p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou },
+      lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
   const ids = reg as { conversa: string; mensagem: string } | null;

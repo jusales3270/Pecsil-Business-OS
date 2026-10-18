@@ -3,10 +3,10 @@
  * e as ferramentas que ela pode oferecer. As de outros módulos entram só para quem tem a credencial.
  */
 
-/** Tela que a SARA pode abrir para a pessoa (só se ela tiver a funcionalidade). */
-export type Tela = { id: string; modulo: string; secao?: string; rotulo: string; exige: string[]; serve: string };
-export type SaraModulo = { modulo: string; nome: string; /** Nome do módulo para as mensagens ("Financeiro"). */ rotulo: string; feature: string;
-  /** Funcionalidade que libera a SARA para a pessoa (Pessoas e Acessos, na lista do módulo). */ permissao: string; manual: string; ferramentas: string[]; telas: Tela[]; sugestoes: string[] };
+import { AGENTES } from "./agentes/index.ts";
+import type { SaraModulo, Tela } from "./base.ts";
+
+export type { SaraModulo, Tela } from "./base.ts";
 
 const TELAS_FINANCEIRO: Tela[] = [
   { id: "financeiro_painel", modulo: "financeiro", secao: "Painel", rotulo: "Financeiro › Painel", exige: ["financeiro.pagar", "financeiro.receber", "financeiro.fluxo", "financeiro.relatorios"], serve: "totais e gráficos do mês" },
@@ -42,6 +42,8 @@ export const SARAS: Record<string, SaraModulo> = {
     telas: TELAS_FINANCEIRO,
     sugestoes: ["O que está vencido a pagar?", "Como fica o caixa nos próximos 90 dias?", "Quais compras aprovadas ainda vão virar conta a pagar?", "Como dou baixa parcial numa conta?"],
   },
+  // A equipe: uma SARA por módulo (lib/sara/agentes).
+  ...Object.fromEntries(AGENTES.map((a) => [a.sara.modulo, a.sara])),
 };
 
 /** Instruções fixas (iguais em todo módulo). */
@@ -54,5 +56,6 @@ export const REGRAS_SARA = `Regras:
 - Quando a pessoa pedir para ver algo ("onde está…", "me mostra…"), abra a tela certa com abrir_tela, além de responder.
 - Quando ela pedir para mostrar, abrir ou ver um lançamento específico ("me mostre o último lançamento do financiamento da Grob"), ache-o com a busca e SEMPRE abra o lançamento exato com abrir_lancamento: descrever sem abrir não atende o pedido. "Último lançamento", sem mais detalhe, é o último pago (o movimento mais recente): abra esse e termine oferecendo a última parcela prevista ("Quer que eu abra a última parcela prevista?"). Diga qual você abriu (fornecedor, histórico, data e valor).
 - Se uma ferramenta não estiver disponível, é porque a pessoa não tem essa permissão: diga isso com naturalidade, sem tentar contornar.
+- Se a pergunta é do trabalho mas nenhuma consulta sua responde (não é falta de permissão), chame registrar_lacuna com o assunto e diga que anotou o pedido para a equipe que constrói a plataforma.
 - Valores em reais no formato brasileiro (R$ 1.234,56) e datas em dd/mm/aaaa.
 - Não invente regra da empresa. Quando a decisão é de uma pessoa ou área (aprovação, alçada, classificação), diga quem decide.`;

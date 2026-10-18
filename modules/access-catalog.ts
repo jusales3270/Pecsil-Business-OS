@@ -88,6 +88,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "rh.documentos", label: "Documentos", description: "Documentos dos colaboradores; documentos sensíveis só em aprovar.", levels: TODOS },
       { code: "rh.relatorios", label: "Relatórios", description: "Relatórios do RH.", levels: VER },
       { code: "rh.homologacao", label: "Homologação", description: "Critérios e evidências de homologação do módulo.", levels: VER_OPERAR },
+      sara("rh"),
     ],
   },
   {
@@ -119,6 +120,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "comercial.cobranca", label: "Cobrança", description: "Títulos a receber vencidos e a régua de avisos; aprovar é quem dispara o e-mail ao cliente.", levels: TODOS },
       { code: "comercial.conexao", label: "Conexão de e-mail", description: "Situação da leitura das caixas de e-mail (última sincronização e erros).", levels: VER },
       coleta("comercial"),
+      sara("comercial"),
     ],
   },
   {
@@ -131,6 +133,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "compras.realizadas", label: "Compras realizadas", description: "Compras efetivadas; operar registra a compra com NF.", levels: VER_OPERAR },
       { code: "compras.fornecedores", label: "Fornecedores", description: "Cadastro e histórico de compras por fornecedor; operar cadastra, edita e unifica.", levels: VER_OPERAR },
       coleta("compras"),
+      sara("compras"),
     ],
   },
   {
@@ -141,6 +144,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "portaria.terceiros", label: "Terceiros", description: "Prestadores de serviço.", levels: TODOS, levelLabels: { aprovar: "Gerenciar" } },
       { code: "portaria.recebidos", label: "Recebidos", description: "Encomendas e entregas.", levels: TODOS, levelLabels: { aprovar: "Gerenciar" } },
       { code: "portaria.veiculos", label: "Veículos", description: "Frota e movimentação de veículos.", levels: TODOS, levelLabels: { aprovar: "Gerenciar" } },
+      sara("portaria"),
     ],
   },
   {
@@ -158,6 +162,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "producao.bi", label: "BI & Análises", description: "Pontualidade de entrega e causas de parada.", levels: VER },
       { code: "producao.conexao", label: "Conexão Forja", description: "Situação da integração com o Forja.", levels: VER },
       coleta("producao"),
+      sara("producao"),
     ],
   },
   {
@@ -168,6 +173,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "almoxarifado.recebimento", label: "Recebimento", description: "Material a caminho e entrada da nota fiscal; operar confere e lança a nota, que vira conta a pagar.", levels: VER_OPERAR },
       { code: "almoxarifado.materiais", label: "Materiais", description: "Catálogo de materiais com o código do GRV (matéria-prima, embalagem, intermediário, uso e consumo). Quem pede, compra ou recebe já consulta; operar cadastra, edita e inativa (o Compras com cotações também cadastra).", levels: VER_OPERAR },
       coleta("almoxarifado"),
+      sara("almoxarifado"),
     ],
   },
   {
@@ -176,6 +182,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     features: [
       { code: "fundicao.pedidos", label: "Pedidos de material", description: "Painel da Fundição: pede material ao Compras e acompanha cotação, aprovação, compra e chegada; operar pede e cancela.", levels: VER_OPERAR },
       coleta("fundicao"),
+      sara("fundicao"),
     ],
   },
   {
@@ -189,6 +196,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "fiscal.escritorio", label: "Escritório contábil", description: "Lado da empresa no portal do escritório de contabilidade: fechamento do mês, malote, pendências e documentos; operar prepara e responde.", levels: VER_OPERAR },
       { code: "fiscal.portal", label: "Portal do contador", description: "Para o escritório de contabilidade (conta de terceiro): vê só o portal e os totais do mês, confirma o malote, abre e responde pendências, envia documentos e confere a competência.", levels: ["operar"] },
       coleta("fiscal"),
+      sara("fiscal"),
     ],
   },
   {

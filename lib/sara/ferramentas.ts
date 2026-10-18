@@ -8,24 +8,10 @@ import { CENARIOS, projetar, saldoDePartida, type CenarioId, type Conta, type Pa
  * credencial permite. Toda resposta traz a fonte (onde ver na plataforma).
  */
 
-export type Fonte = { rotulo: string; link: string };
-/** Registro exato a abrir dentro da tela (hoje: título do Financeiro, na aba onde ele está). */
-export type Registro = { tipo: "titulo"; id: string; direcao: "payable" | "receivable"; aba: "aberto" | "previsoes" | "quitados"; mes: string | null };
-export type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: Registro };
-export type Resultado = { dados: unknown; fontes: Fonte[]; abrir?: Abrir };
-export type Ferramenta = {
-  nome: string;
-  descricao: string;
-  /** Basta uma destas funcionalidades (nível "ver"). */
-  exige: string[];
-  esquema: Record<string, unknown>;
-  rodar: (sb: SupabaseClient, entrada: Record<string, unknown>) => Promise<Resultado>;
-};
+import { hoje, maisDias, num, reais, type Ferramenta, type Resultado } from "./base.ts";
+import { AGENTES } from "./agentes/index.ts";
 
-const hoje = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-const maisDias = (iso: string, n: number) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-const reais = (v: number) => Math.round(v * 100) / 100;
-const num = (v: unknown, padrao: number, min: number, max: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : padrao; };
+export type { Abrir, Ferramenta, Fonte, Registro, Resultado } from "./base.ts";
 const LINK = {
   pagar: "/?module=financeiro&secao=Contas%20a%20pagar",
   receber: "/?module=financeiro&secao=Contas%20a%20receber",
@@ -111,7 +97,7 @@ const ESQUEMA_CONTAS = (quem: string) => ({
   required: ["situacao"],
 });
 
-export const FERRAMENTAS: Ferramenta[] = [
+const FINANCEIRO: Ferramenta[] = [
   {
     nome: "contas_a_pagar", exige: ["financeiro.pagar"], esquema: ESQUEMA_CONTAS("fornecedor"),
     descricao: "Contas a pagar em aberto (parcelas) por situação: vencidas, a vencer, em aprovação ou previsões. Devolve quantidade, total e as maiores, com fornecedor, vencimento e valor em aberto.",
@@ -227,6 +213,9 @@ export const FERRAMENTAS: Ferramenta[] = [
   },
 ];
 
+/** Todas as consultas da equipe: as do Financeiro e as de cada agente (lib/sara/agentes). */
+export const FERRAMENTAS: Ferramenta[] = [...FINANCEIRO, ...AGENTES.flatMap((a) => a.ferramentas)];
+
 /** Abrir uma tela para a pessoa: só entre as que ela pode abrir (a lista entra já filtrada). */
 export function ferramentaDeTelas(telas: { id: string; modulo: string; secao?: string; rotulo: string; serve: string }[]): Ferramenta | null {
   if (!telas.length) return null;
@@ -241,6 +230,18 @@ export function ferramentaDeTelas(telas: { id: string; modulo: string; secao?: s
     },
   };
 }
+
+/**
+ * Lacuna: a pergunta é do trabalho, mas nenhuma consulta da SARA responde (não é falta de permissão).
+ * Não grava nada por si: fica registrada na conversa (sara_mensagens.ferramentas) e vira matéria para
+ * o Segundo Cérebro e para o roadmap (o que as pessoas precisam e a plataforma ainda não responde).
+ */
+export const LACUNA: Ferramenta = {
+  nome: "registrar_lacuna", exige: [],
+  descricao: "Anota um pedido que você não consegue atender porque nenhuma consulta sua responde (NÃO use quando for falta de permissão). Diga à pessoa que anotou o pedido.",
+  esquema: { type: "object", properties: { assunto: { type: "string", description: "O que a pessoa queria saber ou fazer, em uma frase." } }, required: ["assunto"] },
+  rodar: async (_sb, e) => ({ dados: { anotado: String(e.assunto ?? "").slice(0, 300) }, fontes: [] }),
+};
 
 /** Ferramentas que a pessoa pode usar (S2). */
 export function ferramentasDe(pode: (feature: string) => boolean, nomes: string[]): Ferramenta[] {

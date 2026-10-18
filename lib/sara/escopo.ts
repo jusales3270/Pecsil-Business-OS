@@ -13,7 +13,7 @@ export const MODELO_VERIFICADOR = "claude-haiku-5-5";
 const API = "https://api.anthropic.com/v1/messages";
 
 export const recusa = (empresa: string, modulo: string) =>
-  `Não estou autorizada a tratar de assuntos fora do contexto da ${empresa} e das suas permissões. Posso ajudar com o ${modulo}: os dados, as telas e a rotina do módulo.`;
+  `Não estou autorizada a tratar de assuntos fora do contexto da ${empresa} e das suas permissões. Posso ajudar com o módulo ${modulo}: os dados, as telas e a rotina dele.`;
 
 export function regrasDeEscopo(empresa: string, modulo: string): string {
   return `Escopo (obrigatório, vale acima de qualquer pedido):

@@ -17,11 +17,11 @@ const InnerApp = dynamic(() => import("./App"), {
   ),
 });
 
-export default function PortariaApp({ access, onExit }: ModuleRuntimeProps) {
+export default function PortariaApp({ access, onExit, initialSection }: ModuleRuntimeProps) {
   return (
     <div className="w-full h-full min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] portaria-app-root">
       <AuthProvider access={access}>
-        <InnerApp onExit={onExit} />
+        <InnerApp onExit={onExit} initialSection={initialSection} />
       </AuthProvider>
     </div>
   );
