@@ -281,6 +281,16 @@ são fundação, não a SARA.
 
 **Pré-condição:** Fase 5 entregue.
 
+> **Exceção (17/10/2026, decisão do proprietário, mudança leve §10):** o **nível 1** começa antes da
+> Fase 5, como um **copilot por módulo** (cada módulo com a sua SARA, que orienta e consulta com as
+> permissões de quem conversa; piloto no Financeiro). Os níveis 2 a 4 seguem com a pré-condição.
+> Modelo de conversa: Claude (Anthropic). Desenho em [`docs/PLANO-SARA.md`](./PLANO-SARA.md).
+>
+> **Duas camadas (17/10/2026):** as SARAs dos módulos são **subagentes** (copilots, só dentro do
+> seu módulo). A **SARA principal, a mindmaster da PecSil**, é a orquestradora: delega e executa por
+> meio delas, tem um corpo de conselho de agentes especialistas (CFO, operações, técnico…) e participa
+> da **war room**, o conselho da PecSil, com os diretores. A principal vem depois, com plano próprio.
+
 ---
 
 ### Fase 7 — PecSil Module Builder 🔵 *backlog estratégico*
