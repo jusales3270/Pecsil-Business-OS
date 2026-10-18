@@ -7324,6 +7324,7 @@ button.holiday-row:hover {
 .sara-msg.pessoa { align-self: flex-end; max-width: 85%; padding: 8px 12px; border-radius: 12px 12px 2px 12px; background: var(--bg-subtle); }
 .sara-msg.sara { align-self: stretch; padding: 10px 12px; border-left: 3px solid var(--accent-blue); border-radius: 2px 12px 12px 2px; background: color-mix(in srgb, var(--accent-blue) 7%, var(--bg-surface)); }
 .sara-msg.erro { border-left-color: var(--accent-amber); background: color-mix(in srgb, var(--accent-amber) 8%, var(--bg-surface)); }
+.sara-msg.fora { border-left-color: var(--accent-amber); background: color-mix(in srgb, var(--accent-amber) 8%, var(--bg-surface)); }
 .sara-selo { align-self: flex-start; padding: 1px 8px; border: 1px solid var(--accent-blue); border-radius: 999px; color: var(--accent-blue); font-size: var(--fs-micro); font-weight: 700; letter-spacing: .03em; }
 .sara-texto { font-size: var(--fs-sm); color: var(--text-primary); line-height: 1.5; overflow-wrap: anywhere; }
 .sara-texto p { margin: 0 0 6px; }

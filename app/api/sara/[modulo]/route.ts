@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { readSessionAccess } from "../../../../lib/auth/session-access";
-import { chaveConfigurada, conversar } from "../../../../lib/sara/claude";
+import { chaveConfigurada, conversar, verificar } from "../../../../lib/sara/claude";
+import { MODELO_VERIFICADOR, recusa, regrasDeEscopo } from "../../../../lib/sara/escopo";
+import type { RespostaSara } from "../../../../lib/sara/laco";
 import { ferramentaDeTelas, ferramentasDe } from "../../../../lib/sara/ferramentas";
 import { REGRAS_SARA, SARAS } from "../../../../lib/sara/modulos";
 import { requireUserSession } from "../../../../lib/supabase/session";
@@ -15,6 +17,10 @@ const UUID = /^[0-9a-f-]{36}$/i;
  * mês, ferramentas que a pessoa tem) e as conversas dela. POST: uma pergunta. A pessoa precisa ter
  * acesso ao módulo; as ferramentas oferecidas à SARA são só as que ela pode usar (inclusive de outros
  * módulos), e cada consulta roda com a sessão dela.
+ *
+ * Guarda de escopo: a SARA só trata da empresa e da rotina de quem pergunta. A regra fixa vai no prompt
+ * e um verificador separado classifica a pergunta em paralelo; se ele der FORA, a conversa é cancelada
+ * e a resposta é a recusa padrão (registrada na conversa, para auditoria).
  */
 async function preparar(modulo: string) {
   const sara = SARAS[modulo];
@@ -60,34 +66,55 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   if (Number(uso ?? 0) >= (p.cfg.teto_tokens_mes ?? 0)) return NextResponse.json({ error: "A SARA deste módulo atingiu o teto de uso do mês." }, { status: 429 });
 
   const conversa = corpo?.conversa && UUID.test(corpo.conversa) ? corpo.conversa : null;
+  // Pergunta e resposta são gravadas no mesmo instante (mesmo created_at): no empate, "pessoa" vem antes
+  // de "sara" (ordem alfabética do papel). Sem isso o histórico sai trocado e a SARA responde a pergunta anterior.
   const historico = conversa
-    ? ((await p.sb.from("sara_mensagens").select("papel, texto").eq("conversa_id", conversa).order("created_at").limit(24)).data ?? []) as { papel: "pessoa" | "sara"; texto: string }[]
+    ? ((await p.sb.from("sara_mensagens").select("papel, texto").eq("conversa_id", conversa).order("created_at").order("papel").limit(24)).data ?? []) as { papel: "pessoa" | "sara"; texto: string }[]
     : [];
-  const { data: me } = await p.sb.from("profiles").select("full_name").eq("id", (await p.sb.rpc("current_profile_id")).data).maybeSingle();
+  const [{ data: me }, { data: org }] = await Promise.all([
+    p.sb.from("profiles").select("full_name").eq("id", (await p.sb.rpc("current_profile_id")).data).maybeSingle(),
+    p.sb.from("organizations").select("display_name, legal_name").limit(1).maybeSingle(),
+  ]);
+  const empresa = org?.display_name || org?.legal_name || "empresa";
   const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
   const indisponiveis = p.sara.ferramentas.filter((n) => !p.ferramentas.some((f) => f.nome === n));
   // Fixo (vai para o cache) + do dia (data, quem conversa, o que não pode).
   const sistema = {
-    fixo: `${p.sara.manual}\n\n${REGRAS_SARA}`,
+    fixo: `${p.sara.manual}\n\n${REGRAS_SARA}\n\n${regrasDeEscopo(empresa, p.sara.rotulo)}`,
     variavel: `Hoje é ${hoje}. Quem conversa: ${me?.full_name ?? "uma pessoa da empresa"}.${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}`,
   };
-  let r;
+  // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
+  const parar = new AbortController();
+  const ultima = [...historico].reverse().find((m) => m.papel === "sara")?.texto ?? null;
+  const verificacao = verificar({ empresa, pergunta, contexto: ultima }).then((v) => { if (!v.dentro) parar.abort(); return v; });
+  let r: RespostaSara | null = null;
+  let falha: unknown = null;
   try {
-    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas });
-  } catch (e) {
-    const m = e instanceof Error ? e.message : "";
+    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, sinal: parar.signal });
+  } catch (e) { falha = e; }
+  const v = await verificacao;
+  const textoRecusa = recusa(empresa, p.sara.rotulo);
+  let fora: "verificador" | "modelo" | null = null;
+  if (!v.dentro) {
+    fora = "verificador";
+    r = { texto: textoRecusa, fontes: [], abrir: null, ferramentas: [], tokensEntrada: v.tokensEntrada, tokensSaida: v.tokensSaida, cacheLido: 0, cacheGravado: 0, modelo: MODELO_VERIFICADOR };
+  } else if (!r) {
+    const m = falha instanceof Error ? falha.message : "";
     console.error("[sara] falha", m.slice(0, 200));
     return NextResponse.json({ error: m.startsWith("NAO_CONFIGURADA") ? "A SARA ainda não está configurada." : "A SARA está indisponível agora. Tente de novo em instantes." }, { status: 503 });
+  } else {
+    r = { ...r, tokensEntrada: r.tokensEntrada + v.tokensEntrada, tokensSaida: r.tokensSaida + v.tokensSaida };
+    if (r.texto.replace(/["“”]/g, "").trim() === textoRecusa) { fora = "modelo"; r = { ...r, texto: textoRecusa, fontes: [], abrir: null }; }
   }
   const { data: reg, error } = await p.sb.rpc("sara_registrar", {
     p_conversa: conversa, p_modulo: modulo, p_pergunta: pergunta, p_resposta: r.texto,
-    p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, cache: { lido: r.cacheLido, gravado: r.cacheGravado } }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
+    p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou } }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
   const ids = reg as { conversa: string; mensagem: string } | null;
 
   return NextResponse.json({
-    conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, ferramentas: r.ferramentas.map((f) => f.nome),
+    conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, ferramentas: r.ferramentas.map((f) => f.nome), foraDoEscopo: Boolean(fora),
   });
 }
 
