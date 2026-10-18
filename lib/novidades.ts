@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-18-sara-financeiro",
+    data: "2026-10-18",
+    area: "Financeiro",
+    funcionalidades: ["financeiro.sara"],
+    modulos: ["financeiro"],
+    titulo: "SARA, a assistente do Financeiro",
+    itens: [
+      "O botão SARA, no canto da tela, abre a assistente do módulo: pergunte em português (\"o que está vencido a pagar?\", \"me mostre o último lançamento da Grob\") e ela consulta com as suas permissões, mostra de onde veio cada número e abre a tela ou o lançamento certo.",
+      "Avisos: o botão pulsa em vermelho quando há algo urgente no módulo (ex.: conciliação pendente, extrato atrasado) e em azul para lembretes e novidades. Ao abrir a SARA você vê os avisos e ele para de pulsar.",
+      "O botão e a janela podem ser arrastados para qualquer canto da tela. A SARA só trata do trabalho da empresa e não grava nada: aprovar, dar baixa e conciliar continuam com você.",
+    ],
+  },
+  {
     id: "2026-10-17-ler-pedido-do-cliente",
     data: "2026-10-17",
     area: "Comercial",
