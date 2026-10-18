@@ -11,6 +11,8 @@ import { pedirRegistro, type PedidoRegistro } from "../../lib/abrir-registro";
  * O botão e a janela se arrastam para qualquer ponto da tela (a posição fica guardada neste navegador).
  * A janela abre na última conversa da pessoa, já na última interação, com os dias separados; sem
  * conversa, cumprimenta pelo nome de quem está logado, na hora de São Paulo (vinda do servidor).
+ * Avisos do módulo (calculados dos dados): o botão pulsa em vermelho (urgente) ou azul (aviso) até a
+ * pessoa abrir a janela e vê-los; depois daquele aviso, não pulsa mais (até a situação mudar).
  */
 
 type Salva = { id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean };
@@ -74,6 +76,10 @@ function Texto({ texto }: { texto: string }) {
   fecharLista();
   return <>{blocos}</>;
 }
+
+type Aviso = { chave: string; nivel: "urgente" | "aviso"; titulo: string; detalhe: string; abrir?: Abrir; visto: boolean };
+/** De quanto em quanto tempo os avisos são recalculados quando a pessoa volta à aba. */
+const RECARREGAR_AVISOS_MS = 10 * 60 * 1000;
 
 type Pos = { x: number; y: number };
 const MARGEM = 8;
@@ -141,6 +147,9 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
   const [texto, setTexto] = useState("");
   const [pensando, setPensando] = useState(false);
   const rolagem = useRef<HTMLDivElement>(null);
+  const [avisos, setAvisos] = useState<Aviso[]>([]);
+  const [novos, setNovos] = useState<Set<string>>(new Set());
+  const [verAvisos, setVerAvisos] = useState(false);
   const { prender: prenderBotao, estilo: estiloBotao, iniciar: arrastarBotao, arrastou: botaoArrastou } = useArrastar("sara.botao", Boolean(estado) && !aberto);
   const { prender: prenderJanela, estilo: estiloJanela, iniciar: arrastarJanela } = useArrastar("sara.janela", Boolean(estado) && aberto);
 
@@ -160,6 +169,34 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
     }
   }, [modulo]);
   useEffect(() => { const t = setTimeout(() => { void carregar(); }, 0); return () => clearTimeout(t); }, [carregar]);
+
+  // Avisos: ao entrar no módulo e, depois, quando a pessoa volta à aba (no máximo a cada 10 minutos).
+  const carregarAvisos = useCallback(async () => {
+    const r = await fetch(`/api/sara/${modulo}/alertas`, { cache: "no-store" }).catch(() => null);
+    if (!r?.ok) return;
+    const b = (await r.json().catch(() => null)) as { alertas?: Aviso[] } | null;
+    setAvisos(b?.alertas ?? []);
+  }, [modulo]);
+  useEffect(() => {
+    let ultimo = 0;
+    const atualizar = () => { if (document.visibilityState === "visible" && Date.now() - ultimo > RECARREGAR_AVISOS_MS) { ultimo = Date.now(); void carregarAvisos(); } };
+    const t = setTimeout(atualizar, 0);
+    document.addEventListener("visibilitychange", atualizar);
+    return () => { clearTimeout(t); document.removeEventListener("visibilitychange", atualizar); };
+  }, [carregarAvisos]);
+  // Abriu a janela: a pessoa tomou ciência dos avisos novos (eles ficam marcados como "novo" nesta abertura).
+  useEffect(() => {
+    if (!aberto) return;
+    const pendentes = avisos.filter((a) => !a.visto);
+    if (!pendentes.length) return;
+    const t = setTimeout(() => {
+      setNovos((n) => new Set([...n, ...pendentes.map((a) => a.chave)]));
+      setVerAvisos(true);
+      setAvisos((l) => l.map((a) => ({ ...a, visto: true })));
+      void fetch(`/api/sara/${modulo}/alertas`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alertas: pendentes.map((a) => ({ chave: a.chave, nivel: a.nivel })) }) }).catch(() => null);
+    }, 0);
+    return () => clearTimeout(t);
+  }, [aberto, avisos, modulo]);
   // Sempre na última interação: ao abrir a janela, ao chegar mensagem e enquanto ela pensa.
   useEffect(() => {
     if (!aberto) return;
@@ -196,15 +233,18 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
 
   if (semAcesso || !estado) return null;
   const pode = estado.configurada;
+  const naoVistos = avisos.filter((a) => !a.visto);
+  const pulso = naoVistos.some((a) => a.nivel === "urgente") ? "urgente" : naoVistos.length ? "aviso" : null;
   return (
     <>
       {!aberto && (
-        <button type="button" ref={prenderBotao} className="sara-botao sara-vidro" style={estiloBotao}
+        <button type="button" ref={prenderBotao} className={`sara-botao sara-vidro${pulso ? ` pulsa-${pulso}` : ""}`} style={estiloBotao}
           onPointerDown={(e) => arrastarBotao(e)} onClick={() => { if (!botaoArrastou()) setAberto(true); }}
-          aria-label={`Abrir a ${NOME} (segure e arraste para mudar de lugar)`} title="Clique para abrir · segure e arraste para mudar de lugar">
+          aria-label={`Abrir a ${NOME}${naoVistos.length ? ` (${naoVistos.length} ${naoVistos.length === 1 ? "aviso novo" : "avisos novos"}${pulso === "urgente" ? ", com urgência" : ""})` : ""} (segure e arraste para mudar de lugar)`} title="Clique para abrir · segure e arraste para mudar de lugar">
           {/* eslint-disable-next-line @next/next/no-img-element -- avatar pequeno e fixo (o favicon) */}
           <img src={AVATAR} alt="" className="sara-avatar" draggable={false} />
           <span>SARA</span>
+          {naoVistos.length > 0 && <span className={`sara-contador ${pulso}`} aria-hidden>{naoVistos.length}</span>}
         </button>
       )}
       {aberto && (
@@ -218,6 +258,30 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
               <button type="button" className="sara-fechar" onClick={() => setAberto(false)} aria-label="Fechar a SARA">×</button>
             </span>
           </header>
+          {avisos.length > 0 && (
+            <section className="sara-avisos" aria-label="Avisos do módulo">
+              <button type="button" className="sara-avisos-titulo" onClick={() => setVerAvisos((v) => !v)} aria-expanded={verAvisos}>
+                <span className={`sara-ponto ${avisos.some((a) => a.nivel === "urgente") ? "urgente" : "aviso"}`} aria-hidden />
+                <b>Avisos</b>
+                <small>{avisos.filter((a) => a.nivel === "urgente").length ? `${avisos.filter((a) => a.nivel === "urgente").length} urgente${avisos.filter((a) => a.nivel === "urgente").length > 1 ? "s" : ""} · ` : ""}{avisos.length} no total</small>
+                <i aria-hidden>{verAvisos ? "▾" : "▸"}</i>
+              </button>
+              {verAvisos && (
+                <div className="sara-avisos-lista">
+                  {avisos.map((a) => (
+                    <div key={a.chave} className={`sara-aviso ${a.nivel}`}>
+                      <span className={`sara-ponto ${a.nivel}${novos.has(a.chave) ? " pulsa" : ""}`} aria-hidden />
+                      <div>
+                        <b>{a.titulo}{novos.has(a.chave) && <em> · novo</em>}</b>
+                        <small>{a.detalhe}</small>
+                        {a.abrir && <button type="button" className="sara-abrir" onClick={() => abrir(a.abrir!)}>Abrir {a.abrir.rotulo}</button>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
           {!estado.configurada && <Callout variant="info" title="SARA ainda não configurada">Falta a chave do modelo (Claude) no servidor. Quem cuida é o proprietário.</Callout>}
           <div className="sara-conversa" ref={rolagem}>
             {!msgs.length && pode && (

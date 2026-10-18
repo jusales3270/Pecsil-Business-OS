@@ -186,8 +186,15 @@ export const FERRAMENTAS: Ferramenta[] = [
       if (error) throw new Error(error.message);
       const lista = [];
       for (const c of contas ?? []) {
-        const { data: e } = await sb.from("finance_bank_entries").select("direction, amount, booking_date, reconciliation_status").eq("bank_account_id", c.id).limit(20000);
-        const ent = e ?? [];
+        // Em páginas de 1.000 (o limite do Supabase por consulta): sem isso o saldo e a conciliação saíam cortados.
+        const ent: { direction: string; amount: number; booking_date: string; reconciliation_status: string }[] = [];
+        for (let de = 0; de < 200_000; de += 1000) {
+          const { data: pagina, error: erro } = await sb.from("finance_bank_entries").select("id, direction, amount, booking_date, reconciliation_status")
+            .eq("bank_account_id", c.id).order("id").range(de, de + 999);
+          if (erro) throw new Error(erro.message);
+          ent.push(...(pagina ?? []));
+          if ((pagina ?? []).length < 1000) break;
+        }
         const saldo = Number(c.opening_balance) + ent.reduce((s, x) => s + (x.direction === "credit" ? Number(x.amount) : -Number(x.amount)), 0);
         lista.push({ banco: c.bank_name, agencia: c.branch, conta: c.account_number, saldo_pelo_extrato: reais(saldo),
           ultimo_extrato: ent.reduce((m, x) => (x.booking_date > m ? x.booking_date : m), "") || null,

@@ -7380,6 +7380,45 @@ button.holiday-row:hover {
   background: linear-gradient(145deg, color-mix(in srgb, var(--accent-blue) 85%, #ffffff), var(--accent-blue)); color: #ffffff;
   box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-blue) 40%, transparent), inset 0 1px 0 rgba(255, 255, 255, .35); }
 .sara-enviar:disabled { opacity: .4; cursor: default; box-shadow: none; }
+/* Avisos da SARA: vermelho pulsante = urgente; azul pulsante = aviso. Pulsa até a pessoa abrir e ver. */
+@keyframes sara-pulso-urgente { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-red) 60%, transparent); } 70% { box-shadow: 0 0 0 16px color-mix(in srgb, var(--accent-red) 0%, transparent); } 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-red) 0%, transparent); } }
+@keyframes sara-pulso-aviso { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-blue) 55%, transparent); } 70% { box-shadow: 0 0 0 16px color-mix(in srgb, var(--accent-blue) 0%, transparent); } 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-blue) 0%, transparent); } }
+/* O pulso fica num anel próprio (::after), para não apagar a sombra do vidro. */
+.sara-botao.pulsa-urgente::after, .sara-botao.pulsa-aviso::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; }
+.sara-botao.pulsa-urgente { border-color: color-mix(in srgb, var(--accent-red) 70%, transparent); }
+.sara-botao.pulsa-urgente::after { animation: sara-pulso-urgente 1.6s ease-out infinite; }
+.sara-botao.pulsa-aviso { border-color: color-mix(in srgb, var(--accent-blue) 70%, transparent); }
+.sara-botao.pulsa-aviso::after { animation: sara-pulso-aviso 2.2s ease-out infinite; }
+.sara-contador { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 6px; display: grid; place-items: center; border-radius: 999px;
+  color: #ffffff; font-size: 11px; font-weight: 800; letter-spacing: 0; box-shadow: 0 2px 6px rgba(10, 14, 24, .25); }
+.sara-contador.urgente { background: var(--accent-red); }
+.sara-contador.aviso { background: var(--accent-blue); }
+.sara-avisos { display: flex; flex-direction: column; gap: var(--sp-2); padding: 8px 10px; border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent); background: color-mix(in srgb, var(--bg-surface) 65%, transparent); }
+.sara-avisos-titulo { display: flex; align-items: center; gap: 8px; width: 100%; padding: 2px; border: 0; background: transparent; color: var(--text-primary); font: inherit; cursor: pointer; text-align: left; }
+.sara-avisos-titulo b { font-size: var(--fs-sm); }
+.sara-avisos-titulo small { flex: 1; font-size: var(--fs-xs); color: var(--text-muted); }
+.sara-avisos-titulo i { font-style: normal; color: var(--text-muted); }
+.sara-avisos-lista { display: flex; flex-direction: column; gap: 8px; max-height: min(260px, 32vh); overflow-y: auto; }
+.sara-aviso { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 14px; background: color-mix(in srgb, var(--bg-surface) 70%, transparent); }
+.sara-aviso.urgente { background: color-mix(in srgb, var(--accent-red) 8%, color-mix(in srgb, var(--bg-surface) 70%, transparent)); }
+.sara-aviso > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sara-aviso b { font-size: var(--fs-sm); color: var(--text-primary); }
+.sara-aviso b em { font-style: normal; font-size: var(--fs-micro); font-weight: 700; color: var(--accent-blue); text-transform: uppercase; letter-spacing: .04em; }
+.sara-aviso.urgente b em { color: var(--accent-red); }
+.sara-aviso small { font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.45; }
+.sara-aviso .sara-abrir { margin-top: 2px; }
+.sara-ponto { width: 10px; height: 10px; flex-shrink: 0; margin-top: 5px; border-radius: 50%; }
+.sara-ponto.urgente { background: var(--accent-red); }
+.sara-ponto.aviso { background: var(--accent-blue); }
+.sara-avisos-titulo .sara-ponto { margin-top: 0; }
+.sara-ponto.pulsa.urgente { animation: sara-pulso-urgente 1.6s ease-out infinite; }
+.sara-ponto.pulsa.aviso { animation: sara-pulso-aviso 2.2s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sara-botao.pulsa-urgente::after, .sara-botao.pulsa-aviso::after, .sara-ponto.pulsa { animation: none; }
+  .sara-botao.pulsa-urgente::after { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-red) 60%, transparent); }
+  .sara-botao.pulsa-aviso::after { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue) 55%, transparent); }
+}
 /* Celular: a janela ocupa a tela (o botão continua arrastável). */
 @media (max-width: 600px) {
   .sara-painel { left: 0 !important; top: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw; height: 100dvh; border-radius: 0;

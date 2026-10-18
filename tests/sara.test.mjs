@@ -301,3 +301,76 @@ test("SARA: na busca parcial, o termo do nome do fornecedor vem antes; com todos
   assert.match(sql, /m\.acertos = \(select count\(\*\) from termos\) or p\.peso = \(select max\(peso\)/, "o peso só escolhe na busca parcial");
   assert.match(sql, /security invoker/);
 });
+
+// --- Avisos da SARA (proprietário, 18/10/2026) --------------------------------------------------
+test("SARA avisos: só as regras que a pessoa pode ver; novidades do módulo nos últimos 14 dias", async () => {
+  const { alertasDo } = await import("../lib/sara/alertas.ts");
+  const sbProibido = { from: () => { throw new Error("não devia consultar"); }, rpc: () => { throw new Error("não devia consultar"); } };
+  const a = await alertasDo("financeiro", sbProibido, {
+    pode: () => false, hoje: "2026-10-18",
+    novidades: [{ id: "2026-10-17-x", data: "2026-10-17", titulo: "Algo novo" }, { id: "2026-09-01-y", data: "2026-09-01", titulo: "Antigo" }],
+  });
+  assert.deepEqual(a.map((x) => [x.chave, x.nivel]), [["financeiro.novidades:2026-10-17-x", "aviso"]], "sem permissão, nenhuma consulta; novidade antiga não entra");
+  const varias = await alertasDo("financeiro", sbProibido, { pode: () => false, hoje: "2026-10-18",
+    novidades: ["a", "b", "c", "d", "e"].map((x, i) => ({ id: `2026-10-1${i}-${x}`, data: `2026-10-1${i}`, titulo: `T${x}` })) });
+  assert.equal(varias.length, 1, "várias novidades viram um aviso só");
+  assert.equal(varias[0].chave, "financeiro.novidades:2026-10-14-e", "a chave é a novidade mais nova: volta a pulsar quando sai outra");
+  assert.match(varias[0].detalhe, /^Te · Td · Tc e mais 2\./);
+  assert.deepEqual(await alertasDo("compras", sbProibido, { pode: () => true, hoje: "2026-10-18" }), [], "módulo sem regras");
+});
+
+test("SARA avisos: conciliação pendente e extrato atrasado são urgentes; a chave muda com a situação", async () => {
+  const { alertasDo } = await import("../lib/sara/alertas.ts");
+  const { FERRAMENTAS } = await import("../lib/sara/ferramentas.ts");
+  const bancos = FERRAMENTAS.find((f) => f.nome === "bancos_e_conciliacao");
+  const original = bancos.rodar;
+  try {
+    bancos.rodar = async () => ({ dados: { contas: [
+      { banco: "Itaú", a_conciliar: 402, ultimo_extrato: "2026-10-16" },
+      { banco: "Bradesco", a_conciliar: 353, ultimo_extrato: "2026-07-02" },
+      { banco: "Santander", a_conciliar: 0, ultimo_extrato: "2026-10-17" },
+    ] }, fontes: [] });
+    const a = await alertasDo("financeiro", {}, { pode: (f) => f === "financeiro.bancos", hoje: "2026-10-18" });
+    assert.deepEqual(a.map((x) => x.nivel), ["urgente", "urgente"]);
+    assert.equal(a[0].chave, "financeiro.conciliacao:Itaú=402,Bradesco=353");
+    assert.match(a[0].titulo, /Conciliação pendente: 755 lançamentos do extrato/);
+    assert.equal(a[0].abrir.secao, "Bancos e conciliação");
+    assert.equal(a[1].chave, "financeiro.extrato:Bradesco:2026-07-02");
+    assert.match(a[1].detalhe, /vai até 02\/07\/2026 \(108 dias\)/);
+    bancos.rodar = async () => ({ dados: { contas: [{ banco: "Itaú", a_conciliar: 403, ultimo_extrato: "2026-10-16" }] }, fontes: [] });
+    const b = await alertasDo("financeiro", {}, { pode: (f) => f === "financeiro.bancos", hoje: "2026-10-18" });
+    assert.notEqual(b[0].chave, a[0].chave, "entrou lançamento novo a conciliar: é outro aviso, volta a pulsar");
+  } finally { bancos.rodar = original; }
+});
+
+test("SARA avisos: visto por pessoa, pulsa até abrir a janela; vermelho vence o azul", () => {
+  const sql = readFileSync(new URL("../supabase/migrations/202610180004_sara_alertas.sql", import.meta.url), "utf8");
+  assert.match(sql, /primary key \(profile_id, chave\)/);
+  assert.match(sql, /profile_id = \(select public\.current_profile_id\(\)\)/, "cada um vê só o que é seu");
+  assert.match(sql, /on conflict \(profile_id, chave\) do nothing/);
+  const painel = readFileSync(new URL("../app/components/sara-painel.tsx", import.meta.url), "utf8");
+  assert.match(painel, /const pulso = naoVistos\.some\(\(a\) => a\.nivel === "urgente"\) \? "urgente" : naoVistos\.length \? "aviso" : null;/);
+  assert.match(painel, /fetch\(`\/api\/sara\/\$\{modulo\}\/alertas`, \{ method: "POST"/, "abrir a janela marca como visto");
+  const css = readFileSync(new URL("../packages/design-system/patterns.css", import.meta.url), "utf8");
+  assert.match(css, /@keyframes sara-pulso-urgente/); assert.match(css, /@keyframes sara-pulso-aviso/);
+  assert.match(css, /prefers-reduced-motion: reduce\) \{\s+\.sara-botao\.pulsa-urgente::after/);
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/alertas/route.ts", import.meta.url), "utf8");
+  assert.match(rota, /!access\.canModule\(sara\.feature\) \|\| !access\.can\(sara\.permissao, "ver"\)/);
+  assert.match(rota, /x\.chave\.startsWith\(`\$\{modulo\}\.`\)/, "só marca avisos do próprio módulo");
+});
+
+test("SARA: a consulta de bancos lê o extrato em páginas de 1.000 (saldo e conciliação sem corte)", async () => {
+  const { FERRAMENTAS } = await import("../lib/sara/ferramentas.ts");
+  const bancos = FERRAMENTAS.find((f) => f.nome === "bancos_e_conciliacao");
+  const linhas = Array.from({ length: 1815 }, (_, i) => ({ id: i, direction: i % 2 ? "debit" : "credit", amount: 1, booking_date: "2026-10-06", reconciliation_status: i < 402 ? "pending" : "matched" }));
+  const pedidos = [];
+  const sb = { from: (t) => {
+    if (t === "finance_bank_accounts") return { select: () => ({ eq: async () => ({ data: [{ id: "c1", bank_name: "Itaú", opening_balance: 0, active: true }], error: null }) }) };
+    const q = { select: () => q, eq: () => q, order: () => q, range: async (de, ate) => { pedidos.push([de, ate]); return { data: linhas.slice(de, ate + 1), error: null }; } };
+    return q;
+  } };
+  const r = await bancos.rodar(sb, {});
+  assert.deepEqual(pedidos, [[0, 999], [1000, 1999]]);
+  assert.equal(r.dados.contas[0].a_conciliar, 402);
+  assert.equal(r.dados.contas[0].saldo_pelo_extrato, 1, "908 créditos − 907 débitos");
+});
