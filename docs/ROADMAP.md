@@ -181,7 +181,7 @@ Marco: **1**, **2** ou **+**.
 | C-01 | Clientes completos: CNPJ de todos, unificar os repetidos | 1 | 4 | 4 | 1 | 2 | 12,0 | em construção (18 completados pelo GRV, 15 prontos para NF-e; fábricas, duplicados e novos com o Rafael) | Exportação 1 | ORC E1 |
 | C-02 | Produtos limpos: NCM dos 758, os 98 "produto acabado", próximo número dos grupos | 1 | 4 | 4 | 0,5 | 2 | 24,0 | pedido à equipe | Rafael | ORC E1; produtos da Forja |
 | C-03 | Duas OS por item (fundição e usinagem)? | 1 | — | — | — | — | — | decisão | Rafael | ORC O1 |
-| C-05 | Pedido do cliente → itens do orçamento (o texto sai por regra, o Clef sugere o produto, o Rafael confirma) | + | 5 | 2 | 2 | 2 | 4,5 | pronto, aguarda deploy | Registro no Jev | Novo (16/10) |
+| C-05 | Pedido do cliente → itens do orçamento (o texto sai por regra, o Clef sugere o produto, o Rafael confirma) | + | 5 | 2 | 2 | 2 | 4,5 | no ar (Deploy 18/10) | Registro no Jev | Novo (16/10) |
 | C-06 | Cotação ao cliente em PDF/Excel pelos modelos | + | 4 | 2 | 2 | 2 | 4,0 | na fila | Os 28 modelos | ORC E6 |
 | C-07 | Calculadora de caixa | 1 | 3 | 4 | 1 | 2 | 11,0 | na fila | Planilha do Rafael | ORC E7; O5 |
 | C-08 | Nota de exportação | 1 | 4 | 5 | 1,5 | 1 | 9,3 | adiado | — | ORC O6 |
@@ -215,12 +215,12 @@ Marco: **1**, **2** ou **+**.
 
 | Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
 |---|---|---|---|---|---|---|---|---|---|---|
-| P-01 | Roteiro-padrão aplicado em massa por tipo de peça | 1 | 5 | 5 | 1,5 | 1 | 10,0 | adiado | — | Forja 6c-D |
+| P-01 | Roteiro-padrão aplicado em massa por tipo de peça (os 10 modelos e o "aplicar" por artigo já existem na Forja; falta aplicar em massa e cobrir os tipos sem modelo) | 1 | 5 | 5 | 1,5 | 1 | 10,0 | pronto, aguarda deploy (Forja 9da6efb) | — | Forja 6c-D |
 | P-02 | Serviço de terceiros por operação (campos prontos; falta a tela) | 1 | 4 | 4 | 0,5 | 1 | 24,0 | pronto, aguarda deploy | — | Forja 6c-B |
-| P-03 | Horas previstas e previsto × realizado | 1 | 4 | 3 | 1 | 1 | 10,0 | adiado | — | Forja 6c-C |
+| P-03 | Horas previstas e previsto × realizado (o tempo previsto por operação já existe; falta a soma na OS e o comparativo na tela) | 1 | 4 | 3 | 1 | 1 | 10,0 | pronto, aguarda deploy (Forja 9da6efb) | — | Forja 6c-C |
 | P-04 | Visita ao PCP e validação com 5 OS reais (Forja × GRV) | 1 | 5 | 5 | 0,5 | 2 | 30,0 | na fila | P-01, P-02; agenda da visita | Forja v5.1 |
 | P-06 | Alertas por WhatsApp e SLA por etapa, com horário silencioso (um canal só, servindo a Forja e o Business OS) | + | 4 | 2 | 2 | 2 | 4,0 | na fila | Número oficial | Forja Sprint 7 |
-| P-07 | Hardening da Forja (limite de requisições, CORS, chave JWT única, logs) | 1 | 4 | 3 | 1 | 1 | 10,0 | adiado | — | Forja Sprint 7 |
+| P-07 | Hardening da Forja (limite de requisições, CORS, chave JWT única, logs) | 1 | 4 | 3 | 1 | 1 | 10,0 | pronto, aguarda deploy (Forja 9da6efb) | — | Forja Sprint 7 |
 | P-08 | Go-live da Forja (paralelo, critérios de liberação) | 1 | 5 | 5 | 1 | 2 | 15,0 | na fila | P-01 a P-04 | Forja v5.1 |
 | P-09 | Painel financeiro do PCP | — | — | — | — | — | — | decisão | Foi coberto pelo "A faturar"? | Forja 6b |
 | P-10 | OEE (SpindleOps) | + | 4 | 1 | 3 | 2 | 2,0 | na fila | P-08 | Forja Fase 2 |
@@ -261,12 +261,12 @@ Marco: **1**, **2** ou **+**.
 | I-03 | Classificação de gastos (conta e centro) | + | 4 | 1 | 1,5 | 3 | 4,0 | decisão | F-05 | Jev E3 |
 | I-04 | Conciliação assistida | + | — | — | — | — | — | decisão | Privacidade do extrato | Jev E4 |
 | I-05 | Segundo Cérebro em uso real (coleta e triagem pelo Clef) | + | 3 | 1 | 1 | 2 | 5,0 | na fila | D6 | Segundo Cérebro |
-| I-07 | Religar a Busca Corporativa com os dados dos módulos | + | 3 | 1 | 2 | 1 | 2,5 | na fila | — | Busca |
+| I-07 | Religar a Busca Corporativa com os dados dos módulos | + | 3 | 1 | 2 | 1 | 2,5 | não fazer (proprietário 18/10: a SARA cobre) | — | Busca |
 | I-08 | SARA nível 1: perguntas cruzando módulos, com as permissões de cada um | 2 | 5 | 3 | 4 | 3 | 2,8 | travado | Fase 5 (K-05) | BP Fase 6 |
 | I-09 | SARA níveis 2 a 4 e voz | 2 | 5 | 2 | 6 | 3 | 1,5 | travado | I-08 | BP Fase 6 |
 | I-10 | "Como faço?" (encaminhar a pergunta para a tela certa) | + | 3 | 1 | 1 | 3 | 5,0 | travado | I-08 | Jev E9 |
 | I-11 | Tutoriais em vídeo (piloto do orçamento) | + | 3 | 1 | 1 | 2 | 5,0 | decisão | HeyGen? | Tutoriais |
-| I-12 | SARA copilot por módulo, nível 1 (orienta e consulta com as permissões de quem pergunta; piloto Financeiro com a Ana) | 2 | 4 | 3 | 3 | 2 | 3,3 | em construção | Chave da Anthropic no servidor | [PLANO-SARA.md](PLANO-SARA.md) |
+| I-12 | SARA copilot por módulo, nível 1 (orienta e consulta com as permissões de quem pergunta; piloto Financeiro com a Ana) | 2 | 4 | 3 | 3 | 2 | 3,3 | no ar nos 9 módulos, com avisos, aprendizado e visual (Deploy 18/10); falta liberar por pessoa | Chave da Anthropic no servidor | [PLANO-SARA.md](PLANO-SARA.md) |
 
 ### K — Custo e análise
 
@@ -328,6 +328,7 @@ Marco: **1**, **2** ou **+**.
 | IoT e DNC nas máquinas | Depende de hardware; o Tótem cobre |
 | RFID como solução primária; `travaMaquina` | Decisões da Forja |
 | Regras de aprovação escritas por frase | As regras da PecSil são poucas e fixas |
+| Religar a Busca Corporativa (I-07) | Proprietário, 18/10: a SARA de cada módulo já acha e abre o registro com as permissões de quem pergunta; a busca entre módulos fica com a SARA principal (I-08). A tela segue escondida pela flag |
 
 ---
 
@@ -392,6 +393,9 @@ Marco: **1**, **2** ou **+**.
 | 16/10/2026 | Certificado A1 confirmado (enviado e removido em 13/10 de propósito); C-09 só depende do OK | Proprietário |
 
 ---
+| 18/10/2026 | Deploy do proprietário: C-05 e a SARA dos 9 módulos (I-12) no ar. Da comparação com o GRV Max (19 itens), 7 estão no ar, 2 em parte pela SARA (I-08, I-10) e 10 travados ou adiados | Claude |
+| 18/10/2026 | I-07 (religar a Busca Corporativa) vai para "não fazer": a SARA cobre | Proprietário |
+| 18/10/2026 | P-01, P-03 e P-07 construídos na Forja (proprietário reabriu). P-01: roteiro-padrão aplicado em massa por tipo, só em artigo sem roteiro, com prévia. P-03: aba "Previsto × realizado" na OS (carimbo de menos de 1 min = sem medição). P-07: bloqueio por PIN errado (10 em 5 min), limite geral, cabeçalhos, CORS fechado, socket só com login, JWT obrigatório em produção, módulo Artigos para gravar roteiro, logs com rotação; e o PIN errado volta a mostrar erro na tela. Sem migração. Modelos para funil, punção, cabeça de sopro e molde: Rafael | Claude |
 
 ## 9. Painel
 
