@@ -7,6 +7,7 @@ import type { RespostaSara } from "../../../../lib/sara/laco";
 import { abertura, agoraSP, comAbertura, contextoDeTempo, primeiroNome, saudacao, situacaoDaConversa } from "../../../../lib/sara/tempo";
 import { ferramentaDeDocumentos } from "../../../../lib/sara/documentos";
 import { LACUNA, ferramentaDeTelas, ferramentasDe } from "../../../../lib/sara/ferramentas";
+import { MOSTRAR } from "../../../../lib/sara/visual";
 import { PROPOR_HABILIDADE, habilidadesQuePode, instrucoesDeHabilidades, nomearHabilidade, pareceLacuna, pedidoRecorrente, validarProposta, type HabilidadeAtiva, type Passo } from "../../../../lib/sara/habilidades";
 import { REGRAS_SARA, SARAS } from "../../../../lib/sara/modulos";
 import { requireUserSession } from "../../../../lib/supabase/session";
@@ -42,7 +43,7 @@ async function preparar(modulo: string) {
   const navegar = ferramentaDeTelas(telas);
   // Leitura do Segundo Cérebro: os documentos do setor, se a pessoa pode vê-los.
   const documentos = ferramentaDeDocumentos(modulo, (f) => access.can(f, "ver"));
-  const ferramentas = [...ferramentasDe((f) => access.can(f, "ver"), sara.ferramentas), ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), LACUNA, PROPOR_HABILIDADE];
+  const ferramentas = [...ferramentasDe((f) => access.can(f, "ver"), sara.ferramentas), ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), LACUNA, PROPOR_HABILIDADE, MOSTRAR];
   // Habilidades aprovadas pelo proprietário: só as que a pessoa consegue rodar com as consultas dela.
   const { data: hab } = await session.supabase.rpc("sara_habilidades_ativas", { p_modulo: modulo });
   const habilidades = habilidadesQuePode((hab ?? []) as HabilidadeAtiva[], ferramentas.map((f) => f.nome));
@@ -60,8 +61,8 @@ async function ultimaConversa(sb: SupabaseClient, modulo: string, eu: string | n
   const { data } = await sb.from("sara_mensagens").select("id, papel, texto, created_at, nota, ferramentas").eq("conversa_id", conv.id)
     .order("created_at", { ascending: false }).order("papel", { ascending: false }).limit(40);
   const mensagens = ((data ?? []) as LinhaMensagem[]).reverse().map((m) => {
-    const f = (m.ferramentas ?? {}) as { usadas?: { nome: string }[]; fontes?: unknown[]; abriu?: unknown; escopo?: { fora?: string | null } };
-    return { id: m.id, papel: m.papel, texto: m.texto, quando: m.created_at, nota: m.nota, consultas: (f.usadas ?? []).map((u) => u.nome), fontes: f.fontes ?? [], abrir: f.abriu ?? null, fora: Boolean(f.escopo?.fora) };
+    const f = (m.ferramentas ?? {}) as { usadas?: { nome: string }[]; fontes?: unknown[]; abriu?: unknown; escopo?: { fora?: string | null }; visuais?: unknown[] };
+    return { id: m.id, papel: m.papel, texto: m.texto, quando: m.created_at, nota: m.nota, consultas: (f.usadas ?? []).map((u) => u.nome), fontes: f.fontes ?? [], abrir: f.abriu ?? null, fora: Boolean(f.escopo?.fora), visuais: f.visuais ?? [] };
   });
   return { id: conv.id, mensagens };
 }
@@ -132,21 +133,21 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   let fora: "verificador" | "modelo" | null = null;
   if (!v.dentro) {
     fora = "verificador";
-    r = { texto: textoRecusa, fontes: [], abrir: null, ferramentas: [], tokensEntrada: v.tokensEntrada, tokensSaida: v.tokensSaida, cacheLido: 0, cacheGravado: 0, modelo: MODELO_VERIFICADOR };
+    r = { texto: textoRecusa, fontes: [], abrir: null, ferramentas: [], tokensEntrada: v.tokensEntrada, tokensSaida: v.tokensSaida, cacheLido: 0, cacheGravado: 0, modelo: MODELO_VERIFICADOR, visuais: [] };
   } else if (!r) {
     const m = falha instanceof Error ? falha.message : "";
     console.error("[sara] falha", m.slice(0, 200));
     return NextResponse.json({ error: m.startsWith("NAO_CONFIGURADA") ? "A SARA ainda não está configurada." : "A SARA está indisponível agora. Tente de novo em instantes." }, { status: 503 });
   } else {
     r = { ...r, tokensEntrada: r.tokensEntrada + v.tokensEntrada, tokensSaida: r.tokensSaida + v.tokensSaida };
-    if (r.texto.replace(/["“”]/g, "").trim() === textoRecusa) { fora = "modelo"; r = { ...r, texto: textoRecusa, fontes: [], abrir: null }; }
+    if (r.texto.replace(/["“”]/g, "").trim() === textoRecusa) { fora = "modelo"; r = { ...r, texto: textoRecusa, fontes: [], abrir: null, visuais: [] }; }
   }
   // Cumprimento e aviso de retomada vêm da plataforma (hora certa de São Paulo, nome de quem está logado).
   const nomeCurto = primeiroNome(me?.full_name);
   r = { ...r, texto: comAbertura(r.texto, abertura({ nome: nomeCurto, situacao }), nomeCurto) };
   const { data: reg, error } = await p.sb.rpc("sara_registrar", {
     p_conversa: conversa, p_modulo: modulo, p_pergunta: pergunta, p_resposta: r.texto,
-    p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou },
+    p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou },
       lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
@@ -162,7 +163,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
       const { error: e3 } = await p.sb.rpc("sara_lacunas_registrar", { p_modulo: modulo, p_mensagem: ids?.mensagem ?? null, p_pergunta: pergunta, p_assuntos: lacunas });
       if (e3) console.error("[sara] não registrou a lacuna", e3.message);
     }
-    const doModulo = p.ferramentas.filter((f) => ![LACUNA.nome, PROPOR_HABILIDADE.nome, "abrir_tela", "abrir_lancamento"].includes(f.nome)).map((f) => f.nome);
+    const doModulo = p.ferramentas.filter((f) => ![LACUNA.nome, PROPOR_HABILIDADE.nome, MOSTRAR.nome, "abrir_tela", "abrir_lancamento"].includes(f.nome)).map((f) => f.nome);
     const propostas = resposta.ferramentas.filter((x) => x.nome === PROPOR_HABILIDADE.nome).map((f) => validarProposta(f.entrada, doModulo)).filter((x) => x !== null);
     if (!fora && !propostas.length && pedidoRecorrente(pergunta)) {
       const passos: Passo[] = resposta.ferramentas.filter((f) => f.ok && doModulo.includes(f.nome))
@@ -178,7 +179,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   });
 
   return NextResponse.json({
-    conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, ferramentas: r.ferramentas.map((f) => f.nome), foraDoEscopo: Boolean(fora),
+    conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, ferramentas: r.ferramentas.map((f) => f.nome), foraDoEscopo: Boolean(fora), visuais: r.visuais,
   });
 }
 

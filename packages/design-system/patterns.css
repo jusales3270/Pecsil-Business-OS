@@ -7369,6 +7369,38 @@ button.holiday-row:hover {
 .sara-fontes a { padding: 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--bg-surface) 60%, transparent); border: 1px solid color-mix(in srgb, var(--text-primary) 9%, transparent);
   color: var(--accent-blue); font-size: var(--fs-xs); font-weight: 600; text-decoration: none; }
 .sara-fontes a:hover { border-color: var(--accent-blue); }
+/* SARA: visual da resposta (indicadores, tabela, barras, linha, rosca, datas). Números da consulta, não do modelo. */
+.sara-visual { margin: 2px 0; padding: 10px 12px 8px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent); background: var(--bg-surface); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.sara-visual figcaption { font-size: var(--fs-xs); font-weight: 700; color: var(--text-secondary); }
+.sara-visual footer { font-size: var(--fs-micro); color: var(--text-muted); }
+.sara-visual footer a { color: var(--accent-blue); }
+.sara-visual .sara-tabela { margin: 0; }
+.sv-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.sv-kpis > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 12px; background: var(--bg-subtle); min-width: 0; }
+.sv-kpis small { font-size: var(--fs-micro); color: var(--text-secondary); }
+.sv-kpis b { font-size: 20px; color: var(--text-primary); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sv-barras { display: flex; flex-direction: column; gap: 6px; }
+.sv-bar { display: grid; grid-template-columns: minmax(0, 120px) 1fr auto; align-items: center; gap: 8px; font-size: var(--fs-xs); }
+.sv-bar span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sv-bar i { height: 12px; min-width: 3px; border-radius: 6px; background: linear-gradient(90deg, color-mix(in srgb, var(--accent-blue) 55%, transparent), var(--accent-blue)); }
+.sv-bar b { text-align: right; font-variant-numeric: tabular-nums; }
+.sv-linha { width: 100%; max-width: 100%; height: auto; }
+.sv-linha .traco { fill: none; stroke: var(--accent-blue); stroke-width: 2; stroke-linejoin: round; }
+.sv-linha circle { fill: var(--accent-blue); } .sv-linha circle.neg { fill: var(--accent-red); }
+.sv-linha .zero { stroke: color-mix(in srgb, var(--accent-red) 45%, transparent); stroke-dasharray: 4 3; }
+.sv-linha text { font-size: 10px; fill: var(--text-secondary); }
+.sv-escala { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.sv-escala b { color: var(--text-primary); font-variant-numeric: tabular-nums; } .sv-escala b.neg { color: var(--accent-red); } .sv-escala .sv-d { color: var(--text-muted); }
+.sv-rosca { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sv-rosca ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 150px; }
+.sv-rosca li { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); }
+.sv-rosca li i { flex: 0 0 10px; width: 10px; height: 10px; border-radius: 3px; }
+.sv-rosca li b { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; } .sv-rosca li small { color: var(--text-muted); font-weight: 500; }
+.sv-datas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sv-datas li { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: baseline; font-size: var(--fs-xs); padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, var(--text-primary) 6%, transparent); }
+.sv-datas li:last-child { border-bottom: 0; }
+.sv-datas time { font-weight: 700; color: var(--accent-blue); font-variant-numeric: tabular-nums; }
+.sv-datas span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .sv-datas b { font-variant-numeric: tabular-nums; }
 .sara-abrir { align-self: flex-start; padding: 5px 12px; border: 1px solid var(--accent-blue); border-radius: 999px; background: transparent; color: var(--accent-blue); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; text-align: left; }
 .sara-abrir:hover { background: color-mix(in srgb, var(--accent-blue) 10%, transparent); }
 .sara-nota { display: flex; gap: 4px; }
