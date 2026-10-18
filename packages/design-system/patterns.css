@@ -7291,59 +7291,102 @@ button.holiday-row:hover {
 /* RH · Mapa de férias por setor (R-03, parte 2) */
 /* Portal do fornecedor por link (A-09): página pública /cotar/<código> */
 /* Comercial · Ler pedido do cliente (C-05) */
-/* SARA do módulo (I-12): botão e painel ao lado. Resposta da IA sempre marcada como tal. */
-.sara-botao { position: fixed; right: calc(20px + env(safe-area-inset-right, 0px)); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 60;
-  display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border: 1px solid var(--accent-blue); border-radius: 999px;
-  background: var(--bg-surface); color: var(--accent-blue); font: inherit; font-size: var(--fs-sm); font-weight: 700; cursor: pointer; box-shadow: var(--shadow-md, 0 4px 14px rgba(0,0,0,.12)); }
-.sara-botao:hover { background: var(--bg-hover); }
-.sara-painel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 70; width: min(420px, 100vw); display: flex; flex-direction: column; gap: var(--sp-3);
-  padding: calc(var(--sp-4) + env(safe-area-inset-top, 0px)) calc(var(--sp-4) + env(safe-area-inset-right, 0px)) calc(var(--sp-3) + env(safe-area-inset-bottom, 0px)) var(--sp-4);
-  border-left: 1px solid var(--border); background: var(--bg-surface); color: var(--text-primary); box-shadow: -8px 0 24px rgba(0,0,0,.12); }
-.sara-painel > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
-.sara-painel > header > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.sara-painel > header b { font-size: var(--fs-md); color: var(--text-primary); }
-.sara-painel > header small { font-size: var(--fs-xs); color: var(--accent-blue); }
-.sara-painel > header > span { display: flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; white-space: nowrap; }
-.sara-fechar { width: 32px; height: 32px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
-.sara-fechar:hover { background: var(--bg-hover); }
-.sara-config { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 0.9fr); align-items: end; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 1px dashed var(--border); border-radius: var(--radius-sm); }
-.sara-config label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.sara-config label > span { font-size: var(--fs-micro); font-weight: 600; color: var(--text-secondary); }
-.sara-config .sara-liga { flex-direction: row; align-items: center; gap: 6px; min-height: 36px; }
-.sara-config .sara-liga > span { font-size: var(--fs-sm); color: var(--text-primary); }
-.sara-config input:not([type="checkbox"]) { width: 100%; min-height: 36px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
-.sara-config select { width: 100%; }
-.sara-conversa { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--sp-3); }
+/* SARA do módulo (I-12): botão e janela flutuantes, arrastáveis, em vidro líquido (cantos arredondados,
+   translúcido com desfoque e brilho na borda). Resposta da IA sempre marcada como tal. */
+.sara-vidro { position: fixed; isolation: isolate;
+  background: color-mix(in srgb, var(--bg-surface) 58%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 9%, transparent);
+  box-shadow: 0 24px 60px rgba(10, 14, 24, .22), 0 6px 16px rgba(10, 14, 24, .10),
+    inset 0 1px 0 color-mix(in srgb, #ffffff 55%, transparent), inset 0 -1px 0 color-mix(in srgb, #ffffff 10%, transparent); }
+/* Brilho da borda: quente num canto, frio no outro (como vidro iluminado). */
+.sara-vidro::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; padding: 1.2px; pointer-events: none;
+  background: linear-gradient(140deg, rgba(255, 150, 90, .65), rgba(255, 255, 255, .22) 30%, rgba(255, 255, 255, .04) 55%, rgba(90, 150, 255, .7));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .sara-vidro { background: var(--bg-surface); } }
+.sara-avatar { width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; padding: 3px; object-fit: contain; background: #ffffff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-primary) 10%, transparent), 0 2px 8px rgba(10, 14, 24, .15); -webkit-user-drag: none; user-select: none; }
+.sara-botao { right: calc(24px + env(safe-area-inset-right, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 60;
+  display: inline-flex; align-items: center; gap: 10px; padding: 7px 18px 7px 7px; border-radius: 999px;
+  color: var(--text-primary); font: inherit; font-size: var(--fs-sm); font-weight: 700; letter-spacing: .04em; cursor: grab; touch-action: none; user-select: none;
+  transition: transform .15s ease, box-shadow .15s ease; }
+.sara-botao:hover { transform: translateY(-1px); }
+.sara-botao:active { cursor: grabbing; }
+.sara-painel { right: calc(24px + env(safe-area-inset-right, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 70;
+  width: min(420px, calc(100vw - 32px)); height: min(680px, calc(100vh - 48px)); display: flex; flex-direction: column; gap: var(--sp-3);
+  padding: var(--sp-4); border-radius: 28px; color: var(--text-primary); }
+.sara-alca { display: flex; align-items: center; gap: 10px; margin: calc(var(--sp-2) * -1) calc(var(--sp-2) * -1) 0; padding: var(--sp-2);
+  border-radius: 20px; cursor: grab; touch-action: none; user-select: none; }
+.sara-alca:active { cursor: grabbing; }
+.sara-alca > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.sara-alca b { font-size: var(--fs-md); color: var(--text-primary); }
+.sara-alca small { font-size: var(--fs-xs); color: var(--text-secondary); }
+.sara-alca > span { display: flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; white-space: nowrap; }
+.sara-nova { padding: 6px 12px; border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent); border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-surface) 50%, transparent); color: var(--accent-blue); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; }
+.sara-nova:hover, .sara-fechar:hover { background: color-mix(in srgb, var(--bg-surface) 85%, transparent); }
+.sara-fechar { width: 32px; height: 32px; border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent); border-radius: 50%;
+  background: color-mix(in srgb, var(--bg-surface) 50%, transparent); color: var(--text-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
+.sara-conversa { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--sp-3); padding-right: 2px; }
 .sara-inicio { display: flex; flex-direction: column; gap: var(--sp-2); }
 .sara-inicio p { margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+.sara-ola { font-size: var(--fs-lg, 18px); color: var(--text-primary); }
+.sara-dia { display: flex; align-items: center; gap: var(--sp-2); color: var(--text-muted); font-size: var(--fs-micro); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.sara-dia::before, .sara-dia::after { content: ""; flex: 1; height: 1px; background: color-mix(in srgb, var(--text-primary) 10%, transparent); }
+.sara-selo i { font-style: normal; font-weight: 600; opacity: .75; }
 .sara-inicio small { font-size: var(--fs-xs); color: var(--text-muted); }
 .sara-sugestoes { display: flex; flex-wrap: wrap; gap: 6px; }
-.sara-sugestoes button { padding: 6px 10px; border: 1px solid var(--border-subtle); border-radius: 999px; background: var(--bg-subtle); color: var(--text-primary); font: inherit; font-size: var(--fs-xs); cursor: pointer; text-align: left; }
+.sara-sugestoes button { padding: 7px 12px; border: 1px solid color-mix(in srgb, var(--text-primary) 9%, transparent); border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-surface) 55%, transparent); color: var(--text-primary); font: inherit; font-size: var(--fs-xs); cursor: pointer; text-align: left; }
 .sara-sugestoes button:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
 .sara-msg { display: flex; flex-direction: column; gap: 6px; max-width: 100%; }
-.sara-msg.pessoa { align-self: flex-end; max-width: 85%; padding: 8px 12px; border-radius: 12px 12px 2px 12px; background: var(--bg-subtle); }
-.sara-msg.sara { align-self: stretch; padding: 10px 12px; border-left: 3px solid var(--accent-blue); border-radius: 2px 12px 12px 2px; background: color-mix(in srgb, var(--accent-blue) 7%, var(--bg-surface)); }
-.sara-msg.erro { border-left-color: var(--accent-amber); background: color-mix(in srgb, var(--accent-amber) 8%, var(--bg-surface)); }
-.sara-msg.fora { border-left-color: var(--accent-amber); background: color-mix(in srgb, var(--accent-amber) 8%, var(--bg-surface)); }
-.sara-selo { align-self: flex-start; padding: 1px 8px; border: 1px solid var(--accent-blue); border-radius: 999px; color: var(--accent-blue); font-size: var(--fs-micro); font-weight: 700; letter-spacing: .03em; }
+.sara-msg.pessoa { align-self: flex-end; max-width: 85%; padding: 9px 14px; border-radius: 20px 20px 6px 20px;
+  background: color-mix(in srgb, var(--accent-blue) 14%, color-mix(in srgb, var(--bg-surface) 70%, transparent)); }
+.sara-msg.sara { align-self: stretch; padding: 12px 14px; border-radius: 6px 20px 20px 20px;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 7%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 72%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 40%, transparent); }
+.sara-msg.erro, .sara-msg.fora { border-color: color-mix(in srgb, var(--accent-amber) 45%, transparent); background: color-mix(in srgb, var(--accent-amber) 10%, color-mix(in srgb, var(--bg-surface) 72%, transparent)); }
+.sara-selo { align-self: flex-start; padding: 1px 9px; border: 1px solid var(--accent-blue); border-radius: 999px; color: var(--accent-blue); font-size: var(--fs-micro); font-weight: 700; letter-spacing: .03em; }
+.sara-msg.fora .sara-selo { border-color: var(--accent-amber); color: var(--accent-amber); }
 .sara-texto { font-size: var(--fs-sm); color: var(--text-primary); line-height: 1.5; overflow-wrap: anywhere; }
 .sara-texto p { margin: 0 0 6px; }
 .sara-texto p:last-child { margin-bottom: 0; }
 .sara-texto ul { margin: 0 0 6px; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
+.sara-tabela { max-width: 100%; overflow-x: auto; margin: 2px 0 8px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent); }
+.sara-tabela table { border-collapse: collapse; width: 100%; font-size: var(--fs-xs); }
+.sara-tabela th, .sara-tabela td { padding: 6px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid color-mix(in srgb, var(--text-primary) 6%, transparent); }
+/* A primeira coluna (nome, histórico) quebra linha; datas e valores ficam inteiros e cabem na janela. */
+.sara-tabela th:first-child, .sara-tabela td:first-child { white-space: normal; min-width: 9em; }
+.sara-tabela th { font-weight: 700; color: var(--text-secondary); background: color-mix(in srgb, var(--bg-subtle) 60%, transparent); }
+.sara-tabela tr:last-child td { border-bottom: 0; }
+.sara-tabela td:last-child, .sara-tabela th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 .sara-consultas { font-size: var(--fs-micro); color: var(--text-muted); }
 .sara-fontes { display: flex; flex-wrap: wrap; gap: 6px; }
-.sara-fontes a { padding: 2px 8px; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-subtle); color: var(--accent-blue); font-size: var(--fs-xs); font-weight: 600; text-decoration: none; }
+.sara-fontes a { padding: 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--bg-surface) 60%, transparent); border: 1px solid color-mix(in srgb, var(--text-primary) 9%, transparent);
+  color: var(--accent-blue); font-size: var(--fs-xs); font-weight: 600; text-decoration: none; }
 .sara-fontes a:hover { border-color: var(--accent-blue); }
-.sara-abrir { align-self: flex-start; padding: 4px 10px; border: 1px solid var(--accent-blue); border-radius: var(--radius-sm); background: transparent; color: var(--accent-blue); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; }
-.sara-abrir:hover { background: var(--bg-hover); }
+.sara-abrir { align-self: flex-start; padding: 5px 12px; border: 1px solid var(--accent-blue); border-radius: 999px; background: transparent; color: var(--accent-blue); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; text-align: left; }
+.sara-abrir:hover { background: color-mix(in srgb, var(--accent-blue) 10%, transparent); }
 .sara-nota { display: flex; gap: 4px; }
-.sara-nota button { padding: 2px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: transparent; cursor: pointer; font-size: 13px; opacity: .7; }
-.sara-nota button.ativo { opacity: 1; border-color: var(--accent-blue); background: var(--bg-subtle); }
+.sara-nota button { padding: 2px 9px; border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent); border-radius: 999px; background: transparent; cursor: pointer; font-size: 13px; opacity: .7; }
+.sara-nota button.ativo { opacity: 1; border-color: var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 10%, transparent); }
 .sara-pensando { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
-.sara-entrada { display: flex; align-items: flex-end; gap: var(--sp-2); }
-.sara-entrada textarea { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); resize: none; }
-.sara-uso { font-size: var(--fs-micro); color: var(--text-muted); text-align: right; }
-@media (max-width: 560px) { .sara-config { grid-template-columns: 1fr 1fr; } .sara-config .sara-liga { grid-column: 1 / -1; } }
+.sara-entrada { display: flex; align-items: flex-end; gap: var(--sp-2); padding: 6px 6px 6px 14px; border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent); background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+  box-shadow: inset 0 1px 2px rgba(10, 14, 24, .06); }
+.sara-entrada:focus-within { border-color: var(--accent-blue); }
+.sara-entrada textarea { flex: 1; min-width: 0; padding: 6px 0; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: var(--fs-sm); resize: none; }
+.sara-enviar { width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent-blue) 85%, #ffffff), var(--accent-blue)); color: #ffffff;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-blue) 40%, transparent), inset 0 1px 0 rgba(255, 255, 255, .35); }
+.sara-enviar:disabled { opacity: .4; cursor: default; box-shadow: none; }
+/* Celular: a janela ocupa a tela (o botão continua arrastável). */
+@media (max-width: 600px) {
+  .sara-painel { left: 0 !important; top: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw; height: 100dvh; border-radius: 0;
+    padding: calc(var(--sp-4) + env(safe-area-inset-top, 0px)) calc(var(--sp-4) + env(safe-area-inset-right, 0px)) calc(var(--sp-3) + env(safe-area-inset-bottom, 0px)) calc(var(--sp-4) + env(safe-area-inset-left, 0px)); }
+  .sara-painel::before { display: none; }
+  .sara-alca { cursor: default; }
+}
 
 .vnd-pedido { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 .vnd-pedido > footer { display: flex; justify-content: flex-end; gap: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border-subtle); }

@@ -5,7 +5,8 @@
 
 /** Tela que a SARA pode abrir para a pessoa (só se ela tiver a funcionalidade). */
 export type Tela = { id: string; modulo: string; secao?: string; rotulo: string; exige: string[]; serve: string };
-export type SaraModulo = { modulo: string; nome: string; /** Nome do módulo para as mensagens ("Financeiro"). */ rotulo: string; feature: string; manual: string; ferramentas: string[]; telas: Tela[]; sugestoes: string[] };
+export type SaraModulo = { modulo: string; nome: string; /** Nome do módulo para as mensagens ("Financeiro"). */ rotulo: string; feature: string;
+  /** Funcionalidade que libera a SARA para a pessoa (Pessoas e Acessos, na lista do módulo). */ permissao: string; manual: string; ferramentas: string[]; telas: Tela[]; sugestoes: string[] };
 
 const TELAS_FINANCEIRO: Tela[] = [
   { id: "financeiro_painel", modulo: "financeiro", secao: "Painel", rotulo: "Financeiro › Painel", exige: ["financeiro.pagar", "financeiro.receber", "financeiro.fluxo", "financeiro.relatorios"], serve: "totais e gráficos do mês" },
@@ -36,7 +37,7 @@ Compra aprovada no Compras vira conta a pagar quando a nota é recebida no Almox
 
 export const SARAS: Record<string, SaraModulo> = {
   financeiro: {
-    modulo: "financeiro", nome: "SARA do Financeiro", rotulo: "Financeiro", feature: "financeiro", manual: FINANCEIRO,
+    modulo: "financeiro", nome: "SARA do Financeiro", rotulo: "Financeiro", feature: "financeiro", permissao: "financeiro.sara", manual: FINANCEIRO,
     ferramentas: ["contas_a_pagar", "contas_a_receber", "buscar_contas_a_pagar", "buscar_contas_a_receber", "abrir_lancamento", "fluxo_de_caixa_90_dias", "bancos_e_conciliacao", "compras_aprovadas_a_pagar"],
     telas: TELAS_FINANCEIRO,
     sugestoes: ["O que está vencido a pagar?", "Como fica o caixa nos próximos 90 dias?", "Quais compras aprovadas ainda vão virar conta a pagar?", "Como dou baixa parcial numa conta?"],
@@ -46,11 +47,12 @@ export const SARAS: Record<string, SaraModulo> = {
 /** Instruções fixas (iguais em todo módulo). */
 export const REGRAS_SARA = `Regras:
 - Responda em português do Brasil, curto e direto, para quem trabalha na empresa (sem jargão de TI).
+- Quando for consultar, não escreva nada antes (nada de "vou consultar…"): chame as ferramentas e escreva a resposta completa uma vez só, no final.
 - Todo número novo que você citar tem de vir de uma ferramenta. Se não tiver ferramenta para responder, diga que não tem acesso a esse dado e onde a pessoa encontra na plataforma.
 - Os números das suas respostas anteriores nesta conversa já vieram de consultas: não os reconfirme nem volte a eles, a menos que a pessoa peça. Responda só o que ela perguntou agora.
 - Você só CONSULTA. Não aprova, não dá baixa, não grava nada: quando a pessoa quiser fazer algo, explique o caminho e abra a tela para ela com a ferramenta abrir_tela.
 - Quando a pessoa pedir para ver algo ("onde está…", "me mostra…"), abra a tela certa com abrir_tela, além de responder.
-- Quando ela pedir um lançamento específico ("me mostre o último lançamento do financiamento da Grob"), ache-o com a busca e abra o lançamento exato com abrir_lancamento. "Último lançamento", sem mais detalhe, é o último pago (o movimento mais recente): abra esse e ofereça a última parcela prevista. Diga qual você abriu (fornecedor, histórico, data e valor).
+- Quando ela pedir para mostrar, abrir ou ver um lançamento específico ("me mostre o último lançamento do financiamento da Grob"), ache-o com a busca e SEMPRE abra o lançamento exato com abrir_lancamento: descrever sem abrir não atende o pedido. "Último lançamento", sem mais detalhe, é o último pago (o movimento mais recente): abra esse e termine oferecendo a última parcela prevista ("Quer que eu abra a última parcela prevista?"). Diga qual você abriu (fornecedor, histórico, data e valor).
 - Se uma ferramenta não estiver disponível, é porque a pessoa não tem essa permissão: diga isso com naturalidade, sem tentar contornar.
 - Valores em reais no formato brasileiro (R$ 1.234,56) e datas em dd/mm/aaaa.
 - Não invente regra da empresa. Quando a decisão é de uma pessoa ou área (aprovação, alçada, classificação), diga quem decide.`;

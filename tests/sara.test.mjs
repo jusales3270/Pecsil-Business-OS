@@ -66,7 +66,7 @@ test("SARA: base no banco nasce desligada e só o proprietário liga", () => {
   assert.match(sql, /if org is null or not public\.is_owner\(\) then raise exception 'Ligar a SARA/);
   assert.match(sql, /profile_id = public\.current_profile_id\(\) or public\.is_owner\(\) or public\.has_feature\('fundacao\.auditoria'\)/);
   const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
-  assert.match(rota, /if \(!access\.canModule\(sara\.feature\)\)/);
+  assert.match(rota, /if \(!access\.canModule\(sara\.feature\) \|\| !access\.can\(sara\.permissao, "ver"\)\)/, "precisa do módulo e da SARA liberada em Pessoas e Acessos");
   assert.match(rota, /ferramentasDe\(\(f\) => access\.can\(f, "ver"\), sara\.ferramentas\)/);
   assert.doesNotMatch(readFileSync(new URL("../app/components/sara-painel.tsx", import.meta.url), "utf8"), /dangerouslySetInnerHTML/);
 });
@@ -109,7 +109,7 @@ test("SARA: busca o lançamento pelos termos e abre o detalhe exato, na aba onde
   const { FERRAMENTAS } = await import("../lib/sara/ferramentas.ts");
   const busca = FERRAMENTAS.find((f) => f.nome === "buscar_contas_a_pagar");
   let chamada;
-  const sbBusca = { rpc: async (nome, args) => { chamada = { nome, args }; return { data: { quantidade: 7, lancamentos: [{ id: "665ffa26-ea4a-4702-ab24-ebd255a2ae6f", status: "settled", historico: "OC 12688 REF. JUROS CARENCIA FINAME" }] } }; } };
+  const sbBusca = { rpc: async (nome, args) => { chamada = { nome, args }; return { data: { quantidade: 7, termos: 2, termos_casados: 2, lancamentos: [{ id: "665ffa26-ea4a-4702-ab24-ebd255a2ae6f", status: "settled", historico: "OC 12688 REF. JUROS CARENCIA FINAME" }] } }; } };
   const r = await busca.rodar(sbBusca, { termos: "grob  finame %", ordem: "ultimo_pago" });
   assert.equal(chamada.nome, "sara_buscar_lancamentos");
   assert.deepEqual(chamada.args, { p_direcao: "payable", p_termos: ["grob", "finame"], p_ordem: "ultimo_pago", p_limite: 5 });
@@ -174,5 +174,130 @@ test("SARA: com o verificador dando FORA, a conversa é cancelada e a resposta �
   assert.match(rota, /regrasDeEscopo\(empresa, p\.sara\.rotulo\)/);
   assert.match(rota, /escopo: \{ fora, verificador_falhou: v\.falhou \}/, "a recusa fica registrada para auditoria");
   assert.match(rota, /from\("organizations"\)\.select\("display_name, legal_name"\)/);
-  assert.match(rota, /\.order\("created_at"\)\.order\("papel"\)/, "no empate do horário, a pergunta vem antes da resposta");
+  assert.match(rota, /\.order\("created_at", \{ ascending: false \}\)\.order\("papel", \{ ascending: false \}\)\.limit\(24\)\)\.data \?\? \[\]\)\.reverse\(\)/, "as 24 mais recentes, em ordem; no empate do horário, a pergunta antes da resposta");
+});
+
+test("SARA: liberada por pessoa em Pessoas e Acessos; sem botão de ligar nem contador na tela; janela arrastável", () => {
+  const sql = readFileSync(new URL("../supabase/migrations/202610180001_sara_permissao.sql", import.meta.url), "utf8");
+  assert.match(sql, /\('financeiro\.sara', 'financeiro', 'SARA \(assistente do módulo\)', '\{ver\}', 95\)/);
+  assert.match(sql, /if not public\.has_feature\(p_modulo \|\| '\.sara'\) then/, "o banco também exige a permissão");
+  assert.match(sql, /drop function if exists public\.sara_configurar/);
+  assert.equal((sql.match(/clock_timestamp\(\)/g) ?? []).length, 2, "pergunta e resposta com horários distintos");
+  assert.equal(SARAS.financeiro.permissao, "financeiro.sara");
+  const painel = readFileSync(new URL("../app/components/sara-painel.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(painel, /Ligada|Uso do mês|teto|configurar/i, "ativação e contador saíram do painel");
+  assert.match(painel, /useArrastar\("sara\.botao"/);
+  assert.match(painel, /useArrastar\("sara\.janela"/);
+  assert.match(painel, /const AVATAR = "\/favicon\.png\?v=2"/, "o avatar é o favicon");
+  assert.match(painel, /className="sara-tabela"/, "tabela da resposta vira tabela de verdade");
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(rota, /sara_configurar|podeConfigurar|ligada/);
+  const css = readFileSync(new URL("../packages/design-system/patterns.css", import.meta.url), "utf8");
+  assert.match(css, /\.sara-vidro \{[^}]*backdrop-filter: blur\(24px\)/, "vidro líquido");
+  assert.match(css, /\.sara-painel \{[^}]*border-radius: 28px/, "cantos arredondados");
+});
+
+test("SARA: está no catálogo de Pessoas e Acessos do módulo e sozinha não abre o módulo", async () => {
+  const { ACCESS_CATALOG, hasModuleAccess, normalizeGrants } = await import("../modules/access-catalog.ts");
+  const fin = ACCESS_CATALOG.find((m) => m.code === "financeiro");
+  const f = fin.features.find((x) => x.code === "financeiro.sara");
+  assert.ok(f, "aparece na lista do Financeiro");
+  assert.deepEqual([...f.levels], ["ver"]);
+  assert.deepEqual(normalizeGrants({ "financeiro.sara": "ver" }), { "financeiro.sara": "ver" });
+  assert.equal(hasModuleAccess({ isOwner: false, grants: { "financeiro.sara": "ver" } }, "financeiro"), false, "só a SARA não abre o Financeiro");
+  assert.equal(hasModuleAccess({ isOwner: false, grants: { "financeiro.sara": "ver", "financeiro.pagar": "ver" } }, "financeiro"), true);
+});
+
+test("SARA: o texto escrito antes de uma ferramenta não se perde (dá o total e depois abre a tela)", async () => {
+  const { buscar } = claudeFalso([
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "text", text: "Você tem **R$ 1.000,00** vencidos." }, { type: "tool_use", id: "t1", name: "contas_a_pagar", input: {} }] },
+    { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "Abri a tela de Contas a pagar." }] },
+  ]);
+  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", {})] });
+  assert.equal(r.texto, "Você tem **R$ 1.000,00** vencidos.\n\nAbri a tela de Contas a pagar.");
+  const { buscar: b2 } = claudeFalso([
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "text", text: "Vou consultar as contas a vencer." }, { type: "tool_use", id: "t1", name: "contas_a_pagar", input: {} }] },
+    { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "Vencem 52 parcelas." }] },
+  ]);
+  const r2 = await conversarCom({}, { chave: "x", buscar: b2, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", {})] });
+  assert.equal(r2.texto, "Vencem 52 parcelas.", "frase de passagem não entra na resposta");
+});
+
+test("SARA: busca ignora acentos e, sem lançamento com todos os termos, traz os que têm mais (avisando)", async () => {
+  const sql = readFileSync(new URL("../supabase/migrations/202610180002_sara_busca_flexivel.sql", import.meta.url), "utf8");
+  assert.match(sql, /translate\(lower\(coalesce\(p, ''\)\), 'áàâãäéèêëíìîïóòôõöúùûüçñ', 'aaaaaeeeeiiiiooooouuuucn'\)/);
+  assert.match(sql, /p\.acertos > 0 and p\.acertos = m\.acertos\s+and p\.peso = \(select max\(peso\) from pontos where acertos = m\.acertos\)/, "parcial: mais termos e, entre eles, o mais raro");
+  assert.match(sql, /security invoker/);
+  const { FERRAMENTAS } = await import("../lib/sara/ferramentas.ts");
+  const busca = FERRAMENTAS.find((f) => f.nome === "buscar_contas_a_pagar");
+  const sb = { rpc: async () => ({ data: { quantidade: 8, termos: 2, termos_casados: 1, lancamentos: [{ id: "x", status: "settled" }] } }) };
+  const r = await busca.rodar(sb, { termos: "óleo máquinas" });
+  assert.match(r.dados.busca_parcial, /estes têm 1 de 2/);
+});
+
+// --- Hora certa, nome e continuidade da conversa (proprietário, 18/10/2026) ----------------------
+test("SARA: cumprimenta pela hora de São Paulo e chama a pessoa pelo primeiro nome", async () => {
+  const { agoraSP, saudacao, primeiroNome, contextoDeTempo } = await import("../lib/sara/tempo.ts");
+  assert.equal(saudacao(5), "Bom dia"); assert.equal(saudacao(11), "Bom dia");
+  assert.equal(saudacao(12), "Boa tarde"); assert.equal(saudacao(17), "Boa tarde");
+  assert.equal(saudacao(18), "Boa noite"); assert.equal(saudacao(0), "Boa noite"); assert.equal(saudacao(4), "Boa noite");
+  const a = agoraSP(new Date("2026-10-18T13:05:00Z"));
+  assert.deepEqual([a.data, a.hora, a.hora24, a.dia], ["18/10/2026", "10:05", 10, "2026-10-18"], "13:05 UTC = 10:05 em São Paulo");
+  assert.equal(agoraSP(new Date("2026-10-18T02:30:00Z")).dia, "2026-10-17", "23:30 em São Paulo ainda é o dia anterior");
+  assert.equal(primeiroNome("Ana Paula Ribeiro"), "Ana");
+  assert.equal(primeiroNome("  Júnior "), "Júnior");
+  assert.equal(primeiroNome(null), "");
+  const nova = contextoDeTempo({ nome: "Ana", situacao: { tipo: "nova", ultima: null, ontem: false }, agora: new Date("2026-10-18T16:00:00Z") });
+  assert.match(nova, /Agora: .*18\/10\/2026, 13:00 \(horário de Brasília\)/);
+  assert.match(nova, /Chame a pessoa por esse nome/);
+  assert.match(nova, /não cumprimente/, "quem cumprimenta é a plataforma");
+  const { abertura, comAbertura } = await import("../lib/sara/tempo.ts");
+  const ola = abertura({ nome: "Ana", situacao: { tipo: "nova", ultima: null, ontem: false }, agora: new Date("2026-10-18T16:00:00Z") });
+  assert.equal(ola, "Boa tarde, Ana.");
+  assert.equal(comAbertura("Bom dia, Ana! Você tem R$ 10,00 vencidos.", ola), "Boa tarde, Ana.\n\nVocê tem R$ 10,00 vencidos.", "o cumprimento do modelo sai; fica o da plataforma, na hora certa");
+  assert.equal(comAbertura("Você tem R$ 10,00 vencidos.", null), "Você tem R$ 10,00 vencidos.");
+  assert.equal(comAbertura("Olá, Ana! Tudo certo.", ola), "Boa tarde, Ana.\n\nTudo certo.");
+  assert.equal(comAbertura("Ana, o total vencido é R$ 10,00.", ola, "Ana"), "Boa tarde, Ana.\n\nO total vencido é R$ 10,00.", "sem repetir o nome logo depois do cumprimento");
+  assert.equal(comAbertura("Ana, o total.", null, "Ana"), "Ana, o total.", "na continuação, o texto fica como está");
+  assert.equal(comAbertura("Oito parcelas vencem.", ola), "Boa tarde, Ana.\n\nOito parcelas vencem.", "não corta palavra que só começa com \"oi\"");
+});
+
+test("SARA: sabe se a conversa continua ou foi retomada (outro dia ou pausa longa)", async () => {
+  const { situacaoDaConversa, contextoDeTempo } = await import("../lib/sara/tempo.ts");
+  const agora = new Date("2026-10-18T03:10:00Z"); // 00:10 em São Paulo
+  assert.equal(situacaoDaConversa(null, agora).tipo, "nova");
+  assert.equal(situacaoDaConversa(new Date(agora.getTime() - 70 * 60_000), agora).tipo, "retomada", "23:00 de ontem → 00:10 de hoje: outro dia");
+  assert.equal(situacaoDaConversa(new Date(agora.getTime() - 5 * 60_000), agora).tipo, "continua", "00:05 → 00:10: mesma conversa");
+  const tarde = new Date("2026-10-18T17:00:00Z"); // 14:00 em São Paulo
+  assert.equal(situacaoDaConversa(new Date(tarde.getTime() - 10 * 60_000), tarde).tipo, "continua");
+  assert.equal(situacaoDaConversa(new Date(tarde.getTime() - 4 * 3600_000), tarde).tipo, "retomada", "pausa de 4 horas no mesmo dia");
+  const ontem = situacaoDaConversa("2026-10-17T22:04:00Z", tarde);
+  assert.equal(ontem.tipo, "retomada"); assert.equal(ontem.ontem, true);
+  const ctx = contextoDeTempo({ nome: "Júnior", situacao: ontem, agora: tarde });
+  assert.match(ctx, /A conversa foi retomada: a última mensagem foi ontem, às 19:04/);
+  const { abertura } = await import("../lib/sara/tempo.ts");
+  assert.equal(abertura({ nome: "Júnior", situacao: ontem, agora: tarde }), "Boa tarde, Júnior. Retomando a nossa conversa de ontem.");
+  assert.equal(abertura({ nome: "Júnior", situacao: { tipo: "continua", ultima: null, ontem: false }, agora: tarde }), null, "na continuação, sem cumprimento");
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
+  assert.match(rota, /const situacao = situacaoDaConversa\(historico\.at\(-1\)\?\.created_at \?\? null\)/);
+  assert.match(rota, /pessoa: primeiroNome\(me\?\.full_name\), saudacao: saudacao\(agoraSP\(\)\.hora24\), conversa/);
+  const painel = readFileSync(new URL("../app/components/sara-painel.tsx", import.meta.url), "utf8");
+  assert.match(painel, /if \(el\) el\.scrollTop = el\.scrollHeight/, "abre na última interação");
+  assert.match(painel, /\}, \[msgs, pensando, aberto\]\);/);
+  assert.match(painel, /className="sara-dia"/);
+});
+
+test("SARA: para quem usa o nome é só SARA (o módulo fica como identificação interna)", () => {
+  const painel = readFileSync(new URL("../app/components/sara-painel.tsx", import.meta.url), "utf8");
+  assert.match(painel, /const NOME = "SARA";/);
+  assert.match(painel, /<div><b>\{NOME\}<\/b>/);
+  assert.doesNotMatch(painel, /estado\.nome/);
+  assert.equal(SARAS.financeiro.nome, "SARA do Financeiro", "o nome interno continua para distinguir os agentes");
+});
+
+test("SARA: na busca parcial, o termo do nome do fornecedor vem antes; com todos os termos, ficam todos", () => {
+  const sql = readFileSync(new URL("../supabase/migrations/202610180003_sara_busca_nome.sql", import.meta.url), "utf8");
+  assert.match(sql, /case when b\.nome like '%' \|\| termo \|\| '%' then 1000 else 0 end\) \+ 1\.0 \/ n/, "nome pesa mais; raridade desempata");
+  assert.match(sql, /m\.acertos = \(select count\(\*\) from termos\) or p\.peso = \(select max\(peso\)/, "o peso só escolhe na busca parcial");
+  assert.match(sql, /security invoker/);
 });

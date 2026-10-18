@@ -1,21 +1,22 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Button, Callout } from "../../packages/design-system";
+import { Fragment, useCallback, useEffect, useRef, useState, type PointerEvent as EventoPonteiro, type ReactNode } from "react";
+import { Callout } from "../../packages/design-system";
 import { pedirRegistro, type PedidoRegistro } from "../../lib/abrir-registro";
 
 /**
- * SARA do módulo (I-12, nível 1): painel ao lado do módulo. Orienta e consulta com as permissões de
- * quem conversa; a resposta é marcada como da SARA (IA), com as fontes clicáveis e as consultas que
- * ela fez. O proprietário liga, escolhe o modelo e o teto de uso aqui mesmo.
+ * SARA do módulo (I-12, nível 1): janela flutuante sobre o módulo. Orienta e consulta com as
+ * permissões de quem conversa; a resposta é marcada como da SARA (IA), com as fontes clicáveis e as
+ * consultas que ela fez. Quem pode usá-la é decidido em Pessoas e Acessos (`<modulo>.sara`).
+ * O botão e a janela se arrastam para qualquer ponto da tela (a posição fica guardada neste navegador).
+ * A janela abre na última conversa da pessoa, já na última interação, com os dias separados; sem
+ * conversa, cumprimenta pelo nome de quem está logado, na hora de São Paulo (vinda do servidor).
  */
 
-type Estado = {
-  nome: string; configurada: boolean; ligada: boolean; modelo: string | null; uso: number; teto: number; podeConfigurar: boolean;
-  ferramentas: string[]; sugestoes: string[];
-};
+type Salva = { id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean };
+type Estado = { nome: string; configurada: boolean; ferramentas: string[]; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
-type Mensagem = { papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean };
+type Mensagem = { papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string };
 
 const CONSULTA: Record<string, string> = {
   contas_a_pagar: "contas a pagar", contas_a_receber: "contas a receber", fluxo_de_caixa_90_dias: "fluxo de caixa",
@@ -24,22 +25,111 @@ const CONSULTA: Record<string, string> = {
 };
 // Navegação, não consulta: não entram no "Posso consultar".
 const NAVEGA = new Set(["abrir_tela", "abrir_lancamento"]);
-const milhares = (n: number) => n.toLocaleString("pt-BR");
+const AVATAR = "/favicon.png?v=2";
+// Para quem usa é só "SARA": o módulo ("do Financeiro", "de Compras") é identificação interna dos agentes.
+const NOME = "SARA";
+// Dia (no fuso de São Paulo) de cada mensagem, para separar "Hoje", "Ontem" e as datas.
+const diaSP = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(iso));
+function rotuloDoDia(iso: string): string {
+  const d = diaSP(iso), hoje = diaSP(new Date().toISOString()), ontem = diaSP(new Date(Date.now() - 86_400_000).toISOString());
+  if (d === hoje) return "Hoje";
+  if (d === ontem) return "Ontem";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
+}
+const horaSP = (iso: string) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
-/** Texto do modelo com **negrito** e listas "- ", sem HTML (nada do texto vira código na página). */
+/** Texto do modelo com **negrito**, listas "- " e tabelas "| a | b |", sem HTML (nada do texto vira código na página). */
 function Texto({ texto }: { texto: string }) {
   const linhas = texto.split("\n");
   const negrito = (s: string): ReactNode[] => s.split(/(\*\*[^*]+\*\*)/g).map((p, i) => (p.startsWith("**") && p.endsWith("**") ? <b key={i}>{p.slice(2, -2)}</b> : <Fragment key={i}>{p}</Fragment>));
-  const blocos: ReactNode[] = []; let lista: string[] = [];
-  const fechar = () => { if (lista.length) { blocos.push(<ul key={`l${blocos.length}`}>{lista.map((l, i) => <li key={i}>{negrito(l)}</li>)}</ul>); lista = []; } };
+  const celulas = (l: string) => l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+  const blocos: ReactNode[] = []; let lista: string[] = []; let tabela: string[][] = [];
+  const fecharLista = () => { if (lista.length) { blocos.push(<ul key={`l${blocos.length}`}>{lista.map((l, i) => <li key={i}>{negrito(l)}</li>)}</ul>); lista = []; } };
+  const fecharTabela = () => {
+    if (!tabela.length) return;
+    const [cabeca, ...corpo] = tabela;
+    blocos.push(
+      <div key={`t${blocos.length}`} className="sara-tabela">
+        <table>
+          <thead><tr>{cabeca.map((c, i) => <th key={i}>{negrito(c)}</th>)}</tr></thead>
+          <tbody>{corpo.map((r, i) => <tr key={i}>{r.map((c, k) => <td key={k}>{negrito(c)}</td>)}</tr>)}</tbody>
+        </table>
+      </div>,
+    );
+    tabela = [];
+  };
   for (const l of linhas) {
+    if (/^\s*\|.*\|\s*$/.test(l)) {
+      fecharLista();
+      if (!/^\s*\|?[\s:|-]+\|?\s*$/.test(l)) tabela.push(celulas(l)); // a linha |---|---| só separa o cabeçalho
+      continue;
+    }
+    fecharTabela();
     const m = l.match(/^\s*[-*•]\s+(.*)$/);
     if (m) { lista.push(m[1]); continue; }
-    fechar();
+    fecharLista();
     if (l.trim()) blocos.push(<p key={`p${blocos.length}`}>{negrito(l.replace(/^#+\s*/, ""))}</p>);
   }
-  fechar();
+  fecharTabela();
+  fecharLista();
   return <>{blocos}</>;
+}
+
+type Pos = { x: number; y: number };
+const MARGEM = 8;
+const lerPos = (chave: string): Pos | null => {
+  try { const v = JSON.parse(window.localStorage.getItem(chave) ?? "null"); return v && Number.isFinite(v.x) && Number.isFinite(v.y) ? v : null; } catch { return null; }
+};
+const guardarPos = (chave: string, p: Pos) => { try { window.localStorage.setItem(chave, JSON.stringify(p)); } catch { /* sem armazenamento: só não lembra */ } };
+const caber = (p: Pos, el: HTMLElement | null): Pos => {
+  const w = el?.offsetWidth ?? 0, h = el?.offsetHeight ?? 0;
+  return { x: Math.min(Math.max(MARGEM, p.x), Math.max(MARGEM, window.innerWidth - w - MARGEM)), y: Math.min(Math.max(MARGEM, p.y), Math.max(MARGEM, window.innerHeight - h - MARGEM)) };
+};
+const telaEstreita = () => window.matchMedia("(max-width: 600px)").matches;
+// Se o último gesto em cada elemento foi arrasto (para o clique que vem junto não abrir a janela).
+const ARRASTOU = new Map<string, boolean>();
+
+/**
+ * Arrastar com o mouse (ou o dedo): segura e leva para qualquer ponto da tela, sem sair dela.
+ * Sem posição guardada, o elemento fica no canto padrão do CSS. `moveu` separa arrastar de clicar.
+ */
+function useArrastar(chave: string, ativo: boolean) {
+  // O elemento fica em estado (ref de callback), não em useRef: nada de ref lido durante a renderização.
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  const [pos, setPos] = useState<Pos | null>(null);
+  useEffect(() => {
+    if (!ativo) return;
+    const t = setTimeout(() => { const p = lerPos(chave); if (p && !telaEstreita()) setPos(caber(p, el)); }, 0);
+    const ajustar = () => setPos((p) => (p ? caber(p, el) : p));
+    window.addEventListener("resize", ajustar);
+    return () => { clearTimeout(t); window.removeEventListener("resize", ajustar); };
+  }, [chave, ativo, el]);
+  const iniciar = (e: EventoPonteiro<HTMLElement>, podeNoCelular = true) => {
+    if (e.button !== 0 || !el || (!podeNoCelular && telaEstreita())) return;
+    // Na alça da janela, clicar em "Nova conversa" ou em fechar não começa a arrastar.
+    const alvo = (e.target as HTMLElement).closest("button, a, textarea, input, select");
+    if (alvo && alvo !== e.currentTarget) return;
+    const r = el.getBoundingClientRect();
+    const dx = e.clientX - r.left, dy = e.clientY - r.top, x0 = e.clientX, y0 = e.clientY;
+    ARRASTOU.set(chave, false);
+    let ultimo: Pos | null = null;
+    const mover = (ev: PointerEvent) => {
+      if (!ARRASTOU.get(chave) && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 4) return;
+      ARRASTOU.set(chave, true);
+      ultimo = caber({ x: ev.clientX - dx, y: ev.clientY - dy }, el);
+      setPos(ultimo);
+    };
+    const soltar = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      if (ultimo) guardarPos(chave, ultimo);
+    };
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar);
+  };
+  const estilo = pos ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" } : undefined;
+  const arrastou = useCallback(() => ARRASTOU.get(chave) === true, [chave]);
+  return { prender: setEl, estilo, iniciar, arrastou };
 }
 
 export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modulo: string, secao?: string) => void }) {
@@ -50,30 +140,33 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
   const [conversa, setConversa] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [pensando, setPensando] = useState(false);
-  const fim = useRef<HTMLDivElement>(null);
+  const rolagem = useRef<HTMLDivElement>(null);
+  const { prender: prenderBotao, estilo: estiloBotao, iniciar: arrastarBotao, arrastou: botaoArrastou } = useArrastar("sara.botao", Boolean(estado) && !aberto);
+  const { prender: prenderJanela, estilo: estiloJanela, iniciar: arrastarJanela } = useArrastar("sara.janela", Boolean(estado) && aberto);
 
   const carregar = useCallback(async () => {
     const r = await fetch(`/api/sara/${modulo}`, { cache: "no-store" }).catch(() => null);
     if (!r || r.status === 403 || r.status === 404) { setSemAcesso(true); return; }
-    setEstado((await r.json().catch(() => null)) as Estado | null);
+    const e = (await r.json().catch(() => null)) as Estado | null;
+    setEstado(e);
+    // Volta a última conversa (se a pessoa ainda não começou outra nesta tela).
+    if (e?.conversa?.mensagens.length) {
+      const salvas = e.conversa;
+      setMsgs((atuais) => (atuais.length ? atuais : salvas.mensagens.map((m) => ({
+        papel: m.papel, texto: m.texto, quando: m.quando, id: m.papel === "sara" ? m.id : null, nota: m.nota ?? undefined,
+        consultas: m.consultas, fontes: m.fontes, abrir: m.abrir, fora: m.fora,
+      }))));
+      setConversa((atual) => atual ?? salvas.id);
+    }
   }, [modulo]);
   useEffect(() => { const t = setTimeout(() => { void carregar(); }, 0); return () => clearTimeout(t); }, [carregar]);
-  useEffect(() => { fim.current?.scrollIntoView({ block: "end" }); }, [msgs, pensando]);
+  // Sempre na última interação: ao abrir a janela, ao chegar mensagem e enquanto ela pensa.
+  useEffect(() => {
+    if (!aberto) return;
+    const t = setTimeout(() => { const el = rolagem.current; if (el) el.scrollTop = el.scrollHeight; }, 0);
+    return () => clearTimeout(t);
+  }, [msgs, pensando, aberto]);
 
-  const perguntar = async (pergunta: string) => {
-    const p = pergunta.trim();
-    if (!p || pensando) return;
-    setTexto(""); setMsgs((m) => [...m, { papel: "pessoa", texto: p }]); setPensando(true);
-    const r = await fetch(`/api/sara/${modulo}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pergunta: p, conversa }) })
-      .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
-    setPensando(false);
-    if (!r.ok) { setMsgs((m) => [...m, { papel: "sara", texto: r.body?.error ?? "A SARA está indisponível agora.", erro: true }]); return; }
-    setConversa(r.body.conversa ?? conversa);
-    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo) }]);
-    // A SARA pediu para mostrar uma tela: abre por dentro da plataforma (o painel continua aberto).
-    if (r.body.abrir) abrir(r.body.abrir);
-    void carregar();
-  };
   const abrir = (a: Abrir) => {
     navegar(a.modulo, a.secao ?? undefined);
     // O pedido sai depois da troca de tela: se a pessoa já estava nela, a tela antiga é desmontada e
@@ -81,45 +174,65 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
     const registro = a.registro;
     if (registro) setTimeout(() => pedirRegistro(registro), 400);
   };
+  const perguntar = async (pergunta: string) => {
+    const p = pergunta.trim();
+    if (!p || pensando) return;
+    setTexto(""); setMsgs((m) => [...m, { papel: "pessoa", texto: p, quando: new Date().toISOString() }]); setPensando(true);
+    const r = await fetch(`/api/sara/${modulo}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pergunta: p, conversa }) })
+      .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
+    setPensando(false);
+    if (!r.ok) { setMsgs((m) => [...m, { papel: "sara", texto: r.body?.error ?? "A SARA está indisponível agora.", erro: true, quando: new Date().toISOString() }]); return; }
+    setConversa(r.body.conversa ?? conversa);
+    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo), quando: new Date().toISOString() }]);
+    // A SARA pediu para mostrar uma tela: abre por dentro da plataforma (a janela continua aberta).
+    if (r.body.abrir) abrir(r.body.abrir);
+  };
   const avaliar = async (i: number, nota: number) => {
     const m = msgs[i];
     if (!m?.id) return;
     setMsgs((l) => l.map((x, k) => (k === i ? { ...x, nota } : x)));
     await fetch(`/api/sara/${modulo}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ mensagem: m.id, nota }) }).catch(() => null);
   };
-  const configurar = async (c: { ligada: boolean; modelo: string; teto: number }) => {
-    await fetch(`/api/sara/${modulo}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ configurar: c }) }).catch(() => null);
-    void carregar();
-  };
 
   if (semAcesso || !estado) return null;
-  const pode = estado.configurada && estado.ligada;
+  const pode = estado.configurada;
   return (
     <>
-      {!aberto && <button type="button" className="sara-botao" onClick={() => setAberto(true)} aria-label={`Abrir a ${estado.nome}`}><span aria-hidden>✦</span> SARA</button>}
+      {!aberto && (
+        <button type="button" ref={prenderBotao} className="sara-botao sara-vidro" style={estiloBotao}
+          onPointerDown={(e) => arrastarBotao(e)} onClick={() => { if (!botaoArrastou()) setAberto(true); }}
+          aria-label={`Abrir a ${NOME} (segure e arraste para mudar de lugar)`} title="Clique para abrir · segure e arraste para mudar de lugar">
+          {/* eslint-disable-next-line @next/next/no-img-element -- avatar pequeno e fixo (o favicon) */}
+          <img src={AVATAR} alt="" className="sara-avatar" draggable={false} />
+          <span>SARA</span>
+        </button>
+      )}
       {aberto && (
-        <aside className="sara-painel" aria-label={estado.nome}>
-          <header>
-            <div><b>{estado.nome}</b><small>IA · consulta com as suas permissões · não grava nada</small></div>
+        <aside ref={prenderJanela} className="sara-painel sara-vidro" style={estiloJanela} aria-label={NOME}>
+          <header className="sara-alca" onPointerDown={(e) => arrastarJanela(e, false)} title="Segure e arraste para mudar de lugar">
+            {/* eslint-disable-next-line @next/next/no-img-element -- avatar pequeno e fixo (o favicon) */}
+            <img src={AVATAR} alt="" className="sara-avatar" draggable={false} />
+            <div><b>{NOME}</b><small>IA · consulta com as suas permissões · não grava nada</small></div>
             <span>
-              {msgs.length > 0 && <button type="button" className="almox-link" onClick={() => { setMsgs([]); setConversa(null); }}>Nova conversa</button>}
+              {msgs.length > 0 && <button type="button" className="sara-nova" onClick={() => { setMsgs([]); setConversa(null); }}>Nova conversa</button>}
               <button type="button" className="sara-fechar" onClick={() => setAberto(false)} aria-label="Fechar a SARA">×</button>
             </span>
           </header>
-          {estado.podeConfigurar && <Config estado={estado} onSalvar={configurar} />}
-          {!estado.configurada ? <Callout variant="info" title="SARA ainda não configurada">Falta a chave do modelo (Claude) no servidor. Quem cuida é o proprietário.</Callout>
-            : !estado.ligada ? <Callout variant="info" title="SARA desligada">{estado.podeConfigurar ? "Ligue acima para começar." : "Quem liga a SARA deste módulo é o proprietário."}</Callout> : null}
-          <div className="sara-conversa">
+          {!estado.configurada && <Callout variant="info" title="SARA ainda não configurada">Falta a chave do modelo (Claude) no servidor. Quem cuida é o proprietário.</Callout>}
+          <div className="sara-conversa" ref={rolagem}>
             {!msgs.length && pode && (
               <div className="sara-inicio">
+                <b className="sara-ola">{estado.saudacao}{estado.pessoa ? `, ${estado.pessoa}` : ""}!</b>
                 <p>Pergunte sobre o módulo ou peça um dado. Eu consulto com as suas permissões e mostro de onde veio cada número.</p>
                 <div className="sara-sugestoes">{estado.sugestoes.map((s) => <button key={s} type="button" onClick={() => void perguntar(s)}>{s}</button>)}</div>
                 {estado.ferramentas.some((f) => !NAVEGA.has(f)) && <small>Posso consultar: {estado.ferramentas.filter((f) => !NAVEGA.has(f)).map((f) => CONSULTA[f] ?? f).join(", ")}{estado.ferramentas.some((f) => NAVEGA.has(f)) ? ", e abrir as telas e os lançamentos que você usa" : ""}.</small>}
               </div>
             )}
             {msgs.map((m, i) => (
-              <div key={i} className={`sara-msg ${m.papel}${m.erro ? " erro" : ""}${m.fora ? " fora" : ""}`}>
-                {m.papel === "sara" && !m.erro && <span className="sara-selo">{m.fora ? "SARA (IA) · fora do escopo" : "SARA (IA)"}</span>}
+              <Fragment key={i}>
+              {m.quando && (i === 0 || !msgs[i - 1].quando || diaSP(msgs[i - 1].quando!) !== diaSP(m.quando)) && <div className="sara-dia" role="separator"><span>{rotuloDoDia(m.quando)}</span></div>}
+              <div className={`sara-msg ${m.papel}${m.erro ? " erro" : ""}${m.fora ? " fora" : ""}`}>
+                {m.papel === "sara" && !m.erro && <span className="sara-selo">{m.fora ? "SARA (IA) · fora do escopo" : "SARA (IA)"}{m.quando ? <i> · {horaSP(m.quando)}</i> : null}</span>}
                 <div className="sara-texto">{m.papel === "sara" ? <Texto texto={m.texto} /> : <p>{m.texto}</p>}</div>
                 {m.consultas && m.consultas.length > 0 && <small className="sara-consultas">Consultou: {[...new Set(m.consultas)].map((c) => CONSULTA[c] ?? c).join(", ")}</small>}
                 {m.abrir && <button type="button" className="sara-abrir" onClick={() => abrir(m.abrir!)}>Abrir {m.abrir.rotulo}</button>}
@@ -131,32 +244,19 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
                   </div>
                 )}
               </div>
+              </Fragment>
             ))}
             {pensando && <div className="sara-msg sara"><span className="sara-selo">SARA (IA)</span><p className="sara-pensando">Consultando…</p></div>}
-            <div ref={fim} />
           </div>
           <form className="sara-entrada" onSubmit={(e) => { e.preventDefault(); void perguntar(texto); }}>
             <textarea rows={2} value={texto} disabled={!pode || pensando} placeholder={pode ? "Pergunte à SARA…" : "SARA indisponível"} maxLength={2000}
               onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void perguntar(texto); } }} aria-label="Pergunta para a SARA" />
-            <Button type="submit" disabled={!pode || pensando || texto.trim().length < 2}>Enviar</Button>
+            <button type="submit" className="sara-enviar" disabled={!pode || pensando || texto.trim().length < 2} aria-label="Enviar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
           </form>
-          {pode && <small className="sara-uso">Uso do mês: {milhares(estado.uso)} de {milhares(estado.teto)} tokens</small>}
         </aside>
       )}
     </>
-  );
-}
-
-function Config({ estado, onSalvar }: { estado: Estado; onSalvar: (c: { ligada: boolean; modelo: string; teto: number }) => void }) {
-  const [modelo, setModelo] = useState(estado.modelo ?? "claude-haiku-5-5");
-  const [teto, setTeto] = useState(String(estado.teto || 2000000));
-  return (
-    <div className="sara-config" aria-label="Configurar a SARA (proprietário)">
-      <label className="sara-liga"><input type="checkbox" checked={estado.ligada} disabled={!estado.configurada} onChange={(e) => onSalvar({ ligada: e.target.checked, modelo, teto: Number(teto) || 0 })} /><span>{estado.ligada ? "Ligada" : "Desligada"}</span></label>
-      <label><span>Modelo</span><select className="icms-select" value={modelo} onChange={(e) => { setModelo(e.target.value); onSalvar({ ligada: estado.ligada, modelo: e.target.value, teto: Number(teto) || 0 }); }}>
-        <option value="claude-haiku-5-5">Claude Haiku 5.5 (dia a dia)</option><option value="claude-sonnet-5-5">Claude Sonnet 5.5 (análise)</option>
-      </select></label>
-      <label><span>Teto (tokens/mês)</span><input inputMode="numeric" value={teto} onChange={(e) => setTeto(e.target.value.replace(/\D/g, ""))} onBlur={() => onSalvar({ ligada: estado.ligada, modelo, teto: Number(teto) || 0 })} /></label>
-    </div>
   );
 }
