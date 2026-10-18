@@ -7339,6 +7339,10 @@ button.holiday-row:hover {
 .sara-sugestoes button { padding: 7px 12px; border: 1px solid color-mix(in srgb, var(--text-primary) 9%, transparent); border-radius: 999px;
   background: color-mix(in srgb, var(--bg-surface) 55%, transparent); color: var(--text-primary); font: inherit; font-size: var(--fs-xs); cursor: pointer; text-align: left; }
 .sara-sugestoes button:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+.sara-habilidades { display: flex; flex-wrap: wrap; gap: 6px; }
+.sara-habilidades button { padding: 7px 12px; border: 1px solid color-mix(in srgb, var(--accent-blue) 45%, transparent); border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-blue) 10%, color-mix(in srgb, var(--bg-surface) 60%, transparent)); color: var(--accent-blue); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; text-align: left; }
+.sara-habilidades button:hover { background: color-mix(in srgb, var(--accent-blue) 18%, transparent); }
 .sara-msg { display: flex; flex-direction: column; gap: 6px; max-width: 100%; }
 .sara-msg.pessoa { align-self: flex-end; max-width: 85%; padding: 9px 14px; border-radius: 20px 20px 6px 20px;
   background: color-mix(in srgb, var(--accent-blue) 14%, color-mix(in srgb, var(--bg-surface) 70%, transparent)); }
@@ -8147,3 +8151,39 @@ button.holiday-row:hover {
 .homologation-form { grid-column: 1 / -1; }
 .almox-precisa { display: flex; flex-direction: column; gap: 4px; }
 .almox-precisa input { min-height: 38px; }
+
+/* Fundação › O que a SARA aprendeu: habilidades propostas, lacunas, respostas ruins e uso por módulo. */
+.aprendeu { display: flex; flex-direction: column; gap: var(--sp-5); }
+.aprendeu-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--sp-3); }
+.aprendeu-kpis > div { display: flex; flex-direction: column; gap: 4px; padding: var(--sp-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-surface); text-align: left; align-items: stretch; }
+.aprendeu-kpis small { font-size: var(--fs-xs); color: var(--text-secondary); }
+.aprendeu-kpis b { font-size: var(--fs-xl, 24px); color: var(--text-primary); }
+.aprendeu-bloco { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-surface); min-width: 0; }
+.aprendeu-bloco > header { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.aprendeu-bloco > header h2 { margin: 0; font-size: var(--fs-md); }
+.aprendeu-bloco h3 { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+.aprendeu-filtro { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.aprendeu-ajuda { margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); max-width: 80ch; }
+.aprendeu-vazio { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
+.aprendeu-habilidade { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border: 1px solid color-mix(in srgb, var(--accent-blue) 35%, var(--border-subtle)); border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent-blue) 5%, var(--bg-surface)); }
+.aprendeu-hab-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2) var(--sp-3); }
+.aprendeu-hab-topo b { font-size: var(--fs-md); color: var(--text-primary); }
+.aprendeu-hab-topo span { font-size: var(--fs-xs); color: var(--text-muted); }
+.aprendeu-habilidade > p { margin: 0; font-size: var(--fs-sm); color: var(--text-primary); }
+.aprendeu-habilidade dl { margin: 0; display: grid; gap: 6px; }
+.aprendeu-habilidade dl > div { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--sp-3); text-align: left; align-items: start; }
+.aprendeu-habilidade dt { font-size: var(--fs-xs); font-weight: 700; color: var(--text-secondary); }
+.aprendeu-habilidade dd { margin: 0; font-size: var(--fs-sm); color: var(--text-primary); min-width: 0; overflow-wrap: anywhere; }
+.aprendeu-habilidade ol { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
+.aprendeu-acoes { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.aprendeu-tabela { max-width: 100%; overflow-x: auto; }
+.aprendeu-tabela table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.aprendeu-tabela th, .aprendeu-tabela td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+.aprendeu-tabela th { font-size: var(--fs-xs); font-weight: 700; color: var(--text-secondary); white-space: nowrap; }
+.aprendeu-tabela td:nth-child(n+3):not(.aprendeu-exemplo) { white-space: nowrap; }
+.aprendeu-exemplo { color: var(--text-secondary); min-width: 220px; }
+.aprendeu-ruim { display: flex; flex-direction: column; gap: 4px; padding: var(--sp-3); border-left: 3px solid var(--accent-amber); border-radius: var(--radius-sm); background: var(--bg-subtle); }
+.aprendeu-ruim span { font-size: var(--fs-xs); color: var(--text-muted); }
+.aprendeu-ruim p { margin: 0; font-size: var(--fs-sm); color: var(--text-primary); }
+@media (max-width: 600px) { .aprendeu-habilidade dl > div { grid-template-columns: 1fr; gap: 2px; } .aprendeu-filtro { margin-left: 0; } }

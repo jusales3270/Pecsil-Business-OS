@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { readSessionAccess } from "../../../../lib/auth/session-access";
 import { chaveConfigurada, conversar, verificar } from "../../../../lib/sara/claude";
 import { MODELO_VERIFICADOR, recusa, regrasDeEscopo } from "../../../../lib/sara/escopo";
@@ -7,6 +7,7 @@ import type { RespostaSara } from "../../../../lib/sara/laco";
 import { abertura, agoraSP, comAbertura, contextoDeTempo, primeiroNome, saudacao, situacaoDaConversa } from "../../../../lib/sara/tempo";
 import { ferramentaDeDocumentos } from "../../../../lib/sara/documentos";
 import { LACUNA, ferramentaDeTelas, ferramentasDe } from "../../../../lib/sara/ferramentas";
+import { PROPOR_HABILIDADE, habilidadesQuePode, instrucoesDeHabilidades, nomearHabilidade, pareceLacuna, pedidoRecorrente, validarProposta, type HabilidadeAtiva, type Passo } from "../../../../lib/sara/habilidades";
 import { REGRAS_SARA, SARAS } from "../../../../lib/sara/modulos";
 import { requireUserSession } from "../../../../lib/supabase/session";
 
@@ -41,8 +42,11 @@ async function preparar(modulo: string) {
   const navegar = ferramentaDeTelas(telas);
   // Leitura do Segundo Cérebro: os documentos do setor, se a pessoa pode vê-los.
   const documentos = ferramentaDeDocumentos(modulo, (f) => access.can(f, "ver"));
-  const ferramentas = [...ferramentasDe((f) => access.can(f, "ver"), sara.ferramentas), ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), LACUNA];
-  return { sara, sb: session.supabase, access, cfg, ferramentas } as const;
+  const ferramentas = [...ferramentasDe((f) => access.can(f, "ver"), sara.ferramentas), ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), LACUNA, PROPOR_HABILIDADE];
+  // Habilidades aprovadas pelo proprietário: só as que a pessoa consegue rodar com as consultas dela.
+  const { data: hab } = await session.supabase.rpc("sara_habilidades_ativas", { p_modulo: modulo });
+  const habilidades = habilidadesQuePode((hab ?? []) as HabilidadeAtiva[], ferramentas.map((f) => f.nome));
+  return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades } as const;
 }
 
 type LinhaMensagem = { id: string; papel: "pessoa" | "sara"; texto: string; created_at: string; nota: number | null; ferramentas: Record<string, unknown> | null };
@@ -75,6 +79,8 @@ export async function GET(_request: Request, context: { params: Promise<{ modulo
     nome: p.sara.nome, configurada: chaveConfigurada(), ferramentas: p.ferramentas.map((f) => f.nome), sugestoes: p.sara.sugestoes,
     // Como cada consulta aparece para quem usa.
     rotulos: Object.fromEntries(p.ferramentas.filter((f) => f.rotulo).map((f) => [f.nome, f.rotulo])),
+    // Atalhos das habilidades aprovadas (o primeiro jeito de pedir vira o texto da pergunta).
+    habilidades: p.habilidades.map((h) => ({ id: h.id, nome: h.nome, pedido: h.gatilhos[0] ?? h.nome })),
     // Cumprimento pelo relógio do servidor, no fuso de São Paulo, com o nome de quem está logado.
     pessoa: primeiroNome(me?.full_name), saudacao: saudacao(agoraSP().hora24), conversa,
   });
@@ -84,7 +90,9 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const { modulo } = await context.params;
   const p = await preparar(modulo);
   if ("erro" in p) return p.erro;
-  const corpo = (await request.json().catch(() => null)) as { pergunta?: string; conversa?: string | null } | null;
+  const corpo = (await request.json().catch(() => null)) as { pergunta?: string; conversa?: string | null; habilidade?: string | null } | null;
+  // (o cliente do Supabase só envia a consulta quando alguém espera por ela: sem o await, não contava)
+  if (corpo?.habilidade && UUID.test(corpo.habilidade) && p.habilidades.some((h) => h.id === corpo.habilidade)) await p.sb.rpc("sara_habilidade_usada", { p_id: corpo.habilidade });
   const pergunta = String(corpo?.pergunta ?? "").trim().slice(0, 2000);
   if (pergunta.length < 2) return NextResponse.json({ error: "Escreva a pergunta." }, { status: 400 });
   if (!chaveConfigurada()) return NextResponse.json({ error: "A SARA ainda não está configurada (falta a chave do modelo no servidor)." }, { status: 503 });
@@ -107,8 +115,8 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const indisponiveis = p.sara.ferramentas.filter((n) => !p.ferramentas.some((f) => f.nome === n));
   // Fixo (vai para o cache) + do momento (hora, quem conversa, situação da conversa, o que não pode).
   const sistema = {
-    fixo: `${p.sara.manual}\n\n${REGRAS_SARA}\n\n${regrasDeEscopo(empresa, p.sara.rotulo)}`,
-    variavel: `${contextoDeTempo({ nome: primeiroNome(me?.full_name), situacao })}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}`,
+    fixo: `${p.sara.manual}\n\n${REGRAS_SARA}\n\n${regrasDeEscopo(empresa, p.sara.rotulo)}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
+    variavel: `${contextoDeTempo({ nome: primeiroNome(me?.full_name), situacao })}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}\nResponda sempre em português do Brasil.`,
   };
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
@@ -143,6 +151,31 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
   const ids = reg as { conversa: string; mensagem: string } | null;
+
+  // Colheita para o Segundo Cérebro (depois da resposta, sem atrasar a conversa): as lacunas e as
+  // habilidades que a SARA propôs — e a rede de segurança da plataforma quando ela não lembrou de propor.
+  const resposta = r;
+  after(async () => {
+    const lacunas = resposta.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").trim()).filter((x) => x.length >= 3);
+    if (!fora && !lacunas.length && pareceLacuna(resposta.texto)) lacunas.push(pergunta.replace(/\s+/g, " ").trim().slice(0, 200));
+    if (lacunas.length) {
+      const { error: e3 } = await p.sb.rpc("sara_lacunas_registrar", { p_modulo: modulo, p_mensagem: ids?.mensagem ?? null, p_pergunta: pergunta, p_assuntos: lacunas });
+      if (e3) console.error("[sara] não registrou a lacuna", e3.message);
+    }
+    const doModulo = p.ferramentas.filter((f) => ![LACUNA.nome, PROPOR_HABILIDADE.nome, "abrir_tela", "abrir_lancamento"].includes(f.nome)).map((f) => f.nome);
+    const propostas = resposta.ferramentas.filter((x) => x.nome === PROPOR_HABILIDADE.nome).map((f) => validarProposta(f.entrada, doModulo)).filter((x) => x !== null);
+    if (!fora && !propostas.length && pedidoRecorrente(pergunta)) {
+      const passos: Passo[] = resposta.ferramentas.filter((f) => f.ok && doModulo.includes(f.nome))
+        .map((f) => ({ ferramenta: f.nome, para_que: "parte do pedido recorrente", ...(f.entrada && typeof f.entrada === "object" && Object.keys(f.entrada).length ? { entrada: f.entrada as Record<string, unknown> } : {}) }))
+        .filter((x, k, l) => l.findIndex((y) => y.ferramenta === x.ferramenta && JSON.stringify(y.entrada) === JSON.stringify(x.entrada)) === k);
+      if (passos.length) propostas.push(await nomearHabilidade({ chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", rotulo: p.sara.rotulo, pergunta, passos }));
+    }
+    for (const prop of propostas) {
+      const { error: e4 } = await p.sb.rpc("sara_habilidade_propor", { p_modulo: modulo, p_nome: prop.nome, p_descricao: prop.descricao, p_gatilhos: prop.gatilhos, p_passos: prop.passos,
+        p_formato: prop.formato, p_origem: "conversa", p_evidencia: { vezes: 1, exemplos: [pergunta.slice(0, 200)] } });
+      if (e4) console.error("[sara] não registrou a habilidade proposta", e4.message);
+    }
+  });
 
   return NextResponse.json({
     conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, ferramentas: r.ferramentas.map((f) => f.nome), foraDoEscopo: Boolean(fora),
