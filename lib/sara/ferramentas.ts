@@ -80,9 +80,11 @@ async function buscar(sb: SupabaseClient, direcao: "payable" | "receivable", e: 
   const ordem = ["ultimo_pago", "proximo_vencimento", "ultimo_vencimento", "mais_recente_lancado"].includes(String(e.ordem)) ? String(e.ordem) : "ultimo_pago";
   const { data, error } = await sb.rpc("sara_buscar_lancamentos", { p_direcao: direcao, p_termos: termos, p_ordem: ordem, p_limite: num(e.limite, 5, 1, 15) });
   if (error) throw new Error(error.message);
-  const d = data as { quantidade: number; lancamentos: Record<string, unknown>[] };
+  const d = data as { quantidade: number; termos: number; termos_casados: number; lancamentos: Record<string, unknown>[] };
+  const parcial = d.quantidade > 0 && d.termos_casados < d.termos;
   return {
     dados: { termos, ordem, encontrados: d.quantidade, lancamentos: d.lancamentos.map((l) => ({ ...l, status: SITUACAO_TITULO[String(l.status)] ?? l.status })),
+      busca_parcial: parcial ? `Nenhum lançamento tem todos os termos; estes têm ${d.termos_casados} de ${d.termos}. Confira se é o que a pessoa pediu.` : null,
       observacao: d.quantidade > d.lancamentos.length ? `Mostrando ${d.lancamentos.length} de ${d.quantidade}; refine os termos se não for nenhum destes.` : null },
     fontes: [{ rotulo: direcao === "payable" ? "Financeiro › Contas a pagar" : "Financeiro › Contas a receber", link: direcao === "payable" ? LINK.pagar : LINK.receber }],
   };
@@ -91,7 +93,7 @@ async function buscar(sb: SupabaseClient, direcao: "payable" | "receivable", e: 
 const ESQUEMA_BUSCA = {
   type: "object",
   properties: {
-    termos: { type: "string", description: "Palavras que o lançamento precisa conter, separadas por espaço (todas): parte do nome, do histórico ou do documento. Ex.: \"grob finame\". Use as palavras como estão no cadastro (financiamento do BNDES aparece como FINAME)." },
+    termos: { type: "string", description: "Palavras que o lançamento precisa conter, separadas por espaço (todas): parte do nome, do histórico ou do documento. Ex.: \"grob finame\", \"oleo\". Prefira 1 ou 2 palavras-chave (fornecedor, produto, documento), como estão no cadastro (financiamento do BNDES aparece como FINAME); acentos não importam. Se nenhum lançamento tiver todas, vêm os que têm mais delas." },
     ordem: { type: "string", enum: ["ultimo_pago", "proximo_vencimento", "ultimo_vencimento", "mais_recente_lancado"], description: "ultimo_pago (padrão): o pagamento mais recente; proximo_vencimento: o próximo a vencer de hoje em diante; ultimo_vencimento: a última parcela prevista; mais_recente_lancado: o último cadastrado." },
     limite: { type: "integer", description: "Quantos trazer (padrão 5, máximo 15)." },
   },
@@ -122,12 +124,12 @@ export const FERRAMENTAS: Ferramenta[] = [
   },
   {
     nome: "buscar_contas_a_pagar", exige: ["financeiro.pagar"], esquema: ESQUEMA_BUSCA,
-    descricao: "Acha lançamentos de contas a pagar pelo nome do fornecedor, histórico ou documento (inclusive os já pagos), com o id, o último pagamento, o próximo e o último vencimento. Use para achar um lançamento específico e depois abri-lo com abrir_lancamento.",
+    descricao: "Acha lançamentos de contas a pagar pelo nome do fornecedor, histórico ou documento (inclusive os já pagos), com o id, o último pagamento (data e valor), o próximo e o último vencimento. Serve para achar um lançamento e abri-lo com abrir_lancamento, e também para listar os pagamentos de um fornecedor (até 15, do mais recente; use limite 15 e, se houver mais, diga quantos são).",
     rodar: (sb, e) => buscar(sb, "payable", e),
   },
   {
     nome: "buscar_contas_a_receber", exige: ["financeiro.receber"], esquema: ESQUEMA_BUSCA,
-    descricao: "Acha lançamentos de contas a receber pelo nome do cliente, histórico ou documento (inclusive os já recebidos), com o id, o último recebimento, o próximo e o último vencimento. Use para achar um lançamento específico e depois abri-lo com abrir_lancamento.",
+    descricao: "Acha lançamentos de contas a receber pelo nome do cliente, histórico ou documento (inclusive os já recebidos), com o id, o último recebimento (data e valor), o próximo e o último vencimento. Serve para achar um lançamento e abri-lo com abrir_lancamento, e também para listar os recebimentos de um cliente (até 15, do mais recente; use limite 15 e, se houver mais, diga quantos são).",
     rodar: (sb, e) => buscar(sb, "receivable", e),
   },
   {

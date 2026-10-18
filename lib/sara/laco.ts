@@ -36,6 +36,8 @@ function comCacheNoFim(mensagens: { role: "user" | "assistant"; content: unknown
 }
 
 const API = "https://api.anthropic.com/v1/messages";
+/** Frase curta de passagem antes de uma consulta ("Vou consultar as contas…"), que não é resposta. */
+const PASSAGEM = /^(vou|deixa eu|deixe-me|um momento|já vou|só um instante)\b[^\n]{0,160}$/i;
 const RODADAS = 6;
 
 type Bloco = { type: "text"; text: string } | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> };
@@ -57,6 +59,14 @@ export async function conversarCom(sb: SupabaseClient, a: {
   let abrir: Abrir | null = null;
   const usadas: RespostaSara["ferramentas"] = [];
   let tokensEntrada = 0, tokensSaida = 0, cacheLido = 0, cacheGravado = 0;
+  // O texto de todas as rodadas: o modelo pode escrever a resposta antes de pedir uma ferramenta
+  // (ex.: dá o total e depois abre a tela). Ficar só com a última rodada perdia essa parte.
+  const textos: string[] = [];
+  // Sem as frases de passagem ("Vou consultar…") e sem repetir o que já foi dito.
+  const juntar = () => {
+    const partes = textos.map((t) => t.trim()).filter(Boolean);
+    return partes.filter((t, i) => !(i < partes.length - 1 && (PASSAGEM.test(t) || partes.slice(i + 1).some((d) => d.includes(t))))).join("\n\n");
+  };
 
   const executar = async (nome: string, entrada: Record<string, unknown>): Promise<{ conteudo: string; ok: boolean }> => {
     const f = a.ferramentas.find((x) => x.nome === nome);
@@ -97,8 +107,9 @@ export async function conversarCom(sb: SupabaseClient, a: {
     tokensEntrada += (corpo.usage?.input_tokens ?? 0) + (corpo.usage?.cache_read_input_tokens ?? 0) + (corpo.usage?.cache_creation_input_tokens ?? 0);
     tokensSaida += corpo.usage?.output_tokens ?? 0;
     const pedidos = corpo.content.filter((b): b is Extract<Bloco, { type: "tool_use" }> => b.type === "tool_use");
+    textos.push(corpo.content.filter((b): b is Extract<Bloco, { type: "text" }> => b.type === "text").map((b) => b.text).join("\n"));
     if (corpo.stop_reason !== "tool_use" || !pedidos.length) {
-      const texto = corpo.content.filter((b): b is Extract<Bloco, { type: "text" }> => b.type === "text").map((b) => b.text).join("\n").trim();
+      const texto = juntar();
       return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo };
     }
     mensagens.push({ role: "assistant", content: corpo.content });

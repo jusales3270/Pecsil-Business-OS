@@ -59,6 +59,19 @@ const coleta = (setor: string): AccessFeature => ({
   levels: ["operar"],
 });
 
+/**
+ * SARA do módulo (I-12): o assistente de IA, liberado por pessoa. Só "ver", e sozinho não abre o
+ * módulo (a SARA usa as outras funcionalidades da pessoa para consultar).
+ */
+const sara = (setor: string): AccessFeature => ({
+  code: `${setor}.sara`,
+  label: "SARA (assistente do módulo)",
+  description: "Assistente de IA do módulo: orienta, consulta com as permissões da própria pessoa e abre as telas. Não dá acesso ao resto do módulo.",
+  levels: ["ver"],
+});
+/** Funcionalidades que não abrem o módulo sozinhas. */
+const naoAbreModulo = (code: string) => code.endsWith(".coleta") || code.endsWith(".sara");
+
 export const ACCESS_CATALOG: readonly AccessModule[] = [
   {
     code: "rh",
@@ -90,6 +103,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
       { code: "financeiro.relatorios", label: "Relatórios", description: "Relatórios financeiros e exportação.", levels: VER },
       { code: "financeiro.homologacao", label: "Homologação", description: "Plano de contas, alçadas e critérios de homologação.", levels: VER_OPERAR },
       coleta("financeiro"),
+      sara("financeiro"),
     ],
   },
   {
@@ -264,7 +278,7 @@ export function hasFeature(access: FeatureAccess, code: string, level: AccessLev
 export function hasModuleAccess(access: FeatureAccess, moduleCode: string, level: AccessLevel = "ver"): boolean {
   if (access.isOwner) return true;
   return Object.entries(access.grants ?? {}).some(
-    ([code, granted]) => code.startsWith(`${moduleCode}.`) && !code.endsWith(".coleta") && levelRank(granted) >= levelRank(level),
+    ([code, granted]) => code.startsWith(`${moduleCode}.`) && !naoAbreModulo(code) && levelRank(granted) >= levelRank(level),
   );
 }
 
@@ -277,7 +291,7 @@ export function derivePermissions(grants: AccessGrants): string[] {
   const permissions = new Set<string>(["core.search.view", "core.notifications.view"]);
   for (const [code, level] of Object.entries(grants)) {
     const entry = findFeature(code);
-    if (!entry || code.endsWith(".coleta")) continue;
+    if (!entry || naoAbreModulo(code)) continue;
     const moduleCode = entry.module.code;
     const rank = levelRank(level);
     if (moduleCode === "fundacao") {
