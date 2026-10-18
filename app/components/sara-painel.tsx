@@ -16,7 +16,7 @@ import { pedirRegistro, type PedidoRegistro } from "../../lib/abrir-registro";
  */
 
 type Salva = { id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean };
-type Estado = { nome: string; configurada: boolean; ferramentas: string[]; rotulos?: Record<string, string>; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
+type Estado = { nome: string; configurada: boolean; ferramentas: string[]; rotulos?: Record<string, string>; habilidades?: { id: string; nome: string; pedido: string }[]; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
 type Mensagem = { papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string };
 
@@ -27,7 +27,7 @@ const CONSULTA: Record<string, string> = {
   registrar_lacuna: "anotou o pedido",
 };
 // Navegação, não consulta: não entram no "Posso consultar".
-const NAVEGA = new Set(["abrir_tela", "abrir_lancamento", "registrar_lacuna"]);
+const NAVEGA = new Set(["abrir_tela", "abrir_lancamento", "registrar_lacuna", "propor_habilidade"]);
 const AVATAR = "/favicon.png?v=2";
 // Para quem usa é só "SARA": o módulo ("do Financeiro", "de Compras") é identificação interna dos agentes.
 const NOME = "SARA";
@@ -212,11 +212,11 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
     const registro = a.registro;
     if (registro) setTimeout(() => pedirRegistro(registro), 400);
   };
-  const perguntar = async (pergunta: string) => {
+  const perguntar = async (pergunta: string, habilidade?: string) => {
     const p = pergunta.trim();
     if (!p || pensando) return;
     setTexto(""); setMsgs((m) => [...m, { papel: "pessoa", texto: p, quando: new Date().toISOString() }]); setPensando(true);
-    const r = await fetch(`/api/sara/${modulo}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pergunta: p, conversa }) })
+    const r = await fetch(`/api/sara/${modulo}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pergunta: p, conversa, habilidade: habilidade ?? null }) })
       .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
     setPensando(false);
     if (!r.ok) { setMsgs((m) => [...m, { papel: "sara", texto: r.body?.error ?? "A SARA está indisponível agora.", erro: true, quando: new Date().toISOString() }]); return; }
@@ -290,6 +290,11 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
               <div className="sara-inicio">
                 <b className="sara-ola">{estado.saudacao}{estado.pessoa ? `, ${estado.pessoa}` : ""}!</b>
                 <p>Pergunte sobre o módulo ou peça um dado. Eu consulto com as suas permissões e mostro de onde veio cada número.</p>
+                {estado.habilidades && estado.habilidades.length > 0 && (
+                  <div className="sara-habilidades" aria-label="Habilidades da SARA">
+                    {estado.habilidades.map((h) => <button key={h.id} type="button" onClick={() => void perguntar(h.pedido, h.id)} title={h.pedido}><span aria-hidden>⚡</span> {h.nome}</button>)}
+                  </div>
+                )}
                 <div className="sara-sugestoes">{estado.sugestoes.map((s) => <button key={s} type="button" onClick={() => void perguntar(s)}>{s}</button>)}</div>
                 {estado.ferramentas.some((f) => !NAVEGA.has(f)) && <small>Posso consultar: {estado.ferramentas.filter((f) => !NAVEGA.has(f)).map(rotulo).join(", ")}{estado.ferramentas.some((f) => f === "abrir_tela" || f === "abrir_lancamento") ? ", e abrir as telas e os lançamentos que você usa" : ""}.</small>}
               </div>

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { filtrarEstado } from "../decisao/guard.ts";
+import { semPensar } from "./base.ts";
 import type { Abrir, Ferramenta, Fonte } from "./ferramentas.ts";
 
 /**
@@ -94,7 +95,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
       r = await buscar(API, {
         method: "POST", signal: ctrl.signal,
         headers: { "content-type": "application/json", "x-api-key": chave, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({ model: a.modelo, max_tokens: 1500, thinking: { type: "disabled" }, system: blocosDoSistema(a.sistema), messages: comCacheNoFim(mensagens), ...(tools.length ? { tools } : {}) }),
+        body: JSON.stringify({ model: a.modelo, max_tokens: 1500, thinking: semPensar(a.modelo), system: blocosDoSistema(a.sistema), messages: comCacheNoFim(mensagens), ...(tools.length ? { tools } : {}) }),
       });
     } catch (e) {
       if (a.sinal?.aborted) throw new Error("CANCELADA");

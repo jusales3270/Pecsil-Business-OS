@@ -9,6 +9,8 @@
  * Não lê o ambiente (chave e fetch entram por parâmetro), para os testes.
  */
 
+import { semPensar } from "./base.ts";
+
 export const MODELO_VERIFICADOR = "claude-haiku-5-5";
 const API = "https://api.anthropic.com/v1/messages";
 
@@ -38,7 +40,7 @@ export async function verificarEscopo(a: {
   const buscar = a.buscar ?? fetch;
   const corpo = {
     // Sem "pensamento": a resposta é uma palavra (o modelo não aceita mais temperature).
-    model: MODELO_VERIFICADOR, max_tokens: 5, thinking: { type: "disabled" }, system: instrucoes(a.empresa),
+    model: MODELO_VERIFICADOR, max_tokens: 5, thinking: semPensar(MODELO_VERIFICADOR), system: instrucoes(a.empresa),
     messages: [{ role: "user", content: `${a.contexto ? `<ultima_resposta_do_assistente>${a.contexto.slice(0, 400)}</ultima_resposta_do_assistente>\n` : ""}<mensagem>${a.pergunta.slice(0, 2000)}</mensagem>` }],
   };
   try {

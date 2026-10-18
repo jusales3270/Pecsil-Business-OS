@@ -443,3 +443,92 @@ test("Equipe: lê o Segundo Cérebro (documentos do setor) e anota as lacunas", 
   for (const m of ["compras", "almoxarifado", "fundicao", "comercial", "fiscal", "rh", "portaria", "producao"]) assert.match(sql, new RegExp(`\\('${m}\\.sara', '${m}', 'SARA \\(assistente do módulo\\)', '\\{ver\\}', 95\\)`));
   assert.doesNotMatch(sql, /user_feature_grants/, "ninguém recebe a permissão pela migração");
 });
+
+// --- O que a SARA aprendeu: lacunas e habilidades (proprietário, 18/10/2026) --------------------
+test("Habilidades: só com consultas do módulo, só para quem pode rodar todas, e viram instrução da SARA", async () => {
+  const { validarProposta, habilidadesQuePode, instrucoesDeHabilidades, PROPOR_HABILIDADE } = await import("../lib/sara/habilidades.ts");
+  const p = validarProposta({ nome: "Resumo da semana do caixa", descricao: "O que vence e como fica o caixa.", gatilhos: ["resumo da semana"],
+    passos: [{ ferramenta: "contas_a_pagar", para_que: "vence em 7 dias", entrada: { situacao: "a_vencer", dias: 7 } }, { ferramenta: "apagar_tudo", para_que: "x" }, { ferramenta: "fluxo_de_caixa_90_dias", para_que: "saldo" }],
+    formato: "tabela por dia" }, ["contas_a_pagar", "fluxo_de_caixa_90_dias"]);
+  assert.deepEqual(p.passos.map((x) => x.ferramenta), ["contas_a_pagar", "fluxo_de_caixa_90_dias"], "consulta inventada cai fora");
+  assert.equal(validarProposta({ nome: "X", descricao: "y", passos: [] }, ["a"]), null);
+  assert.equal(validarProposta({ nome: "Sem passos válidos", descricao: "nada", passos: [{ ferramenta: "outra", para_que: "?" }] }, ["a"]), null);
+  const h = [{ id: "1", ...p }, { id: "2", nome: "Outra", descricao: "d", gatilhos: ["g"], passos: [{ ferramenta: "bancos_e_conciliacao", para_que: "?" }], formato: null }];
+  assert.deepEqual(habilidadesQuePode(h, ["contas_a_pagar", "fluxo_de_caixa_90_dias"]).map((x) => x.id), ["1"], "sem a consulta de bancos, sem a habilidade que usa bancos");
+  assert.match(instrucoesDeHabilidades([h[0]]), /Habilidades aprovadas.*\n- Resumo da semana do caixa: .*Passos: 1\) contas_a_pagar \{"situacao":"a_vencer","dias":7\} — vence em 7 dias; 2\) fluxo_de_caixa_90_dias — saldo\. Apresente: tabela por dia\./s);
+  assert.equal(instrucoesDeHabilidades([]), "");
+  assert.deepEqual(PROPOR_HABILIDADE.exige, []);
+});
+
+test("Habilidades: a análise das conversas lê só perguntas sem dado pessoal e só propõe o que se repete", async () => {
+  const { analisarConversas } = await import("../lib/sara/habilidades.ts");
+  let pedido;
+  const buscar = async (_u, init) => { pedido = JSON.parse(init.body); return { ok: true, status: 200, json: async () => ({ usage: { input_tokens: 900, output_tokens: 200 }, content: [{ type: "tool_use", input: { habilidades: [
+    { nome: "Resumo semanal", descricao: "vencimentos da semana", gatilhos: ["resumo da semana"], passos: [{ ferramenta: "contas_a_pagar", para_que: "semana" }, { ferramenta: "fluxo", para_que: "caixa" }], vezes: 5, exemplos: ["o que vence esta semana?"] },
+    { nome: "Pergunta simples", descricao: "uma consulta só", gatilhos: ["x"], passos: [{ ferramenta: "contas_a_pagar", para_que: "x" }], vezes: 8 },
+    { nome: "Uma vez só", descricao: "raro", gatilhos: ["x"], passos: [{ ferramenta: "contas_a_pagar", para_que: "x" }], vezes: 1 },
+    { nome: "Inventada", descricao: "usa consulta que não existe", gatilhos: ["x"], passos: [{ ferramenta: "inventada", para_que: "x" }], vezes: 9 },
+  ] } }] }) }; };
+  const perguntas = ["o que vence esta semana?", "o que vence nesta semana?", "quais contas vencem na semana?", "resumo da semana por favor", "e o CPF 529.982.247-25 do fornecedor?"];
+  const r = await analisarConversas({ chave: "x", buscar, empresa: "Empresa X", rotulo: "Financeiro", perguntas, ferramentas: [{ nome: "contas_a_pagar", descricao: "contas" }, { nome: "fluxo", descricao: "caixa" }] });
+  assert.deepEqual(r.propostas.map((x) => x.nome), ["Resumo semanal"], "só o que se repete (3+), com consulta que existe e que vale a rotina (não a pergunta simples)");
+  assert.equal(r.usadas, 4, "a pergunta com CPF não sai para o modelo");
+  assert.doesNotMatch(JSON.stringify(pedido.messages), /529\.982/);
+  assert.deepEqual(pedido.tool_choice, { type: "tool", name: "propor_habilidades" });
+  assert.match(pedido.system, /módulo Financeiro.*Não invente consulta/s);
+  const poucas = await analisarConversas({ chave: "x", buscar: async () => { throw new Error("não devia chamar"); }, empresa: "E", rotulo: "RH", perguntas: ["uma", "duas"], ferramentas: [] });
+  assert.deepEqual(poucas.propostas, [], "com poucas perguntas, nem chama o modelo");
+});
+
+test("O que a SARA aprendeu: só o proprietário decide; lacunas e propostas registradas pela rota; tela na Fundação", () => {
+  const sql = readFileSync(new URL("../supabase/migrations/202610180006_sara_aprendizado.sql", import.meta.url), "utf8");
+  assert.match(sql, /if not public\.is_owner\(\) then raise exception 'Ativar ou recusar habilidades da SARA é do proprietário\./);
+  assert.match(sql, /if not public\.is_owner\(\) then raise exception 'O destino das lacunas é do proprietário\./);
+  assert.match(sql, /if p_origem = 'analise' and not public\.is_owner\(\)/, "a análise é do proprietário");
+  assert.match(sql, /and lower\(nome\) = lower\(btrim\(p_nome\)\) and situacao in \('proposta', 'ativa'\)/, "a mesma proposta só soma evidência");
+  assert.match(sql, /select case when public\.has_feature\(p_modulo \|\| '\.sara'\) then/, "habilidades ativas só para quem tem a SARA do módulo");
+  assert.match(sql, /\(select public\.is_owner\(\)\) or \(select public\.has_feature\('fundacao\.auditoria'\)\)/);
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
+  assert.match(rota, /sb\.rpc\("sara_lacunas_registrar"/);
+  assert.match(rota, /\.map\(\(f\) => validarProposta\(f\.entrada, doModulo\)\)/, "a proposta da conversa só usa consultas do módulo");
+  assert.match(rota, /if \(!fora && !lacunas\.length && pareceLacuna\(resposta\.texto\)\)/, "rede de segurança da lacuna");
+  assert.match(rota, /if \(!fora && !propostas\.length && pedidoRecorrente\(pergunta\)\)/, "rede de segurança da habilidade");
+  assert.match(rota, /after\(async \(\) => \{/, "a colheita roda depois da resposta");
+  assert.match(rota, /p_origem: "conversa"/);
+  assert.match(rota, /habilidadesQuePode\(\(hab \?\? \[\]\) as HabilidadeAtiva\[\], ferramentas\.map\(\(f\) => f\.nome\)\)/);
+  assert.match(rota, /instrucoesDeHabilidades\(p\.habilidades\)/);
+  const api = readFileSync(new URL("../app/api/sara/aprendizado/route.ts", import.meta.url), "utf8");
+  assert.match(api, /if \(!s\.access\.isOwner\) return NextResponse\.json\(\{ error: "A análise das conversas é do proprietário\." \}/);
+  const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /"O que a SARA aprendeu": "core\.audit\.view"/);
+  assert.match(page, /view==="O que a SARA aprendeu"\?<SaraAprendizado notify=\{notify\}\/>/);
+  const painel = readFileSync(new URL("../app/components/sara-painel.tsx", import.meta.url), "utf8");
+  assert.match(painel, /onClick=\{\(\) => void perguntar\(h\.pedido, h\.id\)\}/, "habilidade ativa vira atalho ⚡");
+});
+
+test("Habilidades: a plataforma reconhece o 'não consigo' e o pedido recorrente, e nomeia a rotina", async () => {
+  const { pareceLacuna, pedidoRecorrente, nomearHabilidade } = await import("../lib/sara/habilidades.ts");
+  assert.ok(pareceLacuna("Não consigo calcular o prazo médio: não tenho uma consulta que traga isso."));
+  assert.ok(pareceLacuna("I'm not able to calculate that."));
+  assert.ok(pareceLacuna("Ainda não tenho uma consulta para isso: anotei o pedido."));
+  assert.ok(pareceLacuna("Não tenho acesso a esse cálculo: as ferramentas mostram só o que está em aberto."));
+  assert.ok(!pareceLacuna("Você não tem permissão para ver as compras aprovadas no Compras."), "falta de permissão não é lacuna");
+  assert.ok(!pareceLacuna("Há 43 cotações esperando aprovação."));
+  for (const q of ["Toda segunda-feira eu preciso ver o que vence", "todo mês faço o fechamento", "Sempre que chega nota eu confiro", "preciso disso semanalmente", "todo fim de mês"]) assert.ok(pedidoRecorrente(q), q);
+  assert.ok(!pedidoRecorrente("O que vence esta semana?"));
+  const passos = [{ ferramenta: "contas_a_pagar", para_que: "x", entrada: { situacao: "a_vencer", dias: 7 } }];
+  const ok = await nomearHabilidade({ chave: "x", rotulo: "Financeiro", pergunta: "toda segunda vejo o que vence", passos,
+    buscar: async () => ({ ok: true, status: 200, json: async () => ({ content: [{ type: "tool_use", input: { nome: "Resumo da semana", descricao: "Vencimentos da semana.", gatilho: "resumo da semana", formato: "lista", para_que: ["o que vence nos 7 dias"] } }] }) }) });
+  assert.deepEqual([ok.nome, ok.gatilhos, ok.passos[0].para_que, ok.passos[0].entrada], ["Resumo da semana", ["resumo da semana"], "o que vence nos 7 dias", passos[0].entrada]);
+  const reserva = await nomearHabilidade({ chave: "x", rotulo: "Financeiro", pergunta: "toda segunda vejo o que vence", passos, buscar: async () => { throw new Error("rede"); } });
+  assert.equal(reserva.nome, "toda segunda vejo o que vence", "sem o modelo, o nome é o próprio pedido");
+});
+
+test("SARA: desliga o pensamento do jeito que cada modelo aceita (Haiku × Sonnet)", async () => {
+  const { semPensar } = await import("../lib/sara/base.ts");
+  assert.deepEqual(semPensar("claude-haiku-5-5"), { type: "disabled" });
+  assert.deepEqual(semPensar("claude-sonnet-5-5"), { type: "between_tools" }, "o Sonnet recusa disabled");
+  const { buscar, pedidos } = claudeFalso([{ stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] }]);
+  await conversarCom({}, { chave: "x", buscar, modelo: "claude-sonnet-5-5", sistema: "s", historico: [], pergunta: "?", ferramentas: [] });
+  assert.deepEqual(pedidos[0].thinking, { type: "between_tools" }, "a SARA no Sonnet não quebra");
+});
