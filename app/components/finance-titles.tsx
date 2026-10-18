@@ -5,6 +5,7 @@ import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../p
 import type { FinanceChartAccount, FinanceTitle } from "../../lib/data/finance";
 import { FinanceRevisao, useRevisaoCount } from "./finance-revisao";
 import { agruparRecebiveis, emAberto, resumoRecebiveis, situacaoRecebivel, type SituacaoRecebivel } from "../../lib/finance/recebiveis-core";
+import { ouvirRegistro, tomarRegistro } from "../../lib/abrir-registro";
 
 /**
  * Contas a pagar e Contas a receber: a mesma tela, com os nomes de cada lado.
@@ -100,6 +101,20 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
   const [mesQuitados, setMesQuitados] = useState(today.slice(0, 7));
   const [quitados, setQuitados] = useState<{ chave: string; titulos: FinanceTitle[]; erro: string } | null>(null);
   const chaveQuitados = `${direction}|${mesQuitados}`;
+
+  // A SARA pediu para abrir um título exato: vai para a aba onde ele está e abre o detalhe.
+  useEffect(() => {
+    const aplicar = () => {
+      const p = tomarRegistro((x) => x.tipo === "titulo" && x.direcao === direction);
+      if (!p) return;
+      setAba(p.aba);
+      if (p.mes) setMesQuitados(p.mes);
+      setSelecionado(p.id);
+    };
+    const t = setTimeout(aplicar, 0);
+    const parar = ouvirRegistro(aplicar);
+    return () => { clearTimeout(t); parar(); };
+  }, [direction]);
 
   const buscarQuitados = useCallback(async (chave: string) => {
     const [dir, month] = chave.split("|");

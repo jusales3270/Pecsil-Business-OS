@@ -266,6 +266,7 @@ Marco: **1**, **2** ou **+**.
 | I-09 | SARA níveis 2 a 4 e voz | 2 | 5 | 2 | 6 | 3 | 1,5 | travado | I-08 | BP Fase 6 |
 | I-10 | "Como faço?" (encaminhar a pergunta para a tela certa) | + | 3 | 1 | 1 | 3 | 5,0 | travado | I-08 | Jev E9 |
 | I-11 | Tutoriais em vídeo (piloto do orçamento) | + | 3 | 1 | 1 | 2 | 5,0 | decisão | HeyGen? | Tutoriais |
+| I-12 | SARA copilot por módulo, nível 1 (orienta e consulta com as permissões de quem pergunta; piloto Financeiro com a Ana) | 2 | 4 | 3 | 3 | 2 | 3,3 | em construção | Chave da Anthropic no servidor | [PLANO-SARA.md](PLANO-SARA.md) |
 
 ### K — Custo e análise
 
@@ -362,6 +363,7 @@ Marco: **1**, **2** ou **+**.
 | 16/10/2026 | P-02 construído na Forja (branch `feat/terceiros-operacao`): tela de terceiros na operação do artigo e a correção da aba de lotes, que mostrava toda OP como interna; teste de navegador 15/15 | Claude |
 | 17/10/2026 | F-09 construído: o escritório (ou o Fiscal) envia o PDF da guia no portal, a plataforma lê tipo, valor, vencimento e linha digitável por regra (valor conferido com o código de barras), quem envia confere e a guia vira conta a pagar EM APROVAÇÃO; aviso para quem aprova contas a pagar; guia repetida recusada; cancelamento com motivo enquanto não paga; o escritório vê só a situação do pagamento. Migração 202610170005 aplicada; teste de navegador 17/17 (contador, empresa e Financeiro) | Claude |
 | 17/10/2026 | Deploy de `5e2e354` (A-01, A-11, F-08, R-01, A-07, F-09 e tudo o que estava no main): terminou 23h29 | Proprietário |
+| 17/10/2026 | **SARA nível 1 antes da Fase 5** (decisão do proprietário): cada módulo ganha a sua SARA (copilot), que orienta e consulta só com as permissões de quem conversa e pode trazer dados de outros módulos quando a credencial permite. Modelo de conversa: Claude (Anthropic); Clef segue nas decisões. Piloto: Financeiro com a Ana. Grafo da empresa fica para depois. Novo item I-12; desenho em PLANO-SARA.md | Proprietário |
 | 17/10/2026 | C-01, parte 1: CLIENTE.xlsx do GRV (121). Os 38 clientes da plataforma não tinham nenhum dado fiscal; 18 PJ do Brasil completados só nos campos vazios (CNPJ, IE, indicador, CEP, endereço, bairro, município, UF, telefone) + consulta pública de CNPJ (número, complemento, código IBGE): 15 prontos para NF-e. Ficam para o Rafael: O-I e Verallia com várias fábricas (um cliente por CNPJ/fábrica; "OI-SP" e "VERALLIA" a ligar), 4 duplicados (Nadir, Cattorini, Parglass…), 86 só no GRV; exterior (4) para o Jefferson | Claude |
 | 17/10/2026 | B-07 (build fora do servidor) sai: o proprietário faz o Deploy manual pelo painel e está funcionando | Proprietário |
 | 17/10/2026 | Cargas do GRV (pedido do proprietário): 543 fornecedores completados pela exportação FORNECEDORES.xlsx, só campos vazios (CNPJ 30→519, endereço 16→534, e-mail 16→414…), sem pessoa física, ambíguos e novos para o Compras decidir (relatório); 3.123 itens do ATIVO IMOBILIZADO.xlsx no catálogo, inativos e sem estoque pela decisão A7 (12.463 materiais). 10 fornecedores duplicados (mesmo CNPJ) ficam para a unificação I-01 | Proprietário / Claude |
