@@ -532,3 +532,75 @@ test("SARA: desliga o pensamento do jeito que cada modelo aceita (Haiku × Sonne
   await conversarCom({}, { chave: "x", buscar, modelo: "claude-sonnet-5-5", sistema: "s", historico: [], pergunta: "?", ferramentas: [] });
   assert.deepEqual(pedidos[0].thinking, { type: "between_tools" }, "a SARA no Sonnet não quebra");
 });
+
+test("SARA visual: a plataforma preenche com o resultado da consulta, não com números do modelo", async () => {
+  const { resolverVisual, MOSTRAR, COMPONENTES } = await import("../lib/sara/visual.ts");
+  const fontes = [{ rotulo: "Financeiro › Contas a pagar", link: "/?module=financeiro" }];
+  const dados = { total_vencido: 1170000, parcelas: 359, maiores_primeiro: [
+    { fornecedor: "OTZI METALS", valor: 179000, vencimento: "2026-10-01" }, { fornecedor: "RICARDO", valor: "107000", vencimento: "2026-10-03" }, { fornecedor: "SEM VALOR", valor: "abc", vencimento: "x" }] };
+  const resultados = [{ nome: "contas_a_pagar", rotulo: "contas a pagar", dados, fontes }];
+  // O modelo manda um "valor" inventado: é ignorado, o visual sai com o número do banco.
+  const b = resolverVisual({ componente: "barras", titulo: "Maiores", consulta: "contas_a_pagar", caminho: "maiores_primeiro", rotulo: "fornecedor", valor: "valor", formato: "moeda", pontos: [{ rotulo: "X", valor: 1 }] }, resultados);
+  assert.deepEqual(b.visual.pontos, [{ rotulo: "OTZI METALS", valor: 179000 }, { rotulo: "RICARDO", valor: 107000 }], "texto não numérico fica de fora");
+  assert.equal(b.visual.origem, "contas a pagar");
+  assert.deepEqual(b.visual.fonte, fontes[0]);
+  const k = resolverVisual({ componente: "indicadores", titulo: "Vencido", consulta: "contas_a_pagar", campos: [{ campo: "total_vencido", formato: "moeda" }, { campo: "parcelas" }, { campo: "inventado" }] }, resultados);
+  assert.deepEqual(k.visual.itens.map((i) => i.valor), [1170000, 359]);
+  const d = resolverVisual({ componente: "lista_de_datas", titulo: "Vencimentos", consulta: "contas_a_pagar", caminho: "maiores_primeiro", data: "vencimento", rotulo: "fornecedor", valor: "valor" }, resultados);
+  assert.equal(d.visual.itens.length, 2, "linha sem data não entra");
+  // Recusas com o que existe, para o modelo corrigir.
+  assert.match(resolverVisual({ componente: "tabela", titulo: "t", consulta: "outra" }, resultados).erro, /não foi feita nesta resposta.*contas_a_pagar/);
+  assert.match(resolverVisual({ componente: "tabela", titulo: "t", consulta: "contas_a_pagar", caminho: "maiores_primeiro", campos: [{ campo: "cpf" }] }, resultados).erro, /Campos disponíveis: fornecedor, valor, vencimento/);
+  assert.match(resolverVisual({ componente: "barras", titulo: "t", consulta: "contas_a_pagar", caminho: "parcelas", rotulo: "a", valor: "b" }, resultados).erro, /não leva a uma lista.*maiores_primeiro/);
+  assert.match(resolverVisual({ componente: "grafico_3d", titulo: "t", consulta: "contas_a_pagar" }, resultados).erro, /Componente inválido/);
+  assert.deepEqual(MOSTRAR.esquema.properties.componente.enum, [...COMPONENTES]);
+  assert.equal(COMPONENTES.length, 6);
+});
+
+test("SARA visual: limita linhas e colunas, e a rosca junta o resto em Outros sem perder a soma", async () => {
+  const { resolverVisual } = await import("../lib/sara/visual.ts");
+  const lista = Array.from({ length: 50 }, (_, i) => ({ nome: `S${i}`, qtd: i + 1, a: 1, b: 2, c: 3, e: 4 }));
+  const r = [{ nome: "q", rotulo: "quadro", dados: { lista }, fontes: [] }];
+  const t = resolverVisual({ componente: "tabela", titulo: "t", consulta: "q", caminho: "lista", campos: ["nome", "qtd", "a", "b", "c"].map((campo) => ({ campo })) }, r);
+  assert.equal(t.visual.linhas.length, 30);
+  assert.equal(t.visual.colunas.length, 4);
+  assert.equal(t.visual.total, 50);
+  const ro = resolverVisual({ componente: "rosca", titulo: "t", consulta: "q", caminho: "lista", rotulo: "nome", valor: "qtd" }, r);
+  assert.equal(ro.visual.pontos.length, 6);
+  assert.equal(ro.visual.pontos[0].rotulo, "S49");
+  assert.match(ro.visual.pontos[5].rotulo, /^Outros \(45\)$/);
+  assert.equal(ro.visual.pontos.reduce((s, p) => s + p.valor, 0), (50 * 51) / 2);
+  const mapa = resolverVisual({ componente: "rosca", titulo: "OS", consulta: "os", caminho: "por_situacao" }, [{ nome: "os", rotulo: "ordens de serviço", dados: { por_situacao: { "em produção": 12, aguardando_material: 3 } }, fontes: [] }]);
+  assert.equal(ro.visual.total, 6, "na rosca todos os itens estão representados (com Outros): não é 'parte de'");
+  const semFormato = resolverVisual({ componente: "barras", titulo: "t", consulta: "c", caminho: "l", rotulo: "f", valor: "em_aberto" }, [{ nome: "c", rotulo: "c", dados: { l: [{ f: "A", em_aberto: 10.5 }, { f: "B", em_aberto: 3 }] }, fontes: [] }]);
+  assert.equal(semFormato.visual.formato, "moeda", "campo de dinheiro sem formato dito sai em reais");
+  assert.deepEqual(mapa.visual.pontos, [{ rotulo: "Em produção", valor: 12 }, { rotulo: "Aguardando material", valor: 3 }], "mapa de contagens vira itens");
+});
+
+test("SARA visual: no laço, mostrar usa a consulta da resposta; consulta bloqueada por dado pessoal não vira visual", async () => {
+  const { MOSTRAR } = await import("../lib/sara/visual.ts");
+  const mostrar = { componente: "barras", titulo: "Maiores", consulta: "contas_a_pagar", caminho: "lista", rotulo: "f", valor: "v", formato: "moeda" };
+  const { buscar, pedidos } = claudeFalso([
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "tool_use", id: "t1", name: "contas_a_pagar", input: {} }, { type: "tool_use", id: "t2", name: "mostrar", input: mostrar }] },
+    { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "A OTZI concentra a maior parte." }] },
+  ]);
+  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", { lista: [{ f: "OTZI", v: 10 }, { f: "ITAU", v: 5 }] }), MOSTRAR] });
+  assert.equal(r.visuais.length, 1);
+  assert.deepEqual(r.visuais[0].pontos.map((p) => p.valor), [10, 5]);
+  assert.match(pedidos[1].messages.at(-1).content[1].content, /"mostrado":true/);
+  assert.match(pedidos[1].messages.at(-1).content[0].content, /chame mostrar com consulta "contas_a_pagar".*lista \(2 itens; campos: f, v\)/, "a dica vai junto do resultado com lista");
+  const { buscar: b2, pedidos: p2 } = claudeFalso([
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "tool_use", id: "t1", name: "contas_a_pagar", input: {} }, { type: "tool_use", id: "t2", name: "mostrar", input: mostrar }] },
+    { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] },
+  ]);
+  const r2 = await conversarCom({}, { chave: "x", buscar: b2, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", { lista: [{ f: "JOAO", v: 10, cpf: "529.982.247-25" }] }), MOSTRAR] });
+  assert.deepEqual(r2.visuais, []);
+  assert.match(p2[1].messages.at(-1).content[1].content, /não foi feita nesta resposta/);
+  assert.doesNotMatch(p2[1].messages.at(-1).content[0].content, /chame mostrar/, "resultado bloqueado não leva dica");
+  // Sem a ferramenta na lista, "mostrar" não roda e não há dica.
+  const { buscar: b3 } = claudeFalso([
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "tool_use", id: "t1", name: "mostrar", input: mostrar }] },
+    { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] },
+  ]);
+  assert.deepEqual((await conversarCom({}, { chave: "x", buscar: b3, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [] })).visuais, []);
+});

@@ -3,6 +3,8 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type PointerEvent as EventoPonteiro, type ReactNode } from "react";
 import { Callout } from "../../packages/design-system";
 import { pedirRegistro, type PedidoRegistro } from "../../lib/abrir-registro";
+import type { Visual } from "../../lib/sara/visual";
+import { SaraVisual } from "./sara-visual";
 
 /**
  * SARA do módulo (I-12, nível 1): janela flutuante sobre o módulo. Orienta e consulta com as
@@ -15,10 +17,10 @@ import { pedirRegistro, type PedidoRegistro } from "../../lib/abrir-registro";
  * pessoa abrir a janela e vê-los; depois daquele aviso, não pulsa mais (até a situação mudar).
  */
 
-type Salva = { id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean };
+type Salva = { id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean; visuais?: Visual[] };
 type Estado = { nome: string; configurada: boolean; ferramentas: string[]; rotulos?: Record<string, string>; habilidades?: { id: string; nome: string; pedido: string }[]; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
-type Mensagem = { papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string };
+type Mensagem = { papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string; visuais?: Visual[] };
 
 const CONSULTA: Record<string, string> = {
   contas_a_pagar: "contas a pagar", contas_a_receber: "contas a receber", fluxo_de_caixa_90_dias: "fluxo de caixa",
@@ -27,7 +29,7 @@ const CONSULTA: Record<string, string> = {
   registrar_lacuna: "anotou o pedido",
 };
 // Navegação, não consulta: não entram no "Posso consultar".
-const NAVEGA = new Set(["abrir_tela", "abrir_lancamento", "registrar_lacuna", "propor_habilidade"]);
+const NAVEGA = new Set(["abrir_tela", "abrir_lancamento", "registrar_lacuna", "propor_habilidade", "mostrar"]);
 const AVATAR = "/favicon.png?v=2";
 // Para quem usa é só "SARA": o módulo ("do Financeiro", "de Compras") é identificação interna dos agentes.
 const NOME = "SARA";
@@ -164,7 +166,7 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
       const salvas = e.conversa;
       setMsgs((atuais) => (atuais.length ? atuais : salvas.mensagens.map((m) => ({
         papel: m.papel, texto: m.texto, quando: m.quando, id: m.papel === "sara" ? m.id : null, nota: m.nota ?? undefined,
-        consultas: m.consultas, fontes: m.fontes, abrir: m.abrir, fora: m.fora,
+        consultas: m.consultas, fontes: m.fontes, abrir: m.abrir, fora: m.fora, visuais: m.visuais ?? [],
       }))));
       setConversa((atual) => atual ?? salvas.id);
     }
@@ -221,7 +223,7 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
     setPensando(false);
     if (!r.ok) { setMsgs((m) => [...m, { papel: "sara", texto: r.body?.error ?? "A SARA está indisponível agora.", erro: true, quando: new Date().toISOString() }]); return; }
     setConversa(r.body.conversa ?? conversa);
-    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo), quando: new Date().toISOString() }]);
+    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo), quando: new Date().toISOString(), visuais: r.body.visuais ?? [] }]);
     // A SARA pediu para mostrar uma tela: abre por dentro da plataforma (a janela continua aberta).
     if (r.body.abrir) abrir(r.body.abrir);
   };
@@ -305,6 +307,7 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
               <div className={`sara-msg ${m.papel}${m.erro ? " erro" : ""}${m.fora ? " fora" : ""}`}>
                 {m.papel === "sara" && !m.erro && <span className="sara-selo">{m.fora ? "SARA (IA) · fora do escopo" : "SARA (IA)"}{m.quando ? <i> · {horaSP(m.quando)}</i> : null}</span>}
                 <div className="sara-texto">{m.papel === "sara" ? <Texto texto={m.texto} /> : <p>{m.texto}</p>}</div>
+                {m.visuais?.map((v, k) => <SaraVisual key={k} v={v} />)}
                 {m.consultas && m.consultas.length > 0 && <small className="sara-consultas">Consultou: {[...new Set(m.consultas)].map(rotulo).join(", ")}</small>}
                 {m.abrir && <button type="button" className="sara-abrir" onClick={() => abrir(m.abrir!)}>Abrir {m.abrir.rotulo}</button>}
                 {m.fontes && m.fontes.length > 0 && <div className="sara-fontes">{m.fontes.map((f) => <a key={f.link} href={f.link}>{f.rotulo}</a>)}</div>}

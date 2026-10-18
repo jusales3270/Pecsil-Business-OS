@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { filtrarEstado } from "../decisao/guard.ts";
 import { semPensar } from "./base.ts";
 import type { Abrir, Ferramenta, Fonte } from "./ferramentas.ts";
+import { dicaVisual, MOSTRAR, resolverVisual, type ResultadoConsulta, type Visual } from "./visual.ts";
 
 /**
  * Laço da conversa da SARA com o Claude (Anthropic) por *tool use*. Não lê o ambiente (a chave e o
@@ -22,6 +23,8 @@ export type RespostaSara = {
   texto: string; fontes: Fonte[]; abrir: Abrir | null; ferramentas: { nome: string; entrada: unknown; ok: boolean }[];
   /** tokensEntrada inclui os tokens lidos do cache e os gravados nele (volume total de entrada). */
   tokensEntrada: number; tokensSaida: number; cacheLido: number; cacheGravado: number; modelo: string;
+  /** Visuais montados pela plataforma com o resultado das consultas (o modelo só apontou). */
+  visuais: Visual[];
 };
 export type Sistema = string | { fixo: string; variavel: string };
 
@@ -63,13 +66,23 @@ export async function conversarCom(sb: SupabaseClient, a: {
   // O texto de todas as rodadas: o modelo pode escrever a resposta antes de pedir uma ferramenta
   // (ex.: dá o total e depois abre a tela). Ficar só com a última rodada perdia essa parte.
   const textos: string[] = [];
+  // Resultado de cada consulta desta resposta (já filtrado de dado pessoal), para montar os visuais.
+  const resultados: ResultadoConsulta[] = [];
+  const visuais: Visual[] = [];
   // Sem as frases de passagem ("Vou consultar…") e sem repetir o que já foi dito.
   const juntar = () => {
     const partes = textos.map((t) => t.trim()).filter(Boolean);
     return partes.filter((t, i) => !(i < partes.length - 1 && (PASSAGEM.test(t) || partes.slice(i + 1).some((d) => d.includes(t))))).join("\n\n");
   };
 
+  const podeMostrar = a.ferramentas.some((x) => x.nome === MOSTRAR.nome);
   const executar = async (nome: string, entrada: Record<string, unknown>): Promise<{ conteudo: string; ok: boolean }> => {
+    if (nome === MOSTRAR.nome && podeMostrar) {
+      const r = resolverVisual(entrada, resultados);
+      if ("erro" in r) return { conteudo: JSON.stringify({ erro: r.erro }), ok: false };
+      if (visuais.length < 4) visuais.push(r.visual);
+      return { conteudo: JSON.stringify({ mostrado: true, componente: r.visual.componente, observacao: "O visual aparece abaixo do seu texto: não repita os números dele no texto, só o resumo." }), ok: true };
+    }
     const f = a.ferramentas.find((x) => x.nome === nome);
     if (!f) return { conteudo: JSON.stringify({ erro: "Ferramenta indisponível para esta pessoa (sem permissão)." }), ok: false };
     try {
@@ -79,7 +92,9 @@ export async function conversarCom(sb: SupabaseClient, a: {
       if (!filtro.ok) return { conteudo: JSON.stringify({ erro: "Resultado bloqueado: continha dado pessoal.", motivos: filtro.motivos }), ok: false };
       fontes.push(...res.fontes);
       if (res.abrir) abrir = res.abrir;
-      return { conteudo: json.slice(0, 30_000), ok: true };
+      resultados.push({ nome, rotulo: f.rotulo ?? nome.replace(/_/g, " "), dados: res.dados, fontes: res.fontes });
+      const dica = podeMostrar && !res.abrir ? dicaVisual(nome, res.dados) : null;
+      return { conteudo: json.slice(0, 30_000) + (dica ? `\n\n${dica}` : ""), ok: true };
     } catch (e) { return { conteudo: JSON.stringify({ erro: `A consulta falhou: ${e instanceof Error ? e.message.slice(0, 200) : "erro"}` }), ok: false }; }
   };
 
@@ -111,18 +126,18 @@ export async function conversarCom(sb: SupabaseClient, a: {
     textos.push(corpo.content.filter((b): b is Extract<Bloco, { type: "text" }> => b.type === "text").map((b) => b.text).join("\n"));
     if (corpo.stop_reason !== "tool_use" || !pedidos.length) {
       const texto = juntar();
-      return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo };
+      return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais };
     }
     mensagens.push({ role: "assistant", content: corpo.content });
-    const resultados = [];
+    const devolvidos = [];
     for (const p of pedidos) {
       const { conteudo, ok } = await executar(p.name, p.input ?? {});
       usadas.push({ nome: p.name, entrada: p.input, ok });
-      resultados.push({ type: "tool_result", tool_use_id: p.id, content: conteudo });
+      devolvidos.push({ type: "tool_result", tool_use_id: p.id, content: conteudo });
     }
-    mensagens.push({ role: "user", content: resultados });
+    mensagens.push({ role: "user", content: devolvidos });
   }
-  return { texto: "A pergunta pediu consultas demais. Tente uma pergunta mais direta.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo };
+  return { texto: "A pergunta pediu consultas demais. Tente uma pergunta mais direta.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais };
 }
 
 const unicas = (f: Fonte[]) => f.filter((x, i) => f.findIndex((y) => y.link === x.link) === i);
