@@ -43,7 +43,13 @@ const extrairValorNumericoMoeda = (texto: string) => {
   return Number(apenasNumeros) / 100;
 };
 
-function App({ onExit }: { onExit?: () => void } = {}) {
+// Seção pedida (link, SARA): o id da página ou o rótulo do menu ("Frota" é a página de veículos).
+const PAGINA_DA_SECAO: Record<string, PaginaAtiva> = {
+  dashboard: 'dashboard', Dashboard: 'dashboard', visitas: 'visitas', Visitas: 'visitas', terceiros: 'terceiros', Terceiros: 'terceiros',
+  recebidos: 'recebidos', Recebidos: 'recebidos', veiculos: 'veiculos', Frota: 'veiculos',
+};
+
+function App({ onExit, initialSection }: { onExit?: () => void; initialSection?: string } = {}) {
   const [visitas, setVisitas] = useState<Visita[]>([]);
   const [veiculos, setVeiculos] = useState<ControleVeiculo[]>([]);
   const [terceiros, setTerceiros] = useState<RegistroTerceiro[]>([]);
@@ -51,7 +57,7 @@ function App({ onExit }: { onExit?: () => void } = {}) {
   const [quadroTerceiros, setQuadroTerceiros] = useState<string[]>(() => quadroTerceirosGuardado());
   const [carregando, setCarregando] = useState(true);
   const { user, perfil, loading: authLoading, signOut } = useAuth();
-  const [paginaAtiva, setPaginaAtiva] = useState<PaginaAtiva>('dashboard');
+  const [paginaAtiva, setPaginaAtiva] = useState<PaginaAtiva>(() => (initialSection && PAGINA_DA_SECAO[initialSection]) || 'dashboard');
   const { registerNav } = useModuleNav();
   const [busca, setBusca] = useState('');
   const [filtroResponsavel, setFiltroResponsavel] = useState('todos');

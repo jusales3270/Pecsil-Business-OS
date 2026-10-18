@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useStore } from '@/store';
 import Layout from '@/components/Layout';
 import DashboardPage from '@/pages/DashboardPage';
@@ -53,9 +53,13 @@ export default function ComprasApp({ access, onExit, embedded = false, initialSe
 
   // Visão inicial: mantém a escolhida se ainda for permitida; o nome exibido é
   // sempre o do usuário logado.
+  // Pedir uma aba que só existe na visão de Gestor (link, SARA) muda para ela, uma vez.
+  const pedidoGestor = useRef(initialSection === 'pendentes' || initialSection === 'historico');
   useEffect(() => {
     if (!views.length) return;
-    const role = currentView(views, user?.role);
+    const querGestor = pedidoGestor.current && views.includes('GESTOR');
+    if (querGestor) pedidoGestor.current = false;
+    const role = querGestor ? 'GESTOR' : currentView(views, user?.role);
     if (!role) return;
     if (!user || user.role !== role || user.name !== access.name) login(role, access.name);
   }, [views, user, login, access.name]);

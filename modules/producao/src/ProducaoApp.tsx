@@ -49,12 +49,13 @@ const SECTION_FEATURE: Record<ProducaoSection, string> = {
   "Conexão Forja": "producao.conexao",
 };
 
-export default function ProducaoApp({ onExit, onEvent, notify, access }: ModuleRuntimeProps) {
+export default function ProducaoApp({ onExit, onEvent, notify, access, initialSection }: ModuleRuntimeProps) {
   const allowedSections = useMemo(
     () => sections.filter(([label]) => canUseFeature(access, SECTION_FEATURE[label])),
     [access],
   );
-  const [section, setSection] = useState<ProducaoSection>(() => allowedSections[0]?.[0] ?? "Painel");
+  // A seção pedida (link, SARA) abre direto, se a pessoa puder vê-la.
+  const [section, setSection] = useState<ProducaoSection>(() => allowedSections.find(([label]) => label === initialSection)?.[0] ?? allowedSections[0]?.[0] ?? "Painel");
 
   const { registerNav } = useModuleNav();
   const {

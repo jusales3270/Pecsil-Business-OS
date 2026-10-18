@@ -316,7 +316,7 @@ test("SARA avisos: só as regras que a pessoa pode ver; novidades do módulo nos
   assert.equal(varias.length, 1, "várias novidades viram um aviso só");
   assert.equal(varias[0].chave, "financeiro.novidades:2026-10-14-e", "a chave é a novidade mais nova: volta a pulsar quando sai outra");
   assert.match(varias[0].detalhe, /^Te · Td · Tc e mais 2\./);
-  assert.deepEqual(await alertasDo("compras", sbProibido, { pode: () => true, hoje: "2026-10-18" }), [], "módulo sem regras");
+  assert.deepEqual(await alertasDo("modulo_sem_sara", sbProibido, { pode: () => true, hoje: "2026-10-18" }), [], "módulo sem SARA");
 });
 
 test("SARA avisos: conciliação pendente e extrato atrasado são urgentes; a chave muda com a situação", async () => {
@@ -373,4 +373,73 @@ test("SARA: a consulta de bancos lê o extrato em páginas de 1.000 (saldo e con
   assert.deepEqual(pedidos, [[0, 999], [1000, 1999]]);
   assert.equal(r.dados.contas[0].a_conciliar, 402);
   assert.equal(r.dados.contas[0].saldo_pelo_extrato, 1, "908 créditos − 907 débitos");
+});
+
+// --- Equipe de SARAs (proprietário, 18/10/2026) ------------------------------------------------
+test("Equipe: uma SARA por módulo, cada uma liberada por pessoa e com consultas, telas e avisos próprios", async () => {
+  const { AGENTES } = await import("../lib/sara/agentes/index.ts");
+  const { FERRAMENTAS } = await import("../lib/sara/ferramentas.ts");
+  const { ACCESS_CATALOG } = await import("../modules/access-catalog.ts");
+  const { REGRAS } = await import("../lib/sara/alertas.ts");
+  const modulos = AGENTES.map((a) => a.sara.modulo).sort();
+  assert.deepEqual(modulos, ["almoxarifado", "comercial", "compras", "fiscal", "fundicao", "portaria", "producao", "rh"]);
+  const nomes = FERRAMENTAS.map((f) => f.nome);
+  assert.equal(new Set(nomes).size, nomes.length, "nomes de consulta únicos na equipe");
+  const catalogo = new Set(ACCESS_CATALOG.flatMap((m) => m.features.map((f) => f.code)));
+  for (const a of AGENTES) {
+    const s = a.sara;
+    assert.equal(s.permissao, `${s.modulo}.sara`); assert.ok(catalogo.has(s.permissao), `${s.permissao} em Pessoas e Acessos`);
+    assert.equal(SARAS[s.modulo], s, `${s.modulo} registrada`);
+    for (const n of s.ferramentas) assert.ok(nomes.includes(n), `${s.modulo}: consulta ${n} existe`);
+    for (const f of a.ferramentas) { assert.ok(f.rotulo, `${f.nome} tem rótulo`); assert.ok(f.exige.length, `${f.nome} exige permissão`); }
+    assert.ok(s.telas.length && s.telas.every((t) => t.exige.length), `${s.modulo}: telas com permissão`);
+    assert.ok(s.sugestoes.length >= 3);
+    assert.match(s.manual, /Quem decide/, `${s.modulo}: diz quem decide`);
+    assert.ok(REGRAS[s.modulo]?.length, `${s.modulo}: tem regras de aviso`);
+  }
+});
+
+test("Equipe: RH, Portaria, Fiscal e Comercial nunca pedem dado pessoal, de saúde, biometria ou segredo", () => {
+  const ler = (m) => readFileSync(new URL(`../lib/sara/agentes/${m}.ts`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const selects = (src) => [...src.matchAll(/\.select\("([^"]+)"/g)].map((x) => x[1]).join(",");
+  const rh = selects(ler("rh"));
+  for (const c of ["cpf", "pis", "ctps", "phone", "salario", "cid_codes", "diagnosis", "reason", "note", "rh_employee_personal_data", "rh_absence_clinical"]) assert.ok(!rh.includes(c), `RH não pede ${c}`);
+  assert.match(ler("rh"), /\.eq\("clinical_confidential", false\)/, "exame confidencial fica de fora");
+  const portaria = selects(ler("portaria"));
+  for (const c of ["foto_base64", "face_descriptor", "documento", "contato", "*"]) assert.ok(!portaria.split(",").map((x) => x.trim()).includes(c), `Portaria não pede ${c}`);
+  assert.doesNotMatch(ler("portaria"), /match_visitantes/);
+  const fiscal = ler("fiscal");
+  const colunasFiscal = selects(fiscal).split(",").map((x) => x.trim());
+  for (const c of ["xml", "xml_autorizado", "nfe_xml"]) assert.ok(!colunasFiscal.includes(c), `Fiscal não pede ${c}`);
+  assert.doesNotMatch(fiscal, /linha_digitavel|fiscal_certificado_segredos|destinatario_documento/);
+  const comercial = ler("comercial");
+  assert.doesNotMatch(selects(comercial), /body_text|body|to_address|delta_link|mailbox_id/, "Comercial não lê corpo de e-mail nem credencial");
+  assert.match(comercial, /length === 11 \? "\(pessoa física\)"/, "CPF de pessoa física não sai");
+  assert.doesNotMatch(ler("producao"), /production_order_financials/, "Produção não mostra custo/margem");
+  assert.doesNotMatch(ler("fundicao"), /cotacoes|valor_unit/, "quem é da Fundição não vê preço do Compras");
+});
+
+test("Equipe: navegação até a tela certa em cada módulo e a SARA certa dentro do departamento Comercial", () => {
+  const ler = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+  assert.match(ler("modules/producao/src/ProducaoApp.tsx"), /allowedSections\.find\(\(\[label\]\) => label === initialSection\)/);
+  assert.match(ler("modules/portaria/src/App.tsx"), /useState<PaginaAtiva>\(\(\) => \(initialSection && PAGINA_DA_SECAO\[initialSection\]\) \|\| 'dashboard'\)/);
+  assert.match(ler("modules/portaria/src/PortariaApp.tsx"), /<InnerApp onExit=\{onExit\} initialSection=\{initialSection\} \/>/);
+  assert.match(ler("app/components/hr-module.tsx"), /const pedida = sections\.find\(\(\[label\]\) => label === initialSection\)/);
+  assert.match(ler("app/page.tsx"), /<HrModule key=\{`\$\{snapshot\.loadedAt\}-\$\{moduleSection\?\.n\?\?0\}`\} initialSection=\{moduleSection\?\.secao\}/);
+  assert.match(ler("modules/comercial/src/ComercialApp.tsx"), /if \(secaoCrmPedida\) return "crm";/);
+  assert.match(ler("modules/comercial/src/ComercialApp.tsx"), /new CustomEvent\("pecsil:area-ativa"/);
+  assert.match(ler("app/page.tsx"), /const sara=area&&SARAS\[area\]\?area:activeModuleId;/);
+  assert.match(ler("modules/compras/src/App.tsx"), /const querGestor = pedidoGestor\.current && views\.includes\('GESTOR'\);/);
+});
+
+test("Equipe: lê o Segundo Cérebro (documentos do setor) e anota as lacunas", () => {
+  const doc = readFileSync(new URL("../lib/sara/documentos.ts", import.meta.url), "utf8");
+  assert.match(doc, /sb\.rpc\("company_document_search", \{ p_q: busca, p_setor: modulo, p_limite: 6 \}\)/, "com a sessão de quem pergunta (RLS do documento)");
+  assert.match(doc, /link: `\/api\/documentos\/\$\{d\.id\}\/baixar`/);
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
+  assert.match(rota, /const documentos = ferramentaDeDocumentos\(modulo, \(f\) => access\.can\(f, "ver"\)\)/);
+  assert.match(rota, /lacunas: r\.ferramentas\.filter\(\(f\) => f\.nome === LACUNA\.nome\)/, "lacunas registradas na conversa");
+  const sql = readFileSync(new URL("../supabase/migrations/202610180005_sara_equipe.sql", import.meta.url), "utf8");
+  for (const m of ["compras", "almoxarifado", "fundicao", "comercial", "fiscal", "rh", "portaria", "producao"]) assert.match(sql, new RegExp(`\\('${m}\\.sara', '${m}', 'SARA \\(assistente do módulo\\)', '\\{ver\\}', 95\\)`));
+  assert.doesNotMatch(sql, /user_feature_grants/, "ninguém recebe a permissão pela migração");
 });

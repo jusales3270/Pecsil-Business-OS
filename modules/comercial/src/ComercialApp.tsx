@@ -64,13 +64,22 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
 
   // Abre no CRM, que é a razão de o departamento existir; o atalho antigo
   // `/?module=compras` continua abrindo direto em Compras.
+  // A seção pedida (link, SARA, Parados) decide a área quando ela é do CRM ou de Vendas.
+  const secaoCrmPedida = secoesCrm.find((x) => x.id === initialSection)?.id;
+  const secaoVendasPedida = secoesVendas.find((x) => x.id === initialSection)?.id;
   const [area, setArea] = useState<Area>(() => {
     if (initialArea === "compras" && podeCompras) return "compras";
+    if (secaoCrmPedida) return "crm";
+    if (secaoVendasPedida) return "vendas";
     if (initialArea === "crm" && podeCrm) return "crm";
     if (initialArea === "vendas" && podeVendas) return "vendas";
     return podeCrm ? "crm" : podeVendas ? "vendas" : "compras";
   });
-  const [crmSection, setCrmSection] = useState<CrmSection>(() => secoesCrm[0]?.id ?? "caixa");
+  const [crmSection, setCrmSection] = useState<CrmSection>(() => secaoCrmPedida ?? secoesCrm[0]?.id ?? "caixa");
+  // Avisa a casca qual área está aberta: Compras tem SARA própria, CRM e Vendas usam a do Comercial.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("pecsil:area-ativa", { detail: { modulo: "comercial", area: area === "compras" ? "compras" : "comercial" } }));
+  }, [area]);
   // Clicar na seção do menu (mesmo a já aberta) volta para a lista dela: remonta a tela.
   const [vendasVolta, setVendasVolta] = useState(0);
   const [vendasSection, setVendasSection] = useState<VendasSection>(() =>

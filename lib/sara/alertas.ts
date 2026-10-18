@@ -1,5 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { FERRAMENTAS, type Abrir } from "./ferramentas.ts";
+import { AGENTES } from "./agentes/index.ts";
+import type { Abrir, Alerta, ContextoAlertas, Regra } from "./base.ts";
+import { dias } from "./base.ts";
+import { FERRAMENTAS } from "./ferramentas.ts";
+import { SARAS } from "./modulos.ts";
+
+export type { Alerta, ContextoAlertas, Nivel } from "./base.ts";
 
 /**
  * Avisos da SARA em cada módulo (proprietário, 18/10/2026). Saem dos DADOS, calculados pela plataforma
@@ -10,14 +16,9 @@ import { FERRAMENTAS, type Abrir } from "./ferramentas.ts";
  * abre a SARA e vê, aquela chave deixa de pulsar; se a situação mudar, a chave muda e o aviso volta.
  */
 
-export type Nivel = "urgente" | "aviso";
-export type Alerta = { chave: string; nivel: Nivel; titulo: string; detalhe: string; abrir?: Abrir };
-export type ContextoAlertas = { pode: (feature: string) => boolean; hoje: string; novidades?: { id: string; data: string; titulo: string }[] };
-type Regra = { exige: string[]; gerar: (sb: SupabaseClient, c: ContextoAlertas) => Promise<Alerta[]> };
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const data = (iso: string) => iso.split("-").reverse().join("/");
-const dias = (de: string, ate: string) => Math.round((Date.parse(`${ate}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 86_400_000);
 const plural = (n: number, um: string, varios: string) => `${n.toLocaleString("pt-BR")} ${n === 1 ? um : varios}`;
 const tela = (secao: string): Abrir => ({ modulo: "financeiro", secao, rotulo: `Financeiro › ${secao}` });
 /** Usa a mesma consulta das ferramentas da SARA (e as mesmas permissões). */
@@ -119,28 +120,29 @@ const FINANCEIRO: Regra[] = [
       }] : [];
     },
   },
-  {
-    // Novidades do módulo nos últimos 14 dias (já filtradas por quem pode ver), num aviso só: volta a
-    // pulsar quando sai uma novidade nova.
-    exige: [],
-    gerar: async (_sb, c) => {
-      const recentes = (c.novidades ?? []).filter((x) => dias(x.data, c.hoje) <= 14).sort((a, b) => b.data.localeCompare(a.data));
-      if (!recentes.length) return [];
-      const mais = recentes.length > 3 ? ` e mais ${recentes.length - 3}` : "";
-      return [{
-        chave: `financeiro.novidades:${recentes[0].id}`, nivel: "aviso",
-        titulo: recentes.length === 1 ? "Novidade no Financeiro" : `${recentes.length} novidades no Financeiro`,
-        detalhe: `${recentes.slice(0, 3).map((x) => x.titulo).join(" · ")}${mais}. Veja tudo em Atualizar.`,
-      }];
-    },
-  },
 ];
 
-export const REGRAS: Record<string, Regra[]> = { financeiro: FINANCEIRO };
+export const REGRAS: Record<string, Regra[]> = { financeiro: FINANCEIRO, ...Object.fromEntries(AGENTES.map((a) => [a.sara.modulo, a.regras])) };
+
+/**
+ * Novidades do módulo nos últimos 14 dias (já filtradas por quem pode ver), num aviso só: volta a
+ * pulsar quando sai uma novidade nova. Vale para todo módulo da equipe.
+ */
+function novidades(modulo: string, rotulo: string, c: ContextoAlertas): Alerta[] {
+  const recentes = (c.novidades ?? []).filter((x) => dias(x.data, c.hoje) <= 14).sort((a, b) => b.data.localeCompare(a.data));
+  if (!recentes.length) return [];
+  const mais = recentes.length > 3 ? ` e mais ${recentes.length - 3}` : "";
+  return [{
+    chave: `${modulo}.novidades:${recentes[0].id}`, nivel: "aviso",
+    titulo: recentes.length === 1 ? `Novidade no módulo ${rotulo}` : `${recentes.length} novidades no módulo ${rotulo}`,
+    detalhe: `${recentes.slice(0, 3).map((x) => x.titulo).join(" · ")}${mais}. Veja tudo em Atualizar.`,
+  }];
+}
 
 /** Avisos do módulo para a pessoa: só as regras que ela pode ver; uma regra que falhar não derruba as outras. Urgentes primeiro. */
 export async function alertasDo(modulo: string, sb: SupabaseClient, c: ContextoAlertas): Promise<Alerta[]> {
   const regras = (REGRAS[modulo] ?? []).filter((r) => !r.exige.length || r.exige.some(c.pode));
   const lotes = await Promise.all(regras.map((r) => r.gerar(sb, c).catch((e) => { console.error("[sara] aviso falhou", e instanceof Error ? e.message : e); return [] as Alerta[]; })));
+  if (SARAS[modulo]) lotes.push(novidades(modulo, SARAS[modulo].rotulo, c));
   return lotes.flat().sort((a, b) => (a.nivel === b.nivel ? 0 : a.nivel === "urgente" ? -1 : 1));
 }
