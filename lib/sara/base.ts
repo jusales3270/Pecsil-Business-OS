@@ -37,6 +37,15 @@ export type SaraModulo = {
   ferramentas: string[];
   telas: Tela[];
   sugestoes: string[];
+  /**
+   * Modelo próprio do módulo, quando o proprietário autorizou um mais capaz (19/10/2026: só a TI, com o
+   * Sonnet, por ser técnica). Sem ele, o Haiku. Uma linha em sara_modulos continua valendo por cima.
+   */
+  modelo?: "claude-haiku-5-5" | "claude-sonnet-5-5";
+  /** Tamanho máximo de cada resposta (padrão 1.500 tokens). */
+  maxTokens?: number;
+  /** Quem conversa é técnico (a TI): linguagem técnica, passos e comandos completos, no lugar de "curto e sem jargão". */
+  tecnico?: boolean;
 };
 
 export type Nivel = "urgente" | "aviso";

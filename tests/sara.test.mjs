@@ -662,6 +662,8 @@ test("SARA tema: cada módulo tem assunto e fontes oficiais; a pesquisa só ness
   for (const m of Object.keys(SARAS)) {
     assert.ok(TEMAS[m], `tema de ${m}`);
     assert.ok(TEMAS[m].dominios.length >= 2);
+    // A TI é a exceção autorizada (19/10/2026): documentação de fabricante e de sistema, mas a lista segue fechada.
+    if (m === "ti") { for (const d of TEMAS[m].dominios) assert.match(d, /^[a-z0-9-]+(\.[a-z0-9-]+)+$/, `ti: ${d} é um site, não um curinga`); continue; }
     for (const d of TEMAS[m].dominios) assert.match(d, /(^|\.)(gov|jus|cert|nic)\.br$|\.org\.br$|\.com\.br$/, `${m}: ${d} é fonte oficial ou do setor`);
   }
   const { buscar, pedidos } = claudeFalso([{ stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] }]);
@@ -730,4 +732,57 @@ test("SARA calcular: conta exata pela plataforma (precedência, potência, vírg
   const r = await CALCULAR.rodar({}, { contas: [{ nome: "aviso", expressao: "30+3*5" }, { expressao: "1/0" }] });
   assert.deepEqual(r.dados.resultados[0], { nome: "aviso", expressao: "30+3*5", resultado: 45 });
   assert.ok(r.dados.resultados[1].erro);
+});
+
+test("SARA de TI: só ela usa o modelo mais capaz (Sonnet), com linguagem técnica e mais pesquisa; os guardrails são os mesmos", async () => {
+  const { SARAS, REGRAS_SARA, regrasDaSara } = await import("../lib/sara/modulos.ts");
+  const { TEMAS } = await import("../lib/sara/temas.ts");
+  const comModelo = Object.values(SARAS).filter((s) => s.modelo && s.modelo !== "claude-haiku-5-5").map((s) => s.modulo);
+  assert.deepEqual(comModelo, ["ti"], "decisão do proprietário: só a TI");
+  assert.equal(SARAS.ti.modelo, "claude-sonnet-5-5");
+  assert.ok(SARAS.ti.maxTokens > 1500);
+  assert.equal(TEMAS.ti.maxBuscas, 5);
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
+  assert.match(rota, /modelo: linha\?\.modelo \?\? sara\.modelo \?\? "claude-haiku-5-5"/, "a linha do proprietário em sara_modulos continua valendo por cima");
+  assert.match(rota, /regrasDeEscopo\(empresa, p\.sara\.rotulo, temaDe\(modulo\)\)/, "o mesmo escopo e o verificador");
+  const tecnica = regrasDaSara(SARAS.ti);
+  assert.doesNotMatch(tecnica, /sem jargão de TI/);
+  assert.match(tecnica, /linguagem técnica/);
+  assert.equal(regrasDaSara(SARAS.rh), REGRAS_SARA, "as outras SARAs não mudam");
+  // Tudo o mais das regras é igual: só a linha da linguagem troca.
+  assert.equal(tecnica.split("\n").length, REGRAS_SARA.split("\n").length);
+  assert.match(SARAS.ti.manual, /nunca peça nem repita senha, token, chave privada ou certificado/);
+  assert.match(SARAS.ti.manual, /Não invente versão, porta, endereço nem configuração/);
+});
+
+test("SARA pesquisa: a continuação de uma pesquisa pausada traz o texto citado sem a busca, e a frase não quebra", async () => {
+  const { textoECitacoes } = await import("../lib/sara/laco.ts");
+  const r = textoECitacoes([
+    { type: "text", text: "3. `sms_ser`, que é " },
+    { type: "text", text: "o driver para o protocolo SMS", citations: [{ url: "https://networkupstools.org/docs/man/sms_ser.html" }] },
+    { type: "text", text: ". Ele é serial." },
+  ]);
+  assert.equal(r.texto, "3. `sms_ser`, que é o driver para o protocolo SMS. Ele é serial.");
+  assert.deepEqual(r.citacoes.map((c) => c.rotulo), ["Internet › networkupstools.org"]);
+  assert.equal(textoECitacoes([{ type: "text", text: "a" }, { type: "text", text: "b" }]).texto, "a\nb", "sem pesquisa, cada bloco é uma linha");
+});
+
+test("SARA: quando só abre a tela sem ter escrito nada (resposta no pensamento), a plataforma lembra de escrever a resposta", async () => {
+  const { LEMBRETE_RESPOSTA } = await import("../lib/sara/laco.ts");
+  const { buscar, pedidos } = claudeFalso([
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "text", text: "Vou buscar as quedas." }, { type: "tool_use", id: "t1", name: "contas_a_pagar", input: {} }] },
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "thinking", thinking: "Foram 2 quedas…" }, { type: "tool_use", id: "t2", name: "abrir_tela", input: {} }] },
+    { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "Foram **2** quedas, as duas alarmes falsos." }] },
+  ]);
+  const r = await conversarCom({}, { chave: "x", buscar, modelo: "claude-sonnet-5-5", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", {}), ferramenta("abrir_tela", {})] });
+  const ultimoResultado = pedidos[2].messages.at(-1).content[0].content;
+  assert.ok(ultimoResultado.includes(LEMBRETE_RESPOSTA));
+  assert.equal(r.texto, "Foram **2** quedas, as duas alarmes falsos.");
+  // Com a resposta já escrita junto do abrir_tela, não há lembrete (não duplica).
+  const b = claudeFalso([
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "text", text: "Foram **2** quedas." }, { type: "tool_use", id: "t1", name: "abrir_tela", input: {} }] },
+    { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "Abri a tela." }] },
+  ]);
+  await conversarCom({}, { chave: "x", buscar: b.buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("abrir_tela", {})] });
+  assert.ok(!b.pedidos[1].messages.at(-1).content[0].content.includes(LEMBRETE_RESPOSTA));
 });

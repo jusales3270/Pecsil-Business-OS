@@ -11,7 +11,7 @@ import { consultarDados } from "../../../../lib/sara/consulta-dados";
 import { CALCULAR } from "../../../../lib/sara/calcular";
 import { MOSTRAR } from "../../../../lib/sara/visual";
 import { PROPOR_HABILIDADE, habilidadesQuePode, instrucoesDeHabilidades, nomearHabilidade, pareceLacuna, pedidoRecorrente, validarProposta, type HabilidadeAtiva, type Passo } from "../../../../lib/sara/habilidades";
-import { REGRAS_SARA, SARAS } from "../../../../lib/sara/modulos";
+import { SARAS, regrasDaSara } from "../../../../lib/sara/modulos";
 import { temaDe } from "../../../../lib/sara/temas";
 import { requireUserSession } from "../../../../lib/supabase/session";
 
@@ -41,7 +41,7 @@ async function preparar(modulo: string) {
   if (!access.canModule(sara.feature) || !access.can(sara.permissao, "ver")) return { erro: NextResponse.json({ error: "FORBIDDEN" }, { status: 403 }) } as const;
   // Modelo e teto mensal: só no servidor (proteção de custo), sem aparecer na tela.
   const { data: linha } = await session.supabase.from("sara_modulos").select("modelo, teto_tokens_mes").eq("modulo", modulo).maybeSingle();
-  const cfg = { modelo: linha?.modelo ?? "claude-haiku-5-5", teto_tokens_mes: linha?.teto_tokens_mes ?? 2_000_000 };
+  const cfg = { modelo: linha?.modelo ?? sara.modelo ?? "claude-haiku-5-5", teto_tokens_mes: linha?.teto_tokens_mes ?? 2_000_000 };
   const telas = sara.telas.filter((t) => t.exige.some((f) => access.can(f, "ver")));
   const navegar = ferramentaDeTelas(telas);
   // Leitura do Segundo Cérebro: os documentos do setor, se a pessoa pode vê-los.
@@ -125,7 +125,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const indisponiveis = p.sara.ferramentas.filter((n) => !p.ferramentas.some((f) => f.nome === n));
   // Fixo (vai para o cache) + do momento (hora, quem conversa, situação da conversa, o que não pode).
   const sistema = {
-    fixo: `${p.sara.manual}\n\n${REGRAS_SARA}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
+    fixo: `${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
     variavel: `${contextoDeTempo({ nome: primeiroNome(me?.full_name), situacao })}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}\nResponda sempre em português do Brasil.`,
   };
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
@@ -137,7 +137,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   let falha: unknown = null;
   try {
     // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
-    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: 3 } : null });
+    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens });
   } catch (e) { falha = e; }
   const v = await verificacao;
   const textoRecusa = recusa(empresa, p.sara.rotulo);

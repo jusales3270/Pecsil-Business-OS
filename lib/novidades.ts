@@ -54,6 +54,7 @@ export const NOVIDADES: Novidade[] = [
       "Incidentes: cada queda entra sozinha, com a causa provável. Confirme a causa (energia, internet, servidor) para formar o histórico que faltava.",
       "Chamados: a fila de toda a empresa, com prazo por prioridade. Inventário: servidores, computadores, rede e coletores das CNCs.",
       "Regras: as categorias e os prazos dos chamados entraram provisórios, para o supervisor de TI revisar.",
+      "SARA de TI: um modelo mais capaz que o dos outros módulos, para diagnóstico e manutenção. Ela explica a causa provável, dá os passos e os comandos e pesquisa na documentação dos fabricantes e sistemas.",
     ],
   },
   {
