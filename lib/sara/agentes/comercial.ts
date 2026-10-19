@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brl, dataBR, dias, hoje, link, plural, reais, termo, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
+import { FICHA_CLIENTE } from "../cerebro-ferramentas.ts";
 
 /**
  * SARA do Comercial (CRM e Vendas): orçamentos (sem os de TREINO), funil, clientes, produtos e a
@@ -38,6 +39,7 @@ export async function aFaturar(sb: SupabaseClient) {
 }
 
 const ferramentas: Ferramenta[] = [
+  FICHA_CLIENTE,
   {
     nome: "comercial_orcamentos", rotulo: "orçamentos", exige: ["comercial.orcamentos"],
     descricao: "Orçamentos de venda (sem os de treino) por situação: em aberto (rascunho e enviados), ganhos, perdidos (com o motivo) ou todos dos últimos 90 dias. Número, cliente, data, validade, pedido do cliente e total.",
@@ -198,6 +200,7 @@ Seções:
 - Vendas › Orçamentos: montar o orçamento (itens do catálogo, máscara de impostos, condição de pagamento, prazo), ler o pedido do cliente (PDF) direto para o orçamento, enviar, marcar ganho ou perdido. Orçamentos de TREINO (T-n) não contam.
 - Vendas › Produtos: cadastro (código interno, NCM, desenho, material); as peças da Forja entram aqui.
 Fluxo: orçamento ganho → OS em rascunho na Forja (o Rafael completa e libera) → produção → "A faturar" no Fiscal → nota (Jefferson).
+A ficha do cliente (ficha_cliente) vem do Segundo Cérebro: faturado e recebido no histórico, atraso médio para pagar, peças e OS.
 Quem decide: Rafael (comercial, orçamento e PCP); faturamento é do Jefferson.`;
 
 export const comercial: Agente = {

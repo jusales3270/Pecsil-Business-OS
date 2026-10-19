@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-19-fichas-cerebro",
+    data: "2026-10-19",
+    area: "Compras, Comercial e Cadastros",
+    modulos: ["compras", "comercial", "almoxarifado"],
+    funcionalidades: ["compras.fornecedores", "comercial.clientes", "fundacao.cadastros", "almoxarifado.materiais", "compras.sara", "comercial.sara"],
+    titulo: "A ficha completa do fornecedor e do cliente",
+    itens: [
+      "Ao abrir um fornecedor ou um cliente aparece o histórico inteiro: o que foi comprado e a que preço, o que foi cotado, pago ou faturado, desde quando e em que contas. Cada pessoa vê só o que a área dela permite.",
+      "Em Compras › Fornecedores a ficha fica na aba \"Histórico completo\".",
+      "A SARA do Compras responde \"o que a COMIL vende e a que preço\" e \"quem vendeu resina mais barato\"; a do Comercial traz a ficha do cliente.",
+    ],
+  },
+  {
     id: "2026-10-19-war-room-cerebro",
     data: "2026-10-19",
     area: "War Room",
@@ -51,9 +64,10 @@ export const NOVIDADES: Novidade[] = [
     funcionalidades: ["warroom.cerebro"],
     titulo: "War Room: o Segundo Cérebro",
     itens: [
-      "O grafo da empresa: fornecedores, clientes, itens comprados, contas do plano e setores, e o que liga cada um, montado a partir dos módulos.",
-      "Clique num ponto para ver a ficha (quanto foi comprado e pago, desde quando, a que preço) e as ligações. Clique numa ligação para abrir as compras, cotações ou títulos dela.",
-      "Isole um ponto, veja do que ele depende ou o que depende dele, e o caminho entre dois. Salve a visão para a reunião.",
+      "O grafo da empresa em 3D: fornecedores, clientes, itens, contas, setores, pessoas, sistemas e documentos, e o que liga cada um, montado a partir dos módulos.",
+      "Clique num ponto para ver a ficha e acender as ligações dele. Clique numa ligação para abrir as compras, cotações ou títulos dela.",
+      "Isole um ponto, veja do que ele depende ou o que depende dele, e o caminho entre dois. Salve a visão para a reunião; use a tela cheia na sala.",
+      "Cada evento dos módulos, consulta de uma SARA ou ligação nova vira um pulso de luz no ponto onde aconteceu.",
     ],
   },
   {

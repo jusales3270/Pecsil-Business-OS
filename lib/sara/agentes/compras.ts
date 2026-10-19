@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brl, dataBR, dias, hoje, link, num, plural, reais, termo, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
+import { FICHA_FORNECEDOR, HISTORICO_PRECO } from "../cerebro-ferramentas.ts";
 
 /**
  * SARA do Compras: cotações (que viram OC quando aprovadas), aprovações, compras realizadas e diretas,
@@ -34,6 +35,7 @@ async function pedidosParaCotar(sb: SupabaseClient): Promise<Pedido[]> {
 }
 
 const ferramentas: Ferramenta[] = [
+  FICHA_FORNECEDOR, HISTORICO_PRECO,
   {
     nome: "compras_cotacoes_pendentes", rotulo: "cotações pendentes", exige: COTAR,
     descricao: "Cotações pendentes de aprovação: quantas, o total por divisão (Usinagem/Fundição), a mais antiga e as maiores, com fornecedor, data e valor (itens + IPI + frete).",
@@ -202,13 +204,14 @@ Seções (aparecem conforme a permissão e a visão — Orçamentista cota, Gest
 - Compras realizadas e Compras diretas (compra sem cotação).
 - Fornecedores: cadastro, histórico e unificação de duplicados.
 Fluxo: pedido de material → cotação → aprovação (OC) → compra → a nota é recebida no Almoxarifado, que cria a conta a pagar no Financeiro.
+Ficha do fornecedor (ficha_fornecedor) e histórico de preço (historico_de_preco) vêm do Segundo Cérebro: o que cada fornecedor vende, a que preço e desde quando, juntando os nomes do mesmo item.
 Quem decide: aprovar cotação é do Domingo e do Ricardo; o cadastro de fornecedores é da equipe de Compras com o Rafael.`;
 
 export const compras: Agente = {
   sara: {
     modulo: M, nome: "SARA do Compras", rotulo: "Compras", feature: M, permissao: "compras.sara", manual: MANUAL,
     ferramentas: ferramentas.map((f) => f.nome), telas,
-    sugestoes: ["Quantas cotações estão esperando aprovação?", "Quais OCs aprovadas ainda não viraram compra?", "Quanto compramos nos últimos 30 dias?", "Tem pedido de material para cotar?"],
+    sugestoes: ["Quantas cotações estão esperando aprovação?", "Quais OCs aprovadas ainda não viraram compra?", "Quem vende a resina mais barato?", "Tem pedido de material para cotar?"],
   },
   ferramentas, regras,
 };

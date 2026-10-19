@@ -130,6 +130,12 @@
   --accent-purple: #7e22ce;
   --accent-teal: #0f766e;
   --accent-neutral: #6b7280;
+  /* Grafo do Segundo Cérebro: tipos além dos acentos */
+  --grafo-pessoa: #db2777;
+  --grafo-documento: #4d7c0f;
+  --grafo-sistema: #0e7490;
+  --grafo-ativo: #c2410c;
+  --grafo-processo: #4338ca;
 
   /* Fundos tonais — versões lavadas para chips, banners e ícones */
   --tint-blue: #eef4ff;
@@ -204,6 +210,12 @@
     --accent-purple: #c084fc;
     --accent-teal: #2dd4bf;
     --accent-neutral: #9ca3af;
+    /* Grafo do Segundo Cérebro */
+    --grafo-pessoa: #f472b6;
+    --grafo-documento: #a3e635;
+    --grafo-sistema: #22d3ee;
+    --grafo-ativo: #fb923c;
+    --grafo-processo: #a5b4fc;
 
     --tint-blue: rgba(77, 155, 255, 0.12);
     --tint-green: rgba(52, 211, 153, 0.12);
@@ -268,6 +280,12 @@
   --accent-purple: #c084fc;
   --accent-teal: #2dd4bf;
   --accent-neutral: #9ca3af;
+  /* Grafo do Segundo Cérebro */
+  --grafo-pessoa: #f472b6;
+  --grafo-documento: #a3e635;
+  --grafo-sistema: #22d3ee;
+  --grafo-ativo: #fb923c;
+  --grafo-processo: #a5b4fc;
 
   --tint-blue: rgba(77, 155, 255, 0.12);
   --tint-green: rgba(52, 211, 153, 0.12);

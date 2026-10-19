@@ -3,7 +3,7 @@
  * os nomes das ligações, o tamanho dos nós e a ficha de cada um. Puro (sem navegador), para os testes.
  */
 
-export type TipoNo = "fornecedor" | "cliente" | "item" | "material" | "produto" | "conta" | "setor";
+export type TipoNo = "fornecedor" | "cliente" | "item" | "material" | "produto" | "conta" | "setor" | "pessoa" | "documento" | "sistema" | "ativo_ti" | "processo";
 export type NoGrafo = {
   id: string; tipo: TipoNo | string; nome: string; termos: string[]; setor: string | null; resumo: Record<string, unknown>;
   grau: number; link: string | null; x: number | null; y: number | null;
@@ -14,20 +14,28 @@ export type LigacaoGrafo = {
 };
 export type Subgrafo = { nos: NoGrafo[]; ligacoes: LigacaoGrafo[]; centro?: string };
 
-/** Os grupos, na ordem da legenda. A cor é um token do tema (claro e escuro). */
-export const TIPOS: { tipo: TipoNo; rotulo: string; singular: string; cor: string }[] = [
-  { tipo: "fornecedor", rotulo: "Fornecedores", singular: "Fornecedor", cor: "--accent-blue" },
-  { tipo: "cliente", rotulo: "Clientes", singular: "Cliente", cor: "--accent-green" },
-  { tipo: "item", rotulo: "Itens comprados", singular: "Item comprado", cor: "--accent-amber" },
-  { tipo: "conta", rotulo: "Contas do plano", singular: "Conta do plano", cor: "--accent-purple" },
-  { tipo: "setor", rotulo: "Setores", singular: "Setor", cor: "--accent-red" },
-  { tipo: "material", rotulo: "Materiais", singular: "Material", cor: "--accent-neutral" },
-  { tipo: "produto", rotulo: "Peças dos clientes", singular: "Peça", cor: "--accent-teal" },
+/**
+ * Os grupos, na ordem da legenda. `cor` é o token do tema (fichas nas telas); `neuro` é a cor da cena
+ * 3D do War Room, que é sempre escura (uma sala de controle), por isso cores próprias e luminosas.
+ */
+export const TIPOS: { tipo: TipoNo; rotulo: string; singular: string; cor: string; neuro: string }[] = [
+  { tipo: "fornecedor", rotulo: "Fornecedores", singular: "Fornecedor", cor: "--accent-blue", neuro: "#5b8cff" },
+  { tipo: "cliente", rotulo: "Clientes", singular: "Cliente", cor: "--accent-green", neuro: "#34d399" },
+  { tipo: "item", rotulo: "Itens comprados", singular: "Item comprado", cor: "--accent-amber", neuro: "#fbbf24" },
+  { tipo: "conta", rotulo: "Contas do plano", singular: "Conta do plano", cor: "--accent-purple", neuro: "#b18cff" },
+  { tipo: "setor", rotulo: "Setores", singular: "Setor", cor: "--accent-red", neuro: "#ff5c7a" },
+  { tipo: "material", rotulo: "Materiais", singular: "Material", cor: "--accent-neutral", neuro: "#a3adbf" },
+  { tipo: "pessoa", rotulo: "Pessoas", singular: "Pessoa", cor: "--grafo-pessoa", neuro: "#f472b6" },
+  { tipo: "sistema", rotulo: "Sistemas", singular: "Sistema", cor: "--grafo-sistema", neuro: "#22d3ee" },
+  { tipo: "ativo_ti", rotulo: "Equipamentos de TI", singular: "Equipamento de TI", cor: "--grafo-ativo", neuro: "#fb923c" },
+  { tipo: "processo", rotulo: "Processos", singular: "Processo", cor: "--grafo-processo", neuro: "#a5b4fc" },
+  { tipo: "documento", rotulo: "Documentos", singular: "Documento", cor: "--grafo-documento", neuro: "#a3e635" },
+  { tipo: "produto", rotulo: "Peças dos clientes", singular: "Peça", cor: "--accent-teal", neuro: "#2dd4bf" },
 ];
-export const tipoDe = (t: string) => TIPOS.find((x) => x.tipo === t) ?? { tipo: t as TipoNo, rotulo: t, singular: t, cor: "--accent-neutral" };
+export const tipoDe = (t: string) => TIPOS.find((x) => x.tipo === t) ?? { tipo: t as TipoNo, rotulo: t, singular: t, cor: "--accent-neutral", neuro: "#a3adbf" };
 
 /** Tipos que abrem na visão inicial. As peças (3,9 mil) entram quando a pessoa pede. */
-export const TIPOS_INICIAIS: TipoNo[] = ["fornecedor", "cliente", "item", "conta", "setor", "material"];
+export const TIPOS_INICIAIS: TipoNo[] = ["fornecedor", "cliente", "item", "conta", "setor", "material", "pessoa", "sistema", "ativo_ti", "processo", "documento"];
 
 export const LIGACOES: Record<string, { rotulo: string; inverso: string }> = {
   vendeu: { rotulo: "vendeu", inverso: "comprado de" },
@@ -37,16 +45,24 @@ export const LIGACOES: Record<string, { rotulo: string; inverso: string }> = {
   pertence_a: { rotulo: "pertence a", inverso: "contém" },
   tem_peca: { rotulo: "peça", inverso: "peça de" },
   e: { rotulo: "é o material", inverso: "comprado como" },
+  sustenta: { rotulo: "sustenta", inverso: "depende de" },
+  alimenta: { rotulo: "alimenta", inverso: "depende de" },
+  aprova: { rotulo: "aprova em", inverso: "aprovam aqui" },
+  opera: { rotulo: "opera em", inverso: "operam aqui" },
+  passa_por: { rotulo: "passa por", inverso: "faz parte de" },
+  cita: { rotulo: "cita", inverso: "citado em" },
+  encomendou: { rotulo: "encomendou", inverso: "encomendada por" },
 };
 export const rotuloLigacao = (tipo: string, deOrigem: boolean) => (LIGACOES[tipo] ? (deOrigem ? LIGACOES[tipo].rotulo : LIGACOES[tipo].inverso) : tipo.replace(/_/g, " "));
 
-export const FAMILIAS: { familia: string; rotulo: string }[] = [
-  { familia: "transacao", rotulo: "Transações (compras, cotações, lançamentos)" },
-  { familia: "dependencia", rotulo: "Dependências (abastece, sustenta)" },
-  { familia: "estrutura", rotulo: "Estrutura (grupos, peças)" },
-  { familia: "responsabilidade", rotulo: "Responsabilidade (quem decide)" },
-  { familia: "mencao", rotulo: "Menções (documentos)" },
+export const FAMILIAS: { familia: string; rotulo: string; curto: string; neuro: string }[] = [
+  { familia: "transacao", rotulo: "Transações (compras, cotações, lançamentos)", curto: "Transações", neuro: "#7aa2ff" },
+  { familia: "dependencia", rotulo: "Dependências (abastece, sustenta)", curto: "Dependências", neuro: "#ff7a93" },
+  { familia: "estrutura", rotulo: "Estrutura (grupos, peças)", curto: "Estrutura", neuro: "#8b93a7" },
+  { familia: "responsabilidade", rotulo: "Responsabilidade (quem decide)", curto: "Quem decide", neuro: "#f9a8d4" },
+  { familia: "mencao", rotulo: "Menções (documentos)", curto: "Documentos", neuro: "#bef264" },
 ];
+export const familiaDe = (f: string) => FAMILIAS.find((x) => x.familia === f) ?? FAMILIAS[2];
 
 /** Tamanho do nó pelo número de ligações (raiz, para os grandes não engolirem a tela). */
 export function tamanhoDoNo(grau: number, escala = 1): number {
@@ -81,7 +97,12 @@ const CAMPOS: Record<string, [string, string, "moeda" | "numero" | "data" | "tex
   conta: [["codigo", "Código", "texto"], ["lancado", "Lançado (histórico)", "moeda"], ["titulos", "Títulos", "numero"], ["tipo", "Tipo", "texto"]],
   produto: [["codigo", "Código", "texto"], ["tipo_peca", "Tipo de peça", "texto"], ["material", "Material", "texto"], ["desenho", "Desenho", "texto"], ["ncm", "NCM", "texto"]],
   material: [["codigo", "Código", "texto"], ["grupo", "Grupo", "texto"], ["unidade", "Unidade", "texto"], ["ncm", "NCM", "texto"]],
-  setor: [],
+  setor: [["os_em_aberto", "OS em aberto", "numero"]],
+  pessoa: [["cargo", "Cargo", "texto"], ["conta", "Tipo de conta", "texto"]],
+  sistema: [["onde", "Onde roda", "texto"], ["situacao", "Situação", "texto"]],
+  ativo_ti: [["quedas_30d", "Quedas em 30 dias", "numero"], ["ultima_queda", "Última queda", "data"], ["tipo", "Tipo", "texto"], ["local", "Local", "texto"], ["ip", "IP", "texto"], ["situacao", "Situação", "texto"]],
+  processo: [["passos", "Passos", "numero"], ["definida_em", "Definido em", "data"]],
+  documento: [["arquivo", "Arquivo", "texto"], ["enviado_em", "Guardado em", "data"], ["por", "Por", "texto"]],
 };
 
 export function linhasDaFicha(tipo: string, resumo: Record<string, unknown>): { rotulo: string; valor: string }[] {
@@ -103,13 +124,17 @@ export function linhasDaFicha(tipo: string, resumo: Record<string, unknown>): { 
 export function resumoDaLigacao(l: LigacaoGrafo): string {
   const partes: string[] = [];
   const n = l.quantidade ?? 0;
-  const nome = l.tipo === "vendeu" ? ["compra", "compras"] : l.tipo === "cotou" ? ["cotação", "cotações"] : l.tipo === "lancado_em" ? ["título", "títulos"] : ["registro", "registros"];
+  const nome = l.tipo === "vendeu" ? ["compra", "compras"] : l.tipo === "cotou" ? ["cotação", "cotações"] : l.tipo === "lancado_em" ? ["título", "títulos"]
+    : l.tipo === "encomendou" ? ["OS", "OS"] : l.tipo === "aprova" || l.tipo === "opera" ? ["permissão", "permissões"] : ["registro", "registros"];
   if (n) partes.push(`${n.toLocaleString("pt-BR")} ${n === 1 ? nome[0] : nome[1]}`);
   if (l.total !== null && l.total !== undefined && Number.isFinite(Number(l.total))) partes.push(moeda(Number(l.total)));
   if (l.primeira && l.ultima) partes.push(l.primeira === l.ultima ? dataBR(l.ultima) : `${dataBR(l.primeira)} a ${dataBR(l.ultima)}`);
   const up = Number(l.resumo?.ultimo_preco ?? l.resumo?.ultimo_valor);
   if (Number.isFinite(up) && up > 0) partes.push(`último preço ${moeda(up)}`);
   if (l.tipo === "cotou" && Number(l.resumo?.aprovadas) > 0) partes.push(`${l.resumo.aprovadas} aprovada(s)`);
+  if (typeof l.resumo?.por === "string") partes.push(l.resumo.por);
+  if (typeof l.resumo?.passos === "string") partes.push(l.resumo.passos);
+  if (Array.isArray(l.resumo?.funcionalidades)) partes.push((l.resumo.funcionalidades as string[]).join(", "));
   if (l.situacao === "proposta") partes.push("proposta (a confirmar)");
   return partes.join(" · ");
 }

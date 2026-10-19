@@ -60,3 +60,34 @@ test("Cérebro (tela): tamanho, posição estável, ficha formatada e filtro sem
   assert.equal(v.filtrar(g, new Set(["fornecedor", "item"]), new Set(["transacao"]), "2026-09-01").ligacoes.length, 0, "período corta pela última data");
   assert.equal(v.rotuloLigacao("abastece", false), "depende de");
 });
+
+const g34 = readFileSync(new URL("../supabase/migrations/202610190004_cerebro_g3_g4.sql", import.meta.url), "utf8");
+
+test("Cérebro G3: fora do War Room, a ficha segue a permissão de cada área", () => {
+  assert.match(g34, /select public\.has_feature\('warroom\.cerebro'\) or exists \(select 1 from unnest\(coalesce\(p_exige, '\{\}'\)\) f where public\.has_feature\(f\)\)/);
+  assert.match(g34, /if not fin_pagar and n\.tipo = 'fornecedor' then fora := fora \|\| array\['titulos', 'lancado', 'pago', 'em_aberto'/, "pago só com o Financeiro");
+  assert.match(g34, /if not compras and n\.tipo in \('fornecedor', 'item', 'material'\)/, "preço de compra só com o Compras ou o Almoxarifado");
+  assert.match(g34, /and \(l\.tipo not in \('vendeu', 'cotou'\) or compras\)/);
+  assert.match(g34, /create or replace function public\.cerebro_historico_preco[\s\S]*?security invoker/, "histórico de preço com o RLS das compras");
+});
+
+test("Cérebro G4: pessoas sem dado pessoal e sem usuários de teste; montagem extra só pelo servidor", () => {
+  const mais = g34.slice(g34.indexOf("create or replace function public.cerebro_montar_mais"), g34.indexOf("revoke all on function public.cerebro_montar_mais"));
+  assert.match(mais, /p\.email not like '%@pecsil-teste\.local'/);
+  for (const c of ["cpf", "phone", "telefone", "salary", "salario", "avatar"]) assert.doesNotMatch(mais, new RegExp(`p\\.${c}\\b`), c);
+  assert.match(mais, /f\.code !~ '\\\.\(sara\|coleta\)\$'/, "SARA e coleta não viram responsabilidade");
+  assert.match(g34, /revoke all on function public\.cerebro_montar_mais\(uuid\) from public, anon, authenticated;/);
+  assert.match(g34, /perform public\.cerebro_montar_mais\(p_org\);/);
+  assert.match(g34, /'pessoa', 'documento', 'ativo_ti', 'sistema', 'processo'\)/, "os tipos novos também são limpos quando somem");
+  assert.match(g34, /t\.chart_account_id not in \(select public\.cerebro_contas_pessoais\(p_org\)\)/, "a regra da folha continua na montagem nova");
+});
+
+test("Cérebro G3: as consultas da SARA do fornecedor, do cliente e do preço estão na equipe", async () => {
+  const { AGENTES } = await import("../lib/sara/agentes/index.ts");
+  const nomes = AGENTES.flatMap((a) => a.ferramentas.map((f) => f.nome));
+  for (const n of ["ficha_fornecedor", "historico_de_preco", "ficha_cliente"]) assert.equal(nomes.filter((x) => x === n).length, 1, n);
+  const compras = AGENTES.find((a) => a.sara.modulo === "compras");
+  assert.ok(compras.sara.ferramentas.includes("ficha_fornecedor") && compras.sara.ferramentas.includes("historico_de_preco"));
+  const { FICHA_FORNECEDOR } = await import("../lib/sara/cerebro-ferramentas.ts");
+  assert.ok(FICHA_FORNECEDOR.exige.includes("financeiro.pagar"), "a SARA do Financeiro também alcança a ficha do fornecedor");
+});
