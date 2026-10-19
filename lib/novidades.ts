@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-19-ti-modulo",
+    data: "2026-10-19",
+    area: "TI",
+    modulos: ["ti"],
+    titulo: "Módulo de TI",
+    itens: [
+      "Painel: o servidor da fábrica, o backup diário e os testes de fora, lidos do vigia na nuvem, que percebe a queda mesmo com o servidor desligado.",
+      "Incidentes: cada queda entra sozinha, com a causa provável. Confirme a causa (energia, internet, servidor) para formar o histórico que faltava.",
+      "Chamados: a fila de toda a empresa, com prazo por prioridade. Inventário: servidores, computadores, rede e coletores das CNCs.",
+      "Regras: as categorias e os prazos dos chamados entraram provisórios, para o supervisor de TI revisar.",
+    ],
+  },
+  {
     id: "2026-10-18-sara-equipe",
     data: "2026-10-18",
     area: "Plataforma",

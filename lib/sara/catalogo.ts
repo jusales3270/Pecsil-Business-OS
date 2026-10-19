@@ -40,6 +40,8 @@ const DIRECAO = { payable: "A pagar", receivable: "A receber" };
 const PARCELA = { pending: "Em aberto", partially_settled: "Paga em parte", settled: "Quitada", overdue: "Vencida", cancelled: "Cancelada" };
 const TITULO = { draft: "Rascunho", pending_approval: "Em aprovação", approved: "Em aberto", partially_settled: "Pago em parte", settled: "Quitado", overdue: "Vencido", cancelled: "Cancelado" };
 
+const TI_CATEGORIA = { energia: "Energia", internet: "Internet", rede: "Rede ou porta", servidor: "Servidor", estacao: "Computador", sistema: "Sistema", backup: "Backup", alarme_falso: "Alarme falso", outro: "Outro" };
+
 const f = (modulo: string, rotuloModulo: string, secao: string): Fonte => ({ rotulo: `${rotuloModulo} › ${secao}`, link: link(modulo, secao) });
 
 export const CATALOGO: TabelaCatalogo[] = [
@@ -227,6 +229,30 @@ export const CATALOGO: TabelaCatalogo[] = [
     exige: ["producao.os", "comercial.funil", "comercial.cobranca", "financeiro.receber"], data: "due_date",
     colunas: { code: "texto", customer_name: "texto", article_code: "texto", article_description: "texto", product_type: "texto", quantity: "numero", due_date: "data", opened_at: "data", priority: "texto", status: "texto", lots_count: "numero", removed_from_source_at: "data" },
     fonte: f("producao", "Produção", "Ordens de serviço"),
+  },
+  // ---------------- TI ----------------
+  {
+    tabela: "ti_incidentes", modulo: "ti", rotulo: "quedas e incidentes de TI", descricao: "Quedas registradas pelo vigia externo (servidor, backup, internet) e incidentes registrados pela TI: início, fim (vazio = ainda fora), categoria (vazia = a confirmar), causa do vigia (regra), causa confirmada, quando foi confirmada.",
+    exige: ["ti.saude"], data: "inicio",
+    colunas: { origem: "texto", alvo_nome: "texto", inicio: "data", fim: "data", categoria: "texto", causa_vigia: "texto", causa: "texto", confirmado_em: "data" },
+    rel: { equipamento: { tabela: "ti_ativos", fk: "ativo_id", campo: "nome" } },
+    opcoes: { origem: { vigia: "Vigia externo", manual: "Registrado pela TI" }, categoria: TI_CATEGORIA },
+    fonte: f("ti", "TI", "Incidentes"),
+  },
+  {
+    tabela: "ti_chamados", modulo: "ti", rotulo: "chamados de TI", descricao: "Chamados de TI de toda a empresa: número, título, categoria, prioridade, situação, quem abriu, quem atende, prazo, primeira resposta, resolvido em, solução.",
+    exige: ["ti.chamados"], data: "created_at",
+    colunas: { numero: "numero", titulo: "texto", categoria: "texto", prioridade: "texto", situacao: "texto", local: "texto", solicitante_nome: "texto", responsavel_nome: "texto", prazo: "data", primeira_resposta_em: "data", resolvido_em: "data", solucao: "texto", created_at: "data" },
+    rel: { equipamento: { tabela: "ti_ativos", fk: "ativo_id", campo: "nome" } },
+    opcoes: { prioridade: { urgente: "Urgente", alta: "Alta", normal: "Normal", baixa: "Baixa" }, situacao: { aberto: "Aberto", em_atendimento: "Em atendimento", aguardando: "Aguardando", resolvido: "Resolvido", cancelado: "Cancelado" } },
+    fonte: f("ti", "TI", "Chamados"),
+  },
+  {
+    tabela: "ti_ativos", modulo: "ti", rotulo: "inventário de TI", descricao: "Equipamentos e sistemas da TI: número, nome, tipo, local, responsável, fabricante, modelo, IP, sistema operacional, crítico, situação.",
+    exige: ["ti.ativos", "ti.saude", "ti.chamados"],
+    colunas: { numero: "numero", nome: "texto", tipo: "texto", local: "texto", responsavel: "texto", fabricante: "texto", modelo: "texto", ip: "texto", sistema_operacional: "texto", critico: "logico", situacao: "texto" },
+    opcoes: { tipo: { servidor: "Servidor", estacao: "Computador", notebook: "Notebook", rede: "Rede", coletor_cnc: "Coletor das CNCs", impressora: "Impressora", nobreak: "Nobreak", camera: "Câmera", sistema: "Sistema", outro: "Outro" }, situacao: { em_uso: "Em uso", reserva: "Reserva", manutencao: "Em manutenção", baixado: "Baixado" } },
+    fonte: f("ti", "TI", "Inventário"),
   },
 ];
 

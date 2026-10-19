@@ -28,6 +28,7 @@ export const EVENT_MODULES: Record<string, string> = {
   almoxarifado: "Almoxarifado",
   fundicao: "Fundição",
   fiscal: "Fiscal",
+  ti: "TI",
   fundacao: "Fundação",
 };
 
@@ -56,6 +57,13 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "fundacao.coleta.concluida", module: "fundacao", label: "Coleta de arquivos concluída", description: "Uma coleta terminou: arquivos lidos, repetidos e guardados nos setores." },
   { type: "fundacao.documento.enviado", module: "fundacao", label: "Documento guardado", description: "Um documento foi guardado na pasta de um setor (enviado à mão ou original de extrato/nota)." },
   { type: "fundacao.sugestao.decidida", module: "fundacao", label: "Sugestão da IA decidida", description: "Alguém aceitou, recusou, corrigiu ou ignorou uma sugestão do modelo de decisão." },
+  { type: "ti.ativo.cadastrado", module: "ti", label: "Equipamento cadastrado", description: "Novo equipamento no inventário de TI." },
+  { type: "ti.ativo.alterado", module: "ti", label: "Equipamento alterado", description: "Dados ou situação de um equipamento do inventário de TI mudaram." },
+  { type: "ti.incidente.registrado", module: "ti", label: "Queda registrada", description: "O vigia externo registrou uma queda (servidor, backup ou internet), ou a TI registrou um incidente à mão." },
+  { type: "ti.incidente.confirmado", module: "ti", label: "Causa da queda confirmada", description: "A TI confirmou a causa de uma queda (energia, internet, servidor…)." },
+  { type: "ti.chamado.aberto", module: "ti", label: "Chamado de TI aberto", description: "Alguém da empresa abriu um chamado para a TI." },
+  { type: "ti.chamado.resolvido", module: "ti", label: "Chamado de TI resolvido", description: "A TI resolveu um chamado (com a solução e se foi no prazo)." },
+  { type: "ti.regras.alteradas", module: "ti", label: "Regras dos chamados revisadas", description: "As categorias e os prazos dos chamados de TI mudaram." },
   { type: "producao.os.aberta", module: "producao", label: "OS aberta", description: "Uma OS do Forja passou a existir no Business OS." },
   { type: "producao.os.status", module: "producao", label: "OS mudou de situação", description: "A OS mudou de status no Forja (em produção, finalizada, atrasada…)." },
   { type: "producao.entrada.registrada", module: "producao", label: "Entrada de produção", description: "Peças de um orçamento ganho ficaram prontas e liberadas para faturar." },

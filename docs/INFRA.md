@@ -105,7 +105,8 @@ Git. **Nenhum segredo com o prefixo `NEXT_PUBLIC_`**: esse prefixo manda o valor
 | `CLOUDFLARE_ACCOUNT_ID` | Conta do Clef (modelo de decisão) | não |
 | `CLOUDFLARE_AI_TOKEN` | Token só de Workers AI | **sim** |
 | `VIGIA_URL`, `VIGIA_CHAVE` | Projeto Supabase do vigia externo, na nuvem (endereço e chave pública) | não |
-| `VIGIA_TOKEN` | Token do sinal de vida do servidor (o vigia guarda só o hash) | **sim** |
+| `VIGIA_TOKEN` | Token do sinal de vida do servidor (o vigia guarda só o hash); o módulo de TI usa o mesmo token para ler o painel do vigia | **sim** |
+| `TI_ORGANIZATION_ID` | Opcional: empresa para a cópia das quedas do vigia (só se houver mais de uma no banco) | não |
 | `TYPESAFE_API_KEY` | Jev (modelo antigo, substituído pelo Clef) | **sim** |
 | `INITIAL_OWNER_NAME` | Nome do primeiro proprietário (instalação) | não |
 | `NEXT_PUBLIC_LOGIN_VIDEO_URL` | Vídeo da tela de login | não |

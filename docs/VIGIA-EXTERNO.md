@@ -43,7 +43,12 @@ fora seguidos com falha. Assim, uma oscilação de segundos não vira alarme.
    - `VIGIA_TOKEN`: o token do passo 3.
 5. **Tarefa agendada no Coolify** (aplicação do Business OS): comando
    `node scripts/ti-sinal-cron.mjs`, frequência `* * * * *`.
-6. **Conferir:** no SQL Editor, `select id, estado, ultimo_sinal from vigia_alvos;`. Em até 2
+6. **Painel para o módulo de TI (T-06):** no SQL Editor, rodar `infra/vigia/003_painel.sql`. Ele cria
+   a função `vigia_painel`, que o Business OS chama com o mesmo `VIGIA_TOKEN` para mostrar a saúde e
+   copiar as quedas. Sem telefone, sem token. A tarefa do sinal de vida passa a copiar as quedas
+   para a plataforma a cada minuto, com as variáveis `SUPABASE_INTERNAL_URL` e
+   `SUPABASE_SERVICE_ROLE_KEY` que o contêiner já tem.
+7. **Conferir:** no SQL Editor, `select id, estado, ultimo_sinal from vigia_alvos;`. Em até 2
    minutos, os três ficam `ok`. Lembrete: a 443 estava fora em 18/10, então a plataforma externa
    pode aparecer `fora`, e isso é um achado real do B-06.
 

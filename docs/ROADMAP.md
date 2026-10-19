@@ -43,7 +43,7 @@ da IA, deploy. **Decisão do negócio é de quem responde pela área**:
 | Fiscal e faturamento | Jefferson (com o contador nas regras fiscais) |
 | Comercial, orçamento e PCP | Rafael |
 | Fundição | Guilherme |
-| TI: regras do módulo, chamados, ferramentas (monitoramento, acesso remoto) | supervisor de TI (nome a confirmar) |
+| TI: regras do módulo, chamados, causa das quedas, ferramentas (monitoramento, acesso remoto) | Cesar Augusto Santos (supervisor de TI, confirmado em 19/10) |
 
 Na plataforma vale o mesmo: a decisão vai para a permissão da área (aprovar no Financeiro, aprovar
 cotações, aprovar NF-e…), nunca para "só o proprietário".
@@ -88,7 +88,9 @@ cotações, aprovar NF-e…), nunca para "só o proprietário".
 | Histórico do ICMS (1.577 notas) — "ainda não" em 12/10 | Jefferson | — | Almoxarifado e Fiscal |
 | Permissões: `fiscal.nfe` ao Jefferson, `operar` do quadro de terceiros ao RH, Homologação do Financeiro à Ana, Almoxarifado/ICMS à equipe | Proprietário (acessos) | Uso real; alçadas | Vários |
 | Nobreak gerenciável (modelo atual?) e onde roda o vigia externo (nuvem ou Raspberry Pi); canal de alerta (Telegram ou WhatsApp) | Proprietário (recurso) | T-01, T-03 | PLANO-TI §2, §3.1 |
-| Servidor tem iDRAC/iLO/IPMI? BIOS com religamento automático? Existe link reserva? RustDesk ou MeshCentral? | Supervisor de TI | T-01, T-04, T-05 | PLANO-TI §11 |
+| Servidor tem iDRAC/iLO/IPMI? BIOS com religamento automático? Existe link reserva? RustDesk ou MeshCentral? | Cesar (supervisor de TI) | T-01, T-04, T-05 | PLANO-TI §11 |
+| Categorias e prazos dos chamados de TI (entraram provisórios: 10 categorias; urgente 4 h, alta 8 h, normal 24 h, baixa 72 h) e se o prazo para em "aguardando" | Cesar (supervisor de TI), em TI › Regras | T-06 | PLANO-TI, T-06 |
+| Liberar o IP de saída da nuvem do vigia (100.60.102.71) no firewall da fábrica, para religar os testes de fora | Cesar (supervisor de TI) | T-03 | VIGIA-EXTERNO |
 | Auditoria 0008 (esconder o rastro dos usuários de teste) | Proprietário (plataforma) | — | Auditoria central |
 
 **Pedidos à equipe** (dados que não dependem de construção, mas destravam itens)
@@ -295,10 +297,10 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | T-03 | Vigia externo num projeto Supabase na nuvem (sinal de vida + testes de fora + causa por regra), alerta pela API oficial do WhatsApp | 1 | 5 | 4 | 0,5 | 2 | 26,0 | no ar (19/10: sinal de vida a cada minuto; testes de fora desligados, porque o firewall da fábrica bloqueia a nuvem; WhatsApp sem destinatário) | Projeto na nuvem e tarefa no Coolify (proprietário); chip do WhatsApp para o alerta | TI §3.1; B-04; VIGIA-EXTERNO |
 | T-04 | Coleta interna (Netdata ou Zabbix): CPU, memória, disco, temperatura, serviços, rede | 2 | 3 | 2 | 0,5 | 3 | 14,0 | na fila | Acesso ao servidor (B-01 ou console do supervisor); escolha da ferramenta | TI §3.2–3.3 |
 | T-05 | Acesso remoto auditado (RustDesk auto-hospedado ou MeshCentral) no lugar do AnyDesk | 2 | 4 | 1 | 1 | 2 | 6,0 | na fila | Escolha do supervisor de TI | TI §4 |
-| T-06 | Módulo TI no Business OS: inventário de ativos, painel de saúde, incidentes (histórico de quedas), chamados, acessos remotos | 1 | 4 | 3 | 1,5 | 1 | 6,7 | na fila | — (o painel de saúde e os acessos se completam com T-03, T-04 e T-05) | TI §5 |
+| T-06 | Módulo TI no Business OS: inventário de ativos, painel de saúde, incidentes (histórico de quedas), chamados, acessos remotos | 1 | 4 | 3 | 1,5 | 1 | 6,7 | aplicado em 19/10 (QA de navegador 32/32), falta o commit e o deploy: painel de saúde lido do vigia, quedas copiadas do vigia (causa provável por regra, a TI confirma), chamados de qualquer pessoa pelo menu da conta, inventário, regras provisórias e a SARA de TI; acessos remotos esperam o T-05 e o nobreak o T-01 | Deploy; acessos do Cesar (proprietário, "depois concedo"); aviso à empresa só depois de o Cesar revisar as regras | TI §5; PLANO-TI T-06 |
 | T-07 | Evento TI → Produção: coletor ou servidor fora do ar marca a CNC como "sem telemetria" | 2 | 3 | 1 | 0,5 | 2 | 10,0 | na fila | T-03 ou T-04; telemetria das CNCs (P-10) | TI §7.1 |
 | T-08 | Camada agêntica: política determinística, ações seguras (reiniciar serviço, trocar de link), olhar para trás semanal | + | 4 | 1 | 2 | 3 | 3,0 | na fila | T-03, T-04, T-06; uso de IA no Plano do Jev | TI §6 |
-| T-09 | SARA de TI e alertas falados (TTS local: Kokoro ou Piper) | + | 3 | 1 | 1 | 2 | 5,0 | na fila | T-06; teste de voz na CPU; voz da SARA (I-09) | TI §7.2 |
+| T-09 | SARA de TI e alertas falados (TTS local: Kokoro ou Piper) | + | 3 | 1 | 1 | 2 | 5,0 | em parte: a SARA de TI (consultas e avisos) veio com o T-06; faltam os alertas falados | T-06; teste de voz na CPU; voz da SARA (I-09) | TI §7.2 |
 | T-10 | Produtização: TI agêntica white label, governança da autonomia, serviço por SLA | + | — | — | — | 3 | — | adiado (white label) | PecSil pronta e validada (17/10) | TI §8; raia Z |
 
 ### Z — Produto (multiempresa)
@@ -422,6 +424,7 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | 18/10/2026 | T-02 (= B-02) reaberto e construído: backup diário criptografado (age, chave privada só com o proprietário) no mesmo projeto Supabase do vigia, servidor só grava, papel backup_leitura só de leitura, retenção na nuvem, aviso de 26 h. Desenhos fora (decisão do proprietário). E2E 11/11 e SQL 3/3 com dados de mentira | Proprietário / Claude |
 | 18/10/2026 | T-02: papel backup_leitura aplicado em produção (migração 202610180007, senha por verificador SCRAM). Backup real de 22,9 MB criptografado em 17 s; restaurado num Postgres descartável: 165 tabelas e 132.639 linhas iguais à produção. Falta instalar o app no Coolify | Claude |
 | 19/10/2026 | T-03 no ar: projeto Supabase do vigia, tarefa "Sinal de vida" no Coolify, primeiro sinal às 09:40. Os testes de fora foram desligados: o firewall da fábrica bloqueia conexões vindas da nuvem (o site abre no 4G), e liberar o IP de saída (100.60.102.71) é com o supervisor de TI. T-02 no ar: app backup-externo, primeiro backup real às 09:48 (23,2 MB + 45,9 MB), cópias da nuvem restauradas com a chave do proprietário: 132 tabelas iguais e 70 arquivos. Falta o banco da Forja | Claude |
+| 19/10/2026 | Supervisor de TI confirmado: Cesar Augusto Santos (decide as regras do módulo de TI). T-06 construído: migração 202610190001 (inventário, incidentes, chamados, regras; escrita só por funções, cada uma com a sua permissão), 003_painel.sql na nuvem (leitura do vigia com o token do sinal, sem telefone nem token), cópia das quedas pelo sinal de vida a cada minuto, telas TI › Painel/Chamados/Incidentes/Inventário/Regras, "Chamados de TI" no menu da conta para todos e a SARA de TI. SQL 51/51 num Postgres descartável com a estrutura de produção; painel da nuvem testado; 440 testes. Aplicados no mesmo dia (migração e 003 na nuvem); QA de navegador 32/32 com usuários temporários (abrir pelo menu da conta, atender, resolver, voltar pelo aviso, inventário, incidente manual, SARA de TI); o aviso "Chamar a TI" à empresa espera o Cesar revisar as regras (proprietário) | Proprietário / Claude |
 
 ## 9. Painel
 
