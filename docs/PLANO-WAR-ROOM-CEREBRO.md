@@ -1,6 +1,6 @@
 # War Room e o grafo do Segundo Cérebro: desenho do sistema
 
-**Status:** W1–W4 decididas pelo proprietário em 19/10/2026; etapa G1 aplicada em produção em 19/10 (5.022 nós, 5.749 ligações); a tarefa do Coolify foi criada desligada e liga depois do deploy.
+**Status:** W1–W4 decididas pelo proprietário em 19/10/2026. G1 aplicada em produção em 19/10 (5.022 nós, 5.749 ligações); a tarefa do Coolify foi criada desligada e liga depois do deploy. G2 (módulo War Room) construída; migração das visões aplicada em 19/10; teste no navegador 15/16 + 5/5 (visões e registros).
 **Origem:** pedido do proprietário em 19/10/2026, com a referência visual de um *graph view*.
 
 > "Sistema de grafos com índices e com as funções de isolar por termos, funções e demais ligações
@@ -268,3 +268,33 @@ Testada num Postgres descartável com a estrutura e os dados de origem da produ�
 | Permissão | Sem o War Room, a pessoa vê 0 nós, e os registros de origem e o "refazer" são recusados |
 | Consultas | A busca "fundicao" acha o setor e as contas de matéria-prima da fundição; o caminho COMIL → Fundição sai em 2 passos; 71 itens abastecem a Fundição; a ligação COMIL → resina expande nas 4 compras, já com os dois nomes do item juntos |
 | Visão geral | Inteira: 5.011 nós, 3,9 MB, 0,9 s. Sem as peças: 1.113 nós, 0,25 s. **A tela do G2 abre sem as peças e as carrega quando pedidas** |
+
+## 10. G2 construída (19/10/2026)
+
+O módulo **War Room** (`modules/warroom`) tem o submenu **Segundo Cérebro**:
+- o desenho é feito por sigma.js 3.0.3 e graphology 0.26.0, em WebGL;
+- o ForceAtlas2 0.10.1 roda num worker do navegador;
+- a rota é `/api/warroom/cerebro`;
+- as visões salvas usam a migração `202610190003_cerebro_visoes.sql`, que também traduz os registros (quantidade sem zeros decimais, situação em português).
+
+**Mudança do desenho:** a posição dos nós é calculada **no navegador**, e não no servidor como a seção 3 previa. As forças (centro, repulsão, ligação) e o "Animar" mexem no desenho ao vivo, então o cálculo precisa estar ali. A posição inicial é estável (a mesma para o mesmo nó), e o grafo se arruma em poucos segundos quando abre.
+
+**Teste no navegador, com usuários temporários e permissões reais (15/16):**
+- quem não tem o War Room não vê o módulo, e a API recusa;
+- abre com a legenda e as contagens (570 fornecedores, 359 itens) e mostra a hora da última montagem;
+- a ficha da COMIL traz os números e as ligações agrupadas;
+- a ligação COMIL → resina expande em 5 compras com valor;
+- isolar a COMIL dá 17 pontos;
+- o caminho COMIL → Fundição dá 3 pontos;
+- do que a Fundição depende dá 71 pontos;
+- carregar as peças leva o grafo a 3.898 peças;
+- nenhum erro de JavaScript e nenhuma rolagem lateral, no claro, no escuro e no celular (onde a tela vira lista).
+
+A falha que sobrou foi da verificação, e não da tela: a categoria do fornecedor vem em maiúsculas do próprio cadastro.
+
+**Corrigido no teste:**
+- as ligações quase sumiam no tema claro;
+- a câmera não enquadrava os vizinhos do ponto escolhido;
+- os valores da ficha apareciam em caixa alta e o campo de período ficava desalinhado (regras gerais da plataforma);
+- a quantidade "210.000 kg" e a situação "settled" nos registros;
+- a hora da última montagem sumia quando faltava a tabela das visões.

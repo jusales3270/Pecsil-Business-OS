@@ -39,3 +39,24 @@ test("Cérebro: o caminho entre dois nós é busca em largura com visitados (sem
   assert.match(sql, /create temp table _vis \(id uuid primary key/);
   assert.match(sql, /on conflict \(id\) do nothing/);
 });
+
+test("Cérebro (tela): tamanho, posição estável, ficha formatada e filtro sem ligação solta", async () => {
+  const v = await import("../lib/cerebro/visual.ts");
+  assert.equal(v.tamanhoDoNo(0), 2.5);
+  assert.ok(v.tamanhoDoNo(3860) <= 26, "o cliente com 3.860 peças não engole a tela");
+  assert.ok(v.tamanhoDoNo(100) > v.tamanhoDoNo(10));
+  assert.deepEqual(v.posicaoInicial("abc"), v.posicaoInicial("abc"));
+  assert.notDeepEqual(v.posicaoInicial("abc"), v.posicaoInicial("abd"));
+  const linhas = v.linhasDaFicha("item", { comprado: 11573.1, compras: 3, ultimo_preco: 18.37, ultima_compra: "2026-08-18", nada: 1 });
+  assert.deepEqual(linhas.map((l) => l.rotulo), ["Comprado", "Compras", "Último preço", "Última compra"]);
+  assert.match(linhas[0].valor, /11\.573,10/);
+  assert.equal(linhas[3].valor, "18/08/2026");
+  assert.equal(v.linhasDaFicha("cliente", { atraso_medio_dias: 1 })[0].valor, "1 dia");
+  const l = { id: "l", origem: "a", destino: "b", tipo: "vendeu", familia: "transacao", quantidade: 3, total: 11573.1, primeira: "2026-08-04", ultima: "2026-08-18", resumo: { ultimo_preco: 18.37 }, procedencia: "regra", situacao: "valendo" };
+  assert.match(v.resumoDaLigacao(l), /^3 compras · R\$\s?11\.573,10 · 04\/08\/2026 a 18\/08\/2026 · último preço R\$\s?18,37$/);
+  const g = { nos: [{ id: "a", tipo: "fornecedor" }, { id: "b", tipo: "item" }, { id: "c", tipo: "produto" }], ligacoes: [l, { ...l, id: "l2", destino: "c", familia: "estrutura" }] };
+  const f = v.filtrar(g, new Set(["fornecedor", "item"]), new Set(["transacao", "estrutura"]), null);
+  assert.deepEqual(f.ligacoes.map((x) => x.id), ["l"], "ligação para nó escondido sai");
+  assert.equal(v.filtrar(g, new Set(["fornecedor", "item"]), new Set(["transacao"]), "2026-09-01").ligacoes.length, 0, "período corta pela última data");
+  assert.equal(v.rotuloLigacao("abastece", false), "depende de");
+});
