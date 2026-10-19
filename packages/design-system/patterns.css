@@ -8219,3 +8219,91 @@ button.holiday-row:hover {
 .aprendeu-ruim span { font-size: var(--fs-xs); color: var(--text-muted); }
 .aprendeu-ruim p { margin: 0; font-size: var(--fs-sm); color: var(--text-primary); }
 @media (max-width: 600px) { .aprendeu-habilidade dl > div { grid-template-columns: 1fr; gap: 2px; } .aprendeu-filtro { margin-left: 0; } }
+
+/* ============================================================================
+   TI (T-06): painel de saúde, incidentes, chamados e inventário.
+   As tabelas usam o padrão "Tabelas em linhas" (.vnd-tabela, subgrid): as colunas
+   ficam declaradas aqui, na tabela.
+   ============================================================================ */
+/* Nº · Chamado · Quem abriu · Prioridade · Situação · Prazo · Com */
+.vnd-tabela.ti-chamados { grid-template-columns: max-content minmax(240px, 1fr) minmax(120px, max-content) repeat(3, max-content) minmax(90px, max-content); }
+/* Meus chamados (sem "Quem abriu") */
+.vnd-tabela.ti-chamados.ti-chamados-meus { grid-template-columns: max-content minmax(200px, 1fr) repeat(3, max-content) minmax(90px, max-content); }
+/* Nº · Equipamento · Tipo · Local · IP · Situação */
+.vnd-tabela.ti-ativos { grid-template-columns: max-content minmax(220px, 1fr) repeat(4, max-content); }
+/* Início · O que caiu · Fora · Categoria · Causa */
+.vnd-tabela.ti-incidentes { grid-template-columns: max-content minmax(180px, max-content) max-content max-content minmax(260px, 1fr); }
+.vnd-tabela.ti-incidentes > [role="row"] > .ti-causa { white-space: normal; font-size: var(--fs-xs); color: var(--text-secondary); }
+:is(.ti-chamados, .ti-ativos, .ti-incidentes) > button[role="row"] {
+  width: 100%; border: 0; border-top: 1px solid var(--border-subtle); background: none; font: inherit; text-align: left; color: var(--text-primary); cursor: pointer;
+}
+:is(.ti-chamados, .ti-ativos, .ti-incidentes) > button[role="row"]:hover { background: var(--bg-hover); }
+:is(.ti-chamados, .ti-ativos, .ti-incidentes) > .cabeca > .r { text-align: right; }
+.ti-mono { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--fs-xs); }
+.ti-critico { margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--tint-red); color: var(--accent-red); font-size: var(--fs-xs); font-style: normal; font-weight: 600; }
+.vnd-tabela .nome .ti-critico { display: inline-block; align-self: flex-start; margin: 2px 0 0; }
+.ti-prazo { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+.ti-prazo.danger { color: var(--accent-red); }
+.ti-prazo.attention { color: var(--accent-amber); }
+.ti-prazo.success { color: var(--accent-green); }
+.ti-nota { margin: 0; font-size: var(--fs-xs); color: var(--text-muted); }
+.ti-filtro { margin-left: 0; width: auto; min-width: 180px; }
+.ti-campos { display: contents; margin: 0; padding: 0; border: 0; min-width: 0; }
+.ti-campos:disabled :is(input, select, textarea) { background: var(--bg-subtle); color: var(--text-secondary); }
+.ti-ficha > .ti-campos { display: flex; flex-direction: column; gap: var(--sp-4); }
+.almox-campos > .ti-campo-2 { grid-column: span 2; }
+.almox-campos > .ti-campo-3 { grid-column: span 3; }
+.almox-campos > .ti-campo-4 { grid-column: 1 / -1; }
+@media (max-width: 720px) { .almox-campos > :is(.ti-campo-2, .ti-campo-3, .ti-campo-4) { grid-column: 1 / -1; } }
+.ti-prioridades { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); margin: 0; padding: 0; border: 0; }
+.ti-prioridades legend { grid-column: 1 / -1; float: left; width: 100%; }
+@media (max-width: 560px) { .ti-prioridades { grid-template-columns: 1fr 1fr; } }
+.ti-prioridade { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); cursor: pointer; }
+.ti-prioridade input { position: absolute; opacity: 0; pointer-events: none; }
+.ti-prioridade b { font-size: var(--fs-sm); color: var(--text-primary); }
+.ti-prioridade small { font-size: var(--fs-xs); color: var(--text-muted); }
+.ti-prioridade.on { border-color: var(--accent-blue); background: var(--tint-blue); }
+.ti-prioridade:has(input:focus-visible) { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+.ti-chamado { display: flex; flex-direction: column; gap: var(--sp-4); }
+.ti-chamado-selos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.ti-quem { font-size: var(--fs-xs); color: var(--text-secondary); }
+.ti-linha-tempo { display: flex; flex-direction: column; gap: var(--sp-3); margin: 0; padding: 0; list-style: none; }
+.ti-andamento { padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); background: var(--bg-surface); }
+.ti-andamento.dono { background: var(--bg-subtle); }
+.ti-andamento:is(.atribuicao, .situacao, .reclassificacao) { padding: 6px 12px; border-style: dashed; background: none; }
+.ti-andamento header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.ti-andamento header b { color: var(--text-primary); }
+.ti-andamento header time { margin-left: auto; color: var(--text-muted); }
+.ti-andamento p { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ti-acoes { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ti-reclassificar { display: flex; flex-direction: column; gap: var(--sp-3); }
+.ti-numeros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); margin: 0; }
+.ti-numeros > div { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--bg-subtle); }
+.ti-numeros dt { font-size: var(--fs-xs); color: var(--text-muted); }
+.ti-numeros dd { margin: 2px 0 0; font-size: var(--fs-lg); font-weight: 650; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.ti-numeros dd small { font-size: var(--fs-xs); font-weight: 500; color: var(--text-muted); }
+.ti-numeros dd.ruim { color: var(--accent-red); }
+@media (max-width: 560px) { .ti-numeros { grid-template-columns: 1fr; } }
+.ti-servicos { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ti-itens { display: flex; flex-direction: column; gap: var(--sp-3); margin: 0; padding: 0; list-style: none; }
+.ti-itens li { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--text-secondary); }
+.ti-itens li b { color: var(--text-primary); }
+.ti-itens li span { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ti-resumo-categorias { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.ti-cat { padding: 4px 10px; border-radius: 999px; background: var(--tint-neutral); font-size: var(--fs-xs); color: var(--text-secondary); }
+.ti-cat b { color: var(--text-primary); }
+.ti-cat.energia { background: var(--tint-amber); }
+.ti-cat.internet, .ti-cat.rede { background: var(--tint-blue); }
+.ti-cat.servidor, .ti-cat.backup { background: var(--tint-red); }
+.ti-cat.a_confirmar { background: var(--tint-purple); }
+.ti-regras { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--sp-5); align-items: start; }
+.ti-regras > label { display: flex; flex-direction: column; min-width: 0; }
+@media (max-width: 720px) { .ti-regras { grid-template-columns: 1fr; } }
+.ti-prazos { display: flex; flex-direction: column; gap: var(--sp-3); margin: 0; padding: 0; border: 0; }
+.ti-prazos label { display: grid; grid-template-columns: 1fr 110px; align-items: center; gap: var(--sp-3); }
+.ti-prazos label > span { margin: 0 !important; }
+/* A regra geral `label > textarea` fixa 38 px de altura: nos formulários da TI a caixa de texto cresce. */
+.ti-form label > textarea { height: auto; min-height: 84px; padding: 8px 10px; line-height: 1.45; }
+.ti-regras label > textarea { min-height: 300px; }
+/* A regra geral de "rótulo + select" põe 8 px de espaço: aqui o select fica alinhado aos campos vizinhos. */
+.ti-form label:has(> select) { gap: 0; white-space: normal; }

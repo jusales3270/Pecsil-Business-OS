@@ -395,7 +395,7 @@ test("Equipe: uma SARA por módulo, cada uma liberada por pessoa e com consultas
   const { ACCESS_CATALOG } = await import("../modules/access-catalog.ts");
   const { REGRAS } = await import("../lib/sara/alertas.ts");
   const modulos = AGENTES.map((a) => a.sara.modulo).sort();
-  assert.deepEqual(modulos, ["almoxarifado", "comercial", "compras", "fiscal", "fundicao", "portaria", "producao", "rh"]);
+  assert.deepEqual(modulos, ["almoxarifado", "comercial", "compras", "fiscal", "fundicao", "portaria", "producao", "rh", "ti"]);
   const nomes = FERRAMENTAS.map((f) => f.nome);
   assert.equal(new Set(nomes).size, nomes.length, "nomes de consulta únicos na equipe");
   const catalogo = new Set(ACCESS_CATALOG.flatMap((m) => m.features.map((f) => f.code)));
@@ -662,7 +662,7 @@ test("SARA tema: cada módulo tem assunto e fontes oficiais; a pesquisa só ness
   for (const m of Object.keys(SARAS)) {
     assert.ok(TEMAS[m], `tema de ${m}`);
     assert.ok(TEMAS[m].dominios.length >= 2);
-    for (const d of TEMAS[m].dominios) assert.match(d, /(^|\.)(gov|jus)\.br$|\.org\.br$|\.com\.br$/, `${m}: ${d} é fonte oficial ou do setor`);
+    for (const d of TEMAS[m].dominios) assert.match(d, /(^|\.)(gov|jus|cert|nic)\.br$|\.org\.br$|\.com\.br$/, `${m}: ${d} é fonte oficial ou do setor`);
   }
   const { buscar, pedidos } = claudeFalso([{ stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] }]);
   await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [], pesquisa: { dominios: ["gov.br"], maxBuscas: 3 } });

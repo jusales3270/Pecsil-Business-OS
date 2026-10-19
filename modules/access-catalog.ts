@@ -186,6 +186,16 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     ],
   },
   {
+    code: "ti",
+    label: "TI",
+    features: [
+      { code: "ti.saude", label: "Saúde e incidentes", description: "Painel do servidor, do backup e da internet (lido do vigia externo) e o histórico de quedas; operar confirma a causa e registra incidentes.", levels: VER_OPERAR },
+      { code: "ti.ativos", label: "Inventário", description: "Servidores, estações, rede, coletores das CNCs e sistemas; operar cadastra e altera.", levels: VER_OPERAR },
+      { code: "ti.chamados", label: "Chamados", description: "Fila de chamados de TI de toda a empresa (cada pessoa já acompanha os seus sem esta permissão); operar atende e resolve; aprovar muda as categorias e os prazos.", levels: TODOS },
+      sara("ti"),
+    ],
+  },
+  {
     code: "fiscal",
     label: "Fiscal",
     features: [

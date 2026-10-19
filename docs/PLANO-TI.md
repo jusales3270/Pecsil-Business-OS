@@ -250,7 +250,7 @@ A produtização (§8) fica estacionada pela regra de 17/10: primeiro a PecSil p
 
 - **Supervisor de TI:** as regras do módulo (categorias e prazos de chamado, o que o agente pode
   fazer sozinho) e a escolha das ferramentas (Uptime Kuma, Netdata ou Zabbix, RustDesk ou MeshCentral).
-  O nome ainda precisa ser confirmado pelo proprietário.
+  É o **Cesar Augusto Santos** (confirmado pelo proprietário em 19/10/2026).
 - **Proprietário:** compras e recursos (nobreak, link reserva, onde roda o vigia externo, o canal de
   alerta) e o uso de IA.
 
@@ -308,3 +308,39 @@ Falta:
 - a chave `age`;
 - o app no Coolify;
 - **a restauração real**, sem a qual o T-02 não conta como entregue.
+
+### T-06: módulo TI no Business OS (construído em 19/10)
+
+O escopo é o do §5. Ficam para depois os **acessos remotos auditados**, que dependem da ferramenta
+que vai substituir o AnyDesk (T-05), e a **leitura do nobreak**, que depende do T-01.
+
+| Tela | O que faz | Permissão |
+|---|---|---|
+| Painel | O servidor (no ar, ligado há quanto tempo, disco, memória, serviços por dentro), o backup diário, os testes de fora e os alertas por WhatsApp. Tudo lido do vigia na nuvem (`infra/vigia/003_painel.sql`) | `ti.saude` |
+| Incidentes | Quedas do vigia copiadas para `ti_incidentes`, com a categoria provável pela regra; a TI confirma a causa e registra à mão o que o vigia não vê | `ti.saude` (operar registra e confirma) |
+| Chamados | A fila de toda a empresa, com prazo por prioridade, responsável e histórico | `ti.chamados` (operar atende; aprovar muda as regras) |
+| Inventário | Servidores, computadores, rede, coletores das CNCs, sistemas; crítico ou não | `ti.ativos` |
+| Regras | Categorias e prazos dos chamados | `ti.chamados` aprovar |
+| Chamados de TI (menu da conta) | Qualquer pessoa abre e acompanha os seus; os avisos do sino trazem para o chamado | nenhuma |
+
+Como as quedas chegam:
+- a tarefa do sinal de vida (`scripts/ti-sinal-cron.mjs`) lê o painel do vigia depois de avisar e copia
+  as quedas dos últimos 3 dias, a cada minuto;
+- as telas também copiam o histórico inteiro, no máximo uma vez por minuto.
+
+Quem pode ver uma queda (`ti.saude`) é avisado no sino quando ela entra; alarme falso não avisa ninguém.
+
+A leitura usa o mesmo `VIGIA_TOKEN` do sinal, sem chave nova. A cópia usa a chave de serviço que o
+contêiner já tem. Se houver mais de uma empresa no banco, é preciso informar `TI_ORGANIZATION_ID`.
+
+**Decisões do Cesar, provisórias até ele revisar em TI › Regras:**
+- **Categorias:** Computador ou notebook, Impressora, Internet ou rede, E-mail, Acesso e senha,
+  Business OS, Forja, GRV, Coletor das CNCs, Outro.
+- **Prazos para resolver,** em horas corridas: urgente 4 h, alta 8 h, normal 24 h, baixa 72 h.
+- **Em aberto:** se o prazo deve parar enquanto o chamado está "aguardando". Hoje não para.
+
+Aplicado em 19/10: a migração `202610190001_ti_base.sql` no banco da plataforma e o `003_painel.sql`
+na nuvem do vigia. Falta o deploy e os acessos do Cesar, que o proprietário libera.
+
+**Aviso à empresa toda ("Chamar a TI pela plataforma"):** decisão do proprietário em 19/10, só sai
+depois de o Cesar revisar as regras. Entra então como novidade sem `modulos` em `lib/novidades.ts`.

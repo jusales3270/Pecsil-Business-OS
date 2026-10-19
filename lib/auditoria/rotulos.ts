@@ -47,7 +47,7 @@ export const FONTES: Record<string, string> = { acao: "Ação", evento: "Evento"
 export const MODULOS: Record<string, string> = {
   acesso: "Acessos", core: "Plataforma", "core.access": "Acessos", financeiro: "Financeiro", rh: "Recursos Humanos", fiscal: "Fiscal",
   comercial: "Comercial", compras: "Compras", producao: "Produção", almoxarifado: "Almoxarifado", portaria: "Portaria", cadastros: "Cadastros",
-  fundicao: "Fundição", fundacao: "Fundação", plataforma: "Plataforma",
+  fundicao: "Fundição", fundacao: "Fundação", plataforma: "Plataforma", ti: "TI",
 };
 
 export function rotuloAcao(acao: string): string {

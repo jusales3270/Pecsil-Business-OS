@@ -58,6 +58,12 @@ export const TEMAS: Record<string, Tema> = {
     exemplos: "para que serve o inoculante; o que causa porosidade numa peça fundida; diferença entre ferro fundido cinzento e nodular; o que é escorificante; como se controla a umidade da areia",
     dominios: [...GOV, "abifa.org.br", "sebrae.com.br"],
   },
+  ti: {
+    assunto: "infraestrutura de TI da indústria: servidores (Linux e Windows), rede (switch, roteador, Wi-Fi, VLAN, firewall), internet e link reserva, nobreak e energia, backup e restauração, segurança da informação e LGPD na TI, acesso remoto, computadores e impressoras, sistemas (ERP, banco de dados, contêineres) e monitoramento",
+    exemplos: "o que é a regra 3-2-1 de backup; como ligar o religamento automático na BIOS; diferença entre nobreak online e interativo; como calcular a autonomia de um nobreak; o que é VLAN; como funciona o failover de link; o que a LGPD pede de segurança",
+    // Fontes oficiais do Brasil: o CERT.br e o NIC.br (boas práticas de segurança e de rede) e o governo (ANPD/LGPD, GSI).
+    dominios: [...GOV, "cert.br", "nic.br"],
+  },
   portaria: {
     assunto: "portaria e segurança patrimonial: controle de acesso de visitantes e terceiros, integração de segurança, frota e transporte (documentos, notas na saída), recebimento de cargas, NRs aplicáveis a prestadores",
     exemplos: "que documentos um terceiro precisa para entrar; o que conferir na saída de um veículo com nota fiscal; o que é integração de segurança; regras de transporte de carga",

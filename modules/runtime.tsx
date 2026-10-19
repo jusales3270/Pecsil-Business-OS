@@ -11,6 +11,7 @@ import FiscalApp from "./fiscal/src/FiscalApp";
 import type { ModuleAccessContext } from "./access";
 // module-generator:imports
 import FundicaoApp from "./fundicao/src/FundicaoApp";
+import TiApp from "./ti/src/TiApp";
 
 export type ModuleRuntimeProps = {
   notify: (message: string) => void;
@@ -36,6 +37,7 @@ const moduleComponents: Record<string, ComponentType<ModuleRuntimeProps>> = {
   fiscal: FiscalApp,
   // module-generator:entries
   fundicao: FundicaoApp,
+  ti: TiApp,
 };
 
 export function renderModuleComponent(moduleId: string, props: ModuleRuntimeProps) {

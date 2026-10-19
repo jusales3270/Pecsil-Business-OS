@@ -21,6 +21,7 @@ import { SaraPainel } from "./components/sara-painel";
 import { SaraAprendizado } from "./components/sara-aprendizado";
 import { SARAS } from "../lib/sara/modulos";
 import { AccountPanel } from "./components/account-panel";
+import { MeusChamadosTi } from "./components/ti-meus-chamados";
 import { ACCESS_CATALOG, ACCESS_LEVELS, LEVEL_LABELS, levelRank, type AccessGrants } from "../modules/access-catalog";
 import { usePwa } from "./components/pwa-provider";
 import { useInbox, type InboxItem } from "../lib/use-inbox";
@@ -121,6 +122,7 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
     cart: <><path d="M3 4h2l2 12h10l3-8H6"/><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></>,
     handshake: <><path d="m11 7 2-2 5 4h3v7h-2l-4 4-3-3"/><path d="M3 9h3l4-4 3 3-3 3 2 2"/><path d="m7 15 2 2"/></>,
     factory: <><path d="M3 21V9l6 3V8l6 4V4h6v17z"/><path d="M7 17h2M12 17h2M17 17h2"/></>,
+    server: <><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/></>,
     box: <><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="M3 8v9l9 5 9-5V8M12 13v9"/></>,
     check: <><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></>, chart: <><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7"/></>,
     menu: <path d="M4 7h16M4 12h16M4 17h16"/>, close: <path d="m6 6 12 12M18 6 6 18"/>, back: <path d="m15 18-6-6 6-6"/>,
@@ -380,6 +382,8 @@ function HomeContent() {
   const { canInstall, promptInstall } = usePwa();
   const inbox = useInbox(realAccess && !accessLoading);
   const [accountPanel,setAccountPanel]=useState(false);
+  // Chamados de TI de qualquer pessoa (menu da conta); `id` abre um chamado vindo do sino.
+  const [chamadosTi,setChamadosTi]=useState<{id:string|null}|null>(null);
   // Visão executiva (Visão Geral, catálogo de módulos) é do proprietário; os
   // demais entram direto nos módulos liberados a eles.
   const isOwner = access.isOwner;
@@ -402,9 +406,12 @@ function HomeContent() {
   useEffect(() => {
     if (routedInitialModule || accessLoading) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.has("module") || params.has("view")) {
+    if (params.has("module") || params.has("view") || params.has("chamados-ti")) {
       window.history.replaceState(null, "", window.location.pathname);
     }
+    // Aviso do sino de quem abriu um chamado de TI: abre o chamado no painel pessoal (logo depois do efeito).
+    const chamadoTi = params.has("chamados-ti") ? { id: params.get("chamados-ti") || null } : null;
+    if (chamadoTi) setTimeout(() => setChamadosTi(chamadoTi), 0);
     const requested = params.get("module");
     const secao = params.get("secao");
     if (secao) setModuleSection({ secao, n: 1 });
@@ -464,6 +471,7 @@ function HomeContent() {
     const params=new URL(item.actionUrl, window.location.origin).searchParams;
     const destino=params.get("view");
     if(destino&&nav.some(n=>n.label===destino)){change(destino as View);return}
+    if(params.has("chamados-ti")){setChamadosTi({id:params.get("chamados-ti")||null});return}
     const target=params.get("module");
     if(!target) return;
     openModule(target, params.get("secao") ?? undefined);
@@ -595,7 +603,7 @@ function HomeContent() {
             {sessionProfile.avatarUrl ? <img className="avatar top avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span className="avatar top">{access.initials}</span>}
             <span><b>{access.name}</b><small>{access.role}</small></span>
           </button>
-          {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{canInstall && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar aplicativo</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
+          {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setChamadosTi({id:null})}}><Icon name="inbox" size={16}/> Chamados de TI</button>}{canInstall && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar aplicativo</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
         </div>
       </header>
       {(()=>{
@@ -663,7 +671,7 @@ function HomeContent() {
           <span>Menu</span>
         </button>
       </nav>
-    </main>{accountPanel&&<AccountPanel access={access} profile={sessionProfile} onClose={()=>setAccountPanel(false)} onSaved={reloadIdentity} notify={notify}/>}
+    </main>{accountPanel&&<AccountPanel access={access} profile={sessionProfile} onClose={()=>setAccountPanel(false)} onSaved={reloadIdentity} notify={notify}/>}{chamadosTi&&realAccess&&<MeusChamadosTi key={chamadosTi.id??"lista"} abrirId={chamadosTi.id} onClose={()=>setChamadosTi(null)} notify={notify}/>}
       {toast&&<div className="toast"><span>✓</span>{toast}</div>}
   </div>;
 }
