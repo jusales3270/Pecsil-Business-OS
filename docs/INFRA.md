@@ -140,6 +140,7 @@ token criado antes de concluir que foi revogado.
 | Notas recebidas da SEFAZ | `node scripts/fiscal-dfe-cron.mjs` | a cada 15 min (`*/15 * * * *`) | Distribuição de documentos da SEFAZ (respeita a espera da SEFAZ) |
 | Leitura de documentos | `node scripts/leitura-documentos-cron.mjs` | a cada 5 min (`*/5 * * * *`) | Texto e OCR dos documentos guardados (Segundo Cérebro) |
 | Sinal de vida para o vigia externo (T-03) — criada em 19/10 | `node scripts/ti-sinal-cron.mjs` | a cada minuto (`* * * * *`) | Avisa o vigia na nuvem que o servidor está de pé ([VIGIA-EXTERNO.md](VIGIA-EXTERNO.md)) |
+| Montar o grafo do Segundo Cérebro (G1) — criada em 19/10, **desligada até o deploy** | `node scripts/cerebro-cron.mjs` | a cada 10 min (`*/10 * * * *`) | Remonta o grafo do War Room a partir dos módulos ([PLANO-WAR-ROOM-CEREBRO.md](PLANO-WAR-ROOM-CEREBRO.md)) |
 | E-mail do Comercial | ver [CONEXAO-EMAIL-MICROSOFT.md](CONEXAO-EMAIL-MICROSOFT.md) | a cada 5 min | Só depois do Microsoft 365 (C-14) |
 
 Cada script chama uma rota local com o segredo da tarefa e sai com erro se a rodada falhar, para a
