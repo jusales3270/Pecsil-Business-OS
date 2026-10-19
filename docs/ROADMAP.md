@@ -166,7 +166,7 @@ Marco: **1**, **2** ou **+**.
 | Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
 |---|---|---|---|---|---|---|---|---|---|---|
 | B-01 | Recuperar o SSH e fechar o perímetro (portas do Supabase, porta 80 da Forja) | 1 | 5 | 3 | 1 | 3 | 11,0 | travado | Senha SSH | INFRA-SSH/PERIM; BP Fase 0 |
-| B-02 | Backup externo do banco e da Forja, com restore testado | 1 | 5 | 4 | 1 | 2 | 13,0 | pronto, falta instalar (= T-02) | Papel backup_leitura; projeto na nuvem | INFRA-BACKUP; Forja H3; BACKUP-EXTERNO |
+| B-02 | Backup externo do banco e da Forja, com restore testado | 1 | 5 | 4 | 1 | 2 | 13,0 | no ar (= T-02, 19/10; Forja ainda fora) | Papel backup_leitura; projeto na nuvem | INFRA-BACKUP; Forja H3; BACKUP-EXTERNO |
 | B-03 | Cofre de segredos e troca das chaves | 1 | 4 | 2 | 1,5 | 2 | 5,3 | na fila | B-01 | VIS 6.3a |
 | B-04 | Monitoramento com alertas pelo WhatsApp (canal compartilhado com o P-06) | 1 | 4 | 3 | 0,5 | 2 | 20,0 | decisão | Número de WhatsApp dedicado | INFRA-MON |
 | B-05 | VPN: só o Business OS público | 1 | 4 | 2 | 1 | 3 | 8,0 | travado | Roteador | INFRA-VPN |
@@ -291,8 +291,8 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
 |---|---|---|---|---|---|---|---|---|---|---|
 | T-01 | Pré-requisito de hardware: nobreak gerenciável e BIOS com religamento automático (+ iDRAC/iLO/IPMI, se houver) | 1 | 5 | 4 | 0,5 | 3 | 26,0 | decisão (roteiro do supervisor pronto em PLANO-TI) | Compra do nobreak (proprietário); BIOS e modelo atual (supervisor de TI) | TI §2; B-10 |
-| T-02 | Backup do banco fora do servidor, com restore testado: criptografado (age) antes de sair, servidor só grava, no projeto Supabase do vigia | 1 | 5 | 4 | 1 | 2 | 13,0 | pronto, falta instalar (papel aplicado; restauração real 165/165 tabelas em 18/10) | Projeto na nuvem, chave age e app no Coolify (proprietário) | TI §10; B-02; BACKUP-EXTERNO |
-| T-03 | Vigia externo num projeto Supabase na nuvem (sinal de vida + testes de fora + causa por regra), alerta pela API oficial do WhatsApp | 1 | 5 | 4 | 0,5 | 2 | 26,0 | pronto, falta instalar | Projeto na nuvem e tarefa no Coolify (proprietário); chip do WhatsApp para o alerta | TI §3.1; B-04; VIGIA-EXTERNO |
+| T-02 | Backup do banco fora do servidor, com restore testado: criptografado (age) antes de sair, servidor só grava, no projeto Supabase do vigia | 1 | 5 | 4 | 1 | 2 | 13,0 | no ar (19/10: primeiro backup real e restauração das cópias da nuvem conferida; Forja ainda fora) | Projeto na nuvem, chave age e app no Coolify (proprietário) | TI §10; B-02; BACKUP-EXTERNO |
+| T-03 | Vigia externo num projeto Supabase na nuvem (sinal de vida + testes de fora + causa por regra), alerta pela API oficial do WhatsApp | 1 | 5 | 4 | 0,5 | 2 | 26,0 | no ar (19/10: sinal de vida a cada minuto; testes de fora desligados, porque o firewall da fábrica bloqueia a nuvem; WhatsApp sem destinatário) | Projeto na nuvem e tarefa no Coolify (proprietário); chip do WhatsApp para o alerta | TI §3.1; B-04; VIGIA-EXTERNO |
 | T-04 | Coleta interna (Netdata ou Zabbix): CPU, memória, disco, temperatura, serviços, rede | 2 | 3 | 2 | 0,5 | 3 | 14,0 | na fila | Acesso ao servidor (B-01 ou console do supervisor); escolha da ferramenta | TI §3.2–3.3 |
 | T-05 | Acesso remoto auditado (RustDesk auto-hospedado ou MeshCentral) no lugar do AnyDesk | 2 | 4 | 1 | 1 | 2 | 6,0 | na fila | Escolha do supervisor de TI | TI §4 |
 | T-06 | Módulo TI no Business OS: inventário de ativos, painel de saúde, incidentes (histórico de quedas), chamados, acessos remotos | 1 | 4 | 3 | 1,5 | 1 | 6,7 | na fila | — (o painel de saúde e os acessos se completam com T-03, T-04 e T-05) | TI §5 |
@@ -421,6 +421,7 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | 18/10/2026 | Desenhos da Forja: guardados na plataforma, no módulo da Fundição, e fora do backup (T-02). O backup cobre o banco da plataforma, os arquivos da plataforma e o banco da Forja | Proprietário |
 | 18/10/2026 | T-02 (= B-02) reaberto e construído: backup diário criptografado (age, chave privada só com o proprietário) no mesmo projeto Supabase do vigia, servidor só grava, papel backup_leitura só de leitura, retenção na nuvem, aviso de 26 h. Desenhos fora (decisão do proprietário). E2E 11/11 e SQL 3/3 com dados de mentira | Proprietário / Claude |
 | 18/10/2026 | T-02: papel backup_leitura aplicado em produção (migração 202610180007, senha por verificador SCRAM). Backup real de 22,9 MB criptografado em 17 s; restaurado num Postgres descartável: 165 tabelas e 132.639 linhas iguais à produção. Falta instalar o app no Coolify | Claude |
+| 19/10/2026 | T-03 no ar: projeto Supabase do vigia, tarefa "Sinal de vida" no Coolify, primeiro sinal às 09:40. Os testes de fora foram desligados: o firewall da fábrica bloqueia conexões vindas da nuvem (o site abre no 4G), e liberar o IP de saída (100.60.102.71) é com o supervisor de TI. T-02 no ar: app backup-externo, primeiro backup real às 09:48 (23,2 MB + 45,9 MB), cópias da nuvem restauradas com a chave do proprietário: 132 tabelas iguais e 70 arquivos. Falta o banco da Forja | Claude |
 
 ## 9. Painel
 
