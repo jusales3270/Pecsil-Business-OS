@@ -43,6 +43,7 @@ da IA, deploy. **Decisão do negócio é de quem responde pela área**:
 | Fiscal e faturamento | Jefferson (com o contador nas regras fiscais) |
 | Comercial, orçamento e PCP | Rafael |
 | Fundição | Guilherme |
+| TI: regras do módulo, chamados, ferramentas (monitoramento, acesso remoto) | supervisor de TI (nome a confirmar) |
 
 Na plataforma vale o mesmo: a decisão vai para a permissão da área (aprovar no Financeiro, aprovar
 cotações, aprovar NF-e…), nunca para "só o proprietário".
@@ -86,6 +87,8 @@ cotações, aprovar NF-e…), nunca para "só o proprietário".
 | VERALLIA × "Verallia / Saint-Gobain – Campo Bom": mesma empresa? | Rafael | C-01 | Integração Forja |
 | Histórico do ICMS (1.577 notas) — "ainda não" em 12/10 | Jefferson | — | Almoxarifado e Fiscal |
 | Permissões: `fiscal.nfe` ao Jefferson, `operar` do quadro de terceiros ao RH, Homologação do Financeiro à Ana, Almoxarifado/ICMS à equipe | Proprietário (acessos) | Uso real; alçadas | Vários |
+| Nobreak gerenciável (modelo atual?) e onde roda o vigia externo (nuvem ou Raspberry Pi); canal de alerta (Telegram ou WhatsApp) | Proprietário (recurso) | T-01, T-03 | PLANO-TI §2, §3.1 |
+| Servidor tem iDRAC/iLO/IPMI? BIOS com religamento automático? Existe link reserva? RustDesk ou MeshCentral? | Supervisor de TI | T-01, T-04, T-05 | PLANO-TI §11 |
 | Auditoria 0008 (esconder o rastro dos usuários de teste) | Proprietário (plataforma) | — | Auditoria central |
 
 **Pedidos à equipe** (dados que não dependem de construção, mas destravam itens)
@@ -163,7 +166,7 @@ Marco: **1**, **2** ou **+**.
 | Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
 |---|---|---|---|---|---|---|---|---|---|---|
 | B-01 | Recuperar o SSH e fechar o perímetro (portas do Supabase, porta 80 da Forja) | 1 | 5 | 3 | 1 | 3 | 11,0 | travado | Senha SSH | INFRA-SSH/PERIM; BP Fase 0 |
-| B-02 | Backup externo do banco e da Forja, com restore testado | 1 | 5 | 4 | 1 | 1 | 13,0 | adiado | — | INFRA-BACKUP; Forja H3 |
+| B-02 | Backup externo do banco e da Forja, com restore testado | 1 | 5 | 4 | 1 | 1 | 13,0 | adiado | — | INFRA-BACKUP; Forja H3; = T-02 (PLANO-TI pede reabrir) |
 | B-03 | Cofre de segredos e troca das chaves | 1 | 4 | 2 | 1,5 | 2 | 5,3 | na fila | B-01 | VIS 6.3a |
 | B-04 | Monitoramento com alertas pelo WhatsApp (canal compartilhado com o P-06) | 1 | 4 | 3 | 0,5 | 2 | 20,0 | decisão | Número de WhatsApp dedicado | INFRA-MON |
 | B-05 | VPN: só o Business OS público | 1 | 4 | 2 | 1 | 3 | 8,0 | travado | Roteador | INFRA-VPN |
@@ -224,7 +227,7 @@ Marco: **1**, **2** ou **+**.
 | P-08 | Go-live da Forja (paralelo, critérios de liberação) | 1 | 5 | 5 | 1 | 2 | 15,0 | na fila | P-01 a P-04 | Forja v5.1 |
 | P-09 | Painel financeiro do PCP | — | — | — | — | — | — | decisão | Foi coberto pelo "A faturar"? | Forja 6b |
 | P-10 | OEE (SpindleOps) | + | 4 | 1 | 3 | 2 | 2,0 | na fila | P-08 | Forja Fase 2 |
-| P-11 | Visualizador de desenhos e migração da pasta física | + | 3 | 1 | 2 | 1 | 2,5 | na fila | — | Forja Fase 2 |
+| P-11 | Visualizador de desenhos e migração da pasta física (decisão de 18/10: os desenhos ficam na plataforma, no módulo da Fundição, e não entram no backup) | + | 3 | 1 | 2 | 1 | 2,5 | na fila | — | Forja Fase 2 |
 | P-12 | Inteligência da produção (previsão de prazo, gargalo) | + | 4 | 1 | 4 | 2 | 1,5 | na fila | P-10 | Forja Fase 3 |
 | P-13 | Causa-raiz dos motivos de parada | + | 3 | 1 | 1 | 2 | 5,0 | decisão | Taxonomia | Jev E8 |
 
@@ -280,6 +283,23 @@ Marco: **1**, **2** ou **+**.
 | K-06 | Margem na cotação e preço mínimo | 2 | 4 | 3 | 1,5 | 1 | 6,7 | na fila | K-05 | CM E8 |
 | K-07 | Painel executivo cruzado no celular | 2 | 4 | 3 | 2 | 1 | 5,0 | na fila | K-05 | VIS P2.1 |
 | K-08 | Linha de base "antes × depois" (registrar antes da virada) | 2 | 4 | 4 | 0,5 | 1 | 24,0 | no ar (conferir em produção) | — | VIS P3.2 |
+
+### T — TI (rede, servidores, computadores)
+
+Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 18/10: **a TI vem antes do Estoque**.
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| T-01 | Pré-requisito de hardware: nobreak gerenciável e BIOS com religamento automático (+ iDRAC/iLO/IPMI, se houver) | 1 | 5 | 4 | 0,5 | 3 | 26,0 | decisão (roteiro do supervisor pronto em PLANO-TI) | Compra do nobreak (proprietário); BIOS e modelo atual (supervisor de TI) | TI §2; B-10 |
+| T-02 | Backup do banco fora do servidor, com restore testado | 1 | 5 | 4 | 1 | 1 | 13,0 | adiado | = B-02 (o debate pede reabrir) | TI §10; B-02 |
+| T-03 | Vigia externo num projeto Supabase na nuvem (sinal de vida + testes de fora + causa por regra), alerta pela API oficial do WhatsApp | 1 | 5 | 4 | 0,5 | 2 | 26,0 | pronto, falta instalar | Projeto na nuvem e tarefa no Coolify (proprietário); chip do WhatsApp para o alerta | TI §3.1; B-04; VIGIA-EXTERNO |
+| T-04 | Coleta interna (Netdata ou Zabbix): CPU, memória, disco, temperatura, serviços, rede | 2 | 3 | 2 | 0,5 | 3 | 14,0 | na fila | Acesso ao servidor (B-01 ou console do supervisor); escolha da ferramenta | TI §3.2–3.3 |
+| T-05 | Acesso remoto auditado (RustDesk auto-hospedado ou MeshCentral) no lugar do AnyDesk | 2 | 4 | 1 | 1 | 2 | 6,0 | na fila | Escolha do supervisor de TI | TI §4 |
+| T-06 | Módulo TI no Business OS: inventário de ativos, painel de saúde, incidentes (histórico de quedas), chamados, acessos remotos | 1 | 4 | 3 | 1,5 | 1 | 6,7 | na fila | — (o painel de saúde e os acessos se completam com T-03, T-04 e T-05) | TI §5 |
+| T-07 | Evento TI → Produção: coletor ou servidor fora do ar marca a CNC como "sem telemetria" | 2 | 3 | 1 | 0,5 | 2 | 10,0 | na fila | T-03 ou T-04; telemetria das CNCs (P-10) | TI §7.1 |
+| T-08 | Camada agêntica: política determinística, ações seguras (reiniciar serviço, trocar de link), olhar para trás semanal | + | 4 | 1 | 2 | 3 | 3,0 | na fila | T-03, T-04, T-06; uso de IA no Plano do Jev | TI §6 |
+| T-09 | SARA de TI e alertas falados (TTS local: Kokoro ou Piper) | + | 3 | 1 | 1 | 2 | 5,0 | na fila | T-06; teste de voz na CPU; voz da SARA (I-09) | TI §7.2 |
+| T-10 | Produtização: TI agêntica white label, governança da autonomia, serviço por SLA | + | — | — | — | 3 | — | adiado (white label) | PecSil pronta e validada (17/10) | TI §8; raia Z |
 
 ### Z — Produto (multiempresa)
 
@@ -396,6 +416,9 @@ Marco: **1**, **2** ou **+**.
 | 18/10/2026 | Deploy do proprietário: C-05 e a SARA dos 9 módulos (I-12) no ar. Da comparação com o GRV Max (19 itens), 7 estão no ar, 2 em parte pela SARA (I-08, I-10) e 10 travados ou adiados | Claude |
 | 18/10/2026 | I-07 (religar a Busca Corporativa) vai para "não fazer": a SARA cobre | Proprietário |
 | 18/10/2026 | P-01, P-03 e P-07 construídos na Forja (proprietário reabriu). P-01: roteiro-padrão aplicado em massa por tipo, só em artigo sem roteiro, com prévia. P-03: aba "Previsto × realizado" na OS (carimbo de menos de 1 min = sem medição). P-07: bloqueio por PIN errado (10 em 5 min), limite geral, cabeçalhos, CORS fechado, socket só com login, JWT obrigatório em produção, módulo Artigos para gravar roteiro, logs com rotação; e o PIN errado volta a mostrar erro na tela. Sem migração. Modelos para funil, punção, cabeça de sopro e molde: Rafael | Claude |
+| 18/10/2026 | Entra a raia T (TI), com o debate das 5 conversas de 19/09 a 18/10 registrado em PLANO-TI.md. A TI vem antes do Estoque. T-02 é o B-02 (o debate pede reabrir); T-10 (produtização) fica estacionado pela regra do white label. Quem decide a TI: o supervisor de TI | Proprietário |
+| 18/10/2026 | T-03 construído: vigia num projeto Supabase na nuvem (escolha do proprietário), alerta pela API oficial do WhatsApp; causa por regra (energia/reinício × internet × porta 443) pelo tempo ligado do servidor. Teste 12/12 num Postgres do Supabase descartável. T-01: roteiro do supervisor em PLANO-TI | Claude |
+| 18/10/2026 | Desenhos da Forja: guardados na plataforma, no módulo da Fundição, e fora do backup (T-02). O backup cobre o banco da plataforma, os arquivos da plataforma e o banco da Forja | Proprietário |
 
 ## 9. Painel
 

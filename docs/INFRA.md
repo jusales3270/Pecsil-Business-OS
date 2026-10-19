@@ -103,6 +103,8 @@ Git. **Nenhum segredo com o prefixo `NEXT_PUBLIC_`**: esse prefixo manda o valor
 | `MS_GRAPH_CLIENT_SECRET` | Idem | **sim** |
 | `CLOUDFLARE_ACCOUNT_ID` | Conta do Clef (modelo de decisão) | não |
 | `CLOUDFLARE_AI_TOKEN` | Token só de Workers AI | **sim** |
+| `VIGIA_URL`, `VIGIA_CHAVE` | Projeto Supabase do vigia externo, na nuvem (endereço e chave pública) | não |
+| `VIGIA_TOKEN` | Token do sinal de vida do servidor (o vigia guarda só o hash) | **sim** |
 | `TYPESAFE_API_KEY` | Jev (modelo antigo, substituído pelo Clef) | **sim** |
 | `INITIAL_OWNER_NAME` | Nome do primeiro proprietário (instalação) | não |
 | `NEXT_PUBLIC_LOGIN_VIDEO_URL` | Vídeo da tela de login | não |
@@ -135,6 +137,7 @@ token criado antes de concluir que foi revogado.
 | Sincronizar OS do Forja | `node scripts/sync-os-cron.mjs` | a cada 10 min (`*/10 * * * *`) | Espelho das OS e dos artigos da Forja |
 | Notas recebidas da SEFAZ | `node scripts/fiscal-dfe-cron.mjs` | a cada 15 min (`*/15 * * * *`) | Distribuição de documentos da SEFAZ (respeita a espera da SEFAZ) |
 | Leitura de documentos | `node scripts/leitura-documentos-cron.mjs` | a cada 5 min (`*/5 * * * *`) | Texto e OCR dos documentos guardados (Segundo Cérebro) |
+| Sinal de vida para o vigia externo (T-03) | `node scripts/ti-sinal-cron.mjs` | a cada minuto (`* * * * *`) | Avisa o vigia na nuvem que o servidor está de pé ([VIGIA-EXTERNO.md](VIGIA-EXTERNO.md)) |
 | E-mail do Comercial | ver [CONEXAO-EMAIL-MICROSOFT.md](CONEXAO-EMAIL-MICROSOFT.md) | a cada 5 min | Só depois do Microsoft 365 (C-14) |
 
 Cada script chama uma rota local com o segredo da tarefa e sai com erro se a rodada falhar, para a
@@ -208,7 +211,7 @@ de aspas dá erro 500: por isso cada tarefa é um script.
 | Senha do Postgres e chaves do MinIO da Forja vazias no Coolify | Podem estar no valor padrão do código | conferir no compose da Forja |
 | Sobras paradas no Coolify (2 apps, 6 serviços) | Confusão numa recuperação | limpeza com OK do proprietário |
 | Sem backup externo testado | Perda total numa pane de disco | — |
-| Sem monitoramento com alerta | Ninguém é avisado quando cai | B-04 |
+| Sem monitoramento com alerta | Ninguém é avisado quando cai. Vigia externo pronto para instalar (T-03, [VIGIA-EXTERNO.md](VIGIA-EXTERNO.md)); falta o projeto na nuvem e, para o WhatsApp, o chip | B-04, T-03 |
 | Build no próprio servidor | O Deploy pesa na máquina da produção | B-07 |
 
 Ver também: [infra/README.md](../infra/README.md) (perímetro do Supabase),
