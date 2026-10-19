@@ -38,7 +38,9 @@ create table if not exists public.vigia_alvos (
   -- (serve para o link: um 404 do proxy já prova que a internet da fábrica chega)
   aceita           text not null default '2xx' check (aceita in ('2xx', 'qualquer')),
   token_hash       text,
-  tolerancia_s     integer not null default 180 check (tolerancia_s between 60 and 3600),
+  tolerancia_s     integer not null default 180 check (tolerancia_s between 60 and 172800),
+  -- Causa a usar quando este sinal para (ex.: o backup diário). Vazio = a regra do servidor.
+  aviso_parada     text,
   falhas_para_cair integer not null default 2 check (falhas_para_cair between 1 and 10),
   ativo            boolean not null default true,
   estado           text not null default 'desconhecido' check (estado in ('desconhecido', 'ok', 'fora')),
@@ -48,6 +50,10 @@ create table if not exists public.vigia_alvos (
   ultimo_info      jsonb,
   check (tipo <> 'http' or url is not null)
 );
+
+alter table public.vigia_alvos add column if not exists aviso_parada text;
+alter table public.vigia_alvos drop constraint if exists vigia_alvos_tolerancia_s_check;
+alter table public.vigia_alvos add constraint vigia_alvos_tolerancia_s_check check (tolerancia_s between 60 and 172800);
 
 create table if not exists public.vigia_checagens (
   id     bigserial primary key,
@@ -285,14 +291,14 @@ begin
       -- O link pode ainda não ter somado as falhas para cair: vale a última checagem
       -- dele feita depois do último sinal.
       perform public.vigia_cair(a.id,
-        case when link_fora or exists (
+        coalesce(a.aviso_parada, case when link_fora or exists (
                select 1 from (select c.ok from public.vigia_checagens c join public.vigia_alvos l on l.id = c.alvo
                                where l.tipo = 'http' and l.aceita = 'qualquer' and c.em > a.ultimo_sinal
                                order by c.em desc limit 1) u where not u.ok)
              then 'sem contato com a fábrica: energia, servidor ou internet'
-             else 'o servidor parou de avisar, mas a fábrica responde de fora: servidor ou plataforma travados' end,
+             else 'o servidor parou de avisar, mas a fábrica responde de fora: servidor ou plataforma travados' end),
         jsonb_build_object('ultimo_sinal', a.ultimo_sinal));
-    elsif a.estado = 'fora' and link_fora then
+    elsif a.estado = 'fora' and link_fora and a.aviso_parada is null then
       -- O link caiu depois: a causa do incidente aberto passa a ser "sem contato" (sem novo alerta).
       update public.vigia_incidentes set causa = 'sem contato com a fábrica: energia, servidor ou internet'
        where alvo = a.id and fim is null and causa like 'o servidor parou de avisar%';

@@ -179,7 +179,7 @@ de aspas dá erro 500: por isso cada tarefa é um script.
 
 ### 7.3 O banco do Supabase
 
-- **Backup externo testado: não existe ainda** (item da recomendação de infraestrutura, a ser
+- **Backup externo (T-02): pronto para instalar** em [BACKUP-EXTERNO.md](BACKUP-EXTERNO.md) — app `services/backup` no Coolify, criptografado, no projeto do vigia. Até ser instalado e ter a restauração real feita, vale o que segue: **backup externo testado não existe ainda** (item da recomendação de infraestrutura, a ser
   feito). O Coolify não administra nenhum banco (conferido em 17/10), então também não faz backup:
   nem do Supabase, nem do Postgres da Forja, que vive dentro do compose. Até lá, uma perda de disco
   do servidor perde os dois bancos.
@@ -210,7 +210,7 @@ de aspas dá erro 500: por isso cada tarefa é um script.
 | Coolify público, inclusive em HTTP pela porta 8001 | Painel de administração exposto; senha e token passam sem criptografia | B-05 |
 | Senha do Postgres e chaves do MinIO da Forja vazias no Coolify | Podem estar no valor padrão do código | conferir no compose da Forja |
 | Sobras paradas no Coolify (2 apps, 6 serviços) | Confusão numa recuperação | limpeza com OK do proprietário |
-| Sem backup externo testado | Perda total numa pane de disco | — |
+| Sem backup externo testado | Perda total numa pane de disco. Pronto para instalar ([BACKUP-EXTERNO.md](BACKUP-EXTERNO.md)) | T-02 |
 | Sem monitoramento com alerta | Ninguém é avisado quando cai. Vigia externo pronto para instalar (T-03, [VIGIA-EXTERNO.md](VIGIA-EXTERNO.md)); falta o projeto na nuvem e, para o WhatsApp, o chip | B-04, T-03 |
 | Build no próprio servidor | O Deploy pesa na máquina da produção | B-07 |
 

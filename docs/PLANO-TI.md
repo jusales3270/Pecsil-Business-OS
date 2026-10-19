@@ -287,3 +287,24 @@ Falta do proprietário:
 - criar o projeto na nuvem;
 - cadastrar as 3 variáveis e a tarefa no Coolify;
 - para o WhatsApp: o chip, a conta Meta Business e o modelo aprovado.
+
+### T-02: backup externo (construído em 18/10)
+
+Decisão do proprietário em 18/10: o backup fica **no mesmo projeto Supabase da nuvem do vigia**; os
+**desenhos da Forja ficam fora** (serão guardados na plataforma, no módulo da Fundição).
+
+O desenho:
+- criptografado com `age` antes de sair, com a chave privada só com o proprietário;
+- o servidor só grava, sem ler nem apagar;
+- papel `backup_leitura` só de leitura no banco;
+- retenção feita pela nuvem;
+- aviso ao vigia, que alerta se passar 26 h sem backup.
+
+Instalação e restauração em [BACKUP-EXTERNO.md](BACKUP-EXTERNO.md).
+
+Falta:
+- o OK para aplicar o papel no banco;
+- o projeto na nuvem (o mesmo do vigia);
+- a chave `age`;
+- o app no Coolify;
+- **a restauração real**, sem a qual o T-02 não conta como entregue.
