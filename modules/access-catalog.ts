@@ -210,6 +210,13 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     ],
   },
   {
+    code: "warroom",
+    label: "War Room",
+    features: [
+      { code: "warroom.cerebro", label: "Segundo Cérebro (grafo)", description: "O grafo da empresa inteira: fornecedores, clientes, itens, contas e as ligações entre eles, com valores. Quem tem esta permissão vê TUDO do grafo (decisão do proprietário, 19/10/2026): libere com cuidado.", levels: VER },
+    ],
+  },
+  {
     code: "fundacao",
     label: "Fundação",
     features: [
