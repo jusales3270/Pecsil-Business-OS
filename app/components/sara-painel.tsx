@@ -18,18 +18,19 @@ import { SaraVisual } from "./sara-visual";
  */
 
 type Salva = { id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean; visuais?: Visual[] };
-type Estado = { nome: string; configurada: boolean; ferramentas: string[]; rotulos?: Record<string, string>; habilidades?: { id: string; nome: string; pedido: string }[]; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
+type Estado = { nome: string; configurada: boolean; ferramentas: string[]; alcance?: { outrosModulos: boolean; dados: boolean; pesquisa: boolean }; rotulos?: Record<string, string>; habilidades?: { id: string; nome: string; pedido: string }[]; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
 type Mensagem = { papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string; visuais?: Visual[] };
 
 const CONSULTA: Record<string, string> = {
   contas_a_pagar: "contas a pagar", contas_a_receber: "contas a receber", fluxo_de_caixa_90_dias: "fluxo de caixa",
   bancos_e_conciliacao: "bancos e conciliação", compras_aprovadas_a_pagar: "ordens de compra (Compras)", abrir_tela: "abriu uma tela",
+  pesquisar_na_internet: "pesquisou na internet", consultar_dados: "consultou os dados", calcular: "fez as contas",
   buscar_contas_a_pagar: "busca em contas a pagar", buscar_contas_a_receber: "busca em contas a receber", abrir_lancamento: "abriu um lançamento",
   registrar_lacuna: "anotou o pedido",
 };
 // Navegação, não consulta: não entram no "Posso consultar".
-const NAVEGA = new Set(["abrir_tela", "abrir_lancamento", "registrar_lacuna", "propor_habilidade", "mostrar"]);
+const NAVEGA = new Set(["abrir_tela", "abrir_lancamento", "registrar_lacuna", "propor_habilidade", "mostrar", "calcular"]);
 const AVATAR = "/favicon.png?v=2";
 // Para quem usa é só "SARA": o módulo ("do Financeiro", "de Compras") é identificação interna dos agentes.
 const NOME = "SARA";
@@ -298,7 +299,7 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
                   </div>
                 )}
                 <div className="sara-sugestoes">{estado.sugestoes.map((s) => <button key={s} type="button" onClick={() => void perguntar(s)}>{s}</button>)}</div>
-                {estado.ferramentas.some((f) => !NAVEGA.has(f)) && <small>Posso consultar: {estado.ferramentas.filter((f) => !NAVEGA.has(f)).map(rotulo).join(", ")}{estado.ferramentas.some((f) => f === "abrir_tela" || f === "abrir_lancamento") ? ", e abrir as telas e os lançamentos que você usa" : ""}.</small>}
+                {estado.ferramentas.some((f) => !NAVEGA.has(f)) && <small>Posso consultar: {estado.ferramentas.filter((f) => !NAVEGA.has(f)).map(rotulo).join(", ")}{estado.ferramentas.some((f) => f === "abrir_tela" || f === "abrir_lancamento") ? ", e abrir as telas e os lançamentos que você usa" : ""}.{estado.alcance?.outrosModulos || estado.alcance?.dados ? " Também busco os dados dos outros módulos que você pode ver." : ""}{estado.alcance?.pesquisa ? " Tiro dúvidas do assunto do módulo e, se precisar, pesquiso em fontes oficiais." : ""}</small>}
               </div>
             )}
             {msgs.map((m, i) => (
@@ -310,7 +311,9 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
                 {m.visuais?.map((v, k) => <SaraVisual key={k} v={v} />)}
                 {m.consultas && m.consultas.length > 0 && <small className="sara-consultas">Consultou: {[...new Set(m.consultas)].map(rotulo).join(", ")}</small>}
                 {m.abrir && <button type="button" className="sara-abrir" onClick={() => abrir(m.abrir!)}>Abrir {m.abrir.rotulo}</button>}
-                {m.fontes && m.fontes.length > 0 && <div className="sara-fontes">{m.fontes.map((f) => <a key={f.link} href={f.link}>{f.rotulo}</a>)}</div>}
+                {m.fontes && m.fontes.length > 0 && <div className="sara-fontes">{m.fontes.map((f) => /^https?:\/\//.test(f.link)
+                  ? <a key={f.link} href={f.link} target="_blank" rel="noopener noreferrer" className="externa" title={f.link}>{f.rotulo} ↗</a>
+                  : <a key={f.link} href={f.link}>{f.rotulo}</a>)}</div>}
                 {m.papel === "sara" && m.id && (
                   <div className="sara-nota" aria-label="Avaliar a resposta">
                     <button type="button" aria-pressed={m.nota === 5} className={m.nota === 5 ? "ativo" : ""} onClick={() => void avaliar(i, 5)} title="Resposta boa">👍</button>

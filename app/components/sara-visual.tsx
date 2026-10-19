@@ -18,7 +18,7 @@ const moeda = (v: number) => {
 const dataBR = (s: string) => (/^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10).split("-").reverse().join("/") : s);
 function fmt(v: Celula, f: Formato): string {
   if (v == null) return "—";
-  if (typeof v === "number") return f === "moeda" ? moeda(v) : f === "dias" ? `${v.toLocaleString("pt-BR")} d` : v.toLocaleString("pt-BR", { maximumFractionDigits: 2, minimumFractionDigits: Number.isInteger(v) ? 0 : 2 });
+  if (typeof v === "number") return f === "moeda" ? moeda(v) : f === "dias" ? `${v.toLocaleString("pt-BR")} d` : v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
   return f === "data" || /^\d{4}-\d{2}-\d{2}/.test(v) ? dataBR(v) : v;
 }
 /** Valor da tabela: moeda por extenso (sem "mil"), para conferir com a tela. */

@@ -6,10 +6,13 @@ import { MODELO_VERIFICADOR, recusa, regrasDeEscopo } from "../../../../lib/sara
 import type { RespostaSara } from "../../../../lib/sara/laco";
 import { abertura, agoraSP, comAbertura, contextoDeTempo, primeiroNome, saudacao, situacaoDaConversa } from "../../../../lib/sara/tempo";
 import { ferramentaDeDocumentos } from "../../../../lib/sara/documentos";
-import { LACUNA, ferramentaDeTelas, ferramentasDe } from "../../../../lib/sara/ferramentas";
+import { LACUNA, ferramentaDeTelas, ferramentasDaSara } from "../../../../lib/sara/ferramentas";
+import { consultarDados } from "../../../../lib/sara/consulta-dados";
+import { CALCULAR } from "../../../../lib/sara/calcular";
 import { MOSTRAR } from "../../../../lib/sara/visual";
 import { PROPOR_HABILIDADE, habilidadesQuePode, instrucoesDeHabilidades, nomearHabilidade, pareceLacuna, pedidoRecorrente, validarProposta, type HabilidadeAtiva, type Passo } from "../../../../lib/sara/habilidades";
 import { REGRAS_SARA, SARAS } from "../../../../lib/sara/modulos";
+import { temaDe } from "../../../../lib/sara/temas";
 import { requireUserSession } from "../../../../lib/supabase/session";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +46,10 @@ async function preparar(modulo: string) {
   const navegar = ferramentaDeTelas(telas);
   // Leitura do Segundo Cérebro: os documentos do setor, se a pessoa pode vê-los.
   const documentos = ferramentaDeDocumentos(modulo, (f) => access.can(f, "ver"));
-  const ferramentas = [...ferramentasDe((f) => access.can(f, "ver"), sara.ferramentas), ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), LACUNA, PROPOR_HABILIDADE, MOSTRAR];
+  // Consultas do módulo, as de outros módulos que a pessoa pode ver e a consulta direta às tabelas.
+  const pode = (f: string) => access.can(f, "ver");
+  const dados = consultarDados(pode, modulo);
+  const ferramentas = [...ferramentasDaSara(pode, sara.ferramentas), ...(dados ? [dados] : []), CALCULAR, ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), LACUNA, PROPOR_HABILIDADE, MOSTRAR];
   // Habilidades aprovadas pelo proprietário: só as que a pessoa consegue rodar com as consultas dela.
   const { data: hab } = await session.supabase.rpc("sara_habilidades_ativas", { p_modulo: modulo });
   const habilidades = habilidadesQuePode((hab ?? []) as HabilidadeAtiva[], ferramentas.map((f) => f.nome));
@@ -77,7 +83,10 @@ export async function GET(_request: Request, context: { params: Promise<{ modulo
     ultimaConversa(p.sb, modulo, eu),
   ]);
   return NextResponse.json({
-    nome: p.sara.nome, configurada: chaveConfigurada(), ferramentas: p.ferramentas.map((f) => f.nome), sugestoes: p.sara.sugestoes,
+    // Na apresentação, só as consultas do próprio módulo (as dos outros módulos e a pesquisa vão numa frase).
+    nome: p.sara.nome, configurada: chaveConfigurada(), sugestoes: p.sara.sugestoes,
+    ferramentas: p.ferramentas.filter((f) => p.sara.ferramentas.includes(f.nome) || ["abrir_tela", "abrir_lancamento"].includes(f.nome)).map((f) => f.nome),
+    alcance: { outrosModulos: p.ferramentas.some((f) => !p.sara.ferramentas.includes(f.nome) && f.exige.length > 0), dados: p.ferramentas.some((f) => f.nome === "consultar_dados"), pesquisa: Boolean(temaDe(modulo)) },
     // Como cada consulta aparece para quem usa.
     rotulos: Object.fromEntries(p.ferramentas.filter((f) => f.rotulo).map((f) => [f.nome, f.rotulo])),
     // Atalhos das habilidades aprovadas (o primeiro jeito de pedir vira o texto da pergunta).
@@ -116,17 +125,19 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const indisponiveis = p.sara.ferramentas.filter((n) => !p.ferramentas.some((f) => f.nome === n));
   // Fixo (vai para o cache) + do momento (hora, quem conversa, situação da conversa, o que não pode).
   const sistema = {
-    fixo: `${p.sara.manual}\n\n${REGRAS_SARA}\n\n${regrasDeEscopo(empresa, p.sara.rotulo)}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
+    fixo: `${p.sara.manual}\n\n${REGRAS_SARA}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
     variavel: `${contextoDeTempo({ nome: primeiroNome(me?.full_name), situacao })}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}\nResponda sempre em português do Brasil.`,
   };
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
   const ultima = [...historico].reverse().find((m) => m.papel === "sara")?.texto ?? null;
-  const verificacao = verificar({ empresa, pergunta, contexto: ultima }).then((v) => { if (!v.dentro) parar.abort(); return v; });
+  const tema = temaDe(modulo);
+  const verificacao = verificar({ empresa, pergunta, contexto: ultima, tema: tema?.assunto ?? null }).then((v) => { if (!v.dentro) parar.abort(); return v; });
   let r: RespostaSara | null = null;
   let falha: unknown = null;
   try {
-    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, sinal: parar.signal });
+    // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
+    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: 3 } : null });
   } catch (e) { falha = e; }
   const v = await verificacao;
   const textoRecusa = recusa(empresa, p.sara.rotulo);

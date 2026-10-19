@@ -55,3 +55,29 @@ export function filtrarEstado(texto: string): ResultadoFiltro {
   if (SAUDE.test(texto) && CID.test(texto)) motivos.add("dado de saúde (CID)");
   return motivos.size ? { ok: false, motivos: [...motivos] } : { ok: true, motivos: [] };
 }
+
+/**
+ * Esconde CPF, PIS, e-mail e telefone dentro de um texto (troca por "[CPF oculto]" etc.).
+ * Para a SARA: um lançamento com CPF na descrição não pode derrubar a consulta inteira.
+ * O que não dá para esconder com segurança (dado de saúde) continua barrado por filtrarEstado.
+ */
+export function mascararTexto(texto: string): string {
+  return texto
+    .replace(CPF_FORMATADO, (m) => (cpfValido(m) ? "[CPF oculto]" : m))
+    .replace(PIS_FORMATADO, (m) => (pisValido(m) ? "[PIS oculto]" : m))
+    .replace(ONZE_DIGITOS, (m) => (cpfValido(m) ? "[CPF oculto]" : pisValido(m) ? "[PIS oculto]" : m))
+    .replace(new RegExp(EMAIL.source, "g"), "[e-mail oculto]")
+    .replace(new RegExp(TELEFONE.source, "g"), "[telefone oculto]");
+}
+
+/** Aplica mascararTexto em todos os textos (e números de 11 dígitos) de um resultado. */
+export function mascararDados<T>(dados: T): T {
+  const andar = (v: unknown): unknown => {
+    if (typeof v === "string") return mascararTexto(v);
+    if (typeof v === "number" && Number.isInteger(v) && String(v).length === 11 && (cpfValido(String(v)) || pisValido(String(v)))) return "[documento oculto]";
+    if (Array.isArray(v)) return v.map(andar);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, andar(x)]));
+    return v;
+  };
+  return andar(dados) as T;
+}

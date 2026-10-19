@@ -52,12 +52,23 @@ test("SARA: ferramenta fora da permissão e resultado com dado pessoal não cheg
     { stop_reason: "tool_use", usage: {}, content: [{ type: "tool_use", id: "a", name: "compras_aprovadas_a_pagar", input: {} }, { type: "tool_use", id: "b", name: "contas_a_pagar", input: {} }] },
     { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] },
   ]);
-  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", { fornecedor: "JOAO", cpf: "529.982.247-25" })] });
-  const [semPermissao, bloqueado] = pedidos[1].messages.at(-1).content;
+  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", { fornecedor: "JOAO", descricao: "RETIRADA SOCIO CPF 529.982.247-25", valor: 10 })] });
+  const [semPermissao, mascarado] = pedidos[1].messages.at(-1).content;
   assert.match(semPermissao.content, /sem permissão/);
-  assert.match(bloqueado.content, /bloqueado/);
-  assert.doesNotMatch(bloqueado.content, /529\.982/);
-  assert.deepEqual(r.fontes, [], "resultado bloqueado não vira fonte");
+  // CPF no meio de uma descrição: o dado some, a consulta continua (antes derrubava o resultado inteiro).
+  assert.doesNotMatch(mascarado.content, /529\.982|52998224725/);
+  assert.match(mascarado.content, /\[CPF oculto\]/);
+  assert.match(mascarado.content, /"valor":10/);
+  assert.equal(r.fontes.length, 1);
+  // Dado de saúde (CID com atestado) não dá para esconder com segurança: continua bloqueado inteiro.
+  const { buscar: b2, pedidos: p2 } = claudeFalso([
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "tool_use", id: "c", name: "rh_ferias", input: {} }] },
+    { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] },
+  ]);
+  const r2 = await conversarCom({}, { chave: "x", buscar: b2, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("rh_ferias", { motivo: "atestado CID J11" })] });
+  assert.match(p2[1].messages.at(-1).content[0].content, /bloqueado/);
+  assert.doesNotMatch(p2[1].messages.at(-1).content[0].content, /J11/);
+  assert.deepEqual(r2.fontes, [], "resultado bloqueado não vira fonte");
 });
 
 test("SARA: base no banco nasce desligada e só o proprietário liga", () => {
@@ -67,7 +78,9 @@ test("SARA: base no banco nasce desligada e só o proprietário liga", () => {
   assert.match(sql, /profile_id = public\.current_profile_id\(\) or public\.is_owner\(\) or public\.has_feature\('fundacao\.auditoria'\)/);
   const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
   assert.match(rota, /if \(!access\.canModule\(sara\.feature\) \|\| !access\.can\(sara\.permissao, "ver"\)\)/, "precisa do módulo e da SARA liberada em Pessoas e Acessos");
-  assert.match(rota, /ferramentasDe\(\(f\) => access\.can\(f, "ver"\), sara\.ferramentas\)/);
+  assert.match(rota, /const pode = \(f: string\) => access\.can\(f, "ver"\);/);
+  assert.match(rota, /ferramentasDaSara\(pode, sara\.ferramentas\)/, "consultas do módulo e dos outros módulos, sempre com as permissões de quem pergunta");
+  assert.match(rota, /consultarDados\(pode, modulo\)/);
   assert.doesNotMatch(readFileSync(new URL("../app/components/sara-painel.tsx", import.meta.url), "utf8"), /dangerouslySetInnerHTML/);
 });
 
@@ -169,9 +182,9 @@ test("SARA: com o verificador dando FORA, a conversa é cancelada e a resposta �
   const parar = new AbortController(); parar.abort();
   await assert.rejects(conversarCom({}, { chave: "x", buscar: async () => { throw new Error("não devia chamar"); }, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [], sinal: parar.signal }), /CANCELADA/);
   const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
-  assert.match(rota, /verificar\(\{ empresa, pergunta, contexto: ultima \}\)\.then\(\(v\) => \{ if \(!v\.dentro\) parar\.abort\(\); return v; \}\)/);
+  assert.match(rota, /verificar\(\{ empresa, pergunta, contexto: ultima, tema: tema\?\.assunto \?\? null \}\)\.then\(\(v\) => \{ if \(!v\.dentro\) parar\.abort\(\); return v; \}\)/);
   assert.match(rota, /if \(!v\.dentro\) \{\s+fora = "verificador";\s+r = \{ texto: textoRecusa, fontes: \[\], abrir: null, ferramentas: \[\]/);
-  assert.match(rota, /regrasDeEscopo\(empresa, p\.sara\.rotulo\)/);
+  assert.match(rota, /regrasDeEscopo\(empresa, p\.sara\.rotulo, temaDe\(modulo\)\)/);
   assert.match(rota, /escopo: \{ fora, verificador_falhou: v\.falhou \}/, "a recusa fica registrada para auditoria");
   assert.match(rota, /from\("organizations"\)\.select\("display_name, legal_name"\)/);
   assert.match(rota, /\.order\("created_at", \{ ascending: false \}\)\.order\("papel", \{ ascending: false \}\)\.limit\(24\)\)\.data \?\? \[\]\)\.reverse\(\)/, "as 24 mais recentes, em ordem; no empate do horário, a pergunta antes da resposta");
@@ -210,10 +223,10 @@ test("SARA: está no catálogo de Pessoas e Acessos do módulo e sozinha não ab
 
 test("SARA: o texto escrito antes de uma ferramenta não se perde (dá o total e depois abre a tela)", async () => {
   const { buscar } = claudeFalso([
-    { stop_reason: "tool_use", usage: {}, content: [{ type: "text", text: "Você tem **R$ 1.000,00** vencidos." }, { type: "tool_use", id: "t1", name: "contas_a_pagar", input: {} }] },
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "text", text: "Você tem **R$ 1.000,00** vencidos." }, { type: "tool_use", id: "t1", name: "abrir_tela", input: {} }] },
     { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "Abri a tela de Contas a pagar." }] },
   ]);
-  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", {})] });
+  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("abrir_tela", {})] });
   assert.equal(r.texto, "Você tem **R$ 1.000,00** vencidos.\n\nAbri a tela de Contas a pagar.");
   const { buscar: b2 } = claudeFalso([
     { stop_reason: "tool_use", usage: {}, content: [{ type: "text", text: "Vou consultar as contas a vencer." }, { type: "tool_use", id: "t1", name: "contas_a_pagar", input: {} }] },
@@ -593,7 +606,7 @@ test("SARA visual: no laço, mostrar usa a consulta da resposta; consulta bloque
     { stop_reason: "tool_use", usage: {}, content: [{ type: "tool_use", id: "t1", name: "contas_a_pagar", input: {} }, { type: "tool_use", id: "t2", name: "mostrar", input: mostrar }] },
     { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] },
   ]);
-  const r2 = await conversarCom({}, { chave: "x", buscar: b2, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", { lista: [{ f: "JOAO", v: 10, cpf: "529.982.247-25" }] }), MOSTRAR] });
+  const r2 = await conversarCom({}, { chave: "x", buscar: b2, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", { lista: [{ f: "JOAO", v: 10, obs: "atestado CID J11" }] }), MOSTRAR] });
   assert.deepEqual(r2.visuais, []);
   assert.match(p2[1].messages.at(-1).content[1].content, /não foi feita nesta resposta/);
   assert.doesNotMatch(p2[1].messages.at(-1).content[0].content, /chame mostrar/, "resultado bloqueado não leva dica");
@@ -603,4 +616,118 @@ test("SARA visual: no laço, mostrar usa a consulta da resposta; consulta bloque
     { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] },
   ]);
   assert.deepEqual((await conversarCom({}, { chave: "x", buscar: b3, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [] })).visuais, []);
+});
+
+test("SARA: rascunho escrito antes de uma consulta de dados (inclusive em inglês) não entra na resposta", async () => {
+  const { buscar } = claudeFalso([
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "text", text: "The first query failed, I'll try again with another filter." }, { type: "tool_use", id: "t1", name: "contas_a_pagar", input: {} }] },
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "text", text: "Vencem **R$ 500,00** nesta semana." }, { type: "tool_use", id: "t2", name: "abrir_tela", input: {} }] },
+    { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "Abri a tela." }] },
+  ]);
+  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", {}), ferramenta("abrir_tela", {})] });
+  assert.equal(r.texto, "Vencem **R$ 500,00** nesta semana.\n\nAbri a tela.");
+  assert.doesNotMatch(r.texto, /query failed/);
+});
+
+test("SARA: consulta direta — só tabelas que a pessoa vê, lista fechada com o nome da tela, filtro por nome ou código", async () => {
+  const { consultarDados, traduzirFiltro, agregar, validar } = await import("../lib/sara/consulta-dados.ts");
+  const { tabelaDoCatalogo, CATALOGO } = await import("../lib/sara/catalogo.ts");
+  const soRh = consultarDados((f) => f === "rh.ferias", "rh");
+  assert.deepEqual(soRh.esquema.properties.tabela.enum, ["rh_absences", "rh_vacation_balances", "rh_holidays"]);
+  assert.equal(consultarDados(() => false, "rh"), null, "sem permissão nenhuma, sem consulta");
+  const comTerceiros = consultarDados((f) => f === "rh.terceiros", "rh").esquema.properties.tabela.enum;
+  assert.ok(comTerceiros.includes("terceiros"), "no RH, as entradas de terceiros da Portaria entram com rh.terceiros");
+  const aus = tabelaDoCatalogo("rh_absences");
+  assert.deepEqual(traduzirFiltro({ campo: "absence_type", op: "igual", valor: "Atestado médico" }, aus), { campo: "absence_type", op: "igual", valor: "medical_certificate" });
+  assert.deepEqual(traduzirFiltro({ campo: "absence_type", op: "contem", valor: "atestado" }, aus).valor, ["medical_certificate"]);
+  assert.match(validar({ tabela: "rh_absences", colunas: ["cpf"] }, aus), /coluna "cpf"/);
+  const g = agregar([{ data: "2026-10-12", m: 60 }, { data: "2026-10-13", m: 30 }, { data: "2026-10-20", m: 10 }], { tabela: "x", agrupar_por: ["data:semana"], somar: ["m"] });
+  assert.deepEqual(g.map((x) => [x["data:semana"], x.soma_m]), [["semana de 2026-10-12", 90], ["semana de 2026-10-19", 10]], "por data, em ordem cronológica");
+  // nenhuma coluna sensível no catálogo
+  for (const t of CATALOGO) for (const c of Object.keys(t.colunas)) assert.doesNotMatch(c, /cpf|pis|tax_id|cnpj|salar|phone|telefone|email|contato|documento|xml|linha_digitavel|foto|face|clinical|reason|note|raw_payload/i, `${t.tabela}.${c}`);
+});
+
+test("SARA: frase que só anuncia o próximo passo não aparece no meio da resposta", async () => {
+  const { buscar } = claudeFalso([
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "text", text: "Na semana, **643,1 horas**.\n\nVou mostrar o comparativo por terceiro." }, { type: "tool_use", id: "t1", name: "mostrar", input: {} }] },
+    { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "Nilton foi o que mais trabalhou: 77,1 h." }] },
+  ]);
+  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("mostrar", {})] });
+  assert.equal(r.texto, "Na semana, **643,1 horas**.\n\nNilton foi o que mais trabalhou: 77,1 h.");
+});
+
+test("SARA tema: cada módulo tem assunto e fontes oficiais; a pesquisa só nesses sites", async () => {
+  const { TEMAS } = await import("../lib/sara/temas.ts");
+  const { SARAS } = await import("../lib/sara/modulos.ts");
+  for (const m of Object.keys(SARAS)) {
+    assert.ok(TEMAS[m], `tema de ${m}`);
+    assert.ok(TEMAS[m].dominios.length >= 2);
+    for (const d of TEMAS[m].dominios) assert.match(d, /(^|\.)(gov|jus)\.br$|\.org\.br$|\.com\.br$/, `${m}: ${d} é fonte oficial ou do setor`);
+  }
+  const { buscar, pedidos } = claudeFalso([{ stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] }]);
+  await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [], pesquisa: { dominios: ["gov.br"], maxBuscas: 3 } });
+  const ws = pedidos[0].tools.find((t) => t.type === "web_search_20250305");
+  assert.deepEqual([ws.allowed_domains, ws.max_uses], [["gov.br"], 3]);
+  const { buscar: b2, pedidos: p2 } = claudeFalso([{ stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] }]);
+  await conversarCom({}, { chave: "x", buscar: b2, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [] });
+  assert.equal(p2[0].tools, undefined, "sem tema, sem pesquisa");
+});
+
+test("SARA pesquisa: tira o 'Vou pesquisar', junta o texto picado, cita a fonte e registra a busca", async () => {
+  const { buscar } = claudeFalso([{ stop_reason: "end_turn", usage: {}, content: [
+    { type: "text", text: "Vou pesquisar para confirmar o prazo atual." },
+    { type: "server_tool_use", id: "s1", name: "web_search", input: { query: "prazo pagamento verbas rescisórias CLT" } },
+    { type: "web_search_tool_result", tool_use_id: "s1", content: [] },
+    { type: "text", text: "Pela CLT, o prazo é de " },
+    { type: "text", text: "dez dias a partir do fim do contrato", citations: [{ type: "web_search_result_location", url: "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm", title: "CLT" }] },
+    { type: "text", text: " (art. 477)." },
+  ] }]);
+  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [], pesquisa: { dominios: ["gov.br"] } });
+  assert.equal(r.texto, "Pela CLT, o prazo é de dez dias a partir do fim do contrato (art. 477).");
+  assert.deepEqual(r.fontes, [{ rotulo: "Internet › planalto.gov.br", link: "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm" }]);
+  assert.deepEqual(r.ferramentas, [{ nome: "pesquisar_na_internet", entrada: { termo: "prazo pagamento verbas rescisórias CLT" }, ok: true }]);
+});
+
+test("SARA pesquisa: pesquisa longa pausada (pause_turn) continua em vez de responder pela metade", async () => {
+  const { buscar, pedidos } = claudeFalso([
+    { stop_reason: "pause_turn", usage: {}, content: [{ type: "server_tool_use", id: "s1", name: "web_search", input: { query: "DIFAL" } }, { type: "web_search_tool_result", tool_use_id: "s1", content: [] }] },
+    { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "O DIFAL é a diferença de alíquota entre estados." }] },
+  ]);
+  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [], pesquisa: { dominios: ["gov.br"] } });
+  assert.equal(pedidos.length, 2);
+  assert.equal(pedidos[1].messages.at(-1).role, "assistant", "continua a vez do assistente");
+  assert.equal(r.texto, "O DIFAL é a diferença de alíquota entre estados.");
+});
+
+test("SARA escopo: o tema entra no prompt e no verificador; dúvida de outro tema vai para a SARA certa", async () => {
+  const { regrasDeEscopo, verificarEscopo } = await import("../lib/sara/escopo.ts");
+  const r = regrasDeEscopo("PecSil", "Financeiro", { assunto: "finanças da empresa", exemplos: "juros simples e compostos" });
+  assert.match(r, /TEMA do seu módulo é finanças da empresa/);
+  assert.match(r, /MESMO que a resposta não esteja na plataforma/);
+  assert.match(r, /OUTRO tema da empresa/);
+  assert.match(r, /Não estou autorizada/, "fora da empresa continua com a recusa padrão");
+  let corpo;
+  await verificarEscopo({ chave: "x", empresa: "PecSil", pergunta: "o que é DIFAL?", tema: "tributos", buscar: async (_u, init) => { corpo = JSON.parse(init.body); return { ok: true, json: async () => ({ content: [{ type: "text", text: "DENTRO" }] }) }; } });
+  assert.match(corpo.system, /Este assistente é do tema: tributos/);
+  assert.match(corpo.system, /"o que é DIFAL\?"/);
+});
+
+test("SARA: comentário sobre o próprio raciocínio sai da resposta", async () => {
+  const { buscar } = claudeFalso([{ stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "Frete CIF e FOB definem quem paga o frete. Esta é uma dúvida de conceito do módulo de Compras, então respondo com o meu conhecimento.\n\n**CIF:** o fornecedor paga." }] }]);
+  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [] });
+  assert.equal(r.texto, "Frete CIF e FOB definem quem paga o frete.\n\n**CIF:** o fornecedor paga.");
+});
+
+test("SARA calcular: conta exata pela plataforma (precedência, potência, vírgula, milhar) e erro claro", async () => {
+  const { calcularExpressao, CALCULAR } = await import("../lib/sara/calcular.ts");
+  assert.equal(calcularExpressao("30 + 3*5"), 45);
+  assert.equal(calcularExpressao("2^3^2"), 512, "potência associa à direita");
+  assert.equal(Math.round(calcularExpressao("100000*(1+0,01)^12") * 100) / 100, 112682.5);
+  assert.equal(calcularExpressao("1.000,50 + 0,5"), 1001);
+  assert.equal(calcularExpressao("-(3-5)*2"), 4);
+  assert.throws(() => calcularExpressao("process.exit()"), /caractere inválido/);
+  assert.throws(() => calcularExpressao("(1+2"), /parênteses/);
+  const r = await CALCULAR.rodar({}, { contas: [{ nome: "aviso", expressao: "30+3*5" }, { expressao: "1/0" }] });
+  assert.deepEqual(r.dados.resultados[0], { nome: "aviso", expressao: "30+3*5", resultado: 45 });
+  assert.ok(r.dados.resultados[1].erro);
 });
