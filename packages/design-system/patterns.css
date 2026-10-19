@@ -8307,3 +8307,7 @@ button.holiday-row:hover {
 .ti-regras label > textarea { min-height: 300px; }
 /* A regra geral de "rótulo + select" põe 8 px de espaço: aqui o select fica alinhado aos campos vizinhos. */
 .ti-form label:has(> select) { gap: 0; white-space: normal; }
+/* Comandos nas respostas da SARA (a de TI escreve blocos de código). */
+.sara-texto pre.sara-codigo { margin: 4px 0 8px; padding: 8px 10px; max-width: 100%; overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-subtle); white-space: pre; overflow-wrap: normal; }
+.sara-texto pre.sara-codigo code, .sara-texto code { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--fs-xs); }
+.sara-texto :not(pre) > code { padding: 1px 4px; border-radius: 4px; background: var(--bg-subtle); }

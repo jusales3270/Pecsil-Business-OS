@@ -47,9 +47,11 @@ const horaSP = (iso: string) => new Intl.DateTimeFormat("pt-BR", { timeZone: "Am
 /** Texto do modelo com **negrito**, listas "- " e tabelas "| a | b |", sem HTML (nada do texto vira código na página). */
 function Texto({ texto }: { texto: string }) {
   const linhas = texto.split("\n");
-  const negrito = (s: string): ReactNode[] => s.split(/(\*\*[^*]+\*\*)/g).map((p, i) => (p.startsWith("**") && p.endsWith("**") ? <b key={i}>{p.slice(2, -2)}</b> : <Fragment key={i}>{p}</Fragment>));
+  // **negrito** e `código` (a SARA de TI escreve comandos e nomes de arquivo).
+  const negrito = (s: string): ReactNode[] => s.split(/(\*\*[^*]+\*\*|`[^`\n]+`)/g).map((p, i) => (p.startsWith("**") && p.endsWith("**") ? <b key={i}>{p.slice(2, -2)}</b>
+    : p.length > 2 && p.startsWith("`") && p.endsWith("`") ? <code key={i}>{p.slice(1, -1)}</code> : <Fragment key={i}>{p}</Fragment>));
   const celulas = (l: string) => l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
-  const blocos: ReactNode[] = []; let lista: string[] = []; let tabela: string[][] = [];
+  const blocos: ReactNode[] = []; let lista: string[] = []; let tabela: string[][] = []; let codigo: string[] | null = null;
   const fecharLista = () => { if (lista.length) { blocos.push(<ul key={`l${blocos.length}`}>{lista.map((l, i) => <li key={i}>{negrito(l)}</li>)}</ul>); lista = []; } };
   const fecharTabela = () => {
     if (!tabela.length) return;
@@ -65,6 +67,13 @@ function Texto({ texto }: { texto: string }) {
     tabela = [];
   };
   for (const l of linhas) {
+    // Bloco de código (```bash … ```): mostrado como está, sem interpretar lista nem tabela.
+    if (/^\s*```/.test(l)) {
+      if (codigo) { blocos.push(<pre key={`c${blocos.length}`} className="sara-codigo"><code>{codigo.join("\n")}</code></pre>); codigo = null; }
+      else { fecharTabela(); fecharLista(); codigo = []; }
+      continue;
+    }
+    if (codigo) { codigo.push(l); continue; }
     if (/^\s*\|.*\|\s*$/.test(l)) {
       fecharLista();
       if (!/^\s*\|?[\s:|-]+\|?\s*$/.test(l)) tabela.push(celulas(l)); // a linha |---|---| só separa o cabeçalho
@@ -76,6 +85,7 @@ function Texto({ texto }: { texto: string }) {
     fecharLista();
     if (l.trim()) blocos.push(<p key={`p${blocos.length}`}>{negrito(l.replace(/^#+\s*/, ""))}</p>);
   }
+  if (codigo) blocos.push(<pre key={`c${blocos.length}`} className="sara-codigo"><code>{codigo.join("\n")}</code></pre>);
   fecharTabela();
   fecharLista();
   return <>{blocos}</>;

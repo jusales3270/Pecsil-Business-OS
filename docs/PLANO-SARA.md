@@ -25,7 +25,7 @@ as permissões de quem pergunta, são exatamente o que a orquestradora vai chama
 |---|---|
 | S1 | **Cada módulo tem a sua SARA**: orienta, instrui e tira dúvida do módulo em que foi chamada. |
 | S2 | A SARA de um módulo **pode trazer dados de outros módulos quando a credencial de quem conversa permite** (ex.: a Ana, no Financeiro, pergunta das OCs que vão virar contas a pagar). |
-| S3 | O modelo que conversa é o **Claude (Anthropic)**: Haiku 5.5 no dia a dia, Sonnet 5.5 para análise. O Clef segue nas decisões rápidas (ele não escreve texto). |
+| S3 | O modelo que conversa é o **Claude (Anthropic)**: Haiku 5.5 no dia a dia, Sonnet 5.5 para análise. O Clef segue nas decisões rápidas (ele não escreve texto). **Exceção (19/10/2026, proprietário):** a SARA de TI conversa com o Sonnet 5.5, como agente técnico (linguagem técnica, comandos, até 5 buscas em documentação de fabricantes e sistemas), com os mesmos guardrails; é a única. |
 | S4 | **Piloto: Financeiro, com a Ana.** |
 | S5 | **Nível 1 (consulta e orientação) vem antes da Fase 5.** Os níveis 2 a 4 continuam depois, um de cada vez, como no Blueprint. |
 | S6 | O grafo das relações da empresa (a "teia" do Segundo Cérebro) é **outro trabalho**, depois do copilot. |

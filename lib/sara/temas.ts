@@ -12,6 +12,8 @@ export type Tema = {
   exemplos: string;
   /** Sites onde a pesquisa pode buscar (subdomínios incluídos). */
   dominios: string[];
+  /** Buscas por pergunta (padrão 3). */
+  maxBuscas?: number;
 };
 
 const GOV = ["gov.br", "planalto.gov.br"];
@@ -59,10 +61,24 @@ export const TEMAS: Record<string, Tema> = {
     dominios: [...GOV, "abifa.org.br", "sebrae.com.br"],
   },
   ti: {
-    assunto: "infraestrutura de TI da indústria: servidores (Linux e Windows), rede (switch, roteador, Wi-Fi, VLAN, firewall), internet e link reserva, nobreak e energia, backup e restauração, segurança da informação e LGPD na TI, acesso remoto, computadores e impressoras, sistemas (ERP, banco de dados, contêineres) e monitoramento",
-    exemplos: "o que é a regra 3-2-1 de backup; como ligar o religamento automático na BIOS; diferença entre nobreak online e interativo; como calcular a autonomia de um nobreak; o que é VLAN; como funciona o failover de link; o que a LGPD pede de segurança",
-    // Fontes oficiais do Brasil: o CERT.br e o NIC.br (boas práticas de segurança e de rede) e o governo (ANPD/LGPD, GSI).
-    dominios: [...GOV, "cert.br", "nic.br"],
+    assunto: "infraestrutura e manutenção de TI da indústria: servidores (Linux e Windows), contêineres (Docker, Coolify), banco de dados (Postgres, Supabase), rede (switch, roteador, Wi-Fi, VLAN, firewall, VPN, DNS), internet e link reserva, nobreak e energia, backup e restauração, segurança da informação e LGPD na TI, acesso remoto, computadores, impressoras e coletores das CNCs, monitoramento, diagnóstico de falhas e comandos de administração",
+    exemplos: "o que é a regra 3-2-1 de backup; como ligar o religamento automático na BIOS; diferença entre nobreak online e interativo; como calcular a autonomia de um nobreak; o que é VLAN; como funciona o failover de link; o que a LGPD pede de segurança; por que um contêiner do Docker reinicia sozinho; como ver o disco cheio no Linux; como configurar o NUT com o nobreak; impressora de rede some da rede; como testar a restauração de um backup do Postgres",
+    // TI é a exceção da lista "órgão oficial ou entidade do setor" (proprietário, 19/10/2026): a fonte
+    // de verdade em infraestrutura é a documentação de quem faz o sistema ou o equipamento. A lista
+    // continua fechada: CERT.br/NIC.br e governo (LGPD), sistemas e plataformas que a PecSil usa,
+    // rede, servidores, nobreak, impressoras, monitoramento e acesso remoto, e o CNC das máquinas.
+    dominios: [
+      ...GOV, "cert.br", "nic.br",
+      "learn.microsoft.com", "support.microsoft.com", "ubuntu.com", "debian.org", "redhat.com", "kernel.org", "archlinux.org",
+      "docs.docker.com", "coolify.io", "postgresql.org", "supabase.com", "nginx.org", "traefik.io", "nodejs.org", "nextjs.org", "github.com",
+      "cisco.com", "mikrotik.com", "ui.com", "tp-link.com", "intelbras.com", "fortinet.com", "pfsense.org", "netgate.com", "wireguard.com",
+      "dell.com", "hpe.com", "lenovo.com", "supermicro.com", "intel.com", "amd.com",
+      "networkupstools.org", "apc.com", "se.com", "eaton.com", "sms.com.br", "nhs.com.br",
+      "hp.com", "epson.com.br", "brother.com.br",
+      "zabbix.com", "netdata.cloud", "uptime.kuma.pet", "rustdesk.com", "meshcentral.com", "veeam.com", "restic.net", "age-encryption.org",
+      "fanuc.com", "heidenhain.com", "siemens.com",
+    ],
+    maxBuscas: 5,
   },
   portaria: {
     assunto: "portaria e segurança patrimonial: controle de acesso de visitantes e terceiros, integração de segurança, frota e transporte (documentos, notas na saída), recebimento de cargas, NRs aplicáveis a prestadores",

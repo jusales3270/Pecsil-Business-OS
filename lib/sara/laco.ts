@@ -19,6 +19,8 @@ import { dicaVisual, MOSTRAR, resolverVisual, type ResultadoConsulta, type Visua
  */
 
 export type MensagemHistorico = { papel: "pessoa" | "sara"; texto: string };
+/** Vai com o resultado de abrir_tela/mostrar quando a pessoa ainda não viu nenhuma resposta. */
+export const LEMBRETE_RESPOSTA = "A pessoa ainda não viu nenhuma resposta (o que você pensa não aparece para ela): escreva agora a resposta completa, com os números, a explicação e o próximo passo.";
 const SO_ACAO = new Set(["abrir_tela", "abrir_lancamento", "mostrar", "registrar_lacuna", "propor_habilidade"]);
 
 export type RespostaSara = {
@@ -65,7 +67,9 @@ export type Pesquisa = { dominios: string[]; maxBuscas?: number };
  * e com as citações da pesquisa separadas como fontes externas.
  */
 export function textoECitacoes(conteudo: Bloco[]) {
-  const pesquisou = conteudo.some((b) => b.type === "server_tool_use");
+  // Texto picado pela pesquisa: há busca nesta rodada ou citações (a continuação de uma pesquisa pausada
+  // traz o texto citado sem o bloco da busca).
+  const pesquisou = conteudo.some((b) => b.type === "server_tool_use" || (b.type === "text" && Boolean(b.citations?.length)));
   const partes: string[] = [];
   const citacoes: Fonte[] = [];
   conteudo.forEach((b, i) => {
@@ -90,6 +94,8 @@ export async function conversarCom(sb: SupabaseClient, a: {
   sinal?: AbortSignal;
   /** Pesquisa na internet restrita ao tema do módulo (sem ela, a SARA não pesquisa). */
   pesquisa?: Pesquisa | null;
+  /** Tamanho máximo de cada resposta do modelo (padrão 1.500; a SARA de TI usa mais). */
+  maxTokens?: number;
 }): Promise<RespostaSara> {
   const chave = a.chave;
   const buscar = a.buscar ?? fetch;
@@ -160,7 +166,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
       r = await buscar(API, {
         method: "POST", signal: ctrl.signal,
         headers: { "content-type": "application/json", "x-api-key": chave, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({ model: a.modelo, max_tokens: 1500, thinking: semPensar(a.modelo), system: blocosDoSistema(a.sistema), messages: comCacheNoFim(mensagens), ...(tools.length ? { tools } : {}) }),
+        body: JSON.stringify({ model: a.modelo, max_tokens: a.maxTokens ?? 1500, thinking: semPensar(a.modelo), system: blocosDoSistema(a.sistema), messages: comCacheNoFim(mensagens), ...(tools.length ? { tools } : {}) }),
       });
     } catch (e) {
       if (a.sinal?.aborted) throw new Error("CANCELADA");
@@ -198,11 +204,14 @@ export async function conversarCom(sb: SupabaseClient, a: {
       return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais };
     }
     mensagens.push({ role: "assistant", content: corpo.content });
+    // Só abrir a tela ou mostrar, e nada escrito ainda: o modelo que pensa entre ferramentas (Sonnet) às
+    // vezes põe a resposta no pensamento, que não aparece, e termina com "Abri a tela". O lembrete vai junto.
+    const lembrar = !consultou && !textos.some((t) => t.trim());
     const devolvidos = [];
     for (const p of pedidos) {
       const { conteudo, ok } = await executar(p.name, p.input ?? {});
       usadas.push({ nome: p.name, entrada: p.input, ok });
-      devolvidos.push({ type: "tool_result", tool_use_id: p.id, content: conteudo });
+      devolvidos.push({ type: "tool_result", tool_use_id: p.id, content: lembrar ? `${conteudo}\n\n${LEMBRETE_RESPOSTA}` : conteudo });
     }
     mensagens.push({ role: "user", content: devolvidos });
   }
