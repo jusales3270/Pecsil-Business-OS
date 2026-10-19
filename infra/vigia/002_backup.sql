@@ -67,7 +67,8 @@ begin
   for nome in select public.vigia_backup_vencidos() loop
     perform net.http_delete(
       url => format('%s/storage/v1/object/backups/%s', rtrim(projeto, '/'), nome),
-      headers => jsonb_build_object('Authorization', 'Bearer ' || chave, 'apikey', chave),
+      -- chave nova (sb_secret_…) vai só no apikey; a antiga (JWT) também no Authorization
+      headers => case when chave like 'eyJ%' then jsonb_build_object('Authorization', 'Bearer ' || chave, 'apikey', chave) else jsonb_build_object('apikey', chave) end,
       timeout_milliseconds => 15000);
     n := n + 1;
   end loop;

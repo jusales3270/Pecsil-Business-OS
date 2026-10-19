@@ -65,6 +65,7 @@ fechar no roteador não resolve. A correção é no servidor e está em
 | Business OS | App do Coolify, build Railpack a partir do `main` (o Deploy leva uns 3 min) | este repositório | Supabase | `i3rwerhgkqqurapbrowuho1p` (app `pecsil--business--o-s`) |
 | Forja | Compose do Coolify (`docker-compose.coolify.yml`) | `jusales3270/forja-pecsil` | Postgres próprio, banco **`forja_recuperado_20260911`**; MinIO | `f7dr7wdj87pbupkbfezrnnw5` |
 | Transmissor da NF-e | App do Coolify, Dockerfile, Base Directory `/services/transmissor-nfe`, porta 3100 | este repositório (programa separado, GPL-3.0) | nenhum (não guarda nada) | `zqolizieqokegi4w9fihwxlo` (app `transmissor-nfe`) |
+| Backup externo (T-02) | App do Coolify, Dockerfile, Base Directory `/services/backup`, sem domínio | este repositório | lê o Supabase pelo papel `backup_leitura`; grava no projeto do vigia | `vn52r1arcew0qjpirt0gu1mp` (app `backup-externo`) |
 | Supabase | docker-compose manual, **fora** do Coolify | — | Postgres (`public`), Storage (buckets `empresa-documentos`, `rh-documents`…) | — |
 
 Sobras no Coolify, todas paradas (não apagar sem decidir): o app do Business OS duplicado
@@ -137,7 +138,7 @@ token criado antes de concluir que foi revogado.
 | Sincronizar OS do Forja | `node scripts/sync-os-cron.mjs` | a cada 10 min (`*/10 * * * *`) | Espelho das OS e dos artigos da Forja |
 | Notas recebidas da SEFAZ | `node scripts/fiscal-dfe-cron.mjs` | a cada 15 min (`*/15 * * * *`) | Distribuição de documentos da SEFAZ (respeita a espera da SEFAZ) |
 | Leitura de documentos | `node scripts/leitura-documentos-cron.mjs` | a cada 5 min (`*/5 * * * *`) | Texto e OCR dos documentos guardados (Segundo Cérebro) |
-| Sinal de vida para o vigia externo (T-03) | `node scripts/ti-sinal-cron.mjs` | a cada minuto (`* * * * *`) | Avisa o vigia na nuvem que o servidor está de pé ([VIGIA-EXTERNO.md](VIGIA-EXTERNO.md)) |
+| Sinal de vida para o vigia externo (T-03) — criada em 19/10 | `node scripts/ti-sinal-cron.mjs` | a cada minuto (`* * * * *`) | Avisa o vigia na nuvem que o servidor está de pé ([VIGIA-EXTERNO.md](VIGIA-EXTERNO.md)) |
 | E-mail do Comercial | ver [CONEXAO-EMAIL-MICROSOFT.md](CONEXAO-EMAIL-MICROSOFT.md) | a cada 5 min | Só depois do Microsoft 365 (C-14) |
 
 Cada script chama uma rota local com o segredo da tarefa e sai com erro se a rodada falhar, para a

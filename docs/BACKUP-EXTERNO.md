@@ -103,6 +103,9 @@ nunca o de produção.
 
 **Numa pane de verdade**, num Supabase novo e da mesma versão, que já cria as estruturas dele:
 
+0. **Extensões:** criar as que a plataforma usa, antes de tudo:
+   `create extension if not exists vector with schema extensions;` e o mesmo para `pg_trgm` e
+   `unaccent`. Sem elas, a tabela da busca do Segundo Cérebro (`company_document_chunks`) não volta.
 1. **Dados do negócio:** `-- --no-owner --schema=public`.
 2. **Usuários e logins:** `-- --no-owner --data-only --schema=auth`, com o serviço de autenticação
    da mesma versão já rodando. Se a versão for outra: apagar o esquema `auth`, criar `auth` vazio e
@@ -125,6 +128,23 @@ node services/backup/restaurar.mjs --chave pecsil-backup-chave.txt --pasta ./arq
 
 O arquivo vem da nuvem pelo painel do Supabase (*Storage › backups*), com o usuário do proprietário.
 O usuário do backup não consegue baixar.
+
+## No ar (19/10/2026)
+
+- **Primeiro backup real:** 09:48 de 19/10, pelo app `backup-externo` do Coolify, em 14 s:
+  - banco: 23,2 MB criptografado;
+  - arquivos: 70, de 3 buckets, 45,9 MB criptografados.
+
+  O vigia mostra "Backup diário" como ok. A partir daí roda todo dia às 02:30.
+- **Prova completa:** as cópias foram baixadas da nuvem e abertas com a chave do proprietário
+  (`~/pecsil-backup-chave.txt` no Mac dele), num banco descartável:
+  - as **132 tabelas do negócio voltaram iguais à produção**, depois de criar as extensões do passo 0;
+  - os **70 arquivos** foram extraídos.
+
+  Depois do teste, tudo foi apagado.
+- **Atenção ao tamanho:** os arquivos já estão em 45,9 MB. Passando de 45 MB, o serviço divide em
+  partes, e para restaurar é só passar as partes na ordem. Com o crescimento do RH e dos documentos,
+  o total vai passar de 1 GB em algumas semanas de retenção: acompanhar no painel do Supabase.
 
 ## Teste com o banco real (18/10/2026)
 
