@@ -12,6 +12,7 @@ import type { ModuleAccessContext } from "./access";
 // module-generator:imports
 import FundicaoApp from "./fundicao/src/FundicaoApp";
 import TiApp from "./ti/src/TiApp";
+import WarRoomApp from "./warroom/src/WarRoomApp";
 
 export type ModuleRuntimeProps = {
   notify: (message: string) => void;
@@ -38,6 +39,7 @@ const moduleComponents: Record<string, ComponentType<ModuleRuntimeProps>> = {
   // module-generator:entries
   fundicao: FundicaoApp,
   ti: TiApp,
+  warroom: WarRoomApp,
 };
 
 export function renderModuleComponent(moduleId: string, props: ModuleRuntimeProps) {

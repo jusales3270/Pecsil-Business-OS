@@ -11,6 +11,7 @@ import type { ModuleManifest } from "./types";
 // module-generator:imports
 import { FundicaoModuleManifest } from "./fundicao/manifest";
 import { TiModuleManifest } from "./ti/manifest";
+import { WarRoomModuleManifest } from "./warroom/manifest";
 
 function createRegistry(manifests: readonly ModuleManifest[]) {
   const ids = new Set<string>();
@@ -47,6 +48,7 @@ export const moduleRegistry = createRegistry([
   // module-generator:entries
   FundicaoModuleManifest,
   TiModuleManifest,
+  WarRoomModuleManifest,
   ...plannedModuleManifests,
 ]);
 

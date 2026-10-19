@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-19-war-room-cerebro",
+    data: "2026-10-19",
+    area: "War Room",
+    modulos: ["warroom"],
+    funcionalidades: ["warroom.cerebro"],
+    titulo: "War Room: o Segundo Cérebro",
+    itens: [
+      "O grafo da empresa: fornecedores, clientes, itens comprados, contas do plano e setores, e o que liga cada um, montado a partir dos módulos.",
+      "Clique num ponto para ver a ficha (quanto foi comprado e pago, desde quando, a que preço) e as ligações. Clique numa ligação para abrir as compras, cotações ou títulos dela.",
+      "Isole um ponto, veja do que ele depende ou o que depende dele, e o caminho entre dois. Salve a visão para a reunião.",
+    ],
+  },
+  {
     id: "2026-10-19-ti-modulo",
     data: "2026-10-19",
     area: "TI",

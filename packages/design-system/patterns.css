@@ -8311,3 +8311,89 @@ button.holiday-row:hover {
 .sara-texto pre.sara-codigo { margin: 4px 0 8px; padding: 8px 10px; max-width: 100%; overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-subtle); white-space: pre; overflow-wrap: normal; }
 .sara-texto pre.sara-codigo code, .sara-texto code { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--fs-xs); }
 .sara-texto :not(pre) > code { padding: 1px 4px; border-radius: 4px; background: var(--bg-subtle); }
+
+/* ============================================================================
+   War Room › Segundo Cérebro (G2): filtros | grafo (WebGL) | ficha.
+   ============================================================================ */
+.cerebro { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.cerebro-head { align-items: flex-end; }
+.cerebro-situacao { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; text-align: right; }
+.cerebro-situacao small { font-size: var(--fs-xs); color: var(--text-muted); }
+.cerebro-foco { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: 8px 12px; border: 1px solid var(--edge-blue); border-radius: var(--radius-md); background: var(--tint-blue); color: var(--text-primary); font-size: var(--fs-sm); }
+.cerebro-corpo { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: var(--sp-4); align-items: start; min-width: 0; }
+.cerebro-corpo:has(.cerebro-ficha) { grid-template-columns: 260px minmax(0, 1fr) 340px; }
+.cerebro-filtros, .cerebro-ficha { display: flex; flex-direction: column; gap: var(--sp-4); max-height: calc(100vh - 200px); overflow-y: auto; padding: var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-surface); min-width: 0; }
+.cerebro-filtros section, .cerebro-ficha section { display: flex; flex-direction: column; gap: 8px; }
+.cerebro-filtros h3, .cerebro-ficha h3 { margin: 0; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.cerebro-grupos { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.cerebro-grupo { display: grid; grid-template-columns: 16px 12px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--text-primary); cursor: pointer; }
+.cerebro-grupo input { width: 15px; height: 15px; accent-color: var(--accent-blue); margin: 0; }
+.cerebro i, .cerebro-busca i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.cerebro-grupo small { font-size: var(--fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.cerebro-pecas span { font-size: var(--fs-xs) !important; }
+.cerebro-campo, .cerebro-faixa { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.cerebro-campo select { height: 34px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.cerebro-faixa input { width: 100%; accent-color: var(--accent-blue); }
+.cerebro-animar { width: 100%; justify-content: center; }
+.cerebro-busca { position: relative; }
+.cerebro-busca input { width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.cerebro-busca ul { display: flex; flex-direction: column; margin: 4px 0 0; padding: 4px; list-style: none; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); box-shadow: var(--shadow-sm); max-height: 320px; overflow-y: auto; }
+.cerebro-busca li button, .cerebro-lista li button { display: grid; grid-template-columns: 10px minmax(0, 1fr); align-items: center; column-gap: 8px; width: 100%; padding: 6px 8px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--text-primary); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
+.cerebro-busca li button:hover, .cerebro-lista li button:hover { background: var(--bg-hover); }
+.cerebro-busca li button small, .cerebro-lista li button small { grid-column: 2; font-size: var(--fs-xs); color: var(--text-muted); }
+.cerebro-busca li button span, .cerebro-lista li button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cerebro-visoes { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.cerebro-visoes li { display: flex; align-items: center; gap: 4px; }
+.cerebro-visoes li > button:first-child { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-subtle); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cerebro-x { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--text-muted); font-size: 18px; line-height: 1; cursor: pointer; flex: none; }
+.cerebro-x:hover { background: var(--bg-hover); color: var(--text-primary); }
+.cerebro-salvar { display: flex; gap: 6px; }
+.cerebro-salvar input { flex: 1; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.cerebro-centro { min-width: 0; }
+.cerebro-canvas-caixa { position: relative; height: calc(100vh - 200px); min-height: 520px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-surface); overflow: hidden; }
+.cerebro-canvas { position: absolute; inset: 0; }
+.cerebro-arrumando { position: absolute; left: 12px; bottom: 12px; padding: 4px 10px; border-radius: 999px; background: var(--bg-subtle); color: var(--text-muted); font-size: var(--fs-xs); pointer-events: none; }
+.cerebro-canvas-erro { position: absolute; inset: auto 12px 12px; margin: 0; color: var(--accent-red); font-size: var(--fs-sm); }
+.cerebro-zoom { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+.cerebro-zoom button { width: 32px; height: 32px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font-size: 16px; cursor: pointer; }
+.cerebro-zoom button:hover { background: var(--bg-hover); }
+.cerebro-ficha-corpo { display: flex; flex-direction: column; gap: var(--sp-3); }
+.cerebro-ficha-corpo > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-2); }
+.cerebro-ficha-corpo h2 { margin: 2px 0 0; font-size: var(--fs-md); line-height: 1.3; color: var(--text-primary); overflow-wrap: anywhere; text-wrap: balance; }
+.cerebro-ficha-corpo .eyebrow { display: flex; align-items: center; gap: 6px; }
+.cerebro-termos { display: flex; flex-wrap: wrap; gap: 4px; }
+.cerebro-numeros { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.cerebro-numeros > div { padding: 6px 8px; border-radius: var(--radius-sm); background: var(--bg-subtle); min-width: 0; }
+.cerebro-numeros dt { font-size: var(--fs-xs); color: var(--text-muted); }
+.cerebro-numeros dd { margin: 2px 0 0; font-size: var(--fs-sm); font-weight: 650; font-variant-numeric: tabular-nums; color: var(--text-primary); overflow-wrap: anywhere; }
+.cerebro-acoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.cerebro-lig-grupo h4 { margin: 0; font-size: var(--fs-sm); color: var(--text-primary); }
+.cerebro-lig-grupo h4 small { font-weight: 500; color: var(--text-muted); }
+.cerebro-lig-grupo ul { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.cerebro-lig-grupo li { display: flex; flex-direction: column; padding: 4px 0; border-top: 1px solid var(--border-subtle); }
+.cerebro-lig-no { display: flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--text-primary); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.cerebro-lig-no:hover { color: var(--accent-blue); }
+.cerebro-lig-resumo { padding: 0 0 0 16px; border: 0; background: none; color: var(--text-muted); font: inherit; font-size: var(--fs-xs); text-align: left; cursor: pointer; }
+.cerebro-lig-resumo:hover { color: var(--accent-blue); text-decoration: underline; }
+.cerebro-lig-linha { margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+.cerebro-registros { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.cerebro-registros a { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: 6px 4px; border-top: 1px solid var(--border-subtle); color: var(--text-primary); text-decoration: none; }
+.cerebro-registros a:hover { background: var(--bg-hover); }
+.cerebro-registros a span { display: flex; flex-direction: column; min-width: 0; font-size: var(--fs-sm); }
+.cerebro-registros a small { font-size: var(--fs-xs); color: var(--text-muted); }
+.cerebro-registros em { font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; font-size: var(--fs-sm); }
+.cerebro-lista { display: flex; flex-direction: column; gap: 8px; }
+.cerebro-lista ul { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); }
+@media (max-width: 1100px) {
+  .cerebro-corpo, .cerebro-corpo:has(.cerebro-ficha) { grid-template-columns: 240px minmax(0, 1fr); }
+  .cerebro-corpo .cerebro-ficha { grid-column: 1 / -1; max-height: none; }
+}
+@media (max-width: 720px) {
+  .cerebro-corpo, .cerebro-corpo:has(.cerebro-ficha) { grid-template-columns: minmax(0, 1fr); }
+  .cerebro-filtros, .cerebro-ficha { max-height: none; }
+  .cerebro-ficha { order: -1; }
+  .cerebro-situacao { align-items: flex-start; text-align: left; }
+}
+/* Regras gerais de dl e de "rótulo + select" não valem aqui: ficha em caixa normal, select em coluna. */
+.cerebro-numeros dt, .cerebro-numeros dd { text-transform: none; letter-spacing: normal; }
+.cerebro label:has(> select) { display: flex; flex-direction: column; align-items: stretch; gap: 4px; white-space: normal; flex: none; }

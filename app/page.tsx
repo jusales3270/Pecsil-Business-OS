@@ -122,6 +122,7 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
     cart: <><path d="M3 4h2l2 12h10l3-8H6"/><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></>,
     handshake: <><path d="m11 7 2-2 5 4h3v7h-2l-4 4-3-3"/><path d="M3 9h3l4-4 3 3-3 3 2 2"/><path d="m7 15 2 2"/></>,
     factory: <><path d="M3 21V9l6 3V8l6 4V4h6v17z"/><path d="M7 17h2M12 17h2M17 17h2"/></>,
+    rede: <><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="12" cy="11" r="1.6"/><path d="M6.8 7l3.8 2.9M17.2 7l-3.8 2.9M12 12.6V17M6.3 7.7l4.6 9.6M17.7 7.7l-4.6 9.6"/></>,
     server: <><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/></>,
     box: <><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="M3 8v9l9 5 9-5V8M12 13v9"/></>,
     check: <><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></>, chart: <><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7"/></>,
