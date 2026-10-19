@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { filtrarEstado } from "../decisao/guard.ts";
+import { filtrarEstado, mascararDados } from "../decisao/guard.ts";
 import { semPensar } from "./base.ts";
 import type { Abrir, Ferramenta, Fonte } from "./ferramentas.ts";
 import { dicaVisual, MOSTRAR, resolverVisual, type ResultadoConsulta, type Visual } from "./visual.ts";
@@ -19,6 +19,8 @@ import { dicaVisual, MOSTRAR, resolverVisual, type ResultadoConsulta, type Visua
  */
 
 export type MensagemHistorico = { papel: "pessoa" | "sara"; texto: string };
+const SO_ACAO = new Set(["abrir_tela", "abrir_lancamento", "mostrar", "registrar_lacuna", "propor_habilidade"]);
+
 export type RespostaSara = {
   texto: string; fontes: Fonte[]; abrir: Abrir | null; ferramentas: { nome: string; entrada: unknown; ok: boolean }[];
   /** tokensEntrada inclui os tokens lidos do cache e os gravados nele (volume total de entrada). */
@@ -42,14 +44,52 @@ function comCacheNoFim(mensagens: { role: "user" | "assistant"; content: unknown
 const API = "https://api.anthropic.com/v1/messages";
 /** Frase curta de passagem antes de uma consulta ("Vou consultar as contas…"), que não é resposta. */
 const PASSAGEM = /^(vou|deixa eu|deixe-me|um momento|já vou|só um instante)\b[^\n]{0,160}$/i;
+/** Frase em que o modelo comenta o próprio raciocínio ("é uma dúvida de conceito, então respondo com meu conhecimento"). */
+const META = /[^.!?\n]*\b(então respondo|respondo (com|pelo|a partir d[oe]) (o )?meu conhecimento|sem consultar a plataforma|é uma dúvida de (conceito|conhecimento)|respondo direto|isso é conhecimento geral sobre a regra)\b[^.!?\n]*[.!?]\s*/gi;
+/** Linha que só anuncia o próximo passo ("Vou mostrar o comparativo por terceiro."), sem número. */
+const PASSAGEM_LINHA = /^(agora\s+)?(vou|deixa eu|deixe-me|vamos)\s+(mostrar|montar|consultar|buscar|pesquisar|verificar|conferir|confirmar|trazer|levantar|calcular|separar|detalhar|abrir|ver)\b[^\d\n]{0,120}[.:…]?$/i;
 const RODADAS = 6;
 
-type Bloco = { type: "text"; text: string } | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> };
+type Citacao = { type?: string; url?: string; title?: string };
+type Bloco =
+  | { type: "text"; text: string; citations?: Citacao[] }
+  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+  | { type: "server_tool_use"; id: string; name: string; input: { query?: string } }
+  | { type: "web_search_tool_result"; tool_use_id: string; content: unknown };
+
+/** Pesquisa na internet (ferramenta da própria Anthropic), só nos sites do tema do módulo. */
+export type Pesquisa = { dominios: string[]; maxBuscas?: number };
+
+/**
+ * O texto de uma rodada: sem a narração escrita logo antes de uma pesquisa ("Vou pesquisar…"),
+ * e com as citações da pesquisa separadas como fontes externas.
+ */
+export function textoECitacoes(conteudo: Bloco[]) {
+  const pesquisou = conteudo.some((b) => b.type === "server_tool_use");
+  const partes: string[] = [];
+  const citacoes: Fonte[] = [];
+  conteudo.forEach((b, i) => {
+    if (b.type !== "text") return;
+    const proximo = conteudo.slice(i + 1).find((x) => x.type !== "text");
+    if (proximo?.type === "server_tool_use") return; // narração antes da busca
+    partes.push(b.text);
+    for (const c of b.citations ?? []) {
+      if (!c.url || !/^https:\/\//.test(c.url)) continue;
+      let host = c.url;
+      try { host = new URL(c.url).hostname.replace(/^www\./, ""); } catch { /* fica a url */ }
+      citacoes.push({ rotulo: `Internet › ${host}`, link: c.url });
+    }
+  });
+  // Com pesquisa, o texto vem picado em blocos (um por citação): junta sem quebrar a frase.
+  return { texto: partes.join(pesquisou ? "" : "\n"), citacoes };
+}
 
 export async function conversarCom(sb: SupabaseClient, a: {
   chave: string; buscar?: typeof fetch; modelo: string; sistema: Sistema; historico: MensagemHistorico[]; pergunta: string; ferramentas: Ferramenta[];
   /** Cancela a conversa (o verificador de escopo deu FORA). */
   sinal?: AbortSignal;
+  /** Pesquisa na internet restrita ao tema do módulo (sem ela, a SARA não pesquisa). */
+  pesquisa?: Pesquisa | null;
 }): Promise<RespostaSara> {
   const chave = a.chave;
   const buscar = a.buscar ?? fetch;
@@ -58,7 +98,11 @@ export async function conversarCom(sb: SupabaseClient, a: {
     ...a.historico.slice(-12).map((m) => ({ role: (m.papel === "pessoa" ? "user" : "assistant") as "user" | "assistant", content: m.texto })),
     { role: "user", content: a.pergunta },
   ];
-  const tools = a.ferramentas.map((f) => ({ name: f.nome, description: f.descricao, input_schema: f.esquema }));
+  const tools: Record<string, unknown>[] = a.ferramentas.map((f) => ({ name: f.nome, description: f.descricao, input_schema: f.esquema }));
+  if (a.pesquisa?.dominios.length) {
+    tools.push({ type: "web_search_20250305", name: "web_search", max_uses: a.pesquisa.maxBuscas ?? 3, allowed_domains: a.pesquisa.dominios,
+      user_location: { type: "approximate", country: "BR", region: "São Paulo", timezone: "America/Sao_Paulo" } });
+  }
   const fontes: Fonte[] = [];
   let abrir: Abrir | null = null;
   const usadas: RespostaSara["ferramentas"] = [];
@@ -71,7 +115,11 @@ export async function conversarCom(sb: SupabaseClient, a: {
   const visuais: Visual[] = [];
   // Sem as frases de passagem ("Vou consultar…") e sem repetir o que já foi dito.
   const juntar = () => {
-    const partes = textos.map((t) => t.trim()).filter(Boolean);
+    // Frase de passagem solta no meio do texto ("Vou mostrar o comparativo…") também sai.
+    // Linha a linha, preservando as quebras (parágrafo continua parágrafo).
+    const limpar = (t: string) => t.split(/(\n+)/).map((p) => (/^\n+$/.test(p) ? p : PASSAGEM_LINHA.test(p.replace(META, "").trim()) ? "" : p.replace(META, "").trimEnd()))
+      .join("").replace(/\n{3,}/g, "\n\n").trim();
+    const partes = textos.map((t) => limpar(t.trim())).filter(Boolean);
     return partes.filter((t, i) => !(i < partes.length - 1 && (PASSAGEM.test(t) || partes.slice(i + 1).some((d) => d.includes(t))))).join("\n\n");
   };
 
@@ -86,7 +134,9 @@ export async function conversarCom(sb: SupabaseClient, a: {
     const f = a.ferramentas.find((x) => x.nome === nome);
     if (!f) return { conteudo: JSON.stringify({ erro: "Ferramenta indisponível para esta pessoa (sem permissão)." }), ok: false };
     try {
-      const res = await f.rodar(sb, entrada);
+      const bruto = await f.rodar(sb, entrada);
+      // CPF/PIS/e-mail/telefone no meio de uma descrição: esconde só o dado, não a consulta inteira.
+      const res = { ...bruto, dados: mascararDados(bruto.dados) };
       const json = JSON.stringify(res.dados);
       const filtro = filtrarEstado(json);
       if (!filtro.ok) return { conteudo: JSON.stringify({ erro: "Resultado bloqueado: continha dado pessoal.", motivos: filtro.motivos }), ok: false };
@@ -123,7 +173,26 @@ export async function conversarCom(sb: SupabaseClient, a: {
     tokensEntrada += (corpo.usage?.input_tokens ?? 0) + (corpo.usage?.cache_read_input_tokens ?? 0) + (corpo.usage?.cache_creation_input_tokens ?? 0);
     tokensSaida += corpo.usage?.output_tokens ?? 0;
     const pedidos = corpo.content.filter((b): b is Extract<Bloco, { type: "tool_use" }> => b.type === "tool_use");
-    textos.push(corpo.content.filter((b): b is Extract<Bloco, { type: "text" }> => b.type === "text").map((b) => b.text).join("\n"));
+    const { texto: textoDaRodada, citacoes } = textoECitacoes(corpo.content);
+    fontes.push(...citacoes.slice(0, 5));
+    // Cada busca na internet fica registrada (auditoria), com o termo pesquisado.
+    for (const b of corpo.content) {
+      if (b.type !== "server_tool_use") continue;
+      const termo = String(b.input?.query ?? "");
+      if (!filtrarEstado(termo).ok) console.warn("[sara] a pesquisa na internet levou dado pessoal no termo");
+      usadas.push({ nome: "pesquisar_na_internet", entrada: { termo }, ok: true });
+    }
+    // Pesquisa longa: a Anthropic pausa a vez e espera a continuação (sem resposta de ferramenta).
+    if (corpo.stop_reason === "pause_turn") {
+      if (textoDaRodada.trim()) textos.push(textoDaRodada);
+      mensagens.push({ role: "assistant", content: corpo.content });
+      continue;
+    }
+    // Texto escrito antes de uma consulta de dados é rascunho do modelo ("a primeira consulta falhou…"),
+    // e às vezes sai em inglês: não entra na resposta. Antes de só abrir tela, montar visual ou anotar
+    // lacuna, a resposta já está pronta e fica.
+    const consultou = pedidos.some((p) => !SO_ACAO.has(p.name));
+    if (corpo.stop_reason !== "tool_use" || !pedidos.length || !consultou) textos.push(textoDaRodada);
     if (corpo.stop_reason !== "tool_use" || !pedidos.length) {
       const texto = juntar();
       return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais };

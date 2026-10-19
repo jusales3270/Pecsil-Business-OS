@@ -247,3 +247,15 @@ export const LACUNA: Ferramenta = {
 export function ferramentasDe(pode: (feature: string) => boolean, nomes: string[]): Ferramenta[] {
   return FERRAMENTAS.filter((f) => nomes.includes(f.nome) && f.exige.some(pode));
 }
+
+/**
+ * Todas as consultas que a SARA de um módulo pode usar: as do próprio módulo primeiro e, depois,
+ * as dos outros módulos que a pessoa também pode ver (proprietário, 19/10: cada SARA tem o módulo
+ * inteiro e vai buscar em outro módulo quando a pergunta pedir — ex.: no RH, as horas de terceiros
+ * vêm da Portaria). Sempre com as permissões de quem pergunta.
+ */
+export function ferramentasDaSara(pode: (feature: string) => boolean, proprias: string[]): Ferramenta[] {
+  const minhas = ferramentasDe(pode, proprias);
+  const outras = FERRAMENTAS.filter((f) => !proprias.includes(f.nome) && f.exige.some(pode));
+  return [...minhas, ...outras];
+}

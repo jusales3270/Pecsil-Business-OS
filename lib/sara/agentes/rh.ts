@@ -215,8 +215,9 @@ Quem decide: Rosana (com a Bianca na homologação); acessos são do proprietár
 export const rh: Agente = {
   sara: {
     modulo: M, nome: "SARA do RH", rotulo: "RH", feature: M, permissao: "rh.sara", manual: MANUAL,
-    ferramentas: ferramentas.map((f) => f.nome), telas,
-    sugestoes: ["Quem está com férias vencidas?", "Quantos colaboradores temos por setor?", "Algum exame vence nos próximos 60 dias?", "Quais são os próximos feriados?"],
+    // As horas de terceiros vêm da Portaria, mas são pergunta do RH: entram como do próprio módulo.
+    ferramentas: [...ferramentas.map((f) => f.nome), "portaria_terceiros"], telas,
+    sugestoes: ["Quantas horas os terceiros trabalharam na semana passada?", "Quem está com férias vencidas?", "Quantos colaboradores temos por setor?", "Algum exame vence nos próximos 60 dias?", "Quais são os próximos feriados?"],
   },
   ferramentas, regras,
 };

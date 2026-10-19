@@ -42,20 +42,49 @@ const ferramentas: Ferramenta[] = [
     },
   },
   {
-    nome: "portaria_terceiros", rotulo: "terceiros", exige: ["portaria.terceiros", "rh.terceiros"],
-    descricao: "Terceiros (prestadores) pela Portaria: quem está dentro agora (entrou e não saiu hoje) e as horas de um período por pessoa (padrão: mês atual).",
-    esquema: { type: "object", properties: { nome: { type: "string" } } },
+    nome: "portaria_terceiros", rotulo: "horas de terceiros", exige: ["portaria.terceiros", "rh.terceiros"],
+    descricao: "Terceiros (prestadores) pela Portaria: quem está dentro agora e as HORAS TRABALHADAS de um período — panorama (total de horas, pessoas, dias, média por pessoa), comparativo por terceiro (horas, dias, média por dia) e o dia a dia. Período em de/ate (AAAA-MM-DD); padrão: mês atual. Ex.: semana passada = segunda a domingo anteriores.",
+    esquema: { type: "object", properties: { de: { type: "string", description: "AAAA-MM-DD" }, ate: { type: "string", description: "AAAA-MM-DD" }, nome: { type: "string" } } },
     rodar: async (sb, e) => {
-      const h = hoje(), ini = `${h.slice(0, 7)}-01`;
-      let q = sb.from("terceiros").select("nome, data, hora_entrada, hora_saida, minutos_trabalhados").gte("data", ini).order("data", { ascending: false }).limit(2000);
-      if (termo(e.nome)) q = q.ilike("nome", `%${termo(e.nome)}%`);
-      const { data, error } = await q;
-      if (error) throw new Error(error.message);
-      const l = (data ?? []) as { nome: string; data: string; hora_entrada: string | null; hora_saida: string | null; minutos_trabalhados: number | null }[];
-      const horas = Object.entries(l.reduce<Record<string, number>>((a, t) => { a[t.nome] = (a[t.nome] ?? 0) + Number(t.minutos_trabalhados ?? 0); return a; }, {}))
-        .sort((a, b) => b[1] - a[1]).map(([nome, min]) => ({ nome, horas: Math.round(min / 6) / 10 }));
-      return { dados: { mes: h.slice(0, 7), dentro_agora: l.filter((t) => t.data === h && semSaida(t.hora_saida)).map((t) => ({ nome: t.nome, entrou: t.hora_entrada })),
-        horas_no_mes: horas.slice(0, 30), registros_acima_de_12h: l.filter((t) => Number(t.minutos_trabalhados ?? 0) > 720).length }, fontes: [fonte("terceiros", "Terceiros")] };
+      const h = hoje();
+      const iso = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+      const de = iso(e.de) ?? `${h.slice(0, 7)}-01`, ate = iso(e.ate) ?? h;
+      type Reg = { nome: string; data: string; hora_entrada: string | null; hora_saida: string | null; minutos_trabalhados: number | null };
+      const l: Reg[] = [];
+      for (let ini = 0; ini < 20000; ini += 1000) {
+        let q = sb.from("terceiros").select("nome, data, hora_entrada, hora_saida, minutos_trabalhados").gte("data", de).lte("data", ate).order("data").range(ini, ini + 999);
+        if (termo(e.nome)) q = q.ilike("nome", `%${termo(e.nome)}%`);
+        const { data, error } = await q;
+        if (error) throw new Error(error.message);
+        l.push(...((data ?? []) as Reg[]));
+        if ((data ?? []).length < 1000) break;
+      }
+      const horas = (min: number) => Math.round(min / 6) / 10;
+      const pessoas = new Map<string, { min: number; dias: Set<string>; registros: number; abertos: number }>();
+      const dias = new Map<string, { min: number; pessoas: Set<string> }>();
+      for (const t of l) {
+        const min = Number(t.minutos_trabalhados ?? 0);
+        const p = pessoas.get(t.nome) ?? { min: 0, dias: new Set(), registros: 0, abertos: 0 };
+        p.min += min; p.dias.add(t.data); p.registros += 1; if (semSaida(t.hora_saida)) p.abertos += 1; pessoas.set(t.nome, p);
+        const d = dias.get(t.data) ?? { min: 0, pessoas: new Set() };
+        d.min += min; d.pessoas.add(t.nome); dias.set(t.data, d);
+      }
+      const total = [...pessoas.values()].reduce((s, p) => s + p.min, 0);
+      const porTerceiro = [...pessoas.entries()].sort((a, b) => b[1].min - a[1].min)
+        .map(([nome, p]) => ({ nome, horas: horas(p.min), dias: p.dias.size, media_horas_por_dia: p.dias.size ? horas(p.min / p.dias.size) : 0, registros: p.registros, ...(p.abertos ? { sem_saida: p.abertos } : {}) }));
+      return {
+        dados: {
+          periodo: { de, ate },
+          panorama: { horas_total: horas(total), terceiros: pessoas.size, dias_com_registro: dias.size, registros: l.length,
+            media_horas_por_terceiro: pessoas.size ? horas(total / pessoas.size) : 0,
+            registros_sem_saida: l.filter((t) => semSaida(t.hora_saida)).length, registros_acima_de_12h: l.filter((t) => Number(t.minutos_trabalhados ?? 0) > 720).length },
+          por_terceiro: porTerceiro.slice(0, 40),
+          por_dia: [...dias.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([data, d]) => ({ data, horas: horas(d.min), terceiros: d.pessoas.size })),
+          dentro_agora: l.filter((t) => t.data === h && semSaida(t.hora_saida)).map((t) => ({ nome: t.nome, entrou: t.hora_entrada })),
+          observacao: "Registro sem saída conta 0 minutos até o terceiro sair.",
+        },
+        fontes: [fonte("terceiros", "Terceiros")],
+      };
     },
   },
   {
