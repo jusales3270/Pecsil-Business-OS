@@ -193,9 +193,8 @@ Módulo novo, **War Room**. O Segundo Cérebro é um dos submenus, e entram outr
 - **No celular:** uma lista navegável (nó → ligações → nó), porque o desenho não cabe numa tela de
   400 px.
 
-**Biblioteca do desenho** (escolha técnica): **sigma.js** com **graphology**. Desenha em WebGL,
-tem o ForceAtlas2 rodando em segundo plano no navegador e no servidor, filtros e busca, e licença
-MIT. As versões exatas são travadas na construção.
+**Biblioteca do desenho** (escolha técnica): começou com **sigma.js** e **graphology** (2D). Desde 19/10/2026
+usa **3d-force-graph** com **three.js** (3D), em versões exatas travadas. A troca e o motivo estão na seção 11.
 
 ---
 
@@ -298,3 +297,52 @@ A falha que sobrou foi da verificação, e não da tela: a categoria do forneced
 - os valores da ficha apareciam em caixa alta e o campo de período ficava desalinhado (regras gerais da plataforma);
 - a quantidade "210.000 kg" e a situação "settled" nos registros;
 - a hora da última montagem sumia quando faltava a tabela das visões.
+
+---
+
+## 11. Redesenho em 3D, G3 e G4 aplicadas (19/10/2026)
+
+**Por que o redesenho.** O proprietário reprovou o desenho 2D: o painel lateral ficava sempre aberto, o grafo
+"pulava" e era sensível demais ao toque, as ligações só apareciam ao clicar, e o visual lembrava o Windows XP.
+O pedido foi um desenho de fato 3D, com as ligações pulsando como caminhos neurais e um "pulso magnético" a cada
+informação nova ou consulta dos subagentes.
+
+**Como ficou** (`modules/warroom/src/Cena3D.tsx` e `Cerebro.tsx`, estilos "neuro" em `patterns.css`):
+- **Biblioteca:** 3d-force-graph 1.80.0, three 0.185.1 e d3-force-3d 3.0.6. Saíram o sigma, o graphology e o ForceAtlas2.
+- **Tela:** a cena ocupa tudo. Filtros e visões abrem pelos botões da barra do topo, e a ficha flutua à direita.
+  Há tela cheia, e no celular a tela continua sendo lista.
+- **Desenho:**
+  - **Ligações:** brilham e somam luz onde se cruzam. Com muitas linhas chegando ao mesmo ponto, a intensidade cai para não estourar em branco.
+  - **Pontos:** os apagados ficam translúcidos.
+  - **Nomes:** em HTML, poucos de cada vez, sem sobreposição.
+- **Estabilidade:** o arranjo é calculado antes de aparecer e não se mexe depois. Os pontos não se arrastam e a câmera é amortecida.
+  A seleção vence o mouse: passar o mouse só mostra o nome. A câmera centraliza na área que o painel deixa livre.
+- **Pulso magnético:** `cerebro_pulsos(desde)` junta os eventos dos módulos, as consultas das SARAs (as ferramentas
+  usadas) e as ligações novas ou alteradas. A tela consulta a cada 15 s. Cada pulso solta anéis de luz no setor e
+  impulsos nas ligações, e aparece no painel de pulsos.
+
+**Migração `202610190004_cerebro_g3_g4.sql`, APLICADA em 19/10/2026.**
+- **G4:**
+  - setores, sistemas (Business OS, Forja, GRV) e o servidor;
+  - pessoas com aprova/opera, tiradas das permissões reais;
+  - a Cadeia 1;
+  - documentos;
+  - cliente → peça encomendada (OS).
+  - Montagem em 0,5 s: 5.061 nós e 5.841 ligações. Entraram as 14 pessoas reais, e nenhuma de teste nem das SARAs.
+- **G3:**
+  - `cerebro_ficha`, que filtra por área;
+  - `cerebro_ficha_buscar` e `cerebro_historico_preco`;
+  - o componente `FichaDoCerebro` em Cadastros, Comercial › Clientes, Compras › Fornecedores (aba "Histórico completo") e Almoxarifado › Materiais;
+  - as consultas `ficha_fornecedor` e `historico_de_preco` (SARA do Compras) e `ficha_cliente` (SARA do Comercial).
+- O limite da vizinhança subiu para 6 mil pontos, para caber as peças de um cliente grande.
+
+**Teste no navegador** (usuários temporários com as permissões reais, todos apagados no fim):
+- **Permissões por área:**
+  - Compras vê o comprado da COMIL e não vê o pago à GROB;
+  - Financeiro vê os R$ 9.258.760,35 pagos à GROB e não vê o preço de compra;
+  - RH não vê ficha nenhuma.
+- **Fichas nas telas:** aparecem no Compras, no Cadastros e no Comercial.
+- **SARA do Compras:** usou `ficha_fornecedor` e `historico_de_preco`.
+- **Pulso:** um evento de teste do Compras acendeu o setor e entrou no painel de pulsos.
+- **Resultado:** 12/12, sem erro de JavaScript. `npm test` 455/455, com build.
+

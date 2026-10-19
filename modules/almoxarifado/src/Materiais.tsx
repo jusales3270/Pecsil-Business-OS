@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { FichaDoCerebro } from "../../../app/components/ficha-cerebro";
 import { Button, Modal, Segmented, Status } from "../../../packages/design-system";
 import { FAMILIAS, PENDENCIAS, type GrupoMaterial, type Material } from "../../../lib/almoxarifado/materiais";
 import { Icone, chamar, money, qtd } from "./tipos";
@@ -170,6 +171,7 @@ function MaterialModal({ material, inicial, grupos, podeOperar, notify, onClose,
             {material.created_by_name ? ` Cadastrado por ${material.created_by_name}.` : ""}
           </p>
         )}
+        {material && <FichaDoCerebro tipo="material" chave={material.id} />}
         {erro && <p className="almox-erro" role="alert">{erro}</p>}
         <footer>
           {material && podeOperar && (

@@ -44,6 +44,11 @@ export async function GET(request: Request) {
       if (!id("ligacao")) return NextResponse.json({ error: "Escolha uma ligação." }, { status: 400 });
       r = await sb.rpc("cerebro_expandir", { p_ligacao: id("ligacao") });
       break;
+    case "pulsos": {
+      const desde = q.get("desde");
+      r = await sb.rpc("cerebro_pulsos", { p_desde: desde && !Number.isNaN(Date.parse(desde)) ? new Date(desde).toISOString() : null });
+      break;
+    }
     case "situacao": {
       const [ex, visoes] = await Promise.all([
         sb.from("cerebro_execucoes").select("inicio, fim, ms, nos, ligacoes, erro").order("inicio", { ascending: false }).limit(1).maybeSingle(),

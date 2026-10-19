@@ -5,6 +5,7 @@ import { Button, Card, Status } from "../../packages/design-system";
 import { formatTaxId, plural, send } from "./cadastros-utils";
 import { CustomersPanel } from "./customers-panel";
 import { DocumentosLigados } from "./documentos-ligados";
+import { FichaDoCerebro } from "./ficha-cerebro";
 import { CnpjAConferir } from "./cnpj-a-conferir";
 
 type Supplier = {
@@ -208,6 +209,7 @@ function SupplierForm({ supplier, onClose, onSaved }: { supplier: Supplier; onCl
             <span>Fornecedor ativo</span>
           </label>
           <div className="field-wide"><DocumentosLigados tipo="fornecedor" id={supplier.id} /></div>
+          <div className="field-wide"><FichaDoCerebro tipo="fornecedor" chave={supplier.id} /></div>
           {error && <p className="user-admin-error field-wide">{error}</p>}
         </div>
         <footer>

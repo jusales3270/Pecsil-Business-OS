@@ -8397,3 +8397,177 @@ button.holiday-row:hover {
 /* Regras gerais de dl e de "rótulo + select" não valem aqui: ficha em caixa normal, select em coluna. */
 .cerebro-numeros dt, .cerebro-numeros dd { text-transform: none; letter-spacing: normal; }
 .cerebro label:has(> select) { display: flex; flex-direction: column; align-items: stretch; gap: 4px; white-space: normal; flex: none; }
+/* "No Segundo Cérebro" nas telas dos módulos (G3). */
+.ficha-cerebro { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-surface); min-width: 0; }
+.ficha-cerebro > header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px; }
+.ficha-cerebro > header .eyebrow { margin: 0; }
+.ficha-cerebro > header small { font-size: var(--fs-xs); color: var(--text-muted); }
+/* Nos formulários (cadastro de fornecedor e cliente) uma regra geral põe flex na lista: a ficha mantém a grade. */
+.ficha-cerebro > dl.cerebro-numeros { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.ficha-cerebro .cerebro-numeros dt, .ficha-cerebro .cerebro-numeros dd { text-transform: none; letter-spacing: normal; }
+.ficha-cerebro i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.ficha-cerebro .cerebro-lig-no { cursor: default; }
+.ficha-cerebro .cerebro-lig-no:hover { color: var(--text-primary); }
+.ficha-cerebro .cerebro-lig-resumo { cursor: default; }
+.ficha-cerebro .cerebro-lig-resumo:hover { color: var(--text-muted); text-decoration: none; }
+
+/* ============================================================================
+   War Room › Segundo Cérebro em 3D ("neuro"). A cena é sempre escura, de propósito
+   (sala de controle): por isso as cores daqui são próprias, não os tokens do tema.
+   Os painéis flutuam em vidro sobre a cena e só abrem quando pedidos.
+   ============================================================================ */
+.neuro {
+  --n-fundo: #060912; --n-vidro: rgba(12, 17, 30, 0.72); --n-vidro-forte: rgba(14, 19, 34, 0.9); --n-borda: rgba(148, 163, 200, 0.16);
+  --n-texto: #e8ecf6; --n-texto-2: #a9b3c8; --n-texto-3: #6f7a92; --n-acento: #7aa2ff; --n-acento-2: #b18cff;
+  position: relative; height: calc(100vh - 150px); min-height: 560px; overflow: hidden; isolation: isolate;
+  border-radius: 18px; background: radial-gradient(120% 90% at 50% 40%, #0d1426 0%, #070b15 55%, #04060c 100%); color: var(--n-texto);
+  box-shadow: 0 24px 60px rgba(4, 6, 12, 0.35), inset 0 0 0 1px rgba(148, 163, 200, 0.08);
+}
+.neuro-cena, .neuro-canvas { position: absolute; inset: 0; }
+/* Os nomes da cena ganham z-index da biblioteca: ficam presos abaixo das barras e painéis */
+.neuro-cena { z-index: 0; }
+.neuro-canvas { cursor: grab; }
+.neuro-canvas:active { cursor: grabbing; }
+.neuro-vinheta { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(2, 4, 9, 0.65) 100%); }
+.neuro-carregando { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 12px; color: var(--n-texto-2); font-size: var(--fs-sm); letter-spacing: 0.02em; pointer-events: none; }
+.neuro-carregando span { width: 10px; height: 10px; border-radius: 50%; background: var(--n-acento); box-shadow: 0 0 0 0 rgba(122, 162, 255, 0.7); animation: neuro-pulso 1.6s ease-out infinite; }
+@keyframes neuro-pulso { 0% { box-shadow: 0 0 0 0 rgba(122, 162, 255, 0.65); } 100% { box-shadow: 0 0 0 22px rgba(122, 162, 255, 0); } }
+.neuro-erro, .neuro-erro-tela { position: absolute; inset: auto 16px 16px; margin: 0; color: #ff8fa3; font-size: var(--fs-sm); }
+.neuro-erro-tela { position: relative; inset: auto; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; padding: 48px; }
+
+/* Topo: marca, busca, botões */
+.neuro-topo { position: absolute; z-index: 3; top: 14px; left: 16px; right: 16px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 520px) minmax(0, 1fr); align-items: start; gap: 12px; pointer-events: none; }
+.neuro-topo > * { pointer-events: auto; }
+.neuro-marca { display: flex; flex-direction: column; gap: 4px; padding-top: 4px; min-width: 0; }
+.neuro-marca .eyebrow { margin: 0; color: var(--n-texto-2); letter-spacing: 0.14em; }
+.neuro-marca small { font-size: var(--fs-xs); color: var(--n-texto-3); font-variant-numeric: tabular-nums; }
+.neuro-busca { position: relative; display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 14px; border: 1px solid var(--n-borda); border-radius: 999px; background: var(--n-vidro); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%); color: var(--n-texto-2); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); }
+.neuro-busca:focus-within { border-color: rgba(122, 162, 255, 0.55); box-shadow: 0 0 0 3px rgba(122, 162, 255, 0.16), 0 10px 30px rgba(0, 0, 0, 0.35); }
+.neuro-busca input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--n-texto); font: inherit; font-size: var(--fs-sm); }
+.neuro-busca input::placeholder { color: var(--n-texto-3); }
+.neuro-busca ul { position: absolute; top: calc(100% + 8px); left: 0; right: 0; margin: 0; padding: 6px; list-style: none; max-height: 340px; overflow-y: auto; border: 1px solid var(--n-borda); border-radius: 14px; background: var(--n-vidro-forte); backdrop-filter: blur(18px); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
+.neuro-busca li button, .neuro-lista li button { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 10px; background: none; color: var(--n-texto); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
+.neuro-busca li button:hover, .neuro-lista li button:hover { background: rgba(122, 162, 255, 0.12); }
+.neuro-busca li span, .neuro-lista li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.neuro-busca li small, .neuro-lista li small { font-size: var(--fs-xs); color: var(--n-texto-3); }
+.neuro i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.neuro-botoes { justify-self: end; display: flex; gap: 6px; padding: 5px; border: 1px solid var(--n-borda); border-radius: 999px; background: var(--n-vidro); backdrop-filter: blur(16px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); }
+.neuro-botoes button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: var(--n-texto-2); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer; transition: background 0.15s, color 0.15s; }
+.neuro-botoes button:hover { background: rgba(148, 163, 200, 0.12); color: var(--n-texto); }
+.neuro-botoes button.on { background: rgba(122, 162, 255, 0.16); color: #cfdcff; }
+.neuro-botoes button:focus-visible, .neuro button:focus-visible { outline: 2px solid var(--n-acento); outline-offset: 2px; }
+
+/* Foco (isolar, caminho, dependências) */
+.neuro-foco { position: absolute; z-index: 3; top: 68px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 7px 8px 7px 16px; border: 1px solid rgba(122, 162, 255, 0.35); border-radius: 999px; background: rgba(20, 30, 60, 0.75); backdrop-filter: blur(14px); color: var(--n-texto); font-size: var(--fs-sm); box-shadow: 0 0 30px rgba(122, 162, 255, 0.18); max-width: calc(100% - 32px); }
+.neuro-foco span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.neuro-foco button { flex: none; height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: rgba(122, 162, 255, 0.2); color: #dbe5ff; font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer; }
+.neuro-foco button:hover { background: rgba(122, 162, 255, 0.32); }
+
+/* Painéis de vidro */
+.neuro-painel { position: absolute; z-index: 4; top: 116px; bottom: 56px; display: flex; flex-direction: column; gap: 16px; width: 340px; max-width: calc(100% - 32px); padding: 16px; overflow-y: auto; border: 1px solid var(--n-borda); border-radius: 18px; background: var(--n-vidro); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); color: var(--n-texto); scrollbar-width: thin; scrollbar-color: rgba(148, 163, 200, 0.25) transparent; animation: neuro-entra 0.22s ease-out; }
+.neuro-esquerda { left: 16px; }
+.neuro-direita { right: 16px; width: 380px; }
+@keyframes neuro-entra { from { opacity: 0; transform: translateY(6px) scale(0.99); } to { opacity: 1; transform: none; } }
+.neuro-painel > header { display: flex; align-items: center; justify-content: space-between; }
+.neuro-painel h3 { margin: 0; font-size: var(--fs-sm); font-weight: 650; color: var(--n-texto); letter-spacing: 0.01em; }
+.neuro-painel h3 small { margin-left: 6px; font-weight: 500; color: var(--n-texto-3); }
+.neuro-painel h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--n-texto-3); }
+.neuro-x { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--n-texto-3); cursor: pointer; flex: none; }
+.neuro-x:hover { background: rgba(148, 163, 200, 0.12); color: var(--n-texto); }
+.neuro-nota { margin: 0; font-size: var(--fs-xs); line-height: 1.5; color: var(--n-texto-3); }
+.neuro-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.neuro-chips button { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border: 1px solid var(--n-borda); border-radius: 999px; background: rgba(148, 163, 200, 0.04); color: var(--n-texto-3); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.neuro-chips button.on { border-color: rgba(148, 163, 200, 0.3); background: rgba(148, 163, 200, 0.1); color: var(--n-texto); }
+.neuro-chips button:not(.on) i { opacity: 0.35; }
+.neuro-chips button small { font-weight: 500; color: var(--n-texto-3); font-variant-numeric: tabular-nums; }
+.neuro-chips i.linha { width: 14px; height: 3px; border-radius: 2px; }
+.neuro-segmentos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.neuro-segmentos button { height: 32px; border: 1px solid var(--n-borda); border-radius: 10px; background: transparent; color: var(--n-texto-2); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer; }
+.neuro-segmentos button.on { border-color: rgba(122, 162, 255, 0.5); background: rgba(122, 162, 255, 0.14); color: #dbe5ff; }
+.neuro-visoes { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; padding: 0; list-style: none; }
+.neuro-visoes li { display: flex; gap: 4px; }
+.neuro-visoes li > button:first-child { flex: 1; min-width: 0; height: 36px; padding: 0 12px; border: 1px solid var(--n-borda); border-radius: 10px; background: rgba(148, 163, 200, 0.06); color: var(--n-texto); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.neuro-visoes li > button:first-child:hover { border-color: rgba(122, 162, 255, 0.45); }
+.neuro-salvar { display: flex; gap: 6px; }
+.neuro-salvar input { flex: 1; min-width: 0; height: 36px; padding: 0 12px; border: 1px solid var(--n-borda); border-radius: 10px; background: rgba(4, 6, 12, 0.5); color: var(--n-texto); font: inherit; font-size: var(--fs-sm); }
+.neuro-salvar button { height: 36px; padding: 0 14px; border: 0; border-radius: 10px; background: linear-gradient(135deg, #5b8cff, #8b6cff); color: #fff; font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+.neuro-salvar button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Ficha */
+.neuro-ficha { display: flex; flex-direction: column; gap: 14px; }
+.neuro-ficha > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.neuro-tipo { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--n-texto-3); }
+.neuro-ficha h2 { margin: 6px 0 0; font-size: 17px; line-height: 1.3; font-weight: 650; color: var(--n-texto); overflow-wrap: anywhere; text-wrap: balance; }
+.neuro-numeros { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.neuro-numeros > div { padding: 8px 10px; border: 1px solid rgba(148, 163, 200, 0.1); border-radius: 12px; background: rgba(148, 163, 200, 0.05); min-width: 0; }
+.neuro-numeros dt { font-size: 11px; color: var(--n-texto-3); text-transform: none; letter-spacing: normal; }
+.neuro-numeros dd { margin: 3px 0 0; font-size: var(--fs-sm); font-weight: 650; color: var(--n-texto); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-transform: none; }
+.neuro-acoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.neuro-acoes button, .neuro-acoes a { display: inline-flex; align-items: center; height: 30px; padding: 0 11px; border: 1px solid var(--n-borda); border-radius: 999px; background: rgba(148, 163, 200, 0.06); color: var(--n-texto-2); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.15s; }
+.neuro-acoes button:hover, .neuro-acoes a:hover { border-color: rgba(122, 162, 255, 0.45); color: var(--n-texto); background: rgba(122, 162, 255, 0.1); }
+.neuro-acoes .forte { border-color: transparent; background: linear-gradient(135deg, #5b8cff, #8b6cff); color: #fff; }
+.neuro-lig-grupo h4 { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; text-transform: none; letter-spacing: normal; font-size: var(--fs-sm); color: var(--n-texto); }
+.neuro-lig-grupo h4 small { color: var(--n-texto-3); font-weight: 500; }
+.neuro-lig-grupo ul { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.neuro-lig-grupo li { display: flex; flex-direction: column; gap: 2px; padding: 7px 0; border-top: 1px solid rgba(148, 163, 200, 0.08); }
+.neuro-lig-no { display: flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none; color: var(--n-texto); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.neuro-lig-no:hover { color: #cfdcff; }
+.neuro-lig-resumo { padding: 0 0 0 17px; border: 0; background: none; color: var(--n-texto-3); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.neuro-lig-resumo:hover { color: #9fb8ff; }
+.neuro-lig-linha { margin: 0; font-size: var(--fs-sm); color: var(--n-texto-2); }
+.neuro-registros { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.neuro-registros a { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 6px; border-top: 1px solid rgba(148, 163, 200, 0.08); border-radius: 8px; color: var(--n-texto); text-decoration: none; }
+.neuro-registros a:hover { background: rgba(122, 162, 255, 0.08); }
+.neuro-registros span { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--fs-sm); }
+.neuro-registros small { font-size: 12px; color: var(--n-texto-3); }
+.neuro-registros em { font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; font-size: var(--fs-sm); color: #cfdcff; }
+
+/* Legenda e pulsos (rodapé) */
+.neuro-legenda { position: absolute; z-index: 2; left: 16px; bottom: 14px; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(50% - 24px); }
+.neuro-legenda button { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px; border: 1px solid var(--n-borda); border-radius: 999px; background: rgba(8, 12, 22, 0.55); backdrop-filter: blur(10px); color: var(--n-texto-2); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.neuro-legenda button i { box-shadow: 0 0 8px currentColor; }
+.neuro-legenda button.off { opacity: 0.4; }
+.neuro-pulsos { position: absolute; z-index: 2; right: 16px; bottom: 14px; display: flex; flex-direction: column; gap: 4px; width: min(420px, calc(50% - 24px)); pointer-events: none; }
+.neuro-pulsos p { display: grid; grid-template-columns: 8px auto minmax(0, 1fr) auto; align-items: center; gap: 8px; margin: 0; padding: 6px 12px; border: 1px solid var(--n-borda); border-radius: 999px; background: rgba(8, 12, 22, 0.62); backdrop-filter: blur(10px); font-size: 12px; color: var(--n-texto-2); animation: neuro-entra 0.4s ease-out; }
+.neuro-pulsos p:nth-child(2) { opacity: 0.75; }
+.neuro-pulsos p:nth-child(3) { opacity: 0.5; }
+.neuro-pulsos i { width: 8px; height: 8px; background: var(--n-acento); box-shadow: 0 0 10px var(--n-acento); animation: neuro-pulso 1.8s ease-out infinite; }
+.neuro-pulsos p.sara i { background: #f472b6; box-shadow: 0 0 10px #f472b6; }
+.neuro-pulsos p.ligacao i { background: #34d399; box-shadow: 0 0 10px #34d399; }
+.neuro-pulsos b { color: var(--n-texto); text-transform: capitalize; font-weight: 600; }
+.neuro-pulsos span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.neuro-pulsos small { color: var(--n-texto-3); white-space: nowrap; }
+
+/* Dica ao passar o mouse (a biblioteca põe o HTML num balão) */
+.scene-tooltip { padding: 0 !important; background: none !important; }
+.neuro-tip { display: grid; grid-template-columns: 9px auto; column-gap: 8px; align-items: center; padding: 8px 12px; border: 1px solid rgba(148, 163, 200, 0.2); border-radius: 12px; background: rgba(10, 14, 26, 0.92); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); font: 500 13px/1.35 Inter, system-ui, sans-serif; color: #e8ecf6; }
+.neuro-tip i { width: 9px; height: 9px; border-radius: 50%; }
+.neuro-tip small { grid-column: 2; font-size: 11px; color: #8a95ad; }
+
+/* Celular: lista (a cena 3D fica para o computador) */
+.neuro-celular { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 18px; background: radial-gradient(120% 90% at 50% 0%, #0d1426 0%, #070b15 70%); color: #e8ecf6; }
+.neuro-celular header h1 { margin: 4px 0; font-size: 20px; color: #e8ecf6; }
+.neuro-celular header p { margin: 0; font-size: var(--fs-sm); color: #a9b3c8; }
+.neuro-celular .eyebrow { color: #a9b3c8; }
+.neuro-celular .neuro-busca { position: relative; --n-vidro: rgba(12, 17, 30, 0.8); --n-borda: rgba(148, 163, 200, 0.16); --n-texto: #e8ecf6; --n-texto-2: #a9b3c8; --n-texto-3: #6f7a92; --n-vidro-forte: rgba(14, 19, 34, 0.95); }
+.neuro-celular .neuro-painel { position: relative; inset: auto; width: auto; max-width: none; --n-vidro: rgba(12, 17, 30, 0.8); --n-borda: rgba(148, 163, 200, 0.16); --n-texto: #e8ecf6; --n-texto-2: #a9b3c8; --n-texto-3: #6f7a92; }
+.neuro-celular i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.neuro-lista { display: flex; flex-direction: column; margin: 0; padding: 6px; list-style: none; border: 1px solid rgba(148, 163, 200, 0.16); border-radius: 14px; background: rgba(12, 17, 30, 0.6); --n-texto: #e8ecf6; --n-texto-3: #6f7a92; }
+@media (max-width: 1100px) {
+  .neuro-topo { grid-template-columns: minmax(0, 1fr) auto; }
+  .neuro-marca { display: none; }
+  .neuro-botoes button span { display: none; }
+  .neuro-pulsos { display: none; }
+  .neuro-legenda { max-width: calc(100% - 32px); }
+}
+.neuro b, .neuro strong { color: inherit; }
+.neuro-foco b { color: #ffffff; font-weight: 650; }
+/* Nomes dos pontos (HTML sobre a cena: nítidos em qualquer zoom; a biblioteca posiciona) */
+.neuro-rotulo { display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 3px 9px 3px 7px; border: 1px solid rgba(148, 163, 200, 0.16); border-radius: 999px; background: rgba(5, 8, 15, 0.66); color: #dfe5f2; font: 500 11px/1.25 Inter, system-ui, sans-serif; letter-spacing: 0.01em; white-space: nowrap; pointer-events: none; user-select: none; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); transition: opacity 0.25s; }
+.neuro-rotulo span { overflow: hidden; text-overflow: ellipsis; }
+.neuro-rotulo i { width: 6px; height: 6px; box-shadow: 0 0 6px currentColor; }
+.neuro-rotulo.foco { max-width: 300px; padding: 5px 12px 5px 9px; border-color: rgba(122, 162, 255, 0.55); background: rgba(14, 22, 44, 0.86); color: #ffffff; font-size: 13px; font-weight: 650; box-shadow: 0 0 22px rgba(122, 162, 255, 0.35); }
+.neuro-rotulo.foco i { width: 8px; height: 8px; }
+/* Tela cheia: a sala de controle ocupa o monitor inteiro */
+.neuro:fullscreen { height: 100vh; min-height: 0; border-radius: 0; }
+.neuro:fullscreen .neuro-painel { top: 116px; }
