@@ -8571,3 +8571,94 @@ button.holiday-row:hover {
 /* Tela cheia: a sala de controle ocupa o monitor inteiro */
 .neuro:fullscreen { height: 100vh; min-height: 0; border-radius: 0; }
 .neuro:fullscreen .neuro-painel { top: 116px; }
+
+/* ============================================================================
+   Logística (raia L): entregas com a frota própria e o mapa ao vivo (Leaflet + OpenStreetMap).
+   O mapa usa os blocos e cartões dos outros módulos; aqui só o que é dele.
+   ============================================================================ */
+.logi-ao-vivo { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--sp-4); min-height: 560px; }
+.logi-mapa { position: relative; z-index: 0; min-height: 560px; height: calc(100vh - 300px); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--bg-inset); box-shadow: var(--shadow-sm); }
+.logi-lado { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; max-height: calc(100vh - 300px); min-height: 560px; overflow-y: auto; padding: var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-surface); box-shadow: var(--shadow-sm); }
+.logi-resumo { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
+.logi-resumo > div { display: flex; flex-direction: column; align-items: flex-start; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-md); background: var(--bg-subtle); }
+.logi-resumo b { font-size: var(--fs-lg); font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.logi-resumo small { font-size: var(--fs-micro); color: var(--text-muted); line-height: 1.2; }
+.logi-lista { display: flex; flex-direction: column; gap: var(--sp-2); margin: 0; padding: 0; list-style: none; }
+.logi-lista li > button { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: var(--sp-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease); }
+.logi-lista li > button:hover { background: var(--bg-hover); }
+.logi-lista li.ativo > button { border-color: var(--accent-blue); box-shadow: var(--shadow-focus); }
+.logi-lista small { font-size: var(--fs-xs); color: var(--text-secondary); }
+.logi-linha1 { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.logi-linha1 b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+.logi-barra { position: relative; height: 6px; margin: 4px 0 2px; border-radius: var(--radius-pill); background: var(--data-track); overflow: hidden; }
+.logi-barra i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--accent-amber); transition: width 0.6s var(--ease); }
+.logi-sinal { color: var(--text-muted) !important; }
+.logi-vazio { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-4); border: 1px dashed var(--border); border-radius: var(--radius-md); }
+.logi-vazio small { color: var(--text-muted); font-size: var(--fs-xs); }
+
+/* Marcadores do mapa (HTML dentro do Leaflet) */
+.logi-pin { background: none; border: 0; }
+.logi-patio { display: grid; place-items: center; width: 52px; height: 22px; border-radius: 6px; background: #0f172a; color: #fff; font: 700 10px/1 var(--font-sans); letter-spacing: 0.08em; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+.logi-destino { display: grid; place-items: center; width: 30px; height: 30px; border: 3px solid #fff; border-radius: 50%; background: var(--cor, #3b82f6); color: #fff; font: 700 11px/1 var(--font-sans); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); }
+.logi-caminhao { display: grid; place-items: center; width: 34px; height: 34px; border: 3px solid #fff; border-radius: 50%; background: #2563eb; color: #fff; box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.22), 0 3px 10px rgba(0, 0, 0, 0.35); }
+.logi-caminhao svg { transform: rotate(var(--giro, 0deg)); transition: transform 0.6s var(--ease); }
+.logi-caminhao.parado { background: #64748b; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3); }
+.logi-placa { position: absolute; top: 36px; left: 50%; transform: translateX(-50%); padding: 1px 6px; border-radius: 4px; background: rgba(15, 23, 42, 0.86); color: #fff; font: 600 10px/1.4 var(--font-sans); white-space: nowrap; }
+
+/* Lista de entregas */
+.logi-filtro { display: flex; justify-content: flex-start; }
+.logi-tabela { display: grid; grid-template-columns: 56px minmax(220px, 2.4fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, 0.9fr) auto; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-surface); }
+.logi-tr { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: start; border-top: 1px solid var(--border-subtle); }
+.logi-tr > span { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: var(--sp-3); font-size: var(--fs-sm); color: var(--text-primary); }
+.logi-tr > span small { font-size: var(--fs-xs); color: var(--text-secondary); overflow-wrap: anywhere; }
+.logi-th { border-top: 0; background: var(--bg-subtle); }
+.logi-th > span { font-size: var(--fs-micro); font-weight: var(--fw-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.logi-num { font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); text-align: right; }
+.logi-acoes { flex-direction: row !important; flex-wrap: wrap; justify-content: flex-end; }
+.logi-erro { color: var(--accent-red) !important; }
+
+/* Formulários (neutraliza as regras gerais de label > textarea e label:has(> select)) */
+.logi-form { display: flex; flex-direction: column; gap: var(--sp-3); }
+.logi-form label.logi-campo, .logi-form label.logi-campo:has(> select) { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.logi-campo > span { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--text-secondary); }
+.logi-form label.logi-campo > textarea { height: auto; min-height: 64px; resize: vertical; }
+.logi-junto { display: flex; gap: var(--sp-2); }
+.logi-junto input { flex: 1; min-width: 0; }
+.logi-busca { width: 100%; }
+.logi-escolhas { display: flex; flex-direction: column; gap: 4px; max-height: 300px; margin: 0; padding: 4px; overflow-y: auto; list-style: none; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-inset); }
+.logi-escolhas button { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: var(--sp-2) var(--sp-3); border: 1px solid transparent; border-radius: var(--radius-sm); background: none; color: var(--text-primary); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
+.logi-escolhas button:hover { background: var(--bg-hover); }
+.logi-escolhas button.on { border-color: var(--accent-blue); background: var(--tint-blue); }
+.logi-escolhas small { font-size: var(--fs-xs); color: var(--text-secondary); }
+.logi-rodape { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2); }
+.logi-rodape > small { margin-right: auto; }
+.logi-frota { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.logi-frota li { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: var(--sp-3); padding: var(--sp-3) 0; border-top: 1px solid var(--border-subtle); }
+.logi-frota li:first-child { border-top: 0; }
+.logi-frota li > .ds-status { grid-row: 1 / span 2; grid-column: 2; align-self: center; }
+.logi-frota small { font-size: var(--fs-xs); color: var(--text-secondary); }
+@media (max-width: 1100px) {
+  .logi-ao-vivo { grid-template-columns: 1fr; }
+  .logi-mapa { height: 60vh; min-height: 380px; }
+  .logi-lado { max-height: none; min-height: 0; }
+}
+
+/* Link de rastreio do cliente (página pública, mesmo padrão do portal do fornecedor) */
+.rastreio { max-width: 760px; }
+.rastreio-chegada { display: flex; flex-direction: column; gap: 4px; padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-md); background: var(--tint-blue); }
+.rastreio-chegada b { font-size: var(--fs-lg); color: var(--text-primary); }
+.rastreio-chegada small { font-size: var(--fs-xs); color: var(--text-secondary); }
+.rastreio-chegada.ok { background: var(--tint-green); }
+.rastreio-chegada.falhou { background: var(--tint-red); }
+.rastreio-etapas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); margin: 0; padding: 0; list-style: none; }
+.rastreio-etapas li { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-xs); color: var(--text-muted); }
+.rastreio-etapas li i { display: block; height: 6px; border-radius: var(--radius-pill); background: var(--data-track); }
+.rastreio-etapas li.feita { color: var(--text-primary); font-weight: var(--fw-semibold); }
+.rastreio-etapas li.feita i { background: var(--accent-blue); }
+.rastreio-etapas small { font-weight: var(--fw-regular); color: var(--text-secondary); }
+.rastreio-mapa-cartao { padding: 0; overflow: hidden; }
+.rastreio-mapa-cartao > p { margin: 0; padding: var(--sp-3) var(--sp-4); font-size: var(--fs-xs); color: var(--text-secondary); }
+.rastreio-mapa { position: relative; z-index: 0; height: 380px; background: var(--bg-inset); }
+.rastreio-nota { margin: 0; text-align: center; font-size: var(--fs-xs); color: var(--text-muted); }
+@media (max-width: 560px) { .rastreio-mapa { height: 300px; } }
+

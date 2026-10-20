@@ -153,6 +153,7 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
     report: <><path d="M6 3h9l4 4v14H6zM15 3v5h4M9 12h6M9 16h6"/></>,
     tree: <><rect x="3" y="3" width="6" height="5" rx="1"/><rect x="13" y="10" width="8" height="4" rx="1"/><rect x="13" y="17" width="8" height="4" rx="1"/><path d="M6 8v11h7M6 12h7"/></>,
     truck: <><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></>,
+    map: <><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name]}</svg>;
 }

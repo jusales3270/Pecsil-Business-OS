@@ -65,8 +65,9 @@ export function UpdateNotice() {
   const [modo, setModo] = useState<"antes" | "depois">("antes");
 
   useEffect(() => {
-    // Só dentro da plataforma: na tela de login a pessoa ainda nem entrou.
-    if (window.location.pathname.startsWith("/login")) return;
+    // Só dentro da plataforma: no login a pessoa ainda nem entrou, e as páginas públicas por link (portal do
+    // fornecedor, rastreio do cliente) são de quem não tem conta.
+    if (["/login", "/cotar/", "/rastreio/"].some((p) => window.location.pathname.startsWith(p))) return;
     const vistas = new Set(lerVistas());
     const naoVistas = NOVIDADES.filter((n) => !vistas.has(n.id));
     if (!naoVistas.length) return;

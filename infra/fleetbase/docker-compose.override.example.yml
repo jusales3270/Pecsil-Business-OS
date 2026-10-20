@@ -1,0 +1,56 @@
+# Modelo do override do Fleetbase da PecSil (infra/fleetbase/README.md). SEM segredos: preencha os <…>.
+# Versão travada; portas só em 127.0.0.1 (no servidor, o acesso é pela rede interna); MySQL com senha.
+services:
+  database:
+    ports: !override
+      - "127.0.0.1:3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: "<senha do MySQL>"
+      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
+  socket:
+    ports: !override
+      - "127.0.0.1:38000:8000"
+    environment:
+      SOCKETCLUSTER_OPTIONS: '{"origins":"http://localhost:*"}'
+  scheduler:
+    # O teste de saúde herdado da imagem da API olha a porta 2019, que o agendador não usa.
+    healthcheck:
+      disable: true
+    image: fleetbase/fleetbase-api:v0.7.68
+    environment:
+      DATABASE_URL: "mysql://root:<senha do MySQL>@database/fleetbase"
+  queue:
+    image: fleetbase/fleetbase-api:v0.7.68
+    environment:
+      # Rotas e previsão com trânsito (Google Routes, plano Pro); guarda o resultado 3 min (cota grátis).
+      GOOGLE_MAPS_API_KEY: "<chave da Routes API>"
+      TRACKING_PROVIDER: "google_routes"
+      TRACKING_TRAFFIC_ENABLED: "true"
+      TRACKING_CACHE_TTL_SECONDS: "180"
+      TRACKING_ROUTE_CACHE_TTL_SECONDS: "600"
+      DATABASE_URL: "mysql://root:<senha do MySQL>@database/fleetbase"
+  console:
+    image: fleetbase/fleetbase-console:v0.7.68
+    ports: !override
+      - "127.0.0.1:4200:4200"
+  application:
+    image: fleetbase/fleetbase-api:v0.7.68
+    environment:
+      # Rotas e previsão com trânsito (Google Routes, plano Pro); guarda o resultado 3 min (cota grátis).
+      GOOGLE_MAPS_API_KEY: "<chave da Routes API>"
+      TRACKING_PROVIDER: "google_routes"
+      TRACKING_TRAFFIC_ENABLED: "true"
+      TRACKING_CACHE_TTL_SECONDS: "180"
+      TRACKING_ROUTE_CACHE_TTL_SECONDS: "600"
+      APP_KEY: "base64:<32 bytes aleatórios>"
+      APP_URL: "http://localhost:8000"
+      CONSOLE_HOST: "http://localhost:4200"
+      APP_DEBUG: "true"
+      DATABASE_URL: "mysql://root:<senha do MySQL>@database/fleetbase"
+      FRONTEND_HOSTS: "http://localhost:3000,http://localhost:4200"
+  httpd:
+    ports: !override
+      - "127.0.0.1:8000:80"
+    # Bloqueio da consulta pública por número de rastreio (infra/fleetbase/vhost.conf do Business OS).
+    volumes:
+      - ./docker/httpd/vhost-pecsil.conf:/etc/nginx/templates/default.conf.template:ro

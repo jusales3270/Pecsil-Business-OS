@@ -29,6 +29,7 @@ export const EVENT_MODULES: Record<string, string> = {
   fundicao: "Fundição",
   fiscal: "Fiscal",
   ti: "TI",
+  logistica: "Logística",
   fundacao: "Fundação",
 };
 
@@ -64,6 +65,14 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "ti.chamado.aberto", module: "ti", label: "Chamado de TI aberto", description: "Alguém da empresa abriu um chamado para a TI." },
   { type: "ti.chamado.resolvido", module: "ti", label: "Chamado de TI resolvido", description: "A TI resolveu um chamado (com a solução e se foi no prazo)." },
   { type: "ti.regras.alteradas", module: "ti", label: "Regras dos chamados revisadas", description: "As categorias e os prazos dos chamados de TI mudaram." },
+  { type: "logistica.entrega.criada", module: "logistica", label: "Entrega criada", description: "Uma entrega foi criada a partir de uma OS, de um pedido ou avulsa." },
+  { type: "logistica.entrega.enviada", module: "logistica", label: "Entrega com a frota", description: "A entrega foi enviada ao serviço de entregas e ganhou número de rastreio." },
+  { type: "logistica.entrega.saiu", module: "logistica", label: "Entrega saiu", description: "O motorista saiu com a entrega." },
+  { type: "logistica.entrega.entregue", module: "logistica", label: "Entrega concluída", description: "A entrega chegou ao cliente." },
+  { type: "logistica.entrega.falhou", module: "logistica", label: "Entrega não concluída", description: "A entrega não pôde ser concluída." },
+  { type: "logistica.entrega.cancelada", module: "logistica", label: "Entrega cancelada", description: "A entrega foi cancelada antes de chegar ao cliente." },
+  { type: "logistica.link.criado", module: "logistica", label: "Link de rastreio gerado", description: "Um link de rastreio da entrega foi gerado para mandar ao cliente." },
+  { type: "logistica.link.cancelado", module: "logistica", label: "Link de rastreio cancelado", description: "O link de rastreio de uma entrega deixou de valer." },
   { type: "producao.os.aberta", module: "producao", label: "OS aberta", description: "Uma OS do Forja passou a existir no Business OS." },
   { type: "producao.os.status", module: "producao", label: "OS mudou de situação", description: "A OS mudou de status no Forja (em produção, finalizada, atrasada…)." },
   { type: "producao.entrada.registrada", module: "producao", label: "Entrada de produção", description: "Peças de um orçamento ganho ficaram prontas e liberadas para faturar." },

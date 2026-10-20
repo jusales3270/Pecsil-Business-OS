@@ -210,6 +210,13 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     ],
   },
   {
+    code: "logistica",
+    label: "Logística",
+    features: [
+      { code: "logistica.entregas", label: "Entregas e mapa ao vivo", description: "Entregas com a frota própria: criar a partir da OS, do pedido ou avulsa, acompanhar os caminhões no mapa em tempo real e ver a frota; operar cria, envia ao motorista, cancela e configura a origem.", levels: VER_OPERAR },
+    ],
+  },
+  {
     code: "warroom",
     label: "War Room",
     features: [
