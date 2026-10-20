@@ -13,6 +13,7 @@ import type { ModuleAccessContext } from "./access";
 import FundicaoApp from "./fundicao/src/FundicaoApp";
 import TiApp from "./ti/src/TiApp";
 import WarRoomApp from "./warroom/src/WarRoomApp";
+import LogisticaApp from "./logistica/src/LogisticaApp";
 
 export type ModuleRuntimeProps = {
   notify: (message: string) => void;
@@ -40,6 +41,7 @@ const moduleComponents: Record<string, ComponentType<ModuleRuntimeProps>> = {
   fundicao: FundicaoApp,
   ti: TiApp,
   warroom: WarRoomApp,
+  logistica: LogisticaApp,
 };
 
 export function renderModuleComponent(moduleId: string, props: ModuleRuntimeProps) {

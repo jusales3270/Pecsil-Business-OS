@@ -127,7 +127,7 @@ Legenda:
   - **Roteiro de implantação:** diagnóstico, mapeamento de processos (o `PROCESSOS-PECSIL.md` vira modelo), importação da folha, dos fornecedores e dos itens.
   - **Adaptadores de produção:** o Forja é da PecSil. Outras fábricas precisam de apontamento próprio, ou de integração com o sistema que já usam.
   - **Separar o que é específico:** nome e marca, integração com o Forja, os ajustes de "caixa 1/2" do Compras, textos fixos.
-  - **Decidir o modelo de hospedagem:** um servidor por cliente (os dados na empresa, que é o diferencial) ou nuvem com várias empresas (`organization_id` já existe em todas as tabelas).
+  - **Modelo de hospedagem: DECIDIDO em 19/10/2026.** Um servidor por cliente, com instalação licenciada, e não nuvem com várias empresas. Ver a seção 7.
 - **Fase do blueprint:** depois da Fase 5; é pré-requisito da escala.
 - **Pronto quando:** uma segunda indústria é implantada em semanas, sem mudar código.
 
@@ -144,7 +144,7 @@ Legenda:
 - **Por quê:** o caso mostra que não se vende o software, e sim o serviço de transformação, com o conhecimento embarcado no software.
 - **Reflexo:**
   - oferta em camadas: diagnóstico, implantação por módulo e acompanhamento com a SARA;
-  - precificação;
+  - precificação: implementação cobrada uma vez, mais manutenção mensal, no modelo do GRV, e **não** assinatura de SaaS (seção 7);
   - contrato e suporte;
   - possível parceria com consultorias ou redes do setor.
 - **Fase do blueprint:** estratégia, fora do código.
@@ -234,3 +234,60 @@ o RH é tratado à parte por causa da LGPD.
 
 **Lacunas que mais pesam:** SARA (harness), reações automáticas (executor) e cofre de
 segredos.
+
+---
+
+## 7. Formato do produto: instalação licenciada (decisão do proprietário, 19/10/2026)
+
+**A decisão.** O produto **não** será mais um SaaS de gestão por assinatura (como os de R$ 297/mês).
+Será uma **instalação licenciada no cliente**, como o GRV. O cliente paga a **implementação** uma vez e
+a **manutenção** todo mês.
+
+**Por que cabe no que já existe.** A PecSil já roda assim: a plataforma e o banco (o Supabase instalado
+no servidor, não na nuvem) estão no servidor da própria fábrica, sob o Coolify. O produto é repetir essa
+instalação em cada cliente. Os dados ficam na empresa, que é o diferencial da seção 1. O `organization_id`
+continua em todas as tabelas: ninguém usa várias empresas na mesma instalação, mas isso não atrapalha.
+
+**Por que não um ".exe".** Muitas pessoas usam o sistema ao mesmo tempo (Portaria, celular, tablet, os
+setores, as SARAs). Ele precisa de servidor com banco, não de um programa num computador só. O
+equivalente prático do "executável com licença" tem quatro peças:
+- **Instalador único:** sobe banco, plataforma, transmissor de NF-e e tarefas agendadas no servidor do
+  cliente, ou num **mini-servidor homologado** que a gente entrega pronto (de preferência, para padronizar
+  o suporte).
+- **Licença assinada:** um arquivo com o CNPJ, os módulos contratados, o número de usuários e a validade
+  da manutenção. O sistema confere a assinatura sem depender da internet.
+- **Canal de atualização:** só quem está com a manutenção em dia recebe versões novas.
+- **Serviços que passam pela gente:** a IA das SARAs (o custo por uso entra na mensalidade), o backup
+  externo, o vigia de queda e o acesso remoto auditado (raia T).
+
+**O que a manutenção mensal cobre:**
+- atualizações (a parte fiscal muda todo ano, como agora com o IBS/CBS);
+- suporte;
+- as SARAs;
+- backup externo;
+- monitoramento.
+
+**O que a implementação cobre:**
+- instalação;
+- migração do sistema antigo (o mesmo caminho das cargas do GRV: fornecedores, clientes, materiais, histórico financeiro);
+- configuração de setores, alçadas e "quem decide";
+- treinamento.
+
+**Limite honesto da proteção.** O código fica no servidor do cliente. A licença impede o uso casual
+sem contrato, mas não segura cópia determinada. O que segura a recorrência é:
+- o contrato;
+- as atualizações contínuas;
+- os serviços acima, que dependem da gente.
+
+**Licença do transmissor.** O transmissor de NF-e (`services/transmissor-nfe`) é GPL-3.0. Entregá-lo ao
+cliente obriga a disponibilizar o código **dele**, não o da plataforma, que fala com ele só por HTTP (seção 6.1).
+
+**O que falta construir** (raia Z do ROADMAP, ainda adiada pela decisão de 17/10):
+- **Z-02:** tirar a PecSil do código (marca, CNPJ, setores, triagem, conector da Forja, cookie). São cerca de
+  60 arquivos que citam a PecSil, muitos só em comentário.
+- **Novos:** licença assinada, instalador, canal de atualização e integrações opcionais (Forja, GRV, bancos).
+- **Z-05:** cadastro e suporte de cada cliente. A cobrança vira contrato de manutenção, não assinatura.
+
+**Quando.** Continua valendo a decisão de 17/10: primeiro a PecSil pronta e validada, com o GRV desligado
+(Marco 1). Quando a raia Z voltar, ela nasce neste formato.
+

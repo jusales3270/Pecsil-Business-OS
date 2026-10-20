@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-20-logistica-entregas",
+    data: "2026-10-20",
+    area: "Logística",
+    modulos: ["logistica"],
+    funcionalidades: ["logistica.entregas"],
+    titulo: "Logística: entregas com a frota própria",
+    itens: [
+      "Crie a entrega a partir de uma OS, de um pedido ganho ou avulsa: a plataforma acha o endereço do cliente no mapa e manda para o motorista.",
+      "Em Ao vivo, os caminhões andam no mapa, com a rota pela estrada, quanto falta e a hora de chegada com o trânsito de agora.",
+      "Quando o motorista conclui, a entrega fica \"Entregue\" sozinha. Para o cliente, dá para gerar um link de rastreio (sem login, sem dados do motorista).",
+    ],
+  },
+  {
     id: "2026-10-19-cerebro-arrastar",
     data: "2026-10-19",
     area: "War Room",

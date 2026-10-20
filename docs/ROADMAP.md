@@ -92,6 +92,8 @@ cotações, aprovar NF-e…), nunca para "só o proprietário".
 | Categorias e prazos dos chamados de TI (entraram provisórios: 10 categorias; urgente 4 h, alta 8 h, normal 24 h, baixa 72 h) e se o prazo para em "aguardando" | Cesar (supervisor de TI), em TI › Regras | T-06 | PLANO-TI, T-06 |
 | Liberar o IP de saída da nuvem do vigia (100.60.102.71) no firewall da fábrica, para religar os testes de fora | Cesar (supervisor de TI) | T-03 | VIGIA-EXTERNO |
 | Auditoria 0008 (esconder o rastro dos usuários de teste) | Proprietário (plataforma) | — | Auditoria central |
+| A PecSil entrega com frota e motoristas próprios (quantos veículos)? Quem responde pela expedição e decide como as entregas são operadas? | Proprietário (indica a área) | L-01 a L-03 | Debate 19/10 |
+| Regra de privacidade do rastreio do motorista (quando o GPS fica ligado, ciência por escrito) | Rosana (RH) | L-03 | Debate 19/10 |
 
 **Pedidos à equipe** (dados que não dependem de construção, mas destravam itens)
 
@@ -233,6 +235,24 @@ Marco: **1**, **2** ou **+**.
 | P-12 | Inteligência da produção (previsão de prazo, gargalo) | + | 4 | 1 | 4 | 2 | 1,5 | na fila | P-10 | Forja Fase 3 |
 | P-13 | Causa-raiz dos motivos de parada | + | 3 | 1 | 1 | 2 | 5,0 | decisão | Taxonomia | Jev E8 |
 
+### L — Logística (entregas e frota)
+
+Origem: debate de 19/10/2026 e o fork [`fleetbase-frota`](https://github.com/jusales3270/fleetbase-frota) (Fleetbase, AGPL-3.0, ainda sem
+nenhuma alteração nossa). **Decisão de arquitetura:** o Fleetbase roda como **serviço separado no mesmo servidor**, e a plataforma
+fala com ele **só por API**, como a Forja e o transmissor de NF-e. Os motivos:
+- a AGPL não contamina a plataforma (ver "Não fazer");
+- a tecnologia é outra (PHP/Laravel, Ember, MySQL);
+- as atualizações do projeto original continuam chegando sem conflito.
+
+O Business OS é a fonte da verdade (clientes, pedidos, notas). O Fleetbase cuida só da execução da entrega (rota, motorista,
+veículo, comprovante). O consignado da Russer (estoque parado em hospital) não usa o Fleetbase.
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| L-01 | Fleetbase como serviço separado no servidor: instalação no Coolify com MySQL próprio, backup junto do T-02, conta de integração e chamadas pela rede interna (a receita da Forja); as alterações nossas ficam públicas no fork (AGPL) | + | 2 | 1 | 1 | 2 | 4,0 | em parte: **local no ar** (20/10: v0.7.68 travada, ~1,5 GB parado, conta e chave de integração, ciclo testado); no servidor depende das decisões | Frota própria confirmada (19/10); quem responde pela expedição; consumo do servidor medido (Cesar); OK do proprietário para instalar | Debate 19/10; VIS §7; PLANO-LOGISTICA |
+| L-02 | Entregas na plataforma: pedido faturado vira ordem de entrega no Fleetbase; "entregue com comprovante" volta como evento (Comercial, Fiscal, SARA); submódulo Entregas lendo a API, com o **mapa ao vivo** (caminhões em movimento pelo tempo real do Fleetbase, rota planejada × feita, previsão de chegada, status por parada; mapa OpenStreetMap) e o **link de rastreio para o cliente** (a confirmar na instalação) | + | 4 | 1 | 2 | 2 | 3,0 | construído (20/10): módulo Logística (Ao vivo, Entregas, Frota, Origem), entrega a partir de OS, pedido ou avulsa, conferência pelo aviso, eventos e pulso no Segundo Cérebro; migração 202610200001 **APLICADA** em 20/10; teste de navegador 15/15 com usuários temporários, Fleetbase local e simulador (rota e previsão com trânsito pelo Google); falta o commit | L-01; operação definida pela área; com a NF-e em produção (C-10), a entrega passa a nascer também da nota | Debate 19/10; PLANO-LOGISTICA |
+| L-03 | Motorista e frota: app Navigator com GPS em tempo real e comprovante (foto e assinatura), veículos e manutenção; se a frota já tiver rastreador (seguradora), avaliar a integração pela API do fornecedor | + | 3 | 1 | 1,5 | 3 | 3,3 | na fila | L-02; **B-06** (a 443 aberta de fora: o celular na estrada precisa alcançar o servidor); celulares com dados e carregador; **regra de privacidade do rastreio** (só durante a entrega ou o expediente, com ciência do motorista por escrito: Rosana, RH) | Debate 19/10 |
+
 ### F — Financeiro
 
 | Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
@@ -350,6 +370,7 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | IoT e DNC nas máquinas | Depende de hardware; o Tótem cobre |
 | RFID como solução primária; `travaMaquina` | Decisões da Forja |
 | Regras de aprovação escritas por frase | As regras da PecSil são poucas e fixas |
+| Incorporar o código do Fleetbase à plataforma | Decisão de 19/10. O Fleetbase é AGPL-3.0: a plataforma inteira herdaria a licença, e o produto licenciado (VIS §7) cairia. Ele fica como serviço separado, por API (L-01), como o transmissor GPL |
 | Religar a Busca Corporativa (I-07) | Proprietário, 18/10: a SARA de cada módulo já acha e abre o registro com as permissões de quem pergunta; a busca entre módulos fica com a SARA principal (I-08). A tela segue escondida pela flag |
 
 ---
@@ -404,6 +425,13 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | 17/10/2026 | R-01 construído: RH sem caminho de demonstração (ação sem banco vira erro), cartão de SST calculado, conferência de documento gravada, aba Homologação real (critérios, conferência dos dados, registro por perfil). Migração 202610170003 aplicada; teste com dois perfis de RH 9/9. Homologação final: Rosana e Bianca (precisam da permissão Homologação do RH) | Claude |
 | 17/10/2026 | A-11 (Fundação › Parados, migração 202610170002 aplicada, teste 4/4) e F-08 (conciliação: CNPJ nas sugestões, motivo de cada uma, explicação da linha sem par, pares de mesmo CNPJ e valor para confirmar em lote; sem migração) construídos. Achado: consultas do Financeiro paravam em 1.000 linhas (limite do Supabase) e passaram a ler em páginas | Claude |
 | 17/10/2026 | Foco só no PecSil até o projeto pronto e validado; raia Z (tenants, white label) adiada. Fila: A-11, F-08, R-01, A-07, F-09 | Proprietário |
+| 19/10/2026 | Formato do produto: instalação licenciada no cliente (implementação + manutenção mensal, como o GRV), não SaaS por assinatura. Raia Z continua adiada; quando voltar, nasce neste formato (VISAO-PRODUTO-ESCALA §7) | Proprietário |
+| 19/10/2026 | Nova raia L (Logística): o Fleetbase (fork `fleetbase-frota`) entra como serviço separado no mesmo servidor, consumido por API, e não incorporado ao código (AGPL-3.0). L-01 (instalação, nota 4,0), L-02 (entregas na plataforma, 3,0) e L-03 (motorista e frota, 3,3), todos fora do caminho crítico (+). Antes, é preciso confirmar a frota própria e quem responde pela expedição | Proprietário |
+| 19/10/2026 | L-02 ganha o mapa ao vivo e o link de rastreio para o cliente; L-03 passa a depender do B-06 (443 aberta de fora) e da regra de privacidade do rastreio (Rosana) | Proprietário |
+| 20/10/2026 | Frota própria confirmada. L-01 no ambiente local (Fleetbase v0.7.68) e L-02 construído (PLANO-LOGISTICA): banco testado num Postgres descartável (permissões, ciclo da entrega, conferência só pelo servidor, 7 eventos, pulso no Segundo Cérebro); 466 testes com build. Falta aplicar a migração 202610200001 e o teste de navegador | Claude |
+| 20/10/2026 | Rotas pelo Google Routes (Pro, com trânsito): cota diária de 200, guarda de 3 min (dentro da faixa grátis), chave só no Fleetbase. Teste: 39,9 km e 69 min com trânsito, confiança alta (PLANO-LOGISTICA §3) | Proprietário |
+| 20/10/2026 | L-02: migração 202610200001 aplicada (ninguém recebeu acesso); teste de navegador 15/15: sem permissão não vê, só ver não cria, entrega enviada com rastreio, endereço achado no mapa, caminhão no mapa com a rota e a previsão com trânsito, "entregue" volta sozinho, cancelamento, eventos, celular no escuro sem rolagem; 467 testes com build | Claude |
+| 20/10/2026 | Consulta pública do Fleetbase fechada (nginx em infra/fleetbase, ligado no local) e link de rastreio do cliente pela plataforma (migração 202610200002 aplicada: só o hash, leitura só do servidor, sem dados do motorista, sem gastar a cota do Google). Mandar o link é decisão do Comercial. Teste de navegador 24/24 | Proprietário / Claude |
 | 17/10/2026 | A-01 construído: material do catálogo na solicitação, cotação, compra, compra direta e recebimento; de-para por fornecedor (CNPJ + código → material, com fator de unidade); tela Almoxarifado › Ligar histórico (420 textos, sugestão por regra). Migração 202610170001 aplicada (17/10); teste de navegador 8/8. Aceite: Henrique e o Compras com dados reais | Claude |
 | 16/10/2026 | Deploy de `fffcfe8` (F-06, C-17, K-08 e decisões por área); avisos de revisão da linha de base enviados à Ana, Domingo, Ricardo e Rafael | Proprietário / Claude |
 | 16/10/2026 | **Decisões vão para a área, não para o proprietário** (pedido dele): quadro "Quem decide o quê"; D1–D7 e A3–A10 redistribuídas; na plataforma (migração 0008) a linha de base é revisada por área, numeração e treino do orçamento são do Comercial, ligar a NF-e em produção é de quem aprova NF-e, e as alçadas não têm mais exceção do proprietário | Proprietário |
