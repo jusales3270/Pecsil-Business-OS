@@ -10,6 +10,7 @@ import { CENARIOS, projetar, saldoDePartida, type CenarioId, type Conta, type Pa
 
 import { hoje, maisDias, num, reais, type Ferramenta, type Resultado } from "./base.ts";
 import { AGENTES } from "./agentes/index.ts";
+import { ACCESS_CATALOG } from "../../modules/access-catalog.ts";
 
 export type { Abrir, Ferramenta, Fonte, Registro, Resultado } from "./base.ts";
 const LINK = {
@@ -28,7 +29,7 @@ async function contas(sb: SupabaseClient, direcao: "payable" | "receivable", e: 
   const quem = String(e.nome ?? "").trim();
   const h = hoje();
   let q = sb.from("finance_installments")
-    .select("due_date, amount, settled_amount, finance_titles!inner(counterparty_name, counterparty_group, description, document_number, status, is_forecast, is_historical, archived_at, direction)")
+    .select("due_date, amount, settled_amount, finance_titles!inner(counterparty_name, counterparty_group, counterparty_tax_id, description, document_number, status, is_forecast, is_historical, archived_at, direction)")
     .eq("finance_titles.direction", direcao).eq("finance_titles.is_historical", false).is("finance_titles.archived_at", null)
     .neq("status", "cancelled").neq("status", "settled").not("finance_titles.status", "in", "(cancelled,settled)")
     .order("due_date").limit(2000);
@@ -39,9 +40,9 @@ async function contas(sb: SupabaseClient, direcao: "payable" | "receivable", e: 
   if (quem) q = q.ilike("finance_titles.counterparty_name", `%${quem.replace(/[%_]/g, " ")}%`);
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  type Linha = { due_date: string; amount: number; settled_amount: number; finance_titles: { counterparty_name: string; counterparty_group: string | null; description: string | null; document_number: string | null; status: string } };
+  type Linha = { due_date: string; amount: number; settled_amount: number; finance_titles: { counterparty_name: string; counterparty_group: string | null; counterparty_tax_id: string | null; description: string | null; document_number: string | null; status: string } };
   const linhas = ((data ?? []) as unknown as Linha[]).map((l) => ({
-    [direcao === "payable" ? "fornecedor" : "cliente"]: l.finance_titles.counterparty_group || l.finance_titles.counterparty_name,
+    [direcao === "payable" ? "fornecedor" : "cliente"]: l.finance_titles.counterparty_group || l.finance_titles.counterparty_name, cnpj: l.finance_titles.counterparty_tax_id,
     descricao: l.finance_titles.description?.slice(0, 80) ?? null, documento: l.finance_titles.document_number, vencimento: l.due_date,
     em_aberto: reais(Number(l.amount) - Number(l.settled_amount)), em_aprovacao: l.finance_titles.status === "pending_approval",
   })).filter((l) => l.em_aberto > 0);
@@ -213,8 +214,29 @@ const FINANCEIRO: Ferramenta[] = [
   },
 ];
 
-/** Todas as consultas da equipe: as do Financeiro e as de cada agente (lib/sara/agentes). */
-export const FERRAMENTAS: Ferramenta[] = [...FINANCEIRO, ...AGENTES.flatMap((a) => a.ferramentas)];
+/**
+ * Dados da empresa (decisão do proprietário, 20/10/2026): razão social, CNPJ, IE, IM, CNAE, regime,
+ * endereço, telefone, e-mail e site, do cadastro (Fiscal › Configuração). Para quem tem credencial no RH,
+ * Financeiro, Fiscal, Compras ou Comercial (o banco confere de novo em empresa_dados()).
+ */
+export const MODULOS_DADOS_DA_EMPRESA = ["rh", "financeiro", "fiscal", "compras", "comercial"];
+export const DADOS_DA_EMPRESA: Ferramenta = {
+  nome: "dados_da_empresa", rotulo: "dados da empresa",
+  exige: ACCESS_CATALOG.filter((m) => MODULOS_DADOS_DA_EMPRESA.includes(m.code)).flatMap((m) => m.features.map((f) => f.code)).filter((c) => !c.endsWith(".coleta")),
+  descricao: "Dados da própria empresa, do cadastro: razão social, nome fantasia, CNPJ, inscrição estadual e municipal, CNAE, regime tributário (CRT), endereço completo, telefone, e-mail, e-mail da NF-e e site.",
+  esquema: { type: "object", properties: {} },
+  rodar: async (sb) => {
+    const { data, error } = await sb.rpc("empresa_dados");
+    if (error) throw new Error(error.message);
+    const d = (data ?? {}) as Record<string, unknown>;
+    const cnpj = String(d.cnpj ?? "").replace(/\D/g, "");
+    return { dados: { ...d, cnpj: cnpj.length === 14 ? cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : d.cnpj ?? null },
+      fontes: [{ rotulo: "Fiscal › Configuração (dados do emitente)", link: "/?module=fiscal&secao=Configura%C3%A7%C3%A3o" }] };
+  },
+};
+
+/** Todas as consultas da equipe: as do Financeiro, as de cada agente (lib/sara/agentes) e os dados da empresa. */
+export const FERRAMENTAS: Ferramenta[] = [...FINANCEIRO, ...AGENTES.flatMap((a) => a.ferramentas), DADOS_DA_EMPRESA];
 
 /** Abrir uma tela para a pessoa: só entre as que ela pode abrir (a lista entra já filtrada). */
 export function ferramentaDeTelas(telas: { id: string; modulo: string; secao?: string; rotulo: string; serve: string }[]): Ferramenta | null {

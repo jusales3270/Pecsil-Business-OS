@@ -6,7 +6,7 @@ import { MODELO_VERIFICADOR, recusa, regrasDeEscopo } from "../../../../lib/sara
 import type { RespostaSara } from "../../../../lib/sara/laco";
 import { abertura, agoraSP, comAbertura, contextoDeTempo, primeiroNome, saudacao, situacaoDaConversa } from "../../../../lib/sara/tempo";
 import { ferramentaDeDocumentos } from "../../../../lib/sara/documentos";
-import { LACUNA, ferramentaDeTelas, ferramentasDaSara } from "../../../../lib/sara/ferramentas";
+import { FERRAMENTAS, LACUNA, ferramentaDeTelas, ferramentasDaSara } from "../../../../lib/sara/ferramentas";
 import { consultarDados } from "../../../../lib/sara/consulta-dados";
 import { CALCULAR } from "../../../../lib/sara/calcular";
 import { MOSTRAR } from "../../../../lib/sara/visual";
@@ -137,7 +137,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   let falha: unknown = null;
   try {
     // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
-    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens });
+    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens });
   } catch (e) { falha = e; }
   const v = await verificacao;
   const textoRecusa = recusa(empresa, p.sara.rotulo);

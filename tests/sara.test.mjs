@@ -47,28 +47,21 @@ test("SARA: roda a ferramenta pedida, devolve o resultado ao modelo e junta as f
   assert.deepEqual(pedidos[0].thinking, { type: "disabled" }, "copiloto sem pensamento (mais rápido e mais barato)");
 });
 
-test("SARA: ferramenta fora da permissão e resultado com dado pessoal não chegam ao modelo", async () => {
+test("SARA: a credencial é a única restrição — o dado da consulta vai inteiro; sem permissão ≠ consulta inexistente", async () => {
   const { buscar, pedidos } = claudeFalso([
-    { stop_reason: "tool_use", usage: {}, content: [{ type: "tool_use", id: "a", name: "compras_aprovadas_a_pagar", input: {} }, { type: "tool_use", id: "b", name: "contas_a_pagar", input: {} }] },
+    { stop_reason: "tool_use", usage: {}, content: [{ type: "tool_use", id: "a", name: "compras_aprovadas_a_pagar", input: {} }, { type: "tool_use", id: "b", name: "contas_a_pagar", input: {} }, { type: "tool_use", id: "c", name: "fiscal_configuracao", input: {} }] },
     { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] },
   ]);
-  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", { fornecedor: "JOAO", descricao: "RETIRADA SOCIO CPF 529.982.247-25", valor: 10 })] });
-  const [semPermissao, mascarado] = pedidos[1].messages.at(-1).content;
-  assert.match(semPermissao.content, /sem permissão/);
-  // CPF no meio de uma descrição: o dado some, a consulta continua (antes derrubava o resultado inteiro).
-  assert.doesNotMatch(mascarado.content, /529\.982|52998224725/);
-  assert.match(mascarado.content, /\[CPF oculto\]/);
-  assert.match(mascarado.content, /"valor":10/);
+  const r = await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", todasAsConsultas: ["compras_aprovadas_a_pagar", "contas_a_pagar"],
+    ferramentas: [ferramenta("contas_a_pagar", { fornecedor: "JOAO", descricao: "RETIRADA SOCIO CPF 529.982.247-25", motivo: "atestado CID J11", valor: 10 })] });
+  const [semPermissao, inteiro, inexistente] = pedidos[1].messages.at(-1).content;
+  assert.match(semPermissao.content, /Sem permissão/);
+  assert.match(inteiro.content, /529\.982\.247-25/, "o CPF vai como está (quem limita é a credencial)");
+  assert.match(inteiro.content, /CID J11/);
+  assert.match(inexistente.content, /Não existe consulta chamada \\"fiscal_configuracao\\".*abrir_tela/, "nome de tela não vira 'sem permissão'");
   assert.equal(r.fontes.length, 1);
-  // Dado de saúde (CID com atestado) não dá para esconder com segurança: continua bloqueado inteiro.
-  const { buscar: b2, pedidos: p2 } = claudeFalso([
-    { stop_reason: "tool_use", usage: {}, content: [{ type: "tool_use", id: "c", name: "rh_ferias", input: {} }] },
-    { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] },
-  ]);
-  const r2 = await conversarCom({}, { chave: "x", buscar: b2, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("rh_ferias", { motivo: "atestado CID J11" })] });
-  assert.match(p2[1].messages.at(-1).content[0].content, /bloqueado/);
-  assert.doesNotMatch(p2[1].messages.at(-1).content[0].content, /J11/);
-  assert.deepEqual(r2.fontes, [], "resultado bloqueado não vira fonte");
+  const laco = readFileSync(new URL("../lib/sara/laco.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(laco, /mascararDados|Resultado bloqueado/);
 });
 
 test("SARA: base no banco nasce desligada e só o proprietário liga", () => {
@@ -412,22 +405,25 @@ test("Equipe: uma SARA por módulo, cada uma liberada por pessoa e com consultas
   }
 });
 
-test("Equipe: RH, Portaria, Fiscal e Comercial nunca pedem dado pessoal, de saúde, biometria ou segredo", () => {
+test("Equipe: cada dado vem para quem tem a credencial; só segredo e arquivo ficam fora", () => {
   const ler = (m) => readFileSync(new URL(`../lib/sara/agentes/${m}.ts`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
   const selects = (src) => [...src.matchAll(/\.select\("([^"]+)"/g)].map((x) => x[1]).join(",");
-  const rh = selects(ler("rh"));
-  for (const c of ["cpf", "pis", "ctps", "phone", "salario", "cid_codes", "diagnosis", "reason", "note", "rh_employee_personal_data", "rh_absence_clinical"]) assert.ok(!rh.includes(c), `RH não pede ${c}`);
-  assert.match(ler("rh"), /\.eq\("clinical_confidential", false\)/, "exame confidencial fica de fora");
-  const portaria = selects(ler("portaria"));
-  for (const c of ["foto_base64", "face_descriptor", "documento", "contato", "*"]) assert.ok(!portaria.split(",").map((x) => x.trim()).includes(c), `Portaria não pede ${c}`);
-  assert.doesNotMatch(ler("portaria"), /match_visitantes/);
+  const rh = ler("rh");
+  assert.match(rh, /from\("rh_employee_personal_data"\)\.select\("employee_id, cpf, pis/, "CPF e PIS para quem tem RH › Colaboradores");
+  assert.match(rh, /nome: "rh_dados_do_colaborador", rotulo: "dados do colaborador", exige: \["rh\.colaboradores"\]/);
+  assert.match(rh, /nome: "rh_dados_clinicos", rotulo: "dados clínicos", exige: \["rh\.clinico"\]/, "CID só com a permissão clínica");
+  assert.doesNotMatch(rh, /\.eq\("clinical_confidential", false\)/, "o sigiloso quem decide é o RLS");
+  const portaria = selects(ler("portaria")).split(",").map((x) => x.trim());
+  assert.ok(portaria.includes("documento") && portaria.includes("contato"), "documento e contato do visitante para quem vê as visitas");
+  for (const c of ["foto_base64", "face_descriptor", "*"]) assert.ok(!portaria.includes(c), `Portaria não pede ${c} (arquivo/vetor)`);
   const fiscal = ler("fiscal");
-  const colunasFiscal = selects(fiscal).split(",").map((x) => x.trim());
-  for (const c of ["xml", "xml_autorizado", "nfe_xml"]) assert.ok(!colunasFiscal.includes(c), `Fiscal não pede ${c}`);
-  assert.doesNotMatch(fiscal, /linha_digitavel|fiscal_certificado_segredos|destinatario_documento/);
+  for (const c of ["xml", "xml_autorizado", "nfe_xml"]) assert.ok(!selects(fiscal).split(",").map((x) => x.trim()).includes(c), `Fiscal não pede ${c}`);
+  assert.doesNotMatch(fiscal, /fiscal_certificado_segredos/, "segredo do certificado nunca");
   const comercial = ler("comercial");
   assert.doesNotMatch(selects(comercial), /body_text|body|to_address|delta_link|mailbox_id/, "Comercial não lê corpo de e-mail nem credencial");
-  assert.match(comercial, /length === 11 \? "\(pessoa física\)"/, "CPF de pessoa física não sai");
+  assert.doesNotMatch(comercial, /pessoa física\)"/, "CPF/CNPJ do cliente sai como está");
+  assert.match(selects(comercial), /telefone/);
+  assert.match(selects(ler("compras")), /state_registration, contact_name, phone, email, address/);
   assert.doesNotMatch(ler("producao"), /production_order_financials/, "Produção não mostra custo/margem");
   assert.doesNotMatch(ler("fundicao"), /cotacoes|valor_unit/, "quem é da Fundição não vê preço do Compras");
 });
@@ -590,7 +586,7 @@ test("SARA visual: limita linhas e colunas, e a rosca junta o resto em Outros se
   assert.deepEqual(mapa.visual.pontos, [{ rotulo: "Em produção", valor: 12 }, { rotulo: "Aguardando material", valor: 3 }], "mapa de contagens vira itens");
 });
 
-test("SARA visual: no laço, mostrar usa a consulta da resposta; consulta bloqueada por dado pessoal não vira visual", async () => {
+test("SARA visual: no laço, mostrar usa a consulta da resposta; consulta que falhou não vira visual", async () => {
   const { MOSTRAR } = await import("../lib/sara/visual.ts");
   const mostrar = { componente: "barras", titulo: "Maiores", consulta: "contas_a_pagar", caminho: "lista", rotulo: "f", valor: "v", formato: "moeda" };
   const { buscar, pedidos } = claudeFalso([
@@ -606,10 +602,11 @@ test("SARA visual: no laço, mostrar usa a consulta da resposta; consulta bloque
     { stop_reason: "tool_use", usage: {}, content: [{ type: "tool_use", id: "t1", name: "contas_a_pagar", input: {} }, { type: "tool_use", id: "t2", name: "mostrar", input: mostrar }] },
     { stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "ok" }] },
   ]);
-  const r2 = await conversarCom({}, { chave: "x", buscar: b2, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("contas_a_pagar", { lista: [{ f: "JOAO", v: 10, obs: "atestado CID J11" }] }), MOSTRAR] });
+  // Consulta que falhou não vira visual.
+  const r2 = await conversarCom({}, { chave: "x", buscar: b2, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [{ ...ferramenta("contas_a_pagar", {}), rodar: async () => { throw new Error("falhou"); } }, MOSTRAR] });
   assert.deepEqual(r2.visuais, []);
   assert.match(p2[1].messages.at(-1).content[1].content, /não foi feita nesta resposta/);
-  assert.doesNotMatch(p2[1].messages.at(-1).content[0].content, /chame mostrar/, "resultado bloqueado não leva dica");
+  assert.doesNotMatch(p2[1].messages.at(-1).content[0].content, /chame mostrar/, "consulta que falhou não leva dica");
   // Sem a ferramenta na lista, "mostrar" não roda e não há dica.
   const { buscar: b3 } = claudeFalso([
     { stop_reason: "tool_use", usage: {}, content: [{ type: "tool_use", id: "t1", name: "mostrar", input: mostrar }] },
@@ -643,8 +640,11 @@ test("SARA: consulta direta — só tabelas que a pessoa vê, lista fechada com 
   assert.match(validar({ tabela: "rh_absences", colunas: ["cpf"] }, aus), /coluna "cpf"/);
   const g = agregar([{ data: "2026-10-12", m: 60 }, { data: "2026-10-13", m: 30 }, { data: "2026-10-20", m: 10 }], { tabela: "x", agrupar_por: ["data:semana"], somar: ["m"] });
   assert.deepEqual(g.map((x) => [x["data:semana"], x.soma_m]), [["semana de 2026-10-12", 90], ["semana de 2026-10-19", 10]], "por data, em ordem cronológica");
-  // nenhuma coluna sensível no catálogo
-  for (const t of CATALOGO) for (const c of Object.keys(t.colunas)) assert.doesNotMatch(c, /cpf|pis|tax_id|cnpj|salar|phone|telefone|email|contato|documento|xml|linha_digitavel|foto|face|clinical|reason|note|raw_payload/i, `${t.tabela}.${c}`);
+  // A informação entra (quem limita é a credencial); só arquivo e segredo ficam fora.
+  for (const t of CATALOGO) for (const c of Object.keys(t.colunas)) assert.doesNotMatch(c, /xml|foto|face|raw_payload|senha|password|token|segredo/i, `${t.tabela}.${c}`);
+  const cols = (n) => Object.keys(tabelaDoCatalogo(n).colunas);
+  for (const [n, c] of [["suppliers", "tax_id"], ["suppliers", "phone"], ["customers", "tax_id"], ["customers", "email_nfe"], ["visitas", "documento"], ["finance_titles", "counterparty_tax_id"], ["rh_absences", "reason"], ["fiscal_nfe", "destinatario_documento"]]) assert.ok(cols(n).includes(c), `${n}.${c}`);
+  assert.ok(!tabelaDoCatalogo("rh_sst_records").fixo, "o sigiloso do SST quem decide é o RLS");
 });
 
 test("SARA: frase que só anuncia o próximo passo não aparece no meio da resposta", async () => {
@@ -785,4 +785,20 @@ test("SARA: quando só abre a tela sem ter escrito nada (resposta no pensamento)
   ]);
   await conversarCom({}, { chave: "x", buscar: b.buscar, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [ferramenta("abrir_tela", {})] });
   assert.ok(!b.pedidos[1].messages.at(-1).content[0].content.includes(LEMBRETE_RESPOSTA));
+});
+
+test("SARA: dados da empresa para quem tem RH, Financeiro, Fiscal, Compras ou Comercial", async () => {
+  const { DADOS_DA_EMPRESA, ferramentasDaSara } = await import("../lib/sara/ferramentas.ts");
+  const sql = readFileSync(new URL("../supabase/migrations/202610200007_sara_dados_empresa.sql", import.meta.url), "utf8");
+  assert.match(sql, /has_module\('rh'\) or public\.has_module\('financeiro'\) or public\.has_module\('fiscal'\)\s+or public\.has_module\('compras'\) or public\.has_module\('comercial'\)/);
+  assert.doesNotMatch(sql, /cert_|segredo/, "só a identificação, nada do certificado");
+  for (const f of ["financeiro.pagar", "rh.ferias", "fiscal.nfe", "compras.cotacoes", "comercial.orcamentos"]) assert.ok(DADOS_DA_EMPRESA.exige.includes(f), f);
+  assert.ok(!DADOS_DA_EMPRESA.exige.some((f) => /^(portaria|producao|ti|almoxarifado)\./.test(f)));
+  assert.ok(ferramentasDaSara((f) => f === "financeiro.pagar", []).some((f) => f.nome === "dados_da_empresa"), "na SARA do Financeiro");
+  assert.ok(!ferramentasDaSara((f) => f === "portaria.visitas", []).some((f) => f.nome === "dados_da_empresa"), "não para quem só tem a Portaria");
+  const r = await DADOS_DA_EMPRESA.rodar({ rpc: async () => ({ data: { razao_social: "X LTDA", cnpj: "12345678000195" }, error: null }) }, {});
+  assert.equal(r.dados.cnpj, "12.345.678/0001-95");
+  const regras = readFileSync(new URL("../lib/sara/modulos.ts", import.meta.url), "utf8");
+  assert.match(regras, /Não existe dado proibido dentro da empresa/);
+  assert.match(regras, /Nunca diga "não tenho acesso" a um dado que está na plataforma/);
 });

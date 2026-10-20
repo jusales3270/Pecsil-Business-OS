@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-20-sara-credencial",
+    data: "2026-10-20",
+    area: "SARA",
+    modulos: ["financeiro", "fiscal", "rh", "compras", "comercial", "portaria"],
+    funcionalidades: ["financeiro.sara", "fiscal.sara", "rh.sara", "compras.sara", "comercial.sara", "portaria.sara"],
+    titulo: "SARA: responde tudo o que a sua credencial permite ver",
+    itens: [
+      "Pergunte os dados da empresa (CNPJ, inscrição estadual, endereço, regime): a SARA busca no cadastro do Fiscal.",
+      "CNPJ, IE, telefone e endereço de cliente e fornecedor, documento de visitante, CNPJ da contraparte no Financeiro: vêm completos para quem tem acesso a essas telas.",
+      "No RH, CPF, PIS e CTPS para quem tem Colaboradores em \"operar\", e CID para quem tem a permissão de dados clínicos. Sem a credencial, ela diz que você não tem permissão.",
+    ],
+  },
+  {
     id: "2026-10-20-compras-m3-resposta",
     data: "2026-10-20",
     area: "Compras",

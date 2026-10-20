@@ -101,17 +101,18 @@ const ferramentas: Ferramenta[] = [
   },
   {
     nome: "compras_fornecedores", rotulo: "fornecedores", exige: ["compras.fornecedores", "compras.cotacoes"],
-    descricao: "Busca fornecedores pelo nome ou CNPJ (ativos): razão social, nome fantasia, CNPJ, cidade/UF, condição de pagamento e divisões. Também diz quantos estão sem CNPJ.",
+    descricao: "Busca fornecedores pelo nome ou CNPJ (ativos): razão social, nome fantasia, CNPJ/CPF, IE, contato, telefone, e-mail, endereço, CEP, cidade/UF, condição de pagamento e divisões. Também diz quantos estão sem CNPJ.",
     esquema: { type: "object", properties: { busca: { type: "string", description: "Parte do nome ou do CNPJ (opcional)." } } },
     rodar: async (sb, e) => {
       const b = termo(e.busca);
-      let q = sb.from("suppliers").select("name, legal_name, trade_name, tax_id, city, state, payment_terms, divisions").eq("active", true).is("merged_into", null).order("name").limit(15);
-      if (b) q = q.or(`name.ilike.%${b}%,legal_name.ilike.%${b}%,trade_name.ilike.%${b}%,tax_id.ilike.%${b.replace(/\D/g, "") || b}%`);
+      let q = sb.from("suppliers").select("name, legal_name, trade_name, tax_id, state_registration, contact_name, phone, email, address, postal_code, city, state, payment_terms, divisions").eq("active", true).is("merged_into", null).order("name").limit(15);
+      // Pelo CNPJ só quando o termo é número (com ou sem pontuação): "A5FBF9" virava "59" e casava com tudo.
+      const digitos = /^[\d.\-/\s]+$/.test(b) ? b.replace(/\D/g, "") : "";
+      if (b) q = q.or(`name.ilike.%${b}%,legal_name.ilike.%${b}%,trade_name.ilike.%${b}%${digitos.length >= 4 ? `,tax_id.ilike.%${digitos}%` : ""}`);
       const [{ data, error }, semCnpj] = await Promise.all([q,
         sb.from("suppliers").select("id", { count: "exact", head: true }).eq("active", true).is("merged_into", null).or("tax_id.is.null,tax_id.eq.")]);
       if (error) throw new Error(error.message);
-      // CPF de pessoa física (11 dígitos) não sai.
-      const lista = ((data ?? []) as { tax_id: string | null }[]).map((s) => ({ ...s, tax_id: (s.tax_id ?? "").replace(/\D/g, "").length === 11 ? "(pessoa física)" : s.tax_id }));
+      const lista = data ?? [];
       return { dados: { encontrados: lista, ativos_sem_cnpj: semCnpj.count ?? null }, fontes: [fonte("fornecedores", "Fornecedores")] };
     },
   },

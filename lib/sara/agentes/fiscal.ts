@@ -4,8 +4,9 @@ import { aFaturar } from "./comercial.ts";
 
 /**
  * SARA do Fiscal: ICMS do mês, notas recebidas (SEFAZ), notas emitidas (só PRODUÇÃO conta), o que
- * está a faturar, o fechamento do mês com o escritório e o certificado. Nunca mostra XML, linha
- * digitável, segredo do certificado nem CPF. Quem decide é o Jefferson (com o contador).
+ * está a faturar, o fechamento do mês com o escritório e o certificado. Quem limita é a credencial (decisão
+ * do proprietário, 20/10/2026); só o arquivo e a senha do certificado (segredo) nunca entram. Quem decide é
+ * o Jefferson (com o contador).
  */
 
 const M = "fiscal";
@@ -200,7 +201,7 @@ Seções:
 - Máscaras de impostos: regras de impostos por operação (com o contador).
 - Escritório contábil / Portal do contador: fechamento do mês (checklist, pendências, malote) e as guias (DARF, DAS, GARE, FGTS…), que viram conta a pagar no Financeiro.
 - Configuração: dados do emitente, ambiente e certificado digital.
-Nunca informe XML, linha digitável de guia nem dados do certificado além de titular e validade.
+Dados da empresa (razão social, CNPJ, IE, endereço do emitente): consulta dados_da_empresa. Responda completo o que as consultas trouxerem: quem limita é a credencial. Só o arquivo e a senha do certificado nunca saem (são segredo, nem estão nas consultas).
 Quem decide: Jefferson (fiscal e faturamento), com o contador nas regras fiscais.`;
 
 export const fiscal: Agente = {

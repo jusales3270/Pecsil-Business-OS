@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { filtrarEstado, mascararDados } from "../decisao/guard.ts";
+import { filtrarEstado } from "../decisao/guard.ts";
 import { semPensar } from "./base.ts";
 import type { Abrir, Ferramenta, Fonte } from "./ferramentas.ts";
 import { dicaVisual, MOSTRAR, resolverVisual, type ResultadoConsulta, type Visual } from "./visual.ts";
@@ -7,8 +7,9 @@ import { dicaVisual, MOSTRAR, resolverVisual, type ResultadoConsulta, type Visua
 /**
  * Laço da conversa da SARA com o Claude (Anthropic) por *tool use*. Não lê o ambiente (a chave e o
  * fetch entram por parâmetro; quem lê a chave é lib/sara/claude.ts, só no servidor), então é testável.
- * As ferramentas rodam com a sessão de quem pergunta; o que elas devolvem passa pelo filtro de dado
- * pessoal antes de ir ao modelo. Máximo de 6 rodadas de ferramenta por pergunta.
+ * As ferramentas rodam com a sessão de quem pergunta: a credencial (e o RLS do banco) é a ÚNICA
+ * restrição — o que a consulta devolve vai inteiro (decisão do proprietário, 20/10/2026). Máximo de 6
+ * rodadas de ferramenta por pergunta.
  *
  * Cache de prompt da Anthropic: a parte fixa (ferramentas + manual + regras) é marcada para cache e
  * cobrada bem mais barato quando se repete; a parte do dia (data, nome, permissões) vem depois dela.
@@ -92,6 +93,8 @@ export async function conversarCom(sb: SupabaseClient, a: {
   chave: string; buscar?: typeof fetch; modelo: string; sistema: Sistema; historico: MensagemHistorico[]; pergunta: string; ferramentas: Ferramenta[];
   /** Cancela a conversa (o verificador de escopo deu FORA). */
   sinal?: AbortSignal;
+  /** Nomes de todas as consultas da plataforma: separa "sem permissão" de "não existe essa consulta". */
+  todasAsConsultas?: string[];
   /** Pesquisa na internet restrita ao tema do módulo (sem ela, a SARA não pesquisa). */
   pesquisa?: Pesquisa | null;
   /** Tamanho máximo de cada resposta do modelo (padrão 1.500; a SARA de TI usa mais). */
@@ -116,7 +119,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
   // O texto de todas as rodadas: o modelo pode escrever a resposta antes de pedir uma ferramenta
   // (ex.: dá o total e depois abre a tela). Ficar só com a última rodada perdia essa parte.
   const textos: string[] = [];
-  // Resultado de cada consulta desta resposta (já filtrado de dado pessoal), para montar os visuais.
+  // Resultado de cada consulta desta resposta, para montar os visuais.
   const resultados: ResultadoConsulta[] = [];
   const visuais: Visual[] = [];
   // Sem as frases de passagem ("Vou consultar…") e sem repetir o que já foi dito.
@@ -138,14 +141,16 @@ export async function conversarCom(sb: SupabaseClient, a: {
       return { conteudo: JSON.stringify({ mostrado: true, componente: r.visual.componente, observacao: "O visual aparece abaixo do seu texto: não repita os números dele no texto, só o resumo." }), ok: true };
     }
     const f = a.ferramentas.find((x) => x.nome === nome);
-    if (!f) return { conteudo: JSON.stringify({ erro: "Ferramenta indisponível para esta pessoa (sem permissão)." }), ok: false };
+    if (!f) {
+      // Nome que não é consulta nenhuma (ex.: o id de uma tela) é engano do modelo, não falta de permissão.
+      const existe = (a.todasAsConsultas ?? []).includes(nome);
+      return { conteudo: JSON.stringify({ erro: existe
+        ? "Sem permissão: esta pessoa não tem a credencial desta consulta."
+        : `Não existe consulta chamada "${nome}". Se for uma tela, use abrir_tela; para dados, use uma das suas consultas (ou consultar_dados).` }), ok: false };
+    }
     try {
-      const bruto = await f.rodar(sb, entrada);
-      // CPF/PIS/e-mail/telefone no meio de uma descrição: esconde só o dado, não a consulta inteira.
-      const res = { ...bruto, dados: mascararDados(bruto.dados) };
+      const res = await f.rodar(sb, entrada);
       const json = JSON.stringify(res.dados);
-      const filtro = filtrarEstado(json);
-      if (!filtro.ok) return { conteudo: JSON.stringify({ erro: "Resultado bloqueado: continha dado pessoal.", motivos: filtro.motivos }), ok: false };
       fontes.push(...res.fontes);
       if (res.abrir) abrir = res.abrir;
       resultados.push({ nome, rotulo: f.rotulo ?? nome.replace(/_/g, " "), dados: res.dados, fontes: res.fontes });

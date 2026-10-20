@@ -4,14 +4,13 @@ import { FICHA_CLIENTE } from "../cerebro-ferramentas.ts";
 
 /**
  * SARA do Comercial (CRM e Vendas): orçamentos (sem os de TREINO), funil, clientes, produtos e a
- * conexão de e-mail. Nunca mostra o corpo dos e-mails nem CPF de pessoa física. Quem decide é o
+ * conexão de e-mail. Quem limita é a credencial (decisão do proprietário, 20/10/2026). Quem decide é o
  * Rafael (comercial, orçamento e PCP); o faturamento é do Jefferson.
  */
 
 const M = "comercial";
 const tela = (secao: string, rotulo: string): Abrir => ({ modulo: M, secao, rotulo: `Comercial › ${rotulo}` });
 const fonte = (secao: string, rotulo: string) => ({ rotulo: `Comercial › ${rotulo}`, link: link(M, secao) });
-const semCpf = (doc: string | null) => ((doc ?? "").replace(/\D/g, "").length === 11 ? "(pessoa física)" : doc);
 const SITUACAO: Record<string, string> = { rascunho: "rascunho", enviado: "enviado ao cliente", ganho: "ganho", perdido: "perdido", cancelado: "cancelado" };
 
 type Orcamento = { numero: number; situacao: string; data_orcamento: string | null; validade: string | null; pedido_cliente: string | null; updated_at: string; ganho_em: string | null; motivo_perda: string | null;
@@ -80,16 +79,19 @@ const ferramentas: Ferramenta[] = [
   },
   {
     nome: "comercial_clientes", rotulo: "clientes", exige: ["comercial.clientes", "comercial.orcamentos"],
-    descricao: "Busca clientes pelo nome ou CNPJ: nome, CNPJ, município/UF e se os dados fiscais estão completos para a NF-e (IE, e-mail da nota, endereço). Também diz quantos estão sem CNPJ.",
+    descricao: "Busca clientes pelo nome ou CNPJ: nome, CNPJ/CPF, IE, e-mail da nota, telefone, endereço completo, município/UF e se os dados fiscais estão completos para a NF-e. Também diz quantos estão sem CNPJ.",
     esquema: { type: "object", properties: { busca: { type: "string" } } },
     rodar: async (sb, e) => {
       const b = termo(e.busca);
-      let q = sb.from("customers").select("name, tax_id, ie, email_nfe, municipio, uf, cep, logradouro").eq("active", true).is("merged_into", null).order("name").limit(15);
-      if (b) q = q.or(`name.ilike.%${b}%,tax_id.ilike.%${b.replace(/\D/g, "") || b}%`);
+      let q = sb.from("customers").select("name, tax_id, ie, email_nfe, telefone, municipio, uf, cep, logradouro, numero, complemento, bairro").eq("active", true).is("merged_into", null).order("name").limit(15);
+      // Pelo CNPJ só quando o termo é número (com ou sem pontuação).
+      const digitos = /^[\d.\-/\s]+$/.test(b) ? b.replace(/\D/g, "") : "";
+      if (b) q = q.or(`name.ilike.%${b}%${digitos.length >= 4 ? `,tax_id.ilike.%${digitos}%` : ""}`);
       const [{ data, error }, sem] = await Promise.all([q, sb.from("customers").select("id", { count: "exact", head: true }).eq("active", true).is("merged_into", null).or("tax_id.is.null,tax_id.eq.")]);
       if (error) throw new Error(error.message);
-      const lista = ((data ?? []) as { name: string; tax_id: string | null; ie: string | null; email_nfe: string | null; municipio: string | null; uf: string | null; cep: string | null; logradouro: string | null }[])
-        .map((x) => ({ cliente: x.name, cnpj: semCpf(x.tax_id), municipio: x.municipio, uf: x.uf, pronto_para_nfe: Boolean(x.tax_id && x.cep && x.logradouro && x.municipio),
+      const lista = ((data ?? []) as { name: string; tax_id: string | null; ie: string | null; email_nfe: string | null; telefone: string | null; municipio: string | null; uf: string | null; cep: string | null; logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null }[])
+        .map((x) => ({ cliente: x.name, cnpj: x.tax_id, ie: x.ie, email_nfe: x.email_nfe, telefone: x.telefone,
+          endereco: [x.logradouro, x.numero, x.complemento, x.bairro].filter(Boolean).join(", ") || null, cep: x.cep, municipio: x.municipio, uf: x.uf, pronto_para_nfe: Boolean(x.tax_id && x.cep && x.logradouro && x.municipio),
           falta: [!x.tax_id && "CNPJ", !x.ie && "IE", !x.email_nfe && "e-mail da nota", !(x.cep && x.logradouro) && "endereço"].filter(Boolean) }));
       return { dados: { encontrados: lista, ativos_sem_cnpj: sem.count ?? null }, fontes: [fonte("clientes", "Clientes")] };
     },

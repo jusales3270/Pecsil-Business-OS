@@ -2,8 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { dataBR, dias, hoje, link, maisDias, num, plural, termo, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
 
 /**
- * SARA da Portaria: visitas, terceiros (horas da Portaria), frota e recebidos. As colunas são SEMPRE
- * escolhidas uma a uma: nunca foto, biometria facial, documento ou contato do visitante (LGPD).
+ * SARA da Portaria: visitas, terceiros (horas da Portaria), frota e recebidos. Quem limita é a credencial
+ * (decisão do proprietário, 20/10/2026): documento e contato do visitante vêm para quem vê as visitas.
+ * A foto e a biometria não entram: são arquivo/vetor, não informação para responder.
  */
 
 const M = "portaria";
@@ -19,26 +20,28 @@ async function frotaFora(sb: SupabaseClient) {
     .filter((x) => semSaida(x.data_retorno) && semSaida(x.horario_retorno));
 }
 async function visitasAbertas(sb: SupabaseClient) {
-  const { data, error } = await sb.from("visitas").select("data, empresa, visitante, horario_entrada, horario_saida, responsavel, descricao").gte("data", maisDias(hoje(), -60)).order("data", { ascending: false }).limit(1000);
+  const { data, error } = await sb.from("visitas").select("data, empresa, visitante, documento, contato, horario_entrada, horario_saida, responsavel, descricao").gte("data", maisDias(hoje(), -60)).order("data", { ascending: false }).limit(1000);
   if (error) throw new Error(error.message);
-  return ((data ?? []) as { data: string; empresa: string | null; visitante: string | null; horario_entrada: string | null; horario_saida: string | null; responsavel: string | null; descricao: string | null }[])
+  return ((data ?? []) as { data: string; empresa: string | null; visitante: string | null; documento: string | null; contato: string | null; horario_entrada: string | null; horario_saida: string | null; responsavel: string | null; descricao: string | null }[])
     .filter((v) => semSaida(v.horario_saida));
 }
 
 const ferramentas: Ferramenta[] = [
   {
     nome: "portaria_visitas", rotulo: "visitas", exige: ["portaria.visitas"],
-    descricao: "Visitas de um período (padrão: hoje): quantas, por tipo (entrega, visita técnica, coleta…), por empresa, e as que ainda estão sem saída registrada. Mostra visitante, empresa, entrada e responsável (sem documento nem contato).",
-    esquema: { type: "object", properties: { dias: { type: "integer", description: "Últimos N dias (padrão 1 = hoje)." }, empresa: { type: "string" } } },
+    descricao: "Visitas de um período (padrão: hoje): quantas, por tipo (entrega, visita técnica, coleta…), por empresa, e as que ainda estão sem saída registrada. Mostra visitante, documento, contato, empresa, entrada e responsável. Com `visitante`, busca as visitas dessa pessoa.",
+    esquema: { type: "object", properties: { dias: { type: "integer", description: "Últimos N dias (padrão 1 = hoje)." }, empresa: { type: "string" }, visitante: { type: "string" } } },
     rodar: async (sb, e) => {
       const n = num(e.dias, 1, 1, 365), de = maisDias(hoje(), -(n - 1));
-      let q = sb.from("visitas").select("data, empresa, visitante, horario_entrada, horario_saida, responsavel, descricao").gte("data", de).order("data", { ascending: false }).limit(1000);
+      let q = sb.from("visitas").select("data, empresa, visitante, documento, contato, horario_entrada, horario_saida, responsavel, descricao").gte("data", de).order("data", { ascending: false }).limit(1000);
       if (termo(e.empresa)) q = q.ilike("empresa", `%${termo(e.empresa)}%`);
+      if (termo(e.visitante)) q = q.ilike("visitante", `%${termo(e.visitante)}%`);
       const { data, error } = await q;
       if (error) throw new Error(error.message);
       const l = (data ?? []) as { descricao: string | null; empresa: string | null; horario_saida: string | null }[];
       const conta = (k: "descricao" | "empresa") => Object.entries(l.reduce<Record<string, number>>((a, v) => { const x = v[k] || "—"; a[x] = (a[x] ?? 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([nome, quantidade]) => ({ nome, quantidade }));
-      return { dados: { desde: de, visitas: l.length, por_tipo: conta("descricao"), por_empresa: conta("empresa"), sem_saida: l.filter((v) => semSaida(v.horario_saida)).slice(0, 15) }, fontes: [fonte("visitas", "Visitas")] };
+      return { dados: { desde: de, visitas: l.length, por_tipo: conta("descricao"), por_empresa: conta("empresa"), sem_saida: l.filter((v) => semSaida(v.horario_saida)).slice(0, 15),
+        ...(termo(e.visitante) ? { do_visitante: l.slice(0, 20) } : {}) }, fontes: [fonte("visitas", "Visitas")] };
     },
   },
   {
@@ -154,7 +157,7 @@ const regras: Agente["regras"] = [
 
 const MANUAL = `Você é a SARA da Portaria do Business OS.
 Seções: Dashboard (o dia); Visitas (entrada e saída de visitantes, entregas, coletas, visitas técnicas — com reconhecimento facial no cadastro); Terceiros (entrada e saída dos prestadores; os minutos viram as horas pagas aos terceiros); Recebidos (encomendas); Frota (saída e retorno dos veículos, km e destino).
-Privacidade (obrigatório): nunca fale de foto, biometria, documento ou contato de visitante.
+Documento e contato do visitante vêm das consultas de visitas: responda completo; quem limita é a credencial da pessoa.
 Quem decide: o quadro de terceiros é do RH (Rosana); acessos são do proprietário.`;
 
 export const portaria: Agente = {

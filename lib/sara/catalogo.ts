@@ -9,8 +9,9 @@ import { LEITORES_MATERIAIS } from "./agentes/almoxarifado.ts";
  * Regras:
  *  - cada tabela exige uma das funcionalidades da tela dela (nível "ver"); o RLS do banco
  *    confere de novo, com as permissões de quem pergunta;
- *  - ficam FORA as colunas de dado pessoal ou sensível (CPF/CNPJ, contato, documento, XML,
- *    linha digitável, foto, dado clínico) — e o filtro de dado pessoal roda no resultado;
+ *  - a ÚNICA restrição é a credencial (decisão do proprietário, 20/10/2026): entram todas as colunas de
+ *    informação (CNPJ, IE, contato, endereço, documento, chave, motivo); ficam fora só arquivo e
+ *    segredo (XML, foto, payload bruto, certificado) — não é informação para responder;
  *  - `rel` troca um id por um nome legível (via chave estrangeira).
  */
 
@@ -47,16 +48,16 @@ const f = (modulo: string, rotuloModulo: string, secao: string): Fonte => ({ rot
 export const CATALOGO: TabelaCatalogo[] = [
   // ---------------- RH ----------------
   {
-    tabela: "employees", modulo: "rh", rotulo: "colaboradores (CLT)", descricao: "Colaboradores CLT: setor, função, admissão, desligamento, ativo.",
+    tabela: "employees", modulo: "rh", rotulo: "colaboradores (CLT)", descricao: "Colaboradores CLT: matrícula, setor, função, admissão, desligamento, ativo, e-mail corporativo. CPF, PIS e CTPS: consulta rh_dados_do_colaborador.",
     exige: ["rh.colaboradores", "rh.relatorios"], data: "admission_date",
-    colunas: { full_name: "texto", employee_number: "texto", admission_date: "data", termination_date: "data", active: "logico" },
+    colunas: { full_name: "texto", employee_number: "texto", admission_date: "data", termination_date: "data", active: "logico", corporate_email: "texto" },
     rel: { setor: { tabela: "departments", fk: "department_id", campo: "name" }, funcao: { tabela: "positions", fk: "position_id", campo: "name" } },
     fonte: f("rh", "RH", "Colaboradores"),
   },
   {
-    tabela: "rh_absences", modulo: "rh", rotulo: "férias e ausências", descricao: "Férias, faltas, atestados e afastamentos por colaborador (início, fim, dias, horas, situação). Sem o motivo clínico.",
+    tabela: "rh_absences", modulo: "rh", rotulo: "férias e ausências", descricao: "Férias, faltas, atestados e afastamentos por colaborador (início, fim, dias, horas, situação, motivo escrito). CID e diagnóstico: consulta rh_dados_clinicos.",
     exige: ["rh.ferias"], data: "start_date",
-    colunas: { absence_type: "texto", start_date: "data", end_date: "data", days: "numero", hours: "numero", status: "texto", day_part: "texto" },
+    colunas: { absence_type: "texto", start_date: "data", end_date: "data", days: "numero", hours: "numero", status: "texto", day_part: "texto", reason: "texto" },
     rel: { colaborador: { tabela: "employees", fk: "employee_id", campo: "full_name" }, setor: { tabela: "departments", fk: "department_id", campo: "name" } },
     opcoes: { absence_type: AUSENCIA, status: SITUACAO_AUSENCIA },
     fonte: f("rh", "RH", "Férias e ausências"),
@@ -69,12 +70,11 @@ export const CATALOGO: TabelaCatalogo[] = [
     fonte: f("rh", "RH", "Férias e ausências"),
   },
   {
-    tabela: "rh_sst_records", modulo: "rh", rotulo: "exames e treinamentos (SST)", descricao: "Exames, treinamentos e ocorrências de saúde e segurança: vencimento, conclusão, situação, risco. Só os não sigilosos.",
+    tabela: "rh_sst_records", modulo: "rh", rotulo: "exames e treinamentos (SST)", descricao: "Exames, treinamentos e ocorrências de saúde e segurança: vencimento, conclusão, situação, risco, observação (os sigilosos só para quem aprova SST: o banco decide).",
     exige: ["rh.sst"], data: "due_date",
-    colunas: { category: "texto", title: "texto", due_date: "data", completed_at: "data", status: "texto", risk: "texto" },
+    colunas: { category: "texto", title: "texto", due_date: "data", completed_at: "data", status: "texto", risk: "texto", note: "texto", clinical_confidential: "logico" },
     rel: { colaborador: { tabela: "employees", fk: "employee_id", campo: "full_name" }, setor: { tabela: "departments", fk: "department_id", campo: "name" } },
     opcoes: SST,
-    fixo: [{ campo: "clinical_confidential", op: "igual", valor: false }],
     fonte: f("rh", "RH", "Saúde e segurança"),
   },
   {
@@ -104,9 +104,9 @@ export const CATALOGO: TabelaCatalogo[] = [
     fonte: f("portaria", "Portaria", "terceiros"),
   },
   {
-    tabela: "visitas", modulo: "portaria", rotulo: "visitas", descricao: "Visitas: data, empresa, visitante, responsável, entrada, saída, tipo, nota fiscal e valor (sem documento nem contato).",
+    tabela: "visitas", modulo: "portaria", rotulo: "visitas", descricao: "Visitas: data, empresa, visitante, documento, contato, responsável, entrada, saída, tipo, placa, nota fiscal e valor.",
     exige: ["portaria.visitas"], data: "data",
-    colunas: { data: "data", empresa: "texto", visitante: "texto", responsavel: "texto", horario_entrada: "texto", horario_saida: "texto", descricao: "texto", placa_veiculo: "texto", nota_fiscal: "texto", valor_nfe: "numero" },
+    colunas: { data: "data", empresa: "texto", visitante: "texto", documento: "texto", contato: "texto", responsavel: "texto", horario_entrada: "texto", horario_saida: "texto", descricao: "texto", placa_veiculo: "texto", nota_fiscal: "texto", valor_nfe: "numero" },
     fonte: f("portaria", "Portaria", "visitas"),
   },
   {
@@ -125,9 +125,9 @@ export const CATALOGO: TabelaCatalogo[] = [
     fonte: f("financeiro", "Financeiro", "Contas a pagar"),
   },
   {
-    tabela: "finance_titles", modulo: "financeiro", rotulo: "títulos", descricao: "Títulos a pagar (direction=payable) e a receber (receivable): fornecedor/cliente, documento, descrição, emissão, competência, valor, situação, conta e centro de custo.",
+    tabela: "finance_titles", modulo: "financeiro", rotulo: "títulos", descricao: "Títulos a pagar (direction=payable) e a receber (receivable): fornecedor/cliente (com CNPJ/CPF), documento, descrição, observações, emissão, competência, valor, situação, conta e centro de custo.",
     exige: ["financeiro.pagar", "financeiro.receber", "financeiro.fluxo", "financeiro.relatorios", "financeiro.bancos"], data: "issue_date",
-    colunas: { direction: "texto", counterparty_name: "texto", counterparty_group: "texto", document_number: "texto", description: "texto", issue_date: "data", competence_date: "data", original_amount: "numero", status: "texto", is_forecast: "logico", is_historical: "logico" },
+    colunas: { direction: "texto", counterparty_name: "texto", counterparty_group: "texto", counterparty_tax_id: "texto", notes: "texto", document_number: "texto", description: "texto", issue_date: "data", competence_date: "data", original_amount: "numero", status: "texto", is_forecast: "logico", is_historical: "logico" },
     rel: { conta: { tabela: "finance_chart_accounts", fk: "chart_account_id", campo: "name" }, centro_de_custo: { tabela: "finance_cost_centers", fk: "cost_center_id", campo: "name" } },
     opcoes: { direction: DIRECAO, status: TITULO },
     fonte: f("financeiro", "Financeiro", "Contas a pagar"),
@@ -140,9 +140,9 @@ export const CATALOGO: TabelaCatalogo[] = [
     fonte: f("financeiro", "Financeiro", "Contas a pagar"),
   },
   {
-    tabela: "finance_bank_entries", modulo: "financeiro", rotulo: "lançamentos do extrato", descricao: "Lançamentos dos extratos bancários: data, entrada/saída, valor, histórico, contraparte, conciliação.",
+    tabela: "finance_bank_entries", modulo: "financeiro", rotulo: "lançamentos do extrato", descricao: "Lançamentos dos extratos bancários: data, entrada/saída, valor, histórico, contraparte (com CNPJ/CPF), documento, conciliação.",
     exige: ["financeiro.bancos"], data: "booking_date",
-    colunas: { booking_date: "data", direction: "texto", amount: "numero", description: "texto", counterparty_name: "texto", category: "texto", reconciliation_status: "texto" },
+    colunas: { booking_date: "data", direction: "texto", amount: "numero", description: "texto", counterparty_name: "texto", counterparty_tax_id: "texto", document_number: "texto", category: "texto", reconciliation_status: "texto" },
     opcoes: { direction: { credit: "Entrada", debit: "Saída" }, reconciliation_status: { pending: "Pendente", matched: "Conciliado", partial: "Parcial", ignored: "Ignorado" } },
     rel: { banco: { tabela: "finance_bank_accounts", fk: "bank_account_id", campo: "bank_name" } },
     fonte: f("financeiro", "Financeiro", "Bancos e conciliação"),
@@ -163,15 +163,15 @@ export const CATALOGO: TabelaCatalogo[] = [
     fonte: f("compras", "Compras", "realizadas"),
   },
   {
-    tabela: "suppliers", modulo: "compras", rotulo: "fornecedores", descricao: "Cadastro de fornecedores: nome, razão social, fantasia, cidade, UF, categoria, condição de pagamento, ativo (sem CNPJ nem contato).",
-    exige: ["compras.fornecedores", "compras.cotacoes"], colunas: { name: "texto", legal_name: "texto", trade_name: "texto", city: "texto", state: "texto", category: "texto", payment_terms: "texto", active: "logico" },
+    tabela: "suppliers", modulo: "compras", rotulo: "fornecedores", descricao: "Cadastro de fornecedores: nome, razão social, fantasia, CNPJ/CPF, IE, contato, telefone, e-mail, endereço, CEP, cidade, UF, categoria, condição de pagamento, observações, ativo.",
+    exige: ["compras.fornecedores", "compras.cotacoes"], colunas: { name: "texto", legal_name: "texto", trade_name: "texto", tax_id: "texto", state_registration: "texto", contact_name: "texto", phone: "texto", email: "texto", address: "texto", postal_code: "texto", city: "texto", state: "texto", category: "texto", payment_terms: "texto", notes: "texto", active: "logico" },
     fonte: f("compras", "Compras", "fornecedores"),
   },
   // ---------------- Almoxarifado ----------------
   {
-    tabela: "receipts", modulo: "almoxarifado", rotulo: "recebimentos (notas de entrada)", descricao: "Recebimentos de material: fornecedor, número da nota, emissão, recebido em, valor, ICMS, IPI, divisão, divergência.",
+    tabela: "receipts", modulo: "almoxarifado", rotulo: "recebimentos (notas de entrada)", descricao: "Recebimentos de material: fornecedor, CNPJ, número, série e chave da nota, emissão, recebido em, valor, ICMS, IPI, divisão, divergência, observação.",
     exige: ["almoxarifado.recebimento", "almoxarifado.solicitacoes", "financeiro.pagar", "fiscal.icms"], data: "recebido_em",
-    colunas: { numero: "numero", fornecedor: "texto", nf_numero: "texto", emissao: "data", recebido_em: "data", valor_total: "numero", icms: "numero", ipi: "numero", divisao: "texto", divergencia: "logico", divergencia_motivo: "texto", received_by_name: "texto" },
+    colunas: { numero: "numero", fornecedor: "texto", cnpj: "texto", nf_numero: "texto", nf_serie: "texto", nf_chave: "texto", observacao: "texto", emissao: "data", recebido_em: "data", valor_total: "numero", icms: "numero", ipi: "numero", divisao: "texto", divergencia: "logico", divergencia_motivo: "texto", received_by_name: "texto" },
     fonte: f("almoxarifado", "Almoxarifado", "recebimento"),
   },
   {
@@ -187,28 +187,28 @@ export const CATALOGO: TabelaCatalogo[] = [
   },
   // ---------------- Fiscal ----------------
   {
-    tabela: "fiscal_icms_entries", modulo: "fiscal", rotulo: "notas de entrada (ICMS)", descricao: "Notas de entrada do controle de ICMS: competência, emissão, fornecedor, número, valor, base, ICMS, IPI, área (fundição/usinagem/administrativo).",
+    tabela: "fiscal_icms_entries", modulo: "fiscal", rotulo: "notas de entrada (ICMS)", descricao: "Notas de entrada do controle de ICMS: competência, emissão, fornecedor, CNPJ, número, chave, valor, base, ICMS, IPI, área (fundição/usinagem/administrativo), observação.",
     exige: ["fiscal.icms"], data: "competencia",
-    colunas: { competencia: "data", emitida: "data", recebida: "data", fornecedor: "texto", nfe: "texto", valor: "numero", base_icms: "numero", icms: "numero", ipi: "numero", tipo: "texto", fundicao: "logico", usinagem: "logico", administrativo: "logico", lancado: "logico" },
+    colunas: { competencia: "data", emitida: "data", recebida: "data", fornecedor: "texto", cnpj: "texto", chave: "texto", obs: "texto", nfe: "texto", valor: "numero", base_icms: "numero", icms: "numero", ipi: "numero", tipo: "texto", fundicao: "logico", usinagem: "logico", administrativo: "logico", lancado: "logico" },
     fonte: f("fiscal", "Fiscal", "ICMS"),
   },
   {
-    tabela: "fiscal_nfe", modulo: "fiscal", rotulo: "notas fiscais emitidas", descricao: "NF-e emitidas: ambiente, situação, série, número, emissão, natureza, destinatário, valor.",
+    tabela: "fiscal_nfe", modulo: "fiscal", rotulo: "notas fiscais emitidas", descricao: "NF-e emitidas: ambiente, situação, série, número, chave, protocolo, emissão, natureza, destinatário (nome e CNPJ/CPF), valor, motivo da rejeição.",
     exige: ["fiscal.nfe"], data: "emissao",
-    colunas: { ambiente: "texto", situacao: "texto", serie: "numero", numero: "numero", emissao: "data", natureza: "texto", destinatario_nome: "texto", valor_total: "numero", autorizada_em: "data" },
+    colunas: { ambiente: "texto", situacao: "texto", serie: "numero", numero: "numero", chave: "texto", protocolo: "texto", motivo: "texto", emissao: "data", natureza: "texto", destinatario_nome: "texto", destinatario_documento: "texto", valor_total: "numero", autorizada_em: "data" },
     fonte: f("fiscal", "Fiscal", "NF-e"),
   },
   {
-    tabela: "fiscal_dfe", modulo: "fiscal", rotulo: "notas recebidas da SEFAZ", descricao: "Notas emitidas contra a empresa (distribuição da SEFAZ): emitente, valor, emissão, situação, manifestação.",
+    tabela: "fiscal_dfe", modulo: "fiscal", rotulo: "notas recebidas da SEFAZ", descricao: "Notas emitidas contra a empresa (distribuição da SEFAZ): emitente (nome, CNPJ, IE), chave, valor, emissão, situação, manifestação.",
     exige: ["fiscal.nfe", "fiscal.icms"], data: "emissao",
-    colunas: { emitente_nome: "texto", valor: "numero", emissao: "data", situacao: "texto", manifestacao: "texto" },
+    colunas: { emitente_nome: "texto", emitente_cnpj: "texto", emitente_ie: "texto", chave: "texto", valor: "numero", emissao: "data", situacao: "texto", manifestacao: "texto" },
     fonte: f("fiscal", "Fiscal", "NF-e"),
   },
   // ---------------- Comercial ----------------
   {
-    tabela: "sales_quotes", modulo: "comercial", rotulo: "orçamentos", descricao: "Orçamentos: número, cliente, data, validade, situação, pedido do cliente, prazo, motivo de perda, ganho em.",
+    tabela: "sales_quotes", modulo: "comercial", rotulo: "orçamentos", descricao: "Orçamentos: número, cliente, contato, data, validade, situação, pedido do cliente, prazo, motivo de perda, ganho em, observações.",
     exige: ["comercial.orcamentos", "producao.entrada", "fiscal.nfe"], data: "data_orcamento",
-    colunas: { numero: "numero", data_orcamento: "data", validade: "data", situacao: "texto", pedido_cliente: "texto", condicao_pagamento: "texto", prazo_entrega: "data", motivo_perda: "texto", ganho_em: "data", treino: "logico" },
+    colunas: { numero: "numero", contato: "texto", observacoes: "texto", data_orcamento: "data", validade: "data", situacao: "texto", pedido_cliente: "texto", condicao_pagamento: "texto", prazo_entrega: "data", motivo_perda: "texto", ganho_em: "data", treino: "logico" },
     rel: { cliente: { tabela: "customers", fk: "customer_id", campo: "name" } },
     fonte: f("comercial", "Comercial", "orcamentos"),
   },
@@ -219,8 +219,8 @@ export const CATALOGO: TabelaCatalogo[] = [
     fonte: f("comercial", "Comercial", "produtos"),
   },
   {
-    tabela: "customers", modulo: "comercial", rotulo: "clientes", descricao: "Clientes: nome, município, UF, ativo (sem CNPJ nem contato).",
-    exige: ["comercial.clientes", "comercial.orcamentos"], colunas: { name: "texto", municipio: "texto", uf: "texto", active: "logico" },
+    tabela: "customers", modulo: "comercial", rotulo: "clientes", descricao: "Clientes: nome, CNPJ/CPF, IE, e-mail da NF-e, telefone, endereço (logradouro, número, complemento, bairro, CEP), município, UF, ativo.",
+    exige: ["comercial.clientes", "comercial.orcamentos"], colunas: { name: "texto", tax_id: "texto", ie: "texto", email_nfe: "texto", telefone: "texto", logradouro: "texto", numero: "texto", complemento: "texto", bairro: "texto", cep: "texto", municipio: "texto", uf: "texto", active: "logico" },
     fonte: f("comercial", "Comercial", "clientes"),
   },
   // ---------------- Produção ----------------

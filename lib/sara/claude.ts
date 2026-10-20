@@ -10,7 +10,7 @@ export function chaveConfigurada(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
 }
 
-export function conversar(sb: SupabaseClient, a: { modelo: string; sistema: Sistema; historico: MensagemHistorico[]; pergunta: string; ferramentas: Ferramenta[]; sinal?: AbortSignal; pesquisa?: Pesquisa | null; maxTokens?: number }): Promise<RespostaSara> {
+export function conversar(sb: SupabaseClient, a: { modelo: string; sistema: Sistema; historico: MensagemHistorico[]; pergunta: string; ferramentas: Ferramenta[]; todasAsConsultas?: string[]; sinal?: AbortSignal; pesquisa?: Pesquisa | null; maxTokens?: number }): Promise<RespostaSara> {
   return conversarCom(sb, { ...a, chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "" });
 }
 

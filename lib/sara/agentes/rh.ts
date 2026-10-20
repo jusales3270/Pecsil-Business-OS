@@ -2,10 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { dataBR, dias, hoje, link, maisDias, num, plural, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
 
 /**
- * SARA do RH. Dado pessoal e de saúde NUNCA sai daqui: nada de CPF, PIS, CTPS, telefone, salário, CID,
- * diagnóstico, o motivo escrito de uma ausência ou a observação de um exame; afastamento por saúde
- * aparece só como número, sem nome e sem tipo. O filtro de dado pessoal da plataforma ainda roda por
- * cima, mas a proteção começa nas colunas escolhidas aqui. Quem decide é a Rosana (com a Bianca).
+ * SARA do RH. A única restrição é a credencial de quem pergunta (decisão do proprietário, 20/10/2026):
+ * as consultas rodam com a sessão da pessoa e o banco (RLS) decide. CPF, PIS e CTPS vêm de
+ * rh_employee_personal_data (RH › Colaboradores em "operar"); CID e diagnóstico, de rh_absence_clinical
+ * (rh.clinico); exame sigiloso, só para quem aprova SST. Quem decide o processo é a Rosana (com a Bianca).
  */
 
 const M = "rh";
@@ -22,14 +22,16 @@ async function mapaDeFerias(sb: SupabaseClient): Promise<Mapa> {
 }
 const nomeDoSetor = (m: Mapa) => (id: string) => m.setores.find((s) => s.id === id)?.nome ?? "Sem setor";
 
-type Sst = { title: string; category: string; due_date: string; employees: { full_name: string } | null };
+type Sst = { title: string; category: string; due_date: string; note: string | null; employees: { full_name: string } | null };
 async function sstAVencer(sb: SupabaseClient, ate: string): Promise<Sst[]> {
-  const { data, error } = await sb.from("rh_sst_records").select("title, category, due_date, employees(full_name)").in("category", ["exam", "training"])
-    .is("completed_at", null).eq("clinical_confidential", false).not("due_date", "is", null).lte("due_date", ate).order("due_date").limit(500);
+  const { data, error } = await sb.from("rh_sst_records").select("title, category, due_date, note, employees(full_name)").in("category", ["exam", "training"])
+    .is("completed_at", null).not("due_date", "is", null).lte("due_date", ate).order("due_date").limit(500);
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as Sst[];
 }
 const CATEGORIA: Record<string, string> = { exam: "exame", training: "treinamento" };
+const AUSENCIA: Record<string, string> = { vacation: "Férias", time_bank: "Banco de horas", medical_certificate: "Atestado médico", leave: "Licença", attendance_statement: "Consulta ou exame (declaração)", family_care: "Acompanhamento de familiar", occupational_exam: "Exame ocupacional", legal_leave: "Ausência legal", justified_absence: "Ausência justificada", inss_leave: "Afastamento INSS", work_accident: "Acidente de trabalho", maternity_leave: "Licença-maternidade" };
+const busca = (v: unknown) => String(v ?? "").replace(/[%_,()]/g, " ").trim().slice(0, 80);
 
 const ferramentas: Ferramenta[] = [
   {
@@ -65,25 +67,24 @@ const ferramentas: Ferramenta[] = [
   },
   {
     nome: "rh_afastados_hoje", rotulo: "afastados hoje", exige: ["rh.ferias"],
-    descricao: "Quantas pessoas estão fora hoje: de férias (com nome) e outros afastamentos (só o número — sem nome nem motivo, por ser dado de saúde).",
+    descricao: "Quem está fora hoje: de férias e em cada afastamento (atestado, licença, INSS...), com nome, tipo, motivo escrito, início e volta.",
     esquema: { type: "object", properties: {} },
     rodar: async (sb) => {
       const h = hoje();
-      const { data, error } = await sb.from("rh_absences").select("absence_type, employees(full_name)").lte("start_date", h).gte("end_date", h).in("status", ["approved", "registered"]).limit(500);
+      const { data, error } = await sb.from("rh_absences").select("absence_type, reason, start_date, end_date, employees(full_name)").lte("start_date", h).gte("end_date", h).in("status", ["approved", "registered"]).limit(500);
       if (error) throw new Error(error.message);
-      const l = (data ?? []) as unknown as { absence_type: string; employees: { full_name: string } | null }[];
-      const ferias = l.filter((x) => x.absence_type === "vacation");
-      return { dados: { de_ferias: ferias.map((x) => x.employees?.full_name ?? "?"), outros_afastamentos: l.length - ferias.length,
-        observacao: "Afastamentos que não são férias aparecem só como número: o motivo e o nome ficam na tela, para quem tem a permissão." }, fontes: [fonte("Férias e ausências")] };
+      const l = (data ?? []) as unknown as { absence_type: string; reason: string | null; start_date: string; end_date: string; employees: { full_name: string } | null }[];
+      const fora = l.map((x) => ({ colaborador: x.employees?.full_name ?? "?", tipo: AUSENCIA[x.absence_type] ?? x.absence_type, motivo: x.reason, inicio: x.start_date, volta_em: x.end_date }));
+      return { dados: { total: fora.length, de_ferias: fora.filter((x) => x.tipo === "Férias"), outros_afastamentos: fora.filter((x) => x.tipo !== "Férias") }, fontes: [fonte("Férias e ausências")] };
     },
   },
   {
     nome: "rh_exames_treinamentos", rotulo: "exames e treinamentos", exige: ["rh.sst"],
-    descricao: "Exames (ASO) e treinamentos vencidos ou que vencem nos próximos `dias` (padrão 60): nome do colaborador, qual exame/treinamento e o vencimento. Sem resultado nem observação.",
+    descricao: "Exames (ASO) e treinamentos vencidos ou que vencem nos próximos `dias` (padrão 60): nome do colaborador, qual exame/treinamento, o vencimento e a observação.",
     esquema: { type: "object", properties: { dias: { type: "integer" } } },
     rodar: async (sb, e) => {
       const h = hoje();
-      const l = (await sstAVencer(sb, maisDias(h, num(e.dias, JANELA_SST, 1, 365)))).map((x) => ({ colaborador: x.employees?.full_name ?? "?", tipo: CATEGORIA[x.category] ?? x.category, o_que: x.title, vence: x.due_date, vencido: x.due_date < h }));
+      const l = (await sstAVencer(sb, maisDias(h, num(e.dias, JANELA_SST, 1, 365)))).map((x) => ({ colaborador: x.employees?.full_name ?? "?", tipo: CATEGORIA[x.category] ?? x.category, o_que: x.title, observacao: x.note, vence: x.due_date, vencido: x.due_date < h }));
       return { dados: { vencidos: l.filter((x) => x.vencido), a_vencer: l.filter((x) => !x.vencido) }, fontes: [fonte("Saúde e segurança")] };
     },
   },
@@ -124,6 +125,67 @@ const ferramentas: Ferramenta[] = [
       const l = (data ?? []) as { category: string; review_status: string | null; review_due_at: string | null }[];
       const por = l.reduce<Record<string, number>>((a, d) => { a[d.category] = (a[d.category] ?? 0) + 1; return a; }, {});
       return { dados: { ativos: l.length, nao_conferidos: l.filter((d) => !d.review_status).length, revisao_vencida: l.filter((d) => d.review_due_at && d.review_due_at.slice(0, 10) < h).length, por_categoria: por }, fontes: [fonte("Documentos")] };
+    },
+  },
+  {
+    nome: "rh_dados_do_colaborador", rotulo: "dados do colaborador", exige: ["rh.colaboradores"],
+    descricao: "Dados de um colaborador pelo nome (ou parte): matrícula, setor, função, admissão, desligamento, e-mail corporativo e os dados pessoais (CPF, PIS, CTPS, telefone). Os dados pessoais vêm para quem tem RH › Colaboradores em \"operar\"; vazio = sem cadastro ou sem essa permissão.",
+    esquema: { type: "object", properties: { nome: { type: "string", description: "Nome ou parte do nome do colaborador." } }, required: ["nome"] },
+    rodar: async (sb, e) => {
+      const nome = busca(e.nome);
+      if (nome.length < 2) throw new Error("Informe o nome do colaborador.");
+      const { data, error } = await sb.from("employees").select("id, full_name, employee_number, admission_date, termination_date, active, corporate_email, departments(name), positions(name)")
+        .ilike("full_name", `%${nome}%`).order("full_name").limit(10);
+      if (error) throw new Error(error.message);
+      type E = { id: string; full_name: string; employee_number: string | null; admission_date: string | null; termination_date: string | null; active: boolean; corporate_email: string | null; departments: { name: string } | null; positions: { name: string } | null };
+      const l = (data ?? []) as unknown as E[];
+      // A credencial dos dados pessoais (RH › Colaboradores em "operar"), conferida no banco: sem ela, a SARA diz "sem permissão".
+      const { data: podePessoais } = await sb.rpc("has_feature", { requested_feature: "rh.colaboradores", min_level: "operar" });
+      const { data: pess } = l.length && podePessoais ? await sb.from("rh_employee_personal_data").select("employee_id, cpf, pis, ctps_number, ctps_series, ctps_uf, phone").in("employee_id", l.map((x) => x.id)) : { data: [] };
+      const p = new Map(((pess ?? []) as { employee_id: string; cpf: string | null; pis: string | null; ctps_number: string | null; ctps_series: string | null; ctps_uf: string | null; phone: string | null }[]).map((x) => [x.employee_id, x]));
+      return { dados: { encontrados: l.length, colaboradores: l.map((x) => {
+        const d = p.get(x.id);
+        return { nome: x.full_name, matricula: x.employee_number, setor: x.departments?.name ?? null, funcao: x.positions?.name ?? null, admissao: x.admission_date, desligamento: x.termination_date, ativo: x.active,
+          email_corporativo: x.corporate_email, cpf: d?.cpf ?? null, pis: d?.pis ?? null, ctps: d?.ctps_number ? [d.ctps_number, d.ctps_series, d.ctps_uf].filter(Boolean).join(" / ") : null, telefone: d?.phone ?? null };
+      }), dados_pessoais: podePessoais ? "liberados" : "SEM PERMISSÃO: CPF, PIS, CTPS e telefone exigem RH › Colaboradores em \"operar\" (diga que a pessoa não tem permissão)",
+        observacao: podePessoais && l.length && !p.size ? "Os dados pessoais (CPF, PIS, CTPS, telefone) não estão cadastrados para estes colaboradores." : null },
+        fontes: [fonte("Colaboradores")] };
+    },
+  },
+  {
+    nome: "rh_dados_clinicos", rotulo: "dados clínicos", exige: ["rh.clinico"],
+    descricao: "Dados clínicos dos afastamentos (CID, diagnóstico, observação clínica), com colaborador, tipo, início e fim. Filtros: nome do colaborador e período (de/ate, AAAA-MM-DD). Só para quem tem a permissão de dados clínicos.",
+    esquema: { type: "object", properties: { nome: { type: "string" }, de: { type: "string" }, ate: { type: "string" } } },
+    rodar: async (sb, e) => {
+      // Três consultas simples (colaborador → afastamentos → dado clínico): o filtro pelo nome dentro do
+      // cruzamento das três tabelas, cada uma com o seu RLS, estourava o tempo do banco.
+      const nome = busca(e.nome);
+      let empregados: { id: string; full_name: string }[] | null = null;
+      if (nome) {
+        const { data, error } = await sb.from("employees").select("id, full_name").ilike("full_name", `%${nome}%`).limit(20);
+        if (error) throw new Error(error.message);
+        empregados = (data ?? []) as { id: string; full_name: string }[];
+        if (!empregados.length) return { dados: { quantidade: 0, afastamentos: [], observacao: `Nenhum colaborador com "${nome}" no nome.` }, fontes: [fonte("Férias e ausências")] };
+      }
+      let qa = sb.from("rh_absences").select("id, employee_id, absence_type, start_date, end_date, days, status").order("start_date", { ascending: false }).limit(200);
+      if (empregados) qa = qa.in("employee_id", empregados.map((x) => x.id));
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(e.de ?? ""))) qa = qa.gte("start_date", String(e.de));
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(e.ate ?? ""))) qa = qa.lte("start_date", String(e.ate));
+      const { data: aus, error: e1 } = await qa;
+      if (e1) throw new Error(e1.message);
+      type A = { id: string; employee_id: string; absence_type: string; start_date: string; end_date: string; days: number | null; status: string };
+      const ausencias = (aus ?? []) as A[];
+      if (!ausencias.length) return { dados: { quantidade: 0, afastamentos: [] }, fontes: [fonte("Férias e ausências")] };
+      const { data: cli, error: e2 } = await sb.from("rh_absence_clinical").select("absence_id, cid_codes, diagnosis, note").in("absence_id", ausencias.map((x) => x.id));
+      if (e2) throw new Error(e2.message);
+      const clinico = new Map(((cli ?? []) as { absence_id: string; cid_codes: string[] | null; diagnosis: string | null; note: string | null }[]).map((x) => [x.absence_id, x]));
+      const ids = [...new Set(ausencias.filter((x) => clinico.has(x.id)).map((x) => x.employee_id))];
+      const nomes = new Map((empregados ?? ((await sb.from("employees").select("id, full_name").in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"])).data ?? []) as { id: string; full_name: string }[]).map((x) => [x.id, x.full_name]));
+      const l = ausencias.filter((x) => clinico.has(x.id)).map((x) => {
+        const c = clinico.get(x.id)!;
+        return { colaborador: nomes.get(x.employee_id) ?? "?", tipo: AUSENCIA[x.absence_type] ?? x.absence_type, inicio: x.start_date, fim: x.end_date, dias: x.days, cid: c.cid_codes ?? [], diagnostico: c.diagnosis, observacao: c.note };
+      });
+      return { dados: { quantidade: l.length, afastamentos: l }, fontes: [fonte("Férias e ausências")] };
     },
   },
   {
@@ -208,7 +270,7 @@ const regras: Agente["regras"] = [
 
 const MANUAL = `Você é a SARA do RH do Business OS.
 Seções: Painel; Colaboradores (CLT e Terceiros); Ponto e jornada (ainda sem dados: a integração com o relógio de ponto não existe); Férias e ausências (solicitações, mapa por setor, políticas); Feriados; Benefícios (ainda sem dados); Saúde e segurança (exames, treinamentos, EPIs, ocorrências, exigências por função); Documentos (conferência); Relatórios; Homologação.
-Privacidade (obrigatório): nunca fale de CPF, PIS, CTPS, telefone, endereço, salário, CID, diagnóstico, motivo de ausência ou resultado de exame. Afastamento por saúde é só um número, sem nome. Se pedirem isso, diga que esse dado fica na tela, só para quem tem a permissão.
+Dados de colaborador (CPF, PIS, CTPS, telefone, e-mail) vêm da consulta rh_dados_do_colaborador; CID e diagnóstico, da rh_dados_clinicos. Responda completo o que a consulta trouxer: quem limita é a credencial da pessoa.
 Não existe salário cadastrado na plataforma (decisão da Rosana com a Ana) nem data de nascimento.
 Quem decide: Rosana (com a Bianca na homologação); acessos são do proprietário.`;
 
