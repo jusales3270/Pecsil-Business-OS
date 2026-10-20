@@ -430,3 +430,37 @@
 .animate-bounce-short {
   animation: bounce-short 1.5s ease-in-out infinite;
 }
+
+/* Âmbar (aguardando) e violeta (comprado, compra imediata) no escuro: como o laranja e o azul. */
+:root[data-theme="dark"] .compras-app-root .bg-amber-50 {
+  background-color: var(--tint-amber) !important;
+  border-color: var(--edge-amber) !important;
+}
+:root[data-theme="dark"] .compras-app-root .text-amber-700,
+:root[data-theme="dark"] .compras-app-root .text-amber-800 {
+  color: var(--accent-amber) !important;
+}
+:root[data-theme="dark"] .compras-app-root .bg-violet-50 {
+  background-color: rgb(139 92 246 / 0.16) !important;
+  border-color: rgb(139 92 246 / 0.4) !important;
+}
+:root[data-theme="dark"] .compras-app-root .text-violet-700 {
+  color: var(--accent-purple) !important;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .compras-app-root .bg-amber-50 {
+    background-color: var(--tint-amber) !important;
+    border-color: var(--edge-amber) !important;
+  }
+  :root:not([data-theme="light"]) .compras-app-root .text-amber-700,
+  :root:not([data-theme="light"]) .compras-app-root .text-amber-800 {
+    color: var(--accent-amber) !important;
+  }
+  :root:not([data-theme="light"]) .compras-app-root .bg-violet-50 {
+    background-color: rgb(139 92 246 / 0.16) !important;
+    border-color: rgb(139 92 246 / 0.4) !important;
+  }
+  :root:not([data-theme="light"]) .compras-app-root .text-violet-700 {
+    color: var(--accent-purple) !important;
+  }
+}

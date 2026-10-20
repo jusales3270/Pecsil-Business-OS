@@ -23,13 +23,13 @@ export async function GET(request: Request) {
   const pedidos = (new URL(request.url).searchParams.get("pedidos") ?? "").split(",").filter((x) => UUID.test(x)).slice(0, 300);
   if (!pedidos.length) return NextResponse.json({ convites: [] });
   const { data, error } = await guard.supabase.from("compras_convites")
-    .select("id, material_request_id, fornecedor, situacao, expira_em, cotacao_id, respondido_em, aberto_em, criado_por_nome, created_at")
+    .select("id, material_request_id, ramo_id, fornecedor, situacao, expira_em, cotacao_id, respondido_em, aberto_em, criado_por_nome, created_at")
     .in("material_request_id", pedidos).order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: "Não foi possível carregar os convites." }, { status: 500 });
   return NextResponse.json({ convites: data ?? [] });
 }
 
-type Acao = { acao: "criar"; pedido: string; fornecedorId?: string | null; fornecedor?: string; dias?: number } | { acao: "cancelar"; id: string };
+type Acao = { acao: "criar"; pedido: string; fornecedorId?: string | null; fornecedor?: string; dias?: number; ramo?: string | null } | { acao: "cancelar"; id: string };
 
 export async function POST(request: Request) {
   const guard = await requireFeature("compras.cotacoes", "operar");
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     const { data, error } = await guard.supabase.rpc("compras_convite_criar", {
       p_pedido: a.pedido, p_supplier: a.fornecedorId && UUID.test(a.fornecedorId) ? a.fornecedorId : null,
       p_fornecedor: String(a.fornecedor ?? "").slice(0, 200), p_dias: Number.isInteger(a.dias) ? a.dias : 7,
+      p_ramo: a.ramo && UUID.test(a.ramo) ? a.ramo : null,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: error.code === "42501" ? 403 : 400 });
     const r = data as { id: string; codigo: string; expira_em: string; fornecedor: string };

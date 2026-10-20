@@ -243,6 +243,7 @@ export const useStore = create<AppState>((set, get) => ({
           fornecedor: c.fornecedor,
           supplierId: c.supplier_id ?? null,
           materialRequestId: c.material_request_id ?? null,
+          ramoId: c.ramo_id ?? null,
           divisao: c.divisao || 'USINAGEM',
           status: c.status,
           userId: isNaN(Number(c.user_id)) ? 1 : Number(c.user_id),
@@ -277,6 +278,7 @@ export const useStore = create<AppState>((set, get) => ({
               const m = Array.isArray(p.materials) ? p.materials[0] : p.materials;
               return p.material_id && m ? { id: p.material_id, codigo: m.codigo, descricao: m.descricao, unidade: m.unidade } : null;
             })(),
+            pedidoItemId: p.material_request_item_id ?? null,
           })),
           produto: c.produto || undefined,
           valorUnit: c.valor_unit ? Number(c.valor_unit) : undefined,
@@ -337,6 +339,7 @@ export const useStore = create<AppState>((set, get) => ({
           user_id: String(data.userId || '1'),
           divisao: data.divisao,
           material_request_id: data.materialRequestId ?? null,
+          ramo_id: data.ramoId ?? null,
           ...camposDoPedido(data),
           produto: data.produto,
           valor_unit: data.valorUnit,
@@ -368,6 +371,7 @@ export const useStore = create<AppState>((set, get) => ({
           obs: p.obs,
           status: 'PENDENTE',
           material_id: p.material?.id ?? null,
+          material_request_item_id: p.pedidoItemId ?? null,
         }));
 
         if (productsToInsert.length > 0) {
@@ -525,6 +529,7 @@ export const useStore = create<AppState>((set, get) => ({
         status: p.status || 'PENDENTE',
         motivo_rejeicao: p.motivoRejeicao || null,
         material_id: p.material?.id ?? null,
+        material_request_item_id: p.pedidoItemId ?? null,
       }));
 
       if (productsToInsert.length > 0) {
