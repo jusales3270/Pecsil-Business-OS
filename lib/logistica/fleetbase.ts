@@ -98,4 +98,18 @@ export const fleetbase = {
     return (Array.isArray(lista) ? lista : []).slice(0, 40).map((d, i) => atuais[i] ?? d);
   },
   veiculos: () => chamar<Json[]>("/vehicles?limit=200"),
+  /** Veículo e motorista: a plataforma é a dona do cadastro, aqui só o espelho (ao Fleetbase vai o mínimo). */
+  salvarVeiculo: (id: string | null, v: { placa: string; marca: string | null; modelo: string | null; ano: number | null }) =>
+    chamar<{ id: string }>(id ? `/vehicles/${encodeURIComponent(id)}` : "/vehicles", {
+      method: id ? "PUT" : "POST", body: { plate_number: v.placa, make: v.marca ?? undefined, model: v.modelo ?? undefined, year: v.ano ? String(v.ano) : undefined },
+    }),
+  salvarMotorista: (id: string | null, m: { nome: string; veiculo: string | null; ativo: boolean }) =>
+    chamar<{ id: string }>(id ? `/drivers/${encodeURIComponent(id)}` : "/drivers", {
+      method: id ? "PUT" : "POST", body: { name: m.nome, vehicle: m.veiculo ?? undefined, status: m.ativo ? "active" : "inactive" },
+    }),
+  /** Designa o motorista (e o veículo) da ordem e despacha para o celular dele. */
+  designar: async (ordem: string, motorista: string, veiculo: string | null) => {
+    await chamar(`/orders/${encodeURIComponent(ordem)}`, { method: "PUT", body: { driver: motorista, ...(veiculo ? { vehicle: veiculo } : {}) } });
+    return chamar<Json>(`/orders/${encodeURIComponent(ordem)}/dispatch`, { method: "POST" });
+  },
 };

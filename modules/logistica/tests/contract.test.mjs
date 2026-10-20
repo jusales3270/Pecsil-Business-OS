@@ -33,7 +33,7 @@ test("logística: toda rota exige a permissão, menos o aviso do Fleetbase, que 
       assert.doesNotMatch(src, /logistica_conferir/, "o aviso não grava o que veio nele");
       continue;
     }
-    assert.match(src, /requireFeature\("logistica\.entregas", "(ver|operar)"\)/, p);
+    assert.match(src, /requireFeature\("logistica\.(entregas|frota)", "(ver|operar)"\)|requireAnyFeature\(\["logistica\.frota", "logistica\.entregas"\]/, p);
     assert.doesNotMatch(src, /createSupabaseAdminClient|SERVICE_ROLE/, `${p}: sem chave de serviço na rota`);
   }
 });
@@ -70,5 +70,17 @@ test("logística: o nginx do Fleetbase fecha a consulta pública por número de 
   assert.match(conf, /location \^~ \/int\/v1\/fleet-ops\/lookup \{\s*return 404;/);
   const modelo = await ler("infra/fleetbase/docker-compose.override.example.yml");
   assert.doesNotMatch(modelo, /flb_live_|AIza[0-9A-Za-z_-]{20}|[0-9a-f]{32}/, "o modelo não leva segredo");
+});
+
+test("logística: o motorista é um colaborador do RH e a Logística não copia dado pessoal", async () => {
+  const mig = await ler("supabase/migrations/202610200003_logistica_frota.sql");
+  assert.match(mig, /employee_id\s+uuid not null references public\.employees/);
+  const lista = mig.slice(mig.indexOf("function public.logistica_colaboradores_motorista"), mig.indexOf("revoke all on function public.logistica_colaboradores_motorista"));
+  assert.match(lista, /jsonb_build_object\('id', e\.id, 'nome', e\.full_name, 'cargo', p\.name\)/, "só id, nome e cargo");
+  assert.doesNotMatch(lista, /cpf|corporate_email|personal|phone|telefone/i);
+  const fleet = await ler("lib/logistica/fleetbase.ts");
+  const motorista = fleet.slice(fleet.indexOf("salvarMotorista"), fleet.indexOf("designar:"));
+  assert.match(motorista, /body: \{ name: m\.nome, vehicle: m\.veiculo \?\? undefined, status:/, "ao Fleetbase vai só o nome (e o veículo)");
+  assert.match(mig, /revoke insert, update, delete on public\.logistica_veiculos, public\.logistica_motoristas from anon, authenticated/);
 });
 

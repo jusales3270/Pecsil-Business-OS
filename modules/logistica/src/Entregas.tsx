@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../../packages/design-system";
-import { ABERTAS, type Entrega, type Origem, SITUACAO, chamarLogistica, dataHora } from "./tipos";
+import { ABERTAS, type Entrega, type Origem, SITUACAO, chamarLogistica, comTraco, dataHora } from "./tipos";
 
 /**
  * Entregas: a lista (abertas primeiro) e a criação a partir de uma OS, de um pedido ganho ou avulsa. Ao criar,
@@ -15,6 +15,7 @@ type Candidatos = {
   os: { id: string; code: string; customer_id: string; customer_name: string | null; article_description: string | null; quantity: number | null; due_date: string | null; semEndereco: boolean }[];
   pedidos: { id: string; numero: number; customer_id: string; cliente: string; freteNosso: boolean; prazo: string | null; pedidoCliente: string | null; treino: boolean; semEndereco: boolean }[];
   clientes: { id: string; nome: string; semEndereco: boolean }[];
+  motoristas: { id: string; nome: string; placa: string | null }[];
 };
 type Filtro = "abertas" | "entregues" | "todas";
 
@@ -26,6 +27,7 @@ export function Entregas({ notify }: { notify: (m: string) => void }) {
   const [cancelar, setCancelar] = useState<Entrega | null>(null);
   const [ponto, setPonto] = useState<Entrega | null>(null);
   const [link, setLink] = useState<Entrega | null>(null);
+  const [designar, setDesignar] = useState<Entrega | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
@@ -81,12 +83,13 @@ export function Entregas({ notify }: { notify: (m: string) => void }) {
             <div key={e.id} className="logi-tr" role="row">
               <span role="cell" className="logi-num">{e.numero}</span>
               <span role="cell"><b>{e.cliente_nome}</b><small>{[e.origem_rotulo, e.descricao].filter(Boolean).join(" · ")}</small>{e.destino_endereco && <small>{e.destino_endereco}</small>}</span>
-              <span role="cell"><Status tone={SITUACAO[e.situacao].tom}>{SITUACAO[e.situacao].rotulo}</Status>{e.rastreio && <small>rastreio {e.rastreio}</small>}{e.erro && e.situacao !== "cancelada" && <small className="logi-erro">{e.erro}</small>}{e.situacao === "cancelada" && e.erro && <small>{e.erro}</small>}</span>
-              <span role="cell">{e.motorista ?? "—"}{e.veiculo && <small>{e.veiculo}</small>}</span>
+              <span role="cell"><Status tone={SITUACAO[e.situacao].tom}>{SITUACAO[e.situacao].rotulo}</Status>{e.rastreio && <small>rastreio <span className="logi-codigo">{e.rastreio}</span></small>}{e.erro && e.situacao !== "cancelada" && <small className="logi-erro">{e.erro}</small>}{e.situacao === "cancelada" && e.erro && <small>{e.erro}</small>}</span>
+              <span role="cell">{e.motorista ?? "—"}{e.veiculo && <small>{comTraco(e.veiculo)}</small>}</span>
               <span role="cell">{e.situacao === "entregue" ? <>entregue<small>{dataHora(e.entregue_em)}</small></> : e.situacao === "a_caminho" ? <>chega ~<small>{dataHora(e.previsao)}</small></> : e.situacao === "cancelada" ? <>cancelada<small>{dataHora(e.updated_at)}</small></> : <>criada<small>{dataHora(e.created_at)}</small></>}</span>
               <span role="cell" className="logi-acoes">
                 {dados.podeOperar && e.situacao === "criada" && <Button variant="secondary" compact disabled={ocupado === e.id} onClick={() => void reenviar(e)}>{ocupado === e.id ? "Enviando…" : "Tentar de novo"}</Button>}
                 {dados.podeOperar && e.situacao === "criada" && e.erro && /endereço|mapa/i.test(e.erro) && <Button variant="ghost" compact onClick={() => setPonto(e)}>Marcar o ponto</Button>}
+                {dados.podeOperar && e.situacao === "enviada" && <Button variant="secondary" compact onClick={() => setDesignar(e)}>{e.motorista ? "Trocar motorista" : "Designar motorista"}</Button>}
                 {dados.podeOperar && ["enviada", "a_caminho", "entregue"].includes(e.situacao) && (
                   <Button variant="ghost" compact onClick={() => setLink(e)}>{dados.links.some((l) => l.entrega_id === e.id) ? "Link do cliente ✓" : "Link do cliente"}</Button>
                 )}
@@ -96,8 +99,15 @@ export function Entregas({ notify }: { notify: (m: string) => void }) {
           ))}
         </div>
       )}
-      {nova && <NovaEntrega onFechar={() => setNova(false)} onCriada={async (e) => { setNova(false); notify(e.situacao === "enviada" ? `Entrega ${e.numero} criada e enviada à frota.` : `Entrega ${e.numero} criada, mas não foi para a frota: ${e.erro ?? "tente de novo"}`); await carregar(); }} />}
+      {nova && <NovaEntrega onFechar={() => setNova(false)} onCriada={async (e) => {
+        setNova(false);
+        const aviso = (e as Entrega & { aviso?: string | null }).aviso;
+        notify(e.situacao !== "enviada" ? `Entrega ${e.numero} criada, mas não foi para a frota: ${e.erro ?? "tente de novo"}` : aviso ? aviso
+          : e.motorista ? `Entrega ${e.numero} enviada para ${e.motorista}.` : `Entrega ${e.numero} criada e enviada à frota.`);
+        await carregar();
+      }} />}
       {cancelar && <Cancelar entrega={cancelar} onFechar={() => setCancelar(null)} onFeito={async (aviso) => { setCancelar(null); notify(aviso ?? "Entrega cancelada."); await carregar(); }} />}
+      {designar && <DesignarMotorista entrega={designar} onFechar={() => setDesignar(null)} onFeito={async (m) => { setDesignar(null); notify(m); await carregar(); }} />}
       {link && <LinkDoCliente entrega={link} atual={dados?.links.find((l) => l.entrega_id === link.id) ?? null} onFechar={() => setLink(null)} onMudou={() => void carregar()} />}
       {ponto && <MarcarPonto entrega={ponto} onFechar={() => setPonto(null)} onFeito={async () => { setPonto(null); notify("Ponto salvo. Use “Tentar de novo” para mandar à frota."); await carregar(); }} />}
     </>
@@ -112,6 +122,7 @@ function NovaEntrega({ onFechar, onCriada }: { onFechar: () => void; onCriada: (
   const [cliente, setCliente] = useState("");
   const [descricao, setDescricao] = useState("");
   const [busca, setBusca] = useState("");
+  const [motorista, setMotorista] = useState("");
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
@@ -137,7 +148,7 @@ function NovaEntrega({ onFechar, onCriada }: { onFechar: () => void; onCriada: (
   const criar = async () => {
     setEnviando(true);
     const r = await chamarLogistica<Entrega>("/api/logistica/entregas", {
-      method: "POST", body: JSON.stringify({ customer_id: cliente, origem_tipo: tipo, origem_id: tipo === "avulsa" ? null : escolha, descricao }),
+      method: "POST", body: JSON.stringify({ customer_id: cliente, origem_tipo: tipo, origem_id: tipo === "avulsa" ? null : escolha, descricao, motorista_id: motorista || null }),
     });
     setEnviando(false);
     if (!r.ok) { setErro(r.error); return; }
@@ -184,6 +195,13 @@ function NovaEntrega({ onFechar, onCriada }: { onFechar: () => void; onCriada: (
             <label className="logi-campo"><span>O que vai na entrega</span>
               <textarea rows={2} maxLength={500} value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: 2 moldes da OS 1234, 1 caixa" />
             </label>
+            <label className="logi-campo"><span>Motorista (opcional: dá para designar depois)</span>
+              <select value={motorista} onChange={(e) => setMotorista(e.target.value)}>
+                <option value="">Designar depois</option>
+                {cand.motoristas.map((m) => <option key={m.id} value={m.id}>{m.nome}{m.placa ? ` · ${comTraco(m.placa)}` : ""}</option>)}
+              </select>
+            </label>
+            {!cand.motoristas.length && <p className="ti-nota">Nenhum motorista cadastrado ainda: cadastre em Logística › Frota.</p>}
             {clienteSemEndereco && <Callout variant="warning" title="Cliente sem endereço completo">A entrega fica criada, mas só vai para a frota depois de completar o cadastro do cliente ou marcar o ponto no mapa.</Callout>}
           </>
         )}
@@ -285,6 +303,42 @@ function LinkDoCliente({ entrega, atual, onFechar, onMudou }: { entrega: Entrega
           <Button variant="secondary" onClick={onFechar}>Fechar</Button>
           <Button disabled={indo} onClick={() => void gerar()}>{indo ? "Gerando…" : atual || gerado ? "Gerar um novo link" : "Gerar o link"}</Button>
         </div>
+      </div>
+    </Modal>
+  );
+}
+
+/** Designa um motorista da frota à entrega: a ordem vai para o celular dele (app do motorista, próxima etapa). */
+function DesignarMotorista({ entrega, onFechar, onFeito }: { entrega: Entrega; onFechar: () => void; onFeito: (m: string) => void }) {
+  const [lista, setLista] = useState<{ id: string; nome: string; placa: string | null }[] | null>(null);
+  const [escolha, setEscolha] = useState("");
+  const [erro, setErro] = useState("");
+  const [indo, setIndo] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    void chamarLogistica<{ motoristas: { id: string; nome: string; placa: string | null }[] }>("/api/logistica/candidatos").then((r) => {
+      if (!vivo) return;
+      if (r.ok) setLista(r.data.motoristas); else setErro(r.error);
+    });
+    return () => { vivo = false; };
+  }, []);
+  const ir = async () => {
+    setIndo(true); setErro("");
+    const r = await chamarLogistica<Entrega>(`/api/logistica/entregas/${entrega.id}`, { method: "POST", body: JSON.stringify({ acao: "designar", motorista: escolha }) });
+    setIndo(false);
+    if (!r.ok) { setErro(r.error); return; }
+    onFeito(`Entrega ${entrega.numero} designada para ${r.data.motorista ?? "o motorista"}.`);
+  };
+  return (
+    <Modal eyebrow={`ENTREGA ${entrega.numero}`} title="Designar motorista" subtitle={entrega.cliente_nome} onClose={onFechar}>
+      <div className="logi-form">
+        {erro && <Callout variant="danger" title="Não deu">{erro}</Callout>}
+        {!lista ? <p className="ti-nota">Carregando a frota…</p> : !lista.length ? <p className="ti-nota">Nenhum motorista cadastrado: cadastre em Logística › Frota.</p> : (
+          <ul className="logi-escolhas" role="listbox" aria-label="Motoristas">
+            {lista.map((m) => <li key={m.id}><button type="button" role="option" aria-selected={escolha === m.id} className={escolha === m.id ? "on" : ""} onClick={() => setEscolha(m.id)}><b>{m.nome}</b><small>{m.placa ? comTraco(m.placa) : "sem veículo de costume"}</small></button></li>)}
+          </ul>
+        )}
+        <div className="logi-rodape"><Button variant="secondary" onClick={onFechar}>Fechar</Button><Button disabled={indo || !escolha} onClick={() => void ir()}>{indo ? "Designando…" : "Designar e mandar"}</Button></div>
       </div>
     </Modal>
   );

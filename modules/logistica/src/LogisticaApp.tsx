@@ -19,12 +19,13 @@ export default function LogisticaApp({ access, notify, initialSection }: ModuleR
   const { registerNav } = useModuleNav();
   const podeVer = canUseFeature(access, "logistica.entregas");
   const podeOperar = canUseFeature(access, "logistica.entregas", "operar");
+  const podeFrota = canUseFeature(access, "logistica.frota") || podeVer;
   const secoes = useMemo(() => ([
     podeVer && { id: "Ao vivo" as Secao, icon: "map" },
     podeVer && { id: "Entregas" as Secao, icon: "truck" },
-    podeVer && { id: "Frota" as Secao, icon: "users" },
+    podeFrota && { id: "Frota" as Secao, icon: "users" },
     podeOperar && { id: "Origem" as Secao, icon: "settings" },
-  ].filter(Boolean) as { id: Secao; icon: string }[]), [podeVer, podeOperar]);
+  ].filter(Boolean) as { id: Secao; icon: string }[]), [podeVer, podeOperar, podeFrota]);
   const [secao, setSecao] = useState<Secao>(() => secoes.find((s) => s.id === initialSection)?.id ?? secoes[0]?.id ?? "Ao vivo");
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function LogisticaApp({ access, notify, initialSection }: ModuleR
     <div className="almox-modulo">
       {secao === "Ao vivo" && <MapaAoVivo abrirEntregas={() => setSecao("Entregas")} />}
       {secao === "Entregas" && <Entregas notify={notify} />}
-      {secao === "Frota" && <Frota />}
+      {secao === "Frota" && <Frota notify={notify} />}
       {secao === "Origem" && <OrigemConfig notify={notify} />}
     </div>
   );

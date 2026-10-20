@@ -8662,3 +8662,10 @@ button.holiday-row:hover {
 .rastreio-nota { margin: 0; text-align: center; font-size: var(--fs-xs); color: var(--text-muted); }
 @media (max-width: 560px) { .rastreio-mapa { height: 300px; } }
 
+/* Frota: campos em duas colunas e ações à direita de cada item */
+.logi-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
+.logi-frota li { grid-template-columns: minmax(0, 1fr) auto; }
+.logi-frota-acoes { grid-row: 1 / span 3; grid-column: 2; display: flex; align-items: center; gap: var(--sp-2); }
+.logi-codigo { white-space: nowrap; }
+@media (max-width: 560px) { .logi-campos { grid-template-columns: 1fr; } }
+

@@ -46,6 +46,7 @@ test("logística: o motorista que vai para a tela não leva token, telefone nem 
   assert.equal(m.veiculo.placa, "ABC1D23");
   const texto = JSON.stringify(m);
   for (const proibido of ["segredo", "+55", "a@b"]) assert.ok(!texto.includes(proibido), proibido);
+  assert.equal(motoristaParaTela({ id: "driver_y", name: "Novo", location: { type: "Point", coordinates: [0, 0] } }).posicao, null, "0,0 é o padrão do Fleetbase, não uma posição");
 });
 
 test("logística: conferência da ordem e andamento", () => {

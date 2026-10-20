@@ -57,7 +57,7 @@ Forja e do transmissor de NF-e. Os motivos:
 
 | Decisão | Quem decide | Trava |
 |---|---|---|
-| Quem responde pela expedição (opera as entregas) | Proprietário indica a área | Liberar `logistica.entregas` |
+| Quem responde pela expedição (opera as entregas) e quem cadastra a frota | Proprietário indica a área (vai delegar depois, 20/10) | Liberar `logistica.entregas` e `logistica.frota` |
 | Regra de privacidade do rastreio do motorista: GPS só durante a entrega ou o expediente, ciência por escrito | Rosana (RH) | L-03 em produção |
 | Instalar o Fleetbase no servidor da fábrica (recurso do servidor) | Proprietário | L-01 em produção |
 | Rotas de verdade | Proprietário: **decidido em 20/10, Google Routes** (ver abaixo) | — |
@@ -119,4 +119,5 @@ laranja e o vermelho se confundiam com as estradas do mapa (pedido do proprietá
 | L-01 local | Fleetbase no ambiente local, versão travada, conta e chave de integração | **Feito em 20/10**: API e console no ar; local, ordem, motorista, despacho, posição e previsão testados |
 | L-02 | Módulo Logística na plataforma: entregas (criar a partir de OS, pedido ou avulsa), mapa ao vivo, frota (leitura), origem configurável, conferência pelo aviso, eventos | **Feito em 20/10**: migração aplicada; teste de navegador 15/15 (usuários temporários, Fleetbase local, simulador, rota e previsão com trânsito pelo Google) |
 | L-01 produção | Instalar no servidor (Coolify, MySQL próprio, backup no T-02, rede interna) | **Instalado em 20/10** (OK do proprietário): app `fleetbase-entregas` no Coolify, nome interno `frota.pecsil`, conta da empresa e chave de integração criadas, aviso cadastrado, consulta pública e cadastro de contas fechados. **No ar em 20/10** (Deploy de `57ac65a`): a plataforma lê a frota e o mapa pelo Traefik, e o aviso do Fleetbase chega à plataforma (200, testado com uma ordem de teste apagada em seguida). Falta o backup do MySQL dele no T-02 |
+| L-02b | Cadastro da frota e dos motoristas na plataforma (pedido do proprietário, 20/10): veículos (placa normalizada, antiga e Mercosul), motorista = colaborador ativo do RH com o veículo de costume; a plataforma é a dona do cadastro e espelha no Fleetbase (do motorista, **só o nome**); motorista na criação da entrega ou em "Designar motorista". Permissão nova `logistica.frota` (ver/operar); quem tem entregas lê a frota | **Feito em 20/10**: migração `202610200003` aplicada (ninguém recebeu acesso); banco descartável com o esquema de produção; teste de navegador 29/29 (colaborador temporário do RH, Fleetbase local). Achado: o Fleetbase cria o motorista no ponto 0,0, que a plataforma agora trata como "sem posição" |
 | L-03 | App do motorista (Navigator) em produção, com comprovante (foto e assinatura); veículos e manutenção | B-06 e a regra de privacidade |

@@ -49,6 +49,8 @@ export async function chamarLogistica<T>(url: string, init?: RequestInit): Promi
 
 export const dataHora = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+/** Placa com traço para ler (ABC-1D23), também dentro de um texto como "ABC1D23 · VW Delivery". */
+export const comTraco = (texto: string) => texto.replace(/\b([A-Z]{3})([0-9][A-Z0-9][0-9]{2})\b/g, "$1-$2");
 export const hora = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—");
 export const km = (m: number | null | undefined) => (m === null || m === undefined ? "—" : m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`);
 export const haQuanto = (iso: string | null | undefined, agora: number) => {
