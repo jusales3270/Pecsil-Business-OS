@@ -118,5 +118,5 @@ laranja e o vermelho se confundiam com as estradas do mapa (pedido do proprietá
 |---|---|---|
 | L-01 local | Fleetbase no ambiente local, versão travada, conta e chave de integração | **Feito em 20/10**: API e console no ar; local, ordem, motorista, despacho, posição e previsão testados |
 | L-02 | Módulo Logística na plataforma: entregas (criar a partir de OS, pedido ou avulsa), mapa ao vivo, frota (leitura), origem configurável, conferência pelo aviso, eventos | **Feito em 20/10**: migração aplicada; teste de navegador 15/15 (usuários temporários, Fleetbase local, simulador, rota e previsão com trânsito pelo Google) |
-| L-01 produção | Instalar no servidor (Coolify, MySQL próprio, backup no T-02, rede interna) | Depende das decisões da seção 3 |
+| L-01 produção | Instalar no servidor (Coolify, MySQL próprio, backup no T-02, rede interna) | **Instalado em 20/10** (OK do proprietário): app `fleetbase-entregas` no Coolify, nome interno `frota.pecsil`, conta da empresa e chave de integração criadas, aviso cadastrado, consulta pública e cadastro de contas fechados. Faltam o Deploy do Business OS (variáveis novas e o acesso pelo Traefik) e o backup do MySQL dele no T-02 |
 | L-03 | App do motorista (Navigator) em produção, com comprovante (foto e assinatura); veículos e manutenção | B-06 e a regra de privacidade |

@@ -1,9 +1,15 @@
 import "server-only";
 
+import http from "node:http";
+import https from "node:https";
+
 /**
  * Cliente da API pública do Fleetbase (serviço separado, docs/PLANO-LOGISTICA.md). Só no servidor: a chave
- * (`FLEETBASE_API_KEY`) nunca vai para o navegador. Em produção, a URL é a da rede interna do servidor,
- * como a da Forja; no desenvolvimento, o Fleetbase local (`http://localhost:8000`).
+ * (`FLEETBASE_API_KEY`) nunca vai para o navegador.
+ * - Produção: como a Forja, pelo Traefik interno do Coolify: `FLEETBASE_API_URL=http://coolify-proxy` e
+ *   `FLEETBASE_API_HOST=frota.pecsil` (o nome no Traefik). O `fetch` do Node descarta um `Host` próprio, por
+ *   isso, com o `FLEETBASE_API_HOST`, a chamada usa `node:http`.
+ * - Desenvolvimento: o Fleetbase local (`FLEETBASE_API_URL=http://localhost:8000`, sem `FLEETBASE_API_HOST`).
  */
 export class FleetbaseErro extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -13,23 +19,48 @@ type Json = Record<string, unknown>;
 
 export const fleetbaseConfigurado = () => Boolean(process.env.FLEETBASE_API_URL && process.env.FLEETBASE_API_KEY);
 
+/** Uma requisição com o cabeçalho Host próprio (o Traefik roteia por ele), até 15 s e 5 MB. */
+function comHost(url: URL, host: string, metodo: string, cabecalhos: Record<string, string>, corpo?: string) {
+  return new Promise<{ status: number; texto: string }>((ok, falha) => {
+    const cliente = url.protocol === "https:" ? https : http;
+    const req = cliente.request(url, {
+      method: metodo,
+      headers: { ...cabecalhos, Host: host, ...(corpo ? { "content-length": String(Buffer.byteLength(corpo)) } : {}) },
+      timeout: 15_000,
+    }, (res) => {
+      const partes: Buffer[] = [];
+      let tamanho = 0;
+      res.on("data", (c: Buffer) => { tamanho += c.length; if (tamanho > 5_000_000) { req.destroy(new Error("resposta grande demais")); return; } partes.push(c); });
+      res.on("end", () => ok({ status: res.statusCode ?? 0, texto: Buffer.concat(partes).toString("utf8") }));
+    });
+    req.on("timeout", () => req.destroy(new Error("tempo esgotado")));
+    req.on("error", falha);
+    if (corpo) req.write(corpo);
+    req.end();
+  });
+}
+
 async function chamar<T = Json>(caminho: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
   const base = (process.env.FLEETBASE_API_URL ?? "").replace(/\/$/, "");
   const chave = process.env.FLEETBASE_API_KEY;
+  const host = process.env.FLEETBASE_API_HOST;
   if (!base || !chave) throw new FleetbaseErro("O serviço de entregas (Fleetbase) não está configurado.", 503);
-  let r: Response;
+  const metodo = init.method ?? "GET";
+  const cabecalhos: Record<string, string> = { authorization: `Bearer ${chave}`, accept: "application/json", ...(init.body ? { "content-type": "application/json" } : {}) };
+  const corpoTexto = init.body ? JSON.stringify(init.body) : undefined;
+  let r: { ok: boolean; status: number; texto: string };
   try {
-    r = await fetch(`${base}/v1${caminho}`, {
-      method: init.method ?? "GET",
-      headers: { authorization: `Bearer ${chave}`, accept: "application/json", ...(init.body ? { "content-type": "application/json" } : {}) },
-      body: init.body ? JSON.stringify(init.body) : undefined,
-      cache: "no-store",
-      signal: AbortSignal.timeout(15_000),
-    });
+    if (host) {
+      const x = await comHost(new URL(`${base}/v1${caminho}`), host, metodo, cabecalhos, corpoTexto);
+      r = { ok: x.status >= 200 && x.status < 300, status: x.status, texto: x.texto };
+    } else {
+      const x = await fetch(`${base}/v1${caminho}`, { method: metodo, headers: cabecalhos, body: corpoTexto, cache: "no-store", signal: AbortSignal.timeout(15_000) });
+      r = { ok: x.ok, status: x.status, texto: await x.text() };
+    }
   } catch {
     throw new FleetbaseErro("O serviço de entregas não respondeu.", 503);
   }
-  const texto = await r.text();
+  const texto = r.texto;
   let corpo: unknown = null;
   try { corpo = texto ? JSON.parse(texto) : null; } catch { corpo = null; }
   if (!r.ok) {
