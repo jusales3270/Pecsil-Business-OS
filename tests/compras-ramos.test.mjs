@@ -57,3 +57,11 @@ test("ramos na tela: o item cotado leva o vínculo com o item do pedido", () => 
   assert.match(store, /material_request_item_id: p\.pedidoItemId \?\? null/);
   assert.match(store, /ramo_id: data\.ramoId \?\? null/);
 });
+
+test("preço lançado na plataforma cancela o link de cotação aberto do mesmo fornecedor no pedido", () => {
+  const m = readFileSync(new URL("../supabase/migrations/202610200005_compras_convite_cancela_manual.sql", import.meta.url), "utf8");
+  assert.match(m, /create trigger cotacoes_cancela_convites after insert on public\.cotacoes/);
+  assert.match(m, /new\.ramo_id is not null and cv\.ramo_id = new\.ramo_id/, "o link do próprio ramo");
+  assert.match(m, /cv\.ramo_id is null and \(\(new\.supplier_id is not null and cv\.supplier_id = new\.supplier_id\)/, "o link do pedido inteiro com o mesmo fornecedor");
+  assert.match(m, /cv\.situacao = 'aberto'/, "só o que ainda está aberto (o respondido fica)");
+});
