@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-19-cerebro-arrastar",
+    data: "2026-10-19",
+    area: "War Room",
+    modulos: ["warroom"],
+    funcionalidades: ["warroom.cerebro"],
+    titulo: "Segundo Cérebro: segurar e arrastar",
+    itens: [
+      "Segure um ponto e arraste: as ligações e os vizinhos diretos vêm junto, para enxergar melhor; o resto do cérebro fica parado.",
+      "Ao soltar, tudo volta suavemente para o lugar.",
+    ],
+  },
+  {
     id: "2026-10-19-fichas-cerebro",
     data: "2026-10-19",
     area: "Compras, Comercial e Cadastros",

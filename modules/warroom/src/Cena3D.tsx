@@ -12,9 +12,10 @@ import { type Subgrafo, familiaDe, tipoDe } from "../../../lib/cerebro/visual";
  * se expande) quando algo acontece na empresa: evento de um módulo, consulta de uma SARA, ligação nova.
  *
  * Estabilidade: o arranjo (forças 3D) é calculado ANTES de aparecer e para sozinho; filtros escondem e
- * mostram pontos sem refazer o arranjo (nada pula). A câmera tem amortecimento, sensibilidade baixa, e
- * os pontos não se arrastam com o mouse. Seleção e destaque mudam só o material dos objetos, sem refazer
- * a cena; os nomes são HTML (nítidos em qualquer zoom), poucos de cada vez.
+ * mostram pontos sem refazer o arranjo (nada pula). A câmera tem amortecimento e sensibilidade baixa.
+ * Segurar e arrastar um núcleo puxa só ele e os vizinhos diretos (o resto do cérebro fica parado); ao
+ * soltar, todos voltam suavemente ao lugar. Seleção e destaque mudam só o material dos objetos, sem
+ * refazer a cena; os nomes são HTML (nítidos em qualquer zoom), poucos de cada vez.
  */
 export type OpcoesCena = { nomes: "hubs" | "todos" | "nenhum"; particulas: boolean; girar: boolean };
 export type ApiCena = { pulsar: (nos: string[], ligacoes?: string[]) => void; centralizar: () => void; focar: (id: string) => void };
@@ -72,6 +73,7 @@ export function Cena3D({ grafo, visiveis, selecionado, opcoes, margens, onNo, on
     selecionado, hover: null as string | null, visiveis, opcoes, margens, desloc: 0,
     vizinhos: new Map<string, Set<string>>(), pulsando: new Map<string, number>(), hubs: new Set<string>(), ordem: [] as string[], posto: new Map<string, number>(),
     visuais: new Map<string, Visual>(), rotulos: new Map<string, CSS2DObjectT>(), enquadrar: true, emFoco: false, carga: 0,
+    arrasto: null as { id: string; origem: Map<string, { x: number; y: number; z: number }>; girava: boolean } | null,
   });
   const posicoes = useRef(new Map<string, { x: number; y: number; z: number }>());
   const cb = useRef({ onNo, onLigacao, onApi });
@@ -226,6 +228,20 @@ export function Cena3D({ grafo, visiveis, selecionado, opcoes, margens, onNo, on
     let observador: ResizeObserver | null = null;
     const st = estado.current;
     const arrumar = setInterval(arrumarRotulos, 300);
+    // Ao soltar um ponto, a biblioteca simula um "pointerup" de toque para soltar a câmera; na versão do
+    // three em uso isso derruba o OrbitControls (ponteiro inexistente) e trava o arrasto. O mouse e o
+    // dedo de verdade continuam passando; só esse evento simulado é barrado.
+    const barrarSimulado = (ev: PointerEvent) => { if (!ev.isTrusted && ev.pointerType === "touch") ev.stopImmediatePropagation(); };
+    document.addEventListener("pointerup", barrarSimulado, true);
+    // Garantia: se o aviso de "soltou" da biblioteca não vier, soltar o botão já devolve os pontos ao lugar.
+    const aoSoltar = (ev: PointerEvent) => {
+      const a = estado.current.arrasto;
+      if (!ev.isTrusted || !a) return;
+      const n = (g.current?.graphData().nodes as No[] | undefined)?.find((x) => x.id === a.id);
+      if (n) soltar(n);
+    };
+    window.addEventListener("pointerup", aoSoltar);
+    window.addEventListener("pointercancel", aoSoltar);
     (async () => {
       try {
         const [{ default: ForceGraph3D }, THREE, { UnrealBloomPass }, { CSS2DRenderer, CSS2DObject }, d3] = await Promise.all([
@@ -240,7 +256,7 @@ export function Cena3D({ grafo, visiveis, selecionado, opcoes, margens, onNo, on
         const el = caixa.current;
         const fg = new ForceGraph3D(el, { controlType: "orbit", extraRenderers: [new CSS2DRenderer() as never], rendererConfig: { antialias: true, powerPreference: "high-performance" } });
         g.current = fg;
-        fg.width(el.clientWidth).height(el.clientHeight).backgroundColor(FUNDO).showNavInfo(false).enableNodeDrag(false)
+        fg.width(el.clientWidth).height(el.clientHeight).backgroundColor(FUNDO).showNavInfo(false).enableNodeDrag(true)
           .nodeId("id")
           .nodeLabel((n) => {
             const no = n as No;
@@ -292,6 +308,8 @@ export function Cena3D({ grafo, visiveis, selecionado, opcoes, margens, onNo, on
             el.style.cursor = id ? "pointer" : "grab";
             pintar();
           })
+          .onNodeDrag((n) => arrastar(n as No))
+          .onNodeDragEnd((n) => soltar(n as No))
           .onEngineTick(() => { if (estado.current.rotulos.size) rotular(); })
           // Arranjo: calculado quase todo ANTES de aparecer (ver carregar) e para sozinho, sem "pular".
           .warmupTicks(260).cooldownTicks(40).d3AlphaDecay(0.035).d3VelocityDecay(0.45);
@@ -364,6 +382,9 @@ export function Cena3D({ grafo, visiveis, selecionado, opcoes, margens, onNo, on
     return () => {
       vivo = false;
       clearInterval(arrumar);
+      document.removeEventListener("pointerup", barrarSimulado, true);
+      window.removeEventListener("pointerup", aoSoltar);
+      window.removeEventListener("pointercancel", aoSoltar);
       observador?.disconnect();
       cb.current.onApi(null);
       for (const o of st.rotulos.values()) o.element.remove();
@@ -446,6 +467,56 @@ export function Cena3D({ grafo, visiveis, selecionado, opcoes, margens, onNo, on
     const d = nos.filter((x) => viz.has(x.id) && x.x !== undefined).map((x) => Math.hypot(x.x! - n.x!, (x.y ?? 0) - (n.y ?? 0), (x.z ?? 0) - (n.z ?? 0))).sort((a, b) => a - b);
     const raio = Math.min(420, Math.max(120, d.length ? d[Math.floor((d.length - 1) * 0.9)] + 30 : 120));
     voar({ x: n.x, y: n.y ?? 0, z: n.z ?? 0 }, distanciaPara(raio) * 1.1, 1300);
+  }
+
+  /**
+   * Segurar e arrastar: no primeiro movimento, congela todos os pontos menos o arrastado e os vizinhos
+   * diretos dele (só estes sentem as forças e vêm junto, como elástico).
+   */
+  function arrastar(n: No) {
+    const fg = g.current, e = estado.current;
+    if (!fg || e.arrasto?.id === n.id) return;
+    const viz = e.vizinhos.get(n.id) ?? new Set<string>();
+    const origem = new Map<string, { x: number; y: number; z: number }>();
+    const ini = (n as No & { __initialPos?: { x: number; y: number; z: number } }).__initialPos;
+    origem.set(n.id, ini ?? { x: n.x ?? 0, y: n.y ?? 0, z: n.z ?? 0 });
+    type Fixo = No & { fx?: number; fy?: number; fz?: number };
+    for (const m of fg.graphData().nodes as Fixo[]) {
+      if (m.id === n.id || m.x === undefined) continue;
+      if (viz.has(m.id)) { origem.set(m.id, { x: m.x, y: m.y ?? 0, z: m.z ?? 0 }); delete m.fx; delete m.fy; delete m.fz; }
+      else { m.fx = m.x; m.fy = m.y; m.fz = m.z; }
+    }
+    const c = fg.controls() as { autoRotate?: boolean };
+    e.arrasto = { id: n.id, origem, girava: Boolean(c.autoRotate) };
+    c.autoRotate = false;
+    // A biblioteca para o motor depois de poucos quadros: enquanto houver arrasto, ele segue rodando.
+    fg.cooldownTicks(Infinity);
+  }
+
+  /** Ao soltar, o núcleo e os vizinhos voltam ao lugar em meio segundo (o arranjo não se desfaz). */
+  function soltar(n: No) {
+    const fg = g.current, e = estado.current, a = e.arrasto;
+    if (!fg || !a || a.id !== n.id) return;
+    e.arrasto = null;
+    type Fixo = No & { fx?: number; fy?: number; fz?: number };
+    const porId = new Map((fg.graphData().nodes as Fixo[]).map((m) => [m.id, m]));
+    const de = new Map([...a.origem.keys()].map((id) => { const m = porId.get(id)!; return [id, { x: m.x ?? 0, y: m.y ?? 0, z: m.z ?? 0 }]; }));
+    const t0 = performance.now();
+    const passo = (t: number) => {
+      const k = Math.min(1, (t - t0) / 520), s = 1 - (1 - k) ** 3;
+      for (const [id, o] of a.origem) {
+        const m = porId.get(id), d = de.get(id);
+        if (!m || !d) continue;
+        m.fx = m.x = d.x + (o.x - d.x) * s;
+        m.fy = m.y = d.y + (o.y - d.y) * s;
+        m.fz = m.z = d.z + (o.z - d.z) * s;
+      }
+      if (k < 1) { requestAnimationFrame(passo); return; }
+      fg.cooldownTicks(40);
+      const c = fg.controls() as { autoRotate?: boolean };
+      c.autoRotate = a.girava && estado.current.opcoes.girar && !estado.current.selecionado;
+    };
+    requestAnimationFrame(passo);
   }
 
   /** O "pulso magnético": anéis que se expandem nos pontos e impulsos correndo nas ligações. */
