@@ -26,7 +26,8 @@ Internet ── 181.224.8.145 (IP público) ── roteador da empresa
               │ Coolify 4.3.23 + Traefik (coolify-proxy), portas 80 e 443   │
               │   ├─ Business OS (Next.js)        home.pecsil.com.br        │
               │   ├─ Forja (compose: API, web, Postgres, MinIO)             │
-              │   └─ Transmissor da NF-e (porta 3100, só rede interna)      │
+              │   ├─ Transmissor da NF-e (porta 3100, só rede interna)      │
+              │   └─ Fleetbase (entregas; compose; frota.pecsil, interno)   │
               └─────────────────────────────────────────────────────────────┘
               Supabase (docker-compose fora do Coolify): Kong :8000, Postgres :5432,
               pooler :6543, :8443
@@ -52,6 +53,7 @@ Internet ── 181.224.8.145 (IP público) ── roteador da empresa
 | `181.224.8.145:5432`, `:6543`, `:8443` | Postgres, pooler e Kong TLS do Supabase | **Abertos na internet** (risco: B-01) |
 | `181.224.8.145:22` | SSH do servidor | Recusa a senha conhecida (ver 7.4) |
 | `forja.pecsil` | Forja, pelo Host no Traefik | Responde também pela 80 pública |
+| `frota.pecsil` | Fleetbase (entregas), pelo Host no Traefik | Responde também pela 80 pública. A consulta pública por número de rastreio fica fechada no nginx dele, e o cadastro de contas é fechado depois da conta da empresa |
 | `supabase.pecsil.com.br` | Nome antigo do Supabase | Não é mais usado; existia só no `/etc/hosts` de um Mac |
 
 O porquê das portas do Supabase abertas: elas são publicadas pelo docker-compose em `0.0.0.0`;
@@ -65,6 +67,7 @@ fechar no roteador não resolve. A correção é no servidor e está em
 | Business OS | App do Coolify, build Railpack a partir do `main` (o Deploy leva uns 3 min) | este repositório | Supabase | `i3rwerhgkqqurapbrowuho1p` (app `pecsil--business--o-s`) |
 | Forja | Compose do Coolify (`docker-compose.coolify.yml`) | `jusales3270/forja-pecsil` | Postgres próprio, banco **`forja_recuperado_20260911`**; MinIO | `f7dr7wdj87pbupkbfezrnnw5` |
 | Transmissor da NF-e | App do Coolify, Dockerfile, Base Directory `/services/transmissor-nfe`, porta 3100 | este repositório (programa separado, GPL-3.0) | nenhum (não guarda nada) | `zqolizieqokegi4w9fihwxlo` (app `transmissor-nfe`) |
+| Fleetbase (entregas, L-01) | Compose do Coolify (`docker-compose.coolify.yml`, ramo **`pecsil`**; submódulos do git **desligados**) | `jusales3270/fleetbase-frota` (fork, AGPL) | MySQL próprio (volume `fleetbase_mysql`, **fora do backup externo por enquanto**) | `vs6zcbrmmlgrnrouwz4rm02b` (app `fleetbase-entregas`) |
 | Backup externo (T-02) | App do Coolify, Dockerfile, Base Directory `/services/backup`, sem domínio | este repositório | lê o Supabase pelo papel `backup_leitura`; grava no projeto do vigia | `vn52r1arcew0qjpirt0gu1mp` (app `backup-externo`) |
 | Supabase | docker-compose manual, **fora** do Coolify | — | Postgres (`public`), Storage (buckets `empresa-documentos`, `rh-documents`…) | — |
 

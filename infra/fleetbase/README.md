@@ -28,6 +28,24 @@ separado** (AGPL-3.0) e a plataforma fala com ele só pela API. O código é o f
 **Depois de mudar qualquer variável**, rodar `php artisan config:clear && php artisan config:cache` nos contêineres
 `application` e `queue`: o Fleetbase guarda a configuração em cache.
 
+## Instalado no servidor (20/10/2026)
+
+- **No Coolify:** a aplicação é `fleetbase-entregas` (`vs6zcbrmmlgrnrouwz4rm02b`), no projeto Pecsil Business OS, e usa
+  o compose `docker-compose.coolify.yml` do ramo **`pecsil`** do fork.
+- **O que o ramo `pecsil` traz:**
+  - o compose (versão travada, nenhuma porta publicada, teto de memória por contêiner, passo `setup` que cria o banco
+    a cada deploy);
+  - o `docker/httpd/Dockerfile.pecsil`: o nginx com este `vhost.conf` **dentro da imagem**, porque o Coolify não
+    copia arquivo do repositório para montar como volume;
+  - o próprio `docker/httpd/vhost-pecsil.conf`.
+- **O nome interno é `frota.pecsil`, no Traefik.** A plataforma chega por `FLEETBASE_API_URL=http://coolify-proxy`
+  com `FLEETBASE_API_HOST=frota.pecsil`, como a Forja.
+- **Segredos:** só nas variáveis do Coolify (`FB_APP_KEY`, `FB_DB_PASSWORD`, `FB_GOOGLE_MAPS_API_KEY`).
+- **Armadilhas da instalação:**
+  - os submódulos do git ficam **desligados** no Coolify (eles apontam para o GitHub por SSH, e o clone falha);
+  - o teste de saúde do MySQL é pela rede (`127.0.0.1`), não pelo socket. Na primeira subida, o "pronto" pelo socket
+    chega antes de o servidor aceitar conexões.
+
 ## No servidor (L-01 em produção), além do local
 
 - **No Coolify:** o MySQL do Fleetbase entra no backup externo (T-02), e o acesso é pela rede interna, como na Forja.
