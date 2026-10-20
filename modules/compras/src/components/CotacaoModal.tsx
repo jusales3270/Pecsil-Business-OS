@@ -17,7 +17,8 @@ interface Props {
   ramo?: { id: string; fornecedor: string; itemIds: string[] } | null;
 }
 
-const UNIDADES = ['kg', 'un', 'l', 'm', 'cx', 'ton'];
+// m³: gases (oxigênio, argônio, nitrogênio), como no catálogo de materiais.
+const UNIDADES = ['kg', 'un', 'l', 'm', 'm³', 'cx', 'ton'];
 
 export default function CotacaoModal({ cotacao, onClose, pedido = null, ramo = null }: Props) {
   const { user, addCotacao, updateCotacao, currentDivisao } = useStore();

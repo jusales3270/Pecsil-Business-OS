@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-20-compras-m3-resposta",
+    data: "2026-10-20",
+    area: "Compras",
+    modulos: ["compras", "almoxarifado"],
+    funcionalidades: ["compras.cotacoes", "almoxarifado.solicitacoes", "almoxarifado.recebimento"],
+    titulo: "Metro cúbico para gases e resposta do fornecedor no card",
+    itens: [
+      "Nova unidade M³ (metro cúbico) para oxigênio, argônio e outros gases: no pedido de material, no recebimento, na cotação e na compra direta.",
+      "Quando o fornecedor responde pelo link, a resposta aparece direto no card do pedido (sem aviso no sino).",
+      "Preço lançado na plataforma cancela sozinho o link de cotação ainda aberto daquele fornecedor no pedido.",
+    ],
+  },
+  {
     id: "2026-10-20-compras-ramos",
     data: "2026-10-20",
     area: "Compras",

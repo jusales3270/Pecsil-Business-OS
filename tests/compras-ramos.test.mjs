@@ -65,3 +65,19 @@ test("preço lançado na plataforma cancela o link de cotação aberto do mesmo 
   assert.match(m, /cv\.ramo_id is null and \(\(new\.supplier_id is not null and cv\.supplier_id = new\.supplier_id\)/, "o link do pedido inteiro com o mesmo fornecedor");
   assert.match(m, /cv\.situacao = 'aberto'/, "só o que ainda está aberto (o respondido fica)");
 });
+
+test("resposta pelo link: sem aviso no sino, aparece no card do pedido", () => {
+  const m = readFileSync(new URL("../supabase/migrations/202610200006_compras_resposta_sem_sino.sql", import.meta.url), "utf8");
+  assert.match(m, /create or replace function public\.compras_convite_responder\(/);
+  assert.doesNotMatch(m, /notify_feature|notify_profile/, "a resposta não vai para o sino");
+  assert.match(m, /grant execute on function public\.compras_convite_responder\([^)]*\) to service_role;/);
+  const pagina = readFileSync(new URL("../modules/compras/src/pages/SolicitacoesPage.tsx", import.meta.url), "utf8");
+  assert.match(pagina, /respondeu pelo link<\/b>/);
+});
+
+test("metro cúbico (gás) nas unidades do pedido, do recebimento e da cotação", () => {
+  const almox = readFileSync(new URL("../modules/almoxarifado/src/tipos.tsx", import.meta.url), "utf8");
+  const cot = readFileSync(new URL("../modules/compras/src/components/CotacaoModal.tsx", import.meta.url), "utf8");
+  assert.match(almox, /export const UNIDADES = \[[^\]]*"M³"/);
+  assert.match(cot, /const UNIDADES = \[[^\]]*'m³'/);
+});

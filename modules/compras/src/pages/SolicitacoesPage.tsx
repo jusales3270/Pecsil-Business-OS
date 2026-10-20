@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Package, RefreshCw, Search } from 'lucide-react';
+import { CheckCircle, Package, RefreshCw, Search } from 'lucide-react';
 import { useStore } from '@/store';
 import { supabase } from '@/lib/supabase';
 import type { Divisao, PedidoMaterial } from '@/types';
@@ -18,7 +18,7 @@ import { ROTULO_ESTADO, estadoDosItens } from '../../../../lib/compras/ramos';
  */
 
 type Filtro = 'abertos' | 'andamento' | 'todos';
-type Convite = { id: string; material_request_id: string; ramo_id: string | null; fornecedor: string; situacao: 'aberto' | 'respondido' | 'cancelado'; expira_em: string; cotacao_id: number | null; aberto_em: string | null };
+type Convite = { id: string; material_request_id: string; ramo_id: string | null; fornecedor: string; situacao: 'aberto' | 'respondido' | 'cancelado'; expira_em: string; cotacao_id: number | null; aberto_em: string | null; respondido_em: string | null };
 
 const SITUACAO: Record<PedidoMaterial['status'], { label: string; cls: string }> = {
   aberta: { label: 'Aguardando cotação', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -195,14 +195,26 @@ export default function SolicitacoesPage() {
                   );
                 })}
               </ul>
+              {/* Resposta do fornecedor pelo link: aparece aqui, sem aviso no sino, enquanto a cotação aguarda aprovação. */}
+              {convitesDo(p.id).filter((c) => c.situacao === 'respondido').map((c) => {
+                const cot = ligadas.find((x) => x.id === c.cotacao_id);
+                if (cot && cot.status !== 'PENDENTE') return null;
+                const n = cot?.produtos?.length ?? 0;
+                return (
+                  <p key={c.id} className="flex items-start gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-2 text-xs text-green-700">
+                    <CheckCircle size={14} className="mt-px shrink-0" />
+                    <span><b>{c.fornecedor} respondeu pelo link</b> · cotação nº {c.cotacao_id}{n ? ` · ${n} item(ns)` : ''}{c.respondido_em ? ` · ${new Date(c.respondido_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}. Aguardando aprovação.</span>
+                  </p>
+                );
+              })}
               {p.observacao && <p className="rounded-md bg-slate-50 px-2 py-1.5 text-xs text-[#555]">{p.observacao}</p>}
               {ligadas.length > 0 && (
                 <p className="text-xs text-[#757575]">Cotações: {ligadas.map((c) => `#${c.id} ${c.fornecedor} (${c.origem === 'direta' ? 'compra imediata' : c.status.toLowerCase()})`).join(' · ')}</p>
               )}
-              {convitesDo(p.id).length > 0 && (
+              {convitesDo(p.id).some((c) => c.situacao !== 'respondido') && (
                 <div className="space-y-1 text-xs">
                   <p className="font-semibold text-[#555]">Convites por link</p>
-                  {convitesDo(p.id).map((c) => (
+                  {convitesDo(p.id).filter((c) => c.situacao !== 'respondido').map((c) => (
                     <p key={c.id} className="flex flex-wrap items-center gap-x-2 text-[#757575]">
                       <span className="text-[#212121]">{c.fornecedor}</span>
                       {c.situacao === 'respondido' ? <span className="text-emerald-700">respondeu · cotação #{c.cotacao_id}</span>

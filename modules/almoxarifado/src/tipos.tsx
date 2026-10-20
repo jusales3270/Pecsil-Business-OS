@@ -75,7 +75,8 @@ export const SITUACAO: Record<SituacaoPedido, { label: string; tone: "neutral" |
 };
 
 export const DIVISAO: Record<string, string> = { USINAGEM: "Usinagem", FUNDICAO: "Fundição", GERAL: "Geral" };
-export const UNIDADES = ["UN", "KG", "L", "M", "CX", "PC", "PAR", "JG", "RL", "TON"];
+/** M³: gases (oxigênio, argônio, nitrogênio), como no catálogo de materiais. */
+export const UNIDADES = ["UN", "KG", "L", "M", "M³", "CX", "PC", "PAR", "JG", "RL", "TON"];
 
 export const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 export const date = (value: string | null | undefined) => (value && /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10).split("-").reverse().join("/") : "—");

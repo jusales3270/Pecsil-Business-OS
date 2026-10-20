@@ -16,7 +16,7 @@ export type Ramo = {
   situacao: 'aguardando' | 'cotado' | 'cancelado'; cotacaoId: number | null; itens: string[];
   criadoPorNome: string | null; createdAt: string;
 };
-export type ConviteDoPedido = { id: string; ramo_id: string | null; fornecedor: string; situacao: 'aberto' | 'respondido' | 'cancelado'; expira_em: string };
+export type ConviteDoPedido = { id: string; ramo_id: string | null; fornecedor: string; situacao: 'aberto' | 'respondido' | 'cancelado'; expira_em: string; cotacao_id: number | null };
 
 const COR: Record<EstadoItem, string> = {
   aberto: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -57,7 +57,7 @@ export default function PedidoModal({ pedido, cotacoes, compras, ramos, convites
   // Onde está cada item: ramos aguardando preço e cotações/OCs com ele.
   const ondeEsta = (itemId: string) => [
     ...aguardando.filter((r) => r.itens.includes(itemId)).map((r) => `${r.fornecedor} · aguardando preço`),
-    ...ligadas.flatMap((c) => (c.produtos ?? []).filter((p) => p.pedidoItemId === itemId).map((p) => `${rotuloCompra(c, { curto: true })} · ${c.fornecedor} · ${situacaoNaCotacao(c, p.status)}`)),
+    ...ligadas.flatMap((c) => (c.produtos ?? []).filter((p) => p.pedidoItemId === itemId).map((p) => `${rotuloCompra(c, { curto: true })} · ${c.fornecedor}${convites.some((cv) => cv.situacao === 'respondido' && cv.cotacao_id === c.id) ? ' (respondida pelo link)' : ''} · ${situacaoNaCotacao(c, p.status)}`)),
   ];
 
   const encaminhar = async () => {
