@@ -1,28 +1,72 @@
 import { NextResponse } from "next/server";
-import { requireFeature } from "../../../../lib/auth/feature-guard";
+import { requireAnyFeature, requireFeature } from "../../../../lib/auth/feature-guard";
 import { fleetbase, fleetbaseConfigurado } from "../../../../lib/logistica/fleetbase";
 import { motoristaParaTela } from "../../../../lib/logistica/regras.mjs";
-import { respostaDeErro } from "../../../../lib/logistica/servidor";
+import { espelharMotorista, espelharVeiculo, respostaDeErro } from "../../../../lib/logistica/servidor";
 
 export const dynamic = "force-dynamic";
 
-/** Veículos e motoristas cadastrados no Fleetbase (leitura; o cadastro é feito lá, pelo despacho). */
-export async function GET() {
-  const guard = await requireFeature("logistica.entregas", "ver");
+/**
+ * Frota e motoristas (cadastro da plataforma; o Fleetbase é o espelho). Ler: logistica.frota ou
+ * logistica.entregas. Com `?colaboradores=1`, a lista do RH para escolher o motorista (só nome e cargo; exige
+ * logistica.frota "operar"). O estado ao vivo (online, posição) vem do Fleetbase, pelo id de lá.
+ */
+export async function GET(request: Request) {
+  const guard = await requireAnyFeature(["logistica.frota", "logistica.entregas"], "ver");
   if ("error" in guard) return guard.error;
-  if (!fleetbaseConfigurado()) return NextResponse.json({ servico: false, veiculos: [], motoristas: [] });
+  const podeOperar = guard.access.can("logistica.frota", "operar");
+  if (new URL(request.url).searchParams.get("colaboradores")) {
+    if (!podeOperar) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    const { data, error } = await guard.supabase.rpc("logistica_colaboradores_motorista");
+    if (error) return respostaDeErro(error, "Não foi possível ler os colaboradores do RH.");
+    return NextResponse.json({ colaboradores: data ?? [] });
+  }
+  const [veiculos, motoristas] = await Promise.all([
+    guard.supabase.from("logistica_veiculos").select("*").order("ativo", { ascending: false }).order("placa"),
+    guard.supabase.from("logistica_motoristas").select("id, employee_id, nome, veiculo_id, ativo, fleetbase_motorista, erro, updated_at").order("ativo", { ascending: false }).order("nome"),
+  ]);
+  const falha = [veiculos, motoristas].find((x) => x.error);
+  if (falha?.error) return respostaDeErro(falha.error, "Não foi possível ler a frota.");
+  let aoVivo: Record<string, ReturnType<typeof motoristaParaTela>> = {};
+  if (fleetbaseConfigurado()) {
+    try {
+      const lista = await fleetbase.motoristasComPosicao();
+      aoVivo = Object.fromEntries(lista.map((d) => [String(d.id ?? ""), motoristaParaTela(d)]));
+    } catch { /* sem o estado ao vivo: a tela mostra só o cadastro */ }
+  }
+  return NextResponse.json({
+    servico: fleetbaseConfigurado(), podeOperar,
+    veiculos: veiculos.data ?? [],
+    motoristas: (motoristas.data ?? []).map((m) => {
+      const v = m.fleetbase_motorista ? aoVivo[m.fleetbase_motorista] : null;
+      return { ...m, online: Boolean(v?.online), posicaoEm: v?.posicao ? v.atualizado : null };
+    }),
+  });
+}
+
+/** Cadastra ou altera um veículo ou um motorista e espelha no Fleetbase (se falhar, fica o motivo para tentar de novo). */
+export async function POST(request: Request) {
+  const guard = await requireFeature("logistica.frota", "operar");
+  if ("error" in guard) return guard.error;
+  const body = (await request.json().catch(() => ({}))) as { tipo?: string; dados?: Record<string, unknown> };
+  const dados = body.dados ?? {};
   try {
-    const [veiculos, motoristas] = await Promise.all([fleetbase.veiculos(), fleetbase.motoristasComPosicao()]);
-    return NextResponse.json({
-      servico: true,
-      veiculos: (Array.isArray(veiculos) ? veiculos : []).map((v) => ({
-        id: String(v.id ?? ""), placa: (v.plate_number as string) ?? null,
-        modelo: [v.make, v.model].filter(Boolean).join(" ") || null, ano: (v.year as string) ?? null,
-        situacao: (v.status as string) ?? null, online: Boolean(v.online),
-      })),
-      motoristas: (Array.isArray(motoristas) ? motoristas : []).map(motoristaParaTela).filter(Boolean),
-    });
+    if (body.tipo === "veiculo") {
+      const { data, error } = await guard.supabase.rpc("logistica_salvar_veiculo", { p: dados });
+      if (error) return respostaDeErro(error, "Não foi possível salvar o veículo.");
+      await espelharVeiculo(guard.supabase, data);
+      const { data: atual } = await guard.supabase.from("logistica_veiculos").select("*").eq("id", data.id).single();
+      return NextResponse.json(atual);
+    }
+    if (body.tipo === "motorista") {
+      const { data, error } = await guard.supabase.rpc("logistica_salvar_motorista", { p: dados });
+      if (error) return respostaDeErro(error, "Não foi possível salvar o motorista.");
+      await espelharMotorista(guard.supabase, data);
+      const { data: atual } = await guard.supabase.from("logistica_motoristas").select("*").eq("id", data.id).single();
+      return NextResponse.json(atual);
+    }
+    return NextResponse.json({ error: "Tipo desconhecido." }, { status: 400 });
   } catch (error) {
-    return respostaDeErro(error, "Não foi possível ler a frota agora.");
+    return respostaDeErro(error, "Não foi possível salvar.");
   }
 }

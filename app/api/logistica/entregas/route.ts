@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireFeature } from "../../../../lib/auth/feature-guard";
 import { fleetbaseConfigurado } from "../../../../lib/logistica/fleetbase";
-import { conferirAbertas, enviarAoFleetbase, respostaDeErro } from "../../../../lib/logistica/servidor";
+import { conferirAbertas, designarMotorista, enviarAoFleetbase, respostaDeErro } from "../../../../lib/logistica/servidor";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +36,14 @@ export async function POST(request: Request) {
   if (error) return respostaDeErro(error, "Não foi possível criar a entrega.");
   try {
     const enviada = await enviarAoFleetbase(guard.supabase, (data as { id: string }).id);
-    return NextResponse.json(enviada, { status: 201 });
+    // Motorista escolhido já na criação: designa e despacha (se falhar, a entrega fica com a frota, sem motorista).
+    let aviso: string | null = null;
+    if (body.motorista_id && enviada.situacao === "enviada") {
+      try { await designarMotorista(guard.supabase, enviada.id, String(body.motorista_id)); }
+      catch (err) { aviso = `Entrega com a frota, mas o motorista não foi designado: ${err instanceof Error ? err.message : "tente de novo"}`; }
+    }
+    const { data: atual } = await guard.supabase.from("logistica_entregas").select("*").eq("id", enviada.id).single();
+    return NextResponse.json({ ...(atual ?? enviada), aviso }, { status: 201 });
   } catch (error) {
     return respostaDeErro(error, "A entrega foi criada, mas não foi possível mandá-la à frota.");
   }

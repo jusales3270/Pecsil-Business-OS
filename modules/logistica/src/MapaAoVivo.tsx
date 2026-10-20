@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type * as LT from "leaflet";
 import { Callout, Status } from "../../../packages/design-system";
 import { acrescentarAoRastro } from "../../../lib/logistica/regras.mjs";
-import { type AoVivo, type Entrega, type Motorista, SITUACAO, chamarLogistica, haQuanto, hora, km, useAgora } from "./tipos";
+import { type AoVivo, type Entrega, type Motorista, SITUACAO, chamarLogistica, comTraco, haQuanto, hora, km, useAgora } from "./tipos";
 
 /**
  * O mapa ao vivo: o pátio de onde o caminhão sai, os destinos das entregas abertas e os caminhões, que andam
@@ -109,8 +109,8 @@ export function MapaAoVivo({ abrirEntregas }: { abrirEntregas: () => void }) {
       pontos.push(p);
       rastros.current.set(mot.id, acrescentarAoRastro(rastros.current.get(mot.id) ?? [], p));
       const html = `<span class="logi-caminhao${mot.online ? "" : " parado"}" style="--giro:${mot.direcao ?? 0}deg"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden><path d="M12 3l6 16-6-3-6 3z" fill="currentColor"/></svg></span>`
-        + `<span class="logi-placa">${escapar(mot.veiculo?.placa ?? mot.nome)}</span>`;
-      const dica = `<b>${escapar(mot.nome)}</b>${mot.veiculo?.placa ? ` · ${escapar(mot.veiculo.placa)}` : ""}<br>${mot.velocidade !== null ? `${mot.velocidade} km/h · ` : ""}posição ${haQuanto(mot.atualizado, Date.now())}`;
+        + `<span class="logi-placa">${escapar(mot.veiculo?.placa ? comTraco(mot.veiculo.placa) : mot.nome)}</span>`;
+      const dica = `<b>${escapar(mot.nome)}</b>${mot.veiculo?.placa ? ` · ${escapar(comTraco(mot.veiculo.placa))}` : ""}<br>${mot.velocidade !== null ? `${mot.velocidade} km/h · ` : ""}posição ${haQuanto(mot.atualizado, Date.now())}`;
       const ja = marcadores.current.get(mot.id);
       if (ja) { ja.setLatLng(p); ja.setIcon(lf.divIcon({ className: "logi-pin", html, iconSize: [34, 34], iconAnchor: [17, 17] })); ja.setTooltipContent(dica); }
       else marcadores.current.set(mot.id, lf.marker(p, { icon: lf.divIcon({ className: "logi-pin", html, iconSize: [34, 34], iconAnchor: [17, 17] }), zIndexOffset: 1000 }).bindTooltip(dica, { direction: "top" }).addTo(c.caminhoes));
@@ -172,7 +172,7 @@ export function MapaAoVivo({ abrirEntregas }: { abrirEntregas: () => void }) {
                         <>
                           <span className="logi-barra" aria-label={`${Math.round(a?.percentual ?? 0)}% do caminho`}><i style={{ width: `${Math.min(100, Math.max(3, a?.percentual ?? 0))}%` }} /></span>
                           <small>
-                            {e.motorista ?? "Motorista"}{e.veiculo ? ` · ${e.veiculo}` : ""}{mot?.velocidade !== null && mot?.velocidade !== undefined ? ` · ${mot.velocidade} km/h` : ""}
+                            {e.motorista ?? "Motorista"}{e.veiculo ? ` · ${comTraco(e.veiculo)}` : ""}{mot?.velocidade !== null && mot?.velocidade !== undefined ? ` · ${mot.velocidade} km/h` : ""}
                             {" · "}faltam {km(a?.faltaM)} · chega ~{hora(a?.chegada ?? e.previsao)}
                             {a?.estimativaEmLinhaReta ? " (estimativa em linha reta)" : a?.comTransito ? " (com o trânsito de agora)" : ""}
                           </small>

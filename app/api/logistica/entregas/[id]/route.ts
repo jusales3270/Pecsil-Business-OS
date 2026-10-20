@@ -1,21 +1,26 @@
 import { NextResponse } from "next/server";
 import { requireFeature } from "../../../../../lib/auth/feature-guard";
 import { fleetbase } from "../../../../../lib/logistica/fleetbase";
-import { enviarAoFleetbase, respostaDeErro } from "../../../../../lib/logistica/servidor";
+import { designarMotorista, enviarAoFleetbase, respostaDeErro } from "../../../../../lib/logistica/servidor";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Ações numa entrega: "reenviar" (tentar de novo mandar à frota), "cancelar" (com o motivo), "link" (link de
- * rastreio para o cliente) e "cancelar_link".
+ * Ações numa entrega: "reenviar" (tentar de novo mandar à frota), "designar" (o motorista da frota, que recebe
+ * no celular), "cancelar" (com o motivo), "link" (link de rastreio para o cliente) e "cancelar_link".
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireFeature("logistica.entregas", "operar");
   if ("error" in guard) return guard.error;
   const { id } = await params;
-  const body = (await request.json().catch(() => ({}))) as { acao?: string; motivo?: string; link?: string };
+  const body = (await request.json().catch(() => ({}))) as { acao?: string; motivo?: string; link?: string; motorista?: string };
   try {
     if (body.acao === "reenviar") return NextResponse.json(await enviarAoFleetbase(guard.supabase, id));
+    if (body.acao === "designar") {
+      await designarMotorista(guard.supabase, id, String(body.motorista ?? ""));
+      const { data } = await guard.supabase.from("logistica_entregas").select("*").eq("id", id).single();
+      return NextResponse.json(data);
+    }
     if (body.acao === "link") {
       // Link de rastreio para o cliente: o código sai UMA vez (no banco fica só o hash).
       const { data, error } = await guard.supabase.rpc("logistica_link_criar", { p_entrega: id, p_dias: 3 });

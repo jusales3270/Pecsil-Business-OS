@@ -152,3 +152,51 @@ export async function conferirAbertas(forcar = false, ordens?: string[]) {
     console.error("Logística: conferência interrompida", err instanceof Error ? err.message : err);
   }
 }
+
+type Veiculo = { id: string; placa: string; marca: string | null; modelo: string | null; ano: number | null; ativo: boolean; fleetbase_veiculo: string | null };
+type Motorista = { id: string; nome: string; veiculo_id: string | null; ativo: boolean; fleetbase_motorista: string | null };
+
+/** Espelha o veículo no Fleetbase e grava o id de lá (ou o erro, para tentar de novo). Nunca lança. */
+export async function espelharVeiculo(sb: SupabaseClient, v: Veiculo) {
+  if (!fleetbaseConfigurado()) return;
+  try {
+    const r = await fleetbase.salvarVeiculo(v.fleetbase_veiculo, { placa: v.placa, marca: v.marca, modelo: v.modelo, ano: v.ano });
+    await sb.rpc("logistica_registrar_frota", { p_tipo: "veiculo", p_id: v.id, p_fleetbase: r.id ?? v.fleetbase_veiculo, p_erro: null });
+  } catch (err) {
+    await sb.rpc("logistica_registrar_frota", { p_tipo: "veiculo", p_id: v.id, p_fleetbase: null, p_erro: err instanceof Error ? err.message : "Falha no serviço de entregas." });
+  }
+}
+
+/** Espelha o motorista no Fleetbase (só o nome e o veículo de costume) e grava o id de lá. Nunca lança. */
+export async function espelharMotorista(sb: SupabaseClient, m: Motorista) {
+  if (!fleetbaseConfigurado()) return;
+  try {
+    let veiculo: string | null = null;
+    if (m.veiculo_id) {
+      const { data } = await sb.from("logistica_veiculos").select("fleetbase_veiculo").eq("id", m.veiculo_id).maybeSingle<{ fleetbase_veiculo: string | null }>();
+      veiculo = data?.fleetbase_veiculo ?? null;
+    }
+    const r = await fleetbase.salvarMotorista(m.fleetbase_motorista, { nome: m.nome, veiculo, ativo: m.ativo });
+    await sb.rpc("logistica_registrar_frota", { p_tipo: "motorista", p_id: m.id, p_fleetbase: r.id ?? m.fleetbase_motorista, p_erro: null });
+  } catch (err) {
+    await sb.rpc("logistica_registrar_frota", { p_tipo: "motorista", p_id: m.id, p_fleetbase: null, p_erro: err instanceof Error ? err.message : "Falha no serviço de entregas." });
+  }
+}
+
+/**
+ * Designa o motorista cadastrado na plataforma a uma entrega já com a frota e despacha a ordem para ele (vai ao
+ * celular). O veículo é o de costume do motorista. A conferência traz o nome e a placa de volta para a entrega.
+ */
+export async function designarMotorista(sb: SupabaseClient, entregaId: string, motoristaId: string) {
+  const { data: e } = await sb.from("logistica_entregas").select("id, situacao, fleetbase_ordem").eq("id", entregaId).maybeSingle<{ id: string; situacao: string; fleetbase_ordem: string | null }>();
+  if (!e) throw Object.assign(new Error("Entrega não encontrada."), { code: "P0001" });
+  if (e.situacao !== "enviada" || !e.fleetbase_ordem) throw Object.assign(new Error("Só dá para designar o motorista de uma entrega que está com a frota e ainda não saiu."), { code: "P0001" });
+  const { data: m } = await sb.from("logistica_motoristas").select("id, ativo, fleetbase_motorista, veiculo_id, logistica_veiculos(fleetbase_veiculo, ativo)")
+    .eq("id", motoristaId).maybeSingle<{ id: string; ativo: boolean; fleetbase_motorista: string | null; logistica_veiculos: { fleetbase_veiculo: string | null; ativo: boolean } | null }>();
+  if (!m || !m.ativo) throw Object.assign(new Error("Motorista não encontrado ou desativado."), { code: "P0001" });
+  if (!m.fleetbase_motorista) throw Object.assign(new Error("Este motorista ainda não está no serviço de entregas: abra a Frota e salve o cadastro dele de novo."), { code: "P0001" });
+  const veiculo = m.logistica_veiculos?.ativo ? m.logistica_veiculos.fleetbase_veiculo : null;
+  await fleetbase.designar(e.fleetbase_ordem, m.fleetbase_motorista, veiculo);
+  await conferirAbertas(true, [e.fleetbase_ordem]);
+}
+

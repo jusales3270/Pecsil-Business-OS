@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-20-logistica-frota",
+    data: "2026-10-20",
+    area: "Logística",
+    modulos: ["logistica"],
+    funcionalidades: ["logistica.frota", "logistica.entregas"],
+    titulo: "Logística: cadastro da frota e dos motoristas",
+    itens: [
+      "Em Logística › Frota, cadastre os veículos (placa, tipo, marca, modelo, ano e capacidade) e os motoristas.",
+      "O motorista é escolhido no cadastro do RH, com o veículo de costume. A CNH e os documentos continuam no RH; o serviço de entregas recebe só o nome.",
+      "Na entrega, escolha o motorista ao criar ou depois, em \"Designar motorista\". O veículo de costume vai junto.",
+    ],
+  },
+  {
     id: "2026-10-20-logistica-entregas",
     data: "2026-10-20",
     area: "Logística",
