@@ -50,6 +50,8 @@ export interface CotacaoProduto {
   motivoRejeicao?: string;
   /** Material do catálogo do Almoxarifado (A-01); sem ele, o item é texto livre. */
   material?: { id: string; codigo: string; descricao: string; unidade: string } | null;
+  /** Item do pedido de material de onde este item veio (material_request_items.id). */
+  pedidoItemId?: string | null;
 }
 
 export interface Cotacao {
@@ -59,6 +61,8 @@ export interface Cotacao {
   supplierId?: string | null;
   /** Pedido de material do Almoxarifado que originou a cotação (material_requests.id). */
   materialRequestId?: string | null;
+  /** Ramo do pedido (itens encaminhados a este fornecedor) que virou esta cotação. */
+  ramoId?: string | null;
   produtos?: CotacaoProduto[];
   // Campos raízes opcionais para compatibilidade retroativa
   produto?: string;
@@ -105,7 +109,7 @@ export interface PedidoMaterial {
   status: 'aberta' | 'em_cotacao' | 'aprovada' | 'rejeitada' | 'comprada' | 'parcial' | 'recebida' | 'cancelada';
   createdAt: string;
   solicitante: string | null;
-  itens: { produto: string; quantidade: number; unidade: string; observacao: string | null; material?: { id: string; codigo: string; descricao: string; unidade: string } | null }[];
+  itens: { id: string; produto: string; quantidade: number; unidade: string; observacao: string | null; material?: { id: string; codigo: string; descricao: string; unidade: string } | null }[];
   /** Até quando a produção precisa do material (A-07). */
   precisaAte?: string | null;
 }

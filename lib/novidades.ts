@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-20-compras-ramos",
+    data: "2026-10-20",
+    area: "Compras",
+    modulos: ["compras", "almoxarifado", "fundicao"],
+    funcionalidades: ["compras.cotacoes", "compras.aprovacoes", "almoxarifado.recebimento", "fundicao.pedidos"],
+    titulo: "Compras: cada item do pedido com o seu fornecedor, e compra imediata",
+    itens: [
+      "Em Pedidos almoxarifado, clique no pedido: marque os itens, escolha o fornecedor (ou cadastre na hora) e encaminhe para cotar. Cada fornecedor vira um ramo \"aguardando preço\", com link só desses itens.",
+      "Compra imediata: marque os itens, escolha o fornecedor e diga quem autorizou (entre quem aprova compras). Fica registrado, e quem autorizou recebe um aviso.",
+      "O pedido mostra a situação de cada item. Ele só fica \"Comprado\" quando todos os itens foram comprados; a compra de uma parte avisa o Almoxarifado.",
+    ],
+  },
+  {
     id: "2026-10-20-logistica-frota",
     data: "2026-10-20",
     area: "Logística",

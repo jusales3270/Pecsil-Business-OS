@@ -12,10 +12,11 @@ import type { PedidoMaterial } from '@/types';
 type Fornecedor = { id: string; nome: string; email: string | null; telefone: string | null };
 type Gerado = { link: string; fornecedor: string; expiraEm: string };
 
-export default function ConviteFornecedorModal({ pedido, onClose }: { pedido: PedidoMaterial; onClose: (mudou: boolean) => void }) {
+/** Com `ramo`, o link sai só com os itens encaminhados a esse fornecedor (fornecedor já escolhido). */
+export default function ConviteFornecedorModal({ pedido, onClose, ramo = null }: { pedido: PedidoMaterial; onClose: (mudou: boolean) => void; ramo?: { id: string; fornecedor: string; supplierId: string | null; itens: number } | null }) {
   const [busca, setBusca] = useState('');
   const [opcoes, setOpcoes] = useState<Fornecedor[]>([]);
-  const [escolhido, setEscolhido] = useState<Fornecedor | null>(null);
+  const [escolhido, setEscolhido] = useState<Fornecedor | null>(ramo ? { id: ramo.supplierId ?? '', nome: ramo.fornecedor, email: null, telefone: null } : null);
   const [dias, setDias] = useState(7);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState('');
@@ -37,7 +38,7 @@ export default function ConviteFornecedorModal({ pedido, onClose }: { pedido: Pe
   const gerar = async () => {
     setOcupado(true); setErro('');
     const r = await fetch('/api/compras/convites', { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ acao: 'criar', pedido: pedido.id, fornecedorId: escolhido?.id ?? null, fornecedor: escolhido?.nome ?? busca.trim(), dias }) })
+      body: JSON.stringify({ acao: 'criar', pedido: pedido.id, fornecedorId: escolhido?.id || null, fornecedor: escolhido?.nome ?? busca.trim(), dias, ramo: ramo?.id ?? null }) })
       .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
     setOcupado(false);
     if (!r.ok) { setErro(r.body?.error ?? 'Não foi possível gerar o link.'); return; }
@@ -61,13 +62,13 @@ export default function ConviteFornecedorModal({ pedido, onClose }: { pedido: Pe
         <div className="px-6 py-5 space-y-4 overflow-y-auto">
           {!gerado ? (
             <>
-              <p className="text-xs text-[#757575]">O fornecedor recebe um link só deste pedido, responde sem login (preço, IPI, prazo, frete e pagamento, com o PDF da proposta) e a resposta vira uma cotação pendente aqui. O link aceita uma resposta.</p>
+              <p className="text-xs text-[#757575]">{ramo ? `O link sai só com os ${ramo.itens} item(ns) encaminhado(s) a este fornecedor.` : 'O fornecedor recebe um link só deste pedido.'} Ele responde sem login (preço, IPI, prazo, frete e pagamento, com o PDF da proposta) e a resposta vira uma cotação pendente aqui. O link aceita uma resposta.</p>
               <label className="block">
                 <span className="text-xs font-semibold text-[#555]">Fornecedor</span>
                 {escolhido ? (
                   <div className="mt-1 flex items-center justify-between rounded-lg border border-black/[0.12] px-3 py-2 text-sm">
                     <span><b>{escolhido.nome}</b>{escolhido.email ? <span className="text-[#757575]"> · {escolhido.email}</span> : null}</span>
-                    <button type="button" className="text-xs font-semibold text-primary" onClick={() => { setEscolhido(null); setBusca(''); }}>Trocar</button>
+                    {!ramo && <button type="button" className="text-xs font-semibold text-primary" onClick={() => { setEscolhido(null); setBusca(''); }}>Trocar</button>}
                   </div>
                 ) : (
                   <>

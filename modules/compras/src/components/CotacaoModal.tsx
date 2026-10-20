@@ -13,15 +13,17 @@ interface Props {
   onClose: () => void;
   /** Cotação nascendo de um pedido do Almoxarifado: itens à mão e o vínculo gravado. */
   pedido?: PedidoMaterial | null;
+  /** Ramo do pedido (itens já encaminhados a um fornecedor): fornecedor fixo e só os itens dele. */
+  ramo?: { id: string; fornecedor: string; itemIds: string[] } | null;
 }
 
 const UNIDADES = ['kg', 'un', 'l', 'm', 'cx', 'ton'];
 
-export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props) {
+export default function CotacaoModal({ cotacao, onClose, pedido = null, ramo = null }: Props) {
   const { user, addCotacao, updateCotacao, currentDivisao } = useStore();
   const { fornecedores: sugestoesFornecedor, supplierIdPorNome, produtosPara } = useSugestoesCompras();
 
-  const [fornecedor, setFornecedor] = useState('');
+  const [fornecedor, setFornecedor] = useState(ramo?.fornecedor ?? '');
   const [divisao, setDivisao] = useState<Divisao>(
     pedido && (pedido.divisao === 'USINAGEM' || pedido.divisao === 'FUNDICAO') ? pedido.divisao : (currentDivisao as Divisao),
   );
@@ -45,6 +47,9 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
   });
   // Material do catálogo ligado ao item em edição (A-01); texto livre continua valendo.
   const [materialForm, setMaterialForm] = useState<{ texto: string; material: MaterialEscolhido | null }>({ texto: '', material: null });
+  // Item do pedido de onde veio o item em edição (o banco liga a cotação ao item do pedido).
+  const [pedidoItemForm, setPedidoItemForm] = useState<string | null>(null);
+  const itensDoPedido = pedido ? (ramo ? pedido.itens.filter((i) => ramo.itemIds.includes(i.id)) : pedido.itens) : [];
   const [productErrors, setProductErrors] = useState<Record<string, string>>({});
   // Dados do pedido que saem na Ordem de Compra.
   const [pedidoOc, setPedidoOc] = useState({ freteTipo: 'CIF' as FreteTipo, freteValor: '', seguroValor: '', outrasDespesas: '', prazoEntrega: '', observacao: '' });
@@ -102,6 +107,7 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
       obs: '',
     });
     setMaterialForm({ texto: '', material: null });
+    setPedidoItemForm(null);
     setProductErrors({});
   };
 
@@ -119,9 +125,10 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
       obs: item.observacao ?? '',
     });
     setMaterialForm({ texto: item.material?.descricao ?? '', material: item.material ?? null });
+    setPedidoItemForm(item.id);
     setProductErrors({});
   };
-  const jaNoOrcamento = (produto: string) => produtos.some((p) => p.produto.trim().toLowerCase() === produto.trim().toLowerCase());
+  const jaNoOrcamento = (item: PedidoMaterial['itens'][number]) => produtos.some((p) => p.pedidoItemId === item.id || p.produto.trim().toLowerCase() === item.produto.trim().toLowerCase());
 
   const handleEditProductClick = (p: CotacaoProduto) => {
     setEditingProductId(p.id);
@@ -136,6 +143,7 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
       obs: p.obs,
     });
     setMaterialForm({ texto: p.material?.descricao ?? '', material: p.material ?? null });
+    setPedidoItemForm(p.pedidoItemId ?? null);
     setProductErrors({});
   };
 
@@ -186,6 +194,7 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
       prazo: productForm.prazo,
       obs: productForm.obs.trim(),
       material: materialForm.material,
+      pedidoItemId: pedidoItemForm,
     };
 
     setProdutos(prev => {
@@ -254,6 +263,7 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
       divisao,
       produtos,
       materialRequestId: pedido?.id ?? cotacao?.materialRequestId ?? null,
+      ramoId: ramo?.id ?? cotacao?.ramoId ?? null,
       freteTipo: pedidoOc.freteTipo,
       freteValor: parseCurrencyInput(pedidoOc.freteValor) || 0,
       seguroValor: parseCurrencyInput(pedidoOc.seguroValor) || 0,
@@ -290,6 +300,8 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
             obs: p.obs,
             status: p.status as 'APROVADO',
             motivoRejeicao: p.motivoRejeicao,
+            material: p.material,
+            pedidoItemId: p.pedidoItemId,
           })),
           // Editable items: preserve existing status or default to PENDENTE
           ...produtos.map(p => ({
@@ -304,6 +316,8 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
             obs: p.obs,
             status: (p.status === 'REJEITADO' ? 'PENDENTE' : (p.status || 'PENDENTE')) as 'PENDENTE',
             motivoRejeicao: undefined,
+            material: p.material,
+            pedidoItemId: p.pedidoItemId,
           }))
         ];
 
@@ -341,7 +355,7 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.08]">
           <h2 className="text-lg font-semibold text-[#212121]">
-            {cotacao ? `Editar Cotação nº ${cotacao.id}` : 'Nova Cotação'}
+            {cotacao ? `Editar Cotação nº ${cotacao.id}` : ramo ? `Preços de ${ramo.fornecedor}` : 'Nova Cotação'}
           </h2>
           <button
             onClick={onClose}
@@ -389,16 +403,23 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
             <label className="flex items-center gap-1.5 text-sm font-medium text-[#212121] mb-1.5">
               Fornecedor <span className="text-red-500">*</span>
             </label>
-            <SugestaoInput
-              value={fornecedor}
-              onChange={setFornecedor}
-              suggestions={sugestoesFornecedor}
-              label="Fornecedores cadastrados"
-              placeholder="Digite para buscar nos fornecedores cadastrados"
-              className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
-                errors.fornecedor ? 'border-red-400 focus:border-red-400' : 'border-black/[0.08] focus:border-primary'
-              }`}
-            />
+            {ramo ? (
+              <p className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-slate-50 px-3 py-2.5 text-sm text-[#212121]">
+                <Lock size={14} className="text-[#999]" /> {ramo.fornecedor}
+                <span className="text-xs text-[#757575]">· encaminhado pelo pedido</span>
+              </p>
+            ) : (
+              <SugestaoInput
+                value={fornecedor}
+                onChange={setFornecedor}
+                suggestions={sugestoesFornecedor}
+                label="Fornecedores cadastrados"
+                placeholder="Digite para buscar nos fornecedores cadastrados"
+                className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
+                  errors.fornecedor ? 'border-red-400 focus:border-red-400' : 'border-black/[0.08] focus:border-primary'
+                }`}
+              />
+            )}
             {errors.fornecedor && <p className="text-xs text-red-500 mt-1">{errors.fornecedor}</p>}
           </div>
 
@@ -413,8 +434,8 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null }: Props)
               </div>
               {pedido.observacao && <p className="text-xs text-[#555]">{pedido.observacao}</p>}
               <ul className="space-y-1">
-                {pedido.itens.map((item, idx) => {
-                  const feito = jaNoOrcamento(item.produto);
+                {itensDoPedido.map((item, idx) => {
+                  const feito = jaNoOrcamento(item);
                   return (
                     <li key={idx} className="flex items-center justify-between gap-2 text-xs">
                       <span className={feito ? 'text-[#757575] line-through' : 'text-[#212121]'}>

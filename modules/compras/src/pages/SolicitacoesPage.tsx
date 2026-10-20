@@ -6,16 +6,19 @@ import type { Divisao, PedidoMaterial } from '@/types';
 import CotacaoModal from '@/components/CotacaoModal';
 import ConviteFornecedorModal from '@/components/ConviteFornecedorModal';
 import DivisaoTabs from '@/components/DivisaoTabs';
+import PedidoModal, { type Ramo } from '@/components/PedidoModal';
+import { ROTULO_ESTADO, estadoDosItens } from '../../../../lib/compras/ramos';
 
 /**
  * Pedidos de material: do Almoxarifado (Henrique, para Usinagem ou Fundição) e da
- * Fundição (Guilherme, pelo painel dela). Separados por divisão como as cotações;
- * quem cota abre a cotação a partir do pedido ("Cotar"), e a situação do pedido
- * acompanha a cotação sozinha (o banco atualiza e avisa quem pediu a cada passo).
+ * Fundição (Guilherme, pelo painel dela). Separados por divisão como as cotações.
+ * Clicar no pedido abre os itens em lista: os marcados vão a um fornecedor, para cotar
+ * (ramo "aguardando preço") ou em compra imediata. A situação de cada item e do pedido
+ * acompanha as cotações sozinha (o banco atualiza e avisa quem pediu a cada passo).
  */
 
 type Filtro = 'abertos' | 'andamento' | 'todos';
-type Convite = { id: string; material_request_id: string; fornecedor: string; situacao: 'aberto' | 'respondido' | 'cancelado'; expira_em: string; cotacao_id: number | null; aberto_em: string | null };
+type Convite = { id: string; material_request_id: string; ramo_id: string | null; fornecedor: string; situacao: 'aberto' | 'respondido' | 'cancelado'; expira_em: string; cotacao_id: number | null; aberto_em: string | null };
 
 const SITUACAO: Record<PedidoMaterial['status'], { label: string; cls: string }> = {
   aberta: { label: 'Aguardando cotação', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -41,28 +44,33 @@ const ORIGEM: Record<PedidoMaterial['origem'], string> = { ALMOXARIFADO: 'Almoxa
 type Row = {
   id: string; numero: number; divisao: PedidoMaterial['divisao']; origem: PedidoMaterial['origem'] | null; urgencia: PedidoMaterial['urgencia']; observacao: string | null;
   status: PedidoMaterial['status']; created_at: string; requested_by_name: string | null; precisa_ate: string | null;
-  material_request_items: { produto: string; quantidade: number; unidade: string; observacao: string | null; ordem: number; material_id: string | null; materials: MatRow | MatRow[] | null }[] | null;
+  material_request_items: { id: string; produto: string; quantidade: number; unidade: string; observacao: string | null; ordem: number; material_id: string | null; materials: MatRow | MatRow[] | null }[] | null;
 };
 type MatRow = { codigo: string; descricao: string; unidade: string };
+type RamoRow = { id: string; material_request_id: string; fornecedor: string; supplier_id: string | null; situacao: Ramo['situacao']; cotacao_id: number | null; criado_por_nome: string | null; created_at: string; compras_ramo_itens: { item_id: string }[] | null };
+const COR_ESTADO: Record<string, string> = { aberto: 'text-amber-700', em_cotacao: 'text-blue-700', aprovado: 'text-emerald-700', comprado: 'text-violet-700', rejeitado: 'text-red-700' };
 const umMaterial = (id: string | null, m: MatRow | MatRow[] | null) => { const x = Array.isArray(m) ? m[0] : m; return id && x ? { id, codigo: x.codigo, descricao: x.descricao, unidade: x.unidade } : null; };
 
 export default function SolicitacoesPage() {
   const caps = useStore((state) => state.caps);
   const cotacoes = useStore((state) => state.cotacoes);
+  const compras = useStore((state) => state.compras);
   const currentDivisao = useStore((state) => state.currentDivisao);
   const fetchInitialData = useStore((state) => state.fetchInitialData);
   const [pedidos, setPedidos] = useState<PedidoMaterial[] | null>(null);
   const [erro, setErro] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('abertos');
   const [busca, setBusca] = useState('');
-  const [cotando, setCotando] = useState<PedidoMaterial | null>(null);
-  const [convidando, setConvidando] = useState<PedidoMaterial | null>(null);
+  const [aberto, setAberto] = useState<string | null>(null);
+  const [cotando, setCotando] = useState<{ pedido: PedidoMaterial; ramo: Ramo } | null>(null);
+  const [convidando, setConvidando] = useState<{ pedido: PedidoMaterial; ramo: Ramo } | null>(null);
   const [convites, setConvites] = useState<Convite[]>([]);
+  const [ramos, setRamos] = useState<Ramo[]>([]);
 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase
       .from('material_requests')
-      .select('id, numero, divisao, origem, urgencia, observacao, status, created_at, requested_by_name, precisa_ate, material_request_items(produto, quantidade, unidade, observacao, ordem, material_id, materials(codigo, descricao, unidade))')
+      .select('id, numero, divisao, origem, urgencia, observacao, status, created_at, requested_by_name, precisa_ate, material_request_items(id, produto, quantidade, unidade, observacao, ordem, material_id, materials(codigo, descricao, unidade))')
       .order('created_at', { ascending: false })
       .limit(300);
     if (error) { setErro('Não foi possível carregar os pedidos.'); return; }
@@ -70,10 +78,15 @@ export default function SolicitacoesPage() {
     // Convites por link (A-09) dos pedidos carregados.
     const ids = (data ?? []).map((r) => (r as { id: string }).id);
     if (ids.length) void fetch(`/api/compras/convites?pedidos=${ids.join(',')}`, { cache: 'no-store' }).then((x) => x.json()).then((b) => setConvites((b?.convites ?? []) as Convite[])).catch(() => setConvites([]));
+    // Ramos (itens encaminhados a um fornecedor) dos pedidos carregados.
+    if (ids.length) void supabase.from('compras_ramos').select('id, material_request_id, fornecedor, supplier_id, situacao, cotacao_id, criado_por_nome, created_at, compras_ramo_itens(item_id)')
+      .in('material_request_id', ids).neq('situacao', 'cancelado')
+      .then(({ data: rs }) => setRamos(((rs ?? []) as RamoRow[]).map((r) => ({ id: r.id, materialRequestId: r.material_request_id, fornecedor: r.fornecedor, supplierId: r.supplier_id,
+        situacao: r.situacao, cotacaoId: r.cotacao_id, itens: (r.compras_ramo_itens ?? []).map((x) => x.item_id), criadoPorNome: r.criado_por_nome, createdAt: r.created_at }))));
     setPedidos(((data ?? []) as Row[]).map((r) => ({
       id: r.id, numero: Number(r.numero), divisao: r.divisao, origem: r.origem === 'FUNDICAO' ? 'FUNDICAO' : 'ALMOXARIFADO', urgencia: r.urgencia, observacao: r.observacao, status: r.status,
       createdAt: r.created_at, solicitante: r.requested_by_name, precisaAte: r.precisa_ate,
-      itens: [...(r.material_request_items ?? [])].sort((a, b) => a.ordem - b.ordem).map((i) => ({ produto: i.produto, quantidade: Number(i.quantidade), unidade: i.unidade, observacao: i.observacao, material: umMaterial(i.material_id, i.materials) })),
+      itens: [...(r.material_request_items ?? [])].sort((a, b) => a.ordem - b.ordem).map((i) => ({ id: i.id, produto: i.produto, quantidade: Number(i.quantidade), unidade: i.unidade, observacao: i.observacao, material: umMaterial(i.material_id, i.materials) })),
     })));
   }, []);
 
@@ -96,6 +109,9 @@ export default function SolicitacoesPage() {
   }), [filtrados]);
 
   const convitesDo = (id: string) => convites.filter((c) => c.material_request_id === id);
+  const ramosDo = (id: string) => ramos.filter((r) => r.materialRequestId === id);
+  const pedidoAberto = (pedidos ?? []).find((p) => p.id === aberto) ?? null;
+  const recarregar = () => { void fetchInitialData(); void carregar(); };
   const cancelarConvite = async (id: string) => {
     const r = await fetch('/api/compras/convites', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ acao: 'cancelar', id }) });
     if (!r.ok) { setErro((await r.json().catch(() => null))?.error ?? 'Não foi possível cancelar o convite.'); return; }
@@ -147,9 +163,15 @@ export default function SolicitacoesPage() {
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {visiveis.map((p) => {
           const ligadas = cotacoes.filter((c) => c.materialRequestId === p.id && !c.deletedAt);
-          const podeCotar = caps?.cotar && ['aberta', 'em_cotacao', 'rejeitada', 'aprovada'].includes(p.status);
+          const estados = estadoDosItens(p.itens.map((i) => i.id), ligadas, compras, ramosDo(p.id));
+          const fornecedoresDo = (itemId: string) => [...new Set([
+            ...ramosDo(p.id).filter((r) => r.situacao === 'aguardando' && r.itens.includes(itemId)).map((r) => r.fornecedor),
+            ...ligadas.filter((c) => (c.produtos ?? []).some((x) => x.pedidoItemId === itemId)).map((c) => c.fornecedor),
+          ])];
+          const abrir = () => setAberto(p.id);
           return (
-            <article key={p.id} className="flex flex-col gap-3 rounded-xl border border-black/[0.08] bg-white p-4 shadow-sm">
+            <article key={p.id} role="button" tabIndex={0} aria-label={`Abrir o pedido ${p.numero}`} onClick={abrir} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrir(); } }}
+              className="flex cursor-pointer flex-col gap-3 rounded-xl border border-black/[0.08] bg-white p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
               <header className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-sm font-bold text-[#212121]">
@@ -161,12 +183,21 @@ export default function SolicitacoesPage() {
                 </div>
                 <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${SITUACAO[p.status].cls}`}>{SITUACAO[p.status].label}</span>
               </header>
-              <ul className="space-y-1 text-xs text-[#212121]">
-                {p.itens.map((i, idx) => <li key={idx}><b>{i.quantidade.toLocaleString('pt-BR')} {i.unidade}</b> · {i.produto}{i.observacao && <span className="text-[#757575]"> — {i.observacao}</span>}</li>)}
+              <ul className="space-y-1.5 text-xs text-[#212121]">
+                {p.itens.map((i) => {
+                  const estado = estados[i.id] ?? 'aberto';
+                  const quem = fornecedoresDo(i.id);
+                  return (
+                    <li key={i.id}>
+                      <b>{i.quantidade.toLocaleString('pt-BR')} {i.unidade}</b> · {i.produto}{i.observacao && <span className="text-[#757575]"> — {i.observacao}</span>}
+                      <span className={`block text-[11px] font-semibold ${COR_ESTADO[estado]}`}>{ROTULO_ESTADO[estado]}{quem.length ? ` · ${quem.join(', ')}` : ''}</span>
+                    </li>
+                  );
+                })}
               </ul>
               {p.observacao && <p className="rounded-md bg-slate-50 px-2 py-1.5 text-xs text-[#555]">{p.observacao}</p>}
               {ligadas.length > 0 && (
-                <p className="text-xs text-[#757575]">Cotações: {ligadas.map((c) => `#${c.id} ${c.fornecedor} (${c.status.toLowerCase()})`).join(' · ')}</p>
+                <p className="text-xs text-[#757575]">Cotações: {ligadas.map((c) => `#${c.id} ${c.fornecedor} (${c.origem === 'direta' ? 'compra imediata' : c.status.toLowerCase()})`).join(' · ')}</p>
               )}
               {convitesDo(p.id).length > 0 && (
                 <div className="space-y-1 text-xs">
@@ -178,31 +209,35 @@ export default function SolicitacoesPage() {
                         : c.situacao === 'cancelado' ? <span>cancelado</span>
                         : new Date(c.expira_em) < new Date() ? <span>venceu em {new Date(c.expira_em).toLocaleDateString('pt-BR')}</span>
                         : <><span className="text-blue-700">aberto até {new Date(c.expira_em).toLocaleDateString('pt-BR')}{c.aberto_em ? ' · já abriu o link' : ''}</span>
-                          {caps?.cotar && <button type="button" className="font-semibold text-red-600 hover:underline" onClick={() => void cancelarConvite(c.id)}>Cancelar</button>}</>}
+                          {caps?.cotar && <button type="button" className="font-semibold text-red-600 hover:underline" onClick={(e) => { e.stopPropagation(); void cancelarConvite(c.id); }}>Cancelar</button>}</>}
                     </p>
                   ))}
                 </div>
               )}
-              {podeCotar && (
-                <div className="mt-auto flex gap-2">
-                  <button type="button" onClick={() => setCotando(p)} className="flex-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-90">
-                    {ligadas.length ? 'Cotar com outro fornecedor' : 'Cotar'}
-                  </button>
-                  <button type="button" onClick={() => setConvidando(p)} className="rounded-lg border border-primary px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/5">
-                    Convidar fornecedor
-                  </button>
-                </div>
-              )}
+              <div className="mt-auto">
+                <span className="block w-full rounded-lg bg-primary px-3 py-2 text-center text-xs font-semibold text-white">
+                  {caps?.cotar && p.itens.some((i) => estados[i.id] !== 'comprado') ? 'Abrir pedido: cotar ou comprar' : 'Ver pedido'}
+                </span>
+              </div>
             </article>
           );
         })}
       </div>
 
+      {pedidoAberto && (
+        <PedidoModal pedido={pedidoAberto} cotacoes={cotacoes} compras={compras} ramos={ramosDo(pedidoAberto.id)} convites={convitesDo(pedidoAberto.id)}
+          podeCotar={Boolean(caps?.cotar)} podeComprar={Boolean(caps?.cotar || caps?.comprar)} podeCadastrar={Boolean(caps?.editarFornecedores)}
+          onClose={() => setAberto(null)} onMudou={recarregar}
+          onLancarPrecos={(ramo) => setCotando({ pedido: pedidoAberto, ramo })}
+          onMandarLink={(ramo) => setConvidando({ pedido: pedidoAberto, ramo })} />
+      )}
       {convidando && (
-        <ConviteFornecedorModal pedido={convidando} onClose={(mudou) => { setConvidando(null); if (mudou) void carregar(); }} />
+        <ConviteFornecedorModal pedido={convidando.pedido} ramo={{ id: convidando.ramo.id, fornecedor: convidando.ramo.fornecedor, supplierId: convidando.ramo.supplierId, itens: convidando.ramo.itens.length }}
+          onClose={(mudou) => { setConvidando(null); if (mudou) void carregar(); }} />
       )}
       {cotando && (
-        <CotacaoModal cotacao={null} pedido={cotando} onClose={() => { setCotando(null); void fetchInitialData(); void carregar(); }} />
+        <CotacaoModal cotacao={null} pedido={cotando.pedido} ramo={{ id: cotando.ramo.id, fornecedor: cotando.ramo.fornecedor, itemIds: cotando.ramo.itens }}
+          onClose={() => { setCotando(null); recarregar(); }} />
       )}
     </div>
   );
