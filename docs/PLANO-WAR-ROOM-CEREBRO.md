@@ -317,6 +317,9 @@ informação nova ou consulta dos subagentes.
   - **Nomes:** em HTML, poucos de cada vez, sem sobreposição.
 - **Estabilidade:** o arranjo é calculado antes de aparecer e não se mexe depois. Os pontos não se arrastam e a câmera é amortecida.
   A seleção vence o mouse: passar o mouse só mostra o nome. A câmera centraliza na área que o painel deixa livre.
+- **Segurar e arrastar** (pedido do proprietário, 19/10): o núcleo arrastado e os vizinhos diretos vêm junto e esticam as
+  ligações; o resto fica congelado e, ao soltar, todos voltam ao lugar em meio segundo. Um "toque" que a biblioteca simula ao
+  soltar derrubava o controle da câmera do three 0.185; esse evento simulado é barrado.
 - **Pulso magnético:** `cerebro_pulsos(desde)` junta os eventos dos módulos, as consultas das SARAs (as ferramentas
   usadas) e as ligações novas ou alteradas. A tela consulta a cada 15 s. Cada pulso solta anéis de luz no setor e
   impulsos nas ligações, e aparece no painel de pulsos.
