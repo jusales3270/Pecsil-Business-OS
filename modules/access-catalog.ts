@@ -181,6 +181,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     label: "Fundição",
     features: [
       { code: "fundicao.pedidos", label: "Pedidos de material", description: "Painel da Fundição: pede material ao Compras e acompanha cotação, aprovação, compra e chegada; operar pede e cancela.", levels: VER_OPERAR },
+      { code: "fundicao.biblioteca", label: "Biblioteca de desenhos", description: "Todos os desenhos da Forja guardados na plataforma, mais os antigos da pasta física: busca, vê e baixa (o download fica no histórico); operar anota por peça e envia desenho antigo.", levels: VER_OPERAR },
       coleta("fundicao"),
       sara("fundicao"),
     ],

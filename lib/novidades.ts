@@ -44,6 +44,21 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-21-fundicao-biblioteca",
+    data: "2026-10-21",
+    area: "Fundição",
+    modulos: ["fundicao"],
+    funcionalidades: ["fundicao.biblioteca"],
+    titulo: "Fundição: Biblioteca de desenhos",
+    itens: [
+      "Todos os desenhos anexados na Forja chegam sozinhos à Biblioteca e ficam guardados aqui, mesmo que a Forja troque o arquivo ou exclua o desenho.",
+      "Procure pela peça, pela descrição, pelo cliente ou pelo código do desenho. Cada peça mostra se já foi fundida (com a data e as OS) ou se a Fundição está prevista no roteiro.",
+      "Veja o desenho na própria tela ou baixe. As revisões antigas e as versões anteriores do arquivo continuam disponíveis.",
+      "Anotações da Fundição por peça: o que deu certo ou errado na última corrida fica junto do desenho para o próximo trabalho.",
+      "Desenhos antigos da pasta física entram por \"Enviar desenho antigo\", com o selo Acervo da Fundição.",
+    ],
+  },
+  {
     id: "2026-10-21-logistica-origem-mapa",
     data: "2026-10-21",
     area: "Logística",

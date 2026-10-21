@@ -20,14 +20,18 @@ import { createForjaSession, ForjaError, type ForjaTransport } from "./forja-ses
 // PUT manda o catálogo de materiais em lotes de até 1000: leva mais.
 const TIMEOUT_MS = { POST: 10_000, GET: 10_000, PUT: 30_000 } as const;
 const MAX_BODY_BYTES = 20 * 1024 * 1024;
+// Arquivo de desenho: a Forja aceita até 50 MB.
+const ARQUIVO = { timeoutMs: 60_000, maxBytes: 55 * 1024 * 1024 } as const;
 
 function forjaTransport(baseUrl: string, hostHeader: string | undefined): ForjaTransport {
   const base = new URL(baseUrl);
   const client = base.protocol === "https:" ? https : http;
 
-  return ({ method, path, token, body }) => new Promise((resolve, reject) => {
+  return ({ method, path, token, body, binario }) => new Promise((resolve, reject) => {
     const payload = body === undefined ? undefined : JSON.stringify(body);
-    const headers: Record<string, string> = { Accept: "application/json" };
+    const maxBytes = binario ? ARQUIVO.maxBytes : MAX_BODY_BYTES;
+    const timeoutMs = binario ? ARQUIVO.timeoutMs : TIMEOUT_MS[method];
+    const headers: Record<string, string> = { Accept: binario ? "*/*" : "application/json" };
     if (hostHeader) headers.Host = hostHeader;
     if (token) headers.Authorization = `Bearer ${token}`;
     if (payload) {
@@ -40,26 +44,32 @@ function forjaTransport(baseUrl: string, hostHeader: string | undefined): ForjaT
       let size = 0;
       response.on("data", (chunk: Buffer) => {
         size += chunk.length;
-        if (size > MAX_BODY_BYTES) {
+        if (size > maxBytes) {
           request.destroy(new ForjaError("BAD_RESPONSE", "Resposta do Forja maior que o esperado."));
           return;
         }
         chunks.push(chunk);
       });
       response.on("end", () => {
-        const raw = Buffer.concat(chunks).toString("utf8");
+        const corpo = Buffer.concat(chunks);
+        const headersResposta = { "content-type": response.headers["content-type"], "x-arquivo-key": String(response.headers["x-arquivo-key"] ?? "") || undefined };
+        if (binario && response.statusCode === 200) {
+          resolve({ status: 200, body: corpo, headers: headersResposta });
+          return;
+        }
+        const raw = corpo.toString("utf8");
         let parsed: unknown = null;
         try {
           parsed = raw ? JSON.parse(raw) : null;
         } catch {
           parsed = null;
         }
-        resolve({ status: response.statusCode ?? 0, body: parsed });
+        resolve({ status: response.statusCode ?? 0, body: parsed, headers: headersResposta });
       });
     });
 
-    request.setTimeout(TIMEOUT_MS[method], () => {
-      request.destroy(new ForjaError("TIMEOUT", `O Forja não respondeu em ${TIMEOUT_MS[method] / 1000}s.`));
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new ForjaError("TIMEOUT", `O Forja não respondeu em ${timeoutMs / 1000}s.`));
     });
     request.on("error", (error) => {
       reject(error instanceof ForjaError ? error : new ForjaError("UNREACHABLE", `Forja inacessível (${(error as NodeJS.ErrnoException).code ?? error.message}).`));

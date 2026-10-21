@@ -30,7 +30,9 @@ export class ForjaError extends Error {
 
 export interface ForjaResponse {
   status: number;
+  /** JSON já lido; com `binario`, o arquivo cru (Buffer). */
   body: unknown;
+  headers?: Record<string, string | undefined>;
 }
 
 export type ForjaTransport = (request: {
@@ -38,7 +40,11 @@ export type ForjaTransport = (request: {
   path: string;
   token?: string;
   body?: unknown;
+  /** Arquivo (desenho): devolve os bytes sem ler como JSON. */
+  binario?: boolean;
 }) => Promise<ForjaResponse>;
+
+export type ForjaArquivo = { dados: Buffer; tipo: string | null; chave: string | null };
 
 export interface ForjaSessionOptions {
   transport: ForjaTransport;
@@ -97,12 +103,12 @@ export function createForjaSession({
   }
 
   /** GET autenticado, com um novo login quando o Forja recusa o token. */
-  async function authorizedGet(path: string): Promise<ForjaResponse> {
-    let response = await transport({ method: "GET", path, token: await validToken() });
+  async function authorizedGet(path: string, binario = false): Promise<ForjaResponse> {
+    let response = await transport({ method: "GET", path, token: await validToken(), binario });
     if (response.status === 401) {
       // Token revogado ou chave do Forja trocada: um novo login resolve.
       token = null;
-      response = await transport({ method: "GET", path, token: await validToken() });
+      response = await transport({ method: "GET", path, token: await validToken(), binario });
     }
     if (response.status === 401) throw new ForjaError("AUTH_FAILED", "O Forja recusou o token da conta de integração.");
     return response;
@@ -140,6 +146,14 @@ export function createForjaSession({
       }
       if (response.status !== 200) throw new ForjaError("BAD_RESPONSE", `O Forja respondeu ${response.status} em ${path}.`);
       return record(response.body).data;
+    },
+    /** Arquivo de uma rota de integração (ex.: o desenho). 404 vira null: o arquivo sumiu na Forja. */
+    async getArquivo(path: string): Promise<ForjaArquivo | null> {
+      const response = await authorizedGet(path, true);
+      if (response.status === 404) return null;
+      if (response.status === 403) throw new ForjaError("FORBIDDEN_MODULE", "A conta de integração não está marcada como integração no Forja.");
+      if (response.status !== 200 || !Buffer.isBuffer(response.body)) throw new ForjaError("BAD_RESPONSE", `O Forja respondeu ${response.status} em ${path}.`);
+      return { dados: response.body, tipo: response.headers?.["content-type"] ?? null, chave: response.headers?.["x-arquivo-key"] ?? null };
     },
     /**
      * Envio para o Forja (só as rotas /api/integracao/*, da conta de integração). Devolve status e

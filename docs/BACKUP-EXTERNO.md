@@ -18,8 +18,9 @@ nenhum backup saía do servidor: uma pane de disco perdia tudo ([PLANO-TI.md](PL
 3. **A restauração é testada.** Ver "Restaurar" abaixo. O backup só conta como entregue depois de uma
    restauração real feita do começo ao fim.
 
-**Fora do backup:** os desenhos da Forja, que serão guardados na plataforma, no módulo da Fundição
-(decisão do proprietário de 18/10). O bucket deles entra em `BACKUP_EXCLUIR_BUCKETS`.
+**Fora do backup:** os desenhos da Forja, guardados na plataforma, na Biblioteca da Fundição
+(decisão do proprietário de 18/10). O bucket deles, `fundicao-desenhos`, entra em `BACKUP_EXCLUIR_BUCKETS`.
+Os registros dos desenhos (tabelas `fundicao_*`) continuam no backup do banco.
 
 ## Retenção
 
@@ -81,7 +82,7 @@ pooler é `backup_leitura.your-tenant-id`.
 | `BACKUP_PG_URL_PECSIL` | `postgres://backup_leitura.your-tenant-id:<BACKUP_DB_PASSWORD>@192.168.0.89:5432/postgres` |
 | `BACKUP_PG_URL_FORJA` | opcional: banco da Forja (o app precisa estar na rede da Forja no Coolify) |
 | `BACKUP_ARQUIVOS_URL`, `BACKUP_ARQUIVOS_CHAVE` | Supabase da fábrica por dentro e chave de serviço, para os arquivos |
-| `BACKUP_EXCLUIR_BUCKETS` | buckets fora do backup (os desenhos) |
+| `BACKUP_EXCLUIR_BUCKETS` | buckets fora do backup: `fundicao-desenhos` (os desenhos) |
 | `BACKUP_AGE_DESTINATARIO` | chave pública `age1…` |
 | `VIGIA_URL`, `VIGIA_CHAVE` | os mesmos do vigia |
 | `BACKUP_EMAIL`, `BACKUP_SENHA` | o usuário do backup na nuvem |
