@@ -5,6 +5,10 @@ import { apagarArquivos, guardarAcervo, sha256 } from "../../../../../lib/fundic
 
 export const dynamic = "force-dynamic";
 
+/** As funções da Biblioteca já falam com a pessoa ("Só quem escreveu…"): a mensagem vai à tela, também no 42501. */
+const erroDoBanco = (error: { code?: string; message: string }) =>
+  error.code === "42501" ? NextResponse.json({ error: error.message }, { status: 403 }) : dbError(error);
+
 /**
  * Desenho antigo da pasta física (escaneado) para a Biblioteca. O mesmo arquivo não entra duas
  * vezes: se já está na Biblioteca, a resposta diz em qual peça.
@@ -43,7 +47,7 @@ export async function POST(request: Request) {
   });
   if (error) {
     await apagarArquivos([caminho]);
-    return dbError(error);
+    return erroDoBanco(error);
   }
   const r = data as { existente: boolean; id: string; artigo_codigo: string };
   if (r.existente) return NextResponse.json({ existente: true, id: r.id, artigo: r.artigo_codigo }, { status: 409 });
@@ -57,7 +61,7 @@ export async function DELETE(request: Request) {
   const id = new URL(request.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Desenho não informado." }, { status: 400 });
   const { data, error } = await guard.supabase.rpc("fundicao_acervo_apagar", { p_id: id });
-  if (error) return dbError(error);
+  if (error) return erroDoBanco(error);
   await apagarArquivos((data as string[] | null) ?? []);
   return NextResponse.json({ ok: true });
 }

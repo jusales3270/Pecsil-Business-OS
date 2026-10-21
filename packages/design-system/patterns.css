@@ -8682,7 +8682,10 @@ button.holiday-row:hover {
 /* ============================================================================
    Fundição › Biblioteca de desenhos (P-11)
    ============================================================================ */
-.bib-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-block: var(--sp-4); }
+.bib-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-block: var(--sp-4); min-width: 0; }
+/* No celular, as quatro opções rolam de lado dentro do próprio seletor (a página não rola). */
+.bib-filtros .ds-segmented { max-width: 100%; overflow-x: auto; }
+.bib-filtros .ds-segmented > button { flex-shrink: 0; }
 .bib-busca { flex: 1 1 280px; min-width: 0; max-width: 460px; height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
 .bib-campo-inline { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
 .bib-campo-inline select, .bib-form select { height: 34px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
@@ -8711,8 +8714,10 @@ button.holiday-row:hover {
 .bib-nota p { margin: 0 0 4px; font-size: var(--fs-sm); color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
 .bib-nota small { font-size: var(--fs-xs); color: var(--text-muted); }
 .bib-nota-nova, .bib-nota-editar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2); }
+.bib-nota-nova textarea { flex: 1 1 260px; }
+.bib-form textarea { display: block; width: 100%; }
 .bib-nota-editar { flex-direction: column; align-items: stretch; }
-:is(.bib-nota-nova, .bib-nota-editar, .bib-form) textarea { flex: 1 1 260px; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); resize: vertical; }
+:is(.bib-nota-nova, .bib-nota-editar, .bib-form) textarea { min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); resize: vertical; }
 .bib-link { padding: 0; border: 0; background: none; font: inherit; color: var(--accent-blue); cursor: pointer; text-decoration: underline; }
 .bib-linha-botoes { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .ds-modal:has(.bib-visor) { width: min(1100px, calc(100vw - 32px)); max-height: calc(100vh - 32px); }
@@ -8730,7 +8735,8 @@ button.holiday-row:hover {
 .bib-form input:not([type="checkbox"]):not([type="file"]) { width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
 .bib-form-linha { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3); }
 .bib-form-linha label > span { display: block; margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
-.bib-form-linha select { width: 100%; }
+.bib-form-linha .bib-select { display: block; }
+.bib-form-linha select { width: 100%; height: 36px; }
 .bib-peca-escolhida { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-subtle); font-size: var(--fs-sm); }
 .bib-peca-escolhida span { color: var(--text-muted); }
 .bib-achadas { display: flex; flex-direction: column; max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }

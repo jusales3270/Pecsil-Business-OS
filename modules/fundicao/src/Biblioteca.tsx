@@ -367,10 +367,13 @@ function EnviarAntigo({ onClose, onEnviado }: { onClose: () => void; onEnviado: 
         )}
         {!peca && <label className="almox-largo"><span>Cliente (opcional)</span><input value={cliente} onChange={(e) => setCliente(e.target.value)} maxLength={200} /></label>}
         <div className="bib-form-linha">
+          {/* O select vai dentro de um span: a regra global `:where(label):has(> select)` o deixaria na horizontal. */}
           <label><span>Tipo</span>
-            <select value={tipo} onChange={(e) => setTipo(e.target.value as TipoDesenho)}>
-              {Object.entries(TIPOS_DESENHO).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            <span className="bib-select">
+              <select value={tipo} onChange={(e) => setTipo(e.target.value as TipoDesenho)}>
+                {Object.entries(TIPOS_DESENHO).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </span>
           </label>
           <label><span>Código do desenho</span><input value={codigo} onChange={(e) => setCodigo(e.target.value)} maxLength={100} required /></label>
           <label><span>Revisão</span><input value={revisao} onChange={(e) => setRevisao(e.target.value)} maxLength={30} /></label>
