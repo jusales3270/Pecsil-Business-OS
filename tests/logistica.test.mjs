@@ -163,3 +163,11 @@ test("logística: a CNH do motorista é a dos documentos do RH; o arquivo só pa
   const tela = await readFile(new URL("../modules/logistica/src/Frota.tsx", import.meta.url), "utf8");
   assert.match(tela, /window\.open\("about:blank", "_blank"\)/, "a janela abre no clique (sem bloqueio de pop-up)");
 });
+
+test("logística: o mapa enquadra as entregas abertas e os caminhões delas; o painel diz para onde vai", async () => {
+  const mapa = await readFile(new URL("../modules/logistica/src/MapaAoVivo.tsx", import.meta.url), "utf8");
+  assert.match(mapa, /if \(naEntrega\.has\(mot\.id\)\) pontos\.push\(p\)/, "caminhão fora de entrega não afasta o mapa");
+  assert.match(mapa, /Para: \{e\.destino_endereco\}/);
+  assert.match(mapa, /sem posição nova \(celular parado ou sem sinal\)/);
+  assert.doesNotMatch(mapa, /celular sem sinal agora/);
+});

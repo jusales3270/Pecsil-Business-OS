@@ -76,9 +76,11 @@ export function MapaAoVivo({ abrirEntregas }: { abrirEntregas: () => void }) {
     if (!lf || !m || !c || !dados) return;
     c.fixos.clearLayers();
     const pontos: [number, number][] = [];
+    // Caminhões que estão numa entrega aberta: só eles (e os destinos) entram no enquadramento do mapa.
+    const naEntrega = new Set(dados.entregas.filter((e) => ["enviada", "a_caminho"].includes(e.situacao)).map((e) => motoristaDa(e)?.id).filter(Boolean));
     if (dados.origem) {
       const o: [number, number] = [dados.origem.origem_lat, dados.origem.origem_lng];
-      pontos.push(o);
+      if (!dados.entregas.some((e) => e.situacao === "a_caminho")) pontos.push(o);
       lf.marker(o, { icon: lf.divIcon({ className: "logi-pin", html: `<span class="logi-patio">PÁTIO</span>`, iconSize: [52, 22], iconAnchor: [26, 11] }) })
         .bindTooltip(escapar(dados.origem.origem_nome), { direction: "top" }).addTo(c.fixos);
     }
@@ -106,7 +108,7 @@ export function MapaAoVivo({ abrirEntregas }: { abrirEntregas: () => void }) {
       if (!mot.posicao) continue;
       vistos.add(mot.id);
       const p: [number, number] = [mot.posicao.lat, mot.posicao.lng];
-      pontos.push(p);
+      if (naEntrega.has(mot.id)) pontos.push(p);
       rastros.current.set(mot.id, acrescentarAoRastro(rastros.current.get(mot.id) ?? [], p));
       const html = `<span class="logi-caminhao${mot.online ? "" : " parado"}" style="--giro:${mot.direcao ?? 0}deg"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden><path d="M12 3l6 16-6-3-6 3z" fill="currentColor"/></svg></span>`
         + `<span class="logi-placa">${escapar(mot.veiculo?.placa ? comTraco(mot.veiculo.placa) : mot.nome)}</span>`;
@@ -121,7 +123,7 @@ export function MapaAoVivo({ abrirEntregas }: { abrirEntregas: () => void }) {
 
     if (!enquadrado.current && pontos.length) {
       enquadrado.current = true;
-      if (pontos.length === 1) m.setView(pontos[0], 12); else m.fitBounds(lf.latLngBounds(pontos), { padding: [40, 40], maxZoom: 13 });
+      if (pontos.length === 1) m.setView(pontos[0], 14); else m.fitBounds(lf.latLngBounds(pontos), { padding: [50, 50], maxZoom: 15 });
     }
   }, [dados, motoristaDa]);
 
@@ -168,6 +170,7 @@ export function MapaAoVivo({ abrirEntregas }: { abrirEntregas: () => void }) {
                     <button type="button" onClick={() => focar(e)}>
                       <span className="logi-linha1"><b>#{e.numero} · {e.cliente_nome}</b><Status tone={SITUACAO[e.situacao].tom}>{SITUACAO[e.situacao].rotulo}</Status></span>
                       <small>{[e.origem_rotulo, e.descricao].filter(Boolean).join(" · ")}</small>
+                      {e.destino_endereco && <small className="logi-destino-texto">Para: {e.destino_endereco}</small>}
                       {e.situacao === "a_caminho" && (
                         <>
                           <span className="logi-barra" aria-label={`${Math.round(a?.percentual ?? 0)}% do caminho`}><i style={{ width: `${Math.min(100, Math.max(3, a?.percentual ?? 0))}%` }} /></span>
@@ -176,7 +179,7 @@ export function MapaAoVivo({ abrirEntregas }: { abrirEntregas: () => void }) {
                             {" · "}faltam {km(a?.faltaM)} · chega ~{hora(a?.chegada ?? e.previsao)}
                             {a?.estimativaEmLinhaReta ? " (estimativa em linha reta)" : a?.comTransito ? " (com o trânsito de agora)" : ""}
                           </small>
-                          {mot && <small className="logi-sinal">posição {haQuanto(mot.atualizado, agora)}{mot.online ? "" : " · celular sem sinal agora"}</small>}
+                          {mot && <small className="logi-sinal">posição {haQuanto(mot.atualizado, agora)}{mot.atualizado && agora - Date.parse(mot.atualizado) > 120_000 ? " · sem posição nova (celular parado ou sem sinal)" : ""}</small>}
                         </>
                       )}
                       {e.situacao === "enviada" && <small>Aguardando o motorista sair{e.rastreio ? ` · rastreio ${e.rastreio}` : ""}</small>}
