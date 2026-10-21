@@ -800,5 +800,5 @@ test("SARA: dados da empresa para quem tem RH, Financeiro, Fiscal, Compras ou Co
   assert.equal(r.dados.cnpj, "12.345.678/0001-95");
   const regras = readFileSync(new URL("../lib/sara/modulos.ts", import.meta.url), "utf8");
   assert.match(regras, /Não existe dado proibido dentro da empresa/);
-  assert.match(regras, /Nunca diga "não tenho acesso" a um dado que está na plataforma/);
+  assert.match(regras, /Nunca diga "não tenho acesso", "não tenho uma consulta"/);
 });
