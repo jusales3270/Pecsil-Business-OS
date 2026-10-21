@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-21-logistica-origem-mapa",
+    data: "2026-10-21",
+    area: "Logística",
+    modulos: ["logistica"],
+    funcionalidades: ["logistica.entregas", "logistica.frota"],
+    titulo: "Logística: ponto exato no mapa e frota já cadastrada",
+    itens: [
+      "Origem: use o endereço da empresa com um clique; a busca tolera erro de digitação e mostra várias sugestões.",
+      "O ponto exato é o do alfinete: arraste (ou clique no mapa) até o portão, com a visão de satélite.",
+      "A frota já vem cadastrada com os 5 veículos das saídas da Portaria e os motoristas Dalvacy, Nilton e João.",
+    ],
+  },
+  {
     id: "2026-10-20-sara-credencial",
     data: "2026-10-20",
     area: "SARA",

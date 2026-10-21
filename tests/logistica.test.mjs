@@ -129,3 +129,27 @@ test("logística: escrita só por funções, conferência só pelo servidor", ()
   }
   assert.match(mig, /'logistica'\)\s*\n\s*order by e\.occurred_at desc limit 60/, "o Segundo Cérebro pulsa com a Logística");
 });
+
+test("logística: endereço digitado à mão — CEP, número, cidade e variações que toleram erro de digitação", async () => {
+  const { analisarEndereco, juntarSugestoes } = await import("../lib/logistica/regras.mjs");
+  const a = analisarEndereco("rua francisco de faría, 243, vila prograsso - itu/sp");
+  assert.equal(a.numero, "243");
+  assert.equal(a.cidade, "itu");
+  assert.equal(a.uf, "SP");
+  assert.ok(a.variacoes.includes("rua francisco faria 243 itu SP"), "sem acento, sem o 'de' e sem o bairro digitado errado");
+  const b = analisarEndereco("Rua Francisco Faria, 243, Progresso, Itu - SP, 13313-531");
+  assert.deepEqual([b.cep, b.cidade, b.uf, b.numero], ["13313531", "Itu", "SP", "243"]);
+  assert.deepEqual(analisarEndereco("Av. Brasil 1000, Campinas SP").variacoes.slice(1), ["av. brasil 1000 campinas SP", "av. brasil campinas"], "o número não se repete");
+  const s = juntarSugestoes([
+    [{ lat: -23.2378, lng: -47.3232, nome: "Rua Francisco Faria, Itu, São Paulo", precisao: "rua", fonte: "OSM" }],
+    [{ lat: -23.23781, lng: -47.32321, nome: "Rua Francisco Faria, Itu", precisao: "rua", fonte: "OSM" }, { lat: -23.01, lng: -45.51, nome: "Rua Francisco Faria Júnior, Taubaté", precisao: "numero", fonte: "OSM" }],
+  ], "Itu");
+  assert.equal(s.length, 1, "repetida (a menos de 30 m) e de outra cidade saem");
+  const geo = await readFile(new URL("../lib/logistica/geocodificar.ts", import.meta.url), "utf8");
+  assert.match(geo, /viacep\.com\.br/);
+  assert.match(geo, /photon\.komoot\.io/);
+  assert.match(geo, /if \(d\?\.status !== "OK"\) return \[\]/, "Google só quando a API estiver ativada na chave");
+  const tela = await readFile(new URL("../modules/logistica/src/OrigemConfig.tsx", import.meta.url), "utf8");
+  assert.match(tela, /<MapaDoPonto ponto=\{ponto\} aoMover=\{aoMover\} \/>/, "a coordenada salva é a do alfinete");
+  assert.match(tela, /Usar este endereço/);
+});

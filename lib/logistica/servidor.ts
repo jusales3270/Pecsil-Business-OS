@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "../supabase/admin";
 import { FleetbaseErro, fleetbase, fleetbaseConfigurado } from "./fleetbase";
+import { procurarEndereco } from "./geocodificar";
 import { ABERTAS, cepFormatado, conferenciaDaOrdem, consultasDeCoordenada, enderecoCompleto, enderecoDoCliente, lerCoordenada } from "./regras.mjs";
 
 /**
@@ -30,7 +31,24 @@ export async function coordenadaDoEndereco(c: Cliente) {
     } catch { /* tenta a próxima consulta */ }
     await new Promise((ok) => setTimeout(ok, 1100)); // política do Nominatim: no máximo 1 consulta por segundo
   }
+  // Segunda tentativa: a busca que tolera erro de digitação (CEP pelo ViaCEP, Photon), só se achar a rua.
+  const texto = enderecoDoCliente(c);
+  if (texto) {
+    const s = (await procurarEndereco(texto)).find((x) => x.precisao === "numero" || x.precisao === "rua");
+    if (s) return { lat: s.lat, lng: s.lng, precisao: s.precisao === "numero" ? "numero" : "rua" };
+  }
   return null;
+}
+
+/**
+ * O endereço da própria empresa (cadastro do Fiscal), só o endereço, para a origem das entregas. Lido com a chave
+ * de serviço porque a configuração fiscal é do Fiscal; quem chama já confere a permissão da Logística.
+ */
+export async function enderecoDaEmpresa(org: string): Promise<string | null> {
+  const { data: f } = await createSupabaseAdminClient().from("fiscal_config").select("logradouro, numero, bairro, municipio, uf, cep").eq("organization_id", org).maybeSingle();
+  if (!f?.logradouro) return null;
+  const cep = String(f.cep ?? "").replace(/\D/g, "");
+  return [[f.logradouro, f.numero].filter(Boolean).join(", "), f.bairro, [f.municipio, f.uf].filter(Boolean).join(" - "), cep.length === 8 ? `${cep.slice(0, 5)}-${cep.slice(5)}` : null].filter(Boolean).join(", ");
 }
 
 /** Erro do banco ou do Fleetbase → resposta clara para a tela. */
