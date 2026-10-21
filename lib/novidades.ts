@@ -53,7 +53,8 @@ export const NOVIDADES: Novidade[] = [
     itens: [
       "Origem: use o endereço da empresa com um clique; a busca tolera erro de digitação e mostra várias sugestões.",
       "O ponto exato é o do alfinete: arraste (ou clique no mapa) até o portão, com a visão de satélite.",
-      "A frota já vem cadastrada com os 5 veículos das saídas da Portaria e os motoristas Dalvacy, Nilton e João.",
+      "A frota já vem cadastrada com os 5 veículos das saídas da Portaria e os motoristas cadastrados no RH (Dalvacy e Nilton).",
+      "Cada motorista mostra a CNH que está nos documentos do RH (conferida ou não); quem tem os documentos do RH abre o arquivo em \"Ver CNH\".",
     ],
   },
   {

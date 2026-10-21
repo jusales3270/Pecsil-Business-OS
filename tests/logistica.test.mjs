@@ -153,3 +153,13 @@ test("logística: endereço digitado à mão — CEP, número, cidade e variaç�
   assert.match(tela, /<MapaDoPonto ponto=\{ponto\} aoMover=\{aoMover\} \/>/, "a coordenada salva é a do alfinete");
   assert.match(tela, /Usar este endereço/);
 });
+
+test("logística: a CNH do motorista é a dos documentos do RH; o arquivo só para quem tem documentos do RH", async () => {
+  const rota = await readFile(new URL("../app/api/logistica/frota/route.ts", import.meta.url), "utf8");
+  const serv = await readFile(new URL("../lib/logistica/servidor.ts", import.meta.url), "utf8");
+  assert.match(serv, /\.eq\("module_code", "rh"\)\.eq\("active", true\)\.in\("employee_id", funcionarios\)\.ilike\("title", "%cnh%"\)/);
+  assert.match(rota, /const verDocumentos = guard\.access\.can\("rh\.documentos", "ver"\)/);
+  assert.match(rota, /caminho: verDocumentos \? c\.caminho : null/, "sem a credencial, o caminho do arquivo não sai");
+  const tela = await readFile(new URL("../modules/logistica/src/Frota.tsx", import.meta.url), "utf8");
+  assert.match(tela, /window\.open\("about:blank", "_blank"\)/, "a janela abre no clique (sem bloqueio de pop-up)");
+});

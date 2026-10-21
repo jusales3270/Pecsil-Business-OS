@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAnyFeature, requireFeature } from "../../../../lib/auth/feature-guard";
 import { fleetbase, fleetbaseConfigurado } from "../../../../lib/logistica/fleetbase";
 import { motoristaParaTela } from "../../../../lib/logistica/regras.mjs";
-import { espelharMotorista, espelharVeiculo, respostaDeErro } from "../../../../lib/logistica/servidor";
+import { cnhNoRh, espelharMotorista, espelharVeiculo, respostaDeErro } from "../../../../lib/logistica/servidor";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,9 @@ export async function GET(request: Request) {
     if (!podeOperar) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     const { data, error } = await guard.supabase.rpc("logistica_colaboradores_motorista");
     if (error) return respostaDeErro(error, "Não foi possível ler os colaboradores do RH.");
-    return NextResponse.json({ colaboradores: data ?? [] });
+    const lista = (data ?? []) as { id: string; nome: string; cargo: string | null }[];
+    const cnh = await cnhNoRh(lista.map((c) => c.id));
+    return NextResponse.json({ colaboradores: lista.map((c) => ({ ...c, cnh: cnh.has(c.id) })) });
   }
   const [veiculos, motoristas] = await Promise.all([
     guard.supabase.from("logistica_veiculos").select("*").order("ativo", { ascending: false }).order("placa"),
@@ -34,12 +36,17 @@ export async function GET(request: Request) {
       aoVivo = Object.fromEntries(lista.map((d) => [String(d.id ?? ""), motoristaParaTela(d)]));
     } catch { /* sem o estado ao vivo: a tela mostra só o cadastro */ }
   }
+  // CNH do RH: se está lá e se foi conferida; o caminho do arquivo só para quem tem documentos do RH.
+  const cnh = await cnhNoRh((motoristas.data ?? []).map((m) => m.employee_id));
+  const verDocumentos = guard.access.can("rh.documentos", "ver");
   return NextResponse.json({
     servico: fleetbaseConfigurado(), podeOperar,
     veiculos: veiculos.data ?? [],
     motoristas: (motoristas.data ?? []).map((m) => {
       const v = m.fleetbase_motorista ? aoVivo[m.fleetbase_motorista] : null;
-      return { ...m, online: Boolean(v?.online), posicaoEm: v?.posicao ? v.atualizado : null };
+      const c = cnh.get(m.employee_id);
+      return { ...m, online: Boolean(v?.online), posicaoEm: v?.posicao ? v.atualizado : null,
+        cnh: c ? { titulo: c.titulo, conferida: c.conferida, enviada_em: c.enviada_em, caminho: verDocumentos ? c.caminho : null } : null };
     }),
   });
 }

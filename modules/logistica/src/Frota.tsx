@@ -2,15 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button, Callout, Modal, Segmented, Status } from "../../../packages/design-system";
-import { chamarLogistica, comTraco, haQuanto, useAgora } from "./tipos";
+import { getRhDocumentUrl } from "../../../lib/data/rh-documents-client";
+import { chamarLogistica, comTraco, dataHora, haQuanto, useAgora } from "./tipos";
 
 /**
  * Frota e motoristas: o cadastro é da plataforma e o Fleetbase recebe o espelho (placa e modelo do veículo; do
- * motorista, só o nome). O motorista é um colaborador do RH: os documentos (CNH etc.) e os dados pessoais ficam
- * no RH. Quem tem a permissão de frota "operar" cadastra; quem tem a de entregas vê.
+ * motorista, só o nome). O motorista é um colaborador do RH: a CNH é a que está nos documentos do RH (a tela
+ * mostra se está lá e se foi conferida; abrir o arquivo é de quem tem documentos do RH). Quem tem a permissão de
+ * frota "operar" cadastra; quem tem a de entregas vê.
  */
 type Veiculo = { id: string; placa: string; tipo: string; marca: string | null; modelo: string | null; ano: number | null; capacidade_kg: number | null; observacao: string | null; ativo: boolean; fleetbase_veiculo: string | null; erro: string | null };
-type Motorista = { id: string; employee_id: string; nome: string; veiculo_id: string | null; ativo: boolean; fleetbase_motorista: string | null; erro: string | null; online: boolean; posicaoEm: string | null };
+/** CNH como está nos documentos do RH; `caminho` só vem para quem tem a credencial de documentos do RH. */
+type Cnh = { titulo: string; conferida: boolean; enviada_em: string; caminho: string | null };
+type Motorista = { id: string; employee_id: string; nome: string; veiculo_id: string | null; ativo: boolean; fleetbase_motorista: string | null; erro: string | null; online: boolean; posicaoEm: string | null; cnh: Cnh | null };
 type Dados = { servico: boolean; podeOperar: boolean; veiculos: Veiculo[]; motoristas: Motorista[] };
 
 const TIPOS = [{ value: "caminhao", label: "Caminhão" }, { value: "van", label: "Van" }, { value: "utilitario", label: "Utilitário" }, { value: "carro", label: "Carro" }, { value: "moto", label: "Moto" }, { value: "outro", label: "Outro" }] as const;
@@ -32,6 +36,17 @@ export function Frota({ notify }: { notify: (m: string) => void }) {
   useEffect(() => { const t = setTimeout(() => { void carregar(); }, 0); return () => clearTimeout(t); }, [carregar]);
 
   const salvou = async (msg: string) => { setVeiculo(null); setMotorista(null); notify(msg); await carregar(); };
+  // A janela abre no clique (senão o navegador bloqueia) e recebe o link do arquivo quando ele chega.
+  const verCnh = async (caminho: string) => {
+    const janela = window.open("about:blank", "_blank");
+    try {
+      const url = await getRhDocumentUrl(caminho);
+      if (janela) { janela.opener = null; janela.location.href = url; } else window.location.assign(url);
+    } catch {
+      janela?.close();
+      setErro("Não foi possível abrir a CNH agora: o arquivo é do RH e precisa da credencial de documentos do RH.");
+    }
+  };
   const placaDe = (id: string | null) => dados?.veiculos.find((v) => v.id === id)?.placa ?? null;
 
   return (
@@ -76,6 +91,11 @@ export function Frota({ notify }: { notify: (m: string) => void }) {
               <li key={m.id}>
                 <b>{m.nome}{!m.ativo ? " (desativado)" : ""}</b>
                 <small>{placaDe(m.veiculo_id) ? `veículo de costume ${placaBonita(placaDe(m.veiculo_id)!)} · ` : ""}{m.posicaoEm ? `posição ${haQuanto(m.posicaoEm, agora)}` : "sem posição ainda (o app do motorista vem na próxima etapa)"}</small>
+                <small className={m.cnh ? "" : "logi-erro"}>
+                  {m.cnh ? <>CNH no RH: {m.cnh.titulo} · {m.cnh.conferida ? "conferida" : "ainda não conferida"} · enviada em {dataHora(m.cnh.enviada_em).split(",")[0]}
+                    {m.cnh.caminho && <> · <button type="button" className="logi-link" onClick={() => void verCnh(m.cnh!.caminho!)}>Ver CNH</button></>}</>
+                    : "Sem CNH nos documentos do RH"}
+                </small>
                 {m.erro && <small className="logi-erro">{m.erro}</small>}
                 <span className="logi-frota-acoes">
                   <Status tone={!m.ativo ? "neutral" : m.online ? "success" : m.fleetbase_motorista ? "info" : "attention"}>{!m.ativo ? "desativado" : m.online ? "online" : m.fleetbase_motorista ? "offline" : "falta enviar"}</Status>
@@ -137,7 +157,7 @@ function FormVeiculo({ atual, onFechar, onSalvo }: { atual: Veiculo | null; onFe
 function FormMotorista({ atual, veiculos, jaCadastrados, onFechar, onSalvo }: {
   atual: Motorista | null; veiculos: Veiculo[]; jaCadastrados: Set<string>; onFechar: () => void; onSalvo: (m: Motorista) => void;
 }) {
-  const [colaboradores, setColaboradores] = useState<{ id: string; nome: string; cargo: string | null }[] | null>(null);
+  const [colaboradores, setColaboradores] = useState<{ id: string; nome: string; cargo: string | null; cnh: boolean }[] | null>(null);
   const [employee, setEmployee] = useState(atual?.employee_id ?? "");
   const [veiculoId, setVeiculoId] = useState(atual?.veiculo_id ?? "");
   const [filtro, setFiltro] = useState<"motoristas" | "todos">("motoristas");
@@ -146,7 +166,7 @@ function FormMotorista({ atual, veiculos, jaCadastrados, onFechar, onSalvo }: {
   useEffect(() => {
     if (atual) return;
     let vivo = true;
-    void chamarLogistica<{ colaboradores: { id: string; nome: string; cargo: string | null }[] }>("/api/logistica/frota?colaboradores=1").then((r) => {
+    void chamarLogistica<{ colaboradores: { id: string; nome: string; cargo: string | null; cnh: boolean }[] }>("/api/logistica/frota?colaboradores=1").then((r) => {
       if (!vivo) return;
       if (r.ok) setColaboradores(r.data.colaboradores); else setErro(r.error);
     });
@@ -171,7 +191,7 @@ function FormMotorista({ atual, veiculos, jaCadastrados, onFechar, onSalvo }: {
               <ul className="logi-escolhas" role="listbox" aria-label="Colaboradores do RH">
                 {lista.map((c) => (
                   <li key={c.id}><button type="button" role="option" aria-selected={employee === c.id} className={employee === c.id ? "on" : ""} onClick={() => setEmployee(c.id)}>
-                    <b>{c.nome}</b><small>{c.cargo ?? "sem cargo"}</small>
+                    <b>{c.nome}</b><small>{c.cargo ?? "sem cargo"} · {c.cnh ? "CNH no RH" : "sem CNH no RH"}</small>
                   </button></li>
                 ))}
                 {!lista.length && <li className="ti-nota">{filtro === "motoristas" ? "Nenhum colaborador com cargo de motorista sem cadastro. Veja “Todos os colaboradores”." : "Nenhum colaborador disponível."}</li>}

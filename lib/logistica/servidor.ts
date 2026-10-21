@@ -51,6 +51,23 @@ export async function enderecoDaEmpresa(org: string): Promise<string | null> {
   return [[f.logradouro, f.numero].filter(Boolean).join(", "), f.bairro, [f.municipio, f.uf].filter(Boolean).join(" - "), cep.length === 8 ? `${cep.slice(0, 5)}-${cep.slice(5)}` : null].filter(Boolean).join(", ");
 }
 
+/**
+ * CNH de cada colaborador, como está nos documentos do RH (o arquivo digitalizado, enviado na admissão). A
+ * Logística vê se a CNH está lá, se foi conferida e quando chegou; o caminho do arquivo só vai para quem tem a
+ * credencial de documentos do RH (quem decide é quem chama). O arquivo continua protegido pelo armazenamento.
+ */
+export type CnhNoRh = { documento: string; titulo: string; conferida: boolean; enviada_em: string; caminho: string };
+export async function cnhNoRh(funcionarios: string[]): Promise<Map<string, CnhNoRh>> {
+  const mapa = new Map<string, CnhNoRh>();
+  if (!funcionarios.length) return mapa;
+  const { data } = await createSupabaseAdminClient().from("documents").select("id, employee_id, title, review_status, created_at, object_path")
+    .eq("module_code", "rh").eq("active", true).in("employee_id", funcionarios).ilike("title", "%cnh%").order("created_at", { ascending: false });
+  for (const d of (data ?? []) as { id: string; employee_id: string; title: string; review_status: string | null; created_at: string; object_path: string }[]) {
+    if (!mapa.has(d.employee_id)) mapa.set(d.employee_id, { documento: d.id, titulo: d.title.trim(), conferida: d.review_status === "aprovado", enviada_em: d.created_at, caminho: d.object_path });
+  }
+  return mapa;
+}
+
 /** Erro do banco ou do Fleetbase → resposta clara para a tela. */
 export function respostaDeErro(error: unknown, padrao: string) {
   if (error instanceof FleetbaseErro) return NextResponse.json({ error: error.message }, { status: error.status >= 500 ? 503 : 400 });
