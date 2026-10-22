@@ -105,10 +105,13 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const SITUACAO: Record<string, string> = { pendente: "esperando a pessoa decidir", permitida: "permitida, executando", recusada: "a pessoa NÃO permitiu", expirada: "venceu sem decisão (nada foi feito)", executada: "FEITA", falhou: "falhou" };
   const notaAcoes = recentes.length ? `\nAções que você preparou nesta conversa (a mais recente primeiro): ${recentes.map((a) => `${a.resumo} → ${SITUACAO[a.situacao] ?? a.situacao}${a.feito ? ` (${a.feito})` : ""}${a.erro ? ` (${a.erro})` : ""}`).join(" | ")}.` : "";
   const indisponiveis = p.sara.ferramentas.filter((n) => !p.ferramentas.some((f) => f.nome === n));
+  // Ações deste módulo que a pessoa não tem o nível para fazer: a SARA diz "Você não tem permissão" em vez de perguntar detalhes.
+  const acoesFechadas = ACOES.filter((f) => f.acao && f.acao.modulos !== "todos" && f.acao.modulos.includes(modulo) && !p.ferramentas.some((x) => x.nome === f.nome))
+    .map((f) => f.descricao.replace(/^PREPARA /, "").split(" (")[0]);
   // Fixo (vai para o cache) + do momento (hora, quem conversa, situação da conversa, o que não pode).
   const sistema = {
     fixo: `${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
-    variavel: `${contextoDeTempo({ nome: primeiroNome(me?.full_name), situacao })}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}${notaAcoes}\nResponda sempre em português do Brasil.`,
+    variavel: `${contextoDeTempo({ nome: primeiroNome(me?.full_name), situacao })}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}${acoesFechadas.length ? `\nAções que esta pessoa NÃO tem permissão de fazer (se ela pedir, comece com "Você não tem permissão para…" e diga quem pode; não pergunte detalhes): ${acoesFechadas.join("; ")}.` : ""}${notaAcoes}\nResponda sempre em português do Brasil.`,
   };
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
