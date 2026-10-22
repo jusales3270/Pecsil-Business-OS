@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState, type PointerEvent as EventoPonteiro, type ReactNode } from "react";
-import { Callout } from "../../packages/design-system";
+import { Callout, Carregando, useEscolherArquivo } from "../../packages/design-system";
 import { pedirRegistro, type PedidoRegistro } from "../../lib/abrir-registro";
 import type { Visual } from "../../lib/sara/visual";
 import { SaraVisual } from "./sara-visual";
@@ -22,7 +22,7 @@ type Cartao = { id: string; resumo: string; detalhes: string[]; risco: string; s
 type Salva = { id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean; visuais?: Visual[]; acoes?: Cartao[] };
 type Estado = { nome: string; configurada: boolean; ferramentas: string[]; alcance?: { outrosModulos: boolean; dados: boolean; pesquisa: boolean }; rotulos?: Record<string, string>; habilidades?: { id: string; nome: string; pedido: string }[]; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
-type Mensagem = { papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string; visuais?: Visual[]; acoes?: Cartao[] };
+type Mensagem = { foto?: string; papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string; visuais?: Visual[]; acoes?: Cartao[] };
 
 const CONSULTA: Record<string, string> = {
   contas_a_pagar: "contas a pagar", contas_a_receber: "contas a receber", fluxo_de_caixa_90_dias: "fluxo de caixa",
@@ -92,6 +92,63 @@ function Texto({ texto }: { texto: string }) {
   fecharTabela();
   fecharLista();
   return <>{blocos}</>;
+}
+
+/** Foto pronta para enviar: reduzida no celular (lado maior 1568 px, JPEG), sem guardar no aparelho nem na plataforma. */
+type Foto = { tipo: "image/jpeg"; dados: string; previa: string };
+async function reduzirFoto(arquivo: File): Promise<Foto> {
+  const img = await createImageBitmap(arquivo);
+  const escala = Math.min(1, 1568 / Math.max(img.width, img.height));
+  const tela = document.createElement("canvas");
+  tela.width = Math.round(img.width * escala); tela.height = Math.round(img.height * escala);
+  tela.getContext("2d")?.drawImage(img, 0, 0, tela.width, tela.height);
+  img.close();
+  const previa = tela.toDataURL("image/jpeg", 0.82);
+  return { tipo: "image/jpeg", dados: previa.split(",")[1] ?? "", previa };
+}
+
+type Detector = { detect: (fonte: CanvasImageSource) => Promise<{ rawValue: string; format: string }[]> };
+type DetectorCtor = new (o?: { formats?: string[] }) => Detector;
+/**
+ * Leitor de código pela câmera (o "coletor de dados"): BarcodeDetector do navegador (Chrome no Android).
+ * Lê código de barras e QR da etiqueta; a câmera desliga assim que lê ou quando a pessoa fecha.
+ */
+function LeitorDeCodigo({ onLido, onFechar }: { onLido: (valor: string, formato: string) => void; onFechar: () => void }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const Ctor = typeof window !== "undefined" ? (window as unknown as { BarcodeDetector?: DetectorCtor }).BarcodeDetector : undefined;
+  const [erro, setErro] = useState(Ctor ? "" : "Este aparelho não lê código pela câmera. Tire uma foto da etiqueta: a SARA lê o código pela foto.");
+  useEffect(() => {
+    if (!Ctor) return;
+    let fluxo: MediaStream | null = null, parado = false, timer: ReturnType<typeof setTimeout> | undefined;
+    const detector = new Ctor();
+    const procurar = async () => {
+      if (parado || !video.current) return;
+      try {
+        const achados = video.current.readyState >= 2 ? await detector.detect(video.current) : [];
+        const a = achados.find((x) => x.rawValue?.trim());
+        if (a) { parado = true; onLido(a.rawValue.trim(), a.format); return; }
+      } catch { /* quadro ruim: tenta o próximo */ }
+      timer = setTimeout(() => void procurar(), 250);
+    };
+    navigator.mediaDevices?.getUserMedia({ video: { facingMode: "environment" }, audio: false })
+      .then((f) => {
+        if (parado) { f.getTracks().forEach((t) => t.stop()); return; }
+        fluxo = f;
+        if (video.current) { video.current.srcObject = f; video.current.play().catch(() => { /* trocou a fonte (ex.: reabriu): segue no próximo quadro */ }); void procurar(); }
+      })
+      .catch(() => setErro("Não foi possível abrir a câmera. Libere a câmera para a plataforma nas permissões do navegador."));
+    return () => { parado = true; clearTimeout(timer); fluxo?.getTracks().forEach((t) => t.stop()); };
+  }, [Ctor, onLido]);
+  return (
+    <div className="sara-leitor" role="dialog" aria-label="Ler código pela câmera">
+      {erro ? <p className="sara-leitor-erro">{erro}</p> : (<>
+        <video ref={video} muted playsInline aria-label="Câmera" />
+        <span className="sara-leitor-mira" aria-hidden />
+        <p>Aponte para o código de barras ou QR da etiqueta.</p>
+      </>)}
+      <button type="button" className="sara-abrir" onClick={onFechar}>Fechar</button>
+    </div>
+  );
 }
 
 type Aviso = { chave: string; nivel: "urgente" | "aviso"; titulo: string; detalhe: string; abrir?: Abrir; visto: boolean; propor?: { rotulo: string } };
@@ -184,6 +241,16 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
   const [msgs, setMsgs] = useState<Mensagem[]>([]);
   const [conversa, setConversa] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
+  const [foto, setFoto] = useState<Foto | null>(null);
+  const [preparandoFoto, setPreparandoFoto] = useState(false);
+  const [lendoCodigo, setLendoCodigo] = useState(false);
+  const { abrir: escolherFoto, abrindo: abrindoFoto, inputProps: entradaFoto } = useEscolherArquivo(async (arquivos) => {
+    const f = arquivos[0];
+    if (!f || !f.type.startsWith("image/")) return;
+    setPreparandoFoto(true);
+    try { setFoto(await reduzirFoto(f)); } catch { setFoto(null); }
+    setPreparandoFoto(false);
+  });
   const [pensando, setPensando] = useState(false);
   const rolagem = useRef<HTMLDivElement>(null);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
@@ -252,9 +319,12 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
   };
   const perguntar = async (pergunta: string, habilidade?: string) => {
     const p = pergunta.trim();
-    if (!p || pensando) return;
-    setTexto(""); setMsgs((m) => [...m, { papel: "pessoa", texto: p, quando: new Date().toISOString() }]); setPensando(true);
-    const r = await fetch(`/api/sara/${modulo}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pergunta: p, conversa, habilidade: habilidade ?? null }) })
+    const comFoto = foto;
+    if ((!p && !comFoto) || pensando) return;
+    setTexto(""); setFoto(null);
+    setMsgs((m) => [...m, { papel: "pessoa", texto: p || "📷 O que é isto?", foto: comFoto?.previa, quando: new Date().toISOString() }]); setPensando(true);
+    const r = await fetch(`/api/sara/${modulo}`, { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pergunta: p, conversa, habilidade: habilidade ?? null, imagem: comFoto ? { tipo: comFoto.tipo, dados: comFoto.dados } : null }) })
       .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
     setPensando(false);
     if (!r.ok) { setMsgs((m) => [...m, { papel: "sara", texto: r.body?.error ?? "A SARA está indisponível agora.", erro: true, quando: new Date().toISOString() }]); return; }
@@ -375,6 +445,8 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
               {m.quando && (i === 0 || !msgs[i - 1].quando || diaSP(msgs[i - 1].quando!) !== diaSP(m.quando)) && <div className="sara-dia" role="separator"><span>{rotuloDoDia(m.quando)}</span></div>}
               <div className={`sara-msg ${m.papel}${m.erro ? " erro" : ""}${m.fora ? " fora" : ""}`}>
                 {m.papel === "sara" && !m.erro && <span className="sara-selo">{m.fora ? "SARA (IA) · fora do escopo" : "SARA (IA)"}{m.quando ? <i> · {horaSP(m.quando)}</i> : null}</span>}
+                {/* eslint-disable-next-line @next/next/no-img-element -- prévia local da foto enviada (dado em memória, não fica guardada) */}
+                {m.foto && <img className="sara-foto" src={m.foto} alt="Foto enviada à SARA" />}
                 <div className="sara-texto">{m.papel === "sara" ? <Texto texto={m.texto} /> : <p>{m.texto}</p>}</div>
                 {m.visuais?.map((v, k) => <SaraVisual key={k} v={v} />)}
                 {m.acoes?.map((c) => <CartaoAcao key={c.id} c={c} decidindo={decidindo} confirmar={confirmar} decidir={(x, permitir) => void decidir(x, permitir)} />)}
@@ -394,10 +466,27 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
             ))}
             {pensando && <div className="sara-msg sara"><span className="sara-selo">SARA (IA)</span><p className="sara-pensando">Consultando…</p></div>}
           </div>
+          {lendoCodigo && <LeitorDeCodigo onFechar={() => setLendoCodigo(false)} onLido={(valor, formato) => { setLendoCodigo(false); void perguntar(`Código lido: ${valor} (${formato}). O que é?`); }} />}
+          {pode && (
+            <div className="sara-chao" aria-label="Foto e código">
+              <input {...entradaFoto} accept="image/*" capture="environment" />
+              <button type="button" onClick={escolherFoto} disabled={pensando || abrindoFoto || preparandoFoto} aria-busy={abrindoFoto || preparandoFoto}>
+                {abrindoFoto || preparandoFoto ? <Carregando /> : <span aria-hidden>📷</span>} {abrindoFoto ? "Abrindo a câmera…" : preparandoFoto ? "Preparando…" : "Foto"}
+              </button>
+              <button type="button" onClick={() => setLendoCodigo(true)} disabled={pensando}><span aria-hidden>▦</span> Ler código</button>
+              {foto && (
+                <span className="sara-foto-pronta">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- prévia local antes de enviar */}
+                  <img src={foto.previa} alt="Foto pronta para enviar" />
+                  <button type="button" onClick={() => setFoto(null)} aria-label="Tirar a foto">×</button>
+                </span>
+              )}
+            </div>
+          )}
           <form className="sara-entrada" onSubmit={(e) => { e.preventDefault(); void perguntar(texto); }}>
-            <textarea rows={2} value={texto} disabled={!pode || pensando} placeholder={pode ? "Pergunte à SARA…" : "SARA indisponível"} maxLength={2000}
+            <textarea rows={2} value={texto} disabled={!pode || pensando} placeholder={!pode ? "SARA indisponível" : foto ? "Pergunte sobre a foto (ou só envie)…" : "Pergunte à SARA…"} maxLength={2000}
               onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void perguntar(texto); } }} aria-label="Pergunta para a SARA" />
-            <button type="submit" className="sara-enviar" disabled={!pode || pensando || texto.trim().length < 2} aria-label="Enviar">
+            <button type="submit" className="sara-enviar" disabled={!pode || pensando || (texto.trim().length < 2 && !foto)} aria-label="Enviar">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           </form>

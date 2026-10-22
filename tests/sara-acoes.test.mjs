@@ -142,3 +142,28 @@ test("Degrau 3: pedido já refeito não oferece 'Refazer' de novo", async () => 
   assert.match(ler("lib/sara/agentes/fundicao.ts"), /propor: refeitos\.has\(p\.numero\) \? undefined/);
   assert.match(ler("lib/sara/agentes/almoxarifado.ts"), /propor: refeitos\.has\(p\.numero\) \? undefined/);
 });
+
+test("E2: a foto vai ao modelo como imagem junto da pergunta, e não fica guardada", async () => {
+  const { buscar, pedidos } = claudeFalso([{ stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: "Li na etiqueta: 8-04-00184." }] }]);
+  await conversarCom({}, { chave: "x", buscar, modelo: "m", sistema: "s", historico: [], pergunta: "o que é?", ferramentas: [], imagem: { tipo: "image/jpeg", dados: "QUJD" } });
+  const ultima = pedidos[0].messages.at(-1).content;
+  assert.equal(ultima[0].type, "image");
+  assert.deepEqual(ultima[0].source, { type: "base64", media_type: "image/jpeg", data: "QUJD" });
+  assert.equal(ultima[1].text, "o que é?");
+  const rota = ler("app/api/sara/[modulo]/route.ts");
+  assert.match(rota, /const TIPOS_FOTO = \["image\/jpeg", "image\/png", "image\/webp"\]/);
+  assert.match(rota, /dados\.length > 5_400_000/, "limite de tamanho da foto");
+  assert.match(rota, /p_pergunta: imagem \? `📷 \$\{pergunta\}` : pergunta/, "na conversa fica só a marca da foto, não a imagem");
+  assert.match(ler("lib/sara/modulos.ts"), /Nunca invente código que não está na foto/);
+});
+
+test("E2: no celular, foto pela câmera (reduzida no aparelho) e leitor de código de barras/QR", () => {
+  const painel = ler("app/components/sara-painel.tsx");
+  assert.match(painel, /accept="image\/\*" capture="environment"/);
+  assert.match(painel, /1568 \/ Math\.max\(img\.width, img\.height\)/, "reduz antes de enviar");
+  assert.match(painel, /BarcodeDetector/);
+  assert.match(painel, /facingMode: "environment"/);
+  assert.match(painel, /getTracks\(\)\.forEach\(\(t\) => t\.stop\(\)\)/, "a câmera desliga ao ler ou fechar");
+  assert.match(painel, /Código lido: \$\{valor\}/);
+  assert.match(painel, /Tire uma foto da etiqueta/, "sem leitor no aparelho, orienta usar a foto");
+});

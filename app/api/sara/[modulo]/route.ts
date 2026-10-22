@@ -16,6 +16,17 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const UUID = /^[0-9a-f-]{36}$/i;
+const FOTO_SEM_TEXTO = "O que é isto? Leia códigos e textos da foto, procure no catálogo e me diga o que achou.";
+const TIPOS_FOTO = ["image/jpeg", "image/png", "image/webp"] as const;
+/** Foto da pergunta: tipo aceito e até ~4 MB (a Anthropic aceita até 5 MB por imagem). */
+function lerFoto(f: { tipo?: string; dados?: string } | null | undefined): { tipo: (typeof TIPOS_FOTO)[number]; dados: string } | { erro: string } | null {
+  if (!f) return null;
+  const tipo = TIPOS_FOTO.find((t) => t === f.tipo);
+  const dados = String(f.dados ?? "").replace(/^data:[^,]+,/, "");
+  if (!tipo || !/^[A-Za-z0-9+/=]+$/.test(dados)) return { erro: "A foto precisa ser JPEG, PNG ou WebP." };
+  if (dados.length > 5_400_000) return { erro: "A foto ficou grande demais. Tente de novo (ela é reduzida no celular)." };
+  return { tipo, dados };
+}
 
 /**
  * SARA de um módulo (I-12, nível 1: orienta e consulta). GET: situação (configurada, ferramentas que
@@ -78,10 +89,15 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const { modulo } = await context.params;
   const p = await preparar(modulo);
   if ("erro" in p) return p.erro;
-  const corpo = (await request.json().catch(() => null)) as { pergunta?: string; conversa?: string | null; habilidade?: string | null } | null;
+  const corpo = (await request.json().catch(() => null)) as { pergunta?: string; conversa?: string | null; habilidade?: string | null; imagem?: { tipo?: string; dados?: string } | null } | null;
   // (o cliente do Supabase só envia a consulta quando alguém espera por ela: sem o await, não contava)
   if (corpo?.habilidade && UUID.test(corpo.habilidade) && p.habilidades.some((h) => h.id === corpo.habilidade)) await p.sb.rpc("sara_habilidade_usada", { p_id: corpo.habilidade });
-  const pergunta = String(corpo?.pergunta ?? "").trim().slice(0, 2000);
+  // Foto (E2): só JPEG, PNG ou WebP, já reduzida no celular; vai ao modelo nesta pergunta e não fica guardada.
+  const foto = lerFoto(corpo?.imagem);
+  if (foto && "erro" in foto) return NextResponse.json({ error: foto.erro }, { status: 400 });
+  const imagem = foto && !("erro" in foto) ? foto : null;
+  const digitada = String(corpo?.pergunta ?? "").trim().slice(0, 2000);
+  const pergunta = digitada || (imagem ? FOTO_SEM_TEXTO : "");
   if (pergunta.length < 2) return NextResponse.json({ error: "Escreva a pergunta." }, { status: 400 });
   if (!chaveConfigurada()) return NextResponse.json({ error: "A SARA ainda não está configurada (falta a chave do modelo no servidor)." }, { status: 503 });
   const { data: uso } = await p.sb.rpc("sara_uso_mes", { p_modulo: modulo });
@@ -122,7 +138,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   let falha: unknown = null;
   try {
     // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
-    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens });
+    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem });
   } catch (e) { falha = e; }
   const v = await verificacao;
   const textoRecusa = recusa(empresa, p.sara.rotulo);
@@ -142,7 +158,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const nomeCurto = primeiroNome(me?.full_name);
   r = { ...r, texto: comAbertura(r.texto, abertura({ nome: nomeCurto, situacao }), nomeCurto) };
   const { data: reg, error } = await p.sb.rpc("sara_registrar", {
-    p_conversa: conversa, p_modulo: modulo, p_pergunta: pergunta, p_resposta: r.texto,
+    p_conversa: conversa, p_modulo: modulo, p_pergunta: imagem ? `📷 ${pergunta}` : pergunta, p_resposta: r.texto,
     p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou },
       lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });

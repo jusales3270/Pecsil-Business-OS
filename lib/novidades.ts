@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-22-sara-foto-codigo",
+    data: "2026-10-22",
+    area: "SARA",
+    modulos: ["almoxarifado", "fundicao", "financeiro", "fiscal", "rh", "compras", "comercial", "portaria", "producao", "ti"],
+    funcionalidades: ["almoxarifado.sara", "fundicao.sara", "financeiro.sara", "fiscal.sara", "rh.sara", "compras.sara", "comercial.sara", "portaria.sara", "producao.sara", "ti.sara"],
+    titulo: "SARA: foto e leitor de código pelo celular",
+    itens: [
+      "Toque em Foto: fotografe a etiqueta, a peça ou o material e pergunte. A SARA lê o código e os textos da foto e procura no catálogo.",
+      "Toque em Ler código: aponte a câmera para o código de barras ou QR da etiqueta. A SARA diz o que é e, se quiser, já prepara o pedido.",
+      "A foto não fica guardada: vai só para a resposta daquela pergunta.",
+      "No celular, a SARA abre em tela cheia, com os botões grandes.",
+    ],
+  },
+  {
     id: "2026-10-22-sara-acoes",
     data: "2026-10-22",
     area: "SARA",
