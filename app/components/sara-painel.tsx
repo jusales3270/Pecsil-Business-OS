@@ -17,10 +17,12 @@ import { SaraVisual } from "./sara-visual";
  * pessoa abrir a janela e vê-los; depois daquele aviso, não pulsa mais (até a situação mudar).
  */
 
-type Salva = { id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean; visuais?: Visual[] };
+/** Ação que a SARA preparou (E1): só acontece se a pessoa tocar em Permitir. */
+type Cartao = { id: string; resumo: string; detalhes: string[]; risco: string; situacao: string; feito: string | null; erro: string | null; expiraEm?: string };
+type Salva = { id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean; visuais?: Visual[]; acoes?: Cartao[] };
 type Estado = { nome: string; configurada: boolean; ferramentas: string[]; alcance?: { outrosModulos: boolean; dados: boolean; pesquisa: boolean }; rotulos?: Record<string, string>; habilidades?: { id: string; nome: string; pedido: string }[]; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
-type Mensagem = { papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string; visuais?: Visual[] };
+type Mensagem = { papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string; visuais?: Visual[]; acoes?: Cartao[] };
 
 const CONSULTA: Record<string, string> = {
   contas_a_pagar: "contas a pagar", contas_a_receber: "contas a receber", fluxo_de_caixa_90_dias: "fluxo de caixa",
@@ -29,6 +31,7 @@ const CONSULTA: Record<string, string> = {
   buscar_contas_a_pagar: "busca em contas a pagar", buscar_contas_a_receber: "busca em contas a receber", abrir_lancamento: "abriu um lançamento",
   registrar_lacuna: "anotou o pedido",
 };
+const SITUACAO_ACAO: Record<string, string> = { executada: "Feito", recusada: "Não permitido · nada foi feito", expirada: "Venceu · nada foi feito", falhou: "Não foi feito", permitida: "Fazendo…" };
 // Navegação, não consulta: não entram no "Posso consultar".
 const NAVEGA = new Set(["abrir_tela", "abrir_lancamento", "registrar_lacuna", "propor_habilidade", "mostrar", "calcular"]);
 const AVATAR = "/favicon.png?v=2";
@@ -177,7 +180,7 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
       const salvas = e.conversa;
       setMsgs((atuais) => (atuais.length ? atuais : salvas.mensagens.map((m) => ({
         papel: m.papel, texto: m.texto, quando: m.quando, id: m.papel === "sara" ? m.id : null, nota: m.nota ?? undefined,
-        consultas: m.consultas, fontes: m.fontes, abrir: m.abrir, fora: m.fora, visuais: m.visuais ?? [],
+        consultas: m.consultas, fontes: m.fontes, abrir: m.abrir, fora: m.fora, visuais: m.visuais ?? [], acoes: m.acoes ?? [],
       }))));
       setConversa((atual) => atual ?? salvas.id);
     }
@@ -234,8 +237,22 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
     setPensando(false);
     if (!r.ok) { setMsgs((m) => [...m, { papel: "sara", texto: r.body?.error ?? "A SARA está indisponível agora.", erro: true, quando: new Date().toISOString() }]); return; }
     setConversa(r.body.conversa ?? conversa);
-    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo), quando: new Date().toISOString(), visuais: r.body.visuais ?? [] }]);
+    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo), quando: new Date().toISOString(), visuais: r.body.visuais ?? [], acoes: r.body.acoes ?? [] }]);
     // A SARA pediu para mostrar uma tela: abre por dentro da plataforma (a janela continua aberta).
+    if (r.body.abrir) abrir(r.body.abrir);
+  };
+  // Cartão da ação: a pessoa decide. Ação de risco alto pede um segundo toque ("Confirmar").
+  const [confirmar, setConfirmar] = useState<string | null>(null);
+  const [decidindo, setDecidindo] = useState<string | null>(null);
+  const mudarCartao = (id: string, mudar: Partial<Cartao>) => setMsgs((l) => l.map((m) => (m.acoes?.some((a) => a.id === id) ? { ...m, acoes: m.acoes.map((a) => (a.id === id ? { ...a, ...mudar } : a)) } : m)));
+  const decidir = async (c: Cartao, permitir: boolean) => {
+    if (permitir && c.risco === "alto" && confirmar !== c.id) { setConfirmar(c.id); return; }
+    setConfirmar(null); setDecidindo(c.id);
+    const r = await fetch(`/api/sara/${modulo}/acoes/${c.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ permitir }) })
+      .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
+    setDecidindo(null);
+    if (!r.ok) { mudarCartao(c.id, { erro: r.body?.error ?? "Sem conexão com o servidor." }); return; }
+    mudarCartao(c.id, { situacao: r.body.situacao, feito: r.body.feito ?? null, erro: r.body.erro ?? null });
     if (r.body.abrir) abrir(r.body.abrir);
   };
   const avaliar = async (i: number, nota: number) => {
@@ -267,7 +284,7 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
           <header className="sara-alca" onPointerDown={(e) => arrastarJanela(e, false)} title="Segure e arraste para mudar de lugar">
             {/* eslint-disable-next-line @next/next/no-img-element -- avatar pequeno e fixo (o favicon) */}
             <img src={AVATAR} alt="" className="sara-avatar" draggable={false} />
-            <div><b>{NOME}</b><small>IA · consulta com as suas permissões · não grava nada</small></div>
+            <div><b>{NOME}</b><small>IA · consulta com as suas permissões · só faz algo se você permitir</small></div>
             <span>
               {msgs.length > 0 && <button type="button" className="sara-nova" onClick={() => { setMsgs([]); setConversa(null); }}>Nova conversa</button>}
               <button type="button" className="sara-fechar" onClick={() => setAberto(false)} aria-label="Fechar a SARA">×</button>
@@ -319,6 +336,26 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
                 {m.papel === "sara" && !m.erro && <span className="sara-selo">{m.fora ? "SARA (IA) · fora do escopo" : "SARA (IA)"}{m.quando ? <i> · {horaSP(m.quando)}</i> : null}</span>}
                 <div className="sara-texto">{m.papel === "sara" ? <Texto texto={m.texto} /> : <p>{m.texto}</p>}</div>
                 {m.visuais?.map((v, k) => <SaraVisual key={k} v={v} />)}
+                {m.acoes?.map((c) => {
+                  const vencida = c.situacao === "pendente" && c.expiraEm && Date.parse(c.expiraEm) < Date.now();
+                  const situacao = vencida ? "expirada" : c.situacao;
+                  return (
+                    <div key={c.id} className={`sara-acao ${situacao}${c.risco === "alto" ? " risco" : ""}`} role="group" aria-label="Autorização da SARA">
+                      <span className="sara-acao-titulo"><span aria-hidden>🔒</span> {situacao === "pendente" ? "Precisa da sua permissão" : SITUACAO_ACAO[situacao] ?? situacao}</span>
+                      <b>{c.resumo}</b>
+                      {c.detalhes.length > 0 && <ul>{c.detalhes.map((d, k) => <li key={k}>{d}</li>)}</ul>}
+                      {situacao === "pendente" && (
+                        <div className="sara-acao-botoes">
+                          <button type="button" className="nao" disabled={decidindo === c.id} onClick={() => void decidir(c, false)}>Não permitir</button>
+                          <button type="button" className="sim" disabled={decidindo === c.id} onClick={() => void decidir(c, true)}>{decidindo === c.id ? "Fazendo…" : confirmar === c.id ? "Confirmar" : "Permitir"}</button>
+                        </div>
+                      )}
+                      {confirmar === c.id && <small className="sara-acao-aviso">Esta ação não se desfaz pela SARA. Toque em Confirmar para seguir.</small>}
+                      {c.feito && <small className="sara-acao-feito">{c.feito}</small>}
+                      {c.erro && <small className="sara-acao-erro">{c.erro}</small>}
+                    </div>
+                  );
+                })}
                 {m.consultas && m.consultas.length > 0 && <small className="sara-consultas">Consultou: {[...new Set(m.consultas)].map(rotulo).join(", ")}</small>}
                 {m.abrir && <button type="button" className="sara-abrir" onClick={() => abrir(m.abrir!)}>Abrir {m.abrir.rotulo}</button>}
                 {m.fontes && m.fontes.length > 0 && <div className="sara-fontes">{m.fontes.map((f) => /^https?:\/\//.test(f.link)

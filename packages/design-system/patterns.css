@@ -7403,6 +7403,24 @@ button.holiday-row:hover {
 .sv-datas span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .sv-datas b { font-variant-numeric: tabular-nums; }
 .sara-abrir { align-self: flex-start; padding: 5px 12px; border: 1px solid var(--accent-blue); border-radius: 999px; background: transparent; color: var(--accent-blue); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; text-align: left; }
 .sara-abrir:hover { background: color-mix(in srgb, var(--accent-blue) 10%, transparent); }
+/* Cartão de autorização (E1): a SARA prepara, a pessoa permite ou não. */
+.sara-acao { margin: 2px 0; padding: 10px 12px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--accent-blue) 45%, transparent); background: color-mix(in srgb, var(--accent-blue) 7%, var(--bg-surface)); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sara-acao.risco { border-color: color-mix(in srgb, var(--accent-amber) 60%, transparent); background: color-mix(in srgb, var(--accent-amber) 8%, var(--bg-surface)); }
+.sara-acao.executada { border-color: color-mix(in srgb, var(--accent-green) 50%, transparent); background: color-mix(in srgb, var(--accent-green) 8%, var(--bg-surface)); }
+.sara-acao:is(.recusada, .expirada) { border-color: color-mix(in srgb, var(--text-primary) 10%, transparent); background: var(--bg-surface); opacity: .8; }
+.sara-acao.falhou { border-color: color-mix(in srgb, var(--accent-red) 50%, transparent); }
+.sara-acao-titulo { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--text-secondary); }
+.sara-acao > b { font-size: var(--fs-sm); color: var(--text-primary); overflow-wrap: anywhere; }
+.sara-acao ul { margin: 0; padding-left: 18px; font-size: var(--fs-xs); color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px; }
+.sara-acao li { overflow-wrap: anywhere; }
+.sara-acao-botoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+.sara-acao-botoes button { min-height: 34px; padding: 6px 14px; border-radius: 999px; font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; }
+.sara-acao-botoes .nao { border: 1px solid color-mix(in srgb, var(--accent-red) 55%, transparent); background: transparent; color: var(--accent-red); }
+.sara-acao-botoes .sim { border: 1px solid var(--accent-blue); background: var(--accent-blue); color: var(--text-on-accent); }
+.sara-acao-botoes button:disabled { opacity: .6; cursor: default; }
+.sara-acao-aviso { font-size: var(--fs-micro); color: var(--accent-amber); }
+.sara-acao-feito { font-size: var(--fs-xs); font-weight: 700; color: var(--accent-green); }
+.sara-acao-erro { font-size: var(--fs-xs); color: var(--accent-red); }
 .sara-nota { display: flex; gap: 4px; }
 .sara-nota button { padding: 2px 9px; border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent); border-radius: 999px; background: transparent; cursor: pointer; font-size: 13px; opacity: .7; }
 .sara-nota button.ativo { opacity: 1; border-color: var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 10%, transparent); }
@@ -8748,3 +8766,8 @@ button.holiday-row:hover {
   .bib-campo-inline { width: 100%; }
   .bib-visor-quadro { height: 60vh; }
 }
+
+/* O que a SARA aprendeu › Custo da IA (E4): quatro tabelas lado a lado, uma coluna no celular. */
+.aprendeu-custos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sp-3); min-width: 0; }
+.aprendeu-custos .aprendeu-tabela { min-width: 0; overflow-x: auto; }
+.aprendeu-custos :is(th, td).r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }

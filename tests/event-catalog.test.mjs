@@ -35,12 +35,13 @@ const sql = [
   "202610200003_logistica_frota.sql",
   "202610200004_compras_ramos_compra_imediata.sql",
   "202610210001_fundicao_biblioteca.sql",
+  "202610220001_sara_acoes.sql",
 ]
   .map((name) => readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), "utf8"))
   .join("\n");
 
 test("todo evento emitido pelos gatilhos está no catálogo, e vice-versa", () => {
-  const emitted = new Set([...sql.matchAll(/'((?:comercial|compras|rh|financeiro|portaria|acesso|cadastros|producao|almoxarifado|fiscal|fundicao|fundacao|ti|logistica)\.[a-z_]+\.[a-z_]+)'/g)].map((m) => m[1]));
+  const emitted = new Set([...sql.matchAll(/'((?:comercial|compras|rh|financeiro|portaria|acesso|cadastros|producao|almoxarifado|fiscal|fundicao|fundacao|ti|logistica|sara)\.[a-z_]+\.[a-z_]+)'/g)].map((m) => m[1]));
   const cataloged = new Set(EVENT_CATALOG.map((event) => event.type));
   for (const type of emitted) assert.ok(cataloged.has(type), `${type} falta no catálogo`);
   for (const type of cataloged) assert.ok(emitted.has(type), `${type} não é emitido por nenhum gatilho`);

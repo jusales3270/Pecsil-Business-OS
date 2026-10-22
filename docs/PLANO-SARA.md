@@ -95,6 +95,26 @@ as permissões de quem pergunta, são exatamente o que a orquestradora vai chama
 
 - A SARA herda as permissões de quem pergunta e nunca acessa o banco por fora das ferramentas.
 - Toda resposta é rastreável até a origem do dado.
-- Nada de ação que grava no nível 1.
+- Nada de ação que grava no nível 1. A partir do nível 4 (22/10/2026), só com o "Permitir" de quem pediu (seção 6).
 - Uso novo de IA é registrado no Plano do Jev antes de entrar.
 - Dado pessoal e de saúde não vai ao modelo.
+
+## 6. Nível 4: ações com autorização (22/10/2026)
+
+O proprietário aprovou o plano do que absorver da LIA, o copiloto do WMS da TOTVS (nota de 22/10: cerca de 55/100). A primeira etapa (E1) tira a SARA do "só consulta". A regra do Blueprint ("nível N+1 só com o N em uso") está cumprida: a SARA nível 1 já está em uso.
+
+- **A SARA prepara, a pessoa decide.** A ferramenta de ação confere a entrada e monta o resumo (`preparar`), sem gravar. Aparece o cartão **Permitir / Não permitir**. Ação de risco alto pede um segundo toque.
+- **Mesma credencial, mesma função.** A execução roda com a sessão de quem permitiu e chama a mesma função do banco que a tela usa. A SARA não faz nada que a pessoa não pudesse fazer.
+- **Proposta em `sara_acoes`.** Vale 15 minutos e só quem pediu decide. Cada ação feita ou recusada vai para o histórico (`sara.acao.executada` / `sara.acao.recusada`).
+- **Primeiras ações** (baixo risco):
+  - pedir material (Almoxarifado e Fundição);
+  - abrir chamado de TI (qualquer SARA);
+  - anotar na Biblioteca da Fundição.
+  Aprovar título, conciliar e cancelar só entram com o "sim" da área.
+- **E4, custo:** custo em R$ por resposta (tokens, com o desconto do cache), visível só ao proprietário e à Auditoria em "O que a SARA aprendeu". Quando o uso passa de 80% do teto do mês, o proprietário é avisado. Quem usa a SARA não vê contador.
+- **Próximas etapas do plano:**
+  - E2: foto, voz e leitor de código no celular;
+  - E5: parâmetros usados, datas soltas e anexos;
+  - E3: Guias criados pela área;
+  - E6: servidor MCP;
+  - E7: mindmaster.
