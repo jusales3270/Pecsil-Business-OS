@@ -234,7 +234,7 @@ function useArrastar(chave: string, ativo: boolean) {
   return { prender: setEl, estilo, iniciar, arrastou };
 }
 
-export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modulo: string, secao?: string) => void }) {
+export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modulo: string; navegar: (modulo: string, secao?: string) => void; abrirAoCarregar?: boolean }) {
   const [aberto, setAberto] = useState(false);
   const [estado, setEstado] = useState<Estado | null>(null);
   const [semAcesso, setSemAcesso] = useState(false);
@@ -275,6 +275,14 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
     }
   }, [modulo]);
   useEffect(() => { const t = setTimeout(() => { void carregar(); }, 0); return () => clearTimeout(t); }, [carregar]);
+  // Veio pelo atalho "SARA" do ícone do app: a janela já abre (uma vez, quando a SARA carregou).
+  const abriuSozinha = useRef(false);
+  useEffect(() => {
+    if (!abrirAoCarregar || !estado || abriuSozinha.current) return;
+    abriuSozinha.current = true;
+    const t = setTimeout(() => setAberto(true), 0);
+    return () => clearTimeout(t);
+  }, [abrirAoCarregar, estado]);
 
   // Avisos: ao entrar no módulo e, depois, quando a pessoa volta à aba (no máximo a cada 10 minutos).
   const carregarAvisos = useCallback(async () => {

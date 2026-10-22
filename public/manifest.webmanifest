@@ -38,6 +38,13 @@
   ],
   "shortcuts": [
     {
+      "name": "SARA",
+      "short_name": "SARA",
+      "description": "Pergunte, tire uma foto ou leia um código",
+      "url": "/?sara=1",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
       "name": "Visão Geral",
       "short_name": "Início",
       "description": "Visão geral e indicadores executivos",

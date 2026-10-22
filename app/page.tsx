@@ -400,6 +400,8 @@ function HomeContent() {
   }, [isExecutive, visibleModules]);
 
   const [routedInitialModule, setRoutedInitialModule] = useState(false);
+  // Atalho "SARA" do ícone do app (`/?sara=1`): abre o módulo principal da pessoa com a SARA já aberta.
+  const [abrirSara, setAbrirSara] = useState(false);
 
   // Roteamento inicial, uma única vez e só com as permissões reais carregadas
   // (o contexto demonstrativo tem acesso total e abriria módulos indevidos):
@@ -408,13 +410,22 @@ function HomeContent() {
   useEffect(() => {
     if (routedInitialModule || accessLoading) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.has("module") || params.has("view") || params.has("chamados-ti")) {
+    if (params.has("module") || params.has("view") || params.has("chamados-ti") || params.has("sara")) {
       window.history.replaceState(null, "", window.location.pathname);
     }
     // Aviso do sino de quem abriu um chamado de TI: abre o chamado no painel pessoal (logo depois do efeito).
     const chamadoTi = params.has("chamados-ti") ? { id: params.get("chamados-ti") || null } : null;
     if (chamadoTi) setTimeout(() => setChamadosTi(chamadoTi), 0);
-    const requested = params.get("module");
+    // Atalho "SARA": o módulo da pessoa (o do escopo dela primeiro) que tem SARA liberada para ela.
+    const comSara = params.has("sara")
+      ? Object.keys(SARAS).filter((id) => { const m = getModuleById(id); return Boolean(m && canAccessModule(access, m) && canUseFeature(access, SARAS[id].permissao, "ver")); })
+        .sort((a, b) => Number(b === targetedModule) - Number(a === targetedModule))
+      : [];
+    if (params.has("sara")) {
+      if (comSara.length) setTimeout(() => setAbrirSara(true), 0);
+      else setTimeout(() => { setToast("A SARA ainda não foi liberada para você. Fale com o responsável pelos acessos."); setTimeout(() => setToast(""), 4000); }, 0);
+    }
+    const requested = params.get("module") ?? comSara[0] ?? null;
     const secao = params.get("secao");
     if (secao) setModuleSection({ secao, n: 1 });
     const shortcut = requested ? getModuleById(requested) : undefined;
@@ -612,7 +623,7 @@ function HomeContent() {
         // A SARA da área (Compras dentro do Comercial) quando ela tem SARA própria; senão a do módulo.
         const area=areaAtiva?.modulo===activeModuleId?areaAtiva.area:moduleArea;
         const sara=area&&SARAS[area]?area:activeModuleId;
-        return sara&&SARAS[sara]&&!deniedTarget?<SaraPainel key={sara} modulo={sara} navegar={(m,s)=>openModule(m,s)}/>:null;
+        return sara&&SARAS[sara]&&!deniedTarget?<SaraPainel key={sara} modulo={sara} abrirAoCarregar={abrirSara} navegar={(m,s)=>openModule(m,s)}/>:null;
       })()}
       <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={`${snapshot.loadedAt}-${moduleSection?.n??0}`} initialSection={moduleSection?.secao} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?<ModuloComColeta key={`${activeModuleId}-${moduleSection?.n??0}`} moduloId={activeModuleId} moduloNome={activeModule?.name??activeModuleId} access={access} notify={notify}>{renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined,initialSection:moduleSection?.secao})}</ModuloComColeta>:view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule} onOpenDocumentos={(busca)=>{change("Documentos");setBuscaDocumentos(busca)}}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Sugestões da IA"?<SugestoesIaView notify={notify}/>:view==="Documentos"?<DocumentosSetorView key={buscaDocumentos} notify={notify} buscaInicial={buscaDocumentos}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents} inbox={inbox.items} unread={inbox.unread} onOpen={openInboxItem} onMarkAll={()=>void inbox.markRead("all")}/>:view==="Parados"?<Parados abrir={(link)=>{const q=new URL(link,window.location.origin).searchParams;const m=q.get("module");if(m)openModule(m,q.get("secao")??undefined)}}/>:view==="Auditoria"?<AuditoriaCentral/>:view==="O que a SARA aprendeu"?<SaraAprendizado notify={notify}/>:view==="Linha de base"?<LinhaDeBase notify={notify}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
       <nav className="mobile-bottom-nav" aria-label="Navegação rápida móvel">

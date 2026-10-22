@@ -167,3 +167,14 @@ test("E2: no celular, foto pela câmera (reduzida no aparelho) e leitor de códi
   assert.match(painel, /Código lido: \$\{valor\}/);
   assert.match(painel, /Tire uma foto da etiqueta/, "sem leitor no aparelho, orienta usar a foto");
 });
+
+test("Atalho SARA no ícone do app: abre o módulo da pessoa com a SARA já aberta", () => {
+  const manifesto = JSON.parse(ler("public/manifest.webmanifest"));
+  assert.deepEqual(manifesto.shortcuts[0], { name: "SARA", short_name: "SARA", description: "Pergunte, tire uma foto ou leia um código", url: "/?sara=1", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] });
+  const pagina = ler("app/page.tsx");
+  assert.match(pagina, /canUseFeature\(access, SARAS\[id\]\.permissao, "ver"\)/, "só módulo com a SARA liberada para a pessoa");
+  assert.match(pagina, /abrirAoCarregar=\{abrirSara\}/);
+  assert.match(pagina, /A SARA ainda não foi liberada para você/);
+  assert.match(ler("app/components/sara-painel.tsx"), /abriuSozinha\.current = true/);
+  assert.match(ler("public/sw.js"), /pecsil-business-os-v6/, "cache novo para o celular buscar o manifesto com o atalho");
+});

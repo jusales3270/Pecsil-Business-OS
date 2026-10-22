@@ -1,6 +1,6 @@
 // Pecsil Business OS — Service Worker para modo PWA e cache de app-shell
 // v2: descarta o cache da v1, que chegou a guardar respostas do gateway /sb.
-const CACHE_NAME = 'pecsil-business-os-v5';
+const CACHE_NAME = 'pecsil-business-os-v6';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
