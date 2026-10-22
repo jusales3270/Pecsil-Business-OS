@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { readSessionAccess } from "../../../../lib/auth/session-access";
 import { ferramentasDe } from "../../../../lib/sara/ferramentas";
 import { analisarConversas } from "../../../../lib/sara/habilidades";
+import { cotacao, custoUsd, emReais } from "../../../../lib/sara/custo";
 import { SARAS } from "../../../../lib/sara/modulos";
 import { requireUserSession } from "../../../../lib/supabase/session";
 
@@ -31,7 +32,14 @@ export async function GET() {
   if (error) return NextResponse.json({ error: error.message }, { status: error.code === "42501" ? 403 : 500 });
   const rotulos = Object.fromEntries(Object.values(SARAS).map((x) => [x.modulo, x.rotulo]));
   const nomes = Object.fromEntries(Object.values(SARAS).flatMap((x) => ferramentasDe(() => true, x.ferramentas).map((f) => [f.nome, f.rotulo ?? f.nome.replace(/_/g, " ")])));
-  return NextResponse.json({ ...(data as object), rotulos, consultas: nomes });
+  // Custo da IA em R$ (E4): por mês, módulo, pessoa e modelo, com o teto do mês de cada módulo.
+  const cot = cotacao(process.env.SARA_COTACAO_USD);
+  const [uso, tetos] = await Promise.all([s.sb.rpc("sara_uso_detalhado", { p_meses: 6 }), s.sb.from("sara_modulos").select("modulo, teto_tokens_mes")]);
+  type LinhaUso = { mes: string; modulo: string; pessoa: string; modelo: string; mensagens: number; tokens_entrada: number; tokens_saida: number; cache_lido: number; cache_gravado: number };
+  const linhas = ((uso.data ?? []) as LinhaUso[]).map((u) => ({ mes: String(u.mes).slice(0, 7), modulo: u.modulo, pessoa: u.pessoa, modelo: u.modelo, mensagens: Number(u.mensagens),
+    tokens: Number(u.tokens_entrada) + Number(u.tokens_saida), reais: emReais(custoUsd({ modelo: u.modelo, tokens_entrada: Number(u.tokens_entrada), tokens_saida: Number(u.tokens_saida), cache_lido: Number(u.cache_lido), cache_gravado: Number(u.cache_gravado) }), cot) }));
+  const custos = uso.error ? null : { cotacao: cot, linhas, tetos: Object.fromEntries(((tetos.data ?? []) as { modulo: string; teto_tokens_mes: number }[]).map((t) => [t.modulo, t.teto_tokens_mes])) };
+  return NextResponse.json({ ...(data as object), rotulos, consultas: nomes, custos });
 }
 
 export async function PATCH(request: Request) {

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { filtrarEstado } from "../decisao/guard.ts";
-import { semPensar } from "./base.ts";
+import { semPensar, type Proposta } from "./base.ts";
 import type { Abrir, Ferramenta, Fonte } from "./ferramentas.ts";
 import { dicaVisual, MOSTRAR, resolverVisual, type ResultadoConsulta, type Visual } from "./visual.ts";
 
@@ -24,12 +24,20 @@ export type MensagemHistorico = { papel: "pessoa" | "sara"; texto: string };
 export const LEMBRETE_RESPOSTA = "A pessoa ainda não viu nenhuma resposta (o que você pensa não aparece para ela): escreva agora a resposta completa, com os números, a explicação e o próximo passo.";
 const SO_ACAO = new Set(["abrir_tela", "abrir_lancamento", "mostrar", "registrar_lacuna", "propor_habilidade"]);
 
+/** Ação que a SARA preparou e espera o "Permitir" da pessoa (nada foi gravado). */
+export type AcaoProposta = Proposta & { ferramenta: string; entrada: Record<string, unknown> };
+/** Volta ao modelo quando a ação foi preparada: ele só avisa o que vai acontecer. */
+export const AVISO_PROPOSTA = "Preparado, mas NADA foi feito ainda: a pessoa vê agora um cartão com o resumo e os botões Permitir e Não permitir. Escreva em uma ou duas frases o que vai acontecer quando ela tocar em Permitir. Não diga que já fez.";
+const MAX_PROPOSTAS = 3;
+
 export type RespostaSara = {
   texto: string; fontes: Fonte[]; abrir: Abrir | null; ferramentas: { nome: string; entrada: unknown; ok: boolean }[];
   /** tokensEntrada inclui os tokens lidos do cache e os gravados nele (volume total de entrada). */
   tokensEntrada: number; tokensSaida: number; cacheLido: number; cacheGravado: number; modelo: string;
   /** Visuais montados pela plataforma com o resultado das consultas (o modelo só apontou). */
   visuais: Visual[];
+  /** Ações preparadas nesta resposta (a pessoa decide no cartão). */
+  acoes: AcaoProposta[];
 };
 export type Sistema = string | { fixo: string; variavel: string };
 
@@ -122,6 +130,8 @@ export async function conversarCom(sb: SupabaseClient, a: {
   // Resultado de cada consulta desta resposta, para montar os visuais.
   const resultados: ResultadoConsulta[] = [];
   const visuais: Visual[] = [];
+  const acoes: AcaoProposta[] = [];
+  const ehAcao = (nome: string) => Boolean(a.ferramentas.find((x) => x.nome === nome)?.acao);
   // Sem as frases de passagem ("Vou consultar…") e sem repetir o que já foi dito.
   const juntar = () => {
     // Frase de passagem solta no meio do texto ("Vou mostrar o comparativo…") também sai.
@@ -147,6 +157,16 @@ export async function conversarCom(sb: SupabaseClient, a: {
       return { conteudo: JSON.stringify({ erro: existe
         ? "Sem permissão: esta pessoa não tem a credencial desta consulta."
         : `Não existe consulta chamada "${nome}". Se for uma tela, use abrir_tela; para dados, use uma das suas consultas (ou consultar_dados).` }), ok: false };
+    }
+    if (f.acao) {
+      // Ação: só prepara (confere a entrada e monta o resumo). Quem executa é a pessoa, no cartão.
+      if (acoes.length >= MAX_PROPOSTAS) return { conteudo: JSON.stringify({ erro: "Já há ações demais esperando a pessoa decidir nesta resposta." }), ok: false };
+      try {
+        const p = await f.acao.preparar(sb, entrada);
+        if ("erro" in p) return { conteudo: JSON.stringify({ erro: p.erro }), ok: false };
+        acoes.push({ ...p, ferramenta: f.nome, entrada });
+        return { conteudo: JSON.stringify({ preparado: true, resumo: p.resumo, observacao: AVISO_PROPOSTA }), ok: true };
+      } catch (e) { return { conteudo: JSON.stringify({ erro: `Não consegui preparar: ${e instanceof Error ? e.message.slice(0, 200) : "erro"}` }), ok: false }; }
     }
     try {
       const res = await f.rodar(sb, entrada);
@@ -202,11 +222,11 @@ export async function conversarCom(sb: SupabaseClient, a: {
     // Texto escrito antes de uma consulta de dados é rascunho do modelo ("a primeira consulta falhou…"),
     // e às vezes sai em inglês: não entra na resposta. Antes de só abrir tela, montar visual ou anotar
     // lacuna, a resposta já está pronta e fica.
-    const consultou = pedidos.some((p) => !SO_ACAO.has(p.name));
+    const consultou = pedidos.some((p) => !SO_ACAO.has(p.name) && !ehAcao(p.name));
     if (corpo.stop_reason !== "tool_use" || !pedidos.length || !consultou) textos.push(textoDaRodada);
     if (corpo.stop_reason !== "tool_use" || !pedidos.length) {
       const texto = juntar();
-      return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais };
+      return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais, acoes };
     }
     mensagens.push({ role: "assistant", content: corpo.content });
     // Só abrir a tela ou mostrar, e nada escrito ainda: o modelo que pensa entre ferramentas (Sonnet) às
@@ -220,7 +240,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
     }
     mensagens.push({ role: "user", content: devolvidos });
   }
-  return { texto: "A pergunta pediu consultas demais. Tente uma pergunta mais direta.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais };
+  return { texto: "A pergunta pediu consultas demais. Tente uma pergunta mais direta.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais, acoes };
 }
 
 const unicas = (f: Fonte[]) => f.filter((x, i) => f.findIndex((y) => y.link === x.link) === i);

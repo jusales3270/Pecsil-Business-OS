@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-22-sara-acoes",
+    data: "2026-10-22",
+    area: "SARA",
+    modulos: ["almoxarifado", "fundicao", "financeiro", "fiscal", "rh", "compras", "comercial", "portaria", "producao", "ti"],
+    funcionalidades: ["almoxarifado.sara", "fundicao.sara", "financeiro.sara", "fiscal.sara", "rh.sara", "compras.sara", "comercial.sara", "portaria.sara", "producao.sara", "ti.sara"],
+    titulo: "SARA: agora ela também faz, com a sua permissão",
+    itens: [
+      "Peça e ela prepara: pedir material ao Compras (Almoxarifado e Fundição), abrir um chamado para a TI ou anotar numa peça da Biblioteca.",
+      "Nada acontece sozinho: aparece um cartão com o resumo e os botões Permitir e Não permitir. Só depois do seu toque a plataforma faz.",
+      "Ela só faz o que você já pode fazer pela tela, com a sua credencial. Cada ação feita fica no histórico.",
+      "A proposta vale 15 minutos; depois disso, peça de novo.",
+    ],
+  },
+  {
     id: "2026-10-21-fundicao-biblioteca",
     data: "2026-10-21",
     area: "Fundição",

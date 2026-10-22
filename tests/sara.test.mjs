@@ -69,7 +69,7 @@ test("SARA: base no banco nasce desligada e só o proprietário liga", () => {
   assert.match(sql, /ligada boolean not null default false/);
   assert.match(sql, /if org is null or not public\.is_owner\(\) then raise exception 'Ligar a SARA/);
   assert.match(sql, /profile_id = public\.current_profile_id\(\) or public\.is_owner\(\) or public\.has_feature\('fundacao\.auditoria'\)/);
-  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8") + readFileSync(new URL("../lib/sara/sessao.ts", import.meta.url), "utf8");
   assert.match(rota, /if \(!access\.canModule\(sara\.feature\) \|\| !access\.can\(sara\.permissao, "ver"\)\)/, "precisa do módulo e da SARA liberada em Pessoas e Acessos");
   assert.match(rota, /const pode = \(f: string\) => access\.can\(f, "ver"\);/);
   assert.match(rota, /ferramentasDaSara\(pode, sara\.ferramentas\)/, "consultas do módulo e dos outros módulos, sempre com as permissões de quem pergunta");
@@ -174,7 +174,7 @@ test("SARA: o verificador de escopo classifica DENTRO/FORA e, se falhar, deixa a
 test("SARA: com o verificador dando FORA, a conversa é cancelada e a resposta é a recusa padrão", async () => {
   const parar = new AbortController(); parar.abort();
   await assert.rejects(conversarCom({}, { chave: "x", buscar: async () => { throw new Error("não devia chamar"); }, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [], sinal: parar.signal }), /CANCELADA/);
-  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8") + readFileSync(new URL("../lib/sara/sessao.ts", import.meta.url), "utf8");
   assert.match(rota, /verificar\(\{ empresa, pergunta, contexto: ultima, tema: tema\?\.assunto \?\? null \}\)\.then\(\(v\) => \{ if \(!v\.dentro\) parar\.abort\(\); return v; \}\)/);
   assert.match(rota, /if \(!v\.dentro\) \{\s+fora = "verificador";\s+r = \{ texto: textoRecusa, fontes: \[\], abrir: null, ferramentas: \[\]/);
   assert.match(rota, /regrasDeEscopo\(empresa, p\.sara\.rotulo, temaDe\(modulo\)\)/);
@@ -196,7 +196,7 @@ test("SARA: liberada por pessoa em Pessoas e Acessos; sem botão de ligar nem co
   assert.match(painel, /useArrastar\("sara\.janela"/);
   assert.match(painel, /const AVATAR = "\/favicon\.png\?v=2"/, "o avatar é o favicon");
   assert.match(painel, /className="sara-tabela"/, "tabela da resposta vira tabela de verdade");
-  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8") + readFileSync(new URL("../lib/sara/sessao.ts", import.meta.url), "utf8");
   assert.doesNotMatch(rota, /sara_configurar|podeConfigurar|ligada/);
   const css = readFileSync(new URL("../packages/design-system/patterns.css", import.meta.url), "utf8");
   assert.match(css, /\.sara-vidro \{[^}]*backdrop-filter: blur\(24px\)/, "vidro líquido");
@@ -284,7 +284,7 @@ test("SARA: sabe se a conversa continua ou foi retomada (outro dia ou pausa long
   const { abertura } = await import("../lib/sara/tempo.ts");
   assert.equal(abertura({ nome: "Júnior", situacao: ontem, agora: tarde }), "Boa tarde, Júnior. Retomando a nossa conversa de ontem.");
   assert.equal(abertura({ nome: "Júnior", situacao: { tipo: "continua", ultima: null, ontem: false }, agora: tarde }), null, "na continuação, sem cumprimento");
-  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8") + readFileSync(new URL("../lib/sara/sessao.ts", import.meta.url), "utf8");
   assert.match(rota, /const situacao = situacaoDaConversa\(historico\.at\(-1\)\?\.created_at \?\? null\)/);
   assert.match(rota, /pessoa: primeiroNome\(me\?\.full_name\), saudacao: saudacao\(agoraSP\(\)\.hora24\), conversa/);
   const painel = readFileSync(new URL("../app/components/sara-painel.tsx", import.meta.url), "utf8");
@@ -445,7 +445,7 @@ test("Equipe: lê o Segundo Cérebro (documentos do setor) e anota as lacunas", 
   const doc = readFileSync(new URL("../lib/sara/documentos.ts", import.meta.url), "utf8");
   assert.match(doc, /sb\.rpc\("company_document_search", \{ p_q: busca, p_setor: modulo, p_limite: 6 \}\)/, "com a sessão de quem pergunta (RLS do documento)");
   assert.match(doc, /link: `\/api\/documentos\/\$\{d\.id\}\/baixar`/);
-  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8") + readFileSync(new URL("../lib/sara/sessao.ts", import.meta.url), "utf8");
   assert.match(rota, /const documentos = ferramentaDeDocumentos\(modulo, \(f\) => access\.can\(f, "ver"\)\)/);
   assert.match(rota, /lacunas: r\.ferramentas\.filter\(\(f\) => f\.nome === LACUNA\.nome\)/, "lacunas registradas na conversa");
   const sql = readFileSync(new URL("../supabase/migrations/202610180005_sara_equipe.sql", import.meta.url), "utf8");
@@ -497,7 +497,7 @@ test("O que a SARA aprendeu: só o proprietário decide; lacunas e propostas reg
   assert.match(sql, /and lower\(nome\) = lower\(btrim\(p_nome\)\) and situacao in \('proposta', 'ativa'\)/, "a mesma proposta só soma evidência");
   assert.match(sql, /select case when public\.has_feature\(p_modulo \|\| '\.sara'\) then/, "habilidades ativas só para quem tem a SARA do módulo");
   assert.match(sql, /\(select public\.is_owner\(\)\) or \(select public\.has_feature\('fundacao\.auditoria'\)\)/);
-  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8") + readFileSync(new URL("../lib/sara/sessao.ts", import.meta.url), "utf8");
   assert.match(rota, /sb\.rpc\("sara_lacunas_registrar"/);
   assert.match(rota, /\.map\(\(f\) => validarProposta\(f\.entrada, doModulo\)\)/, "a proposta da conversa só usa consultas do módulo");
   assert.match(rota, /if \(!fora && !lacunas\.length && pareceLacuna\(resposta\.texto\)\)/, "rede de segurança da lacuna");
@@ -742,7 +742,7 @@ test("SARA de TI: só ela usa o modelo mais capaz (Sonnet), com linguagem técni
   assert.equal(SARAS.ti.modelo, "claude-sonnet-5-5");
   assert.ok(SARAS.ti.maxTokens > 1500);
   assert.equal(TEMAS.ti.maxBuscas, 5);
-  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8");
+  const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8") + readFileSync(new URL("../lib/sara/sessao.ts", import.meta.url), "utf8");
   assert.match(rota, /modelo: linha\?\.modelo \?\? sara\.modelo \?\? "claude-haiku-5-5"/, "a linha do proprietário em sara_modulos continua valendo por cima");
   assert.match(rota, /regrasDeEscopo\(empresa, p\.sara\.rotulo, temaDe\(modulo\)\)/, "o mesmo escopo e o verificador");
   const tecnica = regrasDaSara(SARAS.ti);

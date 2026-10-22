@@ -31,6 +31,7 @@ export const EVENT_MODULES: Record<string, string> = {
   ti: "TI",
   logistica: "Logística",
   fundacao: "Fundação",
+  sara: "SARA",
 };
 
 export const EVENT_CATALOG: readonly EventType[] = [
@@ -58,6 +59,9 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "almoxarifado.solicitacao.cancelada", module: "almoxarifado", label: "Pedido de material cancelado", description: "O pedido de material foi cancelado antes da compra." },
   { type: "fundicao.pedido.criado", module: "fundicao", label: "Material pedido pela Fundição", description: "A Fundição pediu material ao Compras pelo painel dela." },
   { type: "fundicao.pedido.cancelado", module: "fundicao", label: "Pedido da Fundição cancelado", description: "O pedido de material da Fundição foi cancelado antes da compra." },
+  { type: "sara.acao.executada", module: "sara", label: "Ação feita pela SARA", description: "A SARA preparou e a pessoa permitiu: a ação foi feita com a credencial dela." },
+  { type: "sara.acao.recusada", module: "sara", label: "Ação da SARA não permitida", description: "A SARA preparou uma ação e a pessoa não permitiu: nada foi feito." },
+  { type: "sara.teto.alerta", module: "sara", label: "SARA perto do teto do mês", description: "O uso do mês de uma SARA passou de 80% do teto; o proprietário foi avisado." },
   { type: "fundicao.desenho.baixado", module: "fundicao", label: "Desenho baixado", description: "Alguém baixou um desenho da Biblioteca da Fundição." },
   { type: "fundicao.nota.gravada", module: "fundicao", label: "Anotação da Fundição", description: "Anotação escrita ou alterada numa peça da Biblioteca." },
   { type: "fundicao.nota.apagada", module: "fundicao", label: "Anotação da Fundição apagada", description: "Anotação apagada de uma peça da Biblioteca." },

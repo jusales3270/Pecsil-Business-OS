@@ -20,6 +20,20 @@ export type Ferramenta = {
   exige: string[];
   esquema: Record<string, unknown>;
   rodar: (sb: SupabaseClient, entrada: Record<string, unknown>) => Promise<Resultado>;
+  /**
+   * Ferramenta que GRAVA (E1, 22/10/2026). A SARA não executa: `preparar` confere a entrada e monta o
+   * resumo do cartão "Permitir / Não permitir"; `rodar` só roda depois que a pessoa permitiu, com a sessão
+   * dela (a função do banco confere a permissão de novo). `exige` passa a valer no nível indicado.
+   */
+  acao?: Acao;
+};
+
+export type Proposta = { resumo: string; detalhes: string[]; risco?: "normal" | "alto" };
+export type Acao = {
+  nivel: "operar" | "aprovar";
+  /** Módulos cuja SARA oferece a ação ("todos" = qualquer SARA, ex.: abrir chamado de TI). */
+  modulos: string[] | "todos";
+  preparar: (sb: SupabaseClient, entrada: Record<string, unknown>) => Promise<Proposta | { erro: string }>;
 };
 
 /** Tela que a SARA pode abrir para a pessoa (só se ela tiver a funcionalidade). */

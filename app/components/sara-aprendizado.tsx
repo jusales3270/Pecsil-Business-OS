@@ -17,13 +17,71 @@ type Habilidade = { id: string; modulo: string; nome: string; descricao: string;
 type Lacuna = { id: string; modulo: string; assunto: string; pergunta: string | null; pessoa: string | null; quando: string; destino: string; destino_por: string | null };
 type Modulo = { modulo: string; conversas: number; pessoas: number; respostas: number; nota_media: number | null; avaliadas: number; ruins: number; fora_do_escopo: number; tokens: number };
 type Ruim = { modulo: string; nota: number; quando: string; pessoa: string | null; pergunta: string | null; resposta: string };
-type Dados = { pode_decidir: boolean; modulos: Modulo[]; lacunas: Lacuna[]; ruins: Ruim[]; habilidades: Habilidade[]; rotulos: Record<string, string>; consultas: Record<string, string> };
+type LinhaCusto = { mes: string; modulo: string; pessoa: string; modelo: string; mensagens: number; tokens: number; reais: number };
+type Custos = { cotacao: number; linhas: LinhaCusto[]; tetos: Record<string, number> };
+type Dados = { pode_decidir: boolean; modulos: Modulo[]; lacunas: Lacuna[]; ruins: Ruim[]; habilidades: Habilidade[]; rotulos: Record<string, string>; consultas: Record<string, string>; custos?: Custos | null };
 
 const DESTINO: Record<string, string> = { pendente: "A decidir", roadmap: "Vai para o roadmap", ja_existe: "Já existe na tela", nao_fazer: "Não fazer" };
 const SITUACAO: Record<string, string> = { proposta: "Proposta", ativa: "Ativa", recusada: "Recusada", arquivada: "Arquivada" };
 const normal = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 const data = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—");
 const mil = (n: number) => n.toLocaleString("pt-BR");
+const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const MODELO: Record<string, string> = { "claude-haiku-5-5": "Haiku 5.5", "claude-sonnet-5-5": "Sonnet 5.5" };
+const mesAtual = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).format(new Date());
+const nomeMes = (m: string) => new Date(`${m}-15T12:00:00Z`).toLocaleDateString("pt-BR", { month: "short", year: "numeric", timeZone: "UTC" });
+/** Soma por uma chave (módulo, pessoa, modelo ou mês). */
+function somar(linhas: LinhaCusto[], chave: (l: LinhaCusto) => string) {
+  const m = new Map<string, { chave: string; reais: number; tokens: number; mensagens: number }>();
+  for (const l of linhas) {
+    const k = chave(l);
+    const g = m.get(k) ?? { chave: k, reais: 0, tokens: 0, mensagens: 0 };
+    g.reais += l.reais; g.tokens += l.tokens; g.mensagens += l.mensagens; m.set(k, g);
+  }
+  return [...m.values()].sort((a, b) => b.reais - a.reais);
+}
+
+/** Custo da IA em R$ (E4): só o proprietário e a Auditoria veem; quem usa a SARA não vê contador. */
+function CustoDaIa({ c, rot }: { c: Custos; rot: (m: string) => string }) {
+  const mes = mesAtual();
+  const doMes = c.linhas.filter((l) => l.mes === mes);
+  const total = doMes.reduce((t, l) => t + l.reais, 0);
+  const porModulo = somar(doMes, (l) => l.modulo);
+  const porPessoa = somar(doMes, (l) => l.pessoa).slice(0, 10);
+  const porModelo = somar(doMes, (l) => l.modelo);
+  const porMes = somar(c.linhas, (l) => l.mes).sort((a, b) => a.chave.localeCompare(b.chave));
+  return (
+    <section className="aprendeu-bloco" aria-label="Custo da IA">
+      <header><h2>Custo da IA · {nomeMes(mes)}</h2><Status tone="info">{brl(total)}</Status></header>
+      <p className="aprendeu-vazio">Calculado pelos tokens de cada resposta, com o desconto do cache, pela tabela da Anthropic. Dólar a {brl(c.cotacao)} (ajustável no servidor). Quem usa a SARA não vê estes números.</p>
+      {!doMes.length ? <p className="aprendeu-vazio">Nenhum uso neste mês.</p> : (
+        <div className="aprendeu-custos">
+          <div className="aprendeu-tabela"><table>
+            <thead><tr><th>Módulo</th><th className="r">Respostas</th><th className="r">Custo</th><th className="r">Teto usado</th></tr></thead>
+            <tbody>{porModulo.map((g) => {
+              const teto = c.tetos[g.chave] ?? 2_000_000;
+              const pct = teto > 0 ? Math.round((g.tokens * 100) / teto) : 0;
+              return <tr key={g.chave}><td>{rot(g.chave)}</td><td className="r">{mil(g.mensagens)}</td><td className="r">{brl(g.reais)}</td>
+                <td className="r">{pct >= 80 ? <Status tone={pct >= 100 ? "danger" : "attention"}>{pct}%</Status> : `${pct}%`}</td></tr>;
+            })}</tbody>
+          </table></div>
+          <div className="aprendeu-tabela"><table>
+            <thead><tr><th>Pessoa</th><th className="r">Respostas</th><th className="r">Custo</th></tr></thead>
+            <tbody>{porPessoa.map((g) => <tr key={g.chave}><td>{g.chave}</td><td className="r">{mil(g.mensagens)}</td><td className="r">{brl(g.reais)}</td></tr>)}</tbody>
+          </table></div>
+          <div className="aprendeu-tabela"><table>
+            <thead><tr><th>Modelo</th><th className="r">Respostas</th><th className="r">Custo</th></tr></thead>
+            <tbody>{porModelo.map((g) => <tr key={g.chave}><td>{MODELO[g.chave] ?? g.chave}</td><td className="r">{mil(g.mensagens)}</td><td className="r">{brl(g.reais)}</td></tr>)}</tbody>
+          </table></div>
+          <div className="aprendeu-tabela"><table>
+            <thead><tr><th>Mês</th><th className="r">Respostas</th><th className="r">Custo</th></tr></thead>
+            <tbody>{porMes.map((g) => <tr key={g.chave}><td>{nomeMes(g.chave)}</td><td className="r">{mil(g.mensagens)}</td><td className="r">{brl(g.reais)}</td></tr>)}</tbody>
+          </table></div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 export function SaraAprendizado({ notify }: { notify: (m: string) => void }) {
   const [d, setD] = useState<Dados | null>(null);
@@ -171,6 +229,8 @@ export function SaraAprendizado({ notify }: { notify: (m: string) => void }) {
           </article>
         ))}
       </section>
+
+      {d.custos && <CustoDaIa c={d.custos} rot={rot} />}
 
       <section className="aprendeu-bloco" aria-label="Uso por módulo">
         <header><h2>Uso por módulo</h2></header>

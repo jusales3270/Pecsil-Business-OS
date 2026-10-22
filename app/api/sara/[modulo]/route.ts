@@ -1,19 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, after } from "next/server";
-import { readSessionAccess } from "../../../../lib/auth/session-access";
 import { chaveConfigurada, conversar, verificar } from "../../../../lib/sara/claude";
 import { MODELO_VERIFICADOR, recusa, regrasDeEscopo } from "../../../../lib/sara/escopo";
 import type { RespostaSara } from "../../../../lib/sara/laco";
 import { abertura, agoraSP, comAbertura, contextoDeTempo, primeiroNome, saudacao, situacaoDaConversa } from "../../../../lib/sara/tempo";
-import { ferramentaDeDocumentos } from "../../../../lib/sara/documentos";
-import { FERRAMENTAS, LACUNA, ferramentaDeTelas, ferramentasDaSara } from "../../../../lib/sara/ferramentas";
-import { consultarDados } from "../../../../lib/sara/consulta-dados";
-import { CALCULAR } from "../../../../lib/sara/calcular";
+import { FERRAMENTAS, LACUNA } from "../../../../lib/sara/ferramentas";
 import { MOSTRAR } from "../../../../lib/sara/visual";
-import { PROPOR_HABILIDADE, habilidadesQuePode, instrucoesDeHabilidades, nomearHabilidade, pareceLacuna, pedidoRecorrente, validarProposta, type HabilidadeAtiva, type Passo } from "../../../../lib/sara/habilidades";
-import { SARAS, regrasDaSara } from "../../../../lib/sara/modulos";
+import { PROPOR_HABILIDADE, instrucoesDeHabilidades, nomearHabilidade, pareceLacuna, pedidoRecorrente, validarProposta, type Passo } from "../../../../lib/sara/habilidades";
+import { regrasDaSara } from "../../../../lib/sara/modulos";
+import { ACOES } from "../../../../lib/sara/acoes";
+import { preparar } from "../../../../lib/sara/sessao";
 import { temaDe } from "../../../../lib/sara/temas";
-import { requireUserSession } from "../../../../lib/supabase/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,33 +27,12 @@ const UUID = /^[0-9a-f-]{36}$/i;
  * e um verificador separado classifica a pergunta em paralelo; se ele der FORA, a conversa é cancelada
  * e a resposta é a recusa padrão (registrada na conversa, para auditoria).
  */
-async function preparar(modulo: string) {
-  const sara = SARAS[modulo];
-  if (!sara) return { erro: NextResponse.json({ error: "Este módulo ainda não tem SARA." }, { status: 404 }) } as const;
-  const session = await requireUserSession();
-  if ("error" in session && session.error) return { erro: session.error } as const;
-  const access = await readSessionAccess(session.supabase).catch(() => null);
-  if (!access) return { erro: NextResponse.json({ error: "ACCESS_UNAVAILABLE" }, { status: 503 }) } as const;
-  // Sem acesso ao módulo, ou sem a SARA liberada para a pessoa (Pessoas e Acessos), sem a SARA.
-  if (!access.canModule(sara.feature) || !access.can(sara.permissao, "ver")) return { erro: NextResponse.json({ error: "FORBIDDEN" }, { status: 403 }) } as const;
-  // Modelo e teto mensal: só no servidor (proteção de custo), sem aparecer na tela.
-  const { data: linha } = await session.supabase.from("sara_modulos").select("modelo, teto_tokens_mes").eq("modulo", modulo).maybeSingle();
-  const cfg = { modelo: linha?.modelo ?? sara.modelo ?? "claude-haiku-5-5", teto_tokens_mes: linha?.teto_tokens_mes ?? 2_000_000 };
-  const telas = sara.telas.filter((t) => t.exige.some((f) => access.can(f, "ver")));
-  const navegar = ferramentaDeTelas(telas);
-  // Leitura do Segundo Cérebro: os documentos do setor, se a pessoa pode vê-los.
-  const documentos = ferramentaDeDocumentos(modulo, (f) => access.can(f, "ver"));
-  // Consultas do módulo, as de outros módulos que a pessoa pode ver e a consulta direta às tabelas.
-  const pode = (f: string) => access.can(f, "ver");
-  const dados = consultarDados(pode, modulo);
-  const ferramentas = [...ferramentasDaSara(pode, sara.ferramentas), ...(dados ? [dados] : []), CALCULAR, ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), LACUNA, PROPOR_HABILIDADE, MOSTRAR];
-  // Habilidades aprovadas pelo proprietário: só as que a pessoa consegue rodar com as consultas dela.
-  const { data: hab } = await session.supabase.rpc("sara_habilidades_ativas", { p_modulo: modulo });
-  const habilidades = habilidadesQuePode((hab ?? []) as HabilidadeAtiva[], ferramentas.map((f) => f.nome));
-  return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades } as const;
-}
-
 type LinhaMensagem = { id: string; papel: "pessoa" | "sara"; texto: string; created_at: string; nota: number | null; ferramentas: Record<string, unknown> | null };
+type LinhaAcao = { id: string; mensagem_id: string | null; resumo: string; detalhes: string[]; risco: string; situacao: string; resultado: { feito?: string } | null; erro: string | null; expira_em: string; created_at: string };
+const COLUNAS_ACAO = "id, mensagem_id, resumo, detalhes, risco, situacao, resultado, erro, expira_em, created_at";
+/** Cartão de uma ação para a tela (a pendente vencida aparece como expirada). */
+const cartao = (a: LinhaAcao) => ({ id: a.id, resumo: a.resumo, detalhes: a.detalhes ?? [], risco: a.risco, expiraEm: a.expira_em,
+  situacao: a.situacao === "pendente" && Date.parse(a.expira_em) < Date.now() ? "expirada" : a.situacao, feito: a.resultado?.feito ?? null, erro: a.erro });
 
 /** A última conversa da pessoa neste módulo, para a janela abrir na última interação. */
 async function ultimaConversa(sb: SupabaseClient, modulo: string, eu: string | null) {
@@ -66,9 +42,11 @@ async function ultimaConversa(sb: SupabaseClient, modulo: string, eu: string | n
   // As 40 mais recentes, na ordem da conversa (no empate de horário, a pergunta antes da resposta).
   const { data } = await sb.from("sara_mensagens").select("id, papel, texto, created_at, nota, ferramentas").eq("conversa_id", conv.id)
     .order("created_at", { ascending: false }).order("papel", { ascending: false }).limit(40);
+  const { data: acoes } = await sb.from("sara_acoes").select(COLUNAS_ACAO).eq("conversa_id", conv.id).order("created_at");
+  const acoesDe = (id: string) => ((acoes ?? []) as LinhaAcao[]).filter((a) => a.mensagem_id === id).map(cartao);
   const mensagens = ((data ?? []) as LinhaMensagem[]).reverse().map((m) => {
     const f = (m.ferramentas ?? {}) as { usadas?: { nome: string }[]; fontes?: unknown[]; abriu?: unknown; escopo?: { fora?: string | null }; visuais?: unknown[] };
-    return { id: m.id, papel: m.papel, texto: m.texto, quando: m.created_at, nota: m.nota, consultas: (f.usadas ?? []).map((u) => u.nome), fontes: f.fontes ?? [], abrir: f.abriu ?? null, fora: Boolean(f.escopo?.fora), visuais: f.visuais ?? [] };
+    return { id: m.id, papel: m.papel, texto: m.texto, quando: m.created_at, nota: m.nota, consultas: (f.usadas ?? []).map((u) => u.nome), fontes: f.fontes ?? [], abrir: f.abriu ?? null, fora: Boolean(f.escopo?.fora), visuais: f.visuais ?? [], acoes: acoesDe(m.id) };
   });
   return { id: conv.id, mensagens };
 }
@@ -122,11 +100,15 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
     p.sb.from("organizations").select("display_name, legal_name").limit(1).maybeSingle(),
   ]);
   const empresa = org?.display_name || org?.legal_name || "empresa";
+  // O que aconteceu com as ações desta conversa (a pessoa decide fora do modelo): a SARA fica sabendo.
+  const recentes = conversa ? (((await p.sb.from("sara_acoes").select(COLUNAS_ACAO).eq("conversa_id", conversa).order("created_at", { ascending: false }).limit(5)).data ?? []) as LinhaAcao[]).map(cartao) : [];
+  const SITUACAO: Record<string, string> = { pendente: "esperando a pessoa decidir", permitida: "permitida, executando", recusada: "a pessoa NÃO permitiu", expirada: "venceu sem decisão (nada foi feito)", executada: "FEITA", falhou: "falhou" };
+  const notaAcoes = recentes.length ? `\nAções que você preparou nesta conversa (a mais recente primeiro): ${recentes.map((a) => `${a.resumo} → ${SITUACAO[a.situacao] ?? a.situacao}${a.feito ? ` (${a.feito})` : ""}${a.erro ? ` (${a.erro})` : ""}`).join(" | ")}.` : "";
   const indisponiveis = p.sara.ferramentas.filter((n) => !p.ferramentas.some((f) => f.nome === n));
   // Fixo (vai para o cache) + do momento (hora, quem conversa, situação da conversa, o que não pode).
   const sistema = {
     fixo: `${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
-    variavel: `${contextoDeTempo({ nome: primeiroNome(me?.full_name), situacao })}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}\nResponda sempre em português do Brasil.`,
+    variavel: `${contextoDeTempo({ nome: primeiroNome(me?.full_name), situacao })}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}${notaAcoes}\nResponda sempre em português do Brasil.`,
   };
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
@@ -137,21 +119,21 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   let falha: unknown = null;
   try {
     // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
-    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens });
+    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens });
   } catch (e) { falha = e; }
   const v = await verificacao;
   const textoRecusa = recusa(empresa, p.sara.rotulo);
   let fora: "verificador" | "modelo" | null = null;
   if (!v.dentro) {
     fora = "verificador";
-    r = { texto: textoRecusa, fontes: [], abrir: null, ferramentas: [], tokensEntrada: v.tokensEntrada, tokensSaida: v.tokensSaida, cacheLido: 0, cacheGravado: 0, modelo: MODELO_VERIFICADOR, visuais: [] };
+    r = { texto: textoRecusa, fontes: [], abrir: null, ferramentas: [], tokensEntrada: v.tokensEntrada, tokensSaida: v.tokensSaida, cacheLido: 0, cacheGravado: 0, modelo: MODELO_VERIFICADOR, visuais: [], acoes: [] };
   } else if (!r) {
     const m = falha instanceof Error ? falha.message : "";
     console.error("[sara] falha", m.slice(0, 200));
     return NextResponse.json({ error: m.startsWith("NAO_CONFIGURADA") ? "A SARA ainda não está configurada." : "A SARA está indisponível agora. Tente de novo em instantes." }, { status: 503 });
   } else {
     r = { ...r, tokensEntrada: r.tokensEntrada + v.tokensEntrada, tokensSaida: r.tokensSaida + v.tokensSaida };
-    if (r.texto.replace(/["“”]/g, "").trim() === textoRecusa) { fora = "modelo"; r = { ...r, texto: textoRecusa, fontes: [], abrir: null, visuais: [] }; }
+    if (r.texto.replace(/["“”]/g, "").trim() === textoRecusa) { fora = "modelo"; r = { ...r, texto: textoRecusa, fontes: [], abrir: null, visuais: [], acoes: [] }; }
   }
   // Cumprimento e aviso de retomada vêm da plataforma (hora certa de São Paulo, nome de quem está logado).
   const nomeCurto = primeiroNome(me?.full_name);
@@ -163,18 +145,30 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
   const ids = reg as { conversa: string; mensagem: string } | null;
+  // Ações preparadas: ficam pendentes (15 min) até a pessoa decidir no cartão.
+  const acoes: ReturnType<typeof cartao>[] = [];
+  for (const a of r.acoes) {
+    const { data: id, error: e2 } = await p.sb.rpc("sara_acao_propor", { p_conversa: ids?.conversa ?? conversa, p_mensagem: ids?.mensagem ?? null, p_modulo: modulo,
+      p_ferramenta: a.ferramenta, p_entrada: a.entrada, p_resumo: a.resumo, p_detalhes: a.detalhes, p_risco: a.risco ?? "normal" });
+    if (e2 || !id) { console.error("[sara] não registrou a ação", e2?.message); continue; }
+    acoes.push(cartao({ id: String(id), mensagem_id: ids?.mensagem ?? null, resumo: a.resumo, detalhes: a.detalhes, risco: a.risco ?? "normal", situacao: "pendente", resultado: null, erro: null,
+      expira_em: new Date(Date.now() + 15 * 60_000).toISOString(), created_at: new Date().toISOString() }));
+  }
 
   // Colheita para o Segundo Cérebro (depois da resposta, sem atrasar a conversa): as lacunas e as
   // habilidades que a SARA propôs — e a rede de segurança da plataforma quando ela não lembrou de propor.
   const resposta = r;
   after(async () => {
+    // Custo (E4): passou de 80% do teto do mês, o proprietário é avisado (uma vez no mês).
+    const { error: eTeto } = await p.sb.rpc("sara_aviso_teto", { p_modulo: modulo });
+    if (eTeto) console.error("[sara] aviso do teto", eTeto.message);
     const lacunas = resposta.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").trim()).filter((x) => x.length >= 3);
     if (!fora && !lacunas.length && pareceLacuna(resposta.texto)) lacunas.push(pergunta.replace(/\s+/g, " ").trim().slice(0, 200));
     if (lacunas.length) {
       const { error: e3 } = await p.sb.rpc("sara_lacunas_registrar", { p_modulo: modulo, p_mensagem: ids?.mensagem ?? null, p_pergunta: pergunta, p_assuntos: lacunas });
       if (e3) console.error("[sara] não registrou a lacuna", e3.message);
     }
-    const doModulo = p.ferramentas.filter((f) => ![LACUNA.nome, PROPOR_HABILIDADE.nome, MOSTRAR.nome, "abrir_tela", "abrir_lancamento"].includes(f.nome)).map((f) => f.nome);
+    const doModulo = p.ferramentas.filter((f) => !f.acao && ![LACUNA.nome, PROPOR_HABILIDADE.nome, MOSTRAR.nome, "abrir_tela", "abrir_lancamento"].includes(f.nome)).map((f) => f.nome);
     const propostas = resposta.ferramentas.filter((x) => x.nome === PROPOR_HABILIDADE.nome).map((f) => validarProposta(f.entrada, doModulo)).filter((x) => x !== null);
     if (!fora && !propostas.length && pedidoRecorrente(pergunta)) {
       const passos: Passo[] = resposta.ferramentas.filter((f) => f.ok && doModulo.includes(f.nome))
@@ -190,7 +184,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   });
 
   return NextResponse.json({
-    conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, ferramentas: r.ferramentas.map((f) => f.nome), foraDoEscopo: Boolean(fora), visuais: r.visuais,
+    conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, ferramentas: r.ferramentas.map((f) => f.nome), foraDoEscopo: Boolean(fora), visuais: r.visuais, acoes,
   });
 }
 

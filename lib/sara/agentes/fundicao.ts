@@ -1,4 +1,4 @@
-import { dataBR, dias, hoje, link, plural, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
+import { dataBR, dias, hoje, link, plural, termo, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
 import { buscarMateriais, linhaDoPedido, pedidosDeMaterial } from "./almoxarifado.ts";
 
 /**
@@ -36,7 +36,45 @@ const ferramentas: Ferramenta[] = [
   },
 ];
 
-const telas: Tela[] = [{ id: "fundicao_pedidos", modulo: M, rotulo: "Fundição › Pedidos de material", exige: PODE, serve: "pedir material e acompanhar os pedidos" }];
+// Biblioteca de desenhos (P-11): peças, revisões, se já foram fundidas e as anotações da Fundição.
+ferramentas.push({
+  nome: "fundicao_biblioteca", rotulo: "Biblioteca de desenhos", exige: ["fundicao.biblioteca"],
+  descricao: "Busca na Biblioteca de desenhos pela peça (código do artigo), descrição, cliente ou código do desenho: tipo, revisão, data da revisão, se é a revisão atual, quando foi fundida (e em quais OS) e as anotações da Fundição da peça.",
+  esquema: { type: "object", properties: { busca: { type: "string" } }, required: ["busca"] },
+  rodar: async (sb, e) => {
+    const t = termo(e.busca);
+    if (t.length < 2) return { dados: { erro: "Diga a peça, o cliente ou o código do desenho." }, fontes: [] };
+    const { data, error } = await sb.from("fundicao_desenhos")
+      .select("artigo_codigo, artigo_chave, artigo_descricao, cliente_nome, tipo, codigo, revisao, data_revisao, ultima_fundicao_em, fundicao_prevista, os_codigos, origem, removido_na_forja_em")
+      .or(["artigo_codigo", "artigo_descricao", "cliente_nome", "codigo"].map((c) => `${c}.ilike.%${t}%`).join(","))
+      .is("removido_na_forja_em", null).order("artigo_chave").limit(40);
+    if (error) throw new Error(error.message);
+    const linhas = data ?? [];
+    const chaves = [...new Set(linhas.map((l) => l.artigo_chave))].slice(0, 15);
+    const { data: notas } = chaves.length ? await sb.from("fundicao_notas").select("artigo_chave, texto, autor_nome, created_at").in("artigo_chave", chaves).order("created_at", { ascending: false }).limit(30) : { data: [] };
+    const fonteBib = { rotulo: "Fundição › Biblioteca", link: link(M, "Biblioteca") };
+    return {
+      dados: {
+        busca: t, pecas: chaves.map((k) => {
+          const ds = linhas.filter((l) => l.artigo_chave === k);
+          return {
+            peca: ds[0].artigo_codigo, descricao: ds[0].artigo_descricao, cliente: ds[0].cliente_nome,
+            fundida_em: ds.map((d) => d.ultima_fundicao_em).filter(Boolean).sort().at(-1) ?? null, fundicao_prevista: ds.some((d) => d.fundicao_prevista),
+            os: [...new Set(ds.flatMap((d) => d.os_codigos ?? []))],
+            desenhos: ds.map((d) => ({ tipo: d.tipo, codigo: d.codigo, revisao: d.revisao, data_revisao: d.data_revisao, acervo_da_fundicao: d.origem === "acervo" })),
+            anotacoes: (notas ?? []).filter((n) => n.artigo_chave === k).map((n) => ({ texto: n.texto, autor: n.autor_nome, em: n.created_at })),
+          };
+        }),
+      },
+      fontes: [fonteBib],
+    };
+  },
+});
+
+const telas: Tela[] = [
+  { id: "fundicao_pedidos", modulo: M, secao: "Pedidos de material", rotulo: "Fundição › Pedidos de material", exige: PODE, serve: "pedir material e acompanhar os pedidos" },
+  { id: "fundicao_biblioteca", modulo: M, secao: "Biblioteca", rotulo: "Fundição › Biblioteca", exige: ["fundicao.biblioteca"], serve: "ver os desenhos das peças, as revisões e as anotações da Fundição" },
+];
 
 const regras: Agente["regras"] = [
   {
