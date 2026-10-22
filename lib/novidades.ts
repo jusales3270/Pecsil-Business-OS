@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-22-sara-caixa",
+    data: "2026-10-22",
+    area: "SARA",
+    modulos: ["almoxarifado", "fundicao", "financeiro", "fiscal", "rh", "compras", "comercial", "portaria", "producao", "ti"],
+    funcionalidades: ["almoxarifado.sara", "fundicao.sara", "financeiro.sara", "fiscal.sara", "rh.sara", "compras.sara", "comercial.sara", "portaria.sara", "producao.sara", "ti.sara"],
+    titulo: "SARA: caixa de mensagem nova, como nos chats que você já usa",
+    itens: [
+      "O botão + abre as opções: Tirar foto, Foto ou arquivo e Ler código.",
+      "O microfone fica ao lado de Enviar: toque para gravar, toque de novo para enviar o áudio, ou no X para cancelar.",
+      "A foto ou o arquivo escolhido aparece dentro da caixa antes de enviar, e dá para tirar no X.",
+    ],
+  },
+  {
     id: "2026-10-22-sara-e5",
     data: "2026-10-22",
     area: "SARA",

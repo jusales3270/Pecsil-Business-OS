@@ -7350,7 +7350,7 @@ button.holiday-row:hover {
   border: 1px solid color-mix(in srgb, var(--text-primary) 7%, transparent);
   background: color-mix(in srgb, var(--bg-surface) 72%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 40%, transparent); }
 .sara-msg.erro, .sara-msg.fora { border-color: color-mix(in srgb, var(--accent-amber) 45%, transparent); background: color-mix(in srgb, var(--accent-amber) 10%, color-mix(in srgb, var(--bg-surface) 72%, transparent)); }
-.sara-selo { align-self: flex-start; padding: 1px 9px; border: 1px solid var(--accent-blue); border-radius: 999px; color: var(--accent-blue); font-size: var(--fs-micro); font-weight: 700; letter-spacing: .03em; }
+.sara-selo { align-self: flex-start; white-space: nowrap; padding: 1px 9px; border: 1px solid var(--accent-blue); border-radius: 999px; color: var(--accent-blue); font-size: var(--fs-micro); font-weight: 700; letter-spacing: .03em; }
 .sara-msg.fora .sara-selo { border-color: var(--accent-amber); color: var(--accent-amber); }
 .sara-texto { font-size: var(--fs-sm); color: var(--text-primary); line-height: 1.5; overflow-wrap: anywhere; }
 .sara-texto p { margin: 0 0 6px; }
@@ -7426,27 +7426,15 @@ button.holiday-row:hover {
 .sara-propor { padding: 5px 12px; border: 1px solid var(--accent-blue); border-radius: 999px; background: var(--accent-blue); color: var(--text-on-accent); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; }
 .sara-propor:disabled { opacity: .6; cursor: default; }
 /* E2 · chão de fábrica: foto e leitor de código (botões grandes no celular). */
-.sara-chao { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 12px 6px; }
-.sara-chao > button { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 12px; border: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent); border-radius: 999px; background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; }
-.sara-chao > button:hover { border-color: var(--accent-blue); }
-.sara-chao > button:disabled { opacity: .6; cursor: default; }
-.sara-chao > button.gravando { border-color: var(--accent-red); color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 8%, var(--bg-surface)); }
-.sara-chao > .sara-cancelar { flex: 0 0 auto; min-width: 34px; justify-content: center; padding: 6px 10px; }
 .sara-rec { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-red); animation: sara-rec 1s ease-in-out infinite; }
 @keyframes sara-rec { 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .sara-rec { animation: none; } }
-.sara-voz-erro { flex-basis: 100%; font-size: var(--fs-xs); color: var(--accent-red); }
 /* E5: anexo na conversa e parâmetros usados. */
-.sara-anexo-pronto { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 6px 8px 6px 12px; border-radius: 999px; background: var(--tint-blue); color: var(--text-primary); font-size: var(--fs-xs); font-weight: 600; overflow-wrap: anywhere; }
-.sara-anexo-pronto button { width: 20px; height: 20px; flex: 0 0 auto; border-radius: 50%; border: 0; background: var(--text-primary); color: var(--bg-surface); font-size: 13px; line-height: 20px; cursor: pointer; }
 .sara-anexo-msg { align-self: flex-end; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); overflow-wrap: anywhere; }
 .sara-parametros { font-size: var(--fs-micro); color: var(--text-muted); }
 .sara-parametros summary { cursor: pointer; font-weight: 700; color: var(--text-secondary); }
 .sara-parametros ul { margin: 4px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
 .sara-parametros li { overflow-wrap: anywhere; }
-.sara-foto-pronta { position: relative; display: inline-flex; }
-.sara-foto-pronta img { width: 44px; height: 44px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); }
-.sara-foto-pronta button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: var(--text-primary); color: var(--bg-surface); font-size: 13px; line-height: 20px; cursor: pointer; }
 .sara-foto { max-width: 220px; max-height: 220px; border-radius: 12px; object-fit: cover; align-self: flex-end; }
 .sara-leitor { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; background: color-mix(in srgb, #000 82%, transparent); color: #fff; text-align: center; border-radius: inherit; }
 .sara-leitor video { width: 100%; max-height: 60%; border-radius: 14px; object-fit: cover; background: #000; }
@@ -7454,19 +7442,49 @@ button.holiday-row:hover {
 .sara-leitor p { margin: 0; font-size: var(--fs-sm); }
 .sara-leitor .sara-abrir { align-self: center; border-color: #fff; color: #fff; }
 .sara-leitor-erro { max-width: 280px; }
-@media (max-width: 600px) {
-  .sara-chao > button { min-height: 44px; padding: 8px 8px; font-size: var(--fs-sm); flex: 1 1 calc(50% - 8px); justify-content: center; white-space: nowrap; }
-  .sara-chao > .sara-cancelar { flex: 0 0 44px; }
-}
 .sara-nota { display: flex; gap: 4px; }
 .sara-nota button { padding: 2px 9px; border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent); border-radius: 999px; background: transparent; cursor: pointer; font-size: 13px; opacity: .7; }
 .sara-nota button.ativo { opacity: 1; border-color: var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 10%, transparent); }
 .sara-pensando { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
-.sara-entrada { display: flex; align-items: flex-end; gap: var(--sp-2); padding: 6px 6px 6px 14px; border-radius: 24px;
-  border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent); background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+/* Caixa de mensagem da SARA (padrão dos chats): texto em cima; + à esquerda; microfone e enviar à direita. */
+.sara-caixa { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 8px 8px 8px 12px; border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent); background: color-mix(in srgb, var(--bg-surface) 78%, transparent);
   box-shadow: inset 0 1px 2px rgba(10, 14, 24, .06); }
-.sara-entrada:focus-within { border-color: var(--accent-blue); }
-.sara-entrada textarea { flex: 1; min-width: 0; padding: 6px 0; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: var(--fs-sm); resize: none; }
+.sara-caixa:focus-within { border-color: var(--accent-blue); }
+.sara-caixa.gravando { border-color: color-mix(in srgb, var(--accent-red) 60%, transparent); }
+.sara-caixa textarea { width: 100%; min-height: 24px; max-height: 140px; padding: 4px 2px; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: var(--fs-sm); resize: none; field-sizing: content; }
+.sara-caixa-barra { display: flex; align-items: center; gap: 4px; }
+.sara-caixa-espaco { flex: 1; }
+.sara-caixa-dica { font-size: var(--fs-micro); color: var(--text-muted); }
+.sara-caixa-erro { font-size: var(--fs-xs); color: var(--accent-red); padding: 0 4px; }
+.sara-icone { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.sara-icone:hover:not(:disabled) { background: color-mix(in srgb, var(--text-primary) 8%, transparent); color: var(--text-primary); }
+.sara-icone:disabled { opacity: .4; cursor: default; }
+.sara-icone.ativo { background: var(--accent-red); color: #fff; }
+.sara-mais { position: relative; }
+.sara-menu { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 6; min-width: 200px; padding: 6px; border-radius: 14px; border: 1px solid var(--border);
+  background: var(--bg-surface-raised); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+.sara-menu button { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--text-primary); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
+.sara-menu button:hover { background: var(--bg-hover); }
+.sara-menu svg { color: var(--text-secondary); }
+.sara-caixa-anexos { display: flex; flex-wrap: wrap; gap: 6px; }
+.sara-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 32px; padding: 4px 4px 4px 10px; border-radius: 10px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); color: var(--text-primary); font-size: var(--fs-xs); font-weight: 600; }
+.sara-chip > span { overflow-wrap: anywhere; }
+.sara-chip svg { width: 16px; height: 16px; color: var(--text-secondary); flex-shrink: 0; }
+.sara-chip button, .sara-chip-foto button { width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.sara-chip button:hover { background: var(--bg-hover); }
+.sara-chip-foto { position: relative; display: inline-flex; }
+.sara-chip-foto img { width: 56px; height: 56px; object-fit: cover; border-radius: 12px; border: 1px solid var(--border); }
+.sara-chip-foto button { position: absolute; top: -8px; right: -8px; background: var(--text-primary); color: var(--bg-surface); }
+.sara-chip-foto button svg, .sara-chip button svg { width: 14px; height: 14px; }
+.sara-caixa-gravando { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 2px; font-size: var(--fs-sm); font-weight: 600; color: var(--accent-red); font-variant-numeric: tabular-nums; }
+.sara-onda { display: inline-flex; align-items: center; gap: 3px; height: 18px; }
+.sara-caixa .sara-onda > i { display: block; flex: none; width: 3px; min-width: 0; height: 6px; padding: 0; border: 0; box-shadow: none; border-radius: 2px; background: var(--accent-red); animation: sara-onda 1s ease-in-out infinite; }
+.sara-caixa .sara-onda > i:nth-child(2) { animation-delay: .15s; } .sara-caixa .sara-onda > i:nth-child(3) { animation-delay: .3s; } .sara-caixa .sara-onda > i:nth-child(4) { animation-delay: .45s; } .sara-caixa .sara-onda > i:nth-child(5) { animation-delay: .6s; }
+@keyframes sara-onda { 50% { height: 18px; } }
+@media (prefers-reduced-motion: reduce) { .sara-caixa .sara-onda > i { animation: none; height: 10px; } }
+.sara-anexo-msg svg { width: 14px; height: 14px; vertical-align: -2px; }
+@media (max-width: 600px) { .sara-icone { width: 42px; height: 42px; } .sara-caixa textarea { font-size: 16px; } }
 .sara-enviar { width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer;
   background: linear-gradient(145deg, color-mix(in srgb, var(--accent-blue) 85%, #ffffff), var(--accent-blue)); color: #ffffff;
   box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-blue) 40%, transparent), inset 0 1px 0 rgba(255, 255, 255, .35); }

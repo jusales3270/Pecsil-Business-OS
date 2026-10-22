@@ -95,6 +95,16 @@ function Texto({ texto }: { texto: string }) {
   return <>{blocos}</>;
 }
 
+/* Ícones da caixa de mensagem (traço, como nos chats). */
+const Ico = ({ children }: { children: ReactNode }) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>;
+const IconeMais = () => <Ico><path d="M12 5v14M5 12h14" /></Ico>;
+const IconeX = () => <Ico><path d="M6 6l12 12M18 6 6 18" /></Ico>;
+const IconeMicrofone = () => <Ico><rect x="9" y="3" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></Ico>;
+const IconeParar = () => <Ico><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" /></Ico>;
+const IconeCamera = () => <Ico><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></Ico>;
+const IconeClipe = () => <Ico><path d="M20 11.5 12.2 19.3a5 5 0 0 1-7.1-7.1l8-8a3.3 3.3 0 0 1 4.7 4.7l-8 8a1.7 1.7 0 0 1-2.4-2.4l7.3-7.3" /></Ico>;
+const IconeCodigo = () => <Ico><path d="M4 6v12M7 6v12M10 6v12M14 6v12M16 6v12M20 6v12" /></Ico>;
+
 /** Foto pronta para enviar: reduzida no celular (lado maior 1568 px, JPEG), sem guardar no aparelho nem na plataforma. */
 type Foto = { tipo: "image/jpeg"; dados: string; previa: string };
 async function reduzirFoto(arquivo: File): Promise<Foto> {
@@ -248,6 +258,14 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
   // Anexo (E5): Excel, Word, PDF ou texto, lido no servidor; print/foto vai pelo caminho da foto.
   const [anexo, setAnexo] = useState<{ nome: string; texto: string; cortado: boolean } | null>(null);
   const [lendoAnexo, setLendoAnexo] = useState(false);
+  const [menuMais, setMenuMais] = useState(false);
+  useEffect(() => {
+    if (!menuMais) return;
+    const fechar = (e: PointerEvent) => { if (!(e.target as HTMLElement).closest(".sara-mais")) setMenuMais(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuMais(false); };
+    window.addEventListener("pointerdown", fechar); window.addEventListener("keydown", esc);
+    return () => { window.removeEventListener("pointerdown", fechar); window.removeEventListener("keydown", esc); };
+  }, [menuMais]);
   const [erroAnexo, setErroAnexo] = useState("");
   const { abrir: escolherAnexo, abrindo: abrindoAnexo, inputProps: entradaAnexo } = useEscolherArquivo(async (arquivos) => {
     const f = arquivos[0];
@@ -517,10 +535,10 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
               <Fragment key={i}>
               {m.quando && (i === 0 || !msgs[i - 1].quando || diaSP(msgs[i - 1].quando!) !== diaSP(m.quando)) && <div className="sara-dia" role="separator"><span>{rotuloDoDia(m.quando)}</span></div>}
               <div className={`sara-msg ${m.papel}${m.erro ? " erro" : ""}${m.fora ? " fora" : ""}`}>
-                {m.papel === "sara" && !m.erro && <span className="sara-selo">{m.fora ? "SARA (IA) · fora do escopo" : "SARA (IA)"}{m.quando ? <i> · {horaSP(m.quando)}</i> : null}</span>}
+                {m.papel === "sara" && !m.erro && <span className="sara-selo">{m.fora ? "SARA (IA) · fora do escopo" : "SARA (IA)"}{m.quando ? <i className="sara-selo-hora"> · {horaSP(m.quando)}</i> : null}</span>}
                 {/* eslint-disable-next-line @next/next/no-img-element -- prévia local da foto enviada (dado em memória, não fica guardada) */}
                 {m.foto && <img className="sara-foto" src={m.foto} alt="Foto enviada à SARA" />}
-                {m.anexo && <span className="sara-anexo-msg"><span aria-hidden>📎</span> {m.anexo}</span>}
+                {m.anexo && <span className="sara-anexo-msg"><IconeClipe /> {m.anexo}</span>}
                 <div className="sara-texto">{m.papel === "sara" ? <Texto texto={m.texto} /> : <p>{m.texto}</p>}</div>
                 {m.visuais?.map((v, k) => <SaraVisual key={k} v={v} />)}
                 {m.acoes?.map((c) => <CartaoAcao key={c.id} c={c} decidindo={decidindo} confirmar={confirmar} decidir={(x, permitir) => void decidir(x, permitir)} />)}
@@ -547,44 +565,67 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
             {pensando && <div className="sara-msg sara"><span className="sara-selo">SARA (IA)</span><p className="sara-pensando">Consultando…</p></div>}
           </div>
           {lendoCodigo && <LeitorDeCodigo onFechar={() => setLendoCodigo(false)} onLido={(valor, formato) => { setLendoCodigo(false); void perguntar(`Código lido: ${valor} (${formato}). O que é?`); }} />}
-          {pode && (
-            <div className="sara-chao" aria-label="Foto e código">
-              <input {...entradaFoto} accept="image/*" capture="environment" />
-              <button type="button" onClick={escolherFoto} disabled={pensando || abrindoFoto || preparandoFoto} aria-busy={abrindoFoto || preparandoFoto}>
-                {abrindoFoto || preparandoFoto ? <Carregando /> : <span aria-hidden>📷</span>} {abrindoFoto ? "Abrindo a câmera…" : preparandoFoto ? "Preparando…" : "Foto"}
-              </button>
-              <button type="button" onClick={() => setLendoCodigo(true)} disabled={pensando || Boolean(gravando)}><span aria-hidden>▦</span> Ler código</button>
-              <input {...entradaAnexo} accept=".pdf,.xlsx,.xls,.csv,.docx,.txt,image/*" />
-              <button type="button" onClick={escolherAnexo} disabled={pensando || abrindoAnexo || lendoAnexo || Boolean(gravando)} aria-busy={abrindoAnexo || lendoAnexo}>
-                {abrindoAnexo || lendoAnexo ? <Carregando /> : <span aria-hidden>📎</span>} {abrindoAnexo ? "Abrindo…" : lendoAnexo ? "Lendo…" : "Anexo"}
-              </button>
-              <button type="button" className={gravando ? "gravando" : undefined} onClick={() => void falar()} disabled={pensando || ouvindo} aria-pressed={Boolean(gravando)}>
-                {ouvindo ? <><Carregando /> Ouvindo…</> : gravando ? <><span className="sara-rec" aria-hidden /> {`0:${String(segundos).padStart(2, "0")}`} · tocar para enviar</> : <><span aria-hidden>🎤</span> Falar</>}
-              </button>
-              {gravando && <button type="button" className="sara-cancelar" onClick={() => pararGravacao(false)} aria-label="Cancelar a gravação">×</button>}
-              {erroVoz && <small className="sara-voz-erro" role="alert">{erroVoz}</small>}
-              {erroAnexo && <small className="sara-voz-erro" role="alert">{erroAnexo}</small>}
-              {anexo && (
-                <span className="sara-anexo-pronto" title={anexo.cortado ? "Arquivo grande: a SARA lê o começo (40 mil caracteres)." : undefined}>
-                  <span aria-hidden>📎</span> {anexo.nome}{anexo.cortado ? " (início)" : ""}
-                  <button type="button" onClick={() => setAnexo(null)} aria-label="Tirar o anexo">×</button>
+          {/* Caixa de mensagem (o padrão dos chats): + (foto, arquivo, código) à esquerda; microfone e enviar à direita. */}
+          <form className={`sara-caixa${gravando ? " gravando" : ""}`} onSubmit={(e) => { e.preventDefault(); void perguntar(texto); }}>
+            <input {...entradaFoto} accept="image/*" capture="environment" />
+            <input {...entradaAnexo} accept=".pdf,.xlsx,.xls,.csv,.docx,.txt,image/*" />
+            {(foto || anexo || preparandoFoto || lendoAnexo) && (
+              <div className="sara-caixa-anexos">
+                {foto && (
+                  <span className="sara-chip-foto">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- prévia local antes de enviar */}
+                    <img src={foto.previa} alt="Foto pronta para enviar" />
+                    <button type="button" onClick={() => setFoto(null)} aria-label="Tirar a foto"><IconeX /></button>
+                  </span>
+                )}
+                {anexo && (
+                  <span className="sara-chip" title={anexo.cortado ? "Arquivo grande: a SARA lê o começo (40 mil caracteres)." : undefined}>
+                    <IconeClipe /> <span>{anexo.nome}{anexo.cortado ? " (início)" : ""}</span>
+                    <button type="button" onClick={() => setAnexo(null)} aria-label="Tirar o anexo"><IconeX /></button>
+                  </span>
+                )}
+                {(preparandoFoto || lendoAnexo) && <span className="sara-chip"><Carregando /> {lendoAnexo ? "Lendo o arquivo…" : "Preparando a foto…"}</span>}
+              </div>
+            )}
+            {gravando ? (
+              <div className="sara-caixa-gravando" aria-live="polite">
+                <span className="sara-rec" aria-hidden /> Gravando {`0:${String(segundos).padStart(2, "0")}`}
+                <span className="sara-onda" aria-hidden><i /><i /><i /><i /><i /></span>
+              </div>
+            ) : (
+              <textarea rows={1} value={texto} disabled={!pode || pensando} maxLength={2000}
+                placeholder={!pode ? "SARA indisponível" : ouvindo ? "Ouvindo…" : foto ? "Pergunte sobre a foto (ou só envie)…" : anexo ? "Pergunte sobre o anexo (ou só envie)…" : "Pergunte à SARA…"}
+                onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void perguntar(texto); } }} aria-label="Pergunta para a SARA" />
+            )}
+            <div className="sara-caixa-barra">
+              {gravando ? (
+                <button type="button" className="sara-icone" onClick={() => pararGravacao(false)} aria-label="Cancelar a gravação" title="Cancelar"><IconeX /></button>
+              ) : (
+                <span className="sara-mais">
+                  <button type="button" className="sara-icone" onClick={() => setMenuMais((v) => !v)} disabled={!pode || pensando || ouvindo}
+                    aria-haspopup="menu" aria-expanded={menuMais} aria-label="Adicionar foto, arquivo ou código" title="Adicionar"><IconeMais /></button>
+                  {menuMais && (
+                    <span className="sara-menu" role="menu">
+                      <button type="button" role="menuitem" onClick={() => { setMenuMais(false); escolherFoto(); }}><IconeCamera /> Tirar foto</button>
+                      <button type="button" role="menuitem" onClick={() => { setMenuMais(false); escolherAnexo(); }}><IconeClipe /> Foto ou arquivo</button>
+                      <button type="button" role="menuitem" onClick={() => { setMenuMais(false); setLendoCodigo(true); }}><IconeCodigo /> Ler código</button>
+                    </span>
+                  )}
                 </span>
               )}
-              {foto && (
-                <span className="sara-foto-pronta">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- prévia local antes de enviar */}
-                  <img src={foto.previa} alt="Foto pronta para enviar" />
-                  <button type="button" onClick={() => setFoto(null)} aria-label="Tirar a foto">×</button>
-                </span>
+              <span className="sara-caixa-espaco" />
+              {(abrindoFoto || abrindoAnexo) && <small className="sara-caixa-dica">Abrindo…</small>}
+              <button type="button" className={`sara-icone${gravando ? " ativo" : ""}`} onClick={() => void falar()} disabled={!pode || pensando || ouvindo}
+                aria-pressed={Boolean(gravando)} aria-label={gravando ? "Parar e enviar o áudio" : "Falar"} title={gravando ? "Parar e enviar" : "Falar"}>
+                {ouvindo ? <Carregando /> : gravando ? <IconeParar /> : <IconeMicrofone />}
+              </button>
+              {!gravando && (
+                <button type="submit" className="sara-enviar" disabled={!pode || pensando || (texto.trim().length < 2 && !foto && !anexo)} aria-label="Enviar">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
               )}
             </div>
-          )}
-          <form className="sara-entrada" onSubmit={(e) => { e.preventDefault(); void perguntar(texto); }}>
-            <textarea rows={2} value={texto} disabled={!pode || pensando} placeholder={!pode ? "SARA indisponível" : foto ? "Pergunte sobre a foto (ou só envie)…" : anexo ? "Pergunte sobre o anexo (ou só envie)…" : "Pergunte à SARA…"} maxLength={2000}
-              onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void perguntar(texto); } }} aria-label="Pergunta para a SARA" />
-            <button type="submit" className="sara-enviar" disabled={!pode || pensando || (texto.trim().length < 2 && !foto && !anexo)} aria-label="Enviar">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </button>
+            {(erroVoz || erroAnexo) && <small className="sara-caixa-erro" role="alert">{erroVoz || erroAnexo}</small>}
           </form>
         </aside>
       )}
