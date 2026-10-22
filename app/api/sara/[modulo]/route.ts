@@ -89,7 +89,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const { modulo } = await context.params;
   const p = await preparar(modulo);
   if ("erro" in p) return p.erro;
-  const corpo = (await request.json().catch(() => null)) as { pergunta?: string; conversa?: string | null; habilidade?: string | null; imagem?: { tipo?: string; dados?: string } | null } | null;
+  const corpo = (await request.json().catch(() => null)) as { pergunta?: string; conversa?: string | null; habilidade?: string | null; imagem?: { tipo?: string; dados?: string } | null; voz?: boolean } | null;
   // (o cliente do Supabase só envia a consulta quando alguém espera por ela: sem o await, não contava)
   if (corpo?.habilidade && UUID.test(corpo.habilidade) && p.habilidades.some((h) => h.id === corpo.habilidade)) await p.sb.rpc("sara_habilidade_usada", { p_id: corpo.habilidade });
   // Foto (E2): só JPEG, PNG ou WebP, já reduzida no celular; vai ao modelo nesta pergunta e não fica guardada.
@@ -158,7 +158,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const nomeCurto = primeiroNome(me?.full_name);
   r = { ...r, texto: comAbertura(r.texto, abertura({ nome: nomeCurto, situacao }), nomeCurto) };
   const { data: reg, error } = await p.sb.rpc("sara_registrar", {
-    p_conversa: conversa, p_modulo: modulo, p_pergunta: imagem ? `📷 ${pergunta}` : pergunta, p_resposta: r.texto,
+    p_conversa: conversa, p_modulo: modulo, p_pergunta: `${imagem ? "📷 " : ""}${corpo?.voz ? "🎤 " : ""}${pergunta}`, p_resposta: r.texto,
     p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou },
       lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });

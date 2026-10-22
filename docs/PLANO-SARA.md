@@ -116,7 +116,8 @@ O proprietário aprovou o plano do que absorver da LIA, o copiloto do WMS da TOT
 - **E2, chão de fábrica (22/10):**
   - **Foto:** a pessoa tira a foto pela câmera do celular; ela é reduzida no aparelho, vai ao modelo como imagem só naquela pergunta e não fica guardada (a conversa grava só "📷"). A SARA lê códigos e textos e procura no catálogo e na Biblioteca.
   - **Leitor de código:** BarcodeDetector do navegador (Chrome no Android), para código de barras e QR. A câmera desliga ao ler; sem leitor no aparelho, a SARA pede a foto da etiqueta.
-  - **Voz:** espera a escolha do provedor da transcrição.
+  - **Voz:** botão Falar (tocar para gravar e para enviar, até 1 minuto). A transcrição é feita pelo Whisper (`@cf/openai/whisper-large-v3-turbo`) na Cloudflare, na conta do Clef, que não treina nem guarda o conteúdo; o áudio não é guardado. A conversa marca "🎤". O registro está no PLANO-JEV (22/10).
+  - **Atalho "SARA" no ícone do app** (opção 1, escolhida pelo proprietário): abre o módulo da pessoa com a SARA já aberta.
 - **Próximas etapas do plano:**
   - E2: foto, voz e leitor de código no celular;
   - E5: parâmetros usados, datas soltas e anexos;

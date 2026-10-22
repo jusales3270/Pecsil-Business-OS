@@ -7430,6 +7430,12 @@ button.holiday-row:hover {
 .sara-chao > button { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 12px; border: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent); border-radius: 999px; background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; }
 .sara-chao > button:hover { border-color: var(--accent-blue); }
 .sara-chao > button:disabled { opacity: .6; cursor: default; }
+.sara-chao > button.gravando { border-color: var(--accent-red); color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 8%, var(--bg-surface)); }
+.sara-chao > .sara-cancelar { flex: 0 0 auto; min-width: 34px; justify-content: center; padding: 6px 10px; }
+.sara-rec { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-red); animation: sara-rec 1s ease-in-out infinite; }
+@keyframes sara-rec { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .sara-rec { animation: none; } }
+.sara-voz-erro { flex-basis: 100%; font-size: var(--fs-xs); color: var(--accent-red); }
 .sara-foto-pronta { position: relative; display: inline-flex; }
 .sara-foto-pronta img { width: 44px; height: 44px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); }
 .sara-foto-pronta button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: var(--text-primary); color: var(--bg-surface); font-size: 13px; line-height: 20px; cursor: pointer; }
@@ -7441,7 +7447,8 @@ button.holiday-row:hover {
 .sara-leitor .sara-abrir { align-self: center; border-color: #fff; color: #fff; }
 .sara-leitor-erro { max-width: 280px; }
 @media (max-width: 600px) {
-  .sara-chao > button { min-height: 44px; padding: 8px 16px; font-size: var(--fs-sm); flex: 1 1 0; justify-content: center; }
+  .sara-chao > button { min-height: 44px; padding: 8px 10px; font-size: var(--fs-sm); flex: 1 1 0; justify-content: center; white-space: nowrap; }
+  .sara-chao > .sara-cancelar { flex: 0 0 44px; }
 }
 .sara-nota { display: flex; gap: 4px; }
 .sara-nota button { padding: 2px 9px; border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent); border-radius: 999px; background: transparent; cursor: pointer; font-size: 13px; opacity: .7; }

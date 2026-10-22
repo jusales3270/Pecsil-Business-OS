@@ -153,7 +153,7 @@ test("E2: a foto vai ao modelo como imagem junto da pergunta, e não fica guarda
   const rota = ler("app/api/sara/[modulo]/route.ts");
   assert.match(rota, /const TIPOS_FOTO = \["image\/jpeg", "image\/png", "image\/webp"\]/);
   assert.match(rota, /dados\.length > 5_400_000/, "limite de tamanho da foto");
-  assert.match(rota, /p_pergunta: imagem \? `📷 \$\{pergunta\}` : pergunta/, "na conversa fica só a marca da foto, não a imagem");
+  assert.match(rota, /p_pergunta: `\$\{imagem \? "📷 " : ""\}/, "na conversa fica só a marca da foto, não a imagem");
   assert.match(ler("lib/sara/modulos.ts"), /Nunca invente código que não está na foto/);
 });
 
@@ -177,4 +177,29 @@ test("Atalho SARA no ícone do app: abre o módulo da pessoa com a SARA já aber
   assert.match(pagina, /A SARA ainda não foi liberada para você/);
   assert.match(ler("app/components/sara-painel.tsx"), /abriuSozinha\.current = true/);
   assert.match(ler("public/sw.js"), /pecsil-business-os-v6/, "cache novo para o celular buscar o manifesto com o atalho");
+});
+
+test("E2 voz: Whisper da Cloudflare (conta do Clef), áudio conferido e não guardado", async () => {
+  const { conferirAudio, lerTranscricao, MODELO_VOZ, LIMITE_AUDIO } = await import("../lib/sara/voz-core.ts");
+  assert.equal(MODELO_VOZ, "@cf/openai/whisper-large-v3-turbo");
+  assert.equal(conferirAudio("audio/webm;codecs=opus", 24_000).ok, true, "o formato do Chrome no Android");
+  assert.equal(conferirAudio("audio/mp4", 300_000).ok, true, "o formato do iPhone");
+  assert.equal(conferirAudio("video/mp4", 24_000).ok, false);
+  assert.equal(conferirAudio("audio/webm", 200).ok, false, "curto demais");
+  assert.equal(conferirAudio("audio/webm", LIMITE_AUDIO + 1).ok, false, "longo demais");
+  assert.deepEqual(lerTranscricao({ result: { text: "  Qual é o saldo do eletrodo 804-00184?  " } }), { texto: "Qual é o saldo do eletrodo 804-00184?" });
+  assert.ok("erro" in lerTranscricao({ result: { text: " . " } }), "só ruído vira 'não entendi'");
+  const voz = ler("lib/sara/voz.ts");
+  assert.match(voz, /lerConfigClef\(\)/, "mesma conta e token só de Workers AI do Clef");
+  assert.match(voz, /language: "pt"/);
+  assert.doesNotMatch(voz, /storage|insert|upload/i, "o áudio não é guardado");
+  const rota = ler("app/api/sara/[modulo]/voz/route.ts");
+  assert.match(rota, /await preparar\(modulo\)/, "mesma regra de acesso da SARA");
+  assert.doesNotMatch(rota, /createSupabaseAdminClient|SERVICE_ROLE/);
+  assert.match(ler("app/api/sara/[modulo]/route.ts"), /corpo\?\.voz \? "🎤 " : ""/, "a conversa marca que a pergunta foi falada");
+  const painel = ler("app/components/sara-painel.tsx");
+  assert.match(painel, /new MediaRecorder\(fluxo/);
+  assert.match(painel, /setTimeout\(\(\) => pararGravacao\(true\), 60_000\)/, "para sozinha em 1 minuto");
+  assert.match(painel, /fluxo\.getTracks\(\)\.forEach\(\(t\) => t\.stop\(\)\)/, "desliga o microfone");
+  assert.match(painel, /useEffect\(\(\) => \(\) => pararGravacao\(false\), \[\]\)/, "fechou a janela: descarta");
 });

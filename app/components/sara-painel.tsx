@@ -244,6 +244,12 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
   const [foto, setFoto] = useState<Foto | null>(null);
   const [preparandoFoto, setPreparandoFoto] = useState(false);
   const [lendoCodigo, setLendoCodigo] = useState(false);
+  // Voz (E2): toque para gravar, toque de novo para enviar; o Whisper da Cloudflare transcreve e a pergunta segue normal.
+  const [gravando, setGravando] = useState<number | null>(null);
+  const [segundos, setSegundos] = useState(0);
+  const [ouvindo, setOuvindo] = useState(false);
+  const [erroVoz, setErroVoz] = useState("");
+  const gravador = useRef<{ rec: MediaRecorder; partes: Blob[]; fluxo: MediaStream; enviar: boolean; limite: ReturnType<typeof setTimeout> } | null>(null);
   const { abrir: escolherFoto, abrindo: abrindoFoto, inputProps: entradaFoto } = useEscolherArquivo(async (arquivos) => {
     const f = arquivos[0];
     if (!f || !f.type.startsWith("image/")) return;
@@ -325,14 +331,14 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
     const registro = a.registro;
     if (registro) setTimeout(() => pedirRegistro(registro), 400);
   };
-  const perguntar = async (pergunta: string, habilidade?: string) => {
+  const perguntar = async (pergunta: string, habilidade?: string, voz = false) => {
     const p = pergunta.trim();
     const comFoto = foto;
     if ((!p && !comFoto) || pensando) return;
     setTexto(""); setFoto(null);
     setMsgs((m) => [...m, { papel: "pessoa", texto: p || "📷 O que é isto?", foto: comFoto?.previa, quando: new Date().toISOString() }]); setPensando(true);
     const r = await fetch(`/api/sara/${modulo}`, { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ pergunta: p, conversa, habilidade: habilidade ?? null, imagem: comFoto ? { tipo: comFoto.tipo, dados: comFoto.dados } : null }) })
+      body: JSON.stringify({ pergunta: p, conversa, habilidade: habilidade ?? null, voz, imagem: comFoto ? { tipo: comFoto.tipo, dados: comFoto.dados } : null }) })
       .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
     setPensando(false);
     if (!r.ok) { setMsgs((m) => [...m, { papel: "sara", texto: r.body?.error ?? "A SARA está indisponível agora.", erro: true, quando: new Date().toISOString() }]); return; }
@@ -341,6 +347,47 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
     // A SARA pediu para mostrar uma tela: abre por dentro da plataforma (a janela continua aberta).
     if (r.body.abrir) abrir(r.body.abrir);
   };
+  const pararGravacao = (enviar: boolean) => {
+    const g = gravador.current;
+    if (!g) return;
+    g.enviar = enviar; clearTimeout(g.limite);
+    if (g.rec.state !== "inactive") g.rec.stop();
+  };
+  const falar = async () => {
+    if (gravando) { pararGravacao(true); return; }
+    setErroVoz("");
+    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) { setErroVoz("Este aparelho não grava áudio no navegador. Escreva a pergunta."); return; }
+    let fluxo: MediaStream;
+    try { fluxo = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch { setErroVoz("Não foi possível usar o microfone. Libere o microfone para a plataforma nas permissões do navegador."); return; }
+    const tipo = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((t) => MediaRecorder.isTypeSupported?.(t));
+    const rec = new MediaRecorder(fluxo, tipo ? { mimeType: tipo } : undefined);
+    const g = { rec, partes: [] as Blob[], fluxo, enviar: false, limite: setTimeout(() => pararGravacao(true), 60_000) };
+    gravador.current = g;
+    rec.ondataavailable = (e) => { if (e.data.size) g.partes.push(e.data); };
+    rec.onstop = async () => {
+      fluxo.getTracks().forEach((t) => t.stop());
+      gravador.current = null; setGravando(null);
+      if (!g.enviar) return;
+      const audio = new Blob(g.partes, { type: (rec.mimeType || tipo || "audio/webm").split(";")[0] });
+      setOuvindo(true);
+      const r = await fetch(`/api/sara/${modulo}/voz`, { method: "POST", headers: { "content-type": audio.type }, body: audio })
+        .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
+      setOuvindo(false);
+      if (!r.ok || !r.body?.texto) { setErroVoz(r.body?.error ?? "Sem conexão com o servidor."); return; }
+      void perguntar(r.body.texto, undefined, true);
+    };
+    rec.start(500);
+    setSegundos(0); setGravando(Date.now());
+  };
+  useEffect(() => {
+    if (!gravando) return;
+    const t = setInterval(() => setSegundos(Math.round((Date.now() - gravando) / 1000)), 500);
+    return () => clearInterval(t);
+  }, [gravando]);
+  // Fechou a janela ou trocou de módulo gravando: descarta e desliga o microfone.
+  useEffect(() => () => pararGravacao(false), []);
+
   // Cartão da ação: a pessoa decide. Ação de risco alto pede um segundo toque ("Confirmar").
   const [confirmar, setConfirmar] = useState<string | null>(null);
   const [decidindo, setDecidindo] = useState<string | null>(null);
@@ -481,7 +528,12 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
               <button type="button" onClick={escolherFoto} disabled={pensando || abrindoFoto || preparandoFoto} aria-busy={abrindoFoto || preparandoFoto}>
                 {abrindoFoto || preparandoFoto ? <Carregando /> : <span aria-hidden>📷</span>} {abrindoFoto ? "Abrindo a câmera…" : preparandoFoto ? "Preparando…" : "Foto"}
               </button>
-              <button type="button" onClick={() => setLendoCodigo(true)} disabled={pensando}><span aria-hidden>▦</span> Ler código</button>
+              <button type="button" onClick={() => setLendoCodigo(true)} disabled={pensando || Boolean(gravando)}><span aria-hidden>▦</span> Ler código</button>
+              <button type="button" className={gravando ? "gravando" : undefined} onClick={() => void falar()} disabled={pensando || ouvindo} aria-pressed={Boolean(gravando)}>
+                {ouvindo ? <><Carregando /> Ouvindo…</> : gravando ? <><span className="sara-rec" aria-hidden /> {`0:${String(segundos).padStart(2, "0")}`} · tocar para enviar</> : <><span aria-hidden>🎤</span> Falar</>}
+              </button>
+              {gravando && <button type="button" className="sara-cancelar" onClick={() => pararGravacao(false)} aria-label="Cancelar a gravação">×</button>}
+              {erroVoz && <small className="sara-voz-erro" role="alert">{erroVoz}</small>}
               {foto && (
                 <span className="sara-foto-pronta">
                   {/* eslint-disable-next-line @next/next/no-img-element -- prévia local antes de enviar */}
