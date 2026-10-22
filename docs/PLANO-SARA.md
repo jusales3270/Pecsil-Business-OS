@@ -111,6 +111,7 @@ O proprietário aprovou o plano do que absorver da LIA, o copiloto do WMS da TOT
   - abrir chamado de TI (qualquer SARA);
   - anotar na Biblioteca da Fundição.
   Aprovar título, conciliar e cancelar só entram com o "sim" da área.
+- **Degrau 3 (proativa com proposta, 22/10):** o aviso já traz a ação pronta. Pedido rejeitado pelo Compras (Fundição e Almoxarifado) vem com "Refazer o pedido", com os mesmos itens. No toque, a plataforma prepara o cartão (sem chamar o modelo) e a pessoa permite ou não. Só aparece para quem tem a ação, e o pedido que já foi refeito não oferece a ação de novo.
 - **E4, custo:** custo em R$ por resposta (tokens, com o desconto do cache), visível só ao proprietário e à Auditoria em "O que a SARA aprendeu". Quando o uso passa de 80% do teto do mês, o proprietário é avisado. Quem usa a SARA não vê contador.
 - **Próximas etapas do plano:**
   - E2: foto, voz e leitor de código no celular;

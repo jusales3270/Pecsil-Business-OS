@@ -55,6 +55,7 @@ export const NOVIDADES: Novidade[] = [
       "Nada acontece sozinho: aparece um cartão com o resumo e os botões Permitir e Não permitir. Só depois do seu toque a plataforma faz.",
       "Ela só faz o que você já pode fazer pela tela, com a sua credencial. Cada ação feita fica no histórico.",
       "A proposta vale 15 minutos; depois disso, peça de novo.",
+      "Nos avisos, ela já traz a ação pronta: pedido rejeitado pelo Compras vem com \"Refazer o pedido\" (mesmos itens). Você toca, confere o cartão e permite.",
     ],
   },
   {

@@ -10,7 +10,8 @@ import { dataBR, hoje, link, termo, type Ferramenta, type Proposta } from "./bas
  * aprovar título, conciliar e cancelar só entram com o "sim" da área (Ana, Kaylane/Ricardo, Henrique…).
  */
 
-type ItemEntrada = { material?: string; descricao?: string; quantidade?: number; unidade?: string; observacao?: string };
+type ItemEntrada = { material?: string; material_id?: string; descricao?: string; quantidade?: number; unidade?: string; observacao?: string };
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type ItemPedido = { produto: string; quantidade: number; unidade: string; observacao: string; material_id: string | null };
 
 const ESQUEMA_ITENS = {
@@ -41,6 +42,11 @@ async function itensDoCatalogo(sb: SupabaseClient, itens: unknown): Promise<{ it
     let unidade = String(it.unidade ?? "").trim().toUpperCase();
     let material: string | null = null;
     const codigo = termo(it.material);
+    // Material já ligado (vem do aviso, ao refazer um pedido): confere que ainda está no catálogo.
+    if (!codigo && it.material_id && UUID.test(it.material_id)) {
+      const { data } = await sb.from("materials").select("id, codigo, descricao, unidade, ativo").eq("id", it.material_id).maybeSingle();
+      if (data?.ativo) { material = data.id; produto = `${data.codigo} · ${data.descricao}`; unidade ||= (data.unidade ?? "").toUpperCase(); }
+    }
     if (codigo) {
       const { data, error } = await sb.rpc("almoxarifado_materiais_buscar", { p_q: codigo, p_ativos: true, p_limite: 5 });
       if (error) throw new Error(error.message);
@@ -201,6 +207,26 @@ const ANOTAR_NA_BIBLIOTECA: Ferramenta = {
       abrir: { modulo: "fundicao", secao: "Biblioteca", rotulo: "Fundição › Biblioteca" } };
   },
 };
+
+/**
+ * Degrau 3: pedido rejeitado pelo Compras → o aviso traz "Refazer o pedido", com os mesmos itens (o
+ * material do catálogo vai ligado). A pessoa ainda decide no cartão; o Compras recebe um pedido novo.
+ */
+export function refazerPedido(p: { numero: number; urgencia: string; divisao?: string; cancel_reason?: string | null;
+  material_request_items?: { produto: string; quantidade: number; unidade: string | null; material_id?: string | null; observacao?: string | null }[] }, ferramenta: "pedir_material" | "pedir_material_fundicao") {
+  const itens = (p.material_request_items ?? []).map((i) => ({ descricao: i.produto, quantidade: Number(i.quantidade), unidade: i.unidade ?? "UN",
+    ...(i.material_id ? { material_id: i.material_id } : {}), ...(i.observacao ? { observacao: i.observacao } : {}) }));
+  if (!itens.length) return undefined;
+  return { ferramenta, rotulo: "Refazer o pedido", entrada: {
+    itens, urgente: p.urgencia === "urgente", ...(ferramenta === "pedir_material" ? { divisao: p.divisao === "FUNDICAO" ? "FUNDICAO" : "USINAGEM" } : {}),
+    observacao: `Refaz o pedido nº ${p.numero}, rejeitado pelo Compras${p.cancel_reason ? ` (${p.cancel_reason})` : ""}.`.slice(0, 300),
+  } };
+}
+
+/** Números dos pedidos que já foram refeitos (a observação do pedido novo começa com "Refaz o pedido nº X"). */
+export function jaRefeitos(pedidos: { observacao?: string | null }[]): Set<number> {
+  return new Set(pedidos.map((p) => /^Refaz o pedido nº (\d+)/.exec(p.observacao ?? "")?.[1]).filter(Boolean).map(Number));
+}
 
 export const ACOES: Ferramenta[] = [PEDIR_MATERIAL, PEDIR_MATERIAL_FUNDICAO, ABRIR_CHAMADO_TI, ANOTAR_NA_BIBLIOTECA];
 

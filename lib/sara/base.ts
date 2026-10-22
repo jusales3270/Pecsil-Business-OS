@@ -63,7 +63,12 @@ export type SaraModulo = {
 };
 
 export type Nivel = "urgente" | "aviso";
-export type Alerta = { chave: string; nivel: Nivel; titulo: string; detalhe: string; abrir?: Abrir };
+/**
+ * Degrau 3 (22/10/2026): o aviso já traz a ação pronta ("Refazer o pedido"). No toque, a SARA prepara o
+ * cartão com essa entrada e a pessoa decide (Permitir / Não permitir). Só aparece para quem tem a ação.
+ */
+export type ProporAcao = { ferramenta: string; entrada: Record<string, unknown>; rotulo: string };
+export type Alerta = { chave: string; nivel: Nivel; titulo: string; detalhe: string; abrir?: Abrir; propor?: ProporAcao };
 export type ContextoAlertas = { pode: (feature: string) => boolean; hoje: string; novidades?: { id: string; data: string; titulo: string }[] };
 export type Regra = { exige: string[]; gerar: (sb: SupabaseClient, c: ContextoAlertas) => Promise<Alerta[]> };
 

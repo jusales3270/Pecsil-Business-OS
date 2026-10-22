@@ -94,7 +94,29 @@ function Texto({ texto }: { texto: string }) {
   return <>{blocos}</>;
 }
 
-type Aviso = { chave: string; nivel: "urgente" | "aviso"; titulo: string; detalhe: string; abrir?: Abrir; visto: boolean };
+type Aviso = { chave: string; nivel: "urgente" | "aviso"; titulo: string; detalhe: string; abrir?: Abrir; visto: boolean; propor?: { rotulo: string } };
+
+/** Cartão de autorização: a SARA preparou, a pessoa decide (na conversa ou dentro de um aviso). */
+function CartaoAcao({ c, decidindo, confirmar, decidir }: { c: Cartao; decidindo: string | null; confirmar: string | null; decidir: (c: Cartao, permitir: boolean) => void }) {
+  const vencida = c.situacao === "pendente" && c.expiraEm && Date.parse(c.expiraEm) < Date.now();
+  const situacao = vencida ? "expirada" : c.situacao;
+  return (
+    <div className={`sara-acao ${situacao}${c.risco === "alto" ? " risco" : ""}`} role="group" aria-label="Autorização da SARA">
+      <span className="sara-acao-titulo"><span aria-hidden>🔒</span> {situacao === "pendente" ? "Precisa da sua permissão" : SITUACAO_ACAO[situacao] ?? situacao}</span>
+      <b>{c.resumo}</b>
+      {c.detalhes.length > 0 && <ul>{c.detalhes.map((d, k) => <li key={k}>{d}</li>)}</ul>}
+      {situacao === "pendente" && (
+        <div className="sara-acao-botoes">
+          <button type="button" className="nao" disabled={decidindo === c.id} onClick={() => decidir(c, false)}>Não permitir</button>
+          <button type="button" className="sim" disabled={decidindo === c.id} onClick={() => decidir(c, true)}>{decidindo === c.id ? "Fazendo…" : confirmar === c.id ? "Confirmar" : "Permitir"}</button>
+        </div>
+      )}
+      {confirmar === c.id && <small className="sara-acao-aviso">Esta ação não se desfaz pela SARA. Toque em Confirmar para seguir.</small>}
+      {c.feito && <small className="sara-acao-feito">{c.feito}</small>}
+      {c.erro && <small className="sara-acao-erro">{c.erro}</small>}
+    </div>
+  );
+}
 /** De quanto em quanto tempo os avisos são recalculados quando a pessoa volta à aba. */
 const RECARREGAR_AVISOS_MS = 10 * 60 * 1000;
 
@@ -244,7 +266,20 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
   // Cartão da ação: a pessoa decide. Ação de risco alto pede um segundo toque ("Confirmar").
   const [confirmar, setConfirmar] = useState<string | null>(null);
   const [decidindo, setDecidindo] = useState<string | null>(null);
-  const mudarCartao = (id: string, mudar: Partial<Cartao>) => setMsgs((l) => l.map((m) => (m.acoes?.some((a) => a.id === id) ? { ...m, acoes: m.acoes.map((a) => (a.id === id ? { ...a, ...mudar } : a)) } : m)));
+  // Degrau 3: cartão preparado a partir de um aviso ("Refazer o pedido"), por chave do aviso.
+  const [cartoesAviso, setCartoesAviso] = useState<Record<string, Cartao>>({});
+  const [preparando, setPreparando] = useState<string | null>(null);
+  const mudarCartao = (id: string, mudar: Partial<Cartao>) => {
+    setMsgs((l) => l.map((m) => (m.acoes?.some((a) => a.id === id) ? { ...m, acoes: m.acoes.map((a) => (a.id === id ? { ...a, ...mudar } : a)) } : m)));
+    setCartoesAviso((c) => Object.fromEntries(Object.entries(c).map(([k, v]) => [k, v.id === id ? { ...v, ...mudar } : v])));
+  };
+  const prepararDoAviso = async (a: Aviso) => {
+    setPreparando(a.chave);
+    const r = await fetch(`/api/sara/${modulo}/propor`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chave: a.chave }) })
+      .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
+    setPreparando(null);
+    setCartoesAviso((c) => ({ ...c, [a.chave]: r.ok ? r.body.cartao : { id: `erro-${a.chave}`, resumo: a.propor?.rotulo ?? "Ação", detalhes: [], risco: "normal", situacao: "falhou", feito: null, erro: r.body?.error ?? "Sem conexão com o servidor." } }));
+  };
   const decidir = async (c: Cartao, permitir: boolean) => {
     if (permitir && c.risco === "alto" && confirmar !== c.id) { setConfirmar(c.id); return; }
     setConfirmar(null); setDecidindo(c.id);
@@ -306,7 +341,13 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
                       <div>
                         <b>{a.titulo}{novos.has(a.chave) && <em> · novo</em>}</b>
                         <small>{a.detalhe}</small>
-                        {a.abrir && <button type="button" className="sara-abrir" onClick={() => abrir(a.abrir!)}>Abrir {a.abrir.rotulo}</button>}
+                        {(a.abrir || a.propor) && (
+                          <span className="sara-aviso-acoes">
+                            {a.propor && !cartoesAviso[a.chave] && <button type="button" className="sara-propor" disabled={preparando === a.chave} onClick={() => void prepararDoAviso(a)}><span aria-hidden>⚡</span> {preparando === a.chave ? "Preparando…" : a.propor.rotulo}</button>}
+                            {a.abrir && <button type="button" className="sara-abrir" onClick={() => abrir(a.abrir!)}>Abrir {a.abrir.rotulo}</button>}
+                          </span>
+                        )}
+                        {cartoesAviso[a.chave] && <CartaoAcao c={cartoesAviso[a.chave]} decidindo={decidindo} confirmar={confirmar} decidir={(c, x) => void decidir(c, x)} />}
                       </div>
                     </div>
                   ))}
@@ -336,26 +377,7 @@ export function SaraPainel({ modulo, navegar }: { modulo: string; navegar: (modu
                 {m.papel === "sara" && !m.erro && <span className="sara-selo">{m.fora ? "SARA (IA) · fora do escopo" : "SARA (IA)"}{m.quando ? <i> · {horaSP(m.quando)}</i> : null}</span>}
                 <div className="sara-texto">{m.papel === "sara" ? <Texto texto={m.texto} /> : <p>{m.texto}</p>}</div>
                 {m.visuais?.map((v, k) => <SaraVisual key={k} v={v} />)}
-                {m.acoes?.map((c) => {
-                  const vencida = c.situacao === "pendente" && c.expiraEm && Date.parse(c.expiraEm) < Date.now();
-                  const situacao = vencida ? "expirada" : c.situacao;
-                  return (
-                    <div key={c.id} className={`sara-acao ${situacao}${c.risco === "alto" ? " risco" : ""}`} role="group" aria-label="Autorização da SARA">
-                      <span className="sara-acao-titulo"><span aria-hidden>🔒</span> {situacao === "pendente" ? "Precisa da sua permissão" : SITUACAO_ACAO[situacao] ?? situacao}</span>
-                      <b>{c.resumo}</b>
-                      {c.detalhes.length > 0 && <ul>{c.detalhes.map((d, k) => <li key={k}>{d}</li>)}</ul>}
-                      {situacao === "pendente" && (
-                        <div className="sara-acao-botoes">
-                          <button type="button" className="nao" disabled={decidindo === c.id} onClick={() => void decidir(c, false)}>Não permitir</button>
-                          <button type="button" className="sim" disabled={decidindo === c.id} onClick={() => void decidir(c, true)}>{decidindo === c.id ? "Fazendo…" : confirmar === c.id ? "Confirmar" : "Permitir"}</button>
-                        </div>
-                      )}
-                      {confirmar === c.id && <small className="sara-acao-aviso">Esta ação não se desfaz pela SARA. Toque em Confirmar para seguir.</small>}
-                      {c.feito && <small className="sara-acao-feito">{c.feito}</small>}
-                      {c.erro && <small className="sara-acao-erro">{c.erro}</small>}
-                    </div>
-                  );
-                })}
+                {m.acoes?.map((c) => <CartaoAcao key={c.id} c={c} decidindo={decidindo} confirmar={confirmar} decidir={(x, permitir) => void decidir(x, permitir)} />)}
                 {m.consultas && m.consultas.length > 0 && <small className="sara-consultas">Consultou: {[...new Set(m.consultas)].map(rotulo).join(", ")}</small>}
                 {m.abrir && <button type="button" className="sara-abrir" onClick={() => abrir(m.abrir!)}>Abrir {m.abrir.rotulo}</button>}
                 {m.fontes && m.fontes.length > 0 && <div className="sara-fontes">{m.fontes.map((f) => /^https?:\/\//.test(f.link)

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { jaRefeitos, refazerPedido } from "../acoes.ts";
 import { brl, dataBR, dias, hoje, link, num, plural, reais, termo, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
 
 /**
@@ -19,10 +20,10 @@ export const SITUACAO_PEDIDO: Record<string, string> = {
   comprada: "comprado (a caminho)", parcial: "recebido em parte", recebida: "recebido", cancelada: "cancelado",
 };
 
-type Pedido = { numero: number; divisao: string; origem: string; urgencia: string; status: string; precisa_ate: string | null; requested_by_name: string | null; cancel_reason: string | null; created_at: string; updated_at: string | null; material_request_items: { produto: string; quantidade: number; unidade: string | null }[] };
+export type Pedido = { numero: number; divisao: string; origem: string; urgencia: string; status: string; precisa_ate: string | null; requested_by_name: string | null; cancel_reason: string | null; observacao?: string | null; created_at: string; updated_at: string | null; material_request_items: { produto: string; quantidade: number; unidade: string | null; material_id?: string | null; observacao?: string | null }[] };
 /** Pedidos de material (o RLS já restringe: quem só tem a Fundição vê só os da Fundição). */
 export async function pedidosDeMaterial(sb: SupabaseClient, f: { status?: string[]; origem?: string; dias?: number } = {}): Promise<Pedido[]> {
-  let q = sb.from("material_requests").select("numero, divisao, origem, urgencia, status, precisa_ate, requested_by_name, cancel_reason, created_at, updated_at, material_request_items(produto, quantidade, unidade)")
+  let q = sb.from("material_requests").select("numero, divisao, origem, urgencia, status, precisa_ate, requested_by_name, cancel_reason, observacao, created_at, updated_at, material_request_items(produto, quantidade, unidade, material_id, observacao)")
     .order("created_at", { ascending: false }).limit(500);
   if (f.status?.length) q = q.in("status", f.status);
   if (f.origem) q = q.eq("origem", f.origem);
@@ -144,6 +145,15 @@ const regras: Agente["regras"] = [
           abrir: tela("A caminho"),
         });
       }
+      // Degrau 3: pedido do Almoxarifado rejeitado nos últimos 30 dias → aviso com "Refazer o pedido" pronto.
+      const rejeitados = (await pedidosDeMaterial(sb, { status: ["rejeitada"], origem: "ALMOXARIFADO", dias: 30 })).slice(0, 5);
+      const refeitos = jaRefeitos(await pedidosDeMaterial(sb, { origem: "ALMOXARIFADO", dias: 45 }));
+      for (const p of rejeitados) saida.push({
+        chave: `almoxarifado.rejeitado:${p.numero}`, nivel: "urgente",
+        titulo: `Pedido nº ${p.numero} rejeitado pelo Compras`,
+        detalhe: `${p.cancel_reason ? `Motivo: ${p.cancel_reason}. ` : ""}Se ainda precisar, refaça com os mesmos itens.`,
+        abrir: tela("Solicitações"), propor: refeitos.has(p.numero) ? undefined : refazerPedido(p, "pedir_material"),
+      });
       const comCompras = await pedidosDeMaterial(sb, { status: ["aberta", "em_cotacao"] });
       if (comCompras.length) {
         const urg = comCompras.filter((p) => p.urgencia === "urgente").length;

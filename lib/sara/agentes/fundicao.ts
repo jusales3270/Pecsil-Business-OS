@@ -1,5 +1,6 @@
 import { dataBR, dias, hoje, link, plural, termo, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
 import { buscarMateriais, linhaDoPedido, pedidosDeMaterial } from "./almoxarifado.ts";
+import { jaRefeitos, refazerPedido } from "../acoes.ts";
 
 /**
  * SARA da Fundição: os pedidos de material da Fundição (só os da origem FUNDICAO — quem é da Fundição
@@ -89,10 +90,19 @@ const regras: Agente["regras"] = [
         detalhe: atrasados.slice(0, 3).map((p) => `nº ${p.numero} (precisava até ${dataBR(p.precisa_ate!)})`).join(" · ") + ". Fale com o Compras.",
         abrir,
       });
+      // Degrau 3: cada pedido rejeitado (os 5 mais recentes) vira um aviso com "Refazer o pedido" pronto.
       const rejeitados = ativos.filter((p) => p.status === "rejeitada");
-      if (rejeitados.length) saida.push({
-        chave: `fundicao.rejeitados:${rejeitados.map((p) => p.numero).join(",")}`, nivel: "urgente",
-        titulo: `${plural(rejeitados.length, "pedido rejeitado", "pedidos rejeitados")} pelo Compras`,
+      // Já refeito (existe pedido "Refaz o pedido nº X"): o aviso fica, sem a ação (para não refazer duas vezes).
+      const refeitos = jaRefeitos(ativos);
+      for (const p of rejeitados.slice(0, 5)) saida.push({
+        chave: `fundicao.rejeitado:${p.numero}`, nivel: "urgente",
+        titulo: `Pedido nº ${p.numero} rejeitado pelo Compras`,
+        detalhe: `${p.cancel_reason ? `Motivo: ${p.cancel_reason}. ` : ""}Se ainda precisar, refaça com os mesmos itens.`,
+        abrir, propor: refeitos.has(p.numero) ? undefined : refazerPedido(p, "pedir_material_fundicao"),
+      });
+      if (rejeitados.length > 5) saida.push({
+        chave: `fundicao.rejeitados:${rejeitados.slice(5).map((p) => p.numero).join(",")}`, nivel: "urgente",
+        titulo: `Mais ${plural(rejeitados.length - 5, "pedido rejeitado", "pedidos rejeitados")} pelo Compras`,
         detalhe: "Veja o motivo e faça um pedido novo, se ainda precisar.",
         abrir,
       });

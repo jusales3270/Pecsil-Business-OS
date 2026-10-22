@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readSessionAccess } from "../../../../../lib/auth/session-access";
 import { NOVIDADES, novidadesPara } from "../../../../../lib/novidades";
+import { acoesDaSara } from "../../../../../lib/sara/acoes";
 import { alertasDo, type Alerta } from "../../../../../lib/sara/alertas";
 import { SARAS } from "../../../../../lib/sara/modulos";
 import { agoraSP } from "../../../../../lib/sara/tempo";
@@ -36,7 +37,10 @@ export async function GET(_request: Request, context: { params: Promise<{ modulo
     a.sb.from("sara_alertas_vistos").select("chave").like("chave", `${modulo}.%`).limit(1000),
   ]);
   const visto = new Set(((vistos ?? []) as { chave: string }[]).map((v) => v.chave));
-  return NextResponse.json({ alertas: alertas.map((x: Alerta) => ({ ...x, visto: visto.has(x.chave) })) });
+  // Degrau 3: a ação pronta só vai para quem tem o nível dela; a entrada fica no servidor (o toque refaz o cálculo).
+  const podeFazer = new Set(acoesDaSara(modulo, (f, nivel) => a.access.can(f, nivel)).map((f) => f.nome));
+  return NextResponse.json({ alertas: alertas.map(({ propor, ...x }: Alerta) => ({ ...x, visto: visto.has(x.chave),
+    ...(propor && podeFazer.has(propor.ferramenta) ? { propor: { rotulo: propor.rotulo } } : {}) })) });
 }
 
 export async function POST(request: Request, context: { params: Promise<{ modulo: string }> }) {

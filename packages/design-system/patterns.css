@@ -7421,6 +7421,10 @@ button.holiday-row:hover {
 .sara-acao-aviso { font-size: var(--fs-micro); color: var(--accent-amber); }
 .sara-acao-feito { font-size: var(--fs-xs); font-weight: 700; color: var(--accent-green); }
 .sara-acao-erro { font-size: var(--fs-xs); color: var(--accent-red); }
+/* Degrau 3: ação pronta dentro do aviso. */
+.sara-aviso-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.sara-propor { padding: 5px 12px; border: 1px solid var(--accent-blue); border-radius: 999px; background: var(--accent-blue); color: var(--text-on-accent); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; }
+.sara-propor:disabled { opacity: .6; cursor: default; }
 .sara-nota { display: flex; gap: 4px; }
 .sara-nota button { padding: 2px 9px; border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent); border-radius: 999px; background: transparent; cursor: pointer; font-size: 13px; opacity: .7; }
 .sara-nota button.ativo { opacity: 1; border-color: var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 10%, transparent); }

@@ -106,3 +106,39 @@ test("E4: custo em R$ pelos tokens, com o desconto do cache; dólar ajustável",
   assert.match(m, /uso < teto \* 0\.8/);
   assert.match(m, /event_type = 'sara\.teto\.alerta' and entity_id = chave/, "avisa uma vez por mês e módulo");
 });
+
+test("Degrau 3: pedido rejeitado vira aviso com 'Refazer o pedido' pronto, com os mesmos itens", async () => {
+  const { refazerPedido } = await import("../lib/sara/acoes.ts");
+  const p = { numero: 27, urgencia: "urgente", divisao: "FUNDICAO", cancel_reason: "sem verba",
+    material_request_items: [{ produto: "8-04-00184 · ELETRODO", quantidade: 2, unidade: "KG", material_id: "11111111-1111-4111-8111-111111111111" }] };
+  const r = refazerPedido(p, "pedir_material");
+  assert.equal(r.rotulo, "Refazer o pedido");
+  assert.equal(r.entrada.divisao, "FUNDICAO");
+  assert.equal(r.entrada.urgente, true);
+  assert.equal(r.entrada.itens[0].material_id, "11111111-1111-4111-8111-111111111111");
+  assert.match(r.entrada.observacao, /nº 27.*sem verba/);
+  assert.equal(refazerPedido({ ...p, material_request_items: [] }, "pedir_material_fundicao"), undefined, "sem itens, sem ação");
+  const fund = ler("lib/sara/agentes/fundicao.ts"), almox = ler("lib/sara/agentes/almoxarifado.ts");
+  assert.match(fund, /refazerPedido\(p, "pedir_material_fundicao"\)/);
+  assert.match(almox, /refazerPedido\(p, "pedir_material"\)/);
+});
+
+test("Degrau 3: a ação do aviso só vai a quem pode, a entrada fica no servidor, e nada é feito sem Permitir", () => {
+  const avisos = ler("app/api/sara/[modulo]/alertas/route.ts");
+  assert.match(avisos, /propor && podeFazer\.has\(propor\.ferramenta\) \? \{ propor: \{ rotulo: propor\.rotulo \} \}/, "a tela recebe só o rótulo");
+  const rota = ler("app/api/sara/[modulo]/propor/route.ts");
+  assert.doesNotMatch(rota, /createSupabaseAdminClient|SERVICE_ROLE|\.rodar\(/, "prepara, não executa");
+  assert.match(rota, /alertasDo\(modulo, p\.sb/, "recalcula o aviso com a sessão da pessoa (a tela manda só a chave)");
+  assert.match(rota, /sara_acao_propor/);
+  assert.doesNotMatch(rota, /conversar|api\.anthropic/, "sem chamar o modelo");
+  const painel = ler("app/components/sara-painel.tsx");
+  assert.match(painel, /prepararDoAviso/);
+  assert.match(painel, /<CartaoAcao c=\{cartoesAviso\[a\.chave\]\}/);
+});
+
+test("Degrau 3: pedido já refeito não oferece 'Refazer' de novo", async () => {
+  const { jaRefeitos } = await import("../lib/sara/acoes.ts");
+  assert.deepEqual([...jaRefeitos([{ observacao: "Refaz o pedido nº 28, rejeitado pelo Compras." }, { observacao: "outra" }, {}])], [28]);
+  assert.match(ler("lib/sara/agentes/fundicao.ts"), /propor: refeitos\.has\(p\.numero\) \? undefined/);
+  assert.match(ler("lib/sara/agentes/almoxarifado.ts"), /propor: refeitos\.has\(p\.numero\) \? undefined/);
+});
