@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-22-sara-e5",
+    data: "2026-10-22",
+    area: "SARA",
+    modulos: ["almoxarifado", "fundicao", "financeiro", "fiscal", "rh", "compras", "comercial", "portaria", "producao", "ti"],
+    funcionalidades: ["almoxarifado.sara", "fundicao.sara", "financeiro.sara", "fiscal.sara", "rh.sara", "compras.sara", "comercial.sara", "portaria.sara", "producao.sara", "ti.sara"],
+    titulo: "SARA: datas por extenso, parâmetros à vista e anexos na conversa",
+    itens: [
+      "Fale o período do seu jeito: \"mês retrasado\", \"semana passada\", \"quarta-feira de cinzas do ano passado\", \"últimos 15 dias\". A SARA calcula as datas certas.",
+      "Abaixo de cada resposta, abra \"Parâmetros usados\" para ver o período e os filtros que ela usou.",
+      "Toque em Anexo e envie uma planilha, um Word ou um PDF: a SARA cruza com os dados da plataforma e diz o que bate e o que não bate. O arquivo não fica guardado.",
+    ],
+  },
+  {
     id: "2026-10-22-sara-foto-codigo",
     data: "2026-10-22",
     area: "SARA",

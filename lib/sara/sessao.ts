@@ -11,6 +11,7 @@ import { LACUNA, ferramentaDeTelas, ferramentasDaSara } from "./ferramentas";
 import { PROPOR_HABILIDADE, habilidadesQuePode, type HabilidadeAtiva } from "./habilidades";
 import { SARAS } from "./modulos";
 import { MOSTRAR } from "./visual";
+import { PERIODO } from "./periodo";
 
 /**
  * Sessão da SARA de um módulo: a pessoa precisa ter o módulo e a SARA liberada (`<modulo>.sara`).
@@ -38,7 +39,7 @@ export async function preparar(modulo: string) {
   const dados = consultarDados(pode, modulo);
   // Ações (E1): só preparam; quem executa é a pessoa, no cartão "Permitir".
   const acoes = acoesDaSara(modulo, (f, nivel) => access.can(f, nivel));
-  const ferramentas = [...ferramentasDaSara(pode, sara.ferramentas), ...(dados ? [dados] : []), CALCULAR, ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), ...acoes, LACUNA, PROPOR_HABILIDADE, MOSTRAR];
+  const ferramentas = [...ferramentasDaSara(pode, sara.ferramentas), ...(dados ? [dados] : []), CALCULAR, PERIODO, ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), ...acoes, LACUNA, PROPOR_HABILIDADE, MOSTRAR];
   // Habilidades aprovadas pelo proprietário: só as que a pessoa consegue rodar com as consultas dela.
   const { data: hab } = await session.supabase.rpc("sara_habilidades_ativas", { p_modulo: modulo });
   const habilidades = habilidadesQuePode((hab ?? []) as HabilidadeAtiva[], ferramentas.map((f) => f.nome));

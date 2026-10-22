@@ -22,6 +22,8 @@ import { dicaVisual, MOSTRAR, resolverVisual, type ResultadoConsulta, type Visua
 export type MensagemHistorico = { papel: "pessoa" | "sara"; texto: string };
 /** Foto enviada com a pergunta (E2): vai ao modelo nesta pergunta e não fica guardada. */
 export type Imagem = { tipo: "image/jpeg" | "image/png" | "image/webp"; dados: string };
+/** Documento anexado à pergunta (E5): o texto já lido no servidor; vai só nesta pergunta. */
+export type Anexo = { nome: string; texto: string };
 /** Vai com o resultado de abrir_tela/mostrar quando a pessoa ainda não viu nenhuma resposta. */
 export const LEMBRETE_RESPOSTA = "A pessoa ainda não viu nenhuma resposta (o que você pensa não aparece para ela): escreva agora a resposta completa, com os números, a explicação e o próximo passo.";
 const SO_ACAO = new Set(["abrir_tela", "abrir_lancamento", "mostrar", "registrar_lacuna", "propor_habilidade"]);
@@ -111,14 +113,20 @@ export async function conversarCom(sb: SupabaseClient, a: {
   maxTokens?: number;
   /** Foto da pergunta (chão de fábrica): etiqueta, peça, material. */
   imagem?: Imagem | null;
+  /** Documento anexado (Excel, Word, PDF, texto), já em texto. */
+  anexo?: Anexo | null;
 }): Promise<RespostaSara> {
   const chave = a.chave;
   const buscar = a.buscar ?? fetch;
   if (!chave) throw new Error("NAO_CONFIGURADA");
   const mensagens: { role: "user" | "assistant"; content: unknown }[] = [
     ...a.historico.slice(-12).map((m) => ({ role: (m.papel === "pessoa" ? "user" : "assistant") as "user" | "assistant", content: m.texto })),
-    { role: "user", content: a.imagem
-      ? [{ type: "image", source: { type: "base64", media_type: a.imagem.tipo, data: a.imagem.dados } }, { type: "text", text: a.pergunta }]
+    { role: "user", content: a.imagem || a.anexo
+      ? [
+          ...(a.imagem ? [{ type: "image", source: { type: "base64", media_type: a.imagem.tipo, data: a.imagem.dados } }] : []),
+          ...(a.anexo ? [{ type: "text", text: `Documento anexado pela pessoa ("${a.anexo.nome}"), já em texto:\n<<<\n${a.anexo.texto}\n>>>` }] : []),
+          { type: "text", text: a.pergunta },
+        ]
       : a.pergunta },
   ];
   const tools: Record<string, unknown>[] = a.ferramentas.map((f) => ({ name: f.nome, description: f.descricao, input_schema: f.esquema }));

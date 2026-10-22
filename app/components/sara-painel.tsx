@@ -19,10 +19,11 @@ import { SaraVisual } from "./sara-visual";
 
 /** Ação que a SARA preparou (E1): só acontece se a pessoa tocar em Permitir. */
 type Cartao = { id: string; resumo: string; detalhes: string[]; risco: string; situacao: string; feito: string | null; erro: string | null; expiraEm?: string };
-type Salva = { id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean; visuais?: Visual[]; acoes?: Cartao[] };
+type Parametro = { consulta: string; filtros: string[] };
+type Salva = { parametros?: Parametro[]; id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean; visuais?: Visual[]; acoes?: Cartao[] };
 type Estado = { nome: string; configurada: boolean; ferramentas: string[]; alcance?: { outrosModulos: boolean; dados: boolean; pesquisa: boolean }; rotulos?: Record<string, string>; habilidades?: { id: string; nome: string; pedido: string }[]; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
-type Mensagem = { foto?: string; papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string; visuais?: Visual[]; acoes?: Cartao[] };
+type Mensagem = { parametros?: Parametro[]; anexo?: string; foto?: string; papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string; visuais?: Visual[]; acoes?: Cartao[] };
 
 const CONSULTA: Record<string, string> = {
   contas_a_pagar: "contas a pagar", contas_a_receber: "contas a receber", fluxo_de_caixa_90_dias: "fluxo de caixa",
@@ -244,6 +245,22 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
   const [foto, setFoto] = useState<Foto | null>(null);
   const [preparandoFoto, setPreparandoFoto] = useState(false);
   const [lendoCodigo, setLendoCodigo] = useState(false);
+  // Anexo (E5): Excel, Word, PDF ou texto, lido no servidor; print/foto vai pelo caminho da foto.
+  const [anexo, setAnexo] = useState<{ nome: string; texto: string; cortado: boolean } | null>(null);
+  const [lendoAnexo, setLendoAnexo] = useState(false);
+  const [erroAnexo, setErroAnexo] = useState("");
+  const { abrir: escolherAnexo, abrindo: abrindoAnexo, inputProps: entradaAnexo } = useEscolherArquivo(async (arquivos) => {
+    const f = arquivos[0];
+    if (!f) return;
+    setErroAnexo("");
+    if (f.type.startsWith("image/")) { setPreparandoFoto(true); try { setFoto(await reduzirFoto(f)); } catch { setFoto(null); } setPreparandoFoto(false); return; }
+    setLendoAnexo(true);
+    const dados = new FormData(); dados.set("arquivo", f);
+    const r = await fetch(`/api/sara/${modulo}/anexo`, { method: "POST", body: dados }).then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
+    setLendoAnexo(false);
+    if (!r.ok) { setErroAnexo(r.body?.error ?? "Sem conexão com o servidor."); return; }
+    setAnexo({ nome: r.body.nome, texto: r.body.texto, cortado: Boolean(r.body.cortado) });
+  });
   // Voz (E2): toque para gravar, toque de novo para enviar; o Whisper da Cloudflare transcreve e a pergunta segue normal.
   const [gravando, setGravando] = useState<number | null>(null);
   const [segundos, setSegundos] = useState(0);
@@ -275,7 +292,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
       const salvas = e.conversa;
       setMsgs((atuais) => (atuais.length ? atuais : salvas.mensagens.map((m) => ({
         papel: m.papel, texto: m.texto, quando: m.quando, id: m.papel === "sara" ? m.id : null, nota: m.nota ?? undefined,
-        consultas: m.consultas, fontes: m.fontes, abrir: m.abrir, fora: m.fora, visuais: m.visuais ?? [], acoes: m.acoes ?? [],
+        consultas: m.consultas, fontes: m.fontes, abrir: m.abrir, fora: m.fora, visuais: m.visuais ?? [], acoes: m.acoes ?? [], parametros: m.parametros ?? [],
       }))));
       setConversa((atual) => atual ?? salvas.id);
     }
@@ -334,16 +351,17 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
   const perguntar = async (pergunta: string, habilidade?: string, voz = false) => {
     const p = pergunta.trim();
     const comFoto = foto;
-    if ((!p && !comFoto) || pensando) return;
-    setTexto(""); setFoto(null);
-    setMsgs((m) => [...m, { papel: "pessoa", texto: p || "📷 O que é isto?", foto: comFoto?.previa, quando: new Date().toISOString() }]); setPensando(true);
+    const comAnexo = anexo;
+    if ((!p && !comFoto && !comAnexo) || pensando) return;
+    setTexto(""); setFoto(null); setAnexo(null);
+    setMsgs((m) => [...m, { papel: "pessoa", texto: p || (comFoto ? "📷 O que é isto?" : "Leia o documento e cruze com a plataforma."), foto: comFoto?.previa, anexo: comAnexo?.nome, quando: new Date().toISOString() }]); setPensando(true);
     const r = await fetch(`/api/sara/${modulo}`, { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ pergunta: p, conversa, habilidade: habilidade ?? null, voz, imagem: comFoto ? { tipo: comFoto.tipo, dados: comFoto.dados } : null }) })
+      body: JSON.stringify({ pergunta: p, conversa, habilidade: habilidade ?? null, voz, imagem: comFoto ? { tipo: comFoto.tipo, dados: comFoto.dados } : null, anexo: comAnexo ? { nome: comAnexo.nome, texto: comAnexo.texto } : null }) })
       .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
     setPensando(false);
     if (!r.ok) { setMsgs((m) => [...m, { papel: "sara", texto: r.body?.error ?? "A SARA está indisponível agora.", erro: true, quando: new Date().toISOString() }]); return; }
     setConversa(r.body.conversa ?? conversa);
-    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo), quando: new Date().toISOString(), visuais: r.body.visuais ?? [], acoes: r.body.acoes ?? [] }]);
+    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo), quando: new Date().toISOString(), visuais: r.body.visuais ?? [], acoes: r.body.acoes ?? [], parametros: r.body.parametros ?? [] }]);
     // A SARA pediu para mostrar uma tela: abre por dentro da plataforma (a janela continua aberta).
     if (r.body.abrir) abrir(r.body.abrir);
   };
@@ -502,10 +520,17 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
                 {m.papel === "sara" && !m.erro && <span className="sara-selo">{m.fora ? "SARA (IA) · fora do escopo" : "SARA (IA)"}{m.quando ? <i> · {horaSP(m.quando)}</i> : null}</span>}
                 {/* eslint-disable-next-line @next/next/no-img-element -- prévia local da foto enviada (dado em memória, não fica guardada) */}
                 {m.foto && <img className="sara-foto" src={m.foto} alt="Foto enviada à SARA" />}
+                {m.anexo && <span className="sara-anexo-msg"><span aria-hidden>📎</span> {m.anexo}</span>}
                 <div className="sara-texto">{m.papel === "sara" ? <Texto texto={m.texto} /> : <p>{m.texto}</p>}</div>
                 {m.visuais?.map((v, k) => <SaraVisual key={k} v={v} />)}
                 {m.acoes?.map((c) => <CartaoAcao key={c.id} c={c} decidindo={decidindo} confirmar={confirmar} decidir={(x, permitir) => void decidir(x, permitir)} />)}
                 {m.consultas && m.consultas.length > 0 && <small className="sara-consultas">Consultou: {[...new Set(m.consultas)].map(rotulo).join(", ")}</small>}
+                {m.parametros && m.parametros.length > 0 && (
+                  <details className="sara-parametros">
+                    <summary>Parâmetros usados</summary>
+                    <ul>{m.parametros.map((x, k) => <li key={k}><b>{x.consulta}</b>: {x.filtros.join(" · ")}</li>)}</ul>
+                  </details>
+                )}
                 {m.abrir && <button type="button" className="sara-abrir" onClick={() => abrir(m.abrir!)}>Abrir {m.abrir.rotulo}</button>}
                 {m.fontes && m.fontes.length > 0 && <div className="sara-fontes">{m.fontes.map((f) => /^https?:\/\//.test(f.link)
                   ? <a key={f.link} href={f.link} target="_blank" rel="noopener noreferrer" className="externa" title={f.link}>{f.rotulo} ↗</a>
@@ -529,11 +554,22 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
                 {abrindoFoto || preparandoFoto ? <Carregando /> : <span aria-hidden>📷</span>} {abrindoFoto ? "Abrindo a câmera…" : preparandoFoto ? "Preparando…" : "Foto"}
               </button>
               <button type="button" onClick={() => setLendoCodigo(true)} disabled={pensando || Boolean(gravando)}><span aria-hidden>▦</span> Ler código</button>
+              <input {...entradaAnexo} accept=".pdf,.xlsx,.xls,.csv,.docx,.txt,image/*" />
+              <button type="button" onClick={escolherAnexo} disabled={pensando || abrindoAnexo || lendoAnexo || Boolean(gravando)} aria-busy={abrindoAnexo || lendoAnexo}>
+                {abrindoAnexo || lendoAnexo ? <Carregando /> : <span aria-hidden>📎</span>} {abrindoAnexo ? "Abrindo…" : lendoAnexo ? "Lendo…" : "Anexo"}
+              </button>
               <button type="button" className={gravando ? "gravando" : undefined} onClick={() => void falar()} disabled={pensando || ouvindo} aria-pressed={Boolean(gravando)}>
                 {ouvindo ? <><Carregando /> Ouvindo…</> : gravando ? <><span className="sara-rec" aria-hidden /> {`0:${String(segundos).padStart(2, "0")}`} · tocar para enviar</> : <><span aria-hidden>🎤</span> Falar</>}
               </button>
               {gravando && <button type="button" className="sara-cancelar" onClick={() => pararGravacao(false)} aria-label="Cancelar a gravação">×</button>}
               {erroVoz && <small className="sara-voz-erro" role="alert">{erroVoz}</small>}
+              {erroAnexo && <small className="sara-voz-erro" role="alert">{erroAnexo}</small>}
+              {anexo && (
+                <span className="sara-anexo-pronto" title={anexo.cortado ? "Arquivo grande: a SARA lê o começo (40 mil caracteres)." : undefined}>
+                  <span aria-hidden>📎</span> {anexo.nome}{anexo.cortado ? " (início)" : ""}
+                  <button type="button" onClick={() => setAnexo(null)} aria-label="Tirar o anexo">×</button>
+                </span>
+              )}
               {foto && (
                 <span className="sara-foto-pronta">
                   {/* eslint-disable-next-line @next/next/no-img-element -- prévia local antes de enviar */}
@@ -544,9 +580,9 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
             </div>
           )}
           <form className="sara-entrada" onSubmit={(e) => { e.preventDefault(); void perguntar(texto); }}>
-            <textarea rows={2} value={texto} disabled={!pode || pensando} placeholder={!pode ? "SARA indisponível" : foto ? "Pergunte sobre a foto (ou só envie)…" : "Pergunte à SARA…"} maxLength={2000}
+            <textarea rows={2} value={texto} disabled={!pode || pensando} placeholder={!pode ? "SARA indisponível" : foto ? "Pergunte sobre a foto (ou só envie)…" : anexo ? "Pergunte sobre o anexo (ou só envie)…" : "Pergunte à SARA…"} maxLength={2000}
               onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void perguntar(texto); } }} aria-label="Pergunta para a SARA" />
-            <button type="submit" className="sara-enviar" disabled={!pode || pensando || (texto.trim().length < 2 && !foto)} aria-label="Enviar">
+            <button type="submit" className="sara-enviar" disabled={!pode || pensando || (texto.trim().length < 2 && !foto && !anexo)} aria-label="Enviar">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           </form>

@@ -7436,6 +7436,14 @@ button.holiday-row:hover {
 @keyframes sara-rec { 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .sara-rec { animation: none; } }
 .sara-voz-erro { flex-basis: 100%; font-size: var(--fs-xs); color: var(--accent-red); }
+/* E5: anexo na conversa e parâmetros usados. */
+.sara-anexo-pronto { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 6px 8px 6px 12px; border-radius: 999px; background: var(--tint-blue); color: var(--text-primary); font-size: var(--fs-xs); font-weight: 600; overflow-wrap: anywhere; }
+.sara-anexo-pronto button { width: 20px; height: 20px; flex: 0 0 auto; border-radius: 50%; border: 0; background: var(--text-primary); color: var(--bg-surface); font-size: 13px; line-height: 20px; cursor: pointer; }
+.sara-anexo-msg { align-self: flex-end; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); overflow-wrap: anywhere; }
+.sara-parametros { font-size: var(--fs-micro); color: var(--text-muted); }
+.sara-parametros summary { cursor: pointer; font-weight: 700; color: var(--text-secondary); }
+.sara-parametros ul { margin: 4px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
+.sara-parametros li { overflow-wrap: anywhere; }
 .sara-foto-pronta { position: relative; display: inline-flex; }
 .sara-foto-pronta img { width: 44px; height: 44px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); }
 .sara-foto-pronta button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: var(--text-primary); color: var(--bg-surface); font-size: 13px; line-height: 20px; cursor: pointer; }
@@ -7447,7 +7455,7 @@ button.holiday-row:hover {
 .sara-leitor .sara-abrir { align-self: center; border-color: #fff; color: #fff; }
 .sara-leitor-erro { max-width: 280px; }
 @media (max-width: 600px) {
-  .sara-chao > button { min-height: 44px; padding: 8px 10px; font-size: var(--fs-sm); flex: 1 1 0; justify-content: center; white-space: nowrap; }
+  .sara-chao > button { min-height: 44px; padding: 8px 8px; font-size: var(--fs-sm); flex: 1 1 calc(50% - 8px); justify-content: center; white-space: nowrap; }
   .sara-chao > .sara-cancelar { flex: 0 0 44px; }
 }
 .sara-nota { display: flex; gap: 4px; }

@@ -118,6 +118,10 @@ O proprietário aprovou o plano do que absorver da LIA, o copiloto do WMS da TOT
   - **Leitor de código:** BarcodeDetector do navegador (Chrome no Android), para código de barras e QR. A câmera desliga ao ler; sem leitor no aparelho, a SARA pede a foto da etiqueta.
   - **Voz:** botão Falar (tocar para gravar e para enviar, até 1 minuto). A transcrição é feita pelo Whisper (`@cf/openai/whisper-large-v3-turbo`) na Cloudflare, na conta do Clef, que não treina nem guarda o conteúdo; o áudio não é guardado. A conversa marca "🎤". O registro está no PLANO-JEV (22/10).
   - **Atalho "SARA" no ícone do app** (opção 1, escolhida pelo proprietário): abre o módulo da pessoa com a SARA já aberta.
+- **E5, consulta mais humana (22/10):**
+  - **Ferramenta `periodo`:** regra fixa, sem modelo. Transforma datas por extenso em período exato: feriados nacionais (os móveis calculados pela Páscoa), "mês retrasado", "semana passada" (de segunda a domingo), "últimos N dias", "março do ano passado".
+  - **"Parâmetros usados":** saem das próprias chamadas das consultas, com a consulta direta em linguagem de tela.
+  - **Anexo:** Excel, Word, PDF ou CSV, lido no servidor pelo leitor do Segundo Cérebro. O texto, até 40 mil caracteres, vai junto da pergunta e não fica guardado; a conversa grava só "📎 nome". PDF escaneado: a SARA pede foto ou print.
 - **Próximas etapas do plano:**
   - E2: foto, voz e leitor de código no celular;
   - E5: parâmetros usados, datas soltas e anexos;

@@ -297,7 +297,7 @@ veículo, comprovante). O consignado da Russer (estoque parado em hospital) não
 | I-14 | SARA no chão de fábrica (E2): foto do item, leitor de código pela câmera, voz e "SARA de bolso" | 1 | 5 | 3 | 3 | 2 | 4,3 | foto, leitor de código, voz (Whisper na Cloudflare) e atalho SARA no ícone construídos 22/10 (QA 10/10, 5/5 e 6/6) | Testar o leitor de código no Android | PLANO-SARA §6 |
 | I-15 | Guias (E3): agentes que a área cria em português, com gatilho por atalho, agenda ou evento | + | 4 | 3 | 3 | 2 | 3,3 | na fila | I-13 | PLANO-SARA §6 |
 | I-16 | Custo da IA em R$ (E4), só para o proprietário, com aviso aos 80% do teto | 1 | 3 | 4 | 1 | 1 | 11,0 | construído 22/10, aguarda migração e Deploy | migração 202610220001 | PLANO-SARA §6 |
-| I-17 | Consulta mais humana (E5): parâmetros usados, datas soltas e anexos na conversa | + | 3 | 3 | 2 | 2 | 4,5 | na fila | — | PLANO-SARA §6 |
+| I-17 | Consulta mais humana (E5): parâmetros usados, datas soltas e anexos na conversa | + | 3 | 3 | 2 | 2 | 4,5 | construído 22/10 (QA 9/9 com a SARA real) | — | PLANO-SARA §6 |
 | I-18 | Servidor MCP com a credencial da pessoa (E6), só pela VPN ou com autenticação forte | + | 3 | 2 | 2 | 2 | 3,5 | decisão | Proprietário e o supervisor de TI | PLANO-SARA §6 |
 | I-19 | Orquestrador (mindmaster) com o conselho (E7) | + | 4 | 2 | 4 | 3 | 2,0 | na fila | I-13, I-15; plano próprio | PLANO-SARA §0 |
 

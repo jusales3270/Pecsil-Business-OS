@@ -9,6 +9,8 @@ import { MOSTRAR } from "../../../../lib/sara/visual";
 import { PROPOR_HABILIDADE, instrucoesDeHabilidades, nomearHabilidade, pareceLacuna, pedidoRecorrente, validarProposta, type Passo } from "../../../../lib/sara/habilidades";
 import { regrasDaSara } from "../../../../lib/sara/modulos";
 import { ACOES } from "../../../../lib/sara/acoes";
+import { parametrosUsados, type Usada } from "../../../../lib/sara/parametros";
+import { CATALOGO } from "../../../../lib/sara/catalogo";
 import { preparar } from "../../../../lib/sara/sessao";
 import { temaDe } from "../../../../lib/sara/temas";
 
@@ -16,6 +18,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const UUID = /^[0-9a-f-]{36}$/i;
+const ANEXO_SEM_TEXTO = "Leia o documento anexado e cruze com os dados da plataforma: diga o que bate, o que não bate e o que falta.";
 const FOTO_SEM_TEXTO = "O que é isto? Leia códigos e textos da foto, procure no catálogo e me diga o que achou.";
 const TIPOS_FOTO = ["image/jpeg", "image/png", "image/webp"] as const;
 /** Foto da pergunta: tipo aceito e até ~4 MB (a Anthropic aceita até 5 MB por imagem). */
@@ -46,7 +49,12 @@ const cartao = (a: LinhaAcao) => ({ id: a.id, resumo: a.resumo, detalhes: a.deta
   situacao: a.situacao === "pendente" && Date.parse(a.expira_em) < Date.now() ? "expirada" : a.situacao, feito: a.resultado?.feito ?? null, erro: a.erro });
 
 /** A última conversa da pessoa neste módulo, para a janela abrir na última interação. */
-async function ultimaConversa(sb: SupabaseClient, modulo: string, eu: string | null) {
+/** Como cada consulta aparece para quem usa ("contas a pagar"). */
+const rotulosDe = (fs: { nome: string; rotulo?: string }[]) => Object.fromEntries(fs.filter((f) => f.rotulo).map((f) => [f.nome, f.rotulo as string]));
+/** Nome das tabelas como as telas chamam ("pedidos de material"), para os parâmetros da consulta direta. */
+const TABELAS = Object.fromEntries(CATALOGO.map((t) => [t.tabela, t.rotulo]));
+
+async function ultimaConversa(sb: SupabaseClient, modulo: string, eu: string | null, rotulos: Record<string, string> = {}) {
   if (!eu) return null;
   const { data: conv } = await sb.from("sara_conversas").select("id, updated_at").eq("modulo", modulo).eq("profile_id", eu).order("updated_at", { ascending: false }).limit(1).maybeSingle();
   if (!conv) return null;
@@ -56,8 +64,9 @@ async function ultimaConversa(sb: SupabaseClient, modulo: string, eu: string | n
   const { data: acoes } = await sb.from("sara_acoes").select(COLUNAS_ACAO).eq("conversa_id", conv.id).order("created_at");
   const acoesDe = (id: string) => ((acoes ?? []) as LinhaAcao[]).filter((a) => a.mensagem_id === id).map(cartao);
   const mensagens = ((data ?? []) as LinhaMensagem[]).reverse().map((m) => {
-    const f = (m.ferramentas ?? {}) as { usadas?: { nome: string }[]; fontes?: unknown[]; abriu?: unknown; escopo?: { fora?: string | null }; visuais?: unknown[] };
-    return { id: m.id, papel: m.papel, texto: m.texto, quando: m.created_at, nota: m.nota, consultas: (f.usadas ?? []).map((u) => u.nome), fontes: f.fontes ?? [], abrir: f.abriu ?? null, fora: Boolean(f.escopo?.fora), visuais: f.visuais ?? [], acoes: acoesDe(m.id) };
+    const f = (m.ferramentas ?? {}) as { usadas?: Usada[]; fontes?: unknown[]; abriu?: unknown; escopo?: { fora?: string | null }; visuais?: unknown[] };
+    return { id: m.id, papel: m.papel, texto: m.texto, quando: m.created_at, nota: m.nota, consultas: (f.usadas ?? []).map((u) => u.nome), fontes: f.fontes ?? [], abrir: f.abriu ?? null, fora: Boolean(f.escopo?.fora), visuais: f.visuais ?? [], acoes: acoesDe(m.id),
+      parametros: m.papel === "sara" ? parametrosUsados(f.usadas ?? [], rotulos, new Set(ACOES.map((x) => x.nome)), TABELAS) : [] };
   });
   return { id: conv.id, mensagens };
 }
@@ -69,7 +78,7 @@ export async function GET(_request: Request, context: { params: Promise<{ modulo
   const eu = (await p.sb.rpc("current_profile_id")).data as string | null;
   const [{ data: me }, conversa] = await Promise.all([
     eu ? p.sb.from("profiles").select("full_name").eq("id", eu).maybeSingle() : Promise.resolve({ data: null }),
-    ultimaConversa(p.sb, modulo, eu),
+    ultimaConversa(p.sb, modulo, eu, rotulosDe(p.ferramentas)),
   ]);
   return NextResponse.json({
     // Na apresentação, só as consultas do próprio módulo (as dos outros módulos e a pesquisa vão numa frase).
@@ -89,15 +98,18 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const { modulo } = await context.params;
   const p = await preparar(modulo);
   if ("erro" in p) return p.erro;
-  const corpo = (await request.json().catch(() => null)) as { pergunta?: string; conversa?: string | null; habilidade?: string | null; imagem?: { tipo?: string; dados?: string } | null; voz?: boolean } | null;
+  const corpo = (await request.json().catch(() => null)) as { pergunta?: string; conversa?: string | null; habilidade?: string | null; imagem?: { tipo?: string; dados?: string } | null; voz?: boolean; anexo?: { nome?: string; texto?: string } | null } | null;
   // (o cliente do Supabase só envia a consulta quando alguém espera por ela: sem o await, não contava)
   if (corpo?.habilidade && UUID.test(corpo.habilidade) && p.habilidades.some((h) => h.id === corpo.habilidade)) await p.sb.rpc("sara_habilidade_usada", { p_id: corpo.habilidade });
   // Foto (E2): só JPEG, PNG ou WebP, já reduzida no celular; vai ao modelo nesta pergunta e não fica guardada.
   const foto = lerFoto(corpo?.imagem);
   if (foto && "erro" in foto) return NextResponse.json({ error: foto.erro }, { status: 400 });
   const imagem = foto && !("erro" in foto) ? foto : null;
+  // Documento anexado (E5): o texto lido pela rota /anexo volta aqui; vai só nesta pergunta e não fica guardado.
+  const anexo = corpo?.anexo && typeof corpo.anexo.texto === "string" && corpo.anexo.texto.trim()
+    ? { nome: String(corpo.anexo.nome ?? "documento").slice(0, 120), texto: corpo.anexo.texto.slice(0, 40_000) } : null;
   const digitada = String(corpo?.pergunta ?? "").trim().slice(0, 2000);
-  const pergunta = digitada || (imagem ? FOTO_SEM_TEXTO : "");
+  const pergunta = digitada || (imagem ? FOTO_SEM_TEXTO : anexo ? ANEXO_SEM_TEXTO : "");
   if (pergunta.length < 2) return NextResponse.json({ error: "Escreva a pergunta." }, { status: 400 });
   if (!chaveConfigurada()) return NextResponse.json({ error: "A SARA ainda não está configurada (falta a chave do modelo no servidor)." }, { status: 503 });
   const { data: uso } = await p.sb.rpc("sara_uso_mes", { p_modulo: modulo });
@@ -138,7 +150,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   let falha: unknown = null;
   try {
     // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
-    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem });
+    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo });
   } catch (e) { falha = e; }
   const v = await verificacao;
   const textoRecusa = recusa(empresa, p.sara.rotulo);
@@ -158,7 +170,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const nomeCurto = primeiroNome(me?.full_name);
   r = { ...r, texto: comAbertura(r.texto, abertura({ nome: nomeCurto, situacao }), nomeCurto) };
   const { data: reg, error } = await p.sb.rpc("sara_registrar", {
-    p_conversa: conversa, p_modulo: modulo, p_pergunta: `${imagem ? "📷 " : ""}${corpo?.voz ? "🎤 " : ""}${pergunta}`, p_resposta: r.texto,
+    p_conversa: conversa, p_modulo: modulo, p_pergunta: `${imagem ? "📷 " : ""}${corpo?.voz ? "🎤 " : ""}${anexo ? `📎 ${anexo.nome} · ` : ""}${pergunta}`, p_resposta: r.texto,
     p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou },
       lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
@@ -204,6 +216,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
 
   return NextResponse.json({
     conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, ferramentas: r.ferramentas.map((f) => f.nome), foraDoEscopo: Boolean(fora), visuais: r.visuais, acoes,
+    parametros: parametrosUsados(r.ferramentas as Usada[], rotulosDe(p.ferramentas), new Set(ACOES.map((f) => f.nome)), TABELAS),
   });
 }
 
