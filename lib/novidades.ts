@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-24-sara-vigia",
+    data: "2026-10-24",
+    area: "SARA",
+    modulos: ["financeiro", "compras", "almoxarifado", "fundicao", "comercial", "fiscal", "rh", "portaria", "producao", "ti", "warroom"],
+    funcionalidades: ["financeiro.sara", "compras.sara", "almoxarifado.sara", "fundicao.sara", "comercial.sara", "fiscal.sara", "rh.sara", "portaria.sara", "producao.sara", "ti.sara", "warroom.sara"],
+    titulo: "Vigia da SARA central",
+    itens: [
+      "Todo dia útil, cedo, a SARA central lê os avisos de todas as áreas e o que está parado, e liga uma coisa à outra (ex.: compra atrasada que trava a produção e o faturamento).",
+      "Quando o gargalo é da sua área, ele chega em Decisões para você, com a evidência e sugestões para conter. Responda Vou tratar, Não é problema ou Preciso de ajuda.",
+      "A decisão continua sendo sua. Sem resposta, ela lembra; quando a situação some dos avisos, ela registra que resolveu.",
+    ],
+  },
+  {
     id: "2026-10-24-sara-bom-dia",
     data: "2026-10-24",
     area: "SARA",

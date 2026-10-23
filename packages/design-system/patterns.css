@@ -7546,6 +7546,49 @@ button.holiday-row:hover {
 .conselho-perguntas button { padding: 9px 14px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent-blue) 40%, transparent); background: color-mix(in srgb, var(--accent-blue) 6%, var(--bg-surface)); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); cursor: pointer; text-align: left; }
 .conselho-perguntas button:hover { background: color-mix(in srgb, var(--accent-blue) 12%, var(--bg-surface)); }
 .conselho-nota { margin: 0; font-size: var(--fs-xs); color: var(--text-muted); }
+/* Vigia da SARA central (J3), no Conselho. */
+.vigia { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; padding-top: var(--sp-3); border-top: 1px solid var(--border); }
+.vigia-topo { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--sp-3); }
+.vigia-topo > div { flex: 1 1 320px; min-width: 0; }
+.vigia-topo h3 { margin: 0 0 4px; font-size: var(--fs-md); color: var(--text-primary); }
+.vigia-topo p { margin: 0; max-width: 68ch; font-size: var(--fs-sm); line-height: 1.5; color: var(--text-secondary); }
+.vigia-rodar { min-height: 40px; padding: 8px 18px; border-radius: 999px; border: 1px solid var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 10%, var(--bg-surface)); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+.vigia-rodar:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-blue) 18%, var(--bg-surface)); }
+.vigia-rodar:disabled { opacity: .65; cursor: progress; }
+.vigia-aviso { margin: 0; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent-blue) 8%, var(--bg-surface)); font-size: var(--fs-sm); color: var(--text-primary); }
+.vigia-aviso.erro { background: color-mix(in srgb, var(--accent-red) 8%, var(--bg-surface)); color: var(--accent-red); }
+.vigia-ultima, .vigia-vazio { margin: 0; font-size: var(--fs-xs); line-height: 1.55; color: var(--text-muted); }
+.vigia-ia { font-weight: 700; color: var(--accent-blue); }
+.vigia-filtro { display: flex; flex-wrap: wrap; gap: 6px; }
+.vigia-filtro button { padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
+.vigia-filtro button[aria-pressed="true"] { border-color: var(--accent-blue); color: var(--text-primary); background: color-mix(in srgb, var(--accent-blue) 8%, var(--bg-surface)); }
+.vigia-lista { display: flex; flex-direction: column; gap: var(--sp-3); }
+.vigia-achado { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--border); border-left: 4px solid var(--text-muted); background: var(--bg-surface); }
+.vigia-achado.alto { border-left-color: var(--accent-red); }
+.vigia-achado.medio { border-left-color: var(--accent-amber); }
+.vigia-achado.baixo { border-left-color: var(--accent-blue); }
+.vigia-achado.fechado { opacity: .75; }
+.vigia-achado > header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.vigia-achado > b { font-size: var(--fs-sm); color: var(--text-primary); overflow-wrap: anywhere; text-wrap: balance; }
+.vigia-achado > p { margin: 0; font-size: var(--fs-sm); line-height: 1.5; color: var(--text-secondary); overflow-wrap: anywhere; }
+.vigia-impacto { padding: 1px 9px; border-radius: 999px; font-size: var(--fs-micro); font-weight: 700; letter-spacing: .03em; border: 1px solid currentColor; }
+.vigia-impacto.alto { color: var(--accent-red); }
+.vigia-impacto.medio { color: var(--accent-amber); }
+.vigia-impacto.baixo { color: var(--accent-blue); }
+.vigia-area { font-size: var(--fs-xs); font-weight: 600; color: var(--text-primary); }
+.vigia-situacao { margin-left: auto; font-size: var(--fs-micro); font-weight: 600; color: var(--text-muted); }
+.vigia-situacao.s-ajuda { color: var(--accent-red); }
+.vigia-situacao.s-tratando, .vigia-situacao.s-resolvido { color: var(--accent-green); }
+.vigia-evidencias { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-xs); line-height: 1.5; color: var(--text-secondary); overflow-wrap: anywhere; }
+.vigia-evidencias em { font-style: normal; font-weight: 600; color: var(--text-primary); }
+.vigia-contencao { padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent-green) 7%, var(--bg-surface)); }
+.vigia-contencao small { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent-green); }
+.vigia-contencao ol { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-xs); line-height: 1.5; color: var(--text-primary); }
+.vigia-achado > footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: var(--fs-micro); color: var(--text-muted); }
+.vigia-efeito { padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--accent-green) 8%, var(--bg-surface)); color: var(--text-primary) !important; font-size: var(--fs-xs) !important; }
+.vigia-quem { font-size: var(--fs-xs); color: var(--text-secondary); }
+.vigia-quem summary { cursor: pointer; color: var(--text-primary); font-weight: 600; }
+.vigia-quem ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
 /* Decisões para você (menu da conta). */
 .account-contador { margin-left: auto; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--accent-red); color: #fff; font-style: normal; font-size: var(--fs-micro); font-weight: 700; text-align: center; }
 .decisoes-grupo { margin: 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }

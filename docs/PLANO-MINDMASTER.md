@@ -4,7 +4,7 @@
 > Onde ela mora: War Room › Conselho ([PLANO-WAR-ROOM-CEREBRO §4](PLANO-WAR-ROOM-CEREBRO.md)).
 >
 > Criado em 23/10/2026 e revisto no mesmo dia pelo conceito do proprietário · Execução: Claude
-> **Situação:** plano aprovado (decisões 1 a 6 abaixo). J1 no ar (Deploy 23/10). J2 pronta (migração aplicada, QA 24/24), falta o Deploy.
+> **Situação:** plano aprovado (decisões 1 a 6 abaixo). J1 no ar (Deploy 23/10). J2 pronta (migração aplicada, QA 24/24), falta o Deploy. J3 construída, aguarda a migração 202610230004.
 
 ---
 
@@ -87,7 +87,7 @@ ajuda antes de ser pedido. A SARA central faz isso para a empresa inteira.
 |---|---|---|---|
 | **J1** | Responde: orquestrador + subagentes em paralelo + verificador, em War Room › Conselho | `perguntar_a_sara`, verificador, `calcular`, `periodo` | **no ar** (Deploy 23/10): `lib/sara/central/`, laço com chamadas paralelas; holograma e voz ao vivo |
 | J2 | Bom dia por pessoa, às 7h | avisos dos módulos (`alertasDo`), decisões, ações e guias da pessoa | **construída** (23/10): `lib/sara/central/bom-dia*.ts`, rota `/api/sara/bom-dia/rodar` na tarefa de 10 em 10 minutos; migração 202610230003 aplicada, QA 24/24; falta o Deploy |
-| J3 | Vigia: achados, responsável acionado, cobrança e efeito; quadro na War Room | grupo "agir e acionar", `linha_do_tempo`, `dependencias` | na fila |
+| J3 | Vigia: achados, responsável acionado, cobrança e efeito; quadro na War Room | sinais (avisos + Parados), análise com verificador, Decisões, cobrança | **construída** (23/10): `lib/sara/central/vigia*.ts`, rotas `/api/sara/vigia/rodar` e `/api/sara/central/vigia`, quadro em Conselho; aguarda a migração 202610230004 |
 | J4 | Conselho e crescimento semanal | "olhar para fora", `simular_cenario`, `avaliar_investimento`, `pareceres_do_conselho` | na fila |
 | J5 | Aprende com as respostas e o efeito | memória | na fila |
 
@@ -123,6 +123,26 @@ O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor d
 - Sem nenhum item, não manda nada. Com itens, o Haiku escreve com os fatos e o verificador confere os números. Se algum não bater, ou se o modelo falhar ou o teto do mês tiver passado, sai o texto da plataforma.
 - O texto vira uma conversa da SARA da área com mais urgentes, e o aviso no sino abre essa conversa.
 - Ainda não usa os achados da vigia (J3) nem os Parados: entram quando a J3 existir.
+
+**Como a J3 funciona no código:**
+- **Quando:** a tarefa de 10 em 10 minutos chama `/api/sara/vigia/rodar` antes do Bom dia. Na janela (6h30 às 10h, de segunda a sábado), roda uma vez por dia; o índice único de `sara_vigia_rodadas` garante isso. O proprietário também roda pelo botão em War Room › Conselho, no máximo uma vez a cada 20 minutos.
+- **Sinais**, com a sessão da visão (o proprietário, W1):
+  - os avisos de cada módulo (`alertasDo`, sem as novidades);
+  - os Parados (`parados_listar`), agrupados por tipo; parado há 7 dias ou mais é urgente.
+- **Achados abertos**, antes da análise:
+  - a resposta de cada decisão atualiza a situação (Vou tratar, Preciso de ajuda, Não é problema);
+  - quem não respondeu é lembrado a cada 2 dias, até 3 vezes;
+  - o achado cujos sinais sumiram vira "resolvido", com o efeito anotado.
+- **Análise:** o Sonnet lê os sinais e os achados abertos (`registrar_achados`). A plataforma confere sinais, módulo, contenções e cada número (`validarAchados`). Sem o modelo, ou com o teto passado, cada sinal urgente vira um achado da própria área.
+- **Sem repetir:**
+  - o mesmo problema de um achado aberto (mesmo módulo e metade dos tipos de sinal em comum) só atualiza a evidência;
+  - "Não é problema" deixa aquele tipo em silêncio para a área por 30 dias.
+- **Entrega:** vai a quem decide na área (`sara_responsaveis`, carregado pelo ROADMAP §0) como "Decisão para você", no máximo 3 por pessoa por dia, só se a pessoa enxerga os mesmos sinais com a sessão dela. Sem ninguém com acesso, o achado fica no quadro como "sem responsável".
+- **Custo:** os tokens da vigia entram no teto da SARA central (`sara_uso_mes('warroom')`).
+- **Ainda não:**
+  - as ações com Permitir prontas dentro do achado: a contenção é texto, e a ação pronta continua no aviso da SARA do módulo;
+  - o grafo do Segundo Cérebro na correlação;
+  - mudar quem decide pela tela (por enquanto, o cadastro inicial).
 
 ## 5. Decisões do proprietário (aprovadas em 23/10/2026)
 
