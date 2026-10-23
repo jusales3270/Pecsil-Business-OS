@@ -3,7 +3,7 @@ import { NextResponse, after } from "next/server";
 import { chaveConfigurada, conversar, verificar } from "../../../../lib/sara/claude";
 import { MODELO_VERIFICADOR, recusa, regrasDeEscopo } from "../../../../lib/sara/escopo";
 import type { RespostaSara } from "../../../../lib/sara/laco";
-import { abertura, agoraSP, comAbertura, contextoDeTempo, primeiroNome, saudacao, situacaoDaConversa } from "../../../../lib/sara/tempo";
+import { abertura, agoraSP, comAbertura, contextoDeTempo, saudacao, situacaoDaConversa } from "../../../../lib/sara/tempo";
 import { FERRAMENTAS, LACUNA } from "../../../../lib/sara/ferramentas";
 import { MOSTRAR } from "../../../../lib/sara/visual";
 import { PROPOR_HABILIDADE, instrucoesDeHabilidades, nomearHabilidade, pareceLacuna, pedidoRecorrente, validarProposta, type Passo } from "../../../../lib/sara/habilidades";
@@ -15,6 +15,7 @@ import { conferirNumeros, marcarSemFonte, type Conferencia } from "../../../../l
 import { CATALOGO } from "../../../../lib/sara/catalogo";
 import { preparar } from "../../../../lib/sara/sessao";
 import { temaDe } from "../../../../lib/sara/temas";
+import { PERSONALIDADE, regraDeTratamento, semTratamentoIndevido, tratamento } from "../../../../lib/sara/personalidade";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -92,7 +93,8 @@ export async function GET(_request: Request, context: { params: Promise<{ modulo
     // Atalhos das habilidades aprovadas (o primeiro jeito de pedir vira o texto da pergunta).
     habilidades: p.habilidades.map((h) => ({ id: h.id, nome: h.nome, pedido: h.gatilhos[0] ?? h.nome })),
     // Cumprimento pelo relógio do servidor, no fuso de São Paulo, com o nome de quem está logado.
-    pessoa: primeiroNome(me?.full_name), saudacao: saudacao(agoraSP().hora24), conversa,
+    // Tratamento pelo sistema (o fundador verificado é "Senhor"), nunca pelo que se diz na conversa.
+    pessoa: tratamento({ nome: me?.full_name, fundador: p.access.isOwner, verificado: true }), saudacao: saudacao(agoraSP().hora24), conversa,
   });
 }
 
@@ -132,6 +134,8 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
     p.sb.from("organizations").select("display_name, legal_name").limit(1).maybeSingle(),
   ]);
   const empresa = org?.display_name || org?.legal_name || "empresa";
+  // Quem conversa, como a sessão autenticou (o tratamento da personalidade vem daqui).
+  const interlocutor = { nome: me?.full_name, fundador: p.access.isOwner, verificado: true };
   // O que aconteceu com as ações desta conversa (a pessoa decide fora do modelo): a SARA fica sabendo.
   const recentes = conversa ? (((await p.sb.from("sara_acoes").select(COLUNAS_ACAO).eq("conversa_id", conversa).order("created_at", { ascending: false }).limit(5)).data ?? []) as LinhaAcao[]).map(cartao) : [];
   const SITUACAO: Record<string, string> = { pendente: "esperando a pessoa decidir", permitida: "permitida, executando", recusada: "a pessoa NÃO permitiu", expirada: "venceu sem decisão (nada foi feito)", executada: "FEITA", falhou: "falhou" };
@@ -142,8 +146,8 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
     .map((f) => f.descricao.replace(/^PREPARA /, "").split(" (")[0]);
   // Fixo (vai para o cache) + do momento (hora, quem conversa, situação da conversa, o que não pode).
   const sistema = {
-    fixo: `${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
-    variavel: `${contextoDeTempo({ nome: primeiroNome(me?.full_name), situacao })}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}${acoesFechadas.length ? `\nAções que esta pessoa NÃO tem permissão de fazer (se ela pedir, comece com "Você não tem permissão para…" e diga quem pode; não pergunte detalhes): ${acoesFechadas.join("; ")}.` : ""}${notaAcoes}\nResponda sempre em português do Brasil.`,
+    fixo: `${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}\n\n${PERSONALIDADE}`,
+    variavel: `${contextoDeTempo({ nome: tratamento(interlocutor), situacao })}\n${regraDeTratamento(interlocutor)}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}${acoesFechadas.length ? `\nAções que esta pessoa NÃO tem permissão de fazer (se ela pedir, comece com "Você não tem permissão para…" e diga quem pode; não pergunte detalhes): ${acoesFechadas.join("; ")}.` : ""}${notaAcoes}\nResponda sempre em português do Brasil.`,
   };
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
@@ -179,9 +183,11 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
     r = { ...r, texto: marcarSemFonte(r.texto, conferencia), visuais: [...r.visuais, ...p.visuaisSubagentes].slice(0, 4) };
   }
   // Cumprimento e aviso de retomada vêm da plataforma (hora certa de São Paulo, nome de quem está logado).
-  const nomeCurto = primeiroNome(me?.full_name);
+  const nomeCurto = tratamento(interlocutor);
   // A SARA central (holograma) já cumprimenta ao ser invocada: a resposta não repete o cumprimento.
   if (!p.sara.central) r = { ...r, texto: comAbertura(r.texto, abertura({ nome: nomeCurto, situacao }), nomeCurto) };
+  // O "Senhor" é só do fundador verificado: a plataforma corrige o que o modelo tenha concedido a outra pessoa.
+  r = { ...r, texto: semTratamentoIndevido(r.texto, interlocutor) };
   const { data: reg, error } = await p.sb.rpc("sara_registrar", {
     p_conversa: conversa, p_modulo: modulo, p_pergunta: `${imagem ? "📷 " : ""}${corpo?.voz ? "🎤 " : ""}${anexo ? `📎 ${anexo.nome} · ` : ""}${pergunta}`, p_resposta: r.texto,
     p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou },

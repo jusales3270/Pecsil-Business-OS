@@ -4,6 +4,7 @@ import { QUEM_DECIDE } from "../../../../../lib/sara/central/sara";
 import { URL_VOZ_AO_VIVO, VOZ_DA_SARA, extrairToken, instrucoesDeVoz, sessaoDeVoz, termosChave, vozExiste } from "../../../../../lib/sara/central/voz-ao-vivo";
 import { preparar } from "../../../../../lib/sara/sessao";
 import { primeiroNome } from "../../../../../lib/sara/tempo";
+import { regraDeTratamento } from "../../../../../lib/sara/personalidade";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -51,7 +52,7 @@ export async function POST(_request: Request, context: { params: Promise<{ modul
   const areas = Object.values(SARAS).filter((s) => !s.central && p.access.canModule(s.feature)).map((s) => s.rotulo);
   const pessoas = QUEM_DECIDE.split(/[·:,]| e /).map((x) => x.trim()).filter((x) => /^[A-ZÁÉÍÓÚ][a-zà-ú]+$/.test(x));
   const sessao = sessaoDeVoz({
-    instrucoes: instrucoesDeVoz({ empresa, nome: primeiroNome(me?.full_name), quemDecide: QUEM_DECIDE }),
+    instrucoes: instrucoesDeVoz({ empresa, nome: primeiroNome(me?.full_name), quemDecide: QUEM_DECIDE, tratamento: regraDeTratamento({ nome: me?.full_name, fundador: p.access.isOwner, verificado: true }) }),
     termos: termosChave([[empresa, "SARA", "War Room"], areas, pessoas]),
   });
   return NextResponse.json({ token, url: URL_VOZ_AO_VIVO, sessao });

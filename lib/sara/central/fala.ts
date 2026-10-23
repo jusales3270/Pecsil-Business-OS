@@ -6,11 +6,18 @@
  */
 
 const AVISO = /⚠️?\s*Sem fonte conferida:[^\n]*/;
+/** Tags do motor de voz (personalidade): passam intactas pela limpeza da marcação. */
+const TAG = /<soft>\[laugh\]<\/soft>|\[(?:sigh|laugh|pause|long-pause|cough)\]/g;
 
-export function resumoFalado(texto: string, max = 420): string {
+export function resumoFalado(entrada: string, max = 420): string {
+  const tags: string[] = [];
+  const texto = entrada.replace(TAG, (m) => { tags.push(m); return ` §${tags.length - 1}§ `; });
   const aviso = texto.match(AVISO)?.[0]?.replace(/⚠️?\s*/, "").trim() ?? null;
-  const corrido = texto.replace(AVISO, "").split("\n")
-    .filter((l) => !/^\s*\|/.test(l) && !/^\s*[-*•]\s+/.test(l) && !/^\s*\d+[.)]\s+/.test(l) && !/^\s*```/.test(l) && !/^\s*#/.test(l))
+  const linhas = texto.replace(AVISO, "").split("\n").filter((l) => l.trim());
+  // Fora da fala: tabela, lista, código, título (# ou linha só em negrito, como "**Servidor (TI)**").
+  const faladas = linhas.filter((l) => !/^\s*\|/.test(l) && !/^\s*[-*•]\s+/.test(l) && !/^\s*\d+[.)]\s+/.test(l) && !/^\s*```/.test(l) && !/^\s*#/.test(l) && !/^\s*\*\*[^*]+\*\*:?\s*$/.test(l));
+  const ficouDeFora = faladas.length < linhas.length;
+  const corrido = faladas
     .join(" ")
     .replace(/\*\*([^*]+)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1").replace(/[*_#>]/g, "")
     .replace(/\s+/g, " ").trim();
@@ -24,6 +31,7 @@ export function resumoFalado(texto: string, max = 420): string {
     fala = `${fala} ${f}`.trim();
   }
   if (fala.length > max) fala = `${fala.slice(0, max - 1).replace(/\s+\S*$/, "")}…`;
-  if (frases.length > 3 || corrido.length > fala.length + 20) fala = `${fala} O detalhe está no painel.`;
-  return aviso ? `${fala} Atenção: ${aviso.replace(/\.?\s*Confira antes de usar.*$/, "")}.` : fala;
+  if (corrido && (frases.length > 3 || corrido.length > fala.length + 20 || ficouDeFora)) fala = `${fala} O detalhe está no painel.`;
+  const final = aviso ? `${fala} Atenção: ${aviso.replace(/\.?\s*Confira antes de usar.*$/, "")}.` : fala;
+  return final.replace(/\s*§(\d+)§\s*/g, (_m, i) => ` ${tags[Number(i)] ?? ""} `).replace(/\s{2,}/g, " ").trim();
 }

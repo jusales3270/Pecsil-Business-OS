@@ -53,7 +53,9 @@ const horaSP = (iso: string) => new Intl.DateTimeFormat("pt-BR", { timeZone: "Am
 export function Texto({ texto }: { texto: string }) {
   const linhas = texto.split("\n");
   // **negrito** e `código` (a SARA de TI escreve comandos e nomes de arquivo).
-  const negrito = (s: string): ReactNode[] => s.split(/(\*\*[^*]+\*\*|`[^`\n]+`)/g).map((p, i) => (p.startsWith("**") && p.endsWith("**") ? <b key={i}>{p.slice(2, -2)}</b>
+  // *expressão* (personalidade: *suspira*, *pausa breve*) em itálico.
+  const negrito = (s: string): ReactNode[] => s.split(/(\*\*[^*]+\*\*|`[^`\n]+`|\*[^*\n]{2,40}\*)/g).map((p, i) => (p.startsWith("**") && p.endsWith("**") ? <b key={i}>{p.slice(2, -2)}</b>
+    : p.length > 2 && p.startsWith("*") && p.endsWith("*") ? <em key={i}>{p.slice(1, -1)}</em>
     : p.length > 2 && p.startsWith("`") && p.endsWith("`") ? <code key={i}>{p.slice(1, -1)}</code> : <Fragment key={i}>{p}</Fragment>));
   const celulas = (l: string) => l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
   const blocos: ReactNode[] = []; let lista: string[] = []; let tabela: string[][] = []; let codigo: string[] | null = null;

@@ -7531,6 +7531,9 @@ button.holiday-row:hover {
 .sh-doc-icone { flex: none; display: grid; place-items: center; width: 38px; height: 46px; border-radius: 6px; background: #be123c; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .06em; }
 .sh-doc-item a { flex: none; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--accent-blue); color: var(--accent-blue); font-size: var(--fs-xs); font-weight: 600; text-decoration: none; }
 .sh-doc-item a:hover { background: color-mix(in srgb, var(--accent-blue) 10%, var(--bg-surface)); }
+.sh-doc-icone.voz { background: #047857; }
+.sh-doc-voz { align-items: flex-start; }
+.sh-doc-voz audio { width: 100%; height: 34px; margin: 4px 0 2px; }
 .sh-doc-envio { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); }
 .sh-doc-envio.alto { border-color: color-mix(in srgb, var(--accent-amber) 60%, transparent); }
 .sh-doc-envio p { margin: 0; font-size: var(--fs-sm); line-height: 1.45; }

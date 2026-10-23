@@ -6,7 +6,8 @@ import { NOVIDADES, novidadesPara } from "../../novidades";
 import { alertasDo } from "../alertas";
 import { sessaoComo } from "../guias-executar";
 import { SARAS } from "../modulos";
-import { agoraSP, primeiroNome } from "../tempo";
+import { agoraSP } from "../tempo";
+import { tratamento } from "../personalidade";
 import { BOM_DIA, DIAS_DA_SEMANA, escreverBomDia, janelaDoBomDia, moduloDoBomDia, ordenarItens, resumoDoBomDia, type ItemBomDia } from "./bom-dia";
 
 /**
@@ -78,11 +79,11 @@ async function rodarUm(admin: SupabaseClient, l: Linha): Promise<string> {
     const { itens, restantes } = ordenarItens(todos);
     const modulo = moduloDoBomDia(itens, areas) as string;
     const [{ data: me }, { data: cfg }, { data: uso }] = await Promise.all([
-      s.sb.from("profiles").select("full_name").eq("id", l.profile_id).maybeSingle(),
+      s.sb.from("profiles").select("full_name, is_owner").eq("id", l.profile_id).maybeSingle(),
       s.sb.from("sara_modulos").select("teto_tokens_mes").eq("modulo", modulo).maybeSingle(),
       s.sb.rpc("sara_uso_mes", { p_modulo: modulo }),
     ]);
-    const nome = primeiroNome(me?.full_name);
+    const nome = tratamento({ nome: me?.full_name, fundador: Boolean(me?.is_owner), verificado: true });
     const agora = agoraSP(new Date(`${l.dia}T12:00:00-03:00`));
     const semana = DIAS_DA_SEMANA[new Date(`${l.dia}T12:00:00-03:00`).getUTCDay()];
     // Passou do teto do mês do módulo: sai o texto da plataforma (sem custo de modelo).

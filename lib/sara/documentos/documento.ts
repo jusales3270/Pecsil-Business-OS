@@ -34,7 +34,7 @@ export type Documento = {
   areas: string[];
 };
 
-export const TIPOS = { relatorio: "Relatório", carta: "Carta" } as const;
+export const TIPOS = { relatorio: "Relatório", carta: "Carta", mensagem_voz: "Mensagem de voz" } as const;
 const LIM = { secoes: 12, linhas: 40, colunas: 8, rotulos: 24, series: 4, insights: 8, recomendacoes: 8 };
 
 const t = (v: unknown, max: number) => String(v ?? "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim().slice(0, max);

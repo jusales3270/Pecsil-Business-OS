@@ -5,6 +5,7 @@ import { Texto } from "../../../../app/components/sara-painel";
 import { SaraVisual } from "../../../../app/components/sara-visual";
 import { pedirRegistro, type PedidoRegistro } from "../../../../lib/abrir-registro";
 import { resumoFalado } from "../../../../lib/sara/central/fala";
+import { paraVoz, semTags } from "../../../../lib/sara/personalidade";
 import type { Visual } from "../../../../lib/sara/visual";
 import { criarSistema, desenhar, novoPulso, type EstadoHolo, type Sistema } from "./motor";
 import { iniciarVozAoVivo, type AoVivo, type SessaoDeVoz } from "./voz-ao-vivo";
@@ -138,11 +139,11 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const falar = useCallback((texto: string) => {
     if (relogioPalavras.current) clearInterval(relogioPalavras.current);
     const esta = ++falaAtual.current;
-    setLegenda(texto); setAceso(0);
+    setLegenda(semTags(texto)); setAceso(0);
     // Só a legenda, palavra por palavra (voz desligada pela pessoa ou a sessão indisponível).
     const soLegenda = () => {
       setEstado("speaking");
-      const total = texto.split(" ").filter(Boolean).length;
+      const total = semTags(texto).split(" ").filter(Boolean).length;
       let i = 0;
       const relogio = setInterval(() => {
         if (esta !== falaAtual.current) { clearInterval(relogio); return; }
@@ -196,14 +197,16 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     try {
       const r = await consultar(pergunta, voz);
       if ("erro" in r) { setEstado("idle"); falar(r.erro); return; }
-      falar(resumoFalado(r.texto));
+      falar(resumoFalado(paraVoz(r.texto)));
     } finally { ocupado.current = false; }
   }, [consultar, falar, pararFala, setEstado]);
 
   /* ---- voz ao vivo (Grok Voice, "luna", pt-BR) ---- */
   const legendaAoVivo = useRef<ReturnType<typeof setInterval> | null>(null);
-  const acenderAosPoucos = useCallback((texto: string) => {
+  const acenderAosPoucos = useCallback((bruto: string) => {
     if (legendaAoVivo.current) clearInterval(legendaAoVivo.current);
+    // A legenda não mostra as tags do motor de voz (suspiro, riso, pausa).
+    const texto = semTags(bruto);
     setLegenda(texto); setAceso(0);
     let i = 0; const total = texto.split(" ").filter(Boolean).length;
     legendaAoVivo.current = setInterval(() => { setAceso(++i); if (i >= total && legendaAoVivo.current) clearInterval(legendaAoVivo.current); }, 380);
@@ -214,7 +217,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
       if (pergunta) setLinhaPessoa(`▸ ${pergunta}`);
       const r = await consultar(pergunta || "Resumo da empresa hoje.", true);
       if ("erro" in r) return { saida: { erro: r.erro }, falar: r.erro };
-      const fala = resumoFalado(r.texto);
+      const fala = resumoFalado(paraVoz(r.texto));
       return { saida: { ok: true, resposta_conferida: fala, observacao: "A plataforma já vai falar esta resposta, exatamente como está. Não repita os números." }, falar: fala };
     }
     if (nome === "minimizar") { setPainel(false); setModo("mini"); return { saida: { ok: true } }; }
@@ -354,7 +357,17 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
       {docs && (docs.documentos.length > 0 || docs.acoes.length > 0) && (
         <section className="sh-doc" aria-label="Documento da SARA central">
           <header><b>Documento</b><button type="button" onClick={() => setDocs(null)} aria-label="Fechar">✕</button></header>
-          {docs.documentos.map((d) => (
+          {docs.documentos.map((d) => d.tipo === "mensagem_voz" ? (
+            <div key={d.id} className="sh-doc-item sh-doc-voz">
+              <span className="sh-doc-icone voz" aria-hidden>VOZ</span>
+              <div>
+                <b>{d.titulo}</b><small>Mensagem de voz {d.numero} · na voz da SARA</small>
+                <audio controls preload="none" src={`/api/sara/documentos/${d.id}/arquivo`} aria-label={`Ouvir a mensagem ${d.numero}`} />
+                <small>Envio pelo WhatsApp: aguardando o número dedicado da empresa.</small>
+              </div>
+              <a href={`/api/sara/documentos/${d.id}/arquivo?baixar=1`}>Baixar</a>
+            </div>
+          ) : (
             <div key={d.id} className="sh-doc-item">
               <span className="sh-doc-icone" aria-hidden>PDF</span>
               <div><b>{d.titulo}</b><small>{d.tipo === "carta" ? "Carta" : "Relatório"} {d.numero} · {d.paginas} {d.paginas === 1 ? "página" : "páginas"}</small></div>

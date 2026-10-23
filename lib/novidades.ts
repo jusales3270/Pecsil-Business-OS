@@ -44,6 +44,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-24-sara-personalidade",
+    data: "2026-10-24",
+    area: "SARA",
+    titulo: "A SARA ganhou personalidade",
+    itens: [
+      "A SARA agora responde como uma assistente britânica: formal sem ser rígida, calma, direta e com um humor discreto.",
+      "Ela começa pelo essencial (o status ou a resposta), depois o contexto e o próximo passo.",
+      "Quando discordar de um pedido, ela diz o risco uma vez e segue a decisão de quem decide.",
+    ],
+  },
+  {
     id: "2026-10-24-sara-documentos",
     data: "2026-10-24",
     area: "SARA",

@@ -22,6 +22,7 @@ import { instrucoesDeHabilidades } from "./habilidades";
 import { contextoDeTempo, primeiroNome, situacaoDaConversa } from "./tempo";
 import { FORA_DA_SUBAGENTE, REGRA_SUBAGENTE, ferramentaPerguntarASara, type Rodar, type UsoSubagente } from "./central/subagente";
 import { DOCUMENTOS_RECEBIDOS, ENVIAR_DOCUMENTO, ferramentaCriarDocumento, type ContextoDocumentos } from "./central/documentos";
+import { ferramentaCriarMensagemDeVoz } from "./central/mensagem-de-voz";
 import type { Ferramenta } from "./base";
 import { FERRAMENTAS } from "./ferramentas";
 import type { Visual } from "./visual";
@@ -72,7 +73,7 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
     const documentos: ContextoDocumentos = { fontes: [], visuais: visuaisSubagentes, criados: [], conversa: null };
     const calcular: Ferramenta = { ...CALCULAR, rodar: async (sb, e) => { const r = await CALCULAR.rodar(sb, e); documentos.fontes.push(r.dados); return r; } };
     const ferramentas: Ferramenta[] = [ferramentaPerguntarASara(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos.fontes), calcular, PERIODO,
-      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ferramentaCriarDocumento(documentos), ENVIAR_DOCUMENTO];
+      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ferramentaCriarDocumento(documentos), ENVIAR_DOCUMENTO, ferramentaCriarMensagemDeVoz(documentos)];
     return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades: [] as HabilidadeAtiva[], eventos: [] as { tipo: string; rotulo: string }[], subagentes, visuaisSubagentes, documentos } as const;
   }
   const dados = consultarDados(pode, modulo);

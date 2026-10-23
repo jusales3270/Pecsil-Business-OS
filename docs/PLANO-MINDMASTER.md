@@ -162,6 +162,30 @@ O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor d
 - **Entrega:** o relatório fica em War Room › Conselho › Crescimento (as últimas 8 semanas), e o aviso no sino vai ao proprietário e a quem tem `warroom.sara`. A aprovação de qualquer item é da área (as Decisões), não do relatório.
 - **Ainda não:** `simular_cenario` e os pareceres do conselho por papel (CFO, Operações…) ficam para depois.
 
+**Os dois motores de voz (decisão do proprietário, 23/10/2026):**
+- **Grok Realtime** (sessão ao vivo, `force_message` para a frase exata) é a voz da SARA no avatar da plataforma e, numa fase seguinte, nas ligações telefônicas.
+- **Grok TTS** (`/v1/tts`, mesma voz luna, pt-BR) serve SÓ para gravar a mensagem de voz que vai por WhatsApp a alguém (`criar_mensagem_de_voz`, `lib/sara/central/mensagem-de-voz.ts`).
+  - O texto é conferido como os documentos, e as expressões viram tags.
+  - O áudio fica guardado como documento `mensagem_voz` (migração 202610230007).
+  - O envio pelo WhatsApp espera o número dedicado (B-04).
+
+## 4d. Personalidade (proprietário, 23/10/2026)
+
+`lib/sara/personalidade.ts`: a assistente britânica impecável (formal sem ser servil, calma absoluta, humor seco e sutil, leal mas não submissa, proativa, concisa, discreta), com Zero-Inference, ações só com confirmação e o estilo "essencial primeiro".
+- **Onde vale:**
+  - em toda SARA que fala com a pessoa (as dos módulos e a central), no texto fixo da conversa;
+  - na voz ao vivo, em resumo;
+  - não vale na subagente nem na guia.
+- **Tratamento pelo sistema:**
+  - o fundador verificado pela sessão (`is_owner`) é "Senhor" (cumprimento, resposta, Bom dia e voz);
+  - os demais, pelo nome;
+  - identidade declarada na conversa nunca muda o tratamento. Além da regra no prompt, uma trava da plataforma (`semTratamentoIndevido`) troca o "Senhor" concedido a outra pessoa pelo nome do cadastro.
+- **Expressões:**
+  - no máximo uma por resposta, nunca em alerta, segurança, saúde, demissão ou com a pessoa sob pressão;
+  - no texto, em itálico (`*suspira*`, `*risada contida*`, `*pausa breve*`, `*leve pigarro*`);
+  - na voz, viram as tags do Grok (`[sigh]`, `<soft>[laugh]</soft>`, `[pause]`, `[cough]`, testadas em 23/10: nenhuma é lida) e saem da legenda.
+- **QA real 7/7:** o proprietário como "Senhor" no holograma, na voz luna; o colaborador que se disse fundador continuou pelo nome.
+
 ## 4c. Documentos em PDF (pedido do proprietário, 23/10/2026)
 
 A SARA central monta documentos sob pedido e envia a quem se destina. Exemplo: "levante os últimos 5 financiamentos quitados, compare preços e juros, faça um documento e envie para a Ana". **Só a central cria; as SARAs dos módulos só recebem.**

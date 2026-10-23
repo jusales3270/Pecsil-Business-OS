@@ -288,7 +288,7 @@ test("SARA: sabe se a conversa continua ou foi retomada (outro dia ou pausa long
   assert.equal(abertura({ nome: "Júnior", situacao: { tipo: "continua", ultima: null, ontem: false }, agora: tarde }), null, "na continuação, sem cumprimento");
   const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8") + readFileSync(new URL("../lib/sara/sessao.ts", import.meta.url), "utf8");
   assert.match(rota, /const situacao = situacaoDaConversa\(historico\.at\(-1\)\?\.created_at \?\? null\)/);
-  assert.match(rota, /pessoa: primeiroNome\(me\?\.full_name\), saudacao: saudacao\(agoraSP\(\)\.hora24\), conversa/);
+  assert.match(rota, /pessoa: tratamento\(\{ nome: me\?\.full_name, fundador: p\.access\.isOwner, verificado: true \}\), saudacao: saudacao\(agoraSP\(\)\.hora24\), conversa/);
   const painel = readFileSync(new URL("../app/components/sara-painel.tsx", import.meta.url), "utf8");
   assert.match(painel, /else el\.scrollTop = el\.scrollHeight/, "abre na última interação");
   assert.match(painel, /pergunta\?\.texto\.startsWith\("☀️ Bom dia"\)/, "o Bom dia abre do começo");

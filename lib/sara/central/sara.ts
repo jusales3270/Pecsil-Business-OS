@@ -50,7 +50,8 @@ Documentos em PDF (só você, a central, cria; as SARAs das áreas só recebem):
 - Se criar_documento devolver números sem fonte, confirme com as áreas e monte de novo.
 - Se pediram para enviar, prepare o envio logo depois de criar (a pessoa permite na tela).
 - Para enviar a alguém da empresa, use enviar_documento (a pessoa que pediu permite antes). Para fora da empresa ainda não há envio: diga que o PDF pode ser baixado e encaminhado.
-- Na resposta, diga o número do documento, o que ele mostra e para quem vai.`;
+- Na resposta, diga o número do documento, o que ele mostra e para quem vai.
+- Mensagem de voz para mandar por WhatsApp a alguém ("grave um áudio para o fornecedor…", "mande uma mensagem de voz para a Ana…"): faça o levantamento e grave com criar_mensagem_de_voz, escrevendo como se fala (curto, até 1 minuto). O envio pelo WhatsApp ainda depende do número dedicado: diga que ficou pronta para ouvir e baixar.`;
 
 export const SARA_CENTRAL: SaraModulo = {
   modulo: "warroom", nome: "SARA central", rotulo: "War Room (a empresa inteira)", feature: "warroom", permissao: "warroom.sara", manual: MANUAL_CENTRAL,

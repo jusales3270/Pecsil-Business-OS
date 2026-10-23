@@ -106,7 +106,7 @@ test("documentos: a carta sai em papel timbrado, com local e data, sem marca de 
 test("documentos: só a central cria e envia; as SARAs dos módulos só recebem", () => {
   const sessao = ler("lib/sara/sessao.ts");
   const central = sessao.slice(sessao.indexOf("if (sara.central) {"), sessao.indexOf("const dados = consultarDados"));
-  assert.match(central, /ferramentaCriarDocumento\(documentos\), ENVIAR_DOCUMENTO\]/);
+  assert.match(central, /ferramentaCriarDocumento\(documentos\), ENVIAR_DOCUMENTO, ferramentaCriarMensagemDeVoz\(documentos\)\]/);
   const modulo = sessao.slice(sessao.indexOf("const dados = consultarDados"));
   assert.doesNotMatch(modulo, /ferramentaCriarDocumento|ENVIAR_DOCUMENTO/);
   assert.match(modulo, /MOSTRAR, DOCUMENTOS_RECEBIDOS\]/);
