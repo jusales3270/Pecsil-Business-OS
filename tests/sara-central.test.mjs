@@ -116,7 +116,8 @@ test("holograma: ouve pelo Whisper da plataforma e fala só com voz do aparelho 
 test("CEO apresentando: navega pelas telas das áreas, minimiza para mostrar e apresenta os gráficos das áreas", () => {
   const c = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
   assert.match(c, /CEO · SISTEMA ATIVO/);
-  assert.match(c, /if \(abrir \|\| visuais\.length\) \{[\s\S]*setModo\("mini"\)[\s\S]*navegar\(abrir\.modulo/, "minimiza e abre a tela");
+  assert.match(c, /const apresentar = useCallback\(\(abrir: Abrir \| null, visuais: Visual\[\]\) => \{[\s\S]*setModo\("mini"\)[\s\S]*navegar\(abrir\.modulo/, "minimiza e abre a tela");
+  assert.match(c, /apresentar\(j\.abrir \?\? null, j\.visuais \?\? \[\]\)/, "toda resposta da central passa pela apresentação (digitada ou por voz)");
   assert.match(c, /setPalco\(visuais\)/, "apresenta os gráficos no palco");
   assert.match(c, /if \(!naWarRoom && modo === "fechado"\) return null;/, "fora da War Room, só quando está trabalhando");
   const sessao = ler("lib/sara/sessao.ts");
@@ -148,4 +149,44 @@ test("holograma: a fala antiga não derruba o estado da pergunta nova", () => {
   assert.match(c, /const esta = \+\+falaAtual\.current;/);
   assert.match(c, /if \(esta !== falaAtual\.current\) \{ clearInterval\(relogio\); return; \}/);
   assert.match(c, /const pararFala = useCallback\(\(\) => \{\s*falaAtual\.current\+\+;/);
+});
+
+test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números ditos exatamente como a central conferiu", async () => {
+  const v = await import("../lib/sara/central/voz-ao-vivo.ts");
+  assert.equal(v.VOZ_DA_SARA, "luna");
+  const s = v.sessaoDeVoz({ instrucoes: "x", termos: ["PecSil"] });
+  assert.equal(s.voice, "luna");
+  assert.equal(s.audio.input.transcription.language_hint, "pt-BR");
+  assert.deepEqual(s.audio.input.format, { type: "audio/pcm", rate: 24000 });
+  assert.deepEqual(s.tools.map((t) => t.name), ["consultar_sara_central", "minimizar", "tela_cheia", "proximo_visual", "visual_anterior", "fechar_apresentacao"]);
+  assert.ok(s.tools.every((t) => t.type === "function"), "sem busca na internet nem outras ferramentas do Grok");
+  const ins = v.instrucoesDeVoz({ empresa: "Empresa X", nome: "Júnior", quemDecide: "Financeiro: Ana" });
+  assert.match(ins, /português do Brasil/);
+  assert.match(ins, /nunca diga um número, nome ou situação que não veio da central/);
+  assert.match(ins, /quem decide é a área/);
+  assert.deepEqual(v.termosChave([["PecSil", "pecsil", " Ana "], ["x"], ["Fundição"]]), ["PecSil", "Ana", "Fundição"]);
+  assert.equal(v.termosChave([Array.from({ length: 150 }, (_, i) => `termo ${i}`)]).length, 100);
+  assert.equal(v.extrairToken({ value: "a".repeat(20) }), "a".repeat(20));
+  assert.equal(v.extrairToken({ client_secret: { value: "b".repeat(20) } }), "b".repeat(20));
+  assert.equal(v.extrairToken({ nada: 1 }), null);
+  assert.ok(v.vozExiste({ voices: [{ voice_id: "eve" }, { voice_id: "Luna" }] }, "luna"));
+  assert.ok(!v.vozExiste({ voices: [{ voice_id: "eve" }] }, "luna"));
+
+  const rota = ler("app/api/sara/[modulo]/voz-ao-vivo/route.ts");
+  assert.match(rota, /if \(!SARAS\[modulo\]\?\.central\)/, "só a central fala ao vivo");
+  assert.match(rota, /const p = await preparar\(modulo\);/, "com a permissão da pessoa");
+  assert.match(rota, /process\.env\.XAI_API_KEY/);
+  assert.match(rota, /expires_after: \{ seconds: 300 \}/, "token temporário de 5 minutos");
+  assert.match(rota, /vozExiste\(lista, VOZ_DA_SARA\)/, "não troca de voz calada");
+  assert.doesNotMatch(rota, /NEXT_PUBLIC_XAI/, "a chave não vai para o navegador");
+  assert.match(rota, /return NextResponse\.json\(\{ token, url: URL_VOZ_AO_VIVO, sessao \}\);/, "o navegador recebe só o token temporário, o endereço e a sessão");
+
+  const motor = ler("modules/warroom/src/holograma/voz-ao-vivo.ts");
+  assert.match(motor, /\[`xai-client-secret\.\$\{j\.token\}`\]/, "token no subprotocolo, como a xAI pede para navegador");
+  assert.match(motor, /type: "force_message", role: "assistant", content: \[\{ type: "output_text", text: falar \}\]/, "a resposta conferida é dita exatamente");
+  assert.match(motor, /tipo === "response\.function_call_arguments\.done"\) \{ executarChamada\(/, "executa a função na chegada (agindo enquanto fala)");
+  assert.match(motor, /type: "function_call_output", call_id: callId/);
+  const holo = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
+  assert.match(holo, /if \(nome === "consultar_sara_central"\) \{[\s\S]*await consultar\(/, "o cérebro continua sendo a SARA central");
+  assert.match(holo, /if \(!\/não está configurada\/\.test\(m\)\)/, "sem a chave, cai no Whisper");
 });

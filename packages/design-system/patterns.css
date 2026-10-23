@@ -7457,6 +7457,7 @@ button.holiday-row:hover {
 .sh-holo.full .sh-status { opacity: 1; }
 .sh-status i { width: 5px; height: 5px; border-radius: 50%; background: var(--sh-amber); box-shadow: 0 0 8px var(--sh-amber); display: inline-block; }
 .sh-status em { font-style: normal; letter-spacing: .12em; color: rgba(255,213,145,.45); }
+.sh-status em.ao-vivo { color: #ff8f6b; letter-spacing: .32em; }
 .sh-caption { position: absolute; left: 50%; bottom: calc(15vh + 10px); transform: translateX(-50%); width: min(760px, 86vw); text-align: center; pointer-events: none; }
 .sh-holo.full.com-painel .sh-caption { left: 32%; width: min(560px, 54vw); }
 .sh-caption .who { font-family: var(--sh-mono); font-size: 9px; letter-spacing: .5em; padding-left: .5em; color: rgba(255,158,44,.6); margin-bottom: 12px; transition: opacity .4s; }

@@ -99,6 +99,19 @@ ajuda antes de ser pedido. A SARA central faz isso para a empresa inteira.
 - A rota confere os números (`lib/sara/central/verificador.ts`) e grava na conversa o uso de cada subagente.
 - **Limite conhecido:** o custo da conversa da central conta só os tokens dela; o uso das SARAs das áreas, no Haiku, fica no registro da conversa (`subagentes`), mas não entra no painel de custo. É pequeno, porque o Haiku custa cerca de 20 vezes menos.
 
+## 4b. Voz ao vivo: Grok Voice (23/10/2026)
+
+O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor de fala da SARA central, com a voz **"luna"** em **pt-BR**. O diferencial: ela age enquanto fala.
+
+- **A voz, não o cérebro.** O Grok escuta, fala, aceita interrupção e chama funções. Para qualquer dado da empresa, ele chama `consultar_sara_central`, que é a mesma rota da central (com as permissões, o verificador e o registro). Ele não responde com o conhecimento próprio.
+- **Número exato.** A resposta conferida é falada palavra por palavra (`force_message`), sem o modelo reformular.
+- **Agir enquanto fala.** As funções (consultar, minimizar, tela cheia, próximo ou anterior gráfico, fechar a apresentação) são executadas no instante em que chegam, com o áudio ainda tocando.
+- **Segurança.** A chave `XAI_API_KEY` fica só no servidor. A rota `/api/sara/warroom/voz-ao-vivo` confere a permissão e se a voz existe, e pede um token temporário de 5 minutos. O navegador conecta direto ao Grok com esse token. Sem a chave configurada, o microfone volta ao Whisper.
+- **Dados:** o áudio e a resposta conferida vão à xAI, que guarda por 30 dias, a menos que o Zero Data Retention esteja ligado (recomendado). Registrado no PLANO-JEV.
+- **Código:**
+  - `lib/sara/central/voz-ao-vivo.ts`: a sessão, as funções, a persona e as regras puras;
+  - `modules/warroom/src/holograma/voz-ao-vivo.ts`: o motor no navegador.
+
 ## 5. Decisões do proprietário (aprovadas em 23/10/2026)
 
 1. A central mora em War Room › Conselho; só o proprietário usa a visão da empresa inteira por enquanto (permissão `warroom.sara`).
