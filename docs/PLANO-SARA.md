@@ -111,6 +111,15 @@ O proprietário aprovou o plano do que absorver da LIA, o copiloto do WMS da TOT
   - abrir chamado de TI (qualquer SARA);
   - anotar na Biblioteca da Fundição.
   Aprovar título, conciliar e cancelar só entram com o "sim" da área.
+- **Mais ações por módulo (22/10, OK do proprietário para as de baixo risco):**
+  - Compras: encaminhar itens a um fornecedor para cotar;
+  - Fiscal: abrir pendência para o escritório contábil;
+  - RH: incluir terceiro no quadro;
+  - TI: cadastrar equipamento, registrar incidente e atender chamado (comentar, assumir, aguardar, resolver, reclassificar);
+  - Produção e Comercial: entrada de produção.
+  Mesmo padrão: cartão Permitir e a mesma função do banco da tela (`lib/sara/acoes-areas.ts`). QA 25/25 com usuários temporários e SARA real 3/3.
+  Ficaram de fora o convite por link ao fornecedor (o link não pode ficar guardado: só o hash), a anotação no orçamento (não existe função que grave) e a Logística (pausada).
+  As de risco maior esperam o "sim" de quem responde pela área.
 - **Degrau 3 (proativa com proposta, 22/10):** o aviso já traz a ação pronta. Pedido rejeitado pelo Compras (Fundição e Almoxarifado) vem com "Refazer o pedido", com os mesmos itens. No toque, a plataforma prepara o cartão (sem chamar o modelo) e a pessoa permite ou não. Só aparece para quem tem a ação, e o pedido que já foi refeito não oferece a ação de novo.
 - **E4, custo:** custo em R$ por resposta (tokens, com o desconto do cache), visível só ao proprietário e à Auditoria em "O que a SARA aprendeu". Quando o uso passa de 80% do teto do mês, o proprietário é avisado. Quem usa a SARA não vê contador.
 - **E2, chão de fábrica (22/10):**

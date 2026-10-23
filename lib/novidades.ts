@@ -44,6 +44,22 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-22-sara-mais-acoes",
+    data: "2026-10-22",
+    area: "SARA",
+    modulos: ["compras", "fiscal", "rh", "ti", "producao", "comercial"],
+    funcionalidades: ["compras.sara", "fiscal.sara", "rh.sara", "ti.sara", "producao.sara", "comercial.sara"],
+    titulo: "SARA: mais coisas que ela prepara para você permitir",
+    itens: [
+      "Compras: encaminhar itens de um pedido a um fornecedor, para cotar.",
+      "Fiscal: abrir uma pendência para o escritório contábil.",
+      "RH: incluir um prestador no quadro de terceiros.",
+      "TI: cadastrar um equipamento, registrar uma queda e atender um chamado (responder, assumir, pôr em espera, resolver).",
+      "Produção e Comercial: dar entrada de produção de um orçamento ganho.",
+      "Como sempre, nada acontece sem você tocar em Permitir, e só vale o que você já pode fazer na tela.",
+    ],
+  },
+  {
     id: "2026-10-22-sara-guias",
     data: "2026-10-22",
     area: "SARA",

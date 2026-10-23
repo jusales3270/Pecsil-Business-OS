@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { EVENT_CATALOG } from "../../../../../modules/event-catalog";
 import { ACOES } from "../../../../../lib/sara/acoes";
+import { ROTULO_DAS_ACOES } from "../../../../../lib/sara/acoes-areas";
 import { FERRAMENTAS } from "../../../../../lib/sara/ferramentas";
 import { descreverGatilho, limparLimites, type Gatilho, type Limites } from "../../../../../lib/sara/guias";
 import type { Passo } from "../../../../../lib/sara/habilidades";
@@ -11,7 +12,7 @@ export const runtime = "nodejs";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 /** Nome das ações para o quadro de limites ("pedir material"). */
-const ACAO_ROTULO: Record<string, string> = { pedir_material: "Pedir material ao Compras", pedir_material_fundicao: "Pedir material ao Compras", abrir_chamado_ti: "Abrir chamado de TI", anotar_na_biblioteca: "Anotar na Biblioteca" };
+const ACAO_ROTULO: Record<string, string> = { pedir_material: "Pedir material ao Compras", pedir_material_fundicao: "Pedir material ao Compras", abrir_chamado_ti: "Abrir chamado de TI", anotar_na_biblioteca: "Anotar na Biblioteca", ...ROTULO_DAS_ACOES };
 const rotuloEvento = (t: string) => EVENT_CATALOG.find((e) => e.type === t)?.label;
 
 type LinhaGuia = { id: string; nome: string; descricao: string; passos: Passo[]; formato: string | null; gatilho: Gatilho; situacao: string; pausada: boolean; limites: Limites;
