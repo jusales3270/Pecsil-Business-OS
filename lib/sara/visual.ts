@@ -14,6 +14,8 @@ export type Formato = "moeda" | "numero" | "dias" | "data" | "texto";
 export type Pedido = {
   componente: Componente; titulo: string; consulta: string; caminho?: string;
   campos?: { campo: string; rotulo?: string; formato?: Formato }[]; rotulo?: string; valor?: string; data?: string; formato?: Formato;
+  /** Barras e rosca: quantos itens mostrar (o "top 5"). */
+  maximo?: number;
 };
 export type ResultadoConsulta = { nome: string; rotulo: string; dados: unknown; fontes: Fonte[] };
 export type Celula = string | number | null;
@@ -42,6 +44,7 @@ export const MOSTRAR: Ferramenta = {
       valor: { type: "string", description: "Para barras, linha, rosca e lista_de_datas: o campo numérico." },
       data: { type: "string", description: "Para lista_de_datas: o campo com a data." },
       formato: { type: "string", enum: FORMATOS, description: "Formato do valor (moeda, numero, dias, data)." },
+      maximo: { type: "integer", description: "Barras e rosca: quantos itens mostrar (ex.: 5 para um top 5). Linhas com o mesmo nome são somadas." },
     },
     required: ["componente", "titulo", "consulta"],
   },
@@ -106,7 +109,7 @@ export function resolverVisual(entrada: unknown, resultados: ResultadoConsulta[]
   // Mapa de contagens ({ "em produção": 12, "aguardando": 3 }): cada chave vira um item, sem pedir campos.
   if (comp !== "tabela" && comp !== "lista_de_datas" && base && typeof base === "object" && !Array.isArray(base)) {
     const pares = Object.entries(base as Record<string, unknown>).map(([k, v]) => ({ rotulo: humano(k).slice(0, 40), valor: numero(v) }));
-    if (pares.length && pares.every((x) => x.valor !== null)) return montar(comp as "barras" | "linha" | "rosca", comum, fmt(p.formato), pares as { rotulo: string; valor: number }[]);
+    if (pares.length && pares.every((x) => x.valor !== null)) return montar(comp as "barras" | "linha" | "rosca", comum, fmt(p.formato), pares as { rotulo: string; valor: number }[], p.maximo);
   }
   if (!Array.isArray(base)) return { erro: `O caminho "${p.caminho ?? ""}" não leva a uma lista. Listas no resultado: ${chavesDe(r.dados).filter((k) => Array.isArray((r.dados as Record<string, unknown>)[k])).join(", ") || "nenhuma"}.` };
   const lista = base.filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === "object" && !Array.isArray(x));
@@ -132,15 +135,26 @@ export function resolverVisual(entrada: unknown, resultados: ResultadoConsulta[]
   if (!campoRotulo || !campoValor) return { erro: `Para ${comp}, diga os campos "rotulo" e "valor". Campos disponíveis: ${existentes.join(", ")}.` };
   const pontos = lista.map((x) => ({ rotulo: String(x[campoRotulo] ?? "—").slice(0, 40), valor: numero(x[campoValor]) })).filter((x): x is { rotulo: string; valor: number } => x.valor !== null);
   if (!pontos.length) return { erro: `O campo "${campoValor}" não é numérico.` };
-  return montar(comp as "barras" | "linha" | "rosca", comum, fmt(p.formato, campoValor), pontos);
+  return montar(comp as "barras" | "linha" | "rosca", comum, fmt(p.formato, campoValor), pontos, p.maximo);
 }
 
-function montar(comp: "barras" | "linha" | "rosca", comum: { titulo: string; origem: string; fonte: Fonte | null }, formato: Formato, pontos: { rotulo: string; valor: number }[]): { visual: Visual } {
-  let lim = pontos.slice(0, LIMITE[comp]);
+function montar(comp: "barras" | "linha" | "rosca", comum: { titulo: string; origem: string; fonte: Fonte | null }, formato: Formato, entrada: { rotulo: string; valor: number }[], maximo?: number): { visual: Visual } {
+  // Barras e rosca são por categoria: linhas com o mesmo nome (várias parcelas do mesmo fornecedor) viram
+  // uma barra só, com a soma, e o ranking sai do maior para o menor. Linha (série no tempo) fica como veio.
+  let pontos = entrada;
+  if (comp !== "linha") {
+    const soma = new Map<string, number>();
+    for (const x of entrada) soma.set(x.rotulo, (soma.get(x.rotulo) ?? 0) + x.valor);
+    if (soma.size < entrada.length) pontos = [...soma].map(([rotulo, valor]) => ({ rotulo, valor: Math.round(valor * 100) / 100 }));
+    // Barras é ranking: sempre do maior para o menor.
+    if (comp === "barras" || soma.size < entrada.length) pontos = [...pontos].sort((a, b) => b.valor - a.valor);
+  }
+  const teto = Number.isInteger(maximo) && (maximo as number) > 0 ? Math.min(maximo as number, LIMITE[comp]) : LIMITE[comp];
+  let lim = pontos.slice(0, teto);
   // Rosca: as maiores fatias e o resto em "Outros", para a soma continuar certa.
-  if (comp === "rosca" && pontos.length > LIMITE.rosca) {
+  if (comp === "rosca" && pontos.length > teto) {
     const ord = [...pontos].sort((a, b) => b.valor - a.valor);
-    lim = [...ord.slice(0, LIMITE.rosca - 1), { rotulo: `Outros (${ord.length - LIMITE.rosca + 1})`, valor: ord.slice(LIMITE.rosca - 1).reduce((s, x) => s + x.valor, 0) }];
+    lim = [...ord.slice(0, teto - 1), { rotulo: `Outros (${ord.length - teto + 1})`, valor: ord.slice(teto - 1).reduce((s, x) => s + x.valor, 0) }];
   }
   return { visual: { componente: comp, ...comum, formato, pontos: lim, total: comp === "rosca" ? lim.length : pontos.length } };
 }

@@ -120,9 +120,12 @@ export function desenhar(ctx: CanvasRenderingContext2D, W: number, H: number, sy
     return [x1, y * cX - z1 * sX, y * sX + z1 * cX];
   };
 
-  ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = "rgba(3,2,0,0.26)";
+  // Rastro: apaga 26% do quadro anterior (fica o rastro das partículas) sem pintar fundo: o canvas segue
+  // transparente, e a esfera flutua sobre a tela (no canto, minimizada, não vira um quadrado escuro).
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.fillStyle = "rgba(0,0,0,0.26)";
   ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = "source-over";
 
   const cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.4 * (0.93 + A * 0.16);
   const FOV = R * 3.0, CAM = R * 3.4;

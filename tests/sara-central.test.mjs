@@ -125,3 +125,27 @@ test("CEO apresentando: navega pelas telas das áreas, minimiza para mostrar e a
   assert.match(ler("app/api/sara/[modulo]/route.ts"), /visuais: \[\.\.\.r\.visuais, \.\.\.p\.visuaisSubagentes\]\.slice\(0, 4\)/);
   assert.match(SARA_CENTRAL.manual, /apresentando à diretoria/);
 });
+
+test("gráfico de barras por categoria: parcelas do mesmo fornecedor viram uma barra só, e o top N mostra N", async () => {
+  const { resolverVisual } = await import("../lib/sara/visual.ts");
+  const resultados = [{ nome: "contas_a_pagar", rotulo: "contas a pagar", fontes: [], dados: { maiores_primeiro: [
+    { fornecedor: "OTZI METALS", em_aberto: 63000 }, { fornecedor: "OTZI METALS", em_aberto: 42000 }, { fornecedor: "CMBA", em_aberto: 9541 },
+    { fornecedor: "HAIMER", em_aberto: 8990.97 }, { fornecedor: "CMBA", em_aberto: 8304 }, { fornecedor: "RSA", em_aberto: 8251 }, { fornecedor: "RICARDO", em_aberto: 5000 },
+  ] } }];
+  const r = resolverVisual({ componente: "barras", titulo: "Top 3", consulta: "contas_a_pagar", caminho: "maiores_primeiro", rotulo: "fornecedor", valor: "em_aberto", maximo: 3 }, resultados);
+  assert.deepEqual(r.visual.pontos, [{ rotulo: "OTZI METALS", valor: 105000 }, { rotulo: "CMBA", valor: 17845 }, { rotulo: "HAIMER", valor: 8990.97 }]);
+  const semMax = resolverVisual({ componente: "barras", titulo: "Todos", consulta: "contas_a_pagar", caminho: "maiores_primeiro", rotulo: "fornecedor", valor: "em_aberto" }, resultados);
+  assert.equal(semMax.visual.pontos.length, 5, "5 fornecedores, não 7 parcelas");
+  const linha = resolverVisual({ componente: "linha", titulo: "Série", consulta: "contas_a_pagar", caminho: "maiores_primeiro", rotulo: "fornecedor", valor: "em_aberto" }, resultados);
+  assert.equal(linha.visual.pontos.length, 7, "série no tempo fica como veio");
+  // Já somado (mapa), fora de ordem: barras sai do maior para o menor.
+  const mapa = resolverVisual({ componente: "barras", titulo: "Mapa", consulta: "somas", caminho: "por_fornecedor" }, [{ nome: "somas", rotulo: "somas", fontes: [], dados: { por_fornecedor: { HAIMER: 8990.97, RSA: 16261.5, OTZI: 154219.44 } } }]);
+  assert.deepEqual(mapa.visual.pontos.map((x) => x.valor), [154219.44, 16261.5, 8990.97]);
+});
+
+test("holograma: a fala antiga não derruba o estado da pergunta nova", () => {
+  const c = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
+  assert.match(c, /const esta = \+\+falaAtual\.current;/);
+  assert.match(c, /if \(esta !== falaAtual\.current\) \{ clearInterval\(relogio\); return; \}/);
+  assert.match(c, /const pararFala = useCallback\(\(\) => \{\s*falaAtual\.current\+\+;/);
+});

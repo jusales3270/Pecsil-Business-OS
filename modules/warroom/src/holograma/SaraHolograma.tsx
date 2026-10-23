@@ -67,11 +67,18 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const cumprimentou = useRef(false);
   const ocupado = useRef(false);
   const relogioPalavras = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Cada fala tem um número: o relógio (ou a voz) de uma fala antiga não mexe no estado da nova.
+  const falaAtual = useRef(0);
   const gravador = useRef<{ rec: MediaRecorder; partes: Blob[]; fluxo: MediaStream; enviar: boolean; limite: ReturnType<typeof setTimeout> } | null>(null);
   const arraste = useRef({ ligado: false, x: 0, y: 0, moveu: false });
   const palavras = legenda.split(" ").filter(Boolean);
 
   const setEstado = useCallback((e: EstadoHolo) => { pulso.current.estado = e; setEstadoTela(e); }, []);
+  // Enquanto ela está ativa, o botão da SARA do módulo sai do canto (o canto é dela).
+  useEffect(() => {
+    document.documentElement.classList.toggle("sh-ativa", modo !== "fechado");
+    return () => document.documentElement.classList.remove("sh-ativa");
+  }, [modo]);
   useEffect(() => { const t = setTimeout(() => setVozLigada(lerVozLigada()), 0); return () => clearTimeout(t); }, []);
 
   /* ---- motor (canvas) ---- */
@@ -101,6 +108,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
 
   /* ---- fala (legenda palavra por palavra; voz só do aparelho) ---- */
   const pararFala = useCallback(() => {
+    falaAtual.current++;
     if (relogioPalavras.current) clearInterval(relogioPalavras.current);
     window.speechSynthesis?.cancel();
     if (pulso.current.estado === "speaking") setEstado("idle");
@@ -108,6 +116,8 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
 
   const falar = useCallback((texto: string) => {
     if (relogioPalavras.current) clearInterval(relogioPalavras.current);
+    const esta = ++falaAtual.current;
+    const terminou = () => { if (esta === falaAtual.current && pulso.current.estado === "speaking") setEstado("idle"); };
     setLegenda(texto); setAceso(0);
     const total = texto.split(" ").filter(Boolean).length;
     const voz = vozLigada ? vozLocal() : null;
@@ -115,20 +125,22 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     if (!voz) {
       setEstado("speaking");
       let i = 0;
-      relogioPalavras.current = setInterval(() => {
+      const relogio = setInterval(() => {
+        if (esta !== falaAtual.current) { clearInterval(relogio); return; }
         setAceso(++i); pulso.current.fala = 0.9;
-        if (i >= total) { if (relogioPalavras.current) clearInterval(relogioPalavras.current); setEstado("idle"); }
+        if (i >= total) { clearInterval(relogio); terminou(); }
       }, 150);
+      relogioPalavras.current = relogio;
       return;
     }
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(texto);
     u.voice = voz; u.lang = voz.lang || "pt-BR"; u.rate = 1.04; u.pitch = 1.05;
     let i = 0;
-    u.onstart = () => setEstado("speaking");
-    u.onboundary = () => { setAceso(++i); pulso.current.fala = 1; };
-    u.onend = () => { setAceso(1e9); setEstado("idle"); };
-    u.onerror = () => { setAceso(1e9); setEstado("idle"); };
+    u.onstart = () => { if (esta === falaAtual.current) setEstado("speaking"); };
+    u.onboundary = () => { if (esta !== falaAtual.current) return; setAceso(++i); pulso.current.fala = 1; };
+    u.onend = () => { if (esta === falaAtual.current) setAceso(1e9); terminou(); };
+    u.onerror = () => { if (esta === falaAtual.current) setAceso(1e9); terminou(); };
     window.speechSynthesis.speak(u);
   }, [vozLigada, setEstado]);
 

@@ -7468,7 +7468,11 @@ button.holiday-row:hover {
 .sh-ver { margin-top: 14px; padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255,158,44,.4); background: rgba(255,158,44,.08); color: var(--sh-hot); font: inherit; font-size: 12px; letter-spacing: .06em; cursor: pointer; pointer-events: auto; }
 .sh-ver:hover { background: rgba(255,158,44,.16); }
 .sh-holo.mini .sh-caption { left: auto; right: 190px; bottom: 52px; transform: none; width: min(430px, 50vw); text-align: right; }
-.sh-holo.mini .sh-caption .line { font-size: 14px; color: rgba(248,237,218,.92); }
+.sh-holo.mini .sh-caption .line { font-size: 14px; color: rgba(248,237,218,.95); padding: 10px 14px; border-radius: 14px; background: rgba(10,6,2,.86); box-shadow: 0 8px 30px rgba(0,0,0,.35); text-shadow: none; }
+.sh-holo.mini .sh-caption .line:empty { display: none; }
+.sh-holo.mini .sh-console { padding: 4px 6px 4px 10px; border-radius: 999px; background: rgba(10,6,2,.86); box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+.sh-holo.mini .sh-console .cline { border-bottom: 0; padding: 6px 2px; }
+.sh-ativa .sara-botao { display: none !important; }
 .sh-holo.mini .sh-caption .who, .sh-holo.mini .sh-caption .uline, .sh-holo.mini .sh-ver { display: none; }
 .sh-painel { position: absolute; top: 84px; right: max(24px, env(safe-area-inset-right, 0px)); bottom: calc(5vh + 64px); width: min(440px, 40vw); display: flex; flex-direction: column; min-height: 0;
   border-radius: 18px; border: 1px solid rgba(255,158,44,.25); background: rgba(14,8,2,.82); backdrop-filter: blur(10px); pointer-events: auto; }
@@ -7479,8 +7483,10 @@ button.holiday-row:hover {
 .sh-painel-texto p { margin: 0 0 10px; } .sh-painel-texto ul { margin: 0 0 10px; padding-left: 18px; } .sh-painel-texto b { color: #FFE3B8; }
 .sh-painel-texto .sara-tabela { overflow-x: auto; margin: 0 0 10px; }
 .sh-painel-texto table { border-collapse: collapse; font-size: 12.5px; }
-.sh-painel-texto th, .sh-painel-texto td { padding: 5px 8px; border-bottom: 1px solid rgba(255,158,44,.14); text-align: left; white-space: nowrap; }
-.sh-painel-texto th { color: var(--sh-hot); font-weight: 600; }
+.sh-painel-texto th, .sh-painel-texto td { padding: 5px 8px; border-bottom: 1px solid rgba(255,158,44,.14); text-align: left; vertical-align: top; }
+.sh-painel-texto th { color: var(--sh-hot); font-weight: 600; background: transparent; }
+.sh-painel-texto td { white-space: normal; min-width: 64px; color: #F3E6CF; background: transparent; }
+.sh-painel-texto tr { background: transparent; }
 .sh-painel footer { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px 14px; border-top: 1px solid rgba(255,158,44,.16); }
 .sh-painel footer small { width: 100%; font-family: var(--sh-mono); font-size: 9px; letter-spacing: .2em; color: rgba(255,158,44,.6); text-transform: uppercase; }
 .sh-painel footer span { padding: 2px 9px; border-radius: 999px; border: 1px solid rgba(255,158,44,.25); font-size: 11.5px; color: #F3E6CF; }
@@ -7519,7 +7525,8 @@ button.holiday-row:hover {
   .sh-holo.mini .sh-stage { left: calc(100% - 74px); top: calc(100% - 86px); transform: translate(-50%, -50%) scale(.15); }
   .sh-holo.mini .sh-caption { right: 120px; bottom: 44px; }
   .sh-holo.mini .sh-console { width: min(260px, 58vw); }
-  .sh-status { top: max(26px, env(safe-area-inset-top, 0px)); }
+  .sh-status { top: max(26px, env(safe-area-inset-top, 0px)); max-width: calc(100vw - 180px); flex-wrap: wrap; row-gap: 4px; }
+  .sh-status em { display: none; }
 }
 /* War Room › Conselho (SARA central, E7). */
 .conselho { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 920px; min-width: 0; }
