@@ -393,6 +393,20 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
     g.enviar = enviar; clearTimeout(g.limite);
     if (g.rec.state !== "inactive") g.rec.stop();
   };
+  // Pergunta vinda de fora da janela (War Room › Conselho): abre a SARA e já pergunta.
+  const perguntarRef = useRef(perguntar);
+  useEffect(() => { perguntarRef.current = perguntar; });
+  useEffect(() => {
+    const ouvir = (ev: Event) => {
+      const pergunta = String((ev as CustomEvent<{ pergunta?: string }>).detail?.pergunta ?? "").trim();
+      if (!pergunta) return;
+      setAberto(true); setVerGuias(false);
+      void perguntarRef.current(pergunta);
+    };
+    window.addEventListener("pecsil:sara-perguntar", ouvir);
+    return () => window.removeEventListener("pecsil:sara-perguntar", ouvir);
+  }, []);
+
   const falar = async () => {
     if (gravando) { pararGravacao(true); return; }
     setErroVoz("");

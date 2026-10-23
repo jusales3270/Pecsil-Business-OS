@@ -26,6 +26,11 @@ export type Ferramenta = {
    * dela (a função do banco confere a permissão de novo). `exige` passa a valer no nível indicado.
    */
   acao?: Acao;
+  /**
+   * Pode rodar junto com as outras chamadas da mesma rodada (E7: a SARA central pergunta a várias SARAs
+   * de módulo ao mesmo tempo). As demais seguem uma de cada vez, na ordem.
+   */
+  paralela?: boolean;
 };
 
 export type Proposta = { resumo: string; detalhes: string[]; risco?: "normal" | "alto" };
@@ -60,6 +65,8 @@ export type SaraModulo = {
   maxTokens?: number;
   /** Quem conversa é técnico (a TI): linguagem técnica, passos e comandos completos, no lugar de "curto e sem jargão". */
   tecnico?: boolean;
+  /** A SARA central (E7): não consulta direto; pergunta às SARAs dos módulos e o verificador confere os números. */
+  central?: boolean;
 };
 
 export type Nivel = "urgente" | "aviso";

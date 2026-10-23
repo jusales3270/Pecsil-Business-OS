@@ -1,0 +1,32 @@
+"use client";
+
+import { SARA_CENTRAL } from "../../../lib/sara/central/sara";
+
+/**
+ * War Room › Conselho (E7, J1): a SARA central, o cérebro da empresa inteira. A conversa é a janela da
+ * SARA (o botão no canto); aqui ficam o que ela faz e perguntas para começar. Próximas etapas: o quadro dos
+ * achados da vigia (J3) e o relatório de crescimento (J4).
+ */
+const perguntar = (pergunta: string) => window.dispatchEvent(new CustomEvent("pecsil:sara-perguntar", { detail: { pergunta } }));
+
+export function Conselho() {
+  return (
+    <section className="conselho">
+      <header>
+        <p className="eyebrow">War Room · Conselho</p>
+        <h2>SARA central</h2>
+        <p>O cérebro da empresa inteira. Ela pergunta às SARAs de cada área ao mesmo tempo, com as suas permissões, confere cada número e junta tudo numa resposta, com a fonte de cada número e quem decide.</p>
+      </header>
+      <div className="conselho-como">
+        <div><b>Pergunta que cruza áreas</b><span>Fundição, Produção, Compras e Financeiro respondem juntas; ela liga uma coisa à outra.</span></div>
+        <div><b>Número conferido</b><span>Todo número tem de estar no que as áreas devolveram. O que não bate aparece marcado.</span></div>
+        <div><b>Quem decide</b><span>Ela recomenda e diz de quem é a decisão. Decidir continua sendo da área.</span></div>
+      </div>
+      <h3>Para começar</h3>
+      <div className="conselho-perguntas">
+        {SARA_CENTRAL.sugestoes.map((s) => <button key={s} type="button" onClick={() => perguntar(s)}>{s}</button>)}
+      </div>
+      <p className="conselho-nota">Em breve: o "Bom dia" de cada pessoa, a vigia diária dos gargalos (com o responsável acionado) e o relatório semanal de crescimento.</p>
+    </section>
+  );
+}

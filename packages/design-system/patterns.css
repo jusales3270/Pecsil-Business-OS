@@ -7422,6 +7422,19 @@ button.holiday-row:hover {
 .sara-acao-feito { font-size: var(--fs-xs); font-weight: 700; color: var(--accent-green); }
 .sara-acao-erro { font-size: var(--fs-xs); color: var(--accent-red); }
 .sara-acao-botoes .neutro { border: 1px solid color-mix(in srgb, var(--text-primary) 18%, transparent); background: transparent; color: var(--text-primary); }
+/* War Room › Conselho (SARA central, E7). */
+.conselho { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 920px; min-width: 0; }
+.conselho > header h2 { margin: 2px 0 6px; font-size: var(--fs-xl); color: var(--text-primary); text-wrap: balance; }
+.conselho > header p:not(.eyebrow) { margin: 0; max-width: 68ch; font-size: var(--fs-sm); line-height: 1.55; color: var(--text-secondary); }
+.conselho-como { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-3); }
+.conselho-como > div { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-surface); }
+.conselho-como b { font-size: var(--fs-sm); color: var(--text-primary); }
+.conselho-como span { font-size: var(--fs-xs); line-height: 1.5; color: var(--text-secondary); }
+.conselho h3 { margin: 4px 0 0; font-size: var(--fs-md); color: var(--text-primary); }
+.conselho-perguntas { display: flex; flex-wrap: wrap; gap: 8px; }
+.conselho-perguntas button { padding: 9px 14px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent-blue) 40%, transparent); background: color-mix(in srgb, var(--accent-blue) 6%, var(--bg-surface)); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); cursor: pointer; text-align: left; }
+.conselho-perguntas button:hover { background: color-mix(in srgb, var(--accent-blue) 12%, var(--bg-surface)); }
+.conselho-nota { margin: 0; font-size: var(--fs-xs); color: var(--text-muted); }
 /* Decisões para você (menu da conta). */
 .account-contador { margin-left: auto; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--accent-red); color: #fff; font-style: normal; font-size: var(--fs-micro); font-weight: 700; text-align: center; }
 .decisoes-grupo { margin: 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }

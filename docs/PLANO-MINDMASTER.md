@@ -1,83 +1,109 @@
-# Plano da SARA principal — a mindmaster da PecSil (E7)
+# Plano da SARA central — o "Jarvis" da PecSil (E7)
 
 > Etapa E7 do plano "o que absorver da LIA/TOTVS" (ROADMAP I-19). Desenho das duas camadas: [PLANO-SARA §0](PLANO-SARA.md).
-> Onde ela mora: [PLANO-WAR-ROOM-CEREBRO §4](PLANO-WAR-ROOM-CEREBRO.md) (War Room › Conselho).
+> Onde ela mora: War Room › Conselho ([PLANO-WAR-ROOM-CEREBRO §4](PLANO-WAR-ROOM-CEREBRO.md)).
 >
-> Criado em 23/10/2026 · Dono: proprietário da PecSil · Execução: Claude · **Situação: aguarda aprovação**
+> Criado em 23/10/2026 e revisto no mesmo dia pelo conceito do proprietário · Execução: Claude
+> **Situação:** plano aprovado (decisões 1 a 6 abaixo). J1 construída, aguarda a migração 202610230002.
 
 ---
 
-## 0. O que é
+## 0. O conceito (proprietário, 23/10/2026)
 
-Hoje cada módulo tem a sua SARA, que responde sobre o módulo e traz dados de outros quando a credencial
-de quem pergunta permite. Falta a **SARA principal**: a que recebe a pergunta da empresa inteira,
-divide o trabalho entre as SARAs dos módulos, junta as respostas e entrega uma só, com as fontes.
+> "A SARA não tem de só executar quando provocada, ela tem de ser de fato o cérebro da empresa como um
+> todo. Se ela enxergar ações que estão fazendo com que a empresa esteja com gargalos estruturais,
+> financeiros ou de pessoal, ela não só deve identificar como acionar o responsável e trazer essas
+> informações e sugerir ações práticas de contenção, e até ideias práticas inovadoras que os gestores
+> ainda não tenham visto, visando o crescimento da empresa, buscando novos recursos, estudando a
+> concorrência e propondo investimentos pontuais com justificativas."
 
-Exemplo: *"O atraso da Fundição vai apertar o caixa do mês?"*
-1. A principal entende que precisa da Fundição (pedidos atrasados), da Produção (OS paradas), do Compras
-   (o que está por comprar) e do Financeiro (fluxo de caixa de 90 dias).
-2. Pergunta às quatro **ao mesmo tempo**, cada uma com as consultas dela e com a sessão de quem perguntou.
-3. Confere os números, junta e responde, mostrando de qual SARA e de qual tela veio cada número.
+Veio do vídeo do agente pessoal que se antecipa ("Claude Duet"): o agente conhece o contexto e oferece
+ajuda antes de ser pedido. A SARA central faz isso para a empresa inteira.
 
-É o "orquestrador" que a LIA mostrou, com as quatro IAs dela:
+## 1. As três funções e o "Bom dia"
 
-| Na LIA | Aqui |
-|---|---|
-| IA que busca dados no sistema | as SARAs dos módulos, chamadas como subagentes |
-| IA que lê imagens | a foto vai para a SARA do módulo certo, que já lê imagem (E2) |
-| IA que traz as regras do negócio | os documentos do Segundo Cérebro, os processos e o "quem decide o quê" |
-| IA que confere os dados | o verificador: todo número da resposta final tem de estar no que as SARAs devolveram |
-| IA central que coordena | a principal (Sonnet 5.5) |
+1. **Responde** (sob demanda, J1): a central divide a pergunta entre as SARAs dos módulos, que trabalham
+   ao mesmo tempo e com a sessão de quem pergunta. O **verificador** confere cada número com o que elas
+   devolveram e a resposta sai com as fontes e com quem decide.
+2. **Vigia** (todo dia, J3):
+   - varre os sensores de todos os módulos (os avisos calculados dos dados) e os Parados;
+   - liga uma área à outra pelo grafo (Fundição atrasada → faturamento → caixa);
+   - ordena por impacto (R$, prazo, pessoas afetadas).
+   Cada **achado** vai ao responsável da área como "Decisão para você", com:
+   - a evidência;
+   - 1 a 3 ações de contenção, preparadas para o Permitir quando a ação existe;
+   - as opções "Vou tratar", "Não é problema" e "Preciso de ajuda".
+   Sem resposta, ela cobra. Resolvido, ela registra o efeito.
+3. **Pensa** (toda semana, J4): relatório de crescimento para o proprietário e o conselho, com:
+   - ideias práticas que saem dos dados;
+   - novos recursos (fomento, crédito, editais, incentivos);
+   - a concorrência (o que é público na internet);
+   - investimentos pontuais, cada um com premissas, custo, retorno, prazo de retorno e risco.
+   Tudo marcado como opinião da IA, com a confiança.
+4. **Bom dia** (J2): às 7h, um resumo do dia para cada pessoa, com só o que ela pode ver: avisos, guias,
+   decisões pendentes e achados da área.
 
-## 1. Regras que não mudam
+## 2. Regras que não mudam
 
-- **A credencial é o único limite.** A principal não vê nada a mais. Cada SARA chamada roda com a sessão
-  de quem perguntou; sem o módulo, ela não é chamada e a resposta diz "sem permissão para…".
-- **Número só com fonte.** O verificador corta ou marca o número que não veio de uma consulta.
-- **Opinião é opinião.** No modo conselho, cada parecer aparece como opinião da IA, com a confiança à
-  vista, nunca como dado apurado (regra do Jev/Clef).
-- **Ação continua com Permitir.** Se a resposta pede uma ação, a principal pede à SARA do módulo que a
-  prepare, e o cartão Permitir é o mesmo da E1.
-- **Decisão do negócio é da área.** A principal recomenda e diz quem decide (o "quem decide o quê" do
-  ROADMAP §0). Não decide pela Ana, pelo Henrique ou pelo Rafael.
+- **Credencial:**
+  - o "Bom dia" e o achado entregue à área são montados com a sessão de quem recebe;
+  - a visão da empresa inteira fica na War Room (só o proprietário por enquanto: W1).
+- **Número só com fonte** (o verificador). **Opinião é opinião,** com a confiança à vista.
+- **Nada grava sem Permitir. Decisão é da área:** a central recomenda, aciona e cobra; não decide.
+- **Nenhum dado da empresa na internet:** a pesquisa leva só o assunto.
+- **Sem ruído:**
+  - cada achado tem chave de situação e não se repete enquanto nada mudar;
+  - há limite de achados por pessoa por dia;
+  - "Não é problema" baixa a prioridade daquele tipo de achado para a área.
 
-## 2. Os dois modos
+## 3. Ferramentas
 
-| Modo | Quando | O que faz |
-|---|---|---|
-| **Pergunta** | "quanto…", "quais…", "o que está…", "vai apertar…" | Divide, pergunta às SARAs em paralelo, confere e junta. Resposta com fontes. |
-| **Conselho** | "devemos…", "vale a pena…", "o que você recomenda…" | Cada especialista dá um parecer curto, com a confiança: o **CFO** (Financeiro), **Operações** (Produção, Fundição, Almoxarifado), **Compras**, **Comercial**, **Pessoas** (RH) e **TI**. A principal mostra onde eles concordam, onde divergem, a recomendação e quem decide. |
+✅ já existe · 🆕 construir · 🔒 depende de recurso ou decisão.
 
-No modo conselho, os especialistas pensam mais (*extended thinking*). Por isso esse modo custa mais e
-só é usado quando a pergunta pede opinião.
+- **Ver a empresa:**
+  - 🆕 `perguntar_a_sara`, `sensores_da_empresa`, `parados`, `indicadores`, `linha_do_tempo`, `dependencias` / `caminho`;
+  - ✅ `consultar_dados`, fluxo de 90 dias, documentos, dados da empresa, período, foto e anexo.
+- **Raciocinar e conferir:**
+  - 🆕 verificador de números (etapa da plataforma), `simular_cenario`, `avaliar_investimento` (prazo de retorno, VPL, TIR, cenário pessimista), `pareceres_do_conselho` (CFO, Operações, Compras, Comercial, Pessoas, TI);
+  - ✅ `calcular`.
+- **Agir e acionar:**
+  - 🆕 `registrar_achado`, `acionar_responsavel` (sobre as Decisões), `pedir_decisao`, `agendar_retorno`, `avisar` (com limite), `mostrar_grafo`;
+  - ✅ as ações com Permitir, guias, telas, visual.
+- **Olhar para fora:** 🆕 `pesquisar_na_internet` (aberta, só o assunto, com filtro que barra nome, CNPJ e valores da empresa) e `ler_pagina`.
+- **Memória:** 🆕 `achados_anteriores`, `decisoes_respondidas`, `relatorios_anteriores`.
+- **🔒 Recursos que faltam:**
+  - WhatsApp (número dedicado, B-04);
+  - e-mail e agenda do Microsoft 365 (C-14);
+  - o conector universal (GRV), que é a prioridade máxima.
+- **Ela NÃO terá:**
+  - gravar direto no banco;
+  - falar com fornecedor, cliente ou banco sem Permitir;
+  - mandar dado da empresa para a internet;
+  - decidir no lugar da área.
 
-## 3. Etapas
+## 4. Etapas
 
-| # | Etapa | Entrega |
-|---|---|---|
-| **M1** | Orquestrador e subagentes | A principal em **War Room › Conselho**. Ferramenta `perguntar_a_sara(modulo, pergunta)` para cada módulo que a pessoa tem; as chamadas rodam em paralelo, com a sessão dela; a resposta junta tudo com as fontes de cada SARA. Conversa registrada como as outras, com o custo. |
-| **M2** | Verificador | Todo número da resposta final é conferido com o que as SARAs devolveram. O que não bate é marcado ("sem fonte") ou sai. Também confere período e unidade. |
-| **M3** | Conselho | Modo opinião: pareceres dos especialistas com a confiança, as divergências, a recomendação e quem decide. |
-| **M4** | Ações e guias | A principal pede às SARAs dos módulos que preparem ações (cartões Permitir). Guias da principal, como "toda segunda, o resumo da empresa", no mesmo mecanismo da E3. |
-| **M5** | Regras e grafo | Documentos do Segundo Cérebro e processos como fonte de regra do negócio; `mostrar_grafo` (G6): "mostre do que a Fundição depende". |
+| # | Etapa | Ferramentas | Situação |
+|---|---|---|---|
+| **J1** | Responde: orquestrador + subagentes em paralelo + verificador, em War Room › Conselho | `perguntar_a_sara`, verificador, `calcular`, `periodo` | **construída** (23/10): `lib/sara/central/`, laço com chamadas paralelas; aguarda a migração 202610230002 |
+| J2 | Bom dia por pessoa, às 7h | `sensores_da_empresa`, `parados`, decisões e achados | na fila |
+| J3 | Vigia: achados, responsável acionado, cobrança e efeito; quadro na War Room | grupo "agir e acionar", `linha_do_tempo`, `dependencias` | na fila |
+| J4 | Conselho e crescimento semanal | "olhar para fora", `simular_cenario`, `avaliar_investimento`, `pareceres_do_conselho` | na fila |
+| J5 | Aprende com as respostas e o efeito | memória | na fila |
 
-Cada etapa com testes (unitários, navegador com usuários temporários e as permissões reais, SARA real
-com perguntas conferidas no banco) antes da seguinte.
+**Como a J1 funciona no código:**
+- `SARA_CENTRAL` (`lib/sara/central/sara.ts`) entra em `SARAS` como a SARA do módulo `warroom`, com `central: true`. A janela é a mesma das outras.
+- Em `prepararCom` (`lib/sara/sessao.ts`) ela recebe só `perguntar_a_sara` (com as áreas que a pessoa pode usar), `calcular` e `periodo`.
+- Cada subagente roda a SARA do módulo com a mesma sessão, sem agir, navegar nem propor (`lib/sara/central/subagente.ts`).
+- O laço (`lib/sara/laco.ts`) roda juntas as chamadas marcadas `paralela` e devolve o resultado de cada consulta.
+- A rota confere os números (`lib/sara/central/verificador.ts`) e grava na conversa o uso de cada subagente.
+- **Limite conhecido:** o custo da conversa da central conta só os tokens dela; o uso das SARAs das áreas, no Haiku, fica no registro da conversa (`subagentes`), mas não entra no painel de custo. É pequeno, porque o Haiku custa cerca de 20 vezes menos.
 
-## 4. Custo
+## 5. Decisões do proprietário (aprovadas em 23/10/2026)
 
-- A principal usa o Sonnet 5.5; as SARAs dos módulos continuam com os modelos delas (Haiku; a TI com o
-  Sonnet). Uma pergunta da empresa inteira faz de 2 a 5 chamadas. Estimativa: de 5 a 15 vezes o custo de
-  uma pergunta a uma SARA de módulo. No modo conselho, mais.
-- Teto próprio por mês (como o das SARAs dos módulos), aviso aos 80% e custo em R$ no painel do
-  proprietário (E4).
-
-## 5. Decisões do proprietário (para aprovar)
-
-| # | Decisão | Proposta |
-|---|---|---|
-| **MM1** | Onde a principal mora | **War Room › Conselho** (como no plano da War Room). |
-| **MM2** | Quem usa | **Só o proprietário por enquanto** (W1). Ricardo, Domingo e os demais do conselho entram quando o proprietário liberar, em Pessoas e Acessos. |
-| **MM3** | Modelos | Principal no **Sonnet 5.5**; especialistas do modo conselho com *extended thinking*. |
-| **MM4** | Teto do mês | Proposta inicial de **R$ 150 por mês**, com aviso aos 80%. Pela conta da E4, uma pergunta da empresa inteira sai por volta de R$ 0,50 (Sonnet na principal, Haiku nas SARAs, com o cache), ou seja, cerca de 300 perguntas no mês; o modo conselho custa de 2 a 3 vezes mais. |
-| **MM5** | Ordem | **M1 → M2 → M3 → M4 → M5**, uma etapa de cada vez, com o "pode" antes de cada migração. |
+1. A central mora em War Room › Conselho; só o proprietário usa a visão da empresa inteira por enquanto (permissão `warroom.sara`).
+2. Achados vão direto ao responsável da área pelo "quem decide o quê", e o proprietário acompanha tudo.
+3. "Bom dia" às 7h, de segunda a sábado, para quem tem a SARA liberada.
+4. Pesquisa de concorrência e de recursos na internet aberta, só com o assunto.
+5. Sonnet 5.5 na central, na vigia e no crescimento; Haiku no "Bom dia". Teto da central em cerca de R$ 300 por mês (60 milhões de tokens), com aviso aos 80%.
+6. Ordem: J1 → J2 → J3 → J4 → J5.

@@ -223,6 +223,7 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     code: "warroom",
     label: "War Room",
     features: [
+      { code: "warroom.sara", label: "SARA central (conselho)", description: "A SARA da empresa inteira: pergunta às SARAs das áreas, com as permissões da própria pessoa, e confere cada número. Sozinha não abre a War Room. Por enquanto, só o proprietário (decisão de 23/10/2026).", levels: VER },
       { code: "warroom.cerebro", label: "Segundo Cérebro (grafo)", description: "O grafo da empresa inteira: fornecedores, clientes, itens, contas e as ligações entre eles, com valores. Quem tem esta permissão vê TUDO do grafo (decisão do proprietário, 19/10/2026): libere com cuidado.", levels: VER },
     ],
   },

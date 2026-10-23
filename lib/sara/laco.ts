@@ -42,6 +42,8 @@ export type RespostaSara = {
   visuais: Visual[];
   /** Ações preparadas nesta resposta (a pessoa decide no cartão). */
   acoes: AcaoProposta[];
+  /** O que cada consulta devolveu (o verificador da SARA central confere os números da resposta com isto). */
+  resultados?: { nome: string; dados: unknown }[];
 };
 export type Sistema = string | { fixo: string; variavel: string };
 
@@ -240,15 +242,22 @@ export async function conversarCom(sb: SupabaseClient, a: {
     if (corpo.stop_reason !== "tool_use" || !pedidos.length || !consultou) textos.push(textoDaRodada);
     if (corpo.stop_reason !== "tool_use" || !pedidos.length) {
       const texto = juntar();
-      return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais, acoes };
+      return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais, acoes,
+        resultados: resultados.map((x) => ({ nome: x.nome, dados: x.dados })) };
     }
     mensagens.push({ role: "assistant", content: corpo.content });
     // Só abrir a tela ou mostrar, e nada escrito ainda: o modelo que pensa entre ferramentas (Sonnet) às
     // vezes põe a resposta no pensamento, que não aparece, e termina com "Abri a tela". O lembrete vai junto.
     const lembrar = !consultou && !textos.some((t) => t.trim());
+    // As chamadas marcadas como paralelas (as SARAs dos módulos, na SARA central) rodam juntas; as outras,
+    // uma de cada vez e na ordem (o visual depende da consulta feita antes). A resposta volta na ordem pedida.
+    const paralela = (nome: string) => Boolean(a.ferramentas.find((x) => x.nome === nome)?.paralela);
+    const feitos = new Map<string, { conteudo: string; ok: boolean }>();
+    await Promise.all(pedidos.filter((p) => paralela(p.name)).map(async (p) => { feitos.set(p.id, await executar(p.name, p.input ?? {})); }));
+    for (const p of pedidos) if (!feitos.has(p.id)) feitos.set(p.id, await executar(p.name, p.input ?? {}));
     const devolvidos = [];
     for (const p of pedidos) {
-      const { conteudo, ok } = await executar(p.name, p.input ?? {});
+      const { conteudo, ok } = feitos.get(p.id)!;
       usadas.push({ nome: p.name, entrada: p.input, ok });
       devolvidos.push({ type: "tool_result", tool_use_id: p.id, content: lembrar ? `${conteudo}\n\n${LEMBRETE_RESPOSTA}` : conteudo });
     }

@@ -11,6 +11,7 @@ import { regrasDaSara } from "../../../../lib/sara/modulos";
 import { ACOES } from "../../../../lib/sara/acoes";
 import { parametrosUsados, type Usada } from "../../../../lib/sara/parametros";
 import { validarGuia } from "../../../../lib/sara/guias";
+import { conferirNumeros, marcarSemFonte, type Conferencia } from "../../../../lib/sara/central/verificador";
 import { CATALOGO } from "../../../../lib/sara/catalogo";
 import { preparar } from "../../../../lib/sara/sessao";
 import { temaDe } from "../../../../lib/sara/temas";
@@ -167,13 +168,21 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
     r = { ...r, tokensEntrada: r.tokensEntrada + v.tokensEntrada, tokensSaida: r.tokensSaida + v.tokensSaida };
     if (r.texto.replace(/["“”]/g, "").trim() === textoRecusa) { fora = "modelo"; r = { ...r, texto: textoRecusa, fontes: [], abrir: null, visuais: [], acoes: [] }; }
   }
+  // SARA central (E7): todo número da resposta tem de estar no que as SARAs das áreas devolveram (ou numa
+  // conta). O que não bate é apontado no fim da resposta. Conferido pela plataforma, não pelo modelo.
+  let conferencia: Conferencia | null = null;
+  if (p.sara.central && !fora) {
+    conferencia = conferirNumeros(r.texto, (r.resultados ?? []).map((x) => x.dados));
+    r = { ...r, texto: marcarSemFonte(r.texto, conferencia) };
+  }
   // Cumprimento e aviso de retomada vêm da plataforma (hora certa de São Paulo, nome de quem está logado).
   const nomeCurto = primeiroNome(me?.full_name);
   r = { ...r, texto: comAbertura(r.texto, abertura({ nome: nomeCurto, situacao }), nomeCurto) };
   const { data: reg, error } = await p.sb.rpc("sara_registrar", {
     p_conversa: conversa, p_modulo: modulo, p_pergunta: `${imagem ? "📷 " : ""}${corpo?.voz ? "🎤 " : ""}${anexo ? `📎 ${anexo.nome} · ` : ""}${pergunta}`, p_resposta: r.texto,
     p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou },
-      lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
+      lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)),
+      ...(p.sara.central ? { verificador: conferencia, subagentes: p.subagentes } : {}) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
   const ids = reg as { conversa: string; mensagem: string } | null;

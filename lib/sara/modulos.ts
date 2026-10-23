@@ -4,6 +4,7 @@
  */
 
 import { AGENTES } from "./agentes/index.ts";
+import { SARA_CENTRAL } from "./central/sara.ts";
 import type { SaraModulo, Tela } from "./base.ts";
 
 export type { SaraModulo, Tela } from "./base.ts";
@@ -44,6 +45,8 @@ export const SARAS: Record<string, SaraModulo> = {
   },
   // A equipe: uma SARA por módulo (lib/sara/agentes).
   ...Object.fromEntries(AGENTES.map((a) => [a.sara.modulo, a.sara])),
+  // A SARA central (E7): na War Room, pergunta às SARAs dos módulos.
+  warroom: SARA_CENTRAL,
 };
 
 /** Instruções fixas (iguais em todo módulo). */

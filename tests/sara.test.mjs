@@ -662,7 +662,8 @@ test("SARA: frase que só anuncia o próximo passo não aparece no meio da respo
 test("SARA tema: cada módulo tem assunto e fontes oficiais; a pesquisa só nesses sites", async () => {
   const { TEMAS } = await import("../lib/sara/temas.ts");
   const { SARAS } = await import("../lib/sara/modulos.ts");
-  for (const m of Object.keys(SARAS)) {
+  // A SARA central (E7) não é de um módulo: a pesquisa dela é a do crescimento (J4), com regra própria.
+  for (const m of Object.keys(SARAS).filter((k) => !SARAS[k].central)) {
     assert.ok(TEMAS[m], `tema de ${m}`);
     assert.ok(TEMAS[m].dominios.length >= 2);
     // A TI é a exceção autorizada (19/10/2026): documentação de fabricante e de sistema, mas a lista segue fechada.
@@ -740,8 +741,10 @@ test("SARA calcular: conta exata pela plataforma (precedência, potência, vírg
 test("SARA de TI: só ela usa o modelo mais capaz (Sonnet), com linguagem técnica e mais pesquisa; os guardrails são os mesmos", async () => {
   const { SARAS, REGRAS_SARA, regrasDaSara } = await import("../lib/sara/modulos.ts");
   const { TEMAS } = await import("../lib/sara/temas.ts");
-  const comModelo = Object.values(SARAS).filter((s) => s.modelo && s.modelo !== "claude-haiku-5-5").map((s) => s.modulo);
-  assert.deepEqual(comModelo, ["ti"], "decisão do proprietário: só a TI");
+  const comModelo = Object.values(SARAS).filter((s) => !s.central && s.modelo && s.modelo !== "claude-haiku-5-5").map((s) => s.modulo);
+  assert.deepEqual(comModelo, ["ti"], "decisão do proprietário: entre as SARAs dos módulos, só a TI");
+  // A SARA central (E7) usa o Sonnet: decisão do proprietário no plano aprovado em 23/10/2026.
+  assert.equal(SARAS.warroom.modelo, "claude-sonnet-5-5");
   assert.equal(SARAS.ti.modelo, "claude-sonnet-5-5");
   assert.ok(SARAS.ti.maxTokens > 1500);
   assert.equal(TEMAS.ti.maxBuscas, 5);
