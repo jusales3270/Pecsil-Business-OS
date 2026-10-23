@@ -59,6 +59,8 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "almoxarifado.solicitacao.cancelada", module: "almoxarifado", label: "Pedido de material cancelado", description: "O pedido de material foi cancelado antes da compra." },
   { type: "fundicao.pedido.criado", module: "fundicao", label: "Material pedido pela Fundição", description: "A Fundição pediu material ao Compras pelo painel dela." },
   { type: "fundicao.pedido.cancelado", module: "fundicao", label: "Pedido da Fundição cancelado", description: "O pedido de material da Fundição foi cancelado antes da compra." },
+  { type: "fundacao.decisao.pedida", module: "fundacao", label: "Decisão pedida", description: "Uma pergunta foi feita a uma pessoa ou área em \"Decisões para você\"." },
+  { type: "fundacao.decisao.respondida", module: "fundacao", label: "Decisão respondida", description: "A pessoa respondeu (ou mudou a resposta) em \"Decisões para você\"; o proprietário é avisado." },
   { type: "sara.guia.proposta", module: "sara", label: "Guia da SARA pedida", description: "Alguém pediu uma guia (rotina automática) à SARA; vai para aprovação de quem responde pela área." },
   { type: "sara.guia.decidida", module: "sara", label: "Guia da SARA decidida", description: "Quem responde pela área aprovou, recusou ou arquivou uma guia da SARA, com os limites do que ela faz sozinha." },
   { type: "sara.guia.rodou", module: "sara", label: "Guia da SARA rodou", description: "Uma guia rodou sozinha (agenda, acontecimento ou Rodar agora), com a sessão de quem a criou." },

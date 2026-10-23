@@ -37,6 +37,7 @@ const sql = [
   "202610210001_fundicao_biblioteca.sql",
   "202610220001_sara_acoes.sql",
   "202610220002_sara_guias.sql",
+  "202610230001_decisoes.sql",
 ]
   .map((name) => readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), "utf8"))
   .join("\n");

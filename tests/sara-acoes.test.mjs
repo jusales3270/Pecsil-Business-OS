@@ -175,7 +175,8 @@ test("Atalho SARA no ícone do app: abre o módulo da pessoa com a SARA já aber
   assert.match(pagina, /canUseFeature\(access, SARAS\[id\]\.permissao, "ver"\)/, "só módulo com a SARA liberada para a pessoa");
   assert.match(pagina, /abrirAoCarregar=\{abrirSara\}/);
   assert.match(pagina, /A SARA ainda não foi liberada para você/);
-  assert.match(ler("app/components/sara-painel.tsx"), /abriuSozinha\.current = true/);
+  // Cada pedido (atalho ou aviso do sino) é um número novo: abre uma vez por pedido.
+  assert.match(ler("app/components/sara-painel.tsx"), /ultimoPedido\.current = abrirAoCarregar/);
   assert.match(ler("public/sw.js"), /pecsil-business-os-v6/, "cache novo para o celular buscar o manifesto com o atalho");
 });
 

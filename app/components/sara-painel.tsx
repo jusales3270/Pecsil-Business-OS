@@ -246,7 +246,7 @@ function useArrastar(chave: string, ativo: boolean) {
   return { prender: setEl, estilo, iniciar, arrastou };
 }
 
-export function SaraPainel({ modulo, navegar, abrirAoCarregar = false, abrirGuias = false }: { modulo: string; navegar: (modulo: string, secao?: string) => void; abrirAoCarregar?: boolean; abrirGuias?: boolean }) {
+export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = false }: { modulo: string; navegar: (modulo: string, secao?: string) => void; abrirAoCarregar?: number; abrirGuias?: boolean }) {
   const [aberto, setAberto] = useState(false);
   // Guias (E3): a janela mostra as guias no lugar da conversa (o aviso do sino abre direto nelas).
   const [verGuias, setVerGuias] = useState(false);
@@ -320,11 +320,12 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false, abrirGuia
   }, [modulo]);
   useEffect(() => { const t = setTimeout(() => { void carregar(); }, 0); return () => clearTimeout(t); }, [carregar]);
   // Veio pelo atalho "SARA" do ícone do app: a janela já abre (uma vez, quando a SARA carregou).
-  const abriuSozinha = useRef(false);
+  // Também pelo aviso do sino (cada toque é um pedido novo: o número muda).
+  const ultimoPedido = useRef(0);
   useEffect(() => {
-    if (!abrirAoCarregar || !estado || abriuSozinha.current) return;
-    abriuSozinha.current = true;
-    const t = setTimeout(() => { setAberto(true); if (abrirGuias) setVerGuias(true); }, 0);
+    if (!abrirAoCarregar || !estado || ultimoPedido.current === abrirAoCarregar) return;
+    ultimoPedido.current = abrirAoCarregar;
+    const t = setTimeout(() => { setAberto(true); setVerGuias(abrirGuias); }, 0);
     return () => clearTimeout(t);
   }, [abrirAoCarregar, abrirGuias, estado]);
 

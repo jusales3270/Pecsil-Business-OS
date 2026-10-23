@@ -7422,6 +7422,25 @@ button.holiday-row:hover {
 .sara-acao-feito { font-size: var(--fs-xs); font-weight: 700; color: var(--accent-green); }
 .sara-acao-erro { font-size: var(--fs-xs); color: var(--accent-red); }
 .sara-acao-botoes .neutro { border: 1px solid color-mix(in srgb, var(--text-primary) 18%, transparent); background: transparent; color: var(--text-primary); }
+/* Decisões para você (menu da conta). */
+.account-contador { margin-left: auto; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--accent-red); color: #fff; font-style: normal; font-size: var(--fs-micro); font-weight: 700; text-align: center; }
+.decisoes-grupo { margin: 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+.decisao { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--accent-amber) 50%, transparent); background: color-mix(in srgb, var(--accent-amber) 5%, var(--bg-surface)); }
+.decisao.respondida { border-color: var(--border); background: var(--bg-surface); }
+.decisao.foco { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue) 35%, transparent); }
+.decisao > header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
+.decisao > header b { font-size: var(--fs-sm); color: var(--text-primary); overflow-wrap: anywhere; }
+.decisao-resposta { padding: 1px 10px; border-radius: 999px; border: 1px solid var(--accent-green); color: var(--accent-green); font-size: var(--fs-micro); font-weight: 700; white-space: nowrap; }
+.decisao > p { margin: 0; font-size: var(--fs-sm); line-height: 1.5; color: var(--text-secondary); overflow-wrap: anywhere; }
+.decisao ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.decisao-nota { font-size: var(--fs-micro); color: var(--text-muted); }
+.decisao-opcoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.decisao-opcoes button { min-height: 38px; padding: 6px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+.decisao-opcoes button:hover { background: var(--bg-hover); }
+.decisao-opcoes button.escolhida { border-color: var(--accent-blue); background: var(--accent-blue); color: var(--text-on-accent); }
+.decisao-obs { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.decisao-obs textarea { min-height: 56px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); resize: vertical; }
+.decisao > footer { display: flex; justify-content: flex-end; gap: 8px; }
 /* E3: Guias (rotinas que a SARA roda sozinha). */
 .sara-guias-botao { font-size: 15px; line-height: 1; }
 .sara-guias-topo { display: flex; align-items: center; gap: 10px; }
