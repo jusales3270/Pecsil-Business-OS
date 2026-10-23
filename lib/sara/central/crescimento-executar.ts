@@ -91,6 +91,7 @@ export async function rodarCrescimento(admin: SupabaseClient, o: OpcoesCrescimen
       gargalos: ((gargalos ?? []) as { area: string; titulo: string; situacao: string; impacto: string }[]).map((g) => `${g.area} (${g.impacto}, ${g.situacao}): ${g.titulo}`) });
     if (!s) throw new Error("A síntese do relatório não respondeu.");
     tokens.entrada += s.uso.tokensEntrada; tokens.saida += s.uso.tokensSaida;
+    if ("erro" in s) throw new Error(s.erro);
     const relatorio = validarRelatorio(s.bruto, Object.values(retrato), p?.achados ?? []);
     rel.relatorio = relatorio;
     await fim({ situacao: "feito", conteudo: relatorio, pesquisa: { achados: p?.achados ?? [], fontes: p?.fontes ?? [] }, modelo: CRESCIMENTO.modelo,

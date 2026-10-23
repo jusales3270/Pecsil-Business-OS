@@ -4,7 +4,7 @@
 > Onde ela mora: War Room › Conselho ([PLANO-WAR-ROOM-CEREBRO §4](PLANO-WAR-ROOM-CEREBRO.md)).
 >
 > Criado em 23/10/2026 e revisto no mesmo dia pelo conceito do proprietário · Execução: Claude
-> **Situação:** plano aprovado (decisões 1 a 6 abaixo). J1 no ar (Deploy 23/10). J2 e J3 no ar (Deploy 23/10). J4 construída, aguarda a migração 202610230005.
+> **Situação:** plano aprovado (decisões 1 a 6 abaixo). J1 no ar (Deploy 23/10). J2 e J3 no ar (Deploy 23/10). J4 pronta (migração aplicada, QA 22/22), falta o Deploy.
 
 ---
 
@@ -88,7 +88,7 @@ ajuda antes de ser pedido. A SARA central faz isso para a empresa inteira.
 | **J1** | Responde: orquestrador + subagentes em paralelo + verificador, em War Room › Conselho | `perguntar_a_sara`, verificador, `calcular`, `periodo` | **no ar** (Deploy 23/10): `lib/sara/central/`, laço com chamadas paralelas; holograma e voz ao vivo |
 | J2 | Bom dia por pessoa, às 7h | avisos dos módulos (`alertasDo`), decisões, ações e guias da pessoa | **construída** (23/10): `lib/sara/central/bom-dia*.ts`, rota `/api/sara/bom-dia/rodar` na tarefa de 10 em 10 minutos; migração 202610230003 aplicada, QA 24/24; falta o Deploy |
 | J3 | Vigia: achados, responsável acionado, cobrança e efeito; quadro na War Room | sinais (avisos + Parados), análise com verificador, Decisões, cobrança | **construída** (23/10): `lib/sara/central/vigia*.ts`, rotas `/api/sara/vigia/rodar` e `/api/sara/central/vigia`, quadro em Conselho; migração 202610230004 aplicada, QA 27/27; falta o Deploy |
-| J4 | Conselho e crescimento semanal | pesquisa aberta só com o assunto, `avaliarInvestimento`, relatório anterior | **construída** (23/10): `lib/sara/central/crescimento*.ts`, rotas `/api/sara/crescimento/rodar` e `/api/sara/central/crescimento`, seção Crescimento no Conselho; aguarda a migração 202610230005 |
+| J4 | Conselho e crescimento semanal | pesquisa aberta só com o assunto, `avaliarInvestimento`, relatório anterior | **construída** (23/10): `lib/sara/central/crescimento*.ts`, rotas `/api/sara/crescimento/rodar` e `/api/sara/central/crescimento`, seção Crescimento no Conselho; migração 202610230005 aplicada, QA 22/22; falta o Deploy |
 | J5 | Aprende com as respostas e o efeito | memória | na fila |
 
 **Como a J1 funciona no código:**
