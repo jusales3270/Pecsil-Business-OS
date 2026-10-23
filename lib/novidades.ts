@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-22-sara-guias",
+    data: "2026-10-22",
+    area: "SARA",
+    modulos: ["almoxarifado", "fundicao", "financeiro", "fiscal", "rh", "compras", "comercial", "portaria", "producao", "ti"],
+    funcionalidades: ["almoxarifado.sara", "fundicao.sara", "financeiro.sara", "fiscal.sara", "rh.sara", "compras.sara", "comercial.sara", "portaria.sara", "producao.sara", "ti.sara"],
+    titulo: "SARA: Guias, rotinas que ela roda sozinha",
+    itens: [
+      "Peça na conversa: \"toda segunda às 8h, me mostre o que vence na semana\" ou \"quando o Compras aprovar um pedido meu, me avise\". A SARA monta a guia.",
+      "A guia vai para aprovação de quem responde pela área. Aprovada, ela roda sozinha, com as suas permissões, e o resultado chega no sino.",
+      "Se a guia for fazer algo (pedir material, abrir chamado), aparece o cartão Permitir, que espera 24 horas. A área pode deixar a SARA fazer sozinha, com limite.",
+      "Veja, pause ou rode as suas guias no botão Guias, no alto da janela da SARA.",
+    ],
+  },
+  {
     id: "2026-10-22-sara-caixa",
     data: "2026-10-22",
     area: "SARA",

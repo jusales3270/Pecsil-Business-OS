@@ -7421,6 +7421,45 @@ button.holiday-row:hover {
 .sara-acao-aviso { font-size: var(--fs-micro); color: var(--accent-amber); }
 .sara-acao-feito { font-size: var(--fs-xs); font-weight: 700; color: var(--accent-green); }
 .sara-acao-erro { font-size: var(--fs-xs); color: var(--accent-red); }
+.sara-acao-botoes .neutro { border: 1px solid color-mix(in srgb, var(--text-primary) 18%, transparent); background: transparent; color: var(--text-primary); }
+/* E3: Guias (rotinas que a SARA roda sozinha). */
+.sara-guias-topo { display: flex; align-items: center; gap: 10px; }
+.sara-guias-topo b { font-size: var(--fs-md); color: var(--text-primary); }
+.sara-guias-intro, .sara-guias-vazio { margin: 0; font-size: var(--fs-xs); line-height: 1.5; color: var(--text-secondary); }
+.sara-guias-grupo { margin: 4px 0 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+.sara-guia { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 12px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent); background: var(--bg-surface); }
+.sara-guia.proposta { border-color: color-mix(in srgb, var(--accent-amber) 55%, transparent); background: color-mix(in srgb, var(--accent-amber) 6%, var(--bg-surface)); }
+.sara-guia.ativa { border-color: color-mix(in srgb, var(--accent-blue) 40%, transparent); }
+.sara-guia:is(.recusada, .pausada) { opacity: .85; }
+.sara-guia > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.sara-guia > header b { font-size: var(--fs-sm); color: var(--text-primary); overflow-wrap: anywhere; }
+.sara-guia > p { margin: 0; font-size: var(--fs-xs); color: var(--text-secondary); overflow-wrap: anywhere; }
+.sara-guia-situacao { flex-shrink: 0; white-space: nowrap; padding: 1px 9px; border-radius: 999px; font-size: var(--fs-micro); font-weight: 700; border: 1px solid currentColor; color: var(--text-secondary); }
+.sara-guia-situacao.proposta { color: var(--accent-amber); }
+.sara-guia-situacao.ativa { color: var(--accent-green); }
+.sara-guia-situacao.recusada { color: var(--accent-red); }
+.sara-guia-quando { font-size: var(--fs-xs); font-weight: 600; color: var(--text-primary); }
+.sara-guia-nota { font-size: var(--fs-micro); color: var(--text-muted); }
+.sara-guia-passos { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.sara-guia-passos b { font-weight: 600; color: var(--text-primary); }
+.sara-guia-limites { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 12px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); }
+.sara-guia-limites > b { font-size: var(--fs-xs); color: var(--text-primary); }
+.sara-guia-limites > small { font-size: var(--fs-micro); color: var(--text-muted); }
+.sara-guia-limite { display: flex; flex-direction: column; gap: 6px; }
+.sara-guia-marca { display: flex; align-items: center; gap: 8px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-primary); cursor: pointer; }
+.sara-guia-marca input { width: 18px; height: 18px; accent-color: var(--accent-blue); }
+.sara-guia-campos { display: flex; flex-wrap: wrap; gap: 6px 12px; padding-left: 26px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.sara-guia-campos label { display: inline-flex; align-items: center; gap: 4px; }
+.sara-guia-campos input { min-height: 30px; padding: 2px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-xs); }
+.sara-guia-campos input[type="number"] { width: 58px; }
+.sara-guia-motivo { min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-xs); }
+.sara-guia-aviso { font-size: var(--fs-xs); color: var(--accent-blue); }
+.sara-guia-execucoes summary { cursor: pointer; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.sara-guia-execucoes ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.sara-guia-execucoes li { display: flex; flex-direction: column; gap: 2px; padding-left: 8px; border-left: 2px solid color-mix(in srgb, var(--accent-blue) 40%, transparent); font-size: var(--fs-micro); color: var(--text-secondary); }
+.sara-guia-execucoes li:is(.falhou, .sem_permissao) { border-left-color: var(--accent-red); }
+.sara-guia-execucoes li b { color: var(--text-primary); }
+.sara-guia-execucoes .erro { color: var(--accent-red); }
 /* Degrau 3: ação pronta dentro do aviso. */
 .sara-aviso-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .sara-propor { padding: 5px 12px; border: 1px solid var(--accent-blue); border-radius: 999px; background: var(--accent-blue); color: var(--text-on-accent); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; }

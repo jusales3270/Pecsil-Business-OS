@@ -10,6 +10,7 @@ import { PROPOR_HABILIDADE, instrucoesDeHabilidades, nomearHabilidade, pareceLac
 import { regrasDaSara } from "../../../../lib/sara/modulos";
 import { ACOES } from "../../../../lib/sara/acoes";
 import { parametrosUsados, type Usada } from "../../../../lib/sara/parametros";
+import { validarGuia } from "../../../../lib/sara/guias";
 import { CATALOGO } from "../../../../lib/sara/catalogo";
 import { preparar } from "../../../../lib/sara/sessao";
 import { temaDe } from "../../../../lib/sara/temas";
@@ -199,9 +200,18 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
       const { error: e3 } = await p.sb.rpc("sara_lacunas_registrar", { p_modulo: modulo, p_mensagem: ids?.mensagem ?? null, p_pergunta: pergunta, p_assuntos: lacunas });
       if (e3) console.error("[sara] não registrou a lacuna", e3.message);
     }
-    const doModulo = p.ferramentas.filter((f) => !f.acao && ![LACUNA.nome, PROPOR_HABILIDADE.nome, MOSTRAR.nome, "abrir_tela", "abrir_lancamento"].includes(f.nome)).map((f) => f.nome);
+    const doModulo = p.ferramentas.filter((f) => !f.acao && ![LACUNA.nome, PROPOR_HABILIDADE.nome, "criar_guia", MOSTRAR.nome, "abrir_tela", "abrir_lancamento"].includes(f.nome)).map((f) => f.nome);
+    // Guias (E3) pedidas na conversa: consultas e ações da pessoa; vão para aprovação de quem responde pela área.
+    const daGuia = p.ferramentas.filter((f) => ![LACUNA.nome, PROPOR_HABILIDADE.nome, "criar_guia", MOSTRAR.nome].includes(f.nome)).map((f) => f.nome);
+    for (const f of resposta.ferramentas.filter((x) => x.nome === "criar_guia" && x.ok)) {
+      const g = validarGuia(f.entrada, daGuia, p.eventos.map((e) => e.tipo));
+      if ("erro" in g) { console.error("[sara] guia inválida", g.erro); continue; }
+      const { error: eG } = await p.sb.rpc("sara_guia_propor", { p_modulo: modulo, p_nome: g.nome, p_descricao: g.descricao, p_gatilhos: g.gatilhos, p_passos: g.passos, p_formato: g.formato, p_gatilho: g.gatilho });
+      if (eG) console.error("[sara] não registrou a guia", eG.message);
+    }
     const propostas = resposta.ferramentas.filter((x) => x.nome === PROPOR_HABILIDADE.nome).map((f) => validarProposta(f.entrada, doModulo)).filter((x) => x !== null);
-    if (!fora && !propostas.length && pedidoRecorrente(pergunta)) {
+    const pediuGuia = resposta.ferramentas.some((x) => x.nome === "criar_guia");
+    if (!fora && !propostas.length && !pediuGuia && pedidoRecorrente(pergunta)) {
       const passos: Passo[] = resposta.ferramentas.filter((f) => f.ok && doModulo.includes(f.nome))
         .map((f) => ({ ferramenta: f.nome, para_que: "parte do pedido recorrente", ...(f.entrada && typeof f.entrada === "object" && Object.keys(f.entrada).length ? { entrada: f.entrada as Record<string, unknown> } : {}) }))
         .filter((x, k, l) => l.findIndex((y) => y.ferramenta === x.ferramenta && JSON.stringify(y.entrada) === JSON.stringify(x.entrada)) === k);

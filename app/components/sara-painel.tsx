@@ -5,6 +5,7 @@ import { Callout, Carregando, useEscolherArquivo } from "../../packages/design-s
 import { pedirRegistro, type PedidoRegistro } from "../../lib/abrir-registro";
 import type { Visual } from "../../lib/sara/visual";
 import { SaraVisual } from "./sara-visual";
+import { SaraGuias } from "./sara-guias";
 
 /**
  * SARA do módulo (I-12, nível 1): janela flutuante sobre o módulo. Orienta e consulta com as
@@ -245,8 +246,10 @@ function useArrastar(chave: string, ativo: boolean) {
   return { prender: setEl, estilo, iniciar, arrastou };
 }
 
-export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modulo: string; navegar: (modulo: string, secao?: string) => void; abrirAoCarregar?: boolean }) {
+export function SaraPainel({ modulo, navegar, abrirAoCarregar = false, abrirGuias = false }: { modulo: string; navegar: (modulo: string, secao?: string) => void; abrirAoCarregar?: boolean; abrirGuias?: boolean }) {
   const [aberto, setAberto] = useState(false);
+  // Guias (E3): a janela mostra as guias no lugar da conversa (o aviso do sino abre direto nelas).
+  const [verGuias, setVerGuias] = useState(false);
   const [estado, setEstado] = useState<Estado | null>(null);
   const [semAcesso, setSemAcesso] = useState(false);
   const [msgs, setMsgs] = useState<Mensagem[]>([]);
@@ -321,9 +324,9 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
   useEffect(() => {
     if (!abrirAoCarregar || !estado || abriuSozinha.current) return;
     abriuSozinha.current = true;
-    const t = setTimeout(() => setAberto(true), 0);
+    const t = setTimeout(() => { setAberto(true); if (abrirGuias) setVerGuias(true); }, 0);
     return () => clearTimeout(t);
-  }, [abrirAoCarregar, estado]);
+  }, [abrirAoCarregar, abrirGuias, estado]);
 
   // Avisos: ao entrar no módulo e, depois, quando a pessoa volta à aba (no máximo a cada 10 minutos).
   const carregarAvisos = useCallback(async () => {
@@ -482,7 +485,8 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
             <img src={AVATAR} alt="" className="sara-avatar" draggable={false} />
             <div><b>{NOME}</b><small>IA · consulta com as suas permissões · só faz algo se você permitir</small></div>
             <span>
-              {msgs.length > 0 && <button type="button" className="sara-nova" onClick={() => { setMsgs([]); setConversa(null); }}>Nova conversa</button>}
+              {pode && !verGuias && <button type="button" className="sara-nova" onClick={() => setVerGuias(true)} title="Rotinas que a SARA roda sozinha"><span aria-hidden>⚡</span> Guias</button>}
+              {msgs.length > 0 && !verGuias && <button type="button" className="sara-nova" onClick={() => { setMsgs([]); setConversa(null); }}>Nova conversa</button>}
               <button type="button" className="sara-fechar" onClick={() => setAberto(false)} aria-label="Fechar a SARA">×</button>
             </span>
           </header>
@@ -517,6 +521,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
             </section>
           )}
           {!estado.configurada && <Callout variant="info" title="SARA ainda não configurada">Falta a chave do modelo (Claude) no servidor. Quem cuida é o proprietário.</Callout>}
+          {verGuias ? <SaraGuias modulo={modulo} voltar={() => setVerGuias(false)} /> : (<>
           <div className="sara-conversa" ref={rolagem}>
             {!msgs.length && pode && (
               <div className="sara-inicio">
@@ -627,6 +632,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false }: { modul
             </div>
             {(erroVoz || erroAnexo) && <small className="sara-caixa-erro" role="alert">{erroVoz || erroAnexo}</small>}
           </form>
+          </>)}
         </aside>
       )}
     </>

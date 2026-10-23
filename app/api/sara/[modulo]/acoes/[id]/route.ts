@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 const UUID = /^[0-9a-f-]{36}$/i;
 
 /**
- * Decisão do cartão "Permitir / Não permitir" (E1). Só quem pediu decide; a proposta vale 15 minutos.
+ * Decisão do cartão "Permitir / Não permitir" (E1). Só quem pediu decide; a proposta vale 15 minutos (24 h quando veio de uma guia).
  * Permitir roda a ação com a SESSÃO da pessoa: a função do banco confere a permissão de novo, então a
  * SARA não faz nada que a pessoa não pudesse fazer pela tela. O resultado fica no histórico.
  */
@@ -22,7 +22,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const { data, error } = await p.sb.rpc("sara_acao_decidir", { p_id: id, p_permitir: corpo.permitir });
   if (error) return NextResponse.json({ error: error.message }, { status: error.code === "42501" ? 403 : 400 });
   const d = data as { situacao: string; ferramenta?: string; entrada?: Record<string, unknown> };
-  if (d.situacao === "expirada") return NextResponse.json({ situacao: "expirada", texto: "Esta proposta venceu (15 minutos) e nada foi feito. Peça de novo à SARA." });
+  if (d.situacao === "expirada") return NextResponse.json({ situacao: "expirada", texto: "Esta proposta venceu e nada foi feito. Peça de novo à SARA." });
   if (d.situacao === "recusada") return NextResponse.json({ situacao: "recusada", texto: "Tudo bem: nada foi feito." });
 
   // Permitida: executa com a sessão de quem permitiu. Sem a ferramenta (a permissão mudou), não executa.

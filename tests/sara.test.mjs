@@ -208,7 +208,9 @@ test("SARA: está no catálogo de Pessoas e Acessos do módulo e sozinha não ab
   const fin = ACCESS_CATALOG.find((m) => m.code === "financeiro");
   const f = fin.features.find((x) => x.code === "financeiro.sara");
   assert.ok(f, "aparece na lista do Financeiro");
-  assert.deepEqual([...f.levels], ["ver"]);
+  // "aprovar" (E3): aprova as guias da área e os limites; também não abre o módulo sozinho.
+  assert.deepEqual([...f.levels], ["ver", "aprovar"]);
+  assert.equal(hasModuleAccess({ isOwner: false, grants: { "financeiro.sara": "aprovar" } }, "financeiro"), false, "aprovar a SARA não abre o Financeiro");
   assert.deepEqual(normalizeGrants({ "financeiro.sara": "ver" }), { "financeiro.sara": "ver" });
   assert.equal(hasModuleAccess({ isOwner: false, grants: { "financeiro.sara": "ver" } }, "financeiro"), false, "só a SARA não abre o Financeiro");
   assert.equal(hasModuleAccess({ isOwner: false, grants: { "financeiro.sara": "ver", "financeiro.pagar": "ver" } }, "financeiro"), true);
@@ -501,7 +503,8 @@ test("O que a SARA aprendeu: só o proprietário decide; lacunas e propostas reg
   assert.match(rota, /sb\.rpc\("sara_lacunas_registrar"/);
   assert.match(rota, /\.map\(\(f\) => validarProposta\(f\.entrada, doModulo\)\)/, "a proposta da conversa só usa consultas do módulo");
   assert.match(rota, /if \(!fora && !lacunas\.length && pareceLacuna\(resposta\.texto\)\)/, "rede de segurança da lacuna");
-  assert.match(rota, /if \(!fora && !propostas\.length && pedidoRecorrente\(pergunta\)\)/, "rede de segurança da habilidade");
+  // Pedido de guia (rodar sozinha) não vira também habilidade.
+  assert.match(rota, /if \(!fora && !propostas\.length && !pediuGuia && pedidoRecorrente\(pergunta\)\)/, "rede de segurança da habilidade");
   assert.match(rota, /after\(async \(\) => \{/, "a colheita roda depois da resposta");
   assert.match(rota, /p_origem: "conversa"/);
   assert.match(rota, /habilidadesQuePode\(\(hab \?\? \[\]\) as HabilidadeAtiva\[\], ferramentas\.map\(\(f\) => f\.nome\)\)/);

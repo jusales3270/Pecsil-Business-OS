@@ -122,9 +122,23 @@ O proprietário aprovou o plano do que absorver da LIA, o copiloto do WMS da TOT
   - **Ferramenta `periodo`:** regra fixa, sem modelo. Transforma datas por extenso em período exato: feriados nacionais (os móveis calculados pela Páscoa), "mês retrasado", "semana passada" (de segunda a domingo), "últimos N dias", "março do ano passado".
   - **"Parâmetros usados":** saem das próprias chamadas das consultas, com a consulta direta em linguagem de tela.
   - **Anexo:** Excel, Word, PDF ou CSV, lido no servidor pelo leitor do Segundo Cérebro. O texto, até 40 mil caracteres, vai junto da pergunta e não fica guardado; a conversa grava só "📎 nome". PDF escaneado: a SARA pede foto ou print.
+- **E3, Guias (22/10, degrau 4: piloto automático com limites da área):**
+  - **Criação:** a pessoa pede na conversa ("toda segunda às 8h, me mostre…", "quando o Compras aprovar um pedido, me avise…"). A SARA chama `criar_guia`, que não grava nada: a rota valida os passos (consultas e ações que a pessoa tem) e o quando, e registra a proposta (`sara_guia_propor`).
+  - **Quem aprova:** quem responde pela área, ou seja, o proprietário ou quem tem a SARA do módulo no nível novo **"aprovar"** (dado em Pessoas e Acessos). Quem aprova é avisado no sino e decide na janela da SARA, em **Guias**.
+  - **Gatilhos:**
+    - atalho: aparece só para quem criou;
+    - agenda: dias da semana e hora, no fuso de São Paulo;
+    - acontecimento: um tipo de `module_events`. A trigger põe a guia numa fila (`sara_guia_execucoes`); são as "reações" do Blueprint.
+  - **Execução:** a tarefa agendada de 10 em 10 minutos (`scripts/sync-os-cron.mjs`, a mesma da Forja) chama `/api/sara/guias/rodar`. A guia roda **com a sessão de quem a criou**: o servidor gera um link mágico, troca-o por uma sessão (sem e-mail) e encerra a sessão no fim, então o RLS e as permissões dela valem em tudo. O resultado vira uma conversa da SARA e um aviso no sino.
+  - **Ações:** pedem **Permitir** e o cartão fica 24 h esperando, a menos que a área deixe a SARA fazer sozinha, com limite. Os limites (`limites`) são por ação: "sozinha", até N por dia, até N itens e horário. O banco confere os limites de novo. Ação de risco alto nunca é feita sozinha. O padrão é nada pré-autorizado. O histórico diz "a guia fez sozinha, no limite aprovado pela área".
+  - **Freios:**
+    - no máximo 20 execuções por guia em 24 h;
+    - eventos da própria SARA não disparam guia;
+    - o que a guia provoca enquanto roda não a dispara de novo;
+    - a trigger nunca impede o evento de ser gravado;
+    - na fila há mais de 24 h, a guia é cancelada;
+    - rodando há mais de 30 min, é marcada como interrompida.
+  - **Na tela:** quem criou pausa, retoma e usa "Rodar agora"; quem aprova também edita os limites e arquiva.
 - **Próximas etapas do plano:**
-  - E2: foto, voz e leitor de código no celular;
-  - E5: parâmetros usados, datas soltas e anexos;
-  - E3: Guias criados pela área;
   - E6: servidor MCP;
   - E7: mindmaster.

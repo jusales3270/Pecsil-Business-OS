@@ -60,14 +60,15 @@ const coleta = (setor: string): AccessFeature => ({
 });
 
 /**
- * SARA do módulo (I-12): o assistente de IA, liberado por pessoa. Só "ver", e sozinho não abre o
- * módulo (a SARA usa as outras funcionalidades da pessoa para consultar).
+ * SARA do módulo (I-12): o assistente de IA, liberado por pessoa; sozinho não abre o módulo (a SARA usa
+ * as outras funcionalidades da pessoa para consultar). "Aprovar" (E3, 22/10/2026): aprova as guias da
+ * área e o que a SARA pode fazer sozinha nelas — é de quem responde pela área.
  */
 const sara = (setor: string): AccessFeature => ({
   code: `${setor}.sara`,
   label: "SARA (assistente do módulo)",
-  description: "Assistente de IA do módulo: orienta, consulta com as permissões da própria pessoa e abre as telas. Não dá acesso ao resto do módulo.",
-  levels: ["ver"],
+  description: "Assistente de IA do módulo: orienta, consulta com as permissões da própria pessoa e abre as telas; aprovar aprova as guias (rotinas automáticas) da área e os limites delas. Não dá acesso ao resto do módulo.",
+  levels: ["ver", "aprovar"],
 });
 /** Funcionalidades que não abrem o módulo sozinhas. */
 const naoAbreModulo = (code: string) => code.endsWith(".coleta") || code.endsWith(".sara");
