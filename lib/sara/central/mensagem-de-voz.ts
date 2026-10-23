@@ -20,6 +20,9 @@ import { conferirNumeros } from "./verificador";
 
 export const URL_TTS = "https://api.x.ai/v1/tts";
 export const MAX_MENSAGEM = 1500;
+/** Número por extenso escapa do verificador: a mensagem tem de trazer os números em algarismos (a voz lê certo). */
+const POR_EXTENSO = /\b(mil|milh[ãa]o|milh[õo]es|bilh[ãa]o|cem|cento|duzent[ao]s|trezent[ao]s|quatrocent[ao]s|quinhent[ao]s|seiscent[ao]s|setecent[ao]s|oitocent[ao]s|novecent[ao]s|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove)\b/i;
+export const temNumeroPorExtenso = (texto: string) => POR_EXTENSO.test(texto);
 
 /** O pedido para a API de texto para fala: a voz da SARA, em pt-BR, MP3. */
 export function pedidoDeMensagem(texto: string) {
@@ -38,7 +41,7 @@ export async function gravarMensagemDeVoz(texto: string, buscar: typeof fetch = 
 export function ferramentaCriarMensagemDeVoz(ctx: ContextoDocumentos): Ferramenta {
   return {
     nome: "criar_mensagem_de_voz", rotulo: "gravou uma mensagem de voz", exige: [],
-    descricao: "Grava uma MENSAGEM DE VOZ na voz da SARA, para ser mandada por WhatsApp a alguém (colaborador, cliente, fornecedor). Use SÓ quando pedirem uma mensagem de voz ou um áudio para mandar. Faça antes o levantamento com perguntar_a_sara: todo número da mensagem é conferido com o que as áreas devolveram. Escreva como se fala (curto, até 1 minuto), com o tratamento certo para quem recebe. O envio pelo WhatsApp ainda depende do número dedicado da empresa: diga que a mensagem ficou pronta para ouvir e baixar.",
+    descricao: "Grava uma MENSAGEM DE VOZ na voz da SARA, para ser mandada por WhatsApp a alguém (colaborador, cliente, fornecedor). Use SÓ quando pedirem uma mensagem de voz ou um áudio para mandar. Faça antes o levantamento com perguntar_a_sara: todo número da mensagem é conferido com o que as áreas devolveram. Escreva como se fala (curto, até 1 minuto), com o tratamento certo para quem recebe. Números e valores SEMPRE em algarismos (394, R$ 1.330.419,47) e datas como \"23 de outubro\" (não 23/10): a voz lê certo e a plataforma confere cada número; por extenso, a mensagem é recusada. O envio pelo WhatsApp ainda depende do número dedicado da empresa: diga que a mensagem ficou pronta para ouvir e baixar.",
     esquema: {
       type: "object",
       properties: {
@@ -55,6 +58,7 @@ export function ferramentaCriarMensagemDeVoz(ctx: ContextoDocumentos): Ferrament
       const para = String(e.para ?? "").trim().slice(0, 120);
       if (texto.length < 5 || !para) return { dados: { erro: "Diga para quem é e o que a mensagem fala." }, fontes: [] };
       if (texto.length > MAX_MENSAGEM) return { dados: { erro: `A mensagem passou de ${MAX_MENSAGEM} caracteres: encurte (o ideal é até 1 minuto).` }, fontes: [] };
+      if (temNumeroPorExtenso(texto)) return { dados: { erro: "Escreva os números e valores em algarismos (ex.: 394, R$ 1.330.419,47) e as datas como \"23 de outubro\": a voz lê certo e a plataforma precisa conferir cada número. Grave de novo." }, fontes: [] };
       const c = conferirNumeros(texto, ctx.fontes);
       if (c.semFonte.length) return { dados: { erro: `Estes números não estão no que as áreas devolveram nesta conversa: ${c.semFonte.join(", ")}. Confirme com perguntar_a_sara e grave de novo; não estime.` }, fontes: [] };
       const { data: reg, error } = await sb.rpc("sara_documento_registrar", { p_tipo: "mensagem_voz", p_titulo: `${titulo} (para ${para})`.slice(0, 160),

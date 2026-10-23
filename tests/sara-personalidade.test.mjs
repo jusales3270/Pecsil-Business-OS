@@ -67,6 +67,8 @@ test("mensagem de voz: a API de texto para fala do Grok só para a mensagem de W
   assert.match(m, /voice_id: vozDaSara\(\), language: IDIOMA/, "a mesma voz da SARA, em pt-BR");
   assert.match(m, /text: paraVoz\(texto\)/, "as expressões viram tags");
   assert.match(m, /const c = conferirNumeros\(texto, ctx\.fontes\);/, "número só com fonte");
+  assert.match(m, /if \(temNumeroPorExtenso\(texto\)\) return \{ dados: \{ erro:/, "número por extenso escapa do verificador: recusado");
+  assert.match(m, /\\b\(mil\|milh\[ãa\]o/, "extenso reconhecido (mil, milhão, trezentas…)");
   assert.match(m, /process\.env\.XAI_API_KEY/, "a chave só no servidor");
   assert.doesNotMatch(ler("modules/warroom/src/holograma/voz-ao-vivo.ts"), /\/v1\/tts/, "a voz da plataforma continua sendo o Realtime");
   assert.doesNotMatch(ler("modules/warroom/src/holograma/SaraHolograma.tsx"), /\/v1\/tts/);
