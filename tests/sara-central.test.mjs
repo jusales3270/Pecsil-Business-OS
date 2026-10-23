@@ -100,11 +100,14 @@ test("holograma: fala o essencial (sem tabela, lista nem marcação) e sempre o 
   assert.ok(resumoFalado("x ".repeat(600)).length <= 460);
 });
 
-test("holograma: ouve pelo Whisper da plataforma e fala só com voz do aparelho (nada da empresa vai a serviço externo)", () => {
+test("holograma: a voz é só a do Grok (Realtime, luna); sem ela, só a legenda e o Whisper da plataforma", () => {
   const c = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
-  assert.match(c, /fetch\("\/api\/sara\/warroom\/voz"/, "o áudio vai para o Whisper da plataforma");
+  assert.match(c, /fetch\("\/api\/sara\/warroom\/voz"/, "sem a sessão de voz, o áudio vai para o Whisper da plataforma");
   assert.doesNotMatch(c, /SpeechRecognition/, "sem o reconhecimento do navegador (manda o áudio ao Google)");
-  assert.match(c, /\.filter\(\(v\) => v\.localService\)/, "só voz instalada no aparelho");
+  assert.doesNotMatch(c, /speechSynthesis|SpeechSynthesisUtterance/, "nunca a voz do navegador");
+  assert.match(c, /void garantirVoz\(\)\.then\(\(v\) => \{ if \(esta !== falaAtual\.current\) return; if \(v\) v\.falar\(texto\); else soLegenda\(\); \}\);/, "toda fala pela sessão do Grok");
+  assert.match(c, /\/\/ A voz abre já no toque de invocar[^\n]*\n\s*void garantirVoz\(\);/, "a sessão abre ao invocar (o cumprimento já sai na luna)");
+  assert.match(c, /if \(v\.escutando\(\)\) \{ v\.desligarMicrofone\(\); setAoVivo\(false\); return; \}/, "o microfone liga e desliga dentro da sessão");
   assert.doesNotMatch(c, /api\.anthropic\.com|VITE_|import\.meta\.env/, "sem chamada direta ao modelo nem configuração do projeto de origem");
   assert.match(c, /fetch\("\/api\/sara\/warroom", \{ method: "POST"/, "conversa pela SARA central, com a sessão da pessoa");
   const page = ler("app/page.tsx");
@@ -184,10 +187,12 @@ test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números d
 
   const motor = ler("modules/warroom/src/holograma/voz-ao-vivo.ts");
   assert.match(motor, /\[`xai-client-secret\.\$\{j\.token\}`\]/, "token no subprotocolo, como a xAI pede para navegador");
-  assert.match(motor, /type: "force_message", role: "assistant", content: \[\{ type: "output_text", text: falar \}\]/, "a resposta conferida é dita exatamente");
+  assert.match(motor, /type: "force_message", role: "assistant", content: \[\{ type: "output_text", text: dizer \}\]/, "a resposta conferida é dita exatamente");
+  assert.match(motor, /const falar = \(texto: string\) => \{[\s\S]*type: "force_message", role: "assistant", content: \[\{ type: "output_text", text: t \}\]/, "o texto digitado também sai pela voz do Grok, exato");
+  assert.match(motor, /if \(o\.microfone\) await ligarMicrofone\(\)/, "a sessão abre sem o microfone (só fala)");
   assert.match(motor, /tipo === "response\.function_call_arguments\.done"\) \{ executarChamada\(/, "executa a função na chegada (agindo enquanto fala)");
   assert.match(motor, /type: "function_call_output", call_id: callId/);
   const holo = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
   assert.match(holo, /if \(nome === "consultar_sara_central"\) \{[\s\S]*await consultar\(/, "o cérebro continua sendo a SARA central");
-  assert.match(holo, /if \(!\/não está configurada\/\.test\(m\)\)/, "sem a chave, cai no Whisper");
+  assert.match(holo, /\.catch\(\(e\) => \{ console\.warn\("\[sara\] voz da SARA indisponível"[^\n]*setSemVoz\(true\); return null; \}\)/, "sem a chave, só legenda e Whisper");
 });

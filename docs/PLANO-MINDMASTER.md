@@ -106,6 +106,12 @@ O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor d
 - **A voz, não o cérebro.** O Grok escuta, fala, aceita interrupção e chama funções. Para qualquer dado da empresa, ele chama `consultar_sara_central`, que é a mesma rota da central (com as permissões, o verificador e o registro). Ele não responde com o conhecimento próprio.
 - **Número exato.** A resposta conferida é falada palavra por palavra (`force_message`), sem o modelo reformular.
 - **Agir enquanto fala.** As funções (consultar, minimizar, tela cheia, próximo ou anterior gráfico, fechar a apresentação) são executadas no instante em que chegam, com o áudio ainda tocando.
+- **A única voz dela (23/10, correção do proprietário).**
+  - A sessão Realtime abre ao invocar a SARA central, sem microfone, só para falar.
+  - Tudo o que ela diz (o cumprimento, as respostas digitadas, os avisos) sai por essa sessão (`falar` → `force_message`, frase exata).
+  - O microfone liga e desliga dentro da mesma sessão.
+  - A voz do navegador foi retirada. Sem a sessão, fica só a legenda (e o Whisper para ouvir).
+  - QA real 14/14, com o áudio conferido pelo Whisper.
 - **Segurança.** A chave `XAI_API_KEY` fica só no servidor. A rota `/api/sara/warroom/voz-ao-vivo` confere a permissão e se a voz existe, e pede um token temporário de 5 minutos. O navegador conecta direto ao Grok com esse token. Sem a chave configurada, o microfone volta ao Whisper.
 - **Dados:** o áudio e a resposta conferida vão à xAI, que guarda por 30 dias, a menos que o Zero Data Retention esteja ligado (recomendado). Registrado no PLANO-JEV.
 - **Código:**

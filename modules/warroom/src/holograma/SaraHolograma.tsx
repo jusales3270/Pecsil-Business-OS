@@ -7,7 +7,7 @@ import { pedirRegistro, type PedidoRegistro } from "../../../../lib/abrir-regist
 import { resumoFalado } from "../../../../lib/sara/central/fala";
 import type { Visual } from "../../../../lib/sara/visual";
 import { criarSistema, desenhar, novoPulso, type EstadoHolo, type Sistema } from "./motor";
-import { iniciarVozAoVivo } from "./voz-ao-vivo";
+import { iniciarVozAoVivo, type AoVivo, type SessaoDeVoz } from "./voz-ao-vivo";
 
 /**
  * A SARA central em holograma (E7): a entrada da SARA na War Room. Visual criado pelo proprietário
@@ -34,15 +34,6 @@ type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: 
 type Modo = "fechado" | "cheio" | "mini";
 const ROTULO: Record<EstadoHolo, string> = { idle: "PRONTA", listening: "OUVINDO", thinking: "CONSULTANDO AS ÁREAS", speaking: "FALANDO" };
 const CHAVE_VOZ = "pecsil.sara-holo.voz";
-const VOZES_FEMININAS = ["francisca", "maria", "luciana", "leticia", "camila", "vitoria", "fernanda", "female", "feminina"];
-
-/** Voz do próprio aparelho, em português (feminina quando houver). Nunca uma voz online. */
-function vozLocal(): SpeechSynthesisVoice | null {
-  const todas = typeof window !== "undefined" ? window.speechSynthesis?.getVoices?.() ?? [] : [];
-  const locais = todas.filter((v) => v.localService);
-  const pt = locais.filter((v) => /pt[-_]BR/i.test(v.lang)).length ? locais.filter((v) => /pt[-_]BR/i.test(v.lang)) : locais.filter((v) => /^pt/i.test(v.lang));
-  return pt.find((v) => VOZES_FEMININAS.some((h) => v.name.toLowerCase().includes(h))) ?? pt[0] ?? null;
-}
 const lerVozLigada = () => { try { return window.localStorage.getItem(CHAVE_VOZ) !== "0"; } catch { return true; } };
 const guardarVozLigada = (v: boolean) => { try { window.localStorage.setItem(CHAVE_VOZ, v ? "1" : "0"); } catch { /* sem armazenamento: só não lembra */ } };
 
@@ -56,7 +47,8 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const [painel, setPainel] = useState(false);
   const [entrada, setEntrada] = useState("");
   const [vozLigada, setVozLigada] = useState(true);
-  const [semVozLocal, setSemVozLocal] = useState(false);
+  // A voz da SARA é só a do Grok (Realtime, "luna"): sem ela, fica só a legenda (nunca a voz do navegador).
+  const [semVoz, setSemVoz] = useState(false);
   const [aviso, setAviso] = useState("");
   // Palco: os gráficos que ela apresenta na tela principal (um de cada vez, como slides).
   const [palco, setPalco] = useState<Visual[]>([]);
@@ -64,9 +56,13 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const [docs, setDocs] = useState<{ documentos: DocCriado[]; acoes: CartaoAcao[] } | null>(null);
   const [decidindo, setDecidindo] = useState<string | null>(null);
   const [slide, setSlide] = useState(0);
-  // Voz ao vivo (Grok, voz "luna"): conversa contínua; o microfone abre e fecha.
+  // A sessão de voz (Grok Realtime, voz "luna", pt-BR): abre ao invocar e fala tudo o que ela diz; o
+  // microfone liga e desliga dentro dela (aoVivo = escutando).
   const [aoVivo, setAoVivo] = useState(false);
-  const vozAoVivo = useRef<{ parar: () => void } | null>(null);
+  const vozAoVivo = useRef<SessaoDeVoz | null>(null);
+  const iniciandoVoz = useRef<Promise<SessaoDeVoz | null> | null>(null);
+  // Os eventos da sessão apontam para as funções mais novas (atualizadas a cada render, mais abaixo).
+  const eventosVoz = useRef<AoVivo | null>(null);
 
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const quadro = useRef<number | null>(null);
@@ -115,43 +111,50 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     return () => { if (quadro.current) cancelAnimationFrame(quadro.current); quadro.current = null; window.removeEventListener("resize", redimensionar); clearTimeout(t); };
   }, [modo, dimensionar]);
 
-  /* ---- fala (legenda palavra por palavra; voz só do aparelho) ---- */
+  /* ---- fala: sempre pela sessão do Grok (voz "luna"); sem ela, só a legenda ---- */
+  const garantirVoz = useCallback(async (): Promise<SessaoDeVoz | null> => {
+    if (vozAoVivo.current) return vozAoVivo.current;
+    if (iniciandoVoz.current) return iniciandoVoz.current;
+    const ev: AoVivo = {
+      estado: (e) => eventosVoz.current?.estado(e), nivel: (n) => eventosVoz.current?.nivel(n),
+      pessoaDisse: (t) => eventosVoz.current?.pessoaDisse(t), saraDisse: (t) => eventosVoz.current?.saraDisse(t),
+      executar: (nome, args) => eventosVoz.current ? eventosVoz.current.executar(nome, args) : Promise.resolve({ saida: { erro: "indisponível" } }),
+      erro: (m) => eventosVoz.current?.erro(m), fim: () => eventosVoz.current?.fim(),
+    };
+    iniciandoVoz.current = iniciarVozAoVivo("warroom", ev)
+      .then((v) => { vozAoVivo.current = v; setSemVoz(false); return v; })
+      .catch((e) => { console.warn("[sara] voz da SARA indisponível", e instanceof Error ? e.message : e); setSemVoz(true); return null; })
+      .finally(() => { iniciandoVoz.current = null; });
+    return iniciandoVoz.current;
+  }, []);
+
   const pararFala = useCallback(() => {
     falaAtual.current++;
     if (relogioPalavras.current) clearInterval(relogioPalavras.current);
-    window.speechSynthesis?.cancel();
+    vozAoVivo.current?.calar();
     if (pulso.current.estado === "speaking") setEstado("idle");
   }, [setEstado]);
 
   const falar = useCallback((texto: string) => {
     if (relogioPalavras.current) clearInterval(relogioPalavras.current);
     const esta = ++falaAtual.current;
-    const terminou = () => { if (esta === falaAtual.current && pulso.current.estado === "speaking") setEstado("idle"); };
     setLegenda(texto); setAceso(0);
-    const total = texto.split(" ").filter(Boolean).length;
-    const voz = vozLigada ? vozLocal() : null;
-    setSemVozLocal(vozLigada && !voz && typeof window !== "undefined" && "speechSynthesis" in window);
-    if (!voz) {
+    // Só a legenda, palavra por palavra (voz desligada pela pessoa ou a sessão indisponível).
+    const soLegenda = () => {
       setEstado("speaking");
+      const total = texto.split(" ").filter(Boolean).length;
       let i = 0;
       const relogio = setInterval(() => {
         if (esta !== falaAtual.current) { clearInterval(relogio); return; }
         setAceso(++i); pulso.current.fala = 0.9;
-        if (i >= total) { clearInterval(relogio); terminou(); }
+        if (i >= total) { clearInterval(relogio); if (pulso.current.estado === "speaking") setEstado("idle"); }
       }, 150);
       relogioPalavras.current = relogio;
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(texto);
-    u.voice = voz; u.lang = voz.lang || "pt-BR"; u.rate = 1.04; u.pitch = 1.05;
-    let i = 0;
-    u.onstart = () => { if (esta === falaAtual.current) setEstado("speaking"); };
-    u.onboundary = () => { if (esta !== falaAtual.current) return; setAceso(++i); pulso.current.fala = 1; };
-    u.onend = () => { if (esta === falaAtual.current) setAceso(1e9); terminou(); };
-    u.onerror = () => { if (esta === falaAtual.current) setAceso(1e9); terminou(); };
-    window.speechSynthesis.speak(u);
-  }, [vozLigada, setEstado]);
+    };
+    if (!vozLigada) { soLegenda(); return; }
+    // A voz da SARA: a sessão do Grok fala o texto exatamente como veio (a legenda acende junto).
+    void garantirVoz().then((v) => { if (esta !== falaAtual.current) return; if (v) v.falar(texto); else soLegenda(); });
+  }, [vozLigada, setEstado, garantirVoz]);
 
   /* ---- conversa com a SARA central ---- */
   // Apresentação: logo depois de começar a falar, minimiza e mostra a tela ou os gráficos.
@@ -222,9 +225,19 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     return { saida: { erro: `Função desconhecida: ${nome}` } };
   }, [consultar]);
   const pararAoVivo = useCallback(() => { vozAoVivo.current?.parar(); vozAoVivo.current = null; setAoVivo(false); }, []);
+  // Os eventos da sessão de voz sempre com as funções desta render.
+  useEffect(() => {
+    eventosVoz.current = {
+      estado: setEstado, nivel: (n) => { pulso.current.fala = Math.max(pulso.current.fala, n); },
+      pessoaDisse: (t) => setLinhaPessoa(`▸ ${t}`), saraDisse: acenderAosPoucos, executar: executarDaVoz,
+      erro: (m) => setAviso(m), fim: () => { vozAoVivo.current = null; setAoVivo(false); setEstado("idle"); },
+    };
+  });
 
   const invocar = useCallback(async () => {
     setModo("cheio");
+    // A voz abre já no toque de invocar (o navegador libera o som com o gesto da pessoa).
+    void garantirVoz();
     if (cumprimentou.current) return;
     cumprimentou.current = true;
     const r = await fetch("/api/sara/warroom", { cache: "no-store" }).catch(() => null);
@@ -232,7 +245,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     if (!r?.ok) { falar(j?.error === "FORBIDDEN" ? "A SARA central não está liberada para você." : "A SARA central está indisponível agora."); return; }
     conversa.current = j?.conversa?.id ?? null;
     setTimeout(() => falar(`${j?.saudacao ?? "Olá"}${j?.pessoa ? `, ${j.pessoa}` : ""}. Sou a SARA central: pergunto às áreas da empresa e confiro cada número. O que você quer saber?`), 600);
-  }, [falar]);
+  }, [falar, garantirVoz]);
 
   // De fora (War Room › Conselho): invocar, ou invocar já perguntando.
   const perguntarRef = useRef(perguntar);
@@ -258,23 +271,17 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     if (g.rec.state !== "inactive") g.rec.stop(); else g.fluxo.getTracks().forEach((t) => t.stop());
   }, []);
   const microfone = useCallback(async () => {
-    if (vozAoVivo.current) { pararAoVivo(); return; }
     if (gravador.current) { pararGravacao(true); return; }
-    // Primeiro, a conversa ao vivo (Grok, voz "luna"). Sem ela configurada, grava e transcreve (Whisper).
-    setAviso(""); pararFala(); setEstado("thinking");
-    try {
-      vozAoVivo.current = await iniciarVozAoVivo("warroom", {
-        estado: setEstado, nivel: (n) => { pulso.current.fala = Math.max(pulso.current.fala, n); },
-        pessoaDisse: (t) => setLinhaPessoa(`▸ ${t}`), saraDisse: acenderAosPoucos,
-        executar: executarDaVoz, erro: (m) => setAviso(m), fim: () => { vozAoVivo.current = null; setAoVivo(false); setEstado("idle"); },
-      });
-      setAoVivo(true);
+    // A escuta liga e desliga dentro da sessão de voz (Grok, "luna"); sem ela, grava e transcreve (Whisper).
+    setAviso("");
+    const v = await garantirVoz();
+    if (v) {
+      if (v.escutando()) { v.desligarMicrofone(); setAoVivo(false); return; }
+      try { v.calar(); await v.ligarMicrofone(); setAoVivo(true); }
+      catch (e) { setAviso(e instanceof Error ? e.message : "Não consegui ligar o microfone."); }
       return;
-    } catch (e) {
-      setEstado("idle");
-      const m = e instanceof Error ? e.message : "";
-      if (!/não está configurada/.test(m)) { setAviso(m || "A voz ao vivo está indisponível agora."); return; }
     }
+    pararFala();
     setAviso("");
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) { setAviso("Este aparelho não grava áudio no navegador. Digite a pergunta."); return; }
     let fluxo: MediaStream;
@@ -299,7 +306,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     };
     rec.start(500);
     setEstado("listening");
-  }, [pararGravacao, pararFala, perguntar, setEstado, pararAoVivo, acenderAosPoucos, executarDaVoz]);
+  }, [pararGravacao, pararFala, perguntar, setEstado, garantirVoz]);
   useEffect(() => () => { pararGravacao(false); vozAoVivo.current?.parar(); }, [pararGravacao]);
 
   /* ---- arrastar para girar ---- */
@@ -323,7 +330,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     setDecidindo(null);
     setDocs((d) => d && { ...d, acoes: d.acoes.map((x) => (x.id === a.id ? { ...x, situacao: j?.situacao ?? "falhou", feito: j?.texto ?? j?.error ?? "Não foi possível agora." } : x)) });
   };
-  const alternarVoz = () => { const v = !vozLigada; setVozLigada(v); guardarVozLigada(v); if (!v) window.speechSynthesis?.cancel(); };
+  const alternarVoz = () => { const v = !vozLigada; setVozLigada(v); guardarVozLigada(v); if (!v) vozAoVivo.current?.calar(); };
 
   // Fora da War Room, ela só aparece quando já está trabalhando (apresentando uma tela de outro módulo).
   if (!naWarRoom && modo === "fechado") return null;
@@ -385,7 +392,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
           <button type="button" className="sh-btn" onClick={() => setModo("mini")} title="Minimizar (ela continua falando)" aria-label="Minimizar">▁</button>
           <button type="button" className="sh-btn" onClick={fechar} aria-label="Fechar a SARA central" title="Fechar">✕</button>
         </div>
-        <div className="sh-status"><i /><span>{ROTULO[estado]}</span>{aoVivo ? <em className="ao-vivo"> · AO VIVO</em> : semVozLocal && <em> · sem voz no aparelho (só legenda)</em>}</div>
+        <div className="sh-status"><i /><span>{ROTULO[estado]}</span>{aoVivo ? <em className="ao-vivo"> · AO VIVO</em> : semVoz && <em> · sem voz agora (só legenda)</em>}</div>
 
         <div className="sh-caption" aria-live="polite">
           {linhaPessoa && <div className="uline show">{linhaPessoa}</div>}
