@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-24-sara-bom-dia",
+    data: "2026-10-24",
+    area: "SARA",
+    modulos: ["financeiro", "compras", "almoxarifado", "fundicao", "comercial", "fiscal", "rh", "portaria", "producao", "ti"],
+    funcionalidades: ["financeiro.sara", "compras.sara", "almoxarifado.sara", "fundicao.sara", "comercial.sara", "fiscal.sara", "rh.sara", "portaria.sara", "producao.sara", "ti.sara"],
+    titulo: "Bom dia da SARA",
+    itens: [
+      "De segunda a sábado, às 7h, a SARA manda no sino um resumo do seu dia: o que está urgente, as decisões e as ações esperando por você e o que as suas guias fizeram.",
+      "Ela só mostra o que você já pode ver na plataforma.",
+      "Toque no aviso para abrir a SARA e pergunte sobre qualquer item. Nos dias sem nada pendente, ela não manda.",
+    ],
+  },
+  {
     id: "2026-10-23-sara-central",
     data: "2026-10-23",
     area: "War Room",

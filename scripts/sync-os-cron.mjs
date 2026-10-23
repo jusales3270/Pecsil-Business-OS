@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Sincroniza o espelho das OS do Forja (etapa 2 do plano de custo e margem) e roda a fila das guias da
- * SARA (E3: as de agenda que venceram e as disparadas por acontecimentos).
+ * Sincroniza o espelho das OS do Forja (etapa 2 do plano de custo e margem), roda a fila das guias da
+ * SARA (E3: as de agenda que venceram e as disparadas por acontecimentos) e o Bom dia da SARA (J2: de
+ * segunda a sábado, das 7h às 11h; fora disso a rota não faz nada).
  *
  * Roda como tarefa agendada do Coolify, DENTRO do contêiner do Business OS, a
- * cada 10 minutos: chama as rotas locais /api/producao/sync-os e /api/sara/guias/rodar
+ * cada 10 minutos: chama as rotas locais /api/producao/sync-os, /api/sara/guias/rodar e /api/sara/bom-dia/rodar
  * com o segredo FORJA_SYNC_SECRET (variável do Coolify). Uma falha não impede a
  * outra; sai com erro se alguma falhar, para a falha aparecer no histórico da tarefa.
  */
@@ -15,7 +16,7 @@ if (!secret) {
   process.exit(1);
 }
 let falhou = false;
-for (const rota of ["/api/producao/sync-os", "/api/sara/guias/rodar"]) {
+for (const rota of ["/api/producao/sync-os", "/api/sara/guias/rodar", "/api/sara/bom-dia/rodar"]) {
   try {
     const response = await fetch(`http://127.0.0.1:${port}${rota}`, {
       method: "POST",

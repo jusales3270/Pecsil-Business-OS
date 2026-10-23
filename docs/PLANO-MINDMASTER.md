@@ -4,7 +4,7 @@
 > Onde ela mora: War Room › Conselho ([PLANO-WAR-ROOM-CEREBRO §4](PLANO-WAR-ROOM-CEREBRO.md)).
 >
 > Criado em 23/10/2026 e revisto no mesmo dia pelo conceito do proprietário · Execução: Claude
-> **Situação:** plano aprovado (decisões 1 a 6 abaixo). J1 construída, aguarda a migração 202610230002.
+> **Situação:** plano aprovado (decisões 1 a 6 abaixo). J1 no ar (Deploy 23/10). J2 construída, aguarda a migração 202610230003.
 
 ---
 
@@ -85,8 +85,8 @@ ajuda antes de ser pedido. A SARA central faz isso para a empresa inteira.
 
 | # | Etapa | Ferramentas | Situação |
 |---|---|---|---|
-| **J1** | Responde: orquestrador + subagentes em paralelo + verificador, em War Room › Conselho | `perguntar_a_sara`, verificador, `calcular`, `periodo` | **construída** (23/10): `lib/sara/central/`, laço com chamadas paralelas; aguarda a migração 202610230002 |
-| J2 | Bom dia por pessoa, às 7h | `sensores_da_empresa`, `parados`, decisões e achados | na fila |
+| **J1** | Responde: orquestrador + subagentes em paralelo + verificador, em War Room › Conselho | `perguntar_a_sara`, verificador, `calcular`, `periodo` | **no ar** (Deploy 23/10): `lib/sara/central/`, laço com chamadas paralelas; holograma e voz ao vivo |
+| J2 | Bom dia por pessoa, às 7h | avisos dos módulos (`alertasDo`), decisões, ações e guias da pessoa | **construída** (23/10): `lib/sara/central/bom-dia*.ts`, rota `/api/sara/bom-dia/rodar` na tarefa de 10 em 10 minutos; aguarda a migração 202610230003 |
 | J3 | Vigia: achados, responsável acionado, cobrança e efeito; quadro na War Room | grupo "agir e acionar", `linha_do_tempo`, `dependencias` | na fila |
 | J4 | Conselho e crescimento semanal | "olhar para fora", `simular_cenario`, `avaliar_investimento`, `pareceres_do_conselho` | na fila |
 | J5 | Aprende com as respostas e o efeito | memória | na fila |
@@ -111,6 +111,18 @@ O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor d
 - **Código:**
   - `lib/sara/central/voz-ao-vivo.ts`: a sessão, as funções, a persona e as regras puras;
   - `modules/warroom/src/holograma/voz-ao-vivo.ts`: o motor no navegador.
+
+**Como a J2 funciona no código:**
+- A tarefa de 10 em 10 minutos (`scripts/sync-os-cron.mjs`) chama `/api/sara/bom-dia/rodar`. Fora da janela (7h às 11h, de segunda a sábado), nada acontece, e o que ficou na fila não sai mais.
+- Na janela, entra na fila (`sara_bom_dia`, uma linha por pessoa por dia) quem está ativo e tem a SARA de algum módulo, ou é o proprietário. A fila roda até 9 por vez, 3 em paralelo.
+- Cada Bom dia é montado com a sessão da pessoa (`sessaoComo`, como as guias):
+  - os avisos de cada módulo dela (`alertasDo`, os mesmos da janela da SARA);
+  - as decisões sem resposta;
+  - as ações esperando o Permitir;
+  - o que as guias dela fizeram nas últimas 24 horas.
+- Sem nenhum item, não manda nada. Com itens, o Haiku escreve com os fatos e o verificador confere os números. Se algum não bater, ou se o modelo falhar ou o teto do mês tiver passado, sai o texto da plataforma.
+- O texto vira uma conversa da SARA da área com mais urgentes, e o aviso no sino abre essa conversa.
+- Ainda não usa os achados da vigia (J3) nem os Parados: entram quando a J3 existir.
 
 ## 5. Decisões do proprietário (aprovadas em 23/10/2026)
 
