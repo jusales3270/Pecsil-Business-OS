@@ -9,11 +9,11 @@ import type { Visual } from "../visual.ts";
  * (não à pessoa): curto, com todos os números e de qual consulta vieram.
  */
 
-export type UsoSubagente = { modulo: string; modelo: string; tokensEntrada: number; tokensSaida: number; cacheLido: number; cacheGravado: number; ok: boolean };
+export type UsoSubagente = { modulo: string; modelo: string; tokensEntrada: number; tokensSaida: number; cacheLido: number; cacheGravado: number; ok: boolean; tempos?: { etapa: string; ms: number }[] };
 export type Rodar = (sb: SupabaseClient, modulo: string, pergunta: string) => Promise<{ texto: string; fontes: { rotulo: string; link: string }[]; consultas: string[]; uso: UsoSubagente; visuais: Visual[] }>;
 
 /** O que a subagente recebe como instrução do momento (além do manual e das regras do módulo). */
-export const REGRA_SUBAGENTE = "Quem está perguntando agora é a SARA central da empresa, em nome da pessoa (com as permissões dela). Responda só o que foi pedido, curto e objetivo, com TODOS os números e o período usado, dizendo de qual consulta veio cada um. Sem cumprimento, sem perguntas de volta e sem oferecer ações; se faltar um dado, diga qual faltou; se a pessoa não tiver permissão para algo, diga \"sem permissão para…\". Se a central pedir gráfico, tabela ou indicadores, monte com a ferramenta mostrar (a plataforma apresenta na tela da pessoa).";
+export const REGRA_SUBAGENTE = "Quem está perguntando agora é a SARA central da empresa, em nome da pessoa (com as permissões dela). Responda só o que foi pedido, curto e objetivo (no máximo 120 palavras, sem tabela longa: os 3 a 5 itens que importam), com TODOS os números e o período usado, dizendo de qual consulta veio cada um. Faça as consultas necessárias de uma vez, na mesma rodada. Sem cumprimento, sem perguntas de volta e sem oferecer ações; se faltar um dado, diga qual faltou; se a pessoa não tiver permissão para algo, diga \"sem permissão para…\". Se a central pedir gráfico, tabela ou indicadores, monte com a ferramenta mostrar (a plataforma apresenta na tela da pessoa).";
 
 /** Ferramentas da SARA do módulo que a subagente NÃO usa (agir, navegar e propor são da central e da pessoa). O gráfico (mostrar) ela monta e devolve à central. */
 export const FORA_DA_SUBAGENTE = new Set(["abrir_tela", "abrir_lancamento", "registrar_lacuna", "propor_habilidade", "criar_guia"]);

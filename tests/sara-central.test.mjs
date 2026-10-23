@@ -82,7 +82,7 @@ test("SARA central: na War Room, Sonnet, sem consulta direta, com o verificador 
   assert.match(sessao, /const calcular: Ferramenta = \{ \.\.\.CALCULAR, rodar: async \(sb, e\) => \{ const r = await CALCULAR\.rodar\(sb, e\); documentos\.fontes\.push\(r\.dados\)/, "a conta vira fonte dos documentos");
   assert.match(sessao, /access\.canModule\(x\.feature\) && access\.can\(x\.permissao, "ver"\)/, "só as áreas da pessoa");
   const rota = ler("app/api/sara/[modulo]/route.ts");
-  assert.match(rota, /if \(p\.sara\.central && !fora\) \{\s*conferencia = conferirNumeros/);
+  assert.match(rota, /if \(p\.sara\.central && !fora\) \{[^}]*conferencia = conferirNumeros\(r\.texto, \[\.\.\.\(r\.resultados \?\? \[\]\)\.map\(\(x\) => x\.dados\), \.\.\.historico\.filter/);
   const sql = ler("supabase/migrations/202610230002_sara_central.sql");
   assert.match(sql, /\('warroom\.sara', 'warroom', 'SARA central \(conselho\)', '\{ver\}', 20\)/);
   assert.match(sql, /'claude-sonnet-5-5', 60000000/);

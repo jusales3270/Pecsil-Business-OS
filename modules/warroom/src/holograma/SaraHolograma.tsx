@@ -35,6 +35,8 @@ type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: 
 type Modo = "fechado" | "cheio" | "mini";
 const ROTULO: Record<EstadoHolo, string> = { idle: "PRONTA", listening: "OUVINDO", thinking: "CONSULTANDO AS ÁREAS", speaking: "FALANDO" };
 const CHAVE_VOZ = "pecsil.sara-holo.voz";
+/** O que ela diz na hora, enquanto consulta (alterna para não soar repetido). */
+const CONFIRMACOES = ["Um instante", "Vou verificar", "Deixe-me ver", "Já consulto"];
 const lerVozLigada = () => { try { return window.localStorage.getItem(CHAVE_VOZ) !== "0"; } catch { return true; } };
 const guardarVozLigada = (v: boolean) => { try { window.localStorage.setItem(CHAVE_VOZ, v ? "1" : "0"); } catch { /* sem armazenamento: só não lembra */ } };
 
@@ -71,6 +73,9 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const pulso = useRef(novoPulso());
   const conversa = useRef<string | null>(null);
   const cumprimentou = useRef(false);
+  // Como ela chama a pessoa ("Senhor" ou o nome), para a confirmação imediata.
+  const tratamentoDaPessoa = useRef("");
+  const confirmacao = useRef(0);
   const ocupado = useRef(false);
   const relogioPalavras = useRef<ReturnType<typeof setInterval> | null>(null);
   // Cada fala tem um número: o relógio (ou a voz) de uma fala antiga não mexe no estado da nova.
@@ -194,12 +199,18 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     pararFala(); setAviso(""); setEntrada("");
     setLinhaPessoa(`▸ ${pergunta}`); setLegenda(""); setAceso(0);
     setEstado("thinking");
+    // Responde na hora (menos de 1 s), enquanto as áreas trabalham: a demora deixa de ser silêncio.
+    if (vozLigada && vozAoVivo.current) {
+      const frase = CONFIRMACOES[confirmacao.current++ % CONFIRMACOES.length];
+      vozAoVivo.current.falar(`${frase}${tratamentoDaPessoa.current ? `, ${tratamentoDaPessoa.current}` : ""}.`);
+      setTimeout(() => { if (ocupado.current) setEstado("thinking"); }, 2200);
+    }
     try {
       const r = await consultar(pergunta, voz);
       if ("erro" in r) { setEstado("idle"); falar(r.erro); return; }
       falar(resumoFalado(paraVoz(r.texto)));
     } finally { ocupado.current = false; }
-  }, [consultar, falar, pararFala, setEstado]);
+  }, [consultar, falar, pararFala, setEstado, vozLigada]);
 
   /* ---- voz ao vivo (Grok Voice, "luna", pt-BR) ---- */
   const legendaAoVivo = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -247,7 +258,8 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     const j = await r?.json().catch(() => null) as { saudacao?: string; pessoa?: string; conversa?: { id: string } | null; error?: string } | null;
     if (!r?.ok) { falar(j?.error === "FORBIDDEN" ? "A SARA central não está liberada para você." : "A SARA central está indisponível agora."); return; }
     conversa.current = j?.conversa?.id ?? null;
-    setTimeout(() => falar(`${j?.saudacao ?? "Olá"}${j?.pessoa ? `, ${j.pessoa}` : ""}. Sou a SARA central: pergunto às áreas da empresa e confiro cada número. O que você quer saber?`), 600);
+    tratamentoDaPessoa.current = j?.pessoa ?? "";
+    setTimeout(() => falar(`${j?.saudacao ?? "Olá"}${j?.pessoa ? `, ${j.pessoa}` : ""}. Às suas ordens. Em que posso ajudar?`), 600);
   }, [falar, garantirVoz]);
 
   // De fora (War Room › Conselho): invocar, ou invocar já perguntando.

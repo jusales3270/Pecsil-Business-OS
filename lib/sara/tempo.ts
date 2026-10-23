@@ -81,7 +81,8 @@ export function comAbertura(texto: string, abrir: string | null, nome = ""): str
   if (!abrir) return texto;
   let limpo = texto.replace(CUMPRIMENTO, "").trimStart();
   if (nome) {
-    const comNome = new RegExp(`^${nome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*[,!:]\\s*`, "i");
+    // O nome logo no começo (uma ou mais vezes: "QA QA, há…") sai: o cumprimento já o traz.
+    const comNome = new RegExp(`^(?:${nome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s,!:]*)+(?=\\S)`, "i");
     if (comNome.test(limpo)) { limpo = limpo.replace(comNome, ""); limpo = limpo.charAt(0).toUpperCase() + limpo.slice(1); }
   }
   return `${abrir}\n\n${limpo}`;

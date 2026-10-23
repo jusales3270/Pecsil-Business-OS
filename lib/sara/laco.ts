@@ -44,6 +44,8 @@ export type RespostaSara = {
   acoes: AcaoProposta[];
   /** O que cada consulta devolveu (o verificador da SARA central confere os números da resposta com isto). */
   resultados?: { nome: string; dados: unknown }[];
+  /** Quanto levou cada chamada ao modelo e cada consulta (ms), para medir onde vai o tempo. */
+  tempos?: { etapa: string; ms: number }[];
 };
 export type Sistema = string | { fixo: string; variavel: string };
 
@@ -198,8 +200,10 @@ export async function conversarCom(sb: SupabaseClient, a: {
   };
 
 
+  const tempos: { etapa: string; ms: number }[] = [];
   for (let rodada = 0; rodada < (a.rodadas ?? RODADAS); rodada++) {
     if (a.sinal?.aborted) throw new Error("CANCELADA");
+    const inicioModelo = Date.now();
     const ctrl = new AbortController();
     const relogio = setTimeout(() => ctrl.abort(), 60_000);
     const cancelar = () => ctrl.abort();
@@ -217,6 +221,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
     } finally { clearTimeout(relogio); a.sinal?.removeEventListener("abort", cancelar); }
     const corpo = await r.json().catch(() => null) as { content?: Bloco[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }; error?: { message?: string } } | null;
     if (!r.ok || !corpo?.content) throw new Error(`MODELO_INDISPONIVEL: ${r.status} ${corpo?.error?.message ?? ""}`.trim());
+    tempos.push({ etapa: `modelo ${rodada + 1} (${corpo.usage?.output_tokens ?? 0} tokens de saída)`, ms: Date.now() - inicioModelo });
     cacheLido += corpo.usage?.cache_read_input_tokens ?? 0;
     cacheGravado += corpo.usage?.cache_creation_input_tokens ?? 0;
     tokensEntrada += (corpo.usage?.input_tokens ?? 0) + (corpo.usage?.cache_read_input_tokens ?? 0) + (corpo.usage?.cache_creation_input_tokens ?? 0);
@@ -244,7 +249,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
     if (corpo.stop_reason !== "tool_use" || !pedidos.length || !consultou) textos.push(textoDaRodada);
     if (corpo.stop_reason !== "tool_use" || !pedidos.length) {
       const texto = juntar();
-      return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais, acoes,
+      return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais, acoes, tempos,
         resultados: resultados.map((x) => ({ nome: x.nome, dados: x.dados })) };
     }
     mensagens.push({ role: "assistant", content: corpo.content });
@@ -255,8 +260,9 @@ export async function conversarCom(sb: SupabaseClient, a: {
     // uma de cada vez e na ordem (o visual depende da consulta feita antes). A resposta volta na ordem pedida.
     const paralela = (nome: string) => Boolean(a.ferramentas.find((x) => x.nome === nome)?.paralela);
     const feitos = new Map<string, { conteudo: string; ok: boolean }>();
-    await Promise.all(pedidos.filter((p) => paralela(p.name)).map(async (p) => { feitos.set(p.id, await executar(p.name, p.input ?? {})); }));
-    for (const p of pedidos) if (!feitos.has(p.id)) feitos.set(p.id, await executar(p.name, p.input ?? {}));
+    const cronometrar = async (p: { id: string; name: string; input?: Record<string, unknown> }) => { const t = Date.now(); feitos.set(p.id, await executar(p.name, p.input ?? {})); tempos.push({ etapa: `ferramenta ${p.name}`, ms: Date.now() - t }); };
+    await Promise.all(pedidos.filter((p) => paralela(p.name)).map(cronometrar));
+    for (const p of pedidos) if (!feitos.has(p.id)) await cronometrar(p);
     const devolvidos = [];
     for (const p of pedidos) {
       const { conteudo, ok } = feitos.get(p.id)!;
@@ -265,7 +271,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
     }
     mensagens.push({ role: "user", content: devolvidos });
   }
-  return { texto: "A pergunta pediu consultas demais. Tente uma pergunta mais direta.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais, acoes };
+  return { texto: "A pergunta pediu consultas demais. Tente uma pergunta mais direta.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais, acoes, tempos };
 }
 
 const unicas = (f: Fonte[]) => f.filter((x, i) => f.findIndex((y) => y.link === x.link) === i);

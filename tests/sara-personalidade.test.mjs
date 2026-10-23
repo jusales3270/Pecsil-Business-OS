@@ -46,7 +46,7 @@ test("personalidade: expressões viram tags do motor de voz (nunca lidas) e saem
 
 test("personalidade: entra em toda SARA que fala com a pessoa, não na subagente nem na guia", () => {
   const rota = ler("app/api/sara/[modulo]/route.ts");
-  assert.match(rota, /\$\{PERSONALIDADE\}`,/, "no texto fixo da conversa (módulos e central)");
+  assert.match(rota, /fixo: `\$\{PERSONALIDADE\}\\n\\n\$\{p\.sara\.manual\}/, "no topo do texto fixo da conversa (módulos e central)");
   assert.match(rota, /\$\{regraDeTratamento\(interlocutor\)\}/, "o tratamento no texto do momento");
   assert.match(rota, /r = \{ \.\.\.r, texto: semTratamentoIndevido\(r\.texto, interlocutor\) \};/, "a trava do Senhor na resposta");
   assert.match(rota, /const interlocutor = \{ nome: me\?\.full_name, fundador: p\.access\.isOwner, verificado: true \};/, "o tratamento vem da sessão");
@@ -89,4 +89,23 @@ test("sotaque: pronúncia brasileira nativa nas instruções e voz personalizada
   assert.match(script, /form\.append\("language", "pt-BR"\)/);
   assert.match(script, /https:\/\/api\.x\.ai\/v1\/custom-voices/);
   assert.match(script, /AUTORIZOU por escrito/, "voz de alguém só com autorização");
+});
+
+test("calibração: voz a 1,2, fala do primeiro parágrafo, central numa rodada e subagente curta", async () => {
+  const v = await import("../lib/sara/central/voz-ao-vivo.ts");
+  assert.equal(v.velocidadeDaVoz(undefined), 1.2);
+  assert.equal(v.velocidadeDaVoz("1,3"), 1.3);
+  assert.equal(v.velocidadeDaVoz("3"), 1.2, "fora da faixa volta ao padrão");
+  assert.equal(v.sessaoDeVoz({ instrucoes: "x", termos: [] }).audio.output.speed, 1.2, "em audio.output.speed (o único lugar que o Grok aceita)");
+  const fala = resumoFalado("Senhor, são 394 contas vencidas, somando R$ 1.330.419,47.\n\n**Maiores**\n- OTZI: R$ 86.028,00\n\nO Bradesco segue sem extrato desde julho, o que distorce o saldo.");
+  assert.equal(fala, "Senhor, são 394 contas vencidas, somando R$ 1.330.419,47. O detalhe está no painel.", "só o primeiro parágrafo é falado");
+  const { SARA_CENTRAL } = await import("../lib/sara/central/sara.ts");
+  assert.match(SARA_CENTRAL.manual, /RAPIDEZ: pergunte a TODAS as áreas necessárias de uma vez/);
+  assert.match(SARA_CENTRAL.manual, /A RESPOSTA É FALADA: o PRIMEIRO parágrafo é o que você diz em voz alta/);
+  assert.match(ler("lib/sara/central/subagente.ts"), /no máximo 120 palavras/);
+  assert.match(ler("lib/sara/sessao.ts"), /\(pediuVisual \|\| f\.nome !== "mostrar"\)/, "sem gráfico não pedido na subagente");
+  assert.match(PERSONALIDADE, /A PERSONALIDADE APARECE: com o Senhor/);
+  assert.equal(resumoFalado("Há 394 contas vencidas, somando R$ 1.330.419,47 (dados do Financeiro, situação em 23/10/2026). Abri a tela."), "Há 394 contas vencidas, somando R$ 1.330.419,47. Abri a tela.", "parênteses fora da fala");
+  const { comAbertura } = await import("../lib/sara/tempo.ts");
+  assert.equal(comAbertura("QA QA, há 394 contas.", "Boa noite, QA.", "QA"), "Boa noite, QA.\n\nHá 394 contas.", "o nome repetido no começo sai");
 });

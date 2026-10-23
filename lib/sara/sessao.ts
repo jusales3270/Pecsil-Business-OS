@@ -54,6 +54,8 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
   // Modelo e teto mensal: só no servidor (proteção de custo), sem aparecer na tela.
   const { data: linha } = await session.supabase.from("sara_modulos").select("modelo, teto_tokens_mes").eq("modulo", modulo).maybeSingle();
   const cfg = { modelo: linha?.modelo ?? sara.modelo ?? "claude-haiku-5-5", teto_tokens_mes: linha?.teto_tokens_mes ?? 2_000_000 };
+  // Só fora de produção: comparar o modelo da central (medição de tempo), sem mexer na configuração do banco.
+  if (sara.central && process.env.NODE_ENV !== "production" && process.env.SARA_CENTRAL_MODELO_TESTE) cfg.modelo = process.env.SARA_CENTRAL_MODELO_TESTE;
   const telas = sara.telas.filter((t) => t.exige.some((f) => access.can(f, "ver")));
   const navegar = ferramentaDeTelas(telas);
   // Leitura do Segundo Cérebro: os documentos do setor, se a pessoa pode vê-los.
@@ -105,11 +107,13 @@ async function rodarSubagente(sb: SupabaseClient, modulo: string, pergunta: stri
     fixo: `${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, null)}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
     variavel: `${contextoDeTempo({ nome: primeiroNome(eu?.full_name), situacao: situacaoDaConversa(null) })}\n${REGRA_SUBAGENTE}\nResponda sempre em português do Brasil.`,
   };
-  const ferramentas = p.ferramentas.filter((f: Ferramenta) => !f.acao && !FORA_DA_SUBAGENTE.has(f.nome));
+  // Gráfico só quando a central pediu (cada visual é mais uma rodada do modelo).
+  const pediuVisual = /gr[aá]fico|tabela|visual|barras|linha|rosca|mostre|mostrar/i.test(pergunta);
+  const ferramentas = p.ferramentas.filter((f: Ferramenta) => !f.acao && !FORA_DA_SUBAGENTE.has(f.nome) && (pediuVisual || f.nome !== "mostrar"));
   const r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico: [], pergunta, ferramentas, maxTokens: p.sara.maxTokens });
   return {
     texto: r.texto, fontes: r.fontes, visuais: r.visuais, consultas: r.ferramentas.filter((f) => f.ok && f.nome !== "mostrar").map((f) => ferramentas.find((x) => x.nome === f.nome)?.rotulo ?? f.nome),
-    uso: { modulo, modelo: r.modelo, tokensEntrada: r.tokensEntrada, tokensSaida: r.tokensSaida, cacheLido: r.cacheLido, cacheGravado: r.cacheGravado, ok: true },
+    uso: { modulo, modelo: r.modelo, tokensEntrada: r.tokensEntrada, tokensSaida: r.tokensSaida, cacheLido: r.cacheLido, cacheGravado: r.cacheGravado, ok: true, tempos: r.tempos },
   };
 }
 

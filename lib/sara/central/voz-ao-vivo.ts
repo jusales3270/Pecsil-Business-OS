@@ -17,6 +17,11 @@ export const VOZ_DA_SARA = "luna";
  * brasileira nativa, com language "pt-BR") ou, sem ela, a luna. A troca é só na variável, sem mudar o código.
  */
 export const vozDaSara = (env: string | undefined = process.env.XAI_VOZ_SARA) => env?.trim() || VOZ_DA_SARA;
+/**
+ * Velocidade da fala no Realtime (`audio.output.speed`, testado em 23/10: é o único lugar que o Grok aceita).
+ * 1,2 dá fluidez de conversa sem soar apressada; XAI_VOZ_VELOCIDADE ajusta (0,8 a 1,5).
+ */
+export const velocidadeDaVoz = (env: string | undefined = process.env.XAI_VOZ_VELOCIDADE) => { const v = Number(String(env ?? "").replace(",", ".")); return Number.isFinite(v) && v >= 0.8 && v <= 1.5 ? v : 1.2; };
 export const URL_VOZ_AO_VIVO = "wss://api.x.ai/v1/realtime?model=grok-voice-latest";
 export const IDIOMA = "pt-BR";
 
@@ -68,14 +73,14 @@ export function termosChave(listas: string[][]): string[] {
 }
 
 /** A sessão que o navegador manda no `session.update`, logo ao conectar. */
-export function sessaoDeVoz(a: { instrucoes: string; termos: string[]; voz?: string }) {
+export function sessaoDeVoz(a: { instrucoes: string; termos: string[]; voz?: string; velocidade?: number }) {
   return {
     voice: a.voz ?? VOZ_DA_SARA,
     instructions: a.instrucoes,
     turn_detection: { type: "server_vad" },
     audio: {
       input: { format: { type: "audio/pcm", rate: 24000 }, transcription: { language_hint: IDIOMA, keyterms: a.termos } },
-      output: { format: { type: "audio/pcm", rate: 24000 } },
+      output: { format: { type: "audio/pcm", rate: 24000 }, speed: a.velocidade ?? velocidadeDaVoz() },
     },
     tools: FERRAMENTAS_DE_VOZ,
   };

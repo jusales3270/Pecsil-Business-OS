@@ -146,7 +146,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
     .map((f) => f.descricao.replace(/^PREPARA /, "").split(" (")[0]);
   // Fixo (vai para o cache) + do momento (hora, quem conversa, situação da conversa, o que não pode).
   const sistema = {
-    fixo: `${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}\n\n${PERSONALIDADE}`,
+    fixo: `${PERSONALIDADE}\n\n${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
     variavel: `${contextoDeTempo({ nome: tratamento(interlocutor), situacao })}\n${regraDeTratamento(interlocutor)}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}${acoesFechadas.length ? `\nAções que esta pessoa NÃO tem permissão de fazer (se ela pedir, comece com "Você não tem permissão para…" e diga quem pode; não pergunte detalhes): ${acoesFechadas.join("; ")}.` : ""}${notaAcoes}\nResponda sempre em português do Brasil.`,
   };
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
@@ -154,6 +154,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const ultima = [...historico].reverse().find((m) => m.papel === "sara")?.texto ?? null;
   const tema = temaDe(modulo);
   const verificacao = verificar({ empresa, pergunta, contexto: ultima, tema: tema?.assunto ?? null }).then((v) => { if (!v.dentro) parar.abort(); return v; });
+  const inicioRota = Date.now();
   let r: RespostaSara | null = null;
   let falha: unknown = null;
   try {
@@ -174,11 +175,13 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
     r = { ...r, tokensEntrada: r.tokensEntrada + v.tokensEntrada, tokensSaida: r.tokensSaida + v.tokensSaida };
     if (r.texto.replace(/["“”]/g, "").trim() === textoRecusa) { fora = "modelo"; r = { ...r, texto: textoRecusa, fontes: [], abrir: null, visuais: [], acoes: [] }; }
   }
+  const msModelo = Date.now() - inicioRota;
   // SARA central (E7): todo número da resposta tem de estar no que as SARAs das áreas devolveram (ou numa
   // conta). O que não bate é apontado no fim da resposta. Conferido pela plataforma, não pelo modelo.
   let conferencia: Conferencia | null = null;
   if (p.sara.central && !fora) {
-    conferencia = conferirNumeros(r.texto, (r.resultados ?? []).map((x) => x.dados));
+    // Fontes: o que as áreas devolveram agora e as respostas anteriores desta conversa (já conferidas).
+    conferencia = conferirNumeros(r.texto, [...(r.resultados ?? []).map((x) => x.dados), ...historico.filter((m) => m.papel === "sara").map((m) => m.texto)]);
     // Os gráficos que as áreas montaram vão para a tela (a central apresenta).
     r = { ...r, texto: marcarSemFonte(r.texto, conferencia), visuais: [...r.visuais, ...p.visuaisSubagentes].slice(0, 4) };
   }
@@ -190,7 +193,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   r = { ...r, texto: semTratamentoIndevido(r.texto, interlocutor) };
   const { data: reg, error } = await p.sb.rpc("sara_registrar", {
     p_conversa: conversa, p_modulo: modulo, p_pergunta: `${imagem ? "📷 " : ""}${corpo?.voz ? "🎤 " : ""}${anexo ? `📎 ${anexo.nome} · ` : ""}${pergunta}`, p_resposta: r.texto,
-    p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou },
+    p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou }, tempos: { total_ms: Date.now() - inicioRota, conversa_ms: msModelo, etapas: r.tempos ?? [] },
       lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)),
       ...(p.sara.central ? { verificador: conferencia, subagentes: p.subagentes, documentos: p.documentos?.criados ?? [] } : {}) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
