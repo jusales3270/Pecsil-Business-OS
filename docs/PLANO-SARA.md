@@ -141,5 +141,5 @@ O proprietário aprovou o plano do que absorver da LIA, o copiloto do WMS da TOT
     - rodando há mais de 30 min, é marcada como interrompida.
   - **Na tela:** quem criou pausa, retoma e usa "Rodar agora"; quem aprova também edita os limites e arquiva.
 - **Próximas etapas do plano:**
-  - E6: servidor MCP;
+  - ~~E6: servidor MCP~~ — não fazer (proprietário, 22/10: a IA é a SARA, nativa; não se abre a plataforma a outras IAs);
   - E7: mindmaster.

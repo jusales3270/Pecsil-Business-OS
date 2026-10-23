@@ -298,7 +298,7 @@ veículo, comprovante). O consignado da Russer (estoque parado em hospital) não
 | I-15 | Guias (E3): agentes que a área cria em português, com gatilho por atalho, agenda ou evento | + | 4 | 3 | 3 | 2 | 3,3 | construído 22/10: migração 202610220002 aplicada, teste SQL 43/43, QA no navegador 26/26, testes 525/525; falta Deploy | I-13 | PLANO-SARA §6 |
 | I-16 | Custo da IA em R$ (E4), só para o proprietário, com aviso aos 80% do teto | 1 | 3 | 4 | 1 | 1 | 11,0 | construído 22/10, aguarda migração e Deploy | migração 202610220001 | PLANO-SARA §6 |
 | I-17 | Consulta mais humana (E5): parâmetros usados, datas soltas e anexos na conversa | + | 3 | 3 | 2 | 2 | 4,5 | construído 22/10 (QA 9/9 com a SARA real) | — | PLANO-SARA §6 |
-| I-18 | Servidor MCP com a credencial da pessoa (E6), só pela VPN ou com autenticação forte | + | 3 | 2 | 2 | 2 | 3,5 | decisão | Proprietário e o supervisor de TI | PLANO-SARA §6 |
+| I-18 | Servidor MCP com a credencial da pessoa (E6), só pela VPN ou com autenticação forte | + | 3 | 2 | 2 | 2 | 3,5 | não fazer (proprietário 22/10: a IA é a SARA, nativa; abrir a plataforma a outras IAs não traz ganho) | — | PLANO-SARA §6 |
 | I-19 | Orquestrador (mindmaster) com o conselho (E7) | + | 4 | 2 | 4 | 3 | 2,0 | na fila | I-13, I-15; plano próprio | PLANO-SARA §0 |
 
 ### K — Custo e análise
@@ -372,6 +372,7 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | Folha de pagamento | O escritório contábil faz (BP §8) |
 | Contabilidade própria | O escritório contábil faz; o portal liga vocês a ele |
 | Conciliar sozinho | O proprietário escolheu "sobras vão para revisão" |
+| Servidor MCP para outras IAs consultarem a plataforma (E6 do plano da LIA) | Proprietário, 22/10/2026: a IA da plataforma é a SARA, nativa; dar acesso a outras IAs não faz sentido e só abre superfície. O MCP como porta de *entrada* de dados de outros sistemas (conector universal) é outra coisa e segue na ideia guardada |
 | SARA como chatbot sobre o ERP | BP §8 |
 | Module Builder e personalização por conversa agora | BP Fase 7; nem o GRV liberou |
 | Composio como hub agora; nunca no e-mail do Comercial | Integrações ficam nativas |
@@ -446,6 +447,7 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | 21/10/2026 | P-11 construído (pedido do proprietário): Fundição › Biblioteca de desenhos. Entram TODOS os desenhos da Forja (escolha do proprietário), com o selo de Fundição prevista no roteiro ou já fundida (carimbo, com as OS); a plataforma guarda a cópia (sha256, versão antiga fica, removido na Forja fica marcado) pela rota nova `/api/integracao/desenhos` da Forja, a cada 10 min. Anotações por peça e envio dos desenhos antigos da pasta física; ver e baixar, com o download no histórico. Permissão `fundicao.biblioteca` sem acessos (o proprietário delega). SQL num Postgres descartável com a estrutura de produção; Forja 4/4 | Proprietário / Claude |
 | 22/10/2026 | Plano "o que absorver da LIA/TOTVS" aprovado pelo proprietário (nota de 22/10: ~55/100): itens I-13 a I-19. Construídos o I-13 (a SARA prepara a ação e a pessoa permite ou não, com a credencial dela) e o I-16 (custo em R$ só para o proprietário, aviso aos 80% do teto). Hefesto passa a ser o nome do piloto automático da Forja (decisão do proprietário) | Proprietário / Claude |
 | 22/10/2026 | I-15 (Guias, E3) construído (pedido do proprietário: "pode", com limite zero). A área pede a rotina na conversa e quem responde por ela aprova (nível novo "aprovar" na SARA do módulo). Roda por atalho, agenda ou acontecimento, com a sessão de quem criou; ação pede Permitir, salvo limite dado pela área | Proprietário / Claude |
+| 22/10/2026 | E6 (servidor MCP, I-18) descartada pelo proprietário: a IA é a SARA, nativa; não se abre a plataforma a outras IAs. Do plano da LIA falta só a E7 (mindmaster) | Proprietário |
 | 17/10/2026 | A-01 construído: material do catálogo na solicitação, cotação, compra, compra direta e recebimento; de-para por fornecedor (CNPJ + código → material, com fator de unidade); tela Almoxarifado › Ligar histórico (420 textos, sugestão por regra). Migração 202610170001 aplicada (17/10); teste de navegador 8/8. Aceite: Henrique e o Compras com dados reais | Claude |
 | 16/10/2026 | Deploy de `fffcfe8` (F-06, C-17, K-08 e decisões por área); avisos de revisão da linha de base enviados à Ana, Domingo, Ricardo e Rafael | Proprietário / Claude |
 | 16/10/2026 | **Decisões vão para a área, não para o proprietário** (pedido dele): quadro "Quem decide o quê"; D1–D7 e A3–A10 redistribuídas; na plataforma (migração 0008) a linha de base é revisada por área, numeração e treino do orçamento são do Comercial, ligar a NF-e em produção é de quem aprova NF-e, e as alçadas não têm mais exceção do proprietário | Proprietário |
