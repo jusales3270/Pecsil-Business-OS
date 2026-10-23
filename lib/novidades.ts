@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-26-sara-crescimento",
+    data: "2026-10-26",
+    area: "War Room",
+    modulos: ["warroom"],
+    funcionalidades: ["warroom.sara"],
+    titulo: "Relatório de crescimento da SARA central",
+    itens: [
+      "Toda segunda-feira, às 8h, sai o relatório: ideias que saem dos dados da semana, novos recursos (fomento, crédito, editais), a concorrência e o mercado e investimentos pontuais.",
+      "Cada investimento vem com a conta da plataforma: prazo de retorno, VPL, TIR e o cenário pessimista. Recurso e concorrência sempre com o link da fonte.",
+      "A pesquisa na internet leva só o setor e a região, nunca dado da empresa. Tudo é opinião da IA, com a confiança à vista; quem decide continua sendo a área.",
+    ],
+  },
+  {
     id: "2026-10-24-sara-vigia",
     data: "2026-10-24",
     area: "SARA",

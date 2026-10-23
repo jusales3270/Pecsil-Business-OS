@@ -4,7 +4,7 @@
 > Onde ela mora: War Room › Conselho ([PLANO-WAR-ROOM-CEREBRO §4](PLANO-WAR-ROOM-CEREBRO.md)).
 >
 > Criado em 23/10/2026 e revisto no mesmo dia pelo conceito do proprietário · Execução: Claude
-> **Situação:** plano aprovado (decisões 1 a 6 abaixo). J1 no ar (Deploy 23/10). J2 pronta (migração aplicada, QA 24/24), falta o Deploy. J3 pronta (migração aplicada, QA 27/27), falta o Deploy.
+> **Situação:** plano aprovado (decisões 1 a 6 abaixo). J1 no ar (Deploy 23/10). J2 e J3 no ar (Deploy 23/10). J4 construída, aguarda a migração 202610230005.
 
 ---
 
@@ -88,7 +88,7 @@ ajuda antes de ser pedido. A SARA central faz isso para a empresa inteira.
 | **J1** | Responde: orquestrador + subagentes em paralelo + verificador, em War Room › Conselho | `perguntar_a_sara`, verificador, `calcular`, `periodo` | **no ar** (Deploy 23/10): `lib/sara/central/`, laço com chamadas paralelas; holograma e voz ao vivo |
 | J2 | Bom dia por pessoa, às 7h | avisos dos módulos (`alertasDo`), decisões, ações e guias da pessoa | **construída** (23/10): `lib/sara/central/bom-dia*.ts`, rota `/api/sara/bom-dia/rodar` na tarefa de 10 em 10 minutos; migração 202610230003 aplicada, QA 24/24; falta o Deploy |
 | J3 | Vigia: achados, responsável acionado, cobrança e efeito; quadro na War Room | sinais (avisos + Parados), análise com verificador, Decisões, cobrança | **construída** (23/10): `lib/sara/central/vigia*.ts`, rotas `/api/sara/vigia/rodar` e `/api/sara/central/vigia`, quadro em Conselho; migração 202610230004 aplicada, QA 27/27; falta o Deploy |
-| J4 | Conselho e crescimento semanal | "olhar para fora", `simular_cenario`, `avaliar_investimento`, `pareceres_do_conselho` | na fila |
+| J4 | Conselho e crescimento semanal | pesquisa aberta só com o assunto, `avaliarInvestimento`, relatório anterior | **construída** (23/10): `lib/sara/central/crescimento*.ts`, rotas `/api/sara/crescimento/rodar` e `/api/sara/central/crescimento`, seção Crescimento no Conselho; aguarda a migração 202610230005 |
 | J5 | Aprende com as respostas e o efeito | memória | na fila |
 
 **Como a J1 funciona no código:**
@@ -143,6 +143,18 @@ O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor d
   - as ações com Permitir prontas dentro do achado: a contenção é texto, e a ação pronta continua no aviso da SARA do módulo;
   - o grafo do Segundo Cérebro na correlação;
   - mudar quem decide pela tela (por enquanto, o cadastro inicial).
+
+**Como a J4 funciona no código:**
+- **Quando:** a tarefa de 10 em 10 minutos chama `/api/sara/crescimento/rodar`. Sai uma vez por semana, na segunda das 8h às 12h (índice único de `sara_relatorios`). O proprietário também gera pela War Room, no máximo um a cada 2 horas; esse avisa só quem pediu.
+- **1. Retrato da semana**, com a sessão da visão (o proprietário): fluxo de 90 dias, receber e vencidas, funil, orçamentos, a faturar, clientes, compras realizadas, OS e notas emitidas. Nada do RH (dado de colaborador).
+- **2. Pesquisa:** o Sonnet, com a busca na internet aberta (até 8 buscas), recebe SÓ `ASSUNTO_DA_EMPRESA` (setor e região, em `lib/sara/central/sara.ts`). Vale só o achado com o link de um resultado da busca.
+- **3. Síntese, sem internet:**
+  - entram o retrato, os gargalos da vigia, o relatório anterior (o que mudou) e a pesquisa;
+  - `validarRelatorio` confere os números com o retrato e a pesquisa e aceita só links da busca;
+  - nos investimentos, percentual é estimativa declarada e valor em reais tem de ser o custo, o ganho ou um dado;
+  - `avaliarInvestimento` faz a conta: prazo de retorno, VPL e TIR a 15% ao ano em 60 meses, e o pessimista com o ganho 30% menor.
+- **Entrega:** o relatório fica em War Room › Conselho › Crescimento (as últimas 8 semanas), e o aviso no sino vai ao proprietário e a quem tem `warroom.sara`. A aprovação de qualquer item é da área (as Decisões), não do relatório.
+- **Ainda não:** `simular_cenario` e os pareceres do conselho por papel (CFO, Operações…) ficam para depois.
 
 ## 5. Decisões do proprietário (aprovadas em 23/10/2026)
 

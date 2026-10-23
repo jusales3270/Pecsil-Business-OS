@@ -1,12 +1,13 @@
 "use client";
 
 import { SARA_CENTRAL } from "../../../lib/sara/central/sara";
+import { Crescimento } from "./Crescimento";
 import { Vigia } from "./Vigia";
 
 /**
  * War Room › Conselho (E7, J1): a SARA central, o cérebro da empresa inteira. Ela atende em holograma
- * (SaraHolograma, invocado pelo botão ou pela esfera no canto); aqui ficam o que ela faz, perguntas para começar
- * e o quadro da vigia (J3). Próxima etapa: o relatório de crescimento (J4).
+ * (SaraHolograma, invocado pelo botão ou pela esfera no canto); aqui ficam o que ela faz, perguntas para começar,
+ * o quadro da vigia (J3) e o relatório de crescimento (J4).
  */
 const perguntar = (pergunta: string) => window.dispatchEvent(new CustomEvent("pecsil:sara-perguntar", { detail: { pergunta } }));
 const invocar = () => window.dispatchEvent(new CustomEvent("pecsil:sara-invocar"));
@@ -30,7 +31,7 @@ export function Conselho() {
         {SARA_CENTRAL.sugestoes.map((s) => <button key={s} type="button" onClick={() => perguntar(s)}>{s}</button>)}
       </div>
       <Vigia />
-      <p className="conselho-nota">Em breve: o relatório semanal de crescimento (ideias, recursos, concorrência e investimentos com justificativa).</p>
+      <Crescimento />
     </section>
   );
 }

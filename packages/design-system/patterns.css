@@ -7590,6 +7590,25 @@ button.holiday-row:hover {
 .vigia-quem { font-size: var(--fs-xs); color: var(--text-secondary); }
 .vigia-quem summary { cursor: pointer; color: var(--text-primary); font-weight: 600; }
 .vigia-quem ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
+/* Crescimento da SARA central (J4), no Conselho. */
+.cresc { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; padding-top: var(--sp-3); border-top: 1px solid var(--border); }
+.cresc-corpo { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.cresc-corpo h4 { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); letter-spacing: .02em; color: var(--text-primary); }
+.cresc-resumo { margin: 0; max-width: 72ch; font-size: var(--fs-sm); line-height: 1.55; color: var(--text-primary); }
+.cresc-semana { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.cresc-semana select { min-height: 34px; padding: 4px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-primary); font: inherit; }
+.cresc-item { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-surface); }
+.cresc-item > b { font-size: var(--fs-sm); color: var(--text-primary); overflow-wrap: anywhere; text-wrap: balance; }
+.cresc-item > p { margin: 0; font-size: var(--fs-sm); line-height: 1.5; color: var(--text-secondary); overflow-wrap: anywhere; }
+.cresc-item em { font-style: normal; font-weight: 600; color: var(--text-primary); }
+.cresc-acao small { margin-right: 6px; font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent-green); }
+.cresc-item > footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: var(--fs-micro); color: var(--text-muted); }
+.cresc-ia { font-weight: 600; color: var(--accent-blue); }
+.cresc-fonte { color: var(--accent-blue); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.cresc-conta { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 2px 0; }
+.cresc-conta > div { padding: 8px 10px; border-radius: 10px; background: var(--bg-hover); }
+.cresc-conta dt { font-size: var(--fs-micro); font-weight: 600; letter-spacing: .03em; color: var(--text-muted); }
+.cresc-conta dd { margin: 2px 0 0; font-size: var(--fs-sm); font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 /* Decisões para você (menu da conta). */
 .account-contador { margin-left: auto; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--accent-red); color: #fff; font-style: normal; font-size: var(--fs-micro); font-weight: 700; text-align: center; }
 .decisoes-grupo { margin: 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }

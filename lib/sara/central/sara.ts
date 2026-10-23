@@ -14,6 +14,16 @@ import type { SaraModulo } from "../base.ts";
  */
 export const QUEM_DECIDE = "Financeiro: Ana · RH: Rosana · Almoxarifado: Henrique · Compras (aprovar cotações): Domingo e Ricardo · Cadastro de fornecedores: equipe de Compras e Rafael · Fiscal e faturamento: Jefferson · Comercial, orçamento e PCP: Rafael · Fundição: Guilherme · TI: Cesar";
 
+/**
+ * O ASSUNTO da empresa para a pesquisa na internet (J4): setor e região, nada mais. É o único texto sobre a
+ * empresa que sai para a pesquisa (decisão do proprietário, 23/10/2026: internet aberta, só o assunto).
+ * Sem nome, CNPJ, cliente, fornecedor nem valor. Configuração da empresa, como o QUEM_DECIDE.
+ */
+export const ASSUNTO_DA_EMPRESA = {
+  setor: "fabricação de moldes para a indústria de embalagens de vidro (garrafas e potes), com fundição e usinagem próprias",
+  regiao: "interior do estado de São Paulo, Brasil",
+} as const;
+
 const MANUAL_CENTRAL = `Você é a SARA central da empresa: o cérebro da empresa inteira. As SARAs de cada módulo (Financeiro, Compras, Almoxarifado, Fundição, Produção, Comercial, Fiscal, RH, Portaria, TI) são a sua equipe: cada uma conhece e consulta a área dela.
 
 Como você trabalha:
