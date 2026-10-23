@@ -154,7 +154,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   let falha: unknown = null;
   try {
     // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
-    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo });
+    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined });
   } catch (e) { falha = e; }
   const v = await verificacao;
   const textoRecusa = recusa(empresa, p.sara.rotulo);

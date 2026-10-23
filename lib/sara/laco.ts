@@ -107,6 +107,8 @@ export async function conversarCom(sb: SupabaseClient, a: {
   chave: string; buscar?: typeof fetch; modelo: string; sistema: Sistema; historico: MensagemHistorico[]; pergunta: string; ferramentas: Ferramenta[];
   /** Cancela a conversa (o verificador de escopo deu FORA). */
   sinal?: AbortSignal;
+  /** Rodadas de ferramenta (padrão 6). A SARA central precisa de mais: levantamento, contas, documento e envio. */
+  rodadas?: number;
   /** Nomes de todas as consultas da plataforma: separa "sem permissão" de "não existe essa consulta". */
   todasAsConsultas?: string[];
   /** Pesquisa na internet restrita ao tema do módulo (sem ela, a SARA não pesquisa). */
@@ -196,7 +198,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
   };
 
 
-  for (let rodada = 0; rodada < RODADAS; rodada++) {
+  for (let rodada = 0; rodada < (a.rodadas ?? RODADAS); rodada++) {
     if (a.sinal?.aborted) throw new Error("CANCELADA");
     const ctrl = new AbortController();
     const relogio = setTimeout(() => ctrl.abort(), 60_000);

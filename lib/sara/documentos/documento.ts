@@ -78,7 +78,7 @@ function tabela(x: unknown): Tabela | null {
   if (!o) return null;
   const colunas = (Array.isArray(o.colunas) ? o.colunas : []).map((c) => t(c, 40)).filter(Boolean).slice(0, LIM.colunas);
   const linhas = (Array.isArray(o.linhas) ? o.linhas : []).slice(0, LIM.linhas)
-    .map((l) => (Array.isArray(l) ? l : []).slice(0, colunas.length).map((c) => (typeof c === "number" ? formatar(c, "numero") : t(c, 120))))
+    .map((l) => (Array.isArray(l) ? l : []).slice(0, colunas.length).map((c) => (typeof c === "number" ? formatar(c, "numero") : t(c, 400))))
     .filter((l) => l.length === colunas.length);
   return colunas.length && linhas.length ? { titulo: t(o.titulo, 120) || undefined, colunas, linhas } : null;
 }

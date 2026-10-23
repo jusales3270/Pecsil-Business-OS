@@ -112,8 +112,14 @@ export function ferramentaCriarDocumento(ctx: ContextoDocumentos): Ferramenta {
 }
 
 type Pessoa = { id: string; nome: string; isOwner: boolean };
+/**
+ * Quem pode receber: as pessoas ativas da empresa de quem pede. Lido pelo servidor porque quem pede pode não
+ * enxergar os perfis dos outros (só o proprietário enxerga); a empresa é a da sessão.
+ */
 async function pessoasAtivas(sb: SupabaseClient): Promise<Pessoa[]> {
-  const { data } = await sb.from("profiles").select("id, full_name, is_owner, status, access_expires_at").eq("status", "active").limit(500);
+  const { data: org } = await sb.rpc("current_organization_id");
+  if (!org) return [];
+  const { data } = await createSupabaseAdminClient().from("profiles").select("id, full_name, is_owner, access_expires_at").eq("organization_id", org).eq("status", "active").limit(1000);
   return ((data ?? []) as { id: string; full_name: string; is_owner: boolean; access_expires_at: string | null }[])
     .filter((p) => !p.access_expires_at || Date.parse(p.access_expires_at) > Date.now()).map((p) => ({ id: p.id, nome: p.full_name, isOwner: p.is_owner }));
 }
@@ -137,7 +143,7 @@ export const ENVIAR_DOCUMENTO: Ferramenta = {
       let semAcesso: string[] = [];
       if (!p.isOwner) {
         // Só as permissões DE QUEM RECEBE (o "proprietário" da sessão é de quem pede).
-        const { data: g } = await sb.from("user_feature_grants").select("feature_code, level").eq("profile_id", p.id);
+        const { data: g } = await createSupabaseAdminClient().from("user_feature_grants").select("feature_code, level").eq("profile_id", p.id);
         const grants = normalizeGrants(Object.fromEntries(((g ?? []) as { feature_code: string; level: string }[]).map((r) => [r.feature_code, r.level])));
         semAcesso = ((doc.areas ?? []) as string[]).filter((m) => SARAS[m] && !hasModuleAccess({ isOwner: false, grants }, SARAS[m].feature)).map((m) => SARAS[m].rotulo);
       }

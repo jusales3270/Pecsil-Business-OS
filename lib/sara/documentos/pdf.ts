@@ -24,30 +24,32 @@ export const limpar = (s: string) => s.replace(/\*\*/g, "").replace(/[^\n -ÿ–
 
 const s = StyleSheet.create({
   pagina: { paddingTop: 108, paddingBottom: 56, paddingHorizontal: 40, fontFamily: "Helvetica", fontSize: 10, color: COR.tinta },
-  // O espaçamento entre linhas vai no conteúdo, não na página: herdado pelo número da página, ele some (defeito do @react-pdf).
-  conteudo: { lineHeight: 1.45 },
+  // O espaçamento entre linhas vai em CADA estilo de texto e EM PONTOS ("14.5pt"): sem unidade, o @react-pdf
+  // multiplica por 18 (1,45 vira 26 pt numa letra de 10); herdado, apaga o número da página.
   topo: { position: "absolute", top: 28, left: 40, right: 40, flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingBottom: 10, borderBottomWidth: 1.5, borderBottomColor: COR.azul },
   logo: { width: 128, height: 45, objectFit: "contain" },
   empresa: { alignItems: "flex-end", maxWidth: 300 },
-  empresaNome: { fontFamily: "Helvetica-Bold", fontSize: 9, color: COR.tinta },
-  empresaLinha: { fontSize: 7.5, color: COR.fraco, textAlign: "right" },
+  empresaNome: { fontFamily: "Helvetica-Bold", fontSize: 9, lineHeight: "12pt", color: COR.tinta },
+  empresaLinha: { fontSize: 7.5, lineHeight: "10pt", color: COR.fraco, textAlign: "right" },
   rodapeLinha: { position: "absolute", bottom: 38, left: 40, right: 40, borderTopWidth: 0.5, borderTopColor: COR.linha },
   rodapeEsq: { position: "absolute", bottom: 24, left: 40, fontSize: 7.5, color: COR.fraco },
   rodapeDir: { position: "absolute", bottom: 24, left: 40, right: 40, textAlign: "right", fontSize: 7.5, color: COR.fraco },
   rotulo: { fontSize: 8, fontFamily: "Helvetica-Bold", color: COR.azul, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 },
-  titulo: { fontFamily: "Helvetica-Bold", fontSize: 18, lineHeight: 1.2, marginBottom: 4 },
+  titulo: { fontFamily: "Helvetica-Bold", fontSize: 18, lineHeight: "22pt", marginBottom: 4 },
   subtitulo: { fontSize: 10.5, color: COR.suave, marginBottom: 2 },
   meta: { fontSize: 8, color: COR.fraco, marginBottom: 14 },
   caixa: { backgroundColor: COR.fundo, borderRadius: 4, padding: 12, marginBottom: 14 },
   h2: { fontFamily: "Helvetica-Bold", fontSize: 12, marginTop: 10, marginBottom: 6, color: COR.tinta },
-  p: { marginBottom: 6, textAlign: "justify" },
+  p: { marginBottom: 6, lineHeight: "14.5pt", textAlign: "justify" },
+  itemTexto: { flex: 1, lineHeight: "14.5pt" },
+  linha: { lineHeight: "14pt" },
   item: { flexDirection: "row", marginBottom: 3 },
-  ponto: { width: 12, color: COR.azul },
+  ponto: { width: 12, lineHeight: "14.5pt", color: COR.azul },
   tabela: { marginTop: 4, marginBottom: 10, borderWidth: 0.5, borderColor: COR.linha },
   tabTitulo: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: COR.suave, marginTop: 4, marginBottom: 3 },
   linhaT: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: COR.linha },
-  celCab: { flex: 1, padding: 4, fontSize: 8, fontFamily: "Helvetica-Bold", backgroundColor: COR.fundo },
-  cel: { flex: 1, padding: 4, fontSize: 8 },
+  celCab: { flex: 1, padding: 4, fontSize: 8, lineHeight: "10pt", fontFamily: "Helvetica-Bold", backgroundColor: COR.fundo },
+  cel: { flex: 1, padding: 4, fontSize: 8, lineHeight: "10pt" },
   insight: { flexDirection: "row", justifyContent: "space-between", padding: 8, marginBottom: 5, borderLeftWidth: 2.5, borderLeftColor: COR.azul, backgroundColor: COR.azulFundo },
   selo: { fontSize: 7, color: COR.azul, fontFamily: "Helvetica-Bold", marginLeft: 8 },
   legenda: { flexDirection: "row", flexWrap: "wrap", marginTop: 4, marginBottom: 8 },
@@ -61,8 +63,9 @@ const dataCurta = (d: Date) => d.toLocaleDateString("pt-BR", { timeZone: "Americ
 function blocos(texto: string, k: string): ReactElement[] {
   return limpar(texto).split(/\n{2,}/).flatMap((par, i): ReactElement[] => {
     const linhas = par.split("\n").map((l) => l.trim()).filter(Boolean);
+    // Lista de tópicos: um bloco com respiro embaixo, para o parágrafo seguinte não vir colado.
     if (linhas.length && linhas.every((l) => /^[-•]\s/.test(l)))
-      return linhas.map((l, j) => h(View, { key: `${k}-${i}-${j}`, style: s.item }, h(Text, { style: s.ponto }, "•"), h(Text, { style: { flex: 1 } }, l.replace(/^[-•]\s/, ""))));
+      return [h(View, { key: `${k}-${i}`, style: { marginBottom: 6 } }, ...linhas.map((l, j) => h(View, { key: j, style: s.item }, h(Text, { style: s.ponto }, "•"), h(Text, { style: s.itemTexto }, l.replace(/^[-•]\s/, "")))))];
     return [h(Text, { key: `${k}-${i}`, style: s.p }, linhas.join(" "))];
   });
 }
@@ -192,13 +195,16 @@ function relatorio(d: Documento, numero: string, quando: Date): ReactElement[] {
     corpo.push(h(Text, { key: "hi", style: s.h2, minPresenceAhead: 60 }, "Insights"));
     corpo.push(h(Text, { key: "hi2", style: [s.meta, { marginBottom: 6 }] }, "Análise da SARA (IA): opinião, com a confiança de cada item. Confira antes de decidir."));
     d.insights.forEach((x, i) => corpo.push(h(View, { key: `in${i}`, style: s.insight, wrap: false },
-      h(Text, { style: { flex: 1 } }, limpar(x.texto)), h(Text, { style: s.selo }, `confiança ${CONF[x.confianca]}`))));
+      h(Text, { style: s.itemTexto }, limpar(x.texto)), h(Text, { style: s.selo }, `confiança ${CONF[x.confianca]}`))));
   }
+  // Recomendações e "quem decide" juntos (o fecho do relatório não fica sozinho numa página).
+  const fecho: ReactElement[] = [];
   if (d.recomendacoes.length) {
-    corpo.push(h(Text, { key: "hr", style: s.h2, minPresenceAhead: 40 }, "Recomendações"));
-    d.recomendacoes.forEach((r, i) => corpo.push(h(View, { key: `rc${i}`, style: s.item }, h(Text, { style: s.ponto }, `${i + 1}.`), h(Text, { style: { flex: 1 } }, limpar(r)))));
+    fecho.push(h(Text, { key: "hr", style: s.h2 }, "Recomendações"));
+    d.recomendacoes.forEach((r, i) => fecho.push(h(View, { key: `rc${i}`, style: s.item }, h(Text, { style: s.ponto }, `${i + 1}.`), h(Text, { style: s.itemTexto }, limpar(r)))));
   }
-  if (d.quemDecide) corpo.push(h(Text, { key: "qd", style: [s.p, { marginTop: 8 }] }, h(Text, { style: { fontFamily: "Helvetica-Bold" } }, "Quem decide: "), limpar(d.quemDecide)));
+  if (d.quemDecide) fecho.push(h(Text, { key: "qd", style: [s.p, { marginTop: 8 }] }, h(Text, { style: { fontFamily: "Helvetica-Bold" } }, "Quem decide: "), limpar(d.quemDecide)));
+  if (fecho.length) corpo.push(h(View, { key: "fecho", wrap: false }, ...fecho));
   return corpo;
 }
 
@@ -207,9 +213,9 @@ function carta(d: Documento, numero: string, quando: Date, e: Empresa): ReactEle
   const corpo: ReactElement[] = [
     h(Text, { key: "ld", style: [s.p, { textAlign: "right", marginBottom: 18 }] }, `${limpar(e.municipio ? `${e.municipio[0]}${e.municipio.slice(1).toLowerCase()}` : "")}${e.municipio ? ", " : ""}${dataExtenso(quando)}`),
     h(View, { key: "dest", style: { marginBottom: 14 } },
-      h(Text, { style: { fontFamily: "Helvetica-Bold" } }, limpar(dest.nome)),
-      dest.cargo ? h(Text, null, limpar(dest.cargo)) : null,
-      dest.empresa ? h(Text, null, limpar(dest.empresa)) : null),
+      h(Text, { style: [s.linha, { fontFamily: "Helvetica-Bold" }] }, limpar(dest.nome)),
+      dest.cargo ? h(Text, { style: s.linha }, limpar(dest.cargo)) : null,
+      dest.empresa ? h(Text, { style: s.linha }, limpar(dest.empresa)) : null),
     h(Text, { key: "ref", style: [s.meta, { marginBottom: 6 }] }, `Ref.: ${numero}`),
     h(Text, { key: "ass", style: [s.p, { fontFamily: "Helvetica-Bold", marginBottom: 12 }] }, `Assunto: ${limpar(d.assunto || d.titulo)}`),
   ];
@@ -222,9 +228,9 @@ function carta(d: Documento, numero: string, quando: Date, e: Empresa): ReactEle
   corpo.push(h(View, { key: "fim", style: { marginTop: 28 }, wrap: false },
     h(Text, { style: s.p }, "Atenciosamente,"),
     h(View, { style: { marginTop: 26, borderTopWidth: 0.5, borderTopColor: COR.tinta, width: 220, paddingTop: 4 } },
-      h(Text, { style: { fontFamily: "Helvetica-Bold" } }, limpar(d.assinatura?.nome || e.razao_social)),
-      d.assinatura?.cargo ? h(Text, null, limpar(d.assinatura.cargo)) : null,
-      d.assinatura ? h(Text, { style: { color: COR.fraco } }, limpar(e.nome_fantasia || e.razao_social)) : null)));
+      h(Text, { style: [s.linha, { fontFamily: "Helvetica-Bold" }] }, limpar(d.assinatura?.nome || e.razao_social)),
+      d.assinatura?.cargo ? h(Text, { style: s.linha }, limpar(d.assinatura.cargo)) : null,
+      d.assinatura ? h(Text, { style: [s.linha, { color: COR.fraco }] }, limpar(e.nome_fantasia || e.razao_social)) : null)));
   return corpo;
 }
 
@@ -236,7 +242,7 @@ export async function gerarPdf(d: Documento, o: { numero: string; empresa: Empre
     h(Page, { size: "A4", style: s.pagina, wrap: true },
       timbre(o.empresa, o.logo),
       ...rodape(interno ? `${o.numero} · Documento interno · gerado pela SARA central em ${dataCurta(quando)}` : `${limpar(o.empresa.nome_fantasia || o.empresa.razao_social)} · ${o.numero}`),
-      h(View, { style: s.conteudo }, ...(interno ? relatorio(d, o.numero, quando) : carta(d, o.numero, quando, o.empresa)))));
+      ...(interno ? relatorio(d, o.numero, quando) : carta(d, o.numero, quando, o.empresa))));
   const buf = await renderToBuffer(doc);
   const bytes = new Uint8Array(buf);
   const paginas = (Buffer.from(bytes).toString("latin1").match(/\/Type\s*\/Page(?!s)/g) ?? []).length;

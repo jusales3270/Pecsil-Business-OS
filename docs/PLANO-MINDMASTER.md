@@ -190,7 +190,11 @@ A SARA central monta documentos sob pedido e envia a quem se destina. Exemplo: "
 - rotas `/api/sara/documentos` e `/api/sara/documentos/[id]/pdf`;
 - telas `app/components/documentos-recebidos.tsx` e `modules/warroom/src/Documentos.tsx`.
 
-**Lição:** com `lineHeight` herdado, o número da página some (defeito do `@react-pdf`); o espaçamento entre linhas fica no bloco do conteúdo.
+**Lições do `@react-pdf`:**
+- O `lineHeight` sem unidade é multiplicado por 18: 1,45 vira 26 pt numa letra de 10. Use pontos (`"14.5pt"`) em cada estilo de texto.
+- Herdado da página, o `lineHeight` apaga o número da página.
+
+**Comportamento:** com dados parciais, a central monta o documento com o que existe, com uma seção "O que falta". Migração 202610230006 aplicada; QA real 16/16, com o exemplo do proprietário pedido no holograma e enviado a uma temporária.
 
 **D2, quando houver os recursos:**
 - orçamento e proposta a partir do orçamento cadastrado (preços só do registro);
