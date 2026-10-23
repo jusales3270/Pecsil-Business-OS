@@ -25,10 +25,11 @@ test("verificador: confere com o que as áreas devolveram, inclusive arredondado
 });
 
 test("subagente: só as áreas que a pessoa pode usar; roda em paralelo; erro da área não derruba a central", async () => {
-  const usos = [];
+  const usos = [], visuaisGuardados = [];
   const f = ferramentaPerguntarASara([{ modulo: "financeiro", rotulo: "Financeiro" }], async (_sb, modulo, pergunta) => ({
     texto: `Resposta de ${modulo}: ${pergunta}`, fontes: [{ rotulo: "Financeiro › Contas a pagar", link: "/?module=financeiro" }], consultas: ["contas a pagar"],
-    uso: { modulo, modelo: "claude-haiku-5-5", tokensEntrada: 10, tokensSaida: 2, cacheLido: 0, cacheGravado: 0, ok: true } }), usos);
+    uso: { modulo, modelo: "claude-haiku-5-5", tokensEntrada: 10, tokensSaida: 2, cacheLido: 0, cacheGravado: 0, ok: true },
+    visuais: [{ componente: "barras", titulo: "Vencimentos por semana" }] }), usos, visuaisGuardados);
   assert.equal(f.paralela, true);
   assert.deepEqual(f.esquema.properties.modulo.enum, ["financeiro"]);
   const sem = await f.rodar(null, { modulo: "rh", pergunta: "férias vencidas?" });
@@ -37,11 +38,14 @@ test("subagente: só as áreas que a pessoa pode usar; roda em paralelo; erro da
   assert.equal(r.dados.area, "Financeiro");
   assert.equal(r.fontes.length, 1);
   assert.equal(usos.length, 1);
+  assert.equal(visuaisGuardados.length, 1, "o gráfico da área volta para a central apresentar");
+  assert.match(r.dados.apresentado_na_tela, /a plataforma mostra na tela/);
   const falha = ferramentaPerguntarASara([{ modulo: "compras", rotulo: "Compras" }], async () => { throw new Error("caiu"); }, usos);
   const rf = await falha.rodar(null, { modulo: "compras", pergunta: "cotações?" });
   assert.match(rf.dados.erro, /não respondeu: caiu/);
-  // A subagente não age, não navega e não propõe.
-  for (const n of ["abrir_tela", "mostrar", "propor_habilidade", "criar_guia", "registrar_lacuna"]) assert.ok(FORA_DA_SUBAGENTE.has(n), n);
+  // A subagente não age, não navega e não propõe; o gráfico ela monta e devolve à central.
+  for (const n of ["abrir_tela", "abrir_lancamento", "propor_habilidade", "criar_guia", "registrar_lacuna"]) assert.ok(FORA_DA_SUBAGENTE.has(n), n);
+  assert.ok(!FORA_DA_SUBAGENTE.has("mostrar"));
 });
 
 test("laço: chamadas paralelas rodam juntas (e voltam na ordem pedida)", async () => {
@@ -74,7 +78,7 @@ test("SARA central: na War Room, Sonnet, sem consulta direta, com o verificador 
   assert.match(SARA_CENTRAL.manual, /quem decide é a área/i);
   const sessao = ler("lib/sara/sessao.ts");
   assert.match(sessao, /if \(sara\.central\) \{/);
-  assert.match(sessao, /ferramentaPerguntarASara\(areas, rodarSubagente, subagentes\), CALCULAR, PERIODO/);
+  assert.match(sessao, /ferramentaPerguntarASara\(areas, rodarSubagente, subagentes, visuaisSubagentes\), CALCULAR, PERIODO/);
   assert.match(sessao, /access\.canModule\(x\.feature\) && access\.can\(x\.permissao, "ver"\)/, "só as áreas da pessoa");
   const rota = ler("app/api/sara/[modulo]/route.ts");
   assert.match(rota, /if \(p\.sara\.central && !fora\) \{\s*conferencia = conferirNumeros/);
@@ -102,9 +106,22 @@ test("holograma: ouve pelo Whisper da plataforma e fala só com voz do aparelho 
   assert.match(c, /\.filter\(\(v\) => v\.localService\)/, "só voz instalada no aparelho");
   assert.doesNotMatch(c, /api\.anthropic\.com|VITE_|import\.meta\.env/, "sem chamada direta ao modelo nem configuração do projeto de origem");
   assert.match(c, /fetch\("\/api\/sara\/warroom", \{ method: "POST"/, "conversa pela SARA central, com a sessão da pessoa");
-  const app = ler("modules/warroom/src/WarRoomApp.tsx");
-  assert.match(app, /canUseFeature\(access, "warroom\.sara", "ver"\)[\s\S]*<SaraHolograma \/>/, "só para quem tem a SARA central");
   const page = ler("app/page.tsx");
+  assert.match(page, /canUseFeature\(access,"warroom\.sara","ver"\)&&<SaraHolograma naWarRoom=\{activeModuleId==="warroom"\}/, "montada no app, só para quem tem a SARA central");
+  assert.doesNotMatch(ler("modules/warroom/src/WarRoomApp.tsx"), /<SaraHolograma/, "não dentro da War Room (some ao trocar de módulo)");
   assert.match(page, /!SARAS\[sara\]\.central&&!deniedTarget\?<SaraPainel/, "na War Room, a janela comum dá lugar ao holograma");
   assert.match(page, /Boolean\(!SARAS\[id\]\.central && m && canAccessModule/, "o atalho SARA do ícone não cai na central");
+});
+
+test("CEO apresentando: navega pelas telas das áreas, minimiza para mostrar e apresenta os gráficos das áreas", () => {
+  const c = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
+  assert.match(c, /CEO · SISTEMA ATIVO/);
+  assert.match(c, /if \(abrir \|\| visuais\.length\) \{[\s\S]*setModo\("mini"\)[\s\S]*navegar\(abrir\.modulo/, "minimiza e abre a tela");
+  assert.match(c, /setPalco\(visuais\)/, "apresenta os gráficos no palco");
+  assert.match(c, /if \(!naWarRoom && modo === "fechado"\) return null;/, "fora da War Room, só quando está trabalhando");
+  const sessao = ler("lib/sara/sessao.ts");
+  assert.match(sessao, /const navegarCentral = ferramentaDeTelas\(/, "telas de todas as áreas da pessoa");
+  assert.match(sessao, /f\.nome === "abrir_lancamento" && f\.exige\.some\(pode\)/);
+  assert.match(ler("app/api/sara/[modulo]/route.ts"), /visuais: \[\.\.\.r\.visuais, \.\.\.p\.visuaisSubagentes\]\.slice\(0, 4\)/);
+  assert.match(SARA_CENTRAL.manual, /apresentando à diretoria/);
 });

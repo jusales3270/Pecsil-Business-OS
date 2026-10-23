@@ -2,14 +2,20 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Texto } from "../../../../app/components/sara-painel";
+import { SaraVisual } from "../../../../app/components/sara-visual";
+import { pedirRegistro, type PedidoRegistro } from "../../../../lib/abrir-registro";
 import { resumoFalado } from "../../../../lib/sara/central/fala";
+import type { Visual } from "../../../../lib/sara/visual";
 import { criarSistema, desenhar, novoPulso, type EstadoHolo, type Sistema } from "./motor";
 
 /**
  * A SARA central em holograma (E7): a entrada da SARA na War Room. Visual criado pelo proprietário
  * (saraholo.zip, 23/10/2026): uma presença invocada, não um chat. Ela fala o essencial com legenda que
  * acende palavra por palavra e mostra a resposta completa (tabelas, fontes, aviso do verificador) no painel.
- * Pode minimizar para o canto e continuar falando.
+ * Ela apresenta como alguém da empresa apresentando à diretoria: começa em tela cheia e, quando precisa
+ * mostrar algo — a tela de onde veio o número, ou os gráficos que as áreas montaram —, minimiza para o canto
+ * inferior direito, mostra na tela principal e continua falando. Vive na plataforma inteira (montada no
+ * app), para seguir viva quando abre a tela de outro módulo; a esfera para invocar só aparece na War Room.
  *
  * Na plataforma:
  *   - conversa com a SARA central (`/api/sara/warroom`), com a sessão de quem pergunta (as conversas ficam gravadas);
@@ -21,6 +27,7 @@ import { criarSistema, desenhar, novoPulso, type EstadoHolo, type Sistema } from
 
 type Fonte = { rotulo: string; link: string };
 type Resposta = { texto: string; fontes: Fonte[] };
+type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
 type Modo = "fechado" | "cheio" | "mini";
 const ROTULO: Record<EstadoHolo, string> = { idle: "PRONTA", listening: "OUVINDO", thinking: "CONSULTANDO AS ÁREAS", speaking: "FALANDO" };
 const CHAVE_VOZ = "pecsil.sara-holo.voz";
@@ -36,7 +43,7 @@ function vozLocal(): SpeechSynthesisVoice | null {
 const lerVozLigada = () => { try { return window.localStorage.getItem(CHAVE_VOZ) !== "0"; } catch { return true; } };
 const guardarVozLigada = (v: boolean) => { try { window.localStorage.setItem(CHAVE_VOZ, v ? "1" : "0"); } catch { /* sem armazenamento: só não lembra */ } };
 
-export function SaraHolograma() {
+export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; navegar: (modulo: string, secao?: string) => void }) {
   const [modo, setModo] = useState<Modo>("fechado");
   const [estado, setEstadoTela] = useState<EstadoHolo>("idle");
   const [legenda, setLegenda] = useState("");
@@ -48,6 +55,9 @@ export function SaraHolograma() {
   const [vozLigada, setVozLigada] = useState(true);
   const [semVozLocal, setSemVozLocal] = useState(false);
   const [aviso, setAviso] = useState("");
+  // Palco: os gráficos que ela apresenta na tela principal (um de cada vez, como slides).
+  const [palco, setPalco] = useState<Visual[]>([]);
+  const [slide, setSlide] = useState(0);
 
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const quadro = useRef<number | null>(null);
@@ -132,15 +142,28 @@ export function SaraHolograma() {
     setEstado("thinking");
     try {
       const r = await fetch("/api/sara/warroom", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pergunta, conversa: conversa.current, voz }) });
-      const j = await r.json().catch(() => null) as { conversa?: string; texto?: string; fontes?: Fonte[]; error?: string } | null;
+      const j = await r.json().catch(() => null) as { conversa?: string; texto?: string; fontes?: Fonte[]; abrir?: Abrir | null; visuais?: Visual[]; error?: string } | null;
       if (!r.ok || !j?.texto) { setEstado("idle"); falar(j?.error ?? "Não consegui falar com as áreas agora. Tente de novo em instantes."); return; }
       conversa.current = j.conversa ?? conversa.current;
       setResposta({ texto: j.texto, fontes: j.fontes ?? [] });
       falar(resumoFalado(j.texto));
+      // Apresentação: começa a falar e, logo depois, minimiza e mostra a tela ou os gráficos.
+      const abrir = j.abrir ?? null, visuais = j.visuais ?? [];
+      if (abrir || visuais.length) {
+        setTimeout(() => {
+          setPainel(false); setModo("mini");
+          if (visuais.length) { setPalco(visuais); setSlide(0); }
+          if (abrir) {
+            navegar(abrir.modulo, abrir.secao ?? undefined);
+            const registro = abrir.registro;
+            if (registro) setTimeout(() => pedirRegistro(registro), 400);
+          }
+        }, 1200);
+      }
     } catch {
       setEstado("idle"); falar("Perdi a conexão com a plataforma por um instante. Tente de novo.");
     } finally { ocupado.current = false; }
-  }, [falar, pararFala, setEstado]);
+  }, [falar, pararFala, setEstado, navegar]);
 
   const invocar = useCallback(async () => {
     setModo("cheio");
@@ -217,21 +240,38 @@ export function SaraHolograma() {
   };
   const aoSoltar = () => { arraste.current.ligado = false; };
 
-  const fechar = () => { pararFala(); pararGravacao(false); setPainel(false); setModo("fechado"); };
+  const fechar = () => { pararFala(); pararGravacao(false); setPainel(false); setPalco([]); setModo("fechado"); };
   const alternarVoz = () => { const v = !vozLigada; setVozLigada(v); guardarVozLigada(v); if (!v) window.speechSynthesis?.cancel(); };
 
+  // Fora da War Room, ela só aparece quando já está trabalhando (apresentando uma tela de outro módulo).
+  if (!naWarRoom && modo === "fechado") return null;
+  const visual = palco[Math.min(slide, palco.length - 1)];
   return (
     <>
-      <button type="button" className={`sh-summon${modo !== "fechado" ? " hidden" : ""}`} onClick={() => void invocar()} aria-label="Invocar a SARA central" title="Invocar a SARA central">
+      {palco.length > 0 && visual && (
+        <section className="sh-palco" aria-label="Apresentação da SARA">
+          <header>
+            <b>Apresentação da SARA</b>
+            {palco.length > 1 && <span>{slide + 1} de {palco.length}</span>}
+            <span className="sh-palco-acoes">
+              {palco.length > 1 && <button type="button" onClick={() => setSlide((n) => Math.max(0, n - 1))} disabled={slide === 0} aria-label="Anterior">‹</button>}
+              {palco.length > 1 && <button type="button" onClick={() => setSlide((n) => Math.min(palco.length - 1, n + 1))} disabled={slide >= palco.length - 1} aria-label="Próximo">›</button>}
+              <button type="button" onClick={() => setPalco([])} aria-label="Fechar a apresentação">✕</button>
+            </span>
+          </header>
+          <div className="sh-palco-corpo"><SaraVisual v={visual} /></div>
+        </section>
+      )}
+      {naWarRoom && <button type="button" className={`sh-summon${modo !== "fechado" ? " hidden" : ""}`} onClick={() => void invocar()} aria-label="Invocar a SARA central" title="Invocar a SARA central">
         <span className="halo" /><span className="halo h2" /><span className="spark" /><span className="lbl">SARA</span>
-      </button>
+      </button>}
 
       <div className={`sh-holo${modo !== "fechado" ? " on" : ""}${modo === "cheio" ? " full" : ""}${modo === "mini" ? " mini" : ""}${painel && resposta ? " com-painel" : ""}`} aria-hidden={modo === "fechado"}>
         <div className="sh-dim" />
         <div className="sh-stage" onClick={() => { if (modo === "mini" && !arraste.current.moveu) setModo("cheio"); }}
           onPointerDown={aoApertar} onPointerMove={aoMover} onPointerUp={aoSoltar} onPointerLeave={aoSoltar}>
           <canvas ref={canvas} className="sh-canvas" />
-          <div className="sh-name"><div className="n">S A R A</div><div className="r">CENTRAL · A EMPRESA INTEIRA</div></div>
+          <div className="sh-name"><div className="n">S A R A</div><div className="r">CEO · SISTEMA ATIVO</div></div>
         </div>
 
         <div className="sh-topo">

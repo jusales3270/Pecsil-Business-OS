@@ -23,6 +23,7 @@ import { SARAS } from "../lib/sara/modulos";
 import { AccountPanel } from "./components/account-panel";
 import { MeusChamadosTi } from "./components/ti-meus-chamados";
 import { DecisoesParaVoce } from "./components/decisoes";
+import { SaraHolograma } from "../modules/warroom/src/holograma/SaraHolograma";
 import { ACCESS_CATALOG, ACCESS_LEVELS, LEVEL_LABELS, levelRank, type AccessGrants } from "../modules/access-catalog";
 import { usePwa } from "./components/pwa-provider";
 import { useInbox, type InboxItem } from "../lib/use-inbox";
@@ -702,7 +703,7 @@ function HomeContent() {
           <span>Menu</span>
         </button>
       </nav>
-    </main>{accountPanel&&<AccountPanel access={access} profile={sessionProfile} onClose={()=>setAccountPanel(false)} onSaved={reloadIdentity} notify={notify}/>}{chamadosTi&&realAccess&&<MeusChamadosTi key={chamadosTi.id??"lista"} abrirId={chamadosTi.id} onClose={()=>setChamadosTi(null)} notify={notify}/>}{decisoes&&realAccess&&<DecisoesParaVoce focoId={decisoes.id} onClose={()=>{setDecisoes(null);setDecisoesPendentes(0)}} notify={notify}/>}
+    </main>{accountPanel&&<AccountPanel access={access} profile={sessionProfile} onClose={()=>setAccountPanel(false)} onSaved={reloadIdentity} notify={notify}/>}{chamadosTi&&realAccess&&<MeusChamadosTi key={chamadosTi.id??"lista"} abrirId={chamadosTi.id} onClose={()=>setChamadosTi(null)} notify={notify}/>}{decisoes&&realAccess&&<DecisoesParaVoce focoId={decisoes.id} onClose={()=>{setDecisoes(null);setDecisoesPendentes(0)}} notify={notify}/>}{realAccess&&canUseFeature(access,"warroom.sara","ver")&&<SaraHolograma naWarRoom={activeModuleId==="warroom"} navegar={(m,s)=>openModule(m,s)}/>}
       {toast&&<div className="toast"><span>✓</span>{toast}</div>}
   </div>;
 }

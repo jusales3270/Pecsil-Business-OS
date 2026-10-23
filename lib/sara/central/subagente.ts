@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Ferramenta, SaraModulo } from "../base.ts";
+import type { Visual } from "../visual.ts";
 
 /**
  * SARA de um módulo como subagente da SARA central (E7, J1). A central não consulta direto: pergunta às
@@ -9,19 +10,19 @@ import type { Ferramenta, SaraModulo } from "../base.ts";
  */
 
 export type UsoSubagente = { modulo: string; modelo: string; tokensEntrada: number; tokensSaida: number; cacheLido: number; cacheGravado: number; ok: boolean };
-export type Rodar = (sb: SupabaseClient, modulo: string, pergunta: string) => Promise<{ texto: string; fontes: { rotulo: string; link: string }[]; consultas: string[]; uso: UsoSubagente }>;
+export type Rodar = (sb: SupabaseClient, modulo: string, pergunta: string) => Promise<{ texto: string; fontes: { rotulo: string; link: string }[]; consultas: string[]; uso: UsoSubagente; visuais: Visual[] }>;
 
 /** O que a subagente recebe como instrução do momento (além do manual e das regras do módulo). */
-export const REGRA_SUBAGENTE = "Quem está perguntando agora é a SARA central da empresa, em nome da pessoa (com as permissões dela). Responda só o que foi pedido, curto e objetivo, com TODOS os números e o período usado, dizendo de qual consulta veio cada um. Sem cumprimento, sem perguntas de volta e sem oferecer ações; se faltar um dado, diga qual faltou; se a pessoa não tiver permissão para algo, diga \"sem permissão para…\".";
+export const REGRA_SUBAGENTE = "Quem está perguntando agora é a SARA central da empresa, em nome da pessoa (com as permissões dela). Responda só o que foi pedido, curto e objetivo, com TODOS os números e o período usado, dizendo de qual consulta veio cada um. Sem cumprimento, sem perguntas de volta e sem oferecer ações; se faltar um dado, diga qual faltou; se a pessoa não tiver permissão para algo, diga \"sem permissão para…\". Se a central pedir gráfico, tabela ou indicadores, monte com a ferramenta mostrar (a plataforma apresenta na tela da pessoa).";
 
-/** Ferramentas da SARA do módulo que a subagente NÃO usa (agir, navegar e propor são da central e da pessoa). */
-export const FORA_DA_SUBAGENTE = new Set(["abrir_tela", "abrir_lancamento", "mostrar", "registrar_lacuna", "propor_habilidade", "criar_guia"]);
+/** Ferramentas da SARA do módulo que a subagente NÃO usa (agir, navegar e propor são da central e da pessoa). O gráfico (mostrar) ela monta e devolve à central. */
+export const FORA_DA_SUBAGENTE = new Set(["abrir_tela", "abrir_lancamento", "registrar_lacuna", "propor_habilidade", "criar_guia"]);
 
-export function ferramentaPerguntarASara(modulos: Pick<SaraModulo, "modulo" | "rotulo">[], rodar: Rodar, usos: UsoSubagente[]): Ferramenta {
+export function ferramentaPerguntarASara(modulos: Pick<SaraModulo, "modulo" | "rotulo">[], rodar: Rodar, usos: UsoSubagente[], visuais: Visual[] = []): Ferramenta {
   const lista = modulos.map((m) => `${m.modulo} (${m.rotulo})`).join(", ");
   return {
     nome: "perguntar_a_sara", rotulo: "perguntou à SARA da área", exige: [], paralela: true,
-    descricao: `Pergunta à SARA de um módulo (ela consulta os dados do módulo e de outros que a pessoa pode ver, com as permissões da pessoa) e devolve a resposta com as fontes. Para uma pergunta que cruza áreas, chame VÁRIAS ao mesmo tempo, uma por área. Faça a pergunta de cada uma específica: o que precisa, o período e o recorte. Módulos disponíveis para esta pessoa: ${lista || "nenhum"}.`,
+    descricao: `Pergunta à SARA de um módulo (ela consulta os dados do módulo e de outros que a pessoa pode ver, com as permissões da pessoa) e devolve a resposta com as fontes. Para uma pergunta que cruza áreas, chame VÁRIAS ao mesmo tempo, uma por área. Faça a pergunta de cada uma específica: o que precisa, o período e o recorte. Para um gráfico ou tabela, peça na pergunta ("…e mostre em barras por semana"): a área monta e a plataforma apresenta na tela. Módulos disponíveis para esta pessoa: ${lista || "nenhum"}.`,
     esquema: {
       type: "object",
       properties: {
@@ -39,7 +40,8 @@ export function ferramentaPerguntarASara(modulos: Pick<SaraModulo, "modulo" | "r
       try {
         const r = await rodar(sb, modulo, pergunta);
         usos.push(r.uso);
-        return { dados: { area: m.rotulo, resposta: r.texto, consultas: r.consultas }, fontes: r.fontes };
+        visuais.push(...r.visuais);
+        return { dados: { area: m.rotulo, resposta: r.texto, consultas: r.consultas, ...(r.visuais.length ? { apresentado_na_tela: `${r.visuais.length} visual(is) — a plataforma mostra na tela; fale deles, não repita os números` } : {}) }, fontes: r.fontes };
       } catch (err) {
         usos.push({ modulo, modelo: "", tokensEntrada: 0, tokensSaida: 0, cacheLido: 0, cacheGravado: 0, ok: false });
         return { dados: { area: m.rotulo, erro: `A SARA da área não respondeu: ${err instanceof Error ? err.message.slice(0, 160) : "erro"}` }, fontes: [] };

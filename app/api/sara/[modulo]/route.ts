@@ -173,7 +173,8 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   let conferencia: Conferencia | null = null;
   if (p.sara.central && !fora) {
     conferencia = conferirNumeros(r.texto, (r.resultados ?? []).map((x) => x.dados));
-    r = { ...r, texto: marcarSemFonte(r.texto, conferencia) };
+    // Os gráficos que as áreas montaram vão para a tela (a central apresenta).
+    r = { ...r, texto: marcarSemFonte(r.texto, conferencia), visuais: [...r.visuais, ...p.visuaisSubagentes].slice(0, 4) };
   }
   // Cumprimento e aviso de retomada vêm da plataforma (hora certa de São Paulo, nome de quem está logado).
   const nomeCurto = primeiroNome(me?.full_name);

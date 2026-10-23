@@ -6,7 +6,6 @@ import { canUseFeature } from "../../access";
 import type { ModuleRuntimeProps } from "../../runtime";
 import { Cerebro } from "./Cerebro";
 import { Conselho } from "./Conselho";
-import { SaraHolograma } from "./holograma/SaraHolograma";
 
 /**
  * War Room (docs/PLANO-WAR-ROOM-CEREBRO.md): o conselho da PecSil. Por enquanto só o proprietário entra
@@ -34,12 +33,6 @@ export default function WarRoomApp({ access, notify, initialSection }: ModuleRun
     });
   }, [registerNav, secao, ids]);
   useEffect(() => () => registerNav(null), [registerNav]);
-  // A SARA central aparece na War Room em holograma (a entrada dela), para quem tem a permissão.
-  const central = canUseFeature(access, "warroom.sara", "ver");
-  return (
-    <>
-      {secao === "Conselho" ? <Conselho /> : <Cerebro notify={notify} />}
-      {central && <SaraHolograma />}
-    </>
-  );
+  // A SARA central (holograma) é montada pelo app: segue viva quando abre a tela de outro módulo.
+  return secao === "Conselho" ? <Conselho /> : <Cerebro notify={notify} />;
 }

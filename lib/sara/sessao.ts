@@ -22,6 +22,8 @@ import { instrucoesDeHabilidades } from "./habilidades";
 import { contextoDeTempo, primeiroNome, situacaoDaConversa } from "./tempo";
 import { FORA_DA_SUBAGENTE, REGRA_SUBAGENTE, ferramentaPerguntarASara, type Rodar, type UsoSubagente } from "./central/subagente";
 import type { Ferramenta } from "./base";
+import { FERRAMENTAS } from "./ferramentas";
+import type { Visual } from "./visual";
 
 /**
  * Sessão da SARA de um módulo: a pessoa precisa ter o módulo e a SARA liberada (`<modulo>.sara`).
@@ -60,8 +62,14 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
   if (sara.central) {
     const areas = Object.values(SARAS).filter((x) => !x.central && access.canModule(x.feature) && access.can(x.permissao, "ver"));
     const subagentes: UsoSubagente[] = [];
-    const ferramentas: Ferramenta[] = [ferramentaPerguntarASara(areas, rodarSubagente, subagentes), CALCULAR, PERIODO];
-    return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades: [] as HabilidadeAtiva[], eventos: [] as { tipo: string; rotulo: string }[], subagentes } as const;
+    const visuaisSubagentes: Visual[] = [];
+    // Navegar pelas telas de todas as áreas da pessoa (como quem apresenta à diretoria: mostra de onde veio).
+    const telasDasAreas = areas.flatMap((x) => x.telas).filter((t) => t.exige.some((f) => access.can(f, "ver")));
+    const navegarCentral = ferramentaDeTelas(telasDasAreas.filter((t, i) => telasDasAreas.findIndex((y) => y.id === t.id) === i));
+    const lancamento = FERRAMENTAS.find((f) => f.nome === "abrir_lancamento" && f.exige.some(pode));
+    const ferramentas: Ferramenta[] = [ferramentaPerguntarASara(areas, rodarSubagente, subagentes, visuaisSubagentes), CALCULAR, PERIODO,
+      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : [])];
+    return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades: [] as HabilidadeAtiva[], eventos: [] as { tipo: string; rotulo: string }[], subagentes, visuaisSubagentes } as const;
   }
   const dados = consultarDados(pode, modulo);
   // Ações (E1): só preparam; quem executa é a pessoa, no cartão "Permitir".
@@ -72,7 +80,7 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
   // Habilidades aprovadas pelo proprietário: só as que a pessoa consegue rodar com as consultas dela.
   const { data: hab } = await session.supabase.rpc("sara_habilidades_ativas", { p_modulo: modulo });
   const habilidades = habilidadesQuePode((hab ?? []) as HabilidadeAtiva[], ferramentas.map((f) => f.nome));
-  return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades, eventos, subagentes: [] as UsoSubagente[] } as const;
+  return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades, eventos, subagentes: [] as UsoSubagente[], visuaisSubagentes: [] as Visual[] } as const;
 }
 
 /**
@@ -94,7 +102,7 @@ async function rodarSubagente(sb: SupabaseClient, modulo: string, pergunta: stri
   const ferramentas = p.ferramentas.filter((f: Ferramenta) => !f.acao && !FORA_DA_SUBAGENTE.has(f.nome));
   const r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico: [], pergunta, ferramentas, maxTokens: p.sara.maxTokens });
   return {
-    texto: r.texto, fontes: r.fontes, consultas: r.ferramentas.filter((f) => f.ok).map((f) => ferramentas.find((x) => x.nome === f.nome)?.rotulo ?? f.nome),
+    texto: r.texto, fontes: r.fontes, visuais: r.visuais, consultas: r.ferramentas.filter((f) => f.ok && f.nome !== "mostrar").map((f) => ferramentas.find((x) => x.nome === f.nome)?.rotulo ?? f.nome),
     uso: { modulo, modelo: r.modelo, tokensEntrada: r.tokensEntrada, tokensSaida: r.tokensSaida, cacheLido: r.cacheLido, cacheGravado: r.cacheGravado, ok: true },
   };
 }
