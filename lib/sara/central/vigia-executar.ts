@@ -8,7 +8,7 @@ import { SARAS } from "../modulos";
 import { agoraSP } from "../tempo";
 import { janelaDoBomDia } from "./bom-dia";
 import {
-  VIGIA, achadosDaPlataforma, analisarSinais, decisaoDoAchado, mesmoProblema, ordenarPorImpacto, precisaCobrar, sinaisDe, situacaoPelasRespostas,
+  VIGIA, achadosDaPlataforma, analisarSinais, decisaoDoAchado, mesmoProblema, ordenarPorImpacto, precisaCobrar, resgatarDescartados, sinaisDe, situacaoPelasRespostas,
   tipoDaChave, tipoDoAchado, validarAchados, type Achado, type AchadoAberto, type Envio, type Parado, type Sinal,
 } from "./vigia";
 
@@ -115,7 +115,7 @@ export async function rodarVigia(admin: SupabaseClient, o: OpcoesVigia = {}): Pr
     if (analise) {
       tokens = { entrada: analise.tokensEntrada, saida: analise.tokensSaida }; modelo = analise.modelo; resumo = analise.resumo;
       const v = validarAchados(analise.bruto, sinais, modulos, rotulo);
-      achados = v.achados; rel.descartados = v.descartados;
+      achados = [...v.achados, ...resgatarDescartados(v.sinaisDescartados, sinais)]; rel.descartados = v.descartados;
     } else {
       achados = achadosDaPlataforma(sinais); modelo = "plataforma";
       resumo = `${sinais.filter((s) => s.nivel === "urgente").length} sinais urgentes em ${new Set(sinais.map((s) => s.modulo)).size} áreas.`;

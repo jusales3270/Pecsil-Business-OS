@@ -7585,7 +7585,8 @@ button.holiday-row:hover {
 .vigia-contencao small { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent-green); }
 .vigia-contencao ol { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-xs); line-height: 1.5; color: var(--text-primary); }
 .vigia-achado > footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: var(--fs-micro); color: var(--text-muted); }
-.vigia-efeito { padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--accent-green) 8%, var(--bg-surface)); color: var(--text-primary) !important; font-size: var(--fs-xs) !important; }
+.vigia-efeito { padding: 6px 10px; border-radius: 8px; background: var(--bg-hover); color: var(--text-secondary) !important; font-size: var(--fs-xs) !important; }
+.vigia-efeito.resolvido { background: color-mix(in srgb, var(--accent-green) 8%, var(--bg-surface)); color: var(--text-primary) !important; }
 .vigia-quem { font-size: var(--fs-xs); color: var(--text-secondary); }
 .vigia-quem summary { cursor: pointer; color: var(--text-primary); font-weight: 600; }
 .vigia-quem ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }

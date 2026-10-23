@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  VIGIA, achadosDaPlataforma, analisarSinais, decisaoDoAchado, impressao, mesmoProblema, ordenarPorImpacto, precisaCobrar, sinaisDe,
+  VIGIA, achadosDaPlataforma, analisarSinais, decisaoDoAchado, impressao, mesmoProblema, ordenarPorImpacto, precisaCobrar, resgatarDescartados, sinaisDe,
   situacaoPelasRespostas, tipoDaChave, tipoDoAchado, validarAchados,
 } from "../lib/sara/central/vigia.ts";
 
@@ -77,6 +77,11 @@ test("vigia: valida o que o modelo devolveu — sinal existe, módulo válido, a
   assert.equal(b.impacto, "medio");
   assert.equal(b.area, "Financeiro");
   assert.deepEqual(v.descartados, ["Inventado: número sem fonte (500)", "Sem sinal: sem sinal de origem"]);
+  assert.deepEqual(v.sinaisDescartados, [], "o s1 do inventado já está coberto pelo achado do caixa");
+  const so = validarAchados({ achados: [bruto.achados[2]] }, s, MODULOS, rotulo);
+  assert.deepEqual(so.sinaisDescartados, ["s1"]);
+  const resgate = resgatarDescartados(so.sinaisDescartados, s);
+  assert.deepEqual(resgate.map((x) => [x.modulo, x.titulo, x.origem]), [["financeiro", "394 contas a pagar vencidas em aberto", "plataforma"]]);
 });
 
 test("vigia: impacto alto primeiro; depois mais urgentes e mais áreas ligadas", () => {
@@ -117,6 +122,13 @@ test("vigia: a decisão leva evidência, contenção, áreas afetadas e a marca 
     "Impacto alto · análise da SARA (IA), confiança média",
   ]);
   assert.deepEqual(VIGIA.opcoes, ["Vou tratar", "Não é problema", "Preciso de ajuda"]);
+  // Muitas evidências: até 5, e a marca de quem analisou nunca sai.
+  const muitos = sinaisDe([{ modulo: "financeiro", area: "Financeiro", avisos: Array.from({ length: 8 }, (_, i) => ({ chave: `financeiro.x${i}:1`, nivel: "urgente", titulo: `Aviso ${i}` })) }], []);
+  const d2 = decisaoDoAchado({ modulo: "financeiro", area: "Financeiro", titulo: "T", por_que: "", sinais: muitos.map((x) => x.id), impacto: "alto", ligacoes: [], contencao: ["a", "b", "c"], confianca: "alta", origem: "modelo" }, muitos, rotulo);
+  assert.equal(d2.detalhes.filter((x) => x.startsWith("Evidência")).length, 5);
+  assert.ok(d2.detalhes.includes("E mais 3 evidências no quadro da vigia."));
+  assert.equal(d2.detalhes.at(-1), "Impacto alto · análise da SARA (IA), confiança alta");
+  assert.ok(d2.detalhes.length <= 10, "cabe nas decisões");
 });
 
 test("vigia: a análise usa o Sonnet com a ferramenta de achados; falha → null (vale a plataforma)", async () => {
@@ -125,7 +137,8 @@ test("vigia: a análise usa o Sonnet com a ferramenta de achados; falha → null
   const ok = await analisarSinais({ chave: "x", hoje: "23/10/2026", sinais: s, abertos: [], buscar: async (_u, o) => { corpo = JSON.parse(o.body);
     return { ok: true, json: async () => ({ content: [{ type: "tool_use", input: { achados: [], resumo: "A empresa amanheceu com o caixa apertado." } }], usage: { input_tokens: 3000, output_tokens: 500 } }) }; } });
   assert.equal(corpo.model, "claude-sonnet-5-5");
-  assert.deepEqual(corpo.tool_choice, { type: "tool", name: "registrar_achados" });
+  assert.deepEqual(corpo.tool_choice, { type: "auto" }, "o Sonnet 5.5 não aceita forçar a ferramenta");
+  assert.deepEqual(corpo.tools.map((t) => t.name), ["registrar_achados"]);
   assert.match(corpo.messages[0].content, /s3 \[URGENTE\] Almoxarifado \(almoxarifado\)/);
   assert.equal(ok.resumo, "A empresa amanheceu com o caixa apertado.");
   assert.equal(ok.tokensEntrada, 3000);

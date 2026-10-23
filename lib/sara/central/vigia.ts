@@ -109,10 +109,10 @@ const texto = (v: unknown, max: number) => String(v ?? "").replace(/\s+/g, " ").
  * Confere o que o modelo devolveu: sinais que existem, módulo válido, até 3 contenções e TODO número com
  * fonte nos sinais (o mesmo verificador da central). O que não passa é descartado (com o motivo).
  */
-export function validarAchados(bruto: unknown, sinais: Sinal[], modulos: string[], rotulo: (m: string) => string): { achados: Achado[]; descartados: string[] } {
+export function validarAchados(bruto: unknown, sinais: Sinal[], modulos: string[], rotulo: (m: string) => string): { achados: Achado[]; descartados: string[]; sinaisDescartados: string[] } {
   const lista = Array.isArray((bruto as { achados?: unknown })?.achados) ? (bruto as { achados: unknown[] }).achados : [];
   const fontes = sinais.map((s) => `${s.titulo}. ${s.detalhe ?? ""}`);
-  const achados: Achado[] = [], descartados: string[] = [];
+  const achados: Achado[] = [], descartados: string[] = [], sinaisDescartados: string[] = [];
   for (const x of lista.slice(0, 12) as Record<string, unknown>[]) {
     const ids = (Array.isArray(x.sinais) ? x.sinais : []).map(String).filter((id) => sinais.some((s) => s.id === id));
     const titulo = texto(x.titulo, 160);
@@ -128,10 +128,18 @@ export function validarAchados(bruto: unknown, sinais: Sinal[], modulos: string[
       mesmo_que: typeof x.mesmo_que === "string" && x.mesmo_que ? x.mesmo_que : null,
     };
     const c = conferirNumeros([a.titulo, a.por_que, ...a.contencao].join(" "), fontes);
-    if (c.semFonte.length) { descartados.push(`${titulo}: número sem fonte (${c.semFonte.join(", ")})`); continue; }
+    if (c.semFonte.length) { descartados.push(`${titulo}: número sem fonte (${c.semFonte.join(", ")})`); sinaisDescartados.push(...ids); continue; }
     achados.push(a);
   }
-  return { achados, descartados };
+  return { achados, descartados, sinaisDescartados: [...new Set(sinaisDescartados)].filter((id) => !achados.some((a) => a.sinais.includes(id))) };
+}
+
+/**
+ * O achado do modelo foi descartado (número sem fonte), mas o problema continua: os sinais URGENTES dele que
+ * nenhum outro achado cobre viram achados da plataforma, só com o que os avisos dizem.
+ */
+export function resgatarDescartados(ids: string[], sinais: Sinal[]): Achado[] {
+  return achadosDaPlataforma(sinais.filter((s) => ids.includes(s.id)));
 }
 
 /** Situação do achado pelas respostas: ajuda > vou tratar > todos "não é problema" > esperando. */
@@ -157,12 +165,14 @@ const NOME_CONFIANCA = { alta: "alta", media: "média", baixa: "baixa" } as cons
 /** O achado como "Decisão para você": evidência, contenção, ligações e a marca de opinião da IA. */
 export function decisaoDoAchado(a: Achado, sinais: Sinal[], rotulo: (m: string) => string): { assunto: string; pergunta: string; detalhes: string[] } {
   const ev = a.sinais.map((id) => sinais.find((s) => s.id === id)).filter(Boolean) as Sinal[];
+  // Até 5 evidências (as outras ficam no quadro da War Room); a marca de quem analisou nunca sai.
   const detalhes = [
-    ...ev.map((s) => `Evidência (${s.area}): ${s.titulo}${s.detalhe ? `. ${s.detalhe}` : ""}`.slice(0, 400)),
+    ...ev.slice(0, 5).map((s) => `Evidência (${s.area}): ${s.titulo}${s.detalhe ? `. ${s.detalhe}` : ""}`.slice(0, 400)),
+    ...(ev.length > 5 ? [`E mais ${ev.length - 5} evidências no quadro da vigia.`] : []),
     ...a.contencao.map((c, i) => `Para conter${a.contencao.length > 1 ? ` (${i + 1})` : ""}: ${c}`),
     ...(a.ligacoes.length ? [`Afeta também: ${a.ligacoes.map(rotulo).join(", ")}`] : []),
     `Impacto ${NOME_IMPACTO[a.impacto]} · ${a.origem === "modelo" ? `análise da SARA (IA), confiança ${NOME_CONFIANCA[a.confianca]}` : "levantado pela plataforma nos avisos"}`,
-  ].slice(0, 10);
+  ];
   return {
     assunto: `Vigia da SARA: ${a.titulo}`.slice(0, 160),
     pergunta: `${a.por_que || a.titulo}\n\nA decisão é sua. O que você vai fazer?`.slice(0, 1000),
@@ -179,7 +189,8 @@ export const REGRA_VIGIA = `Você é a vigia da SARA central: todo dia você lê
 - "impacto": alto (dinheiro relevante, prazo de cliente, operação parada), medio ou baixo. "confianca": o quanto você está segura da ligação.
 - Se um ACHADO ABERTO (lista abaixo) já cobre o mesmo problema, devolva o id dele em "mesmo_que" (não crie outro).
 - No máximo 8 achados, os mais importantes. Sinal pequeno e isolado não precisa virar achado.
-- Português do Brasil, frases curtas e diretas.`;
+- Português do Brasil, frases curtas e diretas.
+- Responda SEMPRE chamando registrar_achados (uma vez, com todos os achados e o resumo), sem texto fora dela. Sem gargalo relevante: achados vazio.`;
 
 export const FERRAMENTA_ACHADOS = {
   name: "registrar_achados",
@@ -224,7 +235,8 @@ export async function analisarSinais(a: { chave: string; buscar?: typeof fetch; 
       headers: { "content-type": "application/json", "x-api-key": a.chave, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: VIGIA.modelo, max_tokens: 4000, thinking: semPensar(VIGIA.modelo), system: REGRA_VIGIA,
-        tools: [FERRAMENTA_ACHADOS], tool_choice: { type: "tool", name: FERRAMENTA_ACHADOS.name },
+        // O Sonnet 5.5 não aceita forçar a ferramenta (tool_choice "tool"/"any"): fica no automático e a regra pede a chamada.
+        tools: [FERRAMENTA_ACHADOS], tool_choice: { type: "auto" },
         messages: [{ role: "user", content: `Hoje: ${a.hoje}\n\nSINAIS:\n${linhas}\n\nACHADOS ABERTOS:\n${abertos}` }],
       }),
     });

@@ -96,7 +96,7 @@ export function Vigia() {
               <span>{a.envios.length ? `Para ${a.envios.map((e) => `${e.nome}${e.resposta ? ` (${e.resposta})` : e.cobrancas ? ` (lembrado ${e.cobrancas}×)` : ""}`).join(", ")}` : "Ainda não enviado"}</span>
               <span>{a.origem === "modelo" ? `Análise da SARA (IA) · confiança ${CONFIANCA[a.confianca]}` : "Dos avisos da plataforma"} · {quando(a.created_at)}</span>
             </footer>
-            {a.efeito && <p className="vigia-efeito">{a.efeito}</p>}
+            {a.efeito && <p className={`vigia-efeito${a.situacao === "resolvido" ? " resolvido" : ""}`}>{a.efeito}</p>}
           </article>
         ))}
       </div>
