@@ -66,6 +66,7 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "sara.guia.rodou", module: "sara", label: "Guia da SARA rodou", description: "Uma guia rodou sozinha (agenda, acontecimento ou Rodar agora), com a sessão de quem a criou." },
   { type: "sara.acao.executada", module: "sara", label: "Ação feita pela SARA", description: "A SARA preparou e a pessoa permitiu: a ação foi feita com a credencial dela." },
   { type: "sara.acao.recusada", module: "sara", label: "Ação da SARA não permitida", description: "A SARA preparou uma ação e a pessoa não permitiu: nada foi feito." },
+  { type: "sara.documento.enviado", module: "sara", label: "Documento da SARA central enviado", description: "A SARA central enviou um documento em PDF (relatório ou carta) a uma pessoa da empresa, com o Permitir de quem pediu." },
   { type: "sara.teto.alerta", module: "sara", label: "SARA perto do teto do mês", description: "O uso do mês de uma SARA passou de 80% do teto; o proprietário foi avisado." },
   { type: "fundicao.desenho.baixado", module: "fundicao", label: "Desenho baixado", description: "Alguém baixou um desenho da Biblioteca da Fundição." },
   { type: "fundicao.nota.gravada", module: "fundicao", label: "Anotação da Fundição", description: "Anotação escrita ou alterada numa peça da Biblioteca." },

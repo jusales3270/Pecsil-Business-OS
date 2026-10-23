@@ -2,12 +2,13 @@
 
 import { SARA_CENTRAL } from "../../../lib/sara/central/sara";
 import { Crescimento } from "./Crescimento";
+import { Documentos } from "./Documentos";
 import { Vigia } from "./Vigia";
 
 /**
  * War Room › Conselho (E7, J1): a SARA central, o cérebro da empresa inteira. Ela atende em holograma
  * (SaraHolograma, invocado pelo botão ou pela esfera no canto); aqui ficam o que ela faz, perguntas para começar,
- * o quadro da vigia (J3) e o relatório de crescimento (J4).
+ * o quadro da vigia (J3), o relatório de crescimento (J4) e os documentos em PDF que ela montou.
  */
 const perguntar = (pergunta: string) => window.dispatchEvent(new CustomEvent("pecsil:sara-perguntar", { detail: { pergunta } }));
 const invocar = () => window.dispatchEvent(new CustomEvent("pecsil:sara-invocar"));
@@ -32,6 +33,7 @@ export function Conselho() {
       </div>
       <Vigia />
       <Crescimento />
+      <Documentos />
     </section>
   );
 }

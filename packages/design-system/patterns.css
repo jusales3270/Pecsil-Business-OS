@@ -7517,6 +7517,34 @@ button.holiday-row:hover {
 .sh-palco-acoes button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-primary); font-size: 16px; cursor: pointer; }
 .sh-palco-acoes button:disabled { opacity: .4; cursor: default; }
 .sh-palco-corpo { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px 20px; }
+/* Documento da SARA central: a prévia e o Permitir do envio (sobre o holograma). */
+.sh-doc { position: fixed; z-index: 72; top: max(84px, calc(env(safe-area-inset-top, 0px) + 72px)); right: max(24px, env(safe-area-inset-right, 0px)); width: min(420px, calc(100vw - 32px)); max-height: 70vh; overflow: auto;
+  display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px; border-radius: 18px; border: 1px solid color-mix(in srgb, #FF9E2C 45%, var(--border)); background: var(--bg-surface); color: var(--text-primary);
+  box-shadow: 0 24px 80px rgba(0,0,0,.35), 0 0 0 6px color-mix(in srgb, #FF9E2C 10%, transparent); }
+.sh-doc > header { display: flex; align-items: center; justify-content: space-between; }
+.sh-doc > header b { font-size: var(--fs-sm); }
+.sh-doc > header button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-primary); cursor: pointer; }
+.sh-doc-item { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px; border-radius: 12px; background: var(--bg-hover); }
+.sh-doc-item > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sh-doc-item b { font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.sh-doc-item small { font-size: var(--fs-micro); color: var(--text-muted); }
+.sh-doc-icone { flex: none; display: grid; place-items: center; width: 38px; height: 46px; border-radius: 6px; background: #be123c; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+.sh-doc-item a { flex: none; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--accent-blue); color: var(--accent-blue); font-size: var(--fs-xs); font-weight: 600; text-decoration: none; }
+.sh-doc-item a:hover { background: color-mix(in srgb, var(--accent-blue) 10%, var(--bg-surface)); }
+.sh-doc-envio { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); }
+.sh-doc-envio.alto { border-color: color-mix(in srgb, var(--accent-amber) 60%, transparent); }
+.sh-doc-envio p { margin: 0; font-size: var(--fs-sm); line-height: 1.45; }
+.sh-doc-envio ul { margin: 0; padding-left: 18px; font-size: var(--fs-xs); color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px; }
+.sh-doc-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.sh-doc-botoes button { min-height: 36px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+.sh-doc-botoes button.permitir { border-color: var(--accent-blue); background: var(--accent-blue); color: #fff; }
+.sh-doc-botoes button:disabled { opacity: .6; cursor: progress; }
+.sh-doc-feito { font-size: var(--fs-xs) !important; color: var(--text-secondary); }
+.sh-doc-feito.executada { color: var(--accent-green); }
+/* Documentos para você (menu da conta) e o quadro na War Room. */
+.doc-novo { padding: 1px 10px; border-radius: 999px; border: 1px solid var(--accent-blue); color: var(--accent-blue); font-size: var(--fs-micro); font-weight: 700; white-space: nowrap; }
+.doc-recebido footer { display: flex; justify-content: flex-end; }
+a.doc-abrir { text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { .sh-summon .halo, .sh-summon .spark, .sh-console .caret { animation: none; } }
 @media (max-width: 760px) {
   .sh-holo.full.com-painel .sh-stage { left: 50%; top: 22%; width: 44vmin; height: 44vmin; }

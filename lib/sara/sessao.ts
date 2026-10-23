@@ -21,6 +21,7 @@ import { regrasDaSara } from "./modulos";
 import { instrucoesDeHabilidades } from "./habilidades";
 import { contextoDeTempo, primeiroNome, situacaoDaConversa } from "./tempo";
 import { FORA_DA_SUBAGENTE, REGRA_SUBAGENTE, ferramentaPerguntarASara, type Rodar, type UsoSubagente } from "./central/subagente";
+import { DOCUMENTOS_RECEBIDOS, ENVIAR_DOCUMENTO, ferramentaCriarDocumento, type ContextoDocumentos } from "./central/documentos";
 import type { Ferramenta } from "./base";
 import { FERRAMENTAS } from "./ferramentas";
 import type { Visual } from "./visual";
@@ -67,20 +68,24 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
     const telasDasAreas = areas.flatMap((x) => x.telas).filter((t) => t.exige.some((f) => access.can(f, "ver")));
     const navegarCentral = ferramentaDeTelas(telasDasAreas.filter((t, i) => telasDasAreas.findIndex((y) => y.id === t.id) === i));
     const lancamento = FERRAMENTAS.find((f) => f.nome === "abrir_lancamento" && f.exige.some(pode));
-    const ferramentas: Ferramenta[] = [ferramentaPerguntarASara(areas, rodarSubagente, subagentes, visuaisSubagentes), CALCULAR, PERIODO,
-      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : [])];
-    return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades: [] as HabilidadeAtiva[], eventos: [] as { tipo: string; rotulo: string }[], subagentes, visuaisSubagentes } as const;
+    // Documentos (só a central cria): as fontes dos números são o que as áreas e a calculadora devolveram.
+    const documentos: ContextoDocumentos = { fontes: [], visuais: visuaisSubagentes, criados: [], conversa: null };
+    const calcular: Ferramenta = { ...CALCULAR, rodar: async (sb, e) => { const r = await CALCULAR.rodar(sb, e); documentos.fontes.push(r.dados); return r; } };
+    const ferramentas: Ferramenta[] = [ferramentaPerguntarASara(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos.fontes), calcular, PERIODO,
+      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ferramentaCriarDocumento(documentos), ENVIAR_DOCUMENTO];
+    return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades: [] as HabilidadeAtiva[], eventos: [] as { tipo: string; rotulo: string }[], subagentes, visuaisSubagentes, documentos } as const;
   }
   const dados = consultarDados(pode, modulo);
   // Ações (E1): só preparam; quem executa é a pessoa, no cartão "Permitir".
   const acoes = acoesDaSara(modulo, (f, nivel) => access.can(f, nivel));
   // Guias (E3): a pessoa pode pedir uma rotina; os acontecimentos são os dos módulos que ela acessa.
   const eventos = EVENT_CATALOG.filter((e) => e.module !== "sara" && access.canModule(e.module)).map((e) => ({ tipo: e.type, rotulo: e.label }));
-  const ferramentas = [...ferramentasDaSara(pode, sara.ferramentas), ...(dados ? [dados] : []), CALCULAR, PERIODO, ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), ...acoes, LACUNA, PROPOR_HABILIDADE, ferramentaCriarGuia(eventos), MOSTRAR];
+  // Documentos que a SARA central mandou para a pessoa: a SARA do módulo só lê (não cria nem envia).
+  const ferramentas = [...ferramentasDaSara(pode, sara.ferramentas), ...(dados ? [dados] : []), CALCULAR, PERIODO, ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), ...acoes, LACUNA, PROPOR_HABILIDADE, ferramentaCriarGuia(eventos), MOSTRAR, DOCUMENTOS_RECEBIDOS];
   // Habilidades aprovadas pelo proprietário: só as que a pessoa consegue rodar com as consultas dela.
   const { data: hab } = await session.supabase.rpc("sara_habilidades_ativas", { p_modulo: modulo });
   const habilidades = habilidadesQuePode((hab ?? []) as HabilidadeAtiva[], ferramentas.map((f) => f.nome));
-  return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades, eventos, subagentes: [] as UsoSubagente[], visuaisSubagentes: [] as Visual[] } as const;
+  return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades, eventos, subagentes: [] as UsoSubagente[], visuaisSubagentes: [] as Visual[], documentos: null as ContextoDocumentos | null } as const;
 }
 
 /**

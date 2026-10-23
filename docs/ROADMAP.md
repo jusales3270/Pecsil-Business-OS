@@ -304,7 +304,7 @@ veículo, comprovante). O consignado da Russer (estoque parado em hospital) não
 | I-16 | Custo da IA em R$ (E4), só para o proprietário, com aviso aos 80% do teto | 1 | 3 | 4 | 1 | 1 | 11,0 | construído 22/10, aguarda migração e Deploy | migração 202610220001 | PLANO-SARA §6 |
 | I-17 | Consulta mais humana (E5): parâmetros usados, datas soltas e anexos na conversa | + | 3 | 3 | 2 | 2 | 4,5 | construído 22/10 (QA 9/9 com a SARA real) | — | PLANO-SARA §6 |
 | I-18 | Servidor MCP com a credencial da pessoa (E6), só pela VPN ou com autenticação forte | + | 3 | 2 | 2 | 2 | 3,5 | não fazer (proprietário 22/10: a IA é a SARA, nativa; abrir a plataforma a outras IAs não traz ganho) | — | PLANO-SARA §6 |
-| I-19 | SARA central, o "Jarvis" da PecSil (E7): responde, vigia, aciona o responsável e pensa no crescimento | + | 4 | 2 | 4 | 3 | 2,0 | plano aprovado 23/10; J1 (Responde) construída, aguarda a migração 202610230002; J2 a J5 na fila | I-13, I-15 | PLANO-MINDMASTER |
+| I-19 | SARA central, o "Jarvis" da PecSil (E7): responde, vigia, aciona o responsável e pensa no crescimento | + | 4 | 2 | 4 | 3 | 2,0 | J1 (Responde, holograma, voz ao vivo), J2 (Bom dia) e J3 (Vigia) no ar (Deploy 23/10); J4 (Crescimento) aplicada, falta o Deploy; Documentos em PDF (D1, só a central cria) construídos; J5 na fila | I-13, I-15 | PLANO-MINDMASTER |
 
 ### K — Custo e análise
 

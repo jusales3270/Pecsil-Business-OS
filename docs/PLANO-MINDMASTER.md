@@ -156,6 +156,46 @@ O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor d
 - **Entrega:** o relatório fica em War Room › Conselho › Crescimento (as últimas 8 semanas), e o aviso no sino vai ao proprietário e a quem tem `warroom.sara`. A aprovação de qualquer item é da área (as Decisões), não do relatório.
 - **Ainda não:** `simular_cenario` e os pareceres do conselho por papel (CFO, Operações…) ficam para depois.
 
+## 4c. Documentos em PDF (pedido do proprietário, 23/10/2026)
+
+A SARA central monta documentos sob pedido e envia a quem se destina. Exemplo: "levante os últimos 5 financiamentos quitados, compare preços e juros, faça um documento e envie para a Ana". **Só a central cria; as SARAs dos módulos só recebem.**
+
+**Decisões do proprietário (23/10):**
+- **Envio:** interno agora, pela plataforma. Para fora, por e-mail (M365, C-14) e WhatsApp (B-04) quando os recursos estiverem prontos; até lá, o PDF é baixado e encaminhado.
+- **Marca de IA:** o documento externo (carta) sai sem marca de IA, porque o proprietário aprova a prévia. No relatório interno, os insights ficam marcados como análise da IA, com a confiança.
+
+**Como funciona:**
+1. A central faz o levantamento com as áreas (`perguntar_a_sara`) e as contas (`calcular`).
+2. A central chama `criar_documento`:
+   - relatório: sumário, seções com texto, tabela e gráfico, insights, recomendações e quem decide;
+   - carta: oferta, convite ou comunicado, com destinatário, assunto, corpo e assinatura.
+3. A plataforma confere cada número com o que as áreas e a calculadora devolveram (`textoParaConferir` + o verificador). Número sem fonte volta como erro para a central corrigir.
+4. A plataforma gera o PDF A4 no servidor (`@react-pdf/renderer`) com:
+   - o timbre: logo, razão social, CNPJ, endereço e contato do cadastro;
+   - o número `DOC-AAAA-NNNN` e o rodapé "Página X de Y";
+   - os gráficos de barras, linhas e rosca desenhados no próprio PDF.
+   O arquivo fica no bucket privado `sara-documentos`.
+5. **Prévia:** no holograma, com "Abrir o PDF".
+6. **Envio:** `enviar_documento` é uma ação com Permitir. O cartão avisa se quem recebe não tem acesso a uma área do documento. Quem recebe:
+   - é avisado no sino;
+   - abre o PDF em "Documentos para você" (menu da conta);
+   - pode perguntar à SARA do módulo dele (`documentos_recebidos`, só leitura).
+7. **Registro:** War Room › Conselho › Documentos, com o que foi gerado, para quem foi e se abriram.
+
+**Código:**
+- `lib/sara/documentos/documento.ts`: regras puras;
+- `lib/sara/documentos/pdf.ts`: motor do PDF;
+- `lib/sara/central/documentos.ts`: as ferramentas;
+- migração 202610230006;
+- rotas `/api/sara/documentos` e `/api/sara/documentos/[id]/pdf`;
+- telas `app/components/documentos-recebidos.tsx` e `modules/warroom/src/Documentos.tsx`.
+
+**Lição:** com `lineHeight` herdado, o número da página some (defeito do `@react-pdf`); o espaçamento entre linhas fica no bloco do conteúdo.
+
+**D2, quando houver os recursos:**
+- orçamento e proposta a partir do orçamento cadastrado (preços só do registro);
+- envio por e-mail (M365) e WhatsApp (número dedicado), sempre com a prévia e o Permitir.
+
 ## 5. Decisões do proprietário (aprovadas em 23/10/2026)
 
 1. A central mora em War Room › Conselho; só o proprietário usa a visão da empresa inteira por enquanto (permissão `warroom.sara`).

@@ -18,7 +18,8 @@ export const REGRA_SUBAGENTE = "Quem está perguntando agora é a SARA central d
 /** Ferramentas da SARA do módulo que a subagente NÃO usa (agir, navegar e propor são da central e da pessoa). O gráfico (mostrar) ela monta e devolve à central. */
 export const FORA_DA_SUBAGENTE = new Set(["abrir_tela", "abrir_lancamento", "registrar_lacuna", "propor_habilidade", "criar_guia"]);
 
-export function ferramentaPerguntarASara(modulos: Pick<SaraModulo, "modulo" | "rotulo">[], rodar: Rodar, usos: UsoSubagente[], visuais: Visual[] = []): Ferramenta {
+/** `respostas`: o que cada área devolveu (as fontes dos números dos documentos da central). */
+export function ferramentaPerguntarASara(modulos: Pick<SaraModulo, "modulo" | "rotulo">[], rodar: Rodar, usos: UsoSubagente[], visuais: Visual[] = [], respostas: unknown[] = []): Ferramenta {
   const lista = modulos.map((m) => `${m.modulo} (${m.rotulo})`).join(", ");
   return {
     nome: "perguntar_a_sara", rotulo: "perguntou à SARA da área", exige: [], paralela: true,
@@ -41,6 +42,7 @@ export function ferramentaPerguntarASara(modulos: Pick<SaraModulo, "modulo" | "r
         const r = await rodar(sb, modulo, pergunta);
         usos.push(r.uso);
         visuais.push(...r.visuais);
+        respostas.push({ area: m.rotulo, resposta: r.texto }, ...r.visuais);
         return { dados: { area: m.rotulo, resposta: r.texto, consultas: r.consultas, ...(r.visuais.length ? { apresentado_na_tela: `${r.visuais.length} visual(is) — a plataforma mostra na tela; fale deles, não repita os números` } : {}) }, fontes: r.fontes };
       } catch (err) {
         usos.push({ modulo, modelo: "", tokensEntrada: 0, tokensSaida: 0, cacheLido: 0, cacheGravado: 0, ok: false });

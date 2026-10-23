@@ -44,8 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
-    id: "2026-10-26-sara-crescimento",
-    data: "2026-10-26",
+    id: "2026-10-24-sara-documentos",
+    data: "2026-10-24",
+    area: "SARA",
+    titulo: "Documentos para você",
+    itens: [
+      "A SARA central agora monta relatórios e cartas em PDF, com o timbre da empresa, e pode enviar para você.",
+      "Quando um documento chegar, o aviso aparece no sino. Abra em Documentos para você, no menu da sua conta (clique no seu nome).",
+      "Você também pode perguntar à SARA do seu módulo: \"o que a SARA central me mandou?\".",
+    ],
+  },
+  {
+    id: "2026-10-24-sara-crescimento",
+    data: "2026-10-24",
     area: "War Room",
     modulos: ["warroom"],
     funcionalidades: ["warroom.sara"],

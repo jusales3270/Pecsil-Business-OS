@@ -66,8 +66,8 @@ async function ultimaConversa(sb: SupabaseClient, modulo: string, eu: string | n
   const { data: acoes } = await sb.from("sara_acoes").select(COLUNAS_ACAO).eq("conversa_id", conv.id).order("created_at");
   const acoesDe = (id: string) => ((acoes ?? []) as LinhaAcao[]).filter((a) => a.mensagem_id === id).map(cartao);
   const mensagens = ((data ?? []) as LinhaMensagem[]).reverse().map((m) => {
-    const f = (m.ferramentas ?? {}) as { usadas?: Usada[]; fontes?: unknown[]; abriu?: unknown; escopo?: { fora?: string | null }; visuais?: unknown[] };
-    return { id: m.id, papel: m.papel, texto: m.texto, quando: m.created_at, nota: m.nota, consultas: (f.usadas ?? []).map((u) => u.nome), fontes: f.fontes ?? [], abrir: f.abriu ?? null, fora: Boolean(f.escopo?.fora), visuais: f.visuais ?? [], acoes: acoesDe(m.id),
+    const f = (m.ferramentas ?? {}) as { usadas?: Usada[]; fontes?: unknown[]; abriu?: unknown; escopo?: { fora?: string | null }; visuais?: unknown[]; documentos?: unknown[] };
+    return { id: m.id, papel: m.papel, texto: m.texto, quando: m.created_at, nota: m.nota, consultas: (f.usadas ?? []).map((u) => u.nome), fontes: f.fontes ?? [], abrir: f.abriu ?? null, fora: Boolean(f.escopo?.fora), visuais: f.visuais ?? [], acoes: acoesDe(m.id), documentos: f.documentos ?? [],
       parametros: m.papel === "sara" ? parametrosUsados(f.usadas ?? [], rotulos, new Set(ACOES.map((x) => x.nome)), TABELAS) : [] };
   });
   return { id: conv.id, mensagens };
@@ -118,6 +118,8 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   if (Number(uso ?? 0) >= p.cfg.teto_tokens_mes) return NextResponse.json({ error: "A SARA deste módulo atingiu o limite de uso do mês. Fale com o proprietário." }, { status: 429 });
 
   const conversa = corpo?.conversa && UUID.test(corpo.conversa) ? corpo.conversa : null;
+  // Documentos da SARA central ficam ligados à conversa em que foram pedidos.
+  if (p.documentos) p.documentos.conversa = conversa;
   // Pergunta e resposta são gravadas no mesmo instante (mesmo created_at): no empate, "pessoa" vem antes
   // de "sara" (ordem alfabética do papel). Sem isso o histórico sai trocado e a SARA responde a pergunta anterior.
   const historico = conversa
@@ -184,7 +186,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
     p_conversa: conversa, p_modulo: modulo, p_pergunta: `${imagem ? "📷 " : ""}${corpo?.voz ? "🎤 " : ""}${anexo ? `📎 ${anexo.nome} · ` : ""}${pergunta}`, p_resposta: r.texto,
     p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou },
       lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)),
-      ...(p.sara.central ? { verificador: conferencia, subagentes: p.subagentes } : {}) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
+      ...(p.sara.central ? { verificador: conferencia, subagentes: p.subagentes, documentos: p.documentos?.criados ?? [] } : {}) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
   const ids = reg as { conversa: string; mensagem: string } | null;
@@ -237,6 +239,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
 
   return NextResponse.json({
     conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, ferramentas: r.ferramentas.map((f) => f.nome), foraDoEscopo: Boolean(fora), visuais: r.visuais, acoes,
+    documentos: p.documentos?.criados ?? [],
     parametros: parametrosUsados(r.ferramentas as Usada[], rotulosDe(p.ferramentas), new Set(ACOES.map((f) => f.nome)), TABELAS),
   });
 }

@@ -28,6 +28,8 @@ import { iniciarVozAoVivo } from "./voz-ao-vivo";
 
 type Fonte = { rotulo: string; link: string };
 type Resposta = { texto: string; fontes: Fonte[] };
+type DocCriado = { id: string; numero: string; titulo: string; tipo: string; paginas: number };
+type CartaoAcao = { id: string; resumo: string; detalhes: string[]; risco: string; situacao: string; feito?: string | null; erro?: string | null };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
 type Modo = "fechado" | "cheio" | "mini";
 const ROTULO: Record<EstadoHolo, string> = { idle: "PRONTA", listening: "OUVINDO", thinking: "CONSULTANDO AS ÁREAS", speaking: "FALANDO" };
@@ -58,6 +60,9 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const [aviso, setAviso] = useState("");
   // Palco: os gráficos que ela apresenta na tela principal (um de cada vez, como slides).
   const [palco, setPalco] = useState<Visual[]>([]);
+  // Documentos que a central montou nesta resposta e os envios esperando o Permitir.
+  const [docs, setDocs] = useState<{ documentos: DocCriado[]; acoes: CartaoAcao[] } | null>(null);
+  const [decidindo, setDecidindo] = useState<string | null>(null);
   const [slide, setSlide] = useState(0);
   // Voz ao vivo (Grok, voz "luna"): conversa contínua; o microfone abre e fecha.
   const [aoVivo, setAoVivo] = useState(false);
@@ -167,10 +172,12 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const consultar = useCallback(async (pergunta: string, voz: boolean): Promise<{ texto: string } | { erro: string }> => {
     try {
       const r = await fetch("/api/sara/warroom", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pergunta, conversa: conversa.current, voz }) });
-      const j = await r.json().catch(() => null) as { conversa?: string; texto?: string; fontes?: Fonte[]; abrir?: Abrir | null; visuais?: Visual[]; error?: string } | null;
+      const j = await r.json().catch(() => null) as { conversa?: string; texto?: string; fontes?: Fonte[]; abrir?: Abrir | null; visuais?: Visual[]; documentos?: DocCriado[]; acoes?: CartaoAcao[]; error?: string } | null;
       if (!r.ok || !j?.texto) return { erro: j?.error ?? "Não consegui falar com as áreas agora. Tente de novo em instantes." };
       conversa.current = j.conversa ?? conversa.current;
       setResposta({ texto: j.texto, fontes: j.fontes ?? [] });
+      const envios = (j.acoes ?? []).filter((a) => a.situacao === "pendente");
+      if (j.documentos?.length || envios.length) setDocs({ documentos: j.documentos ?? [], acoes: envios });
       apresentar(j.abrir ?? null, j.visuais ?? []);
       return { texto: j.texto };
     } catch { return { erro: "Perdi a conexão com a plataforma por um instante. Tente de novo." }; }
@@ -307,7 +314,15 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   };
   const aoSoltar = () => { arraste.current.ligado = false; };
 
-  const fechar = () => { pararFala(); pararGravacao(false); pararAoVivo(); setPainel(false); setPalco([]); setModo("fechado"); };
+  const fechar = () => { pararFala(); pararGravacao(false); pararAoVivo(); setPainel(false); setPalco([]); setDocs(null); setModo("fechado"); };
+  // Permitir (ou não) o envio de um documento: a mesma rota das ações da SARA, com a sessão de quem pediu.
+  const decidir = async (a: CartaoAcao, permitir: boolean) => {
+    setDecidindo(a.id);
+    const r = await fetch(`/api/sara/warroom/acoes/${a.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ permitir }) }).catch(() => null);
+    const j = await r?.json().catch(() => null) as { situacao?: string; texto?: string; error?: string } | null;
+    setDecidindo(null);
+    setDocs((d) => d && { ...d, acoes: d.acoes.map((x) => (x.id === a.id ? { ...x, situacao: j?.situacao ?? "falhou", feito: j?.texto ?? j?.error ?? "Não foi possível agora." } : x)) });
+  };
   const alternarVoz = () => { const v = !vozLigada; setVozLigada(v); guardarVozLigada(v); if (!v) window.speechSynthesis?.cancel(); };
 
   // Fora da War Room, ela só aparece quando já está trabalhando (apresentando uma tela de outro módulo).
@@ -327,6 +342,30 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
             </span>
           </header>
           <div className="sh-palco-corpo"><SaraVisual v={visual} /></div>
+        </section>
+      )}
+      {docs && (docs.documentos.length > 0 || docs.acoes.length > 0) && (
+        <section className="sh-doc" aria-label="Documento da SARA central">
+          <header><b>Documento</b><button type="button" onClick={() => setDocs(null)} aria-label="Fechar">✕</button></header>
+          {docs.documentos.map((d) => (
+            <div key={d.id} className="sh-doc-item">
+              <span className="sh-doc-icone" aria-hidden>PDF</span>
+              <div><b>{d.titulo}</b><small>{d.tipo === "carta" ? "Carta" : "Relatório"} {d.numero} · {d.paginas} {d.paginas === 1 ? "página" : "páginas"}</small></div>
+              <a href={`/api/sara/documentos/${d.id}/pdf`} target="_blank" rel="noopener noreferrer">Abrir o PDF</a>
+            </div>
+          ))}
+          {docs.acoes.map((a) => (
+            <div key={a.id} className={`sh-doc-envio${a.risco === "alto" ? " alto" : ""}`}>
+              <p>{a.resumo}</p>
+              {a.detalhes.length > 0 && <ul>{a.detalhes.map((x, k) => <li key={k}>{x}</li>)}</ul>}
+              {a.situacao === "pendente" ? (
+                <div className="sh-doc-botoes">
+                  <button type="button" className="permitir" disabled={decidindo === a.id} onClick={() => void decidir(a, true)}>{decidindo === a.id ? "Enviando…" : "Permitir o envio"}</button>
+                  <button type="button" disabled={decidindo === a.id} onClick={() => void decidir(a, false)}>Não enviar</button>
+                </div>
+              ) : <p className={`sh-doc-feito ${a.situacao}`} role="status">{a.feito}</p>}
+            </div>
+          ))}
         </section>
       )}
       {naWarRoom && <button type="button" className={`sh-summon${modo !== "fechado" ? " hidden" : ""}`} onClick={() => void invocar()} aria-label="Invocar a SARA central" title="Invocar a SARA central">
