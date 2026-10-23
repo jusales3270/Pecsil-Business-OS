@@ -290,7 +290,8 @@ test("SARA: sabe se a conversa continua ou foi retomada (outro dia ou pausa long
   assert.match(rota, /const situacao = situacaoDaConversa\(historico\.at\(-1\)\?\.created_at \?\? null\)/);
   assert.match(rota, /pessoa: primeiroNome\(me\?\.full_name\), saudacao: saudacao\(agoraSP\(\)\.hora24\), conversa/);
   const painel = readFileSync(new URL("../app/components/sara-painel.tsx", import.meta.url), "utf8");
-  assert.match(painel, /if \(el\) el\.scrollTop = el\.scrollHeight/, "abre na última interação");
+  assert.match(painel, /else el\.scrollTop = el\.scrollHeight/, "abre na última interação");
+  assert.match(painel, /pergunta\?\.texto\.startsWith\("☀️ Bom dia"\)/, "o Bom dia abre do começo");
   assert.match(painel, /\}, \[msgs, pensando, aberto\]\);/);
   assert.match(painel, /className="sara-dia"/);
 });

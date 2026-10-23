@@ -344,22 +344,33 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
     return () => { clearTimeout(t); document.removeEventListener("visibilitychange", atualizar); };
   }, [carregarAvisos]);
   // Abriu a janela: a pessoa tomou ciência dos avisos novos (eles ficam marcados como "novo" nesta abertura).
+  // Se a conversa é o Bom dia de hoje (J2), os avisos já estão nele: a lista fica recolhida e o Bom dia à vista.
   useEffect(() => {
     if (!aberto) return;
     const pendentes = avisos.filter((a) => !a.visto);
     if (!pendentes.length) return;
     const t = setTimeout(() => {
+      const ultimaPergunta = [...msgs].reverse().find((m) => m.papel === "pessoa");
+      const bomDiaRecente = Boolean(ultimaPergunta?.texto.startsWith("☀️ Bom dia") && ultimaPergunta.quando && Date.now() - Date.parse(ultimaPergunta.quando) < 18 * 3600_000);
       setNovos((n) => new Set([...n, ...pendentes.map((a) => a.chave)]));
-      setVerAvisos(true);
+      if (!bomDiaRecente) setVerAvisos(true);
       setAvisos((l) => l.map((a) => ({ ...a, visto: true })));
       void fetch(`/api/sara/${modulo}/alertas`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alertas: pendentes.map((a) => ({ chave: a.chave, nivel: a.nivel })) }) }).catch(() => null);
     }, 0);
     return () => clearTimeout(t);
-  }, [aberto, avisos, modulo]);
+  }, [aberto, avisos, modulo, msgs]);
   // Sempre na última interação: ao abrir a janela, ao chegar mensagem e enquanto ela pensa.
   useEffect(() => {
     if (!aberto) return;
-    const t = setTimeout(() => { const el = rolagem.current; if (el) el.scrollTop = el.scrollHeight; }, 0);
+    const t = setTimeout(() => {
+      const el = rolagem.current;
+      if (!el) return;
+      // O Bom dia (J2) é lido do começo: a janela para na pergunta dele, não no fim do texto.
+      const ultima = msgs.at(-1), pergunta = msgs.at(-2);
+      const bolhas = el.querySelectorAll<HTMLElement>(".sara-msg.pessoa");
+      if (!pensando && ultima?.papel === "sara" && pergunta?.texto.startsWith("☀️ Bom dia") && bolhas.length) el.scrollTop += bolhas[bolhas.length - 1].getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+      else el.scrollTop = el.scrollHeight;
+    }, 0);
     return () => clearTimeout(t);
   }, [msgs, pensando, aberto]);
 
