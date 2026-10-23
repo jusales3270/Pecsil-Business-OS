@@ -48,6 +48,11 @@ da IA, deploy. **Decisão do negócio é de quem responde pela área**:
 Na plataforma vale o mesmo: a decisão vai para a permissão da área (aprovar no Financeiro, aprovar
 cotações, aprovar NF-e…), nunca para "só o proprietário".
 
+**Canal das decisões (23/10/2026):** a pergunta para uma pessoa ou área vai por **Decisões para você**,
+no menu da conta. Ela chega no sino, a pessoa responde ali (com observação), a resposta fica gravada
+(`decisoes`) e o proprietário é avisado só para acompanhar. Use esse canal para as "Decisões pendentes"
+abaixo, em vez de perguntar por fora.
+
 **Travados** — o que destrava cada um
 
 | Item | Travado por | Quem destrava |
@@ -448,6 +453,7 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | 22/10/2026 | Plano "o que absorver da LIA/TOTVS" aprovado pelo proprietário (nota de 22/10: ~55/100): itens I-13 a I-19. Construídos o I-13 (a SARA prepara a ação e a pessoa permite ou não, com a credencial dela) e o I-16 (custo em R$ só para o proprietário, aviso aos 80% do teto). Hefesto passa a ser o nome do piloto automático da Forja (decisão do proprietário) | Proprietário / Claude |
 | 22/10/2026 | I-15 (Guias, E3) construído (pedido do proprietário: "pode", com limite zero). A área pede a rotina na conversa e quem responde por ela aprova (nível novo "aprovar" na SARA do módulo). Roda por atalho, agenda ou acontecimento, com a sessão de quem criou; ação pede Permitir, salvo limite dado pela área | Proprietário / Claude |
 | 22/10/2026 | E6 (servidor MCP, I-18) descartada pelo proprietário: a IA é a SARA, nativa; não se abre a plataforma a outras IAs. Do plano da LIA falta só a E7 (mindmaster) | Proprietário |
+| 23/10/2026 | Decisões para você (migração 202610230001 aplicada, QA 12/12): o canal da plataforma para a decisão da área. Primeiro uso: perguntar a cada área se a SARA pode preparar as ações de risco maior (grupo 2). Também: as 7 ações de baixo risco da SARA (Compras, Fiscal, RH, TI, Produção) | Proprietário / Claude |
 | 17/10/2026 | A-01 construído: material do catálogo na solicitação, cotação, compra, compra direta e recebimento; de-para por fornecedor (CNPJ + código → material, com fator de unidade); tela Almoxarifado › Ligar histórico (420 textos, sugestão por regra). Migração 202610170001 aplicada (17/10); teste de navegador 8/8. Aceite: Henrique e o Compras com dados reais | Claude |
 | 16/10/2026 | Deploy de `fffcfe8` (F-06, C-17, K-08 e decisões por área); avisos de revisão da linha de base enviados à Ana, Domingo, Ricardo e Rafael | Proprietário / Claude |
 | 16/10/2026 | **Decisões vão para a área, não para o proprietário** (pedido dele): quadro "Quem decide o quê"; D1–D7 e A3–A10 redistribuídas; na plataforma (migração 0008) a linha de base é revisada por área, numeração e treino do orçamento são do Comercial, ligar a NF-e em produção é de quem aprova NF-e, e as alçadas não têm mais exceção do proprietário | Proprietário |

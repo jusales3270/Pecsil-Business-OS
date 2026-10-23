@@ -44,6 +44,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-23-decisoes",
+    data: "2026-10-23",
+    area: "Plataforma",
+    titulo: "Decisões para você",
+    itens: [
+      "Quando uma decisão for sua ou da sua área, a pergunta chega no sino.",
+      "Responda no menu da conta (clique no seu nome), em Decisões para você: escolha a opção e, se quiser, escreva uma observação.",
+      "A resposta fica registrada e dá para mudar depois.",
+    ],
+  },
+  {
     id: "2026-10-22-sara-mais-acoes",
     data: "2026-10-22",
     area: "SARA",
