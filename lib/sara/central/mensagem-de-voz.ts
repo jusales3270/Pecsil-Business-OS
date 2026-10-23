@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "../../supabase/admin";
 import type { Ferramenta } from "../base";
 import { paraVoz } from "../personalidade";
-import { IDIOMA, VOZ_DA_SARA } from "./voz-ao-vivo";
+import { IDIOMA, vozDaSara } from "./voz-ao-vivo";
 import { BUCKET_DOCUMENTOS, type ContextoDocumentos } from "./documentos";
 import { conferirNumeros } from "./verificador";
 
@@ -23,7 +23,7 @@ export const MAX_MENSAGEM = 1500;
 
 /** O pedido para a API de texto para fala: a voz da SARA, em pt-BR, MP3. */
 export function pedidoDeMensagem(texto: string) {
-  return { text: paraVoz(texto).replace(/\s+/g, " ").trim().slice(0, MAX_MENSAGEM), voice_id: VOZ_DA_SARA, language: IDIOMA, output_format: { codec: "mp3", sample_rate: 24000, bit_rate: 64000 } };
+  return { text: paraVoz(texto).replace(/\s+/g, " ").trim().slice(0, MAX_MENSAGEM), voice_id: vozDaSara(), language: IDIOMA, output_format: { codec: "mp3", sample_rate: 24000, bit_rate: 64000 } };
 }
 
 /** Grava a mensagem na voz da SARA. A chave (XAI_API_KEY) fica só no servidor. */

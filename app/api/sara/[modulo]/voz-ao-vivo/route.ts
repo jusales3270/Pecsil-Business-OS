@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { SARAS } from "../../../../../lib/sara/modulos";
 import { QUEM_DECIDE } from "../../../../../lib/sara/central/sara";
-import { URL_VOZ_AO_VIVO, VOZ_DA_SARA, extrairToken, instrucoesDeVoz, sessaoDeVoz, termosChave, vozExiste } from "../../../../../lib/sara/central/voz-ao-vivo";
+import { URL_VOZ_AO_VIVO, VOZ_DA_SARA, extrairToken, instrucoesDeVoz, sessaoDeVoz, termosChave, vozDaSara, vozExiste } from "../../../../../lib/sara/central/voz-ao-vivo";
 import { preparar } from "../../../../../lib/sara/sessao";
 import { primeiroNome } from "../../../../../lib/sara/tempo";
 import { regraDeTratamento } from "../../../../../lib/sara/personalidade";
@@ -28,12 +28,15 @@ export async function POST(_request: Request, context: { params: Promise<{ modul
   const cabecalho = { authorization: `Bearer ${chave}`, "content-type": "application/json" };
 
   // A voz escolhida pelo proprietário precisa existir: sem ela, não liga (em vez de trocar de voz calada).
-  if (!vozConferida || Date.now() - vozConferida.quando > 3_600_000) {
+  // Voz personalizada (XAI_VOZ_SARA) não aparece na lista das vozes prontas: a xAI confere ao abrir a sessão.
+  const voz = vozDaSara();
+  const personalizada = voz !== VOZ_DA_SARA;
+  if (!personalizada && (!vozConferida || Date.now() - vozConferida.quando > 3_600_000)) {
     const r = await fetch("https://api.x.ai/v1/tts/voices", { headers: cabecalho, signal: AbortSignal.timeout(10_000) }).catch(() => null);
     const lista = r?.ok ? await r.json().catch(() => null) : null;
     vozConferida = lista ? { quando: Date.now(), ok: vozExiste(lista, VOZ_DA_SARA) } : null;
   }
-  if (vozConferida && !vozConferida.ok) return NextResponse.json({ error: `A voz "${VOZ_DA_SARA}" não está disponível na xAI.` }, { status: 503 });
+  if (!personalizada && vozConferida && !vozConferida.ok) return NextResponse.json({ error: `A voz "${VOZ_DA_SARA}" não está disponível na xAI.` }, { status: 503 });
 
   const r = await fetch("https://api.x.ai/v1/realtime/client_secrets", { method: "POST", headers: cabecalho, body: JSON.stringify({ expires_after: { seconds: 300 } }), signal: AbortSignal.timeout(10_000) }).catch(() => null);
   const corpo = r ? await r.json().catch(() => null) : null;
@@ -54,6 +57,7 @@ export async function POST(_request: Request, context: { params: Promise<{ modul
   const sessao = sessaoDeVoz({
     instrucoes: instrucoesDeVoz({ empresa, nome: primeiroNome(me?.full_name), quemDecide: QUEM_DECIDE, tratamento: regraDeTratamento({ nome: me?.full_name, fundador: p.access.isOwner, verificado: true }) }),
     termos: termosChave([[empresa, "SARA", "War Room"], areas, pessoas]),
+    voz,
   });
   return NextResponse.json({ token, url: URL_VOZ_AO_VIVO, sessao });
 }

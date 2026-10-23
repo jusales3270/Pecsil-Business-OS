@@ -169,6 +169,14 @@ O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor d
   - O áudio fica guardado como documento `mensagem_voz` (migração 202610230007).
   - O envio pelo WhatsApp espera o número dedicado (B-04).
 
+**Sotaque (23/10, o proprietário notou sotaque estrangeiro na luna no Realtime):**
+- **A causa:** as 28 vozes da xAI são "multilíngues" (`GET /v1/tts/voices`), e o Realtime não tem campo de idioma da fala.
+- **Feito:**
+  - instrução de brasileira nativa na sessão (pronúncia e entonação paulistanas, sem sotaque estrangeiro);
+  - a voz passa a vir de `XAI_VOZ_SARA`, com a luna como padrão.
+- **A solução de raiz:** uma voz personalizada da xAI (`POST /v1/custom-voices`, `language: pt-BR`, gravação de até 120 s de uma brasileira nativa, com autorização por escrito), criada com `scripts/criar-voz-sara.mjs`. Ela vale para o Realtime, as ligações e o TTS do WhatsApp.
+- **Amostras para comparar:** `Desktop/PecSil - SARA ações/Sotaque da voz (comparar)`.
+
 ## 4d. Personalidade (proprietário, 23/10/2026)
 
 `lib/sara/personalidade.ts`: a assistente britânica impecável (formal sem ser servil, calma absoluta, humor seco e sutil, leal mas não submissa, proativa, concisa, discreta), com Zero-Inference, ações só com confirmação e o estilo "essencial primeiro".

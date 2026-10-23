@@ -64,7 +64,7 @@ test("personalidade: entra em toda SARA que fala com a pessoa, não na subagente
 test("mensagem de voz: a API de texto para fala do Grok só para a mensagem de WhatsApp, na voz da SARA", () => {
   const m = ler("lib/sara/central/mensagem-de-voz.ts");
   assert.match(m, /export const URL_TTS = "https:\/\/api\.x\.ai\/v1\/tts";/);
-  assert.match(m, /voice_id: VOZ_DA_SARA, language: IDIOMA/, "a mesma voz luna, em pt-BR");
+  assert.match(m, /voice_id: vozDaSara\(\), language: IDIOMA/, "a mesma voz da SARA, em pt-BR");
   assert.match(m, /text: paraVoz\(texto\)/, "as expressões viram tags");
   assert.match(m, /const c = conferirNumeros\(texto, ctx\.fontes\);/, "número só com fonte");
   assert.match(m, /process\.env\.XAI_API_KEY/, "a chave só no servidor");
@@ -72,4 +72,19 @@ test("mensagem de voz: a API de texto para fala do Grok só para a mensagem de W
   assert.doesNotMatch(ler("modules/warroom/src/holograma/SaraHolograma.tsx"), /\/v1\/tts/);
   assert.match(ler("lib/sara/sessao.ts"), /ENVIAR_DOCUMENTO, ferramentaCriarMensagemDeVoz\(documentos\)\]/, "só a central grava");
   assert.match(ler("supabase/migrations/202610230007_sara_mensagem_voz.sql"), /check \(tipo in \('relatorio', 'carta', 'mensagem_voz'\)\)/);
+});
+
+test("sotaque: pronúncia brasileira nativa nas instruções e voz personalizada por variável (XAI_VOZ_SARA)", async () => {
+  const v = await import("../lib/sara/central/voz-ao-vivo.ts");
+  assert.equal(v.vozDaSara(undefined), "luna", "sem a variável, a luna");
+  assert.equal(v.vozDaSara("  vozbr123 "), "vozbr123", "com a voz personalizada criada de uma brasileira nativa");
+  assert.match(v.instrucoesDeVoz({ empresa: "X", nome: "A", quemDecide: "" }), /português do Brasil é a sua língua materna[\s\S]*sem nenhum sotaque estrangeiro/);
+  assert.equal(v.sessaoDeVoz({ instrucoes: "x", termos: [], voz: "vozbr123" }).voice, "vozbr123");
+  const rota = ler("app/api/sara/[modulo]/voz-ao-vivo/route.ts");
+  assert.match(rota, /const voz = vozDaSara\(\);/);
+  assert.match(rota, /if \(!personalizada && \(!vozConferida/, "a voz personalizada não está na lista das prontas");
+  const script = ler("scripts/criar-voz-sara.mjs");
+  assert.match(script, /form\.append\("language", "pt-BR"\)/);
+  assert.match(script, /https:\/\/api\.x\.ai\/v1\/custom-voices/);
+  assert.match(script, /AUTORIZOU por escrito/, "voz de alguém só com autorização");
 });
