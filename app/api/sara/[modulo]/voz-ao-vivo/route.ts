@@ -13,8 +13,8 @@ export const runtime = "nodejs";
  * Voz ao vivo da SARA central (Grok Voice, xAI). POST: confere a permissão (a SARA central da pessoa),
  * confere se a voz "luna" existe e pede um token temporário (5 min) para o navegador conectar direto ao
  * Grok, sem a chave sair do servidor (`XAI_API_KEY`). Devolve o endereço e a sessão (pt-BR, a persona e as
- * funções). Os dados da empresa não passam por aqui: o Grok chama `consultar_sara_central`, que é a rota
- * normal da central (com as permissões, o verificador e o registro).
+ * funções). Os dados da empresa não passam por aqui: o Grok chama `perguntar_a_area` (a rota normal da SARA
+ * daquela área) ou `consultar_sara_central` (a rota da central), com as permissões, o verificador e o registro.
  */
 let vozConferida: { quando: number; ok: boolean } | null = null;
 
@@ -52,12 +52,16 @@ export async function POST(_request: Request, context: { params: Promise<{ modul
     p.sb.from("organizations").select("display_name, legal_name").limit(1).maybeSingle(),
   ]);
   const empresa = org?.display_name || org?.legal_name || "empresa";
-  const areas = Object.values(SARAS).filter((s) => !s.central && p.access.canModule(s.feature)).map((s) => s.rotulo);
+  // As áreas que a pessoa pode consultar direto: as mesmas que a central consulta por ela.
+  const saras = Object.values(SARAS).filter((s) => !s.central && p.access.canModule(s.feature) && p.access.can(s.permissao, "ver"));
+  const areasDeVoz = saras.map((s) => ({ modulo: s.modulo, rotulo: s.rotulo }));
+  const areas = saras.map((s) => s.rotulo);
   const pessoas = QUEM_DECIDE.split(/[·:,]| e /).map((x) => x.trim()).filter((x) => /^[A-ZÁÉÍÓÚ][a-zà-ú]+$/.test(x));
   const sessao = sessaoDeVoz({
-    instrucoes: instrucoesDeVoz({ empresa, nome: primeiroNome(me?.full_name), quemDecide: QUEM_DECIDE, tratamento: regraDeTratamento({ nome: me?.full_name, fundador: p.access.isOwner, verificado: true }) }),
+    instrucoes: instrucoesDeVoz({ empresa, nome: primeiroNome(me?.full_name), quemDecide: QUEM_DECIDE, tratamento: regraDeTratamento({ nome: me?.full_name, fundador: p.access.isOwner, verificado: true }), areas: areasDeVoz }),
     termos: termosChave([[empresa, "SARA", "War Room"], areas, pessoas]),
     voz,
+    areas: areasDeVoz,
   });
   return NextResponse.json({ token, url: URL_VOZ_AO_VIVO, sessao });
 }

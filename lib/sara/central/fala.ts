@@ -6,6 +6,7 @@
  */
 
 const AVISO = /⚠️?\s*Sem fonte conferida:[^\n]*/;
+const CUMPRIMENTO = /^(bom dia|boa tarde|boa noite|ol[áa]|oi)\b[^.!?\d]{0,40}[.!?]?$/i;
 /** Tags do motor de voz (personalidade): passam intactas pela limpeza da marcação. */
 const TAG = /<soft>\[laugh\]<\/soft>|\[(?:sigh|laugh|pause|long-pause|cough)\]/g;
 
@@ -14,7 +15,8 @@ export function resumoFalado(entrada: string, max = 420): string {
   const texto = entrada.replace(TAG, (m) => { tags.push(m); return ` §${tags.length - 1}§ `; });
   // O primeiro parágrafo de texto corrido é o que a central escreveu para ser falado; o resto fica no painel.
   const paragrafos = texto.replace(AVISO, "").split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean);
-  const primeiro = paragrafos.find((x) => !/^\s*(\||[-*•]\s|\d+[.)]\s|#|```|\*\*[^*]+\*\*:?\s*$)/.test(x));
+  // Um parágrafo só de cumprimento ("Boa noite, Senhor.") não é a resposta: fala o seguinte.
+  const primeiro = paragrafos.find((x) => !/^\s*(\||[-*•]\s|\d+[.)]\s|#|```|\*\*[^*]+\*\*:?\s*$)/.test(x) && !CUMPRIMENTO.test(x));
   const temMais = paragrafos.length > 1;
   const aviso = texto.match(AVISO)?.[0]?.replace(/⚠️?\s*/, "").trim() ?? null;
   const linhas = (primeiro ?? texto.replace(AVISO, "")).split("\n").filter((l) => l.trim());

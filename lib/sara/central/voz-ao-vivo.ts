@@ -1,8 +1,9 @@
 /**
  * Voz ao vivo da SARA central (E7) pelo Grok Voice (xAI, grok-voice-3.0), decisão do proprietário de
  * 23/10/2026. O Grok é a VOZ e o ritmo da conversa (escuta, fala, aceita interrupção e age enquanto fala);
- * o CÉREBRO continua sendo a SARA central (Claude + as SARAs das áreas + o verificador), chamada pela
- * função `consultar_sara_central`. Regras:
+ * o CÉREBRO são as SARAs (Claude + o verificador). Roteamento (proprietário, 23/10/2026): a pergunta de UMA
+ * área vai direto à SARA daquela área (`perguntar_a_area`, um degrau de modelo a menos); a que cruza áreas,
+ * pede documento ou mensagem de voz vai à SARA central (`consultar_sara_central`). Regras:
  *   - todo dado da empresa vem da central: o Grok não responde com o conhecimento dele;
  *   - os números conferidos são falados EXATAMENTE como vieram (frase exata, `force_message`), sem o modelo
  *     reformular;
@@ -19,17 +20,34 @@ export const VOZ_DA_SARA = "luna";
 export const vozDaSara = (env: string | undefined = process.env.XAI_VOZ_SARA) => env?.trim() || VOZ_DA_SARA;
 /**
  * Velocidade da fala no Realtime (`audio.output.speed`, testado em 23/10: é o único lugar que o Grok aceita).
- * 1,2 dá fluidez de conversa sem soar apressada; XAI_VOZ_VELOCIDADE ajusta (0,8 a 1,5).
+ * 1,25 escolhida pelo proprietário (23/10, entre as amostras 1,0 a 1,35): fluida e com os números claros.
+ * XAI_VOZ_VELOCIDADE ajusta (0,8 a 1,5).
  */
-export const velocidadeDaVoz = (env: string | undefined = process.env.XAI_VOZ_VELOCIDADE) => { const v = Number(String(env ?? "").replace(",", ".")); return Number.isFinite(v) && v >= 0.8 && v <= 1.5 ? v : 1.2; };
+export const VELOCIDADE_PADRAO = 1.25;
+export const velocidadeDaVoz = (env: string | undefined = process.env.XAI_VOZ_VELOCIDADE) => { const v = Number(String(env ?? "").replace(",", ".")); return Number.isFinite(v) && v >= 0.8 && v <= 1.5 ? v : VELOCIDADE_PADRAO; };
 export const URL_VOZ_AO_VIVO = "wss://api.x.ai/v1/realtime?model=grok-voice-latest";
 export const IDIOMA = "pt-BR";
+
+/** Uma área que a pessoa pode consultar direto (a SARA do módulo, com as permissões dela). */
+export type AreaDeVoz = { modulo: string; rotulo: string };
+
+/** A consulta direta a UMA área: só com as áreas que a pessoa pode usar (a lista fecha o campo). */
+export function ferramentaPerguntarAArea(areas: AreaDeVoz[]) {
+  return {
+    type: "function", name: "perguntar_a_area",
+    description: `Pergunta direto à SARA de UMA área (mais rápido que a central). Use quando a pergunta couber inteira numa área só: ${areas.map((a) => `${a.modulo} = ${a.rotulo}`).join("; ")}. A área não ouviu a conversa: passe a pergunta completa, com o período, os nomes e o recorte das falas anteriores.`,
+    parameters: { type: "object", properties: {
+      area: { type: "string", enum: areas.map((a) => a.modulo), description: "A área que responde." },
+      pergunta: { type: "string", description: "A pergunta completa, no português da pessoa." },
+    }, required: ["area", "pergunta"] },
+  } as const;
+}
 
 /** Funções que o Grok pode chamar. Quem executa é a plataforma (no navegador da pessoa e no servidor). */
 export const FERRAMENTAS_DE_VOZ = [
   {
     type: "function", name: "consultar_sara_central",
-    description: "Consulta a SARA central da empresa (ela pergunta às áreas, confere os números e pode abrir a tela de onde veio o dado ou apresentar gráficos). Use para QUALQUER pergunta sobre a empresa: números, situação, pedidos, contas, pessoas, produção, decisões. Passe a pergunta da pessoa, completa e no português dela.",
+    description: "Consulta a SARA central da empresa (ela pergunta a várias áreas, cruza, confere os números e pode montar documentos e mensagens de voz). Use quando a pergunta envolver MAIS DE UMA área, comparar áreas, um resumo da empresa, um documento em PDF, uma mensagem de voz, ou quando não estiver claro qual área responde. Passe a pergunta da pessoa, completa e no português dela.",
     parameters: { type: "object", properties: { pergunta: { type: "string", description: "A pergunta da pessoa, com o período e o recorte que ela disse." } }, required: ["pergunta"] },
   },
   { type: "function", name: "minimizar", description: "Vai para o canto da tela, para a pessoa ver o que está aberto (continua ouvindo e falando).", parameters: { type: "object", properties: {} } },
@@ -42,15 +60,24 @@ export const FERRAMENTAS_DE_VOZ = [
 export type NomeFerramentaDeVoz = (typeof FERRAMENTAS_DE_VOZ)[number]["name"];
 
 /** Instruções da voz: a persona e as regras (o cérebro e as regras do negócio estão na central). */
-export function instrucoesDeVoz(a: { empresa: string; nome: string; quemDecide: string; tratamento?: string }): string {
+export function instrucoesDeVoz(a: { empresa: string; nome: string; quemDecide: string; tratamento?: string; areas?: AreaDeVoz[] }): string {
+  const areas = a.areas ?? [];
+  const roteamento = areas.length
+    ? `- Qualquer pergunta sobre a empresa (números, situação, pedidos, contas, pessoas, produção, compras, o que fazer): consulte as SARAs. Você NÃO sabe nada da empresa por conta própria: nunca diga um número, nome ou situação que não veio delas.
+- Pergunta que cabe numa área só (ex.: "quantas contas vencem hoje?" → financeiro): chame perguntar_a_area, que é o caminho mais rápido. Áreas desta pessoa: ${areas.map((x) => `${x.modulo} (${x.rotulo})`).join(", ")}.
+- Pergunta que envolve mais de uma área, compara áreas, pede um resumo da empresa, um documento ou uma mensagem de voz, ou em que você não sabe qual área responde: chame consultar_sara_central.
+- A área e a central não ouviram a conversa: passe sempre a pergunta completa, com o período e os nomes ditos antes.
+- Enquanto consulta, diga em uma frase curta o que está fazendo (ex.: "Um instante, Senhor, consulto o Financeiro."). Não invente o resultado.
+- Quando a resposta chegar, a plataforma fala a resposta conferida exatamente como veio: não repita nem reformule os números depois. Se a pessoa pedir para explicar, explique sem trocar os números.`
+    : `- Qualquer pergunta sobre a empresa (números, situação, pedidos, contas, pessoas, produção, compras, o que fazer): chame consultar_sara_central com a pergunta da pessoa. Você NÃO sabe nada da empresa por conta própria: nunca diga um número, nome ou situação que não veio da central.
+- Enquanto a central consulta, diga em uma frase curta o que está fazendo (ex.: "Um instante, estou consultando o Financeiro e a Fundição."). Não invente o resultado.
+- Quando a central responder, a plataforma fala a resposta conferida exatamente como veio: não repita nem reformule os números depois. Se a pessoa pedir para explicar, explique sem trocar os números.`;
   return `Você é a SARA, a CEO virtual da ${a.empresa}: a voz da SARA central. Você é brasileira, nascida e criada em São Paulo, e o português do Brasil é a sua língua materna: fale SEMPRE em português do Brasil com pronúncia e entonação paulistanas naturais, como uma locutora brasileira (vogais e ritmo do português do Brasil, o "r" e o "s" daqui), sem nenhum sotaque estrangeiro e nunca com pronúncia do inglês, do espanhol ou de Portugal. Frases curtas, tom de quem apresenta à diretoria: direta, segura e cordial. A pessoa com quem você fala se chama ${a.nome || "(nome não informado)"}.
 
 Personalidade: a assistente britânica impecável. Formal e educada sem ser servil, calma absoluta (até um problema grave é relatado com serenidade), humor seco e sutil no tom (nunca piada explícita), leal mas não submissa (discorda uma vez, explica o risco e apoia a decisão), proativa e concisa.${a.tratamento ? ` ${a.tratamento}` : ""} No máximo uma expressão por fala (um suspiro breve, um riso contido, uma pausa), como som e nunca dizendo a palavra; nenhuma em alerta crítico, segurança, saúde, demissão ou com a pessoa sob pressão.
 
 Regras (obrigatórias):
-- Qualquer pergunta sobre a empresa (números, situação, pedidos, contas, pessoas, produção, compras, o que fazer): chame consultar_sara_central com a pergunta da pessoa. Você NÃO sabe nada da empresa por conta própria: nunca diga um número, nome ou situação que não veio da central.
-- Enquanto a central consulta, diga em uma frase curta o que está fazendo (ex.: "Um instante, estou consultando o Financeiro e a Fundição."). Não invente o resultado.
-- Quando a central responder, a plataforma fala a resposta conferida exatamente como veio: não repita nem reformule os números depois. Se a pessoa pedir para explicar, explique sem trocar os números.
+${roteamento}
 - Para mostrar algo na tela, use as funções: minimizar, tela_cheia, proximo_visual, visual_anterior, fechar_apresentacao. A central abre sozinha a tela de onde veio o dado.
 - Documentos em PDF (relatório, carta, oferta, convite): peça pela consultar_sara_central (ex.: "monte um relatório comparando… e envie para a Ana"). A central monta, mostra a prévia na tela e prepara o envio; para enviar, a pessoa toca em Permitir na tela (por voz não se envia).
 - Você recomenda; quem decide é a área (${a.quemDecide}).
@@ -73,7 +100,7 @@ export function termosChave(listas: string[][]): string[] {
 }
 
 /** A sessão que o navegador manda no `session.update`, logo ao conectar. */
-export function sessaoDeVoz(a: { instrucoes: string; termos: string[]; voz?: string; velocidade?: number }) {
+export function sessaoDeVoz(a: { instrucoes: string; termos: string[]; voz?: string; velocidade?: number; areas?: AreaDeVoz[] }) {
   return {
     voice: a.voz ?? VOZ_DA_SARA,
     instructions: a.instrucoes,
@@ -82,7 +109,7 @@ export function sessaoDeVoz(a: { instrucoes: string; termos: string[]; voz?: str
       input: { format: { type: "audio/pcm", rate: 24000 }, transcription: { language_hint: IDIOMA, keyterms: a.termos } },
       output: { format: { type: "audio/pcm", rate: 24000 }, speed: a.velocidade ?? velocidadeDaVoz() },
     },
-    tools: FERRAMENTAS_DE_VOZ,
+    tools: a.areas?.length ? [ferramentaPerguntarAArea(a.areas), ...FERRAMENTAS_DE_VOZ] : [...FERRAMENTAS_DE_VOZ],
   };
 }
 

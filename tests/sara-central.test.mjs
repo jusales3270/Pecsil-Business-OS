@@ -97,6 +97,7 @@ test("holograma: fala o essencial (sem tabela, lista nem marcação) e sempre o 
   assert.match(f, /O detalhe está no painel\./);
   assert.match(f, /Atenção: Sem fonte conferida: R\$ 52\.000\.$/);
   assert.equal(resumoFalado("| a | b |\n|---|---|\n| 1 | 2 |"), "A resposta está no painel ao lado.");
+  assert.equal(resumoFalado("Boa noite, Senhor.\n\nHá 394 contas vencidas, somando R$ 1.330.419,47."), "Há 394 contas vencidas, somando R$ 1.330.419,47. O detalhe está no painel.", "o parágrafo só de cumprimento não é a fala");
   assert.ok(resumoFalado("x ".repeat(600)).length <= 460);
 });
 
@@ -109,7 +110,8 @@ test("holograma: a voz é só a do Grok (Realtime, luna); sem ela, só a legenda
   assert.match(c, /\/\/ A voz abre já no toque de invocar[^\n]*\n\s*void garantirVoz\(\);/, "a sessão abre ao invocar (o cumprimento já sai na luna)");
   assert.match(c, /if \(v\.escutando\(\)\) \{ v\.desligarMicrofone\(\); setAoVivo\(false\); return; \}/, "o microfone liga e desliga dentro da sessão");
   assert.doesNotMatch(c, /api\.anthropic\.com|VITE_|import\.meta\.env/, "sem chamada direta ao modelo nem configuração do projeto de origem");
-  assert.match(c, /fetch\("\/api\/sara\/warroom", \{ method: "POST"/, "conversa pela SARA central, com a sessão da pessoa");
+  assert.match(c, /const modulo = area && \/\^\[a-z_\]\{2,30\}\$\/\.test\(area\) \? area : "warroom";/, "sem área, conversa pela SARA central");
+  assert.match(c, /fetch\(`\/api\/sara\/\$\{modulo\}`, \{ method: "POST"/, "com a sessão da pessoa");
   const page = ler("app/page.tsx");
   assert.match(page, /canUseFeature\(access,"warroom\.sara","ver"\)&&<SaraHolograma naWarRoom=\{activeModuleId==="warroom"\}/, "montada no app, só para quem tem a SARA central");
   assert.doesNotMatch(ler("modules/warroom/src/WarRoomApp.tsx"), /<SaraHolograma/, "não dentro da War Room (some ao trocar de módulo)");
@@ -176,7 +178,25 @@ test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números d
   assert.ok(v.vozExiste({ voices: [{ voice_id: "eve" }, { voice_id: "Luna" }] }, "luna"));
   assert.ok(!v.vozExiste({ voices: [{ voice_id: "eve" }] }, "luna"));
 
+  // Roteamento (23/10): pergunta de uma área vai direto à SARA dela; várias áreas, documento e voz, à central.
+  const areas = [{ modulo: "financeiro", rotulo: "Financeiro" }, { modulo: "rh", rotulo: "RH" }];
+  const comAreas = v.sessaoDeVoz({ instrucoes: "x", termos: [], areas });
+  assert.equal(comAreas.tools[0].name, "perguntar_a_area");
+  assert.deepEqual(comAreas.tools[0].parameters.properties.area.enum, ["financeiro", "rh"], "só as áreas que a pessoa pode usar");
+  assert.deepEqual(comAreas.tools[0].parameters.required, ["area", "pergunta"]);
+  assert.ok(comAreas.tools.some((t) => t.name === "consultar_sara_central"));
+  const insAreas = v.instrucoesDeVoz({ empresa: "X", nome: "A", quemDecide: "", areas });
+  assert.match(insAreas, /cabe numa área só[\s\S]*perguntar_a_area/);
+  assert.match(insAreas, /mais de uma área[\s\S]*consultar_sara_central/);
+  assert.match(insAreas, /pergunta completa/);
+  assert.match(insAreas, /nunca diga um número, nome ou situação que não veio delas/);
+  const holoVoz = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
+  assert.match(holoVoz, /nome === "perguntar_a_area"/);
+  assert.match(holoVoz, /fetch\(`\/api\/sara\/\$\{modulo\}`/, "a área responde pela rota dela (permissão, verificador e registro)");
+  assert.match(holoVoz, /v\.perguntar\(pergunta\)/, "pergunta digitada passa pelo Grok, que roteia");
+
   const rota = ler("app/api/sara/[modulo]/voz-ao-vivo/route.ts");
+  assert.match(rota, /p\.access\.can\(s\.permissao, "ver"\)/, "área só com a permissão da SARA dela");
   assert.match(rota, /if \(!SARAS\[modulo\]\?\.central\)/, "só a central fala ao vivo");
   assert.match(rota, /const p = await preparar\(modulo\);/, "com a permissão da pessoa");
   assert.match(rota, /process\.env\.XAI_API_KEY/);

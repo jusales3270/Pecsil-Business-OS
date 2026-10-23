@@ -104,6 +104,18 @@ ajuda antes de ser pedido. A SARA central faz isso para a empresa inteira.
 O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor de fala da SARA central, com a voz **"luna"** em **pt-BR**. O diferencial: ela age enquanto fala.
 
 - **A voz, não o cérebro.** O Grok escuta, fala, aceita interrupção e chama funções. Para qualquer dado da empresa, ele chama `consultar_sara_central`, que é a mesma rota da central (com as permissões, o verificador e o registro). Ele não responde com o conhecimento próprio.
+- **Roteamento (proprietário, 23/10).**
+  - Uma pergunta que cabe numa área só vai direto à SARA daquela área (`perguntar_a_area`). A lista de áreas é a das SARAs que a pessoa pode usar, e a área responde pela própria rota, com permissão, verificador e registro. A conversa com cada área é guardada.
+  - Uma pergunta de várias áreas, um resumo, um documento ou uma mensagem de voz vai à central (`consultar_sara_central`).
+  - A pergunta digitada, com a voz ligada, entra na conversa do Grok como a falada: ele confirma na hora e roteia. Se ele não reagir em 6 s, a pergunta vai direto à central.
+  - Medido no teste:
+
+    | Pergunta | Primeiro som | Resposta falada |
+    |---|---|---|
+    | Uma área | 1,1 s | 7 s (antes ~11 s) |
+    | Duas áreas, pela central | 1,0 s | 24 a 36 s |
+
+- **Velocidade 1,25** (`audio.output.speed`): escolhida pelo proprietário entre as amostras de 1,0 a 1,35.
 - **Número exato.** A resposta conferida é falada palavra por palavra (`force_message`), sem o modelo reformular.
 - **Agir enquanto fala.** As funções (consultar, minimizar, tela cheia, próximo ou anterior gráfico, fechar a apresentação) são executadas no instante em que chegam, com o áudio ainda tocando.
 - **A única voz dela (23/10, correção do proprietário).**

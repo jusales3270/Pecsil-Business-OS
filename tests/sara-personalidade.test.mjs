@@ -56,7 +56,7 @@ test("personalidade: entra em toda SARA que fala com a pessoa, não na subagente
   assert.match(ler("lib/sara/central/voz-ao-vivo.ts"), /Personalidade: a assistente britânica impecável/, "a voz ao vivo também");
   assert.match(ler("lib/sara/central/bom-dia-executar.ts"), /tratamento\(\{ nome: me\?\.full_name, fundador: Boolean\(me\?\.is_owner\), verificado: true \}\)/, "o Bom dia do fundador é para o Senhor");
   const holo = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
-  assert.equal((holo.match(/resumoFalado\(paraVoz\(r\.texto\)\)/g) ?? []).length, 2, "a fala digitada e a por voz levam as tags");
+  assert.equal((holo.match(/resumoFalado\(paraVoz\(r\.texto\)\)/g) ?? []).length, 3, "a fala digitada, a por voz (central) e a da área levam as tags");
   assert.match(holo, /const texto = semTags\(bruto\);/, "a legenda sem as tags");
   assert.match(ler("app/components/sara-painel.tsx"), /<em key=\{i\}>\{p\.slice\(1, -1\)\}<\/em>/, "a expressão em itálico na tela");
 });
@@ -93,10 +93,10 @@ test("sotaque: pronúncia brasileira nativa nas instruções e voz personalizada
 
 test("calibração: voz a 1,2, fala do primeiro parágrafo, central numa rodada e subagente curta", async () => {
   const v = await import("../lib/sara/central/voz-ao-vivo.ts");
-  assert.equal(v.velocidadeDaVoz(undefined), 1.2);
+  assert.equal(v.velocidadeDaVoz(undefined), 1.25, "1,25 escolhida pelo proprietário");
   assert.equal(v.velocidadeDaVoz("1,3"), 1.3);
-  assert.equal(v.velocidadeDaVoz("3"), 1.2, "fora da faixa volta ao padrão");
-  assert.equal(v.sessaoDeVoz({ instrucoes: "x", termos: [] }).audio.output.speed, 1.2, "em audio.output.speed (o único lugar que o Grok aceita)");
+  assert.equal(v.velocidadeDaVoz("3"), 1.25, "fora da faixa volta ao padrão");
+  assert.equal(v.sessaoDeVoz({ instrucoes: "x", termos: [] }).audio.output.speed, 1.25, "em audio.output.speed (o único lugar que o Grok aceita)");
   const fala = resumoFalado("Senhor, são 394 contas vencidas, somando R$ 1.330.419,47.\n\n**Maiores**\n- OTZI: R$ 86.028,00\n\nO Bradesco segue sem extrato desde julho, o que distorce o saldo.");
   assert.equal(fala, "Senhor, são 394 contas vencidas, somando R$ 1.330.419,47. O detalhe está no painel.", "só o primeiro parágrafo é falado");
   const { SARA_CENTRAL } = await import("../lib/sara/central/sara.ts");

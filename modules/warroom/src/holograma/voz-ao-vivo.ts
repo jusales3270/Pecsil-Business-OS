@@ -10,6 +10,7 @@ import type { EstadoHolo } from "./motor";
  * ligado, manda o áudio em PCM 16 bits / 24 kHz.
  *
  * - `falar(texto)`: fala o texto EXATAMENTE como veio (frase exata, `force_message`), sem o modelo reformular.
+ * - `perguntar(texto)`: a pergunta digitada entra na conversa como se fosse falada; o Grok roteia (área ou central).
  * - Microfone: a sessão abre sem ele (só fala); tocar no microfone liga e desliga a escuta na mesma sessão.
  * - Agir enquanto fala: cada função pedida pelo Grok é executada NO INSTANTE em que chega, com o áudio ainda
  *   tocando; a resposta conferida da SARA central é falada exatamente como veio.
@@ -29,6 +30,8 @@ export type SessaoDeVoz = {
   parar: () => void;
   /** Fala o texto exatamente como veio, na voz da SARA. */
   falar: (texto: string) => void;
+  /** Pergunta digitada: entra na conversa do Grok, que escolhe a área ou a central. `false` se ele não reagiu. */
+  perguntar: (texto: string) => Promise<boolean>;
   /** Cala o que está falando agora. */
   calar: () => void;
   ligarMicrofone: () => Promise<void>;
@@ -161,13 +164,25 @@ export async function iniciarVozAoVivo(modulo: string, ev: AoVivo, o: { microfon
     enviar({ type: "conversation.item.create", item: { type: "force_message", role: "assistant", content: [{ type: "output_text", text: t }] } });
   };
 
+  // Pergunta digitada: vira uma fala da pessoa na conversa do Grok; ele responde ou chama a função certa.
+  let reagiu: (() => void) | null = null;
+  const perguntar = (texto: string) => new Promise<boolean>((ok) => {
+    const t = texto.trim();
+    if (!t || !aberto || encerrado) { ok(false); return; }
+    calar();
+    const limite = setTimeout(() => { reagiu = null; ok(false); }, 6000);
+    reagiu = () => { clearTimeout(limite); reagiu = null; ok(true); };
+    enviar({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text: t }] } });
+    enviar({ type: "response.create" });
+  });
+
   // Funções: executadas no instante em que chegam (com o áudio ainda tocando).
   let pendentes: Promise<{ falar?: string }>[] = [];
   let falaSara = "";
   const executarChamada = (nome: string, callId: string, bruto: string) => {
     let args: Record<string, unknown> = {};
     try { args = bruto ? JSON.parse(bruto) : {}; } catch { args = {}; }
-    if (nome === "consultar_sara_central") ocupada = true;
+    if (nome === "consultar_sara_central" || nome === "perguntar_a_area") ocupada = true;
     const p = ev.executar(nome, args)
       .catch((e) => ({ saida: { erro: e instanceof Error ? e.message : "falhou" }, falar: undefined }))
       .then((res) => { enviar({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify(res.saida ?? { ok: true }) } }); return { falar: res.falar }; });
@@ -199,7 +214,7 @@ export async function iniciarVozAoVivo(modulo: string, ev: AoVivo, o: { microfon
     try { e = JSON.parse(String(m.data)); } catch { return; }
     const tipo = String(e.type ?? "");
     if (tipo === "response.output_audio.delta" || tipo === "response.audio.delta") { if (typeof e.delta === "string") tocar(e.delta); return; }
-    if (tipo === "response.created") { falaSara = ""; return; }
+    if (tipo === "response.created") { falaSara = ""; reagiu?.(); return; }
     if (tipo === "response.output_audio_transcript.delta" || tipo === "response.audio_transcript.delta") { falaSara += String(e.delta ?? ""); if (!textoPronto) ev.saraDisse(falaSara); return; }
     if (tipo.startsWith("conversation.item.input_audio_transcription")) {
       const t = String(e.transcript ?? (e as { item?: { transcript?: string } }).item?.transcript ?? "").trim();
@@ -222,5 +237,5 @@ export async function iniciarVozAoVivo(modulo: string, ev: AoVivo, o: { microfon
   ws.onerror = () => { ev.erro("Perdi a conexão com a voz da SARA."); parar(); };
   ws.onclose = () => parar();
   if (o.microfone) await ligarMicrofone().catch((e) => { parar(); throw e; });
-  return { parar, falar, calar, ligarMicrofone, desligarMicrofone, escutando: () => Boolean(mic) };
+  return { parar, falar, perguntar, calar, ligarMicrofone, desligarMicrofone, escutando: () => Boolean(mic) };
 }

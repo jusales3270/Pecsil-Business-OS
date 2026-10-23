@@ -35,8 +35,6 @@ type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: 
 type Modo = "fechado" | "cheio" | "mini";
 const ROTULO: Record<EstadoHolo, string> = { idle: "PRONTA", listening: "OUVINDO", thinking: "CONSULTANDO AS ÁREAS", speaking: "FALANDO" };
 const CHAVE_VOZ = "pecsil.sara-holo.voz";
-/** O que ela diz na hora, enquanto consulta (alterna para não soar repetido). */
-const CONFIRMACOES = ["Um instante", "Vou verificar", "Deixe-me ver", "Já consulto"];
 const lerVozLigada = () => { try { return window.localStorage.getItem(CHAVE_VOZ) !== "0"; } catch { return true; } };
 const guardarVozLigada = (v: boolean) => { try { window.localStorage.setItem(CHAVE_VOZ, v ? "1" : "0"); } catch { /* sem armazenamento: só não lembra */ } };
 
@@ -56,7 +54,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   // Palco: os gráficos que ela apresenta na tela principal (um de cada vez, como slides).
   const [palco, setPalco] = useState<Visual[]>([]);
   // Documentos que a central montou nesta resposta e os envios esperando o Permitir.
-  const [docs, setDocs] = useState<{ documentos: DocCriado[]; acoes: CartaoAcao[] } | null>(null);
+  const [docs, setDocs] = useState<{ documentos: DocCriado[]; acoes: CartaoAcao[]; modulo: string } | null>(null);
   const [decidindo, setDecidindo] = useState<string | null>(null);
   const [slide, setSlide] = useState(0);
   // A sessão de voz (Grok Realtime, voz "luna", pt-BR): abre ao invocar e fala tudo o que ela diz; o
@@ -73,9 +71,8 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const pulso = useRef(novoPulso());
   const conversa = useRef<string | null>(null);
   const cumprimentou = useRef(false);
-  // Como ela chama a pessoa ("Senhor" ou o nome), para a confirmação imediata.
-  const tratamentoDaPessoa = useRef("");
-  const confirmacao = useRef(0);
+  // A conversa com cada área consultada direto pela voz (para a área lembrar da pergunta anterior).
+  const conversasDasAreas = useRef<Record<string, string>>({});
   const ocupado = useRef(false);
   const relogioPalavras = useRef<ReturnType<typeof setInterval> | null>(null);
   // Cada fala tem um número: o relógio (ou a voz) de uma fala antiga não mexe no estado da nova.
@@ -177,16 +174,23 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     }, 1200);
   }, [navegar]);
 
-  /** Pergunta à SARA central (Claude + áreas + verificador). Devolve o texto conferido ou o erro. */
-  const consultar = useCallback(async (pergunta: string, voz: boolean): Promise<{ texto: string } | { erro: string }> => {
+  /**
+   * Pergunta à SARA central (Claude + áreas + verificador) ou, com `area`, direto à SARA daquela área (pergunta de
+   * uma área só, um degrau de modelo a menos). Devolve o texto conferido ou o erro.
+   */
+  const consultar = useCallback(async (pergunta: string, voz: boolean, area?: string): Promise<{ texto: string } | { erro: string }> => {
+    const modulo = area && /^[a-z_]{2,30}$/.test(area) ? area : "warroom";
     try {
-      const r = await fetch("/api/sara/warroom", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pergunta, conversa: conversa.current, voz }) });
+      const anterior = modulo === "warroom" ? conversa.current : conversasDasAreas.current[modulo] ?? null;
+      const r = await fetch(`/api/sara/${modulo}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pergunta, conversa: anterior, voz }) });
       const j = await r.json().catch(() => null) as { conversa?: string; texto?: string; fontes?: Fonte[]; abrir?: Abrir | null; visuais?: Visual[]; documentos?: DocCriado[]; acoes?: CartaoAcao[]; error?: string } | null;
+      if (r.status === 403) return { erro: "Você não tem permissão para a SARA desta área." };
       if (!r.ok || !j?.texto) return { erro: j?.error ?? "Não consegui falar com as áreas agora. Tente de novo em instantes." };
-      conversa.current = j.conversa ?? conversa.current;
+      if (modulo === "warroom") conversa.current = j.conversa ?? conversa.current;
+      else if (j.conversa) conversasDasAreas.current[modulo] = j.conversa;
       setResposta({ texto: j.texto, fontes: j.fontes ?? [] });
       const envios = (j.acoes ?? []).filter((a) => a.situacao === "pendente");
-      if (j.documentos?.length || envios.length) setDocs({ documentos: j.documentos ?? [], acoes: envios });
+      if (j.documentos?.length || envios.length) setDocs({ documentos: j.documentos ?? [], acoes: envios, modulo });
       apresentar(j.abrir ?? null, j.visuais ?? []);
       return { texto: j.texto };
     } catch { return { erro: "Perdi a conexão com a plataforma por um instante. Tente de novo." }; }
@@ -199,18 +203,18 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     pararFala(); setAviso(""); setEntrada("");
     setLinhaPessoa(`▸ ${pergunta}`); setLegenda(""); setAceso(0);
     setEstado("thinking");
-    // Responde na hora (menos de 1 s), enquanto as áreas trabalham: a demora deixa de ser silêncio.
-    if (vozLigada && vozAoVivo.current) {
-      const frase = CONFIRMACOES[confirmacao.current++ % CONFIRMACOES.length];
-      vozAoVivo.current.falar(`${frase}${tratamentoDaPessoa.current ? `, ${tratamentoDaPessoa.current}` : ""}.`);
-      setTimeout(() => { if (ocupado.current) setEstado("thinking"); }, 2200);
-    }
     try {
+      // Com a voz ligada, a pergunta digitada entra na conversa do Grok, como a falada: ele confirma na hora e
+      // manda à SARA da área (pergunta de uma área) ou à central (várias áreas, documento, mensagem de voz).
+      if (vozLigada) {
+        const v = await garantirVoz();
+        if (v && await v.perguntar(pergunta)) return;
+      }
       const r = await consultar(pergunta, voz);
       if ("erro" in r) { setEstado("idle"); falar(r.erro); return; }
       falar(resumoFalado(paraVoz(r.texto)));
     } finally { ocupado.current = false; }
-  }, [consultar, falar, pararFala, setEstado, vozLigada]);
+  }, [consultar, falar, pararFala, setEstado, vozLigada, garantirVoz]);
 
   /* ---- voz ao vivo (Grok Voice, "luna", pt-BR) ---- */
   const legendaAoVivo = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -227,6 +231,16 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
       const pergunta = String(args.pergunta ?? "").trim();
       if (pergunta) setLinhaPessoa(`▸ ${pergunta}`);
       const r = await consultar(pergunta || "Resumo da empresa hoje.", true);
+      if ("erro" in r) return { saida: { erro: r.erro }, falar: r.erro };
+      const fala = resumoFalado(paraVoz(r.texto));
+      return { saida: { ok: true, resposta_conferida: fala, observacao: "A plataforma já vai falar esta resposta, exatamente como está. Não repita os números." }, falar: fala };
+    }
+    if (nome === "perguntar_a_area") {
+      const area = String(args.area ?? "").trim();
+      const pergunta = String(args.pergunta ?? "").trim();
+      if (!area || pergunta.length < 2) return { saida: { erro: "Diga a área e a pergunta." } };
+      setLinhaPessoa(`▸ ${pergunta}`);
+      const r = await consultar(pergunta, true, area);
       if ("erro" in r) return { saida: { erro: r.erro }, falar: r.erro };
       const fala = resumoFalado(paraVoz(r.texto));
       return { saida: { ok: true, resposta_conferida: fala, observacao: "A plataforma já vai falar esta resposta, exatamente como está. Não repita os números." }, falar: fala };
@@ -258,7 +272,6 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     const j = await r?.json().catch(() => null) as { saudacao?: string; pessoa?: string; conversa?: { id: string } | null; error?: string } | null;
     if (!r?.ok) { falar(j?.error === "FORBIDDEN" ? "A SARA central não está liberada para você." : "A SARA central está indisponível agora."); return; }
     conversa.current = j?.conversa?.id ?? null;
-    tratamentoDaPessoa.current = j?.pessoa ?? "";
     setTimeout(() => falar(`${j?.saudacao ?? "Olá"}${j?.pessoa ? `, ${j.pessoa}` : ""}. Às suas ordens. Em que posso ajudar?`), 600);
   }, [falar, garantirVoz]);
 
@@ -337,10 +350,10 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const aoSoltar = () => { arraste.current.ligado = false; };
 
   const fechar = () => { pararFala(); pararGravacao(false); pararAoVivo(); setPainel(false); setPalco([]); setDocs(null); setModo("fechado"); };
-  // Permitir (ou não) o envio de um documento: a mesma rota das ações da SARA, com a sessão de quem pediu.
+  // Permitir (ou não) o envio de um documento ou a ação de uma área: a rota das ações da SARA que a preparou.
   const decidir = async (a: CartaoAcao, permitir: boolean) => {
     setDecidindo(a.id);
-    const r = await fetch(`/api/sara/warroom/acoes/${a.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ permitir }) }).catch(() => null);
+    const r = await fetch(`/api/sara/${docs?.modulo ?? "warroom"}/acoes/${a.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ permitir }) }).catch(() => null);
     const j = await r?.json().catch(() => null) as { situacao?: string; texto?: string; error?: string } | null;
     setDecidindo(null);
     setDocs((d) => d && { ...d, acoes: d.acoes.map((x) => (x.id === a.id ? { ...x, situacao: j?.situacao ?? "falhou", feito: j?.texto ?? j?.error ?? "Não foi possível agora." } : x)) });
@@ -368,7 +381,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
       )}
       {docs && (docs.documentos.length > 0 || docs.acoes.length > 0) && (
         <section className="sh-doc" aria-label="Documento da SARA central">
-          <header><b>Documento</b><button type="button" onClick={() => setDocs(null)} aria-label="Fechar">✕</button></header>
+          <header><b>{docs.documentos.length ? "Documento" : "Ação para permitir"}</b><button type="button" onClick={() => setDocs(null)} aria-label="Fechar">✕</button></header>
           {docs.documentos.map((d) => d.tipo === "mensagem_voz" ? (
             <div key={d.id} className="sh-doc-item sh-doc-voz">
               <span className="sh-doc-icone voz" aria-hidden>VOZ</span>
@@ -392,8 +405,8 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
               {a.detalhes.length > 0 && <ul>{a.detalhes.map((x, k) => <li key={k}>{x}</li>)}</ul>}
               {a.situacao === "pendente" ? (
                 <div className="sh-doc-botoes">
-                  <button type="button" className="permitir" disabled={decidindo === a.id} onClick={() => void decidir(a, true)}>{decidindo === a.id ? "Enviando…" : "Permitir o envio"}</button>
-                  <button type="button" disabled={decidindo === a.id} onClick={() => void decidir(a, false)}>Não enviar</button>
+                  <button type="button" className="permitir" disabled={decidindo === a.id} onClick={() => void decidir(a, true)}>{decidindo === a.id ? "Executando…" : docs.modulo === "warroom" ? "Permitir o envio" : "Permitir"}</button>
+                  <button type="button" disabled={decidindo === a.id} onClick={() => void decidir(a, false)}>{docs.modulo === "warroom" ? "Não enviar" : "Não permitir"}</button>
                 </div>
               ) : <p className={`sh-doc-feito ${a.situacao}`} role="status">{a.feito}</p>}
             </div>

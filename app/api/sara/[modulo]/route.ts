@@ -128,7 +128,8 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
     ? ((await p.sb.from("sara_mensagens").select("papel, texto, created_at").eq("conversa_id", conversa).order("created_at", { ascending: false }).order("papel", { ascending: false }).limit(24)).data ?? []).reverse() as { papel: "pessoa" | "sara"; texto: string; created_at: string }[]
     : [];
   // Nova, continuação ou retomada (outro dia ou pausa longa), pela hora da última mensagem.
-  const situacao = situacaoDaConversa(historico.at(-1)?.created_at ?? null);
+  // Pela voz da SARA central, a conversa já foi aberta por ela (o cumprimento já foi dito): a área vai direto à resposta.
+  const situacao = corpo?.voz && !p.sara.central ? { tipo: "continua" as const, ultima: null, ontem: false } : situacaoDaConversa(historico.at(-1)?.created_at ?? null);
   const [{ data: me }, { data: org }] = await Promise.all([
     p.sb.from("profiles").select("full_name").eq("id", (await p.sb.rpc("current_profile_id")).data).maybeSingle(),
     p.sb.from("organizations").select("display_name, legal_name").limit(1).maybeSingle(),
@@ -147,7 +148,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   // Fixo (vai para o cache) + do momento (hora, quem conversa, situação da conversa, o que não pode).
   const sistema = {
     fixo: `${PERSONALIDADE}\n\n${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
-    variavel: `${contextoDeTempo({ nome: tratamento(interlocutor), situacao })}\n${regraDeTratamento(interlocutor)}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}${acoesFechadas.length ? `\nAções que esta pessoa NÃO tem permissão de fazer (se ela pedir, comece com "Você não tem permissão para…" e diga quem pode; não pergunte detalhes): ${acoesFechadas.join("; ")}.` : ""}${notaAcoes}\nResponda sempre em português do Brasil.`,
+    variavel: `${contextoDeTempo({ nome: tratamento(interlocutor), situacao })}\n${regraDeTratamento(interlocutor)}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}${acoesFechadas.length ? `\nAções que esta pessoa NÃO tem permissão de fazer (se ela pedir, comece com "Você não tem permissão para…" e diga quem pode; não pergunte detalhes): ${acoesFechadas.join("; ")}.` : ""}${notaAcoes}${corpo?.voz && !p.sara.central ? "\nA pergunta veio pela voz da SARA: o PRIMEIRO parágrafo é o que será falado. Comece por ele, com a resposta direta e os números (até 60 palavras); o detalhe vem depois, para o painel." : ""}\nResponda sempre em português do Brasil.`,
   };
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
