@@ -80,6 +80,20 @@ test("pedido da guia: passos, acontecimento e formato", () => {
   assert.match(t, /Entregue: uma frase/);
 });
 
+test("memória da guia: a execução anterior vai junto para comparar", () => {
+  const g = { nome: "Pedidos", descricao: "Pedidos com o Compras.", passos: [{ ferramenta: "pedidos_da_fundicao", para_que: "listar" }], formato: null };
+  const primeira = pedidoDaGuia(g, "agenda");
+  assert.match(primeira, /primeira execução desta guia/);
+  const t = pedidoDaGuia(g, "agenda", null, { quando: "2026-10-19T11:04:00Z", texto: "2 pedidos com o Compras: #20 e #21." });
+  assert.match(t, /execução anterior desta guia \(19\/10\/2026, 08:04\)/);
+  assert.match(t, /2 pedidos com o Compras: #20 e #21\./);
+  assert.match(t, /o que MUDOU desde 19\/10\/2026, 08:04/);
+  assert.match(t, /os números de hoje vêm das consultas de agora/);
+  // Texto longo é cortado (não estoura o pedido).
+  assert.ok(pedidoDaGuia(g, "agenda", null, { quando: "2026-10-19T11:04:00Z", texto: "x".repeat(20000) }).length < 7000);
+  assert.match(ler("lib/sara/guias-executar.ts"), /pedidoDaGuia\(g, e\.disparo, e\.evento, anterior\)/);
+});
+
 test("migração: freios, laço e permissões das guias", () => {
   // A trigger nunca impede o evento e ignora os eventos da própria SARA.
   assert.match(sql, /exception when others then[\s\S]*return new;/);

@@ -99,9 +99,14 @@ async function rodarUma(admin: SupabaseClient, e: Execucao): Promise<string> {
       fixo: `${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(g.modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
       variavel: `${contextoDeTempo({ nome: primeiroNome(me?.full_name), situacao: situacaoDaConversa(null) })}\n${REGRA_GUIA_SOZINHA}\nResponda sempre em português do Brasil.`,
     };
+    // Memória da guia: o resultado da última execução feita vai junto, para a SARA dizer o que mudou.
+    const { data: ultima } = await admin.from("sara_guia_execucoes").select("mensagem_id, terminada_em").eq("guia_id", g.id).eq("situacao", "feita")
+      .not("mensagem_id", "is", null).neq("id", e.id).order("terminada_em", { ascending: false }).limit(1).maybeSingle();
+    const { data: msgAnterior } = ultima?.mensagem_id ? await admin.from("sara_mensagens").select("texto").eq("id", ultima.mensagem_id).maybeSingle() : { data: null };
+    const anterior = msgAnterior?.texto && ultima?.terminada_em ? { quando: ultima.terminada_em, texto: msgAnterior.texto } : null;
     // Na guia, sem propor habilidade nem criar outra guia.
     const ferramentas = p.ferramentas.filter((f) => f.nome !== "criar_guia" && f.nome !== PROPOR_HABILIDADE.nome);
-    const r = await conversar(s.sb, { modelo: p.cfg.modelo, sistema, historico: [], pergunta: pedidoDaGuia(g, e.disparo, e.evento), ferramentas,
+    const r = await conversar(s.sb, { modelo: p.cfg.modelo, sistema, historico: [], pergunta: pedidoDaGuia(g, e.disparo, e.evento, anterior), ferramentas,
       todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], maxTokens: p.sara.maxTokens });
     const QUANDO: Record<string, string> = { agenda: "pela agenda", evento: "por um acontecimento", manual: "Rodar agora" };
     const { data: reg, error: eReg } = await s.sb.rpc("sara_registrar", {

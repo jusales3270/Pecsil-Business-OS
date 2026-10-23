@@ -142,13 +142,26 @@ export function ferramentaCriarGuia(eventos: { tipo: string; rotulo: string }[])
 
 const DISPARO: Record<string, string> = { agenda: "pela agenda", evento: "por um acontecimento", manual: "porque você pediu (Rodar agora)" };
 
-/** O pedido que a plataforma faz à SARA quando a guia roda sozinha (ninguém está conversando). */
-export function pedidoDaGuia(g: { nome: string; descricao: string; passos: Passo[]; formato: string | null }, disparo: string, evento?: { resumo?: string; tipo?: string; quem?: string; quando?: string } | null): string {
+/** Resultado da execução anterior, que vai junto para a SARA comparar (até 6 mil caracteres). */
+export type Anterior = { quando: string; texto: string };
+const MAX_ANTERIOR = 6000;
+
+/**
+ * O pedido que a plataforma faz à SARA quando a guia roda sozinha (ninguém está conversando). A SARA não
+ * lembra de nada entre uma chamada e outra: a memória é da plataforma, que manda junto o resultado da
+ * execução anterior para ela dizer o que mudou.
+ */
+export function pedidoDaGuia(g: { nome: string; descricao: string; passos: Passo[]; formato: string | null }, disparo: string,
+  evento?: { resumo?: string; tipo?: string; quem?: string; quando?: string } | null, anterior?: Anterior | null): string {
+  const quandoAnterior = anterior ? new Date(anterior.quando).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
   return [
     `Rode a guia «${g.nome}» (${DISPARO[disparo] ?? disparo}): ${g.descricao}`,
     evento?.resumo ? `Acontecimento que disparou: ${evento.resumo}${evento.quem ? ` (por ${evento.quem})` : ""}.` : "",
     `Passos: ${g.passos.map((p, i) => `${i + 1}) ${p.ferramenta}${p.entrada ? ` ${JSON.stringify(p.entrada)}` : ""} — ${p.para_que}`).join("; ")}.`,
     g.formato ? `Entregue: ${g.formato}.` : "",
+    anterior
+      ? `Resultado da execução anterior desta guia (${quandoAnterior}), só para comparar — os números de hoje vêm das consultas de agora:\n"""\n${anterior.texto.slice(0, MAX_ANTERIOR)}\n"""\nComece dizendo o que MUDOU desde ${quandoAnterior}: o que é novo, o que saiu ou foi resolvido e o que mudou de situação ou de valor. Se nada mudou, diga isso em uma frase. Depois, o resultado de hoje.`
+      : "É a primeira execução desta guia: não há o que comparar.",
   ].filter(Boolean).join("\n");
 }
 

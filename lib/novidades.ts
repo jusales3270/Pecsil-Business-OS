@@ -53,6 +53,7 @@ export const NOVIDADES: Novidade[] = [
     itens: [
       "Peça na conversa: \"toda segunda às 8h, me mostre o que vence na semana\" ou \"quando o Compras aprovar um pedido meu, me avise\". A SARA monta a guia.",
       "A guia vai para aprovação de quem responde pela área. Aprovada, ela roda sozinha, com as suas permissões, e o resultado chega no sino.",
+      "A cada vez que roda, a SARA começa dizendo o que mudou desde a última vez: o que é novo, o que saiu e o que mudou de situação.",
       "Se a guia for fazer algo (pedir material, abrir chamado), aparece o cartão Permitir, que espera 24 horas. A área pode deixar a SARA fazer sozinha, com limite.",
       "Veja, pause ou rode as suas guias no botão ⚡ (Guias), no alto da janela da SARA.",
     ],

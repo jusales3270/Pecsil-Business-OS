@@ -130,6 +130,7 @@ O proprietário aprovou o plano do que absorver da LIA, o copiloto do WMS da TOT
     - agenda: dias da semana e hora, no fuso de São Paulo;
     - acontecimento: um tipo de `module_events`. A trigger põe a guia numa fila (`sara_guia_execucoes`); são as "reações" do Blueprint.
   - **Execução:** a tarefa agendada de 10 em 10 minutos (`scripts/sync-os-cron.mjs`, a mesma da Forja) chama `/api/sara/guias/rodar`. A guia roda **com a sessão de quem a criou**: o servidor gera um link mágico, troca-o por uma sessão (sem e-mail) e encerra a sessão no fim, então o RLS e as permissões dela valem em tudo. O resultado vira uma conversa da SARA e um aviso no sino.
+  - **Memória da guia:** o modelo não lembra de nada entre uma chamada e outra e não sabe a hora; quem guarda é a plataforma. A cada execução vão junto a data e a hora de Brasília e o resultado da execução anterior (até 6 mil caracteres). A SARA começa dizendo o que mudou: o que é novo, o que saiu ou foi resolvido, o que mudou de situação ou de valor. Na primeira execução, diz que não há o que comparar. Os números de hoje vêm sempre das consultas de agora.
   - **Ações:** pedem **Permitir** e o cartão fica 24 h esperando, a menos que a área deixe a SARA fazer sozinha, com limite. Os limites (`limites`) são por ação: "sozinha", até N por dia, até N itens e horário. O banco confere os limites de novo. Ação de risco alto nunca é feita sozinha. O padrão é nada pré-autorizado. O histórico diz "a guia fez sozinha, no limite aprovado pela área".
   - **Freios:**
     - no máximo 20 execuções por guia em 24 h;
