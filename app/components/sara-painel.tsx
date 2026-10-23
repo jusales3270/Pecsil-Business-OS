@@ -485,7 +485,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = false, abrirGuia
             <img src={AVATAR} alt="" className="sara-avatar" draggable={false} />
             <div><b>{NOME}</b><small>IA · consulta com as suas permissões · só faz algo se você permitir</small></div>
             <span>
-              {pode && !verGuias && <button type="button" className="sara-nova" onClick={() => setVerGuias(true)} title="Rotinas que a SARA roda sozinha"><span aria-hidden>⚡</span> Guias</button>}
+              {pode && !verGuias && <button type="button" className="sara-fechar sara-guias-botao" onClick={() => setVerGuias(true)} aria-label="Guias" title="Guias: rotinas que a SARA roda sozinha"><span aria-hidden>⚡</span></button>}
               {msgs.length > 0 && !verGuias && <button type="button" className="sara-nova" onClick={() => { setMsgs([]); setConversa(null); }}>Nova conversa</button>}
               <button type="button" className="sara-fechar" onClick={() => setAberto(false)} aria-label="Fechar a SARA">×</button>
             </span>

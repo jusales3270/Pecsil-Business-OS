@@ -69,7 +69,7 @@ function CartaoGuia({ g, podeAprovar, agir, ocupado }: { g: Guia; podeAprovar: b
       </header>
       <p>{g.descricao}</p>
       <small className="sara-guia-quando">🕑 {g.quando}{g.situacao === "ativa" && !g.pausada && g.proxima_em ? ` · próxima: ${quando(g.proxima_em)}` : ""}</small>
-      {!g.minha && g.responsavel && <small className="sara-guia-nota">Pedida por {g.responsavel} · roda com as permissões dela</small>}
+      {!g.minha && g.responsavel && <small className="sara-guia-nota">Pedida por {g.responsavel} · roda com as permissões de quem pediu</small>}
       <ol className="sara-guia-passos">{g.passos.map((x, k) => <li key={k}><b>{x.rotulo}</b>{x.para_que ? ` — ${x.para_que}` : ""}</li>)}</ol>
       {g.situacao === "ativa" && !editando && (
         <small className="sara-guia-nota">{sozinhas.length ? `Faz sozinha: ${sozinhas.map((a) => a.rotulo).join(", ")} (no limite da área).` : g.acoes.length ? "Toda ação pede o seu Permitir." : "Só consulta."}</small>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { EVENT_CATALOG } from "../../../../../modules/event-catalog";
 import { ACOES } from "../../../../../lib/sara/acoes";
+import { FERRAMENTAS } from "../../../../../lib/sara/ferramentas";
 import { descreverGatilho, limparLimites, type Gatilho, type Limites } from "../../../../../lib/sara/guias";
 import type { Passo } from "../../../../../lib/sara/habilidades";
 import { preparar } from "../../../../../lib/sara/sessao";
@@ -30,7 +31,9 @@ export async function GET(_request: Request, context: { params: Promise<{ modulo
   const { data, error } = await p.sb.rpc("sara_guias", { p_modulo: modulo });
   if (error) return NextResponse.json({ error: error.message }, { status: error.code === "42501" ? 403 : 400 });
   const d = data as { pode_aprovar: boolean; guias: LinhaGuia[] };
-  const rotulos = Object.fromEntries(p.ferramentas.map((f) => [f.nome, f.rotulo ?? f.nome.replace(/_/g, " ")]));
+  // Nome de cada passo para quem lê (também para quem aprova e não tem a consulta): ação pelo verbo, consulta pelo nome.
+  const rotulos: Record<string, string> = Object.fromEntries([...FERRAMENTAS, ...p.ferramentas].filter((f) => !f.acao && f.rotulo).map((f) => [f.nome, f.rotulo as string]));
+  Object.assign(rotulos, ACAO_ROTULO);
   return NextResponse.json({
     podeAprovar: d.pode_aprovar,
     guias: d.guias.map((g) => ({

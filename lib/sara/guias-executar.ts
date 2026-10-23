@@ -59,8 +59,9 @@ async function encerrar(admin: SupabaseClient, e: Execucao, situacao: "falhou" |
   await admin.from("sara_guia_execucoes").update({ situacao, erro: erro.slice(0, 500), terminada_em: new Date().toISOString() }).eq("id", e.id);
 }
 
-/** Uma frase do resultado para o aviso (sem markdown). */
-const resumoDe = (texto: string) => texto.replace(/[*_#`>|]/g, "").replace(/\s+/g, " ").trim().slice(0, 280);
+/** Uma frase do resultado para o aviso (sem markdown e sem as linhas de tabela). */
+const resumoDe = (texto: string) => texto.split("\n").filter((l) => !/^\s*\|/.test(l) && !/^\s*[-:| ]{3,}$/.test(l)).join(" ")
+  .replace(/[*_#`>|]/g, "").replace(/\s+/g, " ").trim().slice(0, 280);
 
 async function rodarUma(admin: SupabaseClient, e: Execucao): Promise<string> {
   const { data: g } = await admin.from("sara_habilidades").select("id, organization_id, modulo, nome, descricao, passos, formato, gatilho, limites, situacao, pausada, responsavel_id, gatilhos")

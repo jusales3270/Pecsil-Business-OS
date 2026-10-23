@@ -7423,6 +7423,7 @@ button.holiday-row:hover {
 .sara-acao-erro { font-size: var(--fs-xs); color: var(--accent-red); }
 .sara-acao-botoes .neutro { border: 1px solid color-mix(in srgb, var(--text-primary) 18%, transparent); background: transparent; color: var(--text-primary); }
 /* E3: Guias (rotinas que a SARA roda sozinha). */
+.sara-guias-botao { font-size: 15px; line-height: 1; }
 .sara-guias-topo { display: flex; align-items: center; gap: 10px; }
 .sara-guias-topo b { font-size: var(--fs-md); color: var(--text-primary); }
 .sara-guias-intro, .sara-guias-vazio { margin: 0; font-size: var(--fs-xs); line-height: 1.5; color: var(--text-secondary); }
