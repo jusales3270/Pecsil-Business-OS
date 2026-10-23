@@ -50,7 +50,7 @@ function rotuloDoDia(iso: string): string {
 const horaSP = (iso: string) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
 /** Texto do modelo com **negrito**, listas "- " e tabelas "| a | b |", sem HTML (nada do texto vira código na página). */
-function Texto({ texto }: { texto: string }) {
+export function Texto({ texto }: { texto: string }) {
   const linhas = texto.split("\n");
   // **negrito** e `código` (a SARA de TI escreve comandos e nomes de arquivo).
   const negrito = (s: string): ReactNode[] => s.split(/(\*\*[^*]+\*\*|`[^`\n]+`)/g).map((p, i) => (p.startsWith("**") && p.endsWith("**") ? <b key={i}>{p.slice(2, -2)}</b>

@@ -82,3 +82,29 @@ test("SARA central: na War Room, Sonnet, sem consulta direta, com o verificador 
   assert.match(sql, /\('warroom\.sara', 'warroom', 'SARA central \(conselho\)', '\{ver\}', 20\)/);
   assert.match(sql, /'claude-sonnet-5-5', 60000000/);
 });
+
+test("holograma: fala o essencial (sem tabela, lista nem marcação) e sempre o aviso do verificador", async () => {
+  const { resumoFalado } = await import("../lib/sara/central/fala.ts");
+  const texto = "**O caixa aperta na semana que vem.** A Fundição tem 2 pedidos parados há 6 dias, e o faturamento de R$ 48.200 depende deles.\n\n| Área | Situação |\n|---|---|\n| Fundição | 2 pedidos |\n\n- Pedido nº 20\n- Pedido nº 21\n\nQuem decide: Guilherme e Ana. Recomendo cobrar o Compras hoje. Outra frase longa sobre o resto da análise.\n\n⚠️ Sem fonte conferida: R$ 52.000. Confira antes de usar esse número.";
+  const f = resumoFalado(texto);
+  assert.match(f, /^O caixa aperta na semana que vem\. A Fundição tem 2 pedidos parados há 6 dias/);
+  assert.doesNotMatch(f, /\||\*\*|Pedido nº 20/);
+  assert.match(f, /O detalhe está no painel\./);
+  assert.match(f, /Atenção: Sem fonte conferida: R\$ 52\.000\.$/);
+  assert.equal(resumoFalado("| a | b |\n|---|---|\n| 1 | 2 |"), "A resposta está no painel ao lado.");
+  assert.ok(resumoFalado("x ".repeat(600)).length <= 460);
+});
+
+test("holograma: ouve pelo Whisper da plataforma e fala só com voz do aparelho (nada da empresa vai a serviço externo)", () => {
+  const c = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
+  assert.match(c, /fetch\("\/api\/sara\/warroom\/voz"/, "o áudio vai para o Whisper da plataforma");
+  assert.doesNotMatch(c, /SpeechRecognition/, "sem o reconhecimento do navegador (manda o áudio ao Google)");
+  assert.match(c, /\.filter\(\(v\) => v\.localService\)/, "só voz instalada no aparelho");
+  assert.doesNotMatch(c, /api\.anthropic\.com|VITE_|import\.meta\.env/, "sem chamada direta ao modelo nem configuração do projeto de origem");
+  assert.match(c, /fetch\("\/api\/sara\/warroom", \{ method: "POST"/, "conversa pela SARA central, com a sessão da pessoa");
+  const app = ler("modules/warroom/src/WarRoomApp.tsx");
+  assert.match(app, /canUseFeature\(access, "warroom\.sara", "ver"\)[\s\S]*<SaraHolograma \/>/, "só para quem tem a SARA central");
+  const page = ler("app/page.tsx");
+  assert.match(page, /!SARAS\[sara\]\.central&&!deniedTarget\?<SaraPainel/, "na War Room, a janela comum dá lugar ao holograma");
+  assert.match(page, /Boolean\(!SARAS\[id\]\.central && m && canAccessModule/, "o atalho SARA do ícone não cai na central");
+});

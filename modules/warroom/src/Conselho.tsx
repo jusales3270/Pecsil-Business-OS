@@ -3,11 +3,12 @@
 import { SARA_CENTRAL } from "../../../lib/sara/central/sara";
 
 /**
- * War Room › Conselho (E7, J1): a SARA central, o cérebro da empresa inteira. A conversa é a janela da
- * SARA (o botão no canto); aqui ficam o que ela faz e perguntas para começar. Próximas etapas: o quadro dos
+ * War Room › Conselho (E7, J1): a SARA central, o cérebro da empresa inteira. Ela atende em holograma
+ * (SaraHolograma, invocado pelo botão ou pela esfera no canto); aqui ficam o que ela faz e perguntas para começar. Próximas etapas: o quadro dos
  * achados da vigia (J3) e o relatório de crescimento (J4).
  */
 const perguntar = (pergunta: string) => window.dispatchEvent(new CustomEvent("pecsil:sara-perguntar", { detail: { pergunta } }));
+const invocar = () => window.dispatchEvent(new CustomEvent("pecsil:sara-invocar"));
 
 export function Conselho() {
   return (
@@ -22,6 +23,7 @@ export function Conselho() {
         <div><b>Número conferido</b><span>Todo número tem de estar no que as áreas devolveram. O que não bate aparece marcado.</span></div>
         <div><b>Quem decide</b><span>Ela recomenda e diz de quem é a decisão. Decidir continua sendo da área.</span></div>
       </div>
+      <button type="button" className="conselho-invocar" onClick={invocar}><span aria-hidden /> Invocar a SARA central</button>
       <h3>Para começar</h3>
       <div className="conselho-perguntas">
         {SARA_CENTRAL.sugestoes.map((s) => <button key={s} type="button" onClick={() => perguntar(s)}>{s}</button>)}

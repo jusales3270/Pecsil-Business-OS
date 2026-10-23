@@ -7422,6 +7422,95 @@ button.holiday-row:hover {
 .sara-acao-feito { font-size: var(--fs-xs); font-weight: 700; color: var(--accent-green); }
 .sara-acao-erro { font-size: var(--fs-xs); color: var(--accent-red); }
 .sara-acao-botoes .neutro { border: 1px solid color-mix(in srgb, var(--text-primary) 18%, transparent); background: transparent; color: var(--text-primary); }
+/* SARA central em holograma (E7): visual do proprietário (saraholo.zip), âmbar sobre preto, de propósito
+   um mundo só escuro (vale nos dois temas). Classes "sh-" isoladas do resto da plataforma. */
+.sh-summon, .sh-holo { --sh-amber: #FF9E2C; --sh-ember: #FF7A00; --sh-hot: #FFD591; --sh-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+.sh-summon { position: fixed; right: max(30px, env(safe-area-inset-right, 0px)); bottom: max(30px, env(safe-area-inset-bottom, 0px)); z-index: 60; width: 64px; height: 64px; padding: 0; border: 0; background: transparent; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: opacity .4s, transform .4s; }
+.sh-summon.hidden { opacity: 0; pointer-events: none; transform: scale(.6); }
+.sh-summon .halo { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(255,158,44,.45); background: radial-gradient(circle, rgba(10,6,2,.85), rgba(10,6,2,.55)); animation: sh-pulse 2.6s ease-in-out infinite; }
+.sh-summon .halo.h2 { inset: -9px; border-color: rgba(255,158,44,.18); background: none; animation-delay: .6s; }
+.sh-summon .spark { position: relative; width: 12px; height: 12px; border-radius: 50%; background: var(--sh-amber); box-shadow: 0 0 18px 4px rgba(255,158,44,.8), 0 0 60px 18px rgba(255,122,0,.35); animation: sh-pulse 2.6s ease-in-out infinite; }
+.sh-summon .lbl { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-family: var(--sh-mono); font-size: 8.5px; letter-spacing: .3em; color: rgba(255,158,44,.75); }
+@keyframes sh-pulse { 0%, 100% { transform: scale(1); opacity: .85 } 50% { transform: scale(1.14); opacity: 1 } }
+.sh-holo { position: fixed; inset: 0; z-index: 70; display: none; pointer-events: none; color: #F8EDDA; }
+.sh-holo.on { display: block; }
+.sh-dim { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .6s; background: radial-gradient(ellipse 80% 70% at 50% 46%, rgba(8,5,1,.9), rgba(0,0,0,.97)); }
+.sh-holo.full .sh-dim { opacity: 1; pointer-events: auto; }
+.sh-stage { position: absolute; left: 50%; top: 44%; width: min(72vmin, 680px); height: min(72vmin, 680px); transform: translate(-50%, -50%) scale(1); transform-origin: center;
+  transition: all .8s cubic-bezier(.3,.8,.3,1); pointer-events: auto; cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none; }
+.sh-holo.full .sh-stage:active { cursor: grabbing; }
+.sh-holo.full.com-painel .sh-stage { left: 32%; }
+.sh-holo.mini .sh-stage { left: calc(100% - 110px); top: calc(100% - 118px); transform: translate(-50%, -50%) scale(.22); cursor: pointer; }
+.sh-canvas { width: 100%; height: 100%; display: block; }
+.sh-name { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; opacity: 0; transition: opacity 1s .3s; }
+.sh-holo.full .sh-name { opacity: 1; }
+.sh-name .n { font-family: var(--sh-mono); font-size: clamp(15px, 2vmin, 20px); letter-spacing: .9em; padding-left: .9em; color: var(--sh-hot); text-shadow: 0 0 24px rgba(255,158,44,.9); }
+.sh-name .r { font-family: var(--sh-mono); font-size: 8.5px; letter-spacing: .4em; padding-left: .4em; color: rgba(255,158,44,.6); margin-top: 8px; }
+.sh-topo { position: absolute; top: max(22px, env(safe-area-inset-top, 0px)); right: max(24px, env(safe-area-inset-right, 0px)); display: flex; gap: 8px; pointer-events: auto; opacity: 0; transition: .3s; }
+.sh-holo.full .sh-topo { opacity: 1; }
+.sh-holo.mini .sh-topo { display: none; }
+.sh-btn { width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(255,158,44,.3); color: rgba(255,158,44,.9); background: rgba(0,0,0,.35); font-size: 14px; cursor: pointer; transition: .25s; }
+.sh-btn:hover { border-color: var(--sh-amber); background: rgba(255,158,44,.12); }
+.sh-status { position: absolute; left: max(30px, env(safe-area-inset-left, 0px)); top: max(30px, env(safe-area-inset-top, 0px)); font-family: var(--sh-mono); font-size: 9px; letter-spacing: .32em;
+  color: rgba(255,158,44,.6); pointer-events: none; display: flex; align-items: center; gap: 10px; opacity: 0; transition: .4s; }
+.sh-holo.full .sh-status { opacity: 1; }
+.sh-status i { width: 5px; height: 5px; border-radius: 50%; background: var(--sh-amber); box-shadow: 0 0 8px var(--sh-amber); display: inline-block; }
+.sh-status em { font-style: normal; letter-spacing: .12em; color: rgba(255,213,145,.45); }
+.sh-caption { position: absolute; left: 50%; bottom: calc(15vh + 10px); transform: translateX(-50%); width: min(760px, 86vw); text-align: center; pointer-events: none; }
+.sh-holo.full.com-painel .sh-caption { left: 32%; width: min(560px, 54vw); }
+.sh-caption .who { font-family: var(--sh-mono); font-size: 9px; letter-spacing: .5em; padding-left: .5em; color: rgba(255,158,44,.6); margin-bottom: 12px; transition: opacity .4s; }
+.sh-caption .line { font-size: clamp(16px, 2.2vw, 23px); line-height: 1.55; color: #F8EDDA; text-shadow: 0 2px 30px rgba(0,0,0,.9); min-height: 1.5em; text-wrap: balance; }
+.sh-caption .line .w { opacity: .22; transition: opacity .18s; }
+.sh-caption .line .w.lit { opacity: 1; text-shadow: 0 0 20px rgba(255,190,110,.35); }
+.sh-caption .uline { font-family: var(--sh-mono); font-size: 11px; letter-spacing: .08em; color: rgba(255,213,145,.6); margin-bottom: 14px; opacity: 0; transition: .4s; }
+.sh-caption .uline.show { opacity: 1; }
+.sh-ver { margin-top: 14px; padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255,158,44,.4); background: rgba(255,158,44,.08); color: var(--sh-hot); font: inherit; font-size: 12px; letter-spacing: .06em; cursor: pointer; pointer-events: auto; }
+.sh-ver:hover { background: rgba(255,158,44,.16); }
+.sh-holo.mini .sh-caption { left: auto; right: 190px; bottom: 52px; transform: none; width: min(430px, 50vw); text-align: right; }
+.sh-holo.mini .sh-caption .line { font-size: 14px; color: rgba(248,237,218,.92); }
+.sh-holo.mini .sh-caption .who, .sh-holo.mini .sh-caption .uline, .sh-holo.mini .sh-ver { display: none; }
+.sh-painel { position: absolute; top: 84px; right: max(24px, env(safe-area-inset-right, 0px)); bottom: calc(5vh + 64px); width: min(440px, 40vw); display: flex; flex-direction: column; min-height: 0;
+  border-radius: 18px; border: 1px solid rgba(255,158,44,.25); background: rgba(14,8,2,.82); backdrop-filter: blur(10px); pointer-events: auto; }
+.sh-holo:not(.full) .sh-painel { display: none; }
+.sh-painel header { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 10px 16px; border-bottom: 1px solid rgba(255,158,44,.16); }
+.sh-painel header b { font-family: var(--sh-mono); font-size: 11px; letter-spacing: .24em; color: var(--sh-hot); text-transform: uppercase; }
+.sh-painel-texto { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px; font-size: 14px; line-height: 1.55; color: #F3E6CF; }
+.sh-painel-texto p { margin: 0 0 10px; } .sh-painel-texto ul { margin: 0 0 10px; padding-left: 18px; } .sh-painel-texto b { color: #FFE3B8; }
+.sh-painel-texto .sara-tabela { overflow-x: auto; margin: 0 0 10px; }
+.sh-painel-texto table { border-collapse: collapse; font-size: 12.5px; }
+.sh-painel-texto th, .sh-painel-texto td { padding: 5px 8px; border-bottom: 1px solid rgba(255,158,44,.14); text-align: left; white-space: nowrap; }
+.sh-painel-texto th { color: var(--sh-hot); font-weight: 600; }
+.sh-painel footer { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px 14px; border-top: 1px solid rgba(255,158,44,.16); }
+.sh-painel footer small { width: 100%; font-family: var(--sh-mono); font-size: 9px; letter-spacing: .2em; color: rgba(255,158,44,.6); text-transform: uppercase; }
+.sh-painel footer span { padding: 2px 9px; border-radius: 999px; border: 1px solid rgba(255,158,44,.25); font-size: 11.5px; color: #F3E6CF; }
+.sh-console { position: absolute; left: 50%; bottom: max(5vh, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(560px, 88vw); display: flex; align-items: center; gap: 10px; pointer-events: auto; opacity: 0; transition: opacity .5s .2s; }
+.sh-holo.on .sh-console { opacity: 1; }
+.sh-holo.full.com-painel .sh-console { left: 32%; width: min(520px, 54vw); }
+.sh-holo.mini .sh-console { left: auto; right: 30px; bottom: 8px; transform: none; width: min(360px, 46vw); }
+.sh-console .cline { flex: 1; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,158,44,.3); padding: 10px 4px; transition: border-color .3s; }
+.sh-console .cline:focus-within { border-color: rgba(255,158,44,.75); }
+.sh-console .caret { font-family: var(--sh-mono); color: var(--sh-amber); font-size: 14px; animation: sh-caret 1.2s step-end infinite; }
+@keyframes sh-caret { 50% { opacity: .2 } }
+.sh-console input { flex: 1; min-width: 0; background: none; border: none; outline: none; color: #F5E8CF; font-family: var(--sh-mono); font-size: 14px; letter-spacing: .02em; }
+.sh-console input::placeholder { color: rgba(255,213,145,.35); }
+.sh-console .hbtn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,158,44,.3); color: rgba(255,158,44,.9); font-size: 14px; transition: .25s; flex: none; background: rgba(0,0,0,.3); cursor: pointer; }
+.sh-console .hbtn:hover:not(:disabled) { background: rgba(255,158,44,.12); border-color: var(--sh-amber); }
+.sh-console .hbtn:disabled { opacity: .4; cursor: default; }
+.sh-console .hbtn.rec { color: #ff8f6b; border-color: rgba(255,143,107,.6); animation: sh-rec 1.1s infinite; }
+@keyframes sh-rec { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,143,107,.4) } 50% { box-shadow: 0 0 0 10px rgba(255,143,107,0) } }
+.sh-aviso { position: absolute; left: 50%; bottom: calc(max(5vh, env(safe-area-inset-bottom, 0px)) + 54px); transform: translateX(-50%); margin: 0; font-size: 12px; color: #ffb08f; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .sh-summon .halo, .sh-summon .spark, .sh-console .caret { animation: none; } }
+@media (max-width: 760px) {
+  .sh-holo.full.com-painel .sh-stage { left: 50%; top: 22%; width: 44vmin; height: 44vmin; }
+  .sh-holo.full.com-painel .sh-caption { display: none; }
+  .sh-holo.full.com-painel .sh-console { left: 50%; width: 88vw; }
+  .sh-painel { top: auto; left: 16px; right: 16px; width: auto; height: 52vh; bottom: calc(max(5vh, env(safe-area-inset-bottom, 0px)) + 60px); }
+  .sh-holo.mini .sh-stage { left: calc(100% - 74px); top: calc(100% - 86px); transform: translate(-50%, -50%) scale(.15); }
+  .sh-holo.mini .sh-caption { right: 120px; bottom: 44px; }
+  .sh-holo.mini .sh-console { width: min(260px, 58vw); }
+  .sh-status { top: max(26px, env(safe-area-inset-top, 0px)); }
+}
 /* War Room › Conselho (SARA central, E7). */
 .conselho { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 920px; min-width: 0; }
 .conselho > header h2 { margin: 2px 0 6px; font-size: var(--fs-xl); color: var(--text-primary); text-wrap: balance; }
@@ -7431,6 +7520,10 @@ button.holiday-row:hover {
 .conselho-como b { font-size: var(--fs-sm); color: var(--text-primary); }
 .conselho-como span { font-size: var(--fs-xs); line-height: 1.5; color: var(--text-secondary); }
 .conselho h3 { margin: 4px 0 0; font-size: var(--fs-md); color: var(--text-primary); }
+.conselho-invocar { align-self: flex-start; display: inline-flex; align-items: center; gap: 12px; padding: 12px 20px 12px 16px; border-radius: 999px; border: 1px solid rgba(255,158,44,.5);
+  background: radial-gradient(circle at 18px 50%, rgba(255,158,44,.28), transparent 60%), #0b0702; color: #FFD591; font: inherit; font-size: var(--fs-sm); font-weight: 600; letter-spacing: .04em; cursor: pointer; }
+.conselho-invocar span { width: 10px; height: 10px; border-radius: 50%; background: #FF9E2C; box-shadow: 0 0 14px 3px rgba(255,158,44,.8); }
+.conselho-invocar:hover { border-color: #FF9E2C; }
 .conselho-perguntas { display: flex; flex-wrap: wrap; gap: 8px; }
 .conselho-perguntas button { padding: 9px 14px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent-blue) 40%, transparent); background: color-mix(in srgb, var(--accent-blue) 6%, var(--bg-surface)); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); cursor: pointer; text-align: left; }
 .conselho-perguntas button:hover { background: color-mix(in srgb, var(--accent-blue) 12%, var(--bg-surface)); }
