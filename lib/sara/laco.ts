@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { iniciarPasso, passoFeito, textoDoPasso } from "./progresso.ts";
 import { filtrarEstado } from "../decisao/guard.ts";
 import { semPensar, type Proposta } from "./base.ts";
 import type { Abrir, Ferramenta, Fonte } from "./ferramentas.ts";
@@ -208,6 +209,8 @@ export async function conversarCom(sb: SupabaseClient, a: {
   for (let rodada = 0; rodada < (a.rodadas ?? RODADAS); rodada++) {
     if (a.sinal?.aborted) throw new Error("CANCELADA");
     const inicioModelo = Date.now();
+    // Na tela: o que a SARA está fazendo agora (o modelo pensando é o passo mais longo).
+    const pensando = iniciarPasso("pensando", rodada === 0 ? "Entendendo o pedido" : "Analisando o que encontrou");
     const ctrl = new AbortController();
     const relogio = setTimeout(() => ctrl.abort(), 60_000);
     const cancelar = () => ctrl.abort();
@@ -220,10 +223,12 @@ export async function conversarCom(sb: SupabaseClient, a: {
         body: JSON.stringify({ model: a.modelo, max_tokens: a.maxTokens ?? 1500, thinking: semPensar(a.modelo), system: blocosDoSistema(a.sistema), messages: comCacheNoFim(mensagens), ...(tools.length ? { tools } : {}) }),
       });
     } catch (e) {
+      pensando.fim(false);
       if (a.sinal?.aborted) throw new Error("CANCELADA");
       throw e;
     } finally { clearTimeout(relogio); a.sinal?.removeEventListener("abort", cancelar); }
     const corpo = await r.json().catch(() => null) as { content?: Bloco[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }; error?: { message?: string } } | null;
+    pensando.fim(Boolean(r.ok && corpo?.content));
     if (!r.ok || !corpo?.content) throw new Error(`MODELO_INDISPONIVEL: ${r.status} ${corpo?.error?.message ?? ""}`.trim());
     tempos.push({ etapa: `modelo ${rodada + 1} (${corpo.usage?.output_tokens ?? 0} tokens de saída)`, ms: Date.now() - inicioModelo });
     cacheLido += corpo.usage?.cache_read_input_tokens ?? 0;
@@ -239,6 +244,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
       const termo = String(b.input?.query ?? "");
       if (!filtrarEstado(termo).ok) console.warn("[sara] a pesquisa na internet levou dado pessoal no termo");
       usadas.push({ nome: "pesquisar_na_internet", entrada: { termo }, ok: true });
+      passoFeito("internet", `Pesquisou na internet · ${termo.slice(0, 60)}`);
     }
     // Pesquisa longa: a Anthropic pausa a vez e espera a continuação (sem resposta de ferramenta).
     if (corpo.stop_reason === "pause_turn") {
@@ -264,7 +270,15 @@ export async function conversarCom(sb: SupabaseClient, a: {
     // uma de cada vez e na ordem (o visual depende da consulta feita antes). A resposta volta na ordem pedida.
     const paralela = (nome: string) => Boolean(a.ferramentas.find((x) => x.nome === nome)?.paralela);
     const feitos = new Map<string, { conteudo: string; ok: boolean }>();
-    const cronometrar = async (p: { id: string; name: string; input?: Record<string, unknown> }) => { const t = Date.now(); feitos.set(p.id, await executar(p.name, p.input ?? {})); tempos.push({ etapa: `ferramenta ${p.name}`, ms: Date.now() - t }); };
+    const cronometrar = async (p: { id: string; name: string; input?: Record<string, unknown> }) => {
+      const t = Date.now();
+      const f = a.ferramentas.find((x) => x.nome === p.name);
+      // A conversa com a SARA de uma área tem o próprio passo (lib/sara/central/subagente.ts).
+      const passo = p.name === "perguntar_a_sara" ? null : (() => { const x = textoDoPasso(p.name, f?.rotulo, p.input, Boolean(f?.acao)); return iniciarPasso(x.tipo, x.texto); })();
+      const feito = await executar(p.name, p.input ?? {});
+      passo?.fim(feito.ok);
+      feitos.set(p.id, feito); tempos.push({ etapa: `ferramenta ${p.name}`, ms: Date.now() - t });
+    };
     await Promise.all(pedidos.filter((p) => paralela(p.name)).map(cronometrar));
     for (const p of pedidos) if (!feitos.has(p.id)) await cronometrar(p);
     const devolvidos = [];

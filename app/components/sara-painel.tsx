@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useRef, useState, type PointerEvent a
 import { Callout, Carregando, useEscolherArquivo } from "../../packages/design-system";
 import { pedirRegistro, type PedidoRegistro } from "../../lib/abrir-registro";
 import type { Visual } from "../../lib/sara/visual";
+import { duracao, juntarPasso, passoAtual, perguntarComPassos, type PassoSara } from "../../lib/sara/progresso-cliente";
 import { SaraVisual } from "./sara-visual";
 import { SaraGuias } from "./sara-guias";
 
@@ -26,7 +27,8 @@ type Parametro = { consulta: string; filtros: string[] };
 type Salva = { parametros?: Parametro[]; id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean; visuais?: Visual[]; acoes?: Cartao[] };
 type Estado = { nome: string; configurada: boolean; ferramentas: string[]; alcance?: { outrosModulos: boolean; dados: boolean; pesquisa: boolean }; rotulos?: Record<string, string>; habilidades?: { id: string; nome: string; pedido: string }[]; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
-type Mensagem = { parametros?: Parametro[]; anexo?: string; foto?: string; papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string; visuais?: Visual[]; acoes?: Cartao[] };
+type PassoVisto = PassoSara & { desde: number };
+type Mensagem = { passos?: PassoVisto[]; duracaoMs?: number; parametros?: Parametro[]; anexo?: string; foto?: string; papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string; visuais?: Visual[]; acoes?: Cartao[] };
 
 const CONSULTA: Record<string, string> = {
   contas_a_pagar: "contas a pagar", contas_a_receber: "contas a receber", fluxo_de_caixa_90_dias: "fluxo de caixa",
@@ -168,6 +170,75 @@ function LeitorDeCodigo({ onLido, onFechar }: { onLido: (valor: string, formato:
 }
 
 type Aviso = { chave: string; nivel: "urgente" | "aviso"; titulo: string; detalhe: string; abrir?: Abrir; visto: boolean; propor?: { rotulo: string } };
+
+/** Ícone de cada passo na lista. */
+const MARCA: Record<PassoSara["estado"], string> = { rodando: "◌", feito: "✓", falhou: "✕" };
+const quem = (p: PassoSara) => (p.agente ? `SARA · ${p.agente}` : null);
+
+/** Lista dos passos (ao vivo e, depois, "como chegou à resposta"). */
+function ListaDePassos({ passos }: { passos: PassoVisto[] }) {
+  return (
+    <ol className="sara-passos">
+      {passos.map((p) => (
+        <li key={`${p.agente ?? ""}-${p.id}`} className={`${p.estado}${p.agente ? " agente" : ""}`}>
+          <span aria-hidden>{MARCA[p.estado]}</span>
+          <span>{quem(p) && <b>{quem(p)} · </b>}{p.texto}</span>
+          {p.ms != null && <small>{duracao(p.ms)}</small>}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/**
+ * O que a SARA está fazendo agora (pedido do proprietário, 24/10): a etapa atual com o tempo dela, quantas
+ * frentes rodam juntas, o tempo total e, ao tocar, todos os passos. Sem passo novo por muito tempo, diz se a
+ * conexão segue viva (etapa longa) ou se caiu.
+ */
+function AtividadeSara({ passos, inicio, ultimoSinal, ultimoPasso }: { passos: PassoVisto[]; inicio: number; ultimoSinal: number; ultimoPasso: number }) {
+  const [agora, setAgora] = useState(inicio);
+  const [aberta, setAberta] = useState(false);
+  useEffect(() => { const t = setInterval(() => setAgora(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const atual = passoAtual(passos);
+  const rodando = passos.filter((p) => p.estado === "rodando");
+  const agentes = [...new Set(rodando.map((p) => p.agente).filter(Boolean))] as string[];
+  const feitos = passos.filter((p) => p.estado !== "rodando").length;
+  const semSinal = agora - ultimoSinal, semPasso = agora - ultimoPasso;
+  return (
+    <div className="sara-msg sara sara-atividade">
+      <span className="sara-selo">SARA (IA)</span>
+      <button type="button" className="sara-atividade-linha" onClick={() => setAberta((v) => !v)} aria-expanded={aberta}
+        aria-label={`${atual ? atual.texto : "Começando"}. ${aberta ? "Esconder" : "Ver"} os passos`}>
+        <span className="sara-atividade-pontos" aria-hidden><span /><span /><span /></span>
+        <span className="sara-atividade-texto" aria-live="polite">{atual ? <>{quem(atual) && <b>{quem(atual)} · </b>}{atual.texto}</> : "Começando"}</span>
+        <small>{duracao(agora - (atual?.estado === "rodando" ? atual.desde : ultimoPasso))}</small>
+        <i aria-hidden>{aberta ? "▾" : "›"}</i>
+      </button>
+      <small className="sara-atividade-resumo">
+        Trabalhando há {duracao(agora - inicio)}{feitos ? ` · ${feitos} ${feitos === 1 ? "passo feito" : "passos feitos"}` : ""}
+        {agentes.length > 1 ? ` · ${agentes.length} SARAs em paralelo (${agentes.join(", ")})` : ""}
+      </small>
+      {semSinal > 25_000
+        ? <small className="sara-atividade-alerta">Sem sinal do servidor há {duracao(semSinal)}: a conexão pode ter caído.</small>
+        : semPasso > 40_000 && <small className="sara-atividade-nota">Ainda nesta etapa, com a conexão ativa: é uma consulta grande. Pode aguardar.</small>}
+      {aberta && <ListaDePassos passos={passos} />}
+    </div>
+  );
+}
+
+/** Depois da resposta: como ela chegou lá (os passos, recolhidos). */
+function ComoChegou({ passos, ms }: { passos: PassoVisto[]; ms?: number }) {
+  const [aberta, setAberta] = useState(false);
+  const agentes = [...new Set(passos.map((p) => p.agente).filter(Boolean))];
+  return (
+    <div className="sara-como">
+      <button type="button" onClick={() => setAberta((v) => !v)} aria-expanded={aberta}>
+        Como chegou à resposta · {passos.length} {passos.length === 1 ? "passo" : "passos"}{agentes.length ? ` · ${agentes.length} ${agentes.length === 1 ? "SARA de área" : "SARAs de área"}` : ""}{ms != null ? ` · ${duracao(ms)}` : ""} <span aria-hidden>{aberta ? "▾" : "›"}</span>
+      </button>
+      {aberta && <ListaDePassos passos={passos} />}
+    </div>
+  );
+}
 
 /** O link que só aparece agora (o banco guarda só o hash): copiar e mandar ao fornecedor. */
 function LinkUmaVez({ rotulo, link }: { rotulo: string; link: string }) {
@@ -369,6 +440,9 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
     setPreparandoFoto(false);
   });
   const [pensando, setPensando] = useState(false);
+  // Passos ao vivo da resposta em andamento (e os relógios: início, último sinal da conexão, último passo).
+  const [passos, setPassos] = useState<PassoVisto[]>([]);
+  const [relogio, setRelogio] = useState({ inicio: 0, sinal: 0, passo: 0 });
   const rolagem = useRef<HTMLDivElement>(null);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [novos, setNovos] = useState<Set<string>>(new Set());
@@ -470,13 +544,26 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
     if ((!p && !comFoto && !comAnexo) || pensando) return;
     setTexto(""); setFoto(null); setAnexo(null);
     setMsgs((m) => [...m, { papel: "pessoa", texto: p || (comFoto ? "📷 O que é isto?" : "Leia o documento e cruze com a plataforma."), foto: comFoto?.previa, anexo: comAnexo?.nome, quando: new Date().toISOString() }]); setPensando(true);
-    const r = await fetch(`/api/sara/${modulo}`, { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ pergunta: p, conversa, habilidade: habilidade ?? null, voz, imagem: comFoto ? { tipo: comFoto.tipo, dados: comFoto.dados } : null, anexo: comAnexo ? { nome: comAnexo.nome, texto: comAnexo.texto } : null }) })
-      .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
+    const t0 = Date.now();
+    setPassos([]); setRelogio({ inicio: t0, sinal: t0, passo: t0 });
+    let vistos: PassoVisto[] = [];
+    const resposta = await perguntarComPassos(`/api/sara/${modulo}`,
+      { pergunta: p, conversa, habilidade: habilidade ?? null, voz, imagem: comFoto ? { tipo: comFoto.tipo, dados: comFoto.dados } : null, anexo: comAnexo ? { nome: comAnexo.nome, texto: comAnexo.texto } : null },
+      (passo) => {
+        const agora = Date.now();
+        const antes = vistos.find((x) => x.id === passo.id && x.agente === passo.agente);
+        vistos = juntarPasso(vistos, { ...passo, desde: antes?.desde ?? agora });
+        setPassos(vistos); setRelogio((x) => ({ ...x, passo: agora }));
+      },
+      () => setRelogio((x) => ({ ...x, sinal: Date.now() })))
+      .catch(() => ({ ok: false, status: 0, body: null }));
     setPensando(false);
-    if (!r.ok) { setMsgs((m) => [...m, { papel: "sara", texto: r.body?.error ?? "A SARA está indisponível agora.", erro: true, quando: new Date().toISOString() }]); return; }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mesmo corpo de sempre da rota
+    const r = resposta as { ok: boolean; body: any };
+    if (!r.ok) { setMsgs((m) => [...m, { papel: "sara", texto: r.body?.error ?? "A SARA está indisponível agora.", erro: true, quando: new Date().toISOString(), passos: vistos, duracaoMs: Date.now() - t0 }]); return; }
     setConversa(r.body.conversa ?? conversa);
-    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo), quando: new Date().toISOString(), visuais: r.body.visuais ?? [], acoes: r.body.acoes ?? [], parametros: r.body.parametros ?? [] }]);
+    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo), quando: new Date().toISOString(), visuais: r.body.visuais ?? [], acoes: r.body.acoes ?? [], parametros: r.body.parametros ?? [],
+      passos: vistos, duracaoMs: Date.now() - t0 }]);
     // A SARA pediu para mostrar uma tela: abre por dentro da plataforma (a janela continua aberta).
     if (r.body.abrir) abrir(r.body.abrir);
   };
@@ -663,6 +750,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
                 {m.visuais?.map((v, k) => <SaraVisual key={k} v={v} />)}
                 {m.acoes?.map((c) => <CartaoAcao key={c.id} c={c} decidindo={decidindo} confirmar={confirmar} decidir={(x, permitir) => void decidir(x, permitir)} />)}
                 {m.consultas && m.consultas.length > 0 && <small className="sara-consultas">Consultou: {[...new Set(m.consultas)].map(rotulo).join(", ")}</small>}
+                {m.passos && m.passos.length > 0 && <ComoChegou passos={m.passos} ms={m.duracaoMs} />}
                 {m.parametros && m.parametros.length > 0 && (
                   <details className="sara-parametros">
                     <summary>Parâmetros usados</summary>
@@ -682,7 +770,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
               </div>
               </Fragment>
             ))}
-            {pensando && <div className="sara-msg sara"><span className="sara-selo">SARA (IA)</span><p className="sara-pensando">Consultando…</p></div>}
+            {pensando && <AtividadeSara passos={passos} inicio={relogio.inicio} ultimoSinal={relogio.sinal} ultimoPasso={relogio.passo} />}
           </div>
           {lendoCodigo && <LeitorDeCodigo onFechar={() => setLendoCodigo(false)} onLido={(valor, formato) => { setLendoCodigo(false); void perguntar(`Código lido: ${valor} (${formato}). O que é?`); }} />}
           {/* Caixa de mensagem (o padrão dos chats): + (foto, arquivo, código) à esquerda; microfone e enviar à direita. */}

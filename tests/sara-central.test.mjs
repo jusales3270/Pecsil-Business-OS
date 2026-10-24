@@ -111,7 +111,8 @@ test("holograma: a voz é só a do Grok (Realtime, luna); sem ela, só a legenda
   assert.match(c, /if \(v\.escutando\(\)\) \{ v\.desligarMicrofone\(\); setAoVivo\(false\); return; \}/, "o microfone liga e desliga dentro da sessão");
   assert.doesNotMatch(c, /api\.anthropic\.com|VITE_|import\.meta\.env/, "sem chamada direta ao modelo nem configuração do projeto de origem");
   assert.match(c, /const modulo = area && \/\^\[a-z_\]\{2,30\}\$\/\.test\(area\) \? area : "warroom";/, "sem área, conversa pela SARA central");
-  assert.match(c, /fetch\(`\/api\/sara\/\$\{modulo\}`, \{ method: "POST"/, "com a sessão da pessoa");
+  // Desde 24/10 com os passos ao vivo (perguntarComPassos faz o POST com a mesma sessão).
+  assert.match(c, /perguntarComPassos\(`\/api\/sara\/\$\{modulo\}`/, "com a sessão da pessoa");
   const page = ler("app/page.tsx");
   assert.match(page, /canUseFeature\(access,"warroom\.sara","ver"\)&&<SaraHolograma naWarRoom=\{activeModuleId==="warroom"\}/, "montada no app, só para quem tem a SARA central");
   assert.doesNotMatch(ler("modules/warroom/src/WarRoomApp.tsx"), /<SaraHolograma/, "não dentro da War Room (some ao trocar de módulo)");
@@ -192,7 +193,7 @@ test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números d
   assert.match(insAreas, /nunca diga um número, nome ou situação que não veio delas/);
   const holoVoz = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
   assert.match(holoVoz, /nome === "perguntar_a_area"/);
-  assert.match(holoVoz, /fetch\(`\/api\/sara\/\$\{modulo\}`/, "a área responde pela rota dela (permissão, verificador e registro)");
+  assert.match(holoVoz, /(fetch|perguntarComPassos)\(`\/api\/sara\/\$\{modulo\}`/, "a área responde pela rota dela (permissão, verificador e registro)");
   assert.match(holoVoz, /v\.perguntar\(pergunta\)/, "pergunta digitada passa pelo Grok, que roteia");
 
   const rota = ler("app/api/sara/[modulo]/voz-ao-vivo/route.ts");

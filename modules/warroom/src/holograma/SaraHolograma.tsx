@@ -5,6 +5,7 @@ import { Texto } from "../../../../app/components/sara-painel";
 import { SaraVisual } from "../../../../app/components/sara-visual";
 import { pedirRegistro, type PedidoRegistro } from "../../../../lib/abrir-registro";
 import { resumoFalado } from "../../../../lib/sara/central/fala";
+import { duracao, juntarPasso, perguntarComPassos, type PassoSara } from "../../../../lib/sara/progresso-cliente";
 import { paraVoz, semTags } from "../../../../lib/sara/personalidade";
 import type { Visual } from "../../../../lib/sara/visual";
 import { criarSistema, desenhar, novoPulso, type EstadoHolo, type Sistema } from "./motor";
@@ -38,12 +39,33 @@ const CHAVE_VOZ = "pecsil.sara-holo.voz";
 const lerVozLigada = () => { try { return window.localStorage.getItem(CHAVE_VOZ) !== "0"; } catch { return true; } };
 const guardarVozLigada = (v: boolean) => { try { window.localStorage.setItem(CHAVE_VOZ, v ? "1" : "0"); } catch { /* sem armazenamento: só não lembra */ } };
 
+/**
+ * Enquanto a central consulta: as etapas que estão rodando agora (a central e cada SARA de área em paralelo),
+ * a última concluída e o tempo total. Some quando a resposta chega.
+ */
+function AtividadeHolo({ inicio, passos }: { inicio: number; passos: PassoSara[] }) {
+  const [agora, setAgora] = useState(inicio);
+  useEffect(() => { const t = setInterval(() => setAgora(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const rodando = passos.filter((p) => p.estado === "rodando").slice(-4);
+  const ultimo = [...passos].reverse().find((p) => p.estado !== "rodando");
+  const nome = (p: PassoSara) => `${p.agente ? `SARA · ${p.agente} — ` : ""}${p.texto}`;
+  return (
+    <div className="sh-atividade" aria-live="polite">
+      {rodando.map((p) => <div key={`${p.agente ?? ""}-${p.id}`} className="ativo"><span className="sh-marca" aria-hidden>◌</span> {nome(p)}</div>)}
+      {ultimo && <div className={`feito${ultimo.estado === "falhou" ? " falhou" : ""}`}><span className="sh-marca" aria-hidden>{ultimo.estado === "falhou" ? "✕" : "✓"}</span> {nome(ultimo)}</div>}
+      <small>{rodando.length ? "trabalhando" : "começando"} há {duracao(agora - inicio)} · {passos.filter((p) => p.estado !== "rodando").length} passos feitos</small>
+    </div>
+  );
+}
+
 export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; navegar: (modulo: string, secao?: string) => void }) {
   const [modo, setModo] = useState<Modo>("fechado");
   const [estado, setEstadoTela] = useState<EstadoHolo>("idle");
   const [legenda, setLegenda] = useState("");
   const [aceso, setAceso] = useState(0);
   const [linhaPessoa, setLinhaPessoa] = useState("");
+  // O que a central e as SARAs das áreas estão fazendo agora (passos ao vivo da consulta).
+  const [atividade, setAtividade] = useState<{ inicio: number; passos: PassoSara[] } | null>(null);
   const [resposta, setResposta] = useState<Resposta | null>(null);
   const [painel, setPainel] = useState(false);
   const [entrada, setEntrada] = useState("");
@@ -184,8 +206,10 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     const modulo = area && /^[a-z_]{2,30}$/.test(area) ? area : "warroom";
     try {
       const anterior = modulo === "warroom" ? conversa.current : conversasDasAreas.current[modulo] ?? null;
-      const r = await fetch(`/api/sara/${modulo}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pergunta, conversa: anterior, voz }) });
-      const j = await r.json().catch(() => null) as { conversa?: string; texto?: string; fontes?: Fonte[]; abrir?: Abrir | null; visuais?: Visual[]; documentos?: DocCriado[]; acoes?: CartaoAcao[]; error?: string } | null;
+      setAtividade({ inicio: Date.now(), passos: [] });
+      const r = await perguntarComPassos(`/api/sara/${modulo}`, { pergunta, conversa: anterior, voz },
+        (passo) => setAtividade((a) => (a ? { ...a, passos: juntarPasso(a.passos, passo) } : a))).finally(() => setAtividade(null));
+      const j = r.body as { conversa?: string; texto?: string; fontes?: Fonte[]; abrir?: Abrir | null; visuais?: Visual[]; documentos?: DocCriado[]; acoes?: CartaoAcao[]; error?: string } | null;
       if (r.status === 403) return { erro: "Você não tem permissão para a SARA desta área." };
       if (!r.ok || !j?.texto) return { erro: j?.error ?? "Não consegui falar com as áreas agora. Tente de novo em instantes." };
       if (modulo === "warroom") conversa.current = j.conversa ?? conversa.current;
@@ -439,6 +463,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
 
         <div className="sh-caption" aria-live="polite">
           {linhaPessoa && <div className="uline show">{linhaPessoa}</div>}
+          {atividade && <AtividadeHolo inicio={atividade.inicio} passos={atividade.passos} />}
           <div className="who" style={{ opacity: legenda ? 1 : 0 }}>S A R A</div>
           <div className="line">{palavras.map((p, i) => <span key={i} className={`w${i < aceso ? " lit" : ""}`}>{p} </span>)}</div>
           {resposta && !painel && estado !== "thinking" && <button type="button" className="sh-ver" onClick={() => setPainel(true)}>Ver a resposta completa</button>}

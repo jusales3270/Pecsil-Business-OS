@@ -7470,6 +7470,16 @@ button.holiday-row:hover {
 .sh-caption .line .w.lit { opacity: 1; text-shadow: 0 0 20px rgba(255,190,110,.35); }
 .sh-caption .uline { font-family: var(--sh-mono); font-size: 11px; letter-spacing: .08em; color: rgba(255,213,145,.6); margin-bottom: 14px; opacity: 0; transition: .4s; }
 .sh-caption .uline.show { opacity: 1; }
+/* Passos ao vivo da central e das SARAs das áreas (24/10). */
+.sh-caption .sh-atividade { display: flex; flex-direction: column; gap: 3px; margin: -6px 0 12px; font-family: var(--sh-mono); font-size: 11px; letter-spacing: .04em; color: rgba(255,213,145,.75); }
+.sh-atividade div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: min(640px, 86vw); margin: 0 auto; }
+.sh-atividade .sh-marca { display: inline-block; width: 1em; height: auto; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; text-align: center; color: inherit; }
+.sh-atividade .ativo .sh-marca { animation: sh-gira 1.4s linear infinite; }
+.sh-atividade .feito { color: rgba(170,230,170,.7); }
+.sh-atividade .feito.falhou { color: #ffb08f; }
+.sh-atividade small { font-size: 10px; color: rgba(255,213,145,.45); }
+@keyframes sh-gira { to { transform: rotate(360deg); } }
+.sh-holo.mini .sh-atividade { display: none; }
 .sh-ver { margin-top: 14px; padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255,158,44,.4); background: rgba(255,158,44,.08); color: var(--sh-hot); font: inherit; font-size: 12px; letter-spacing: .06em; cursor: pointer; pointer-events: auto; }
 .sh-ver:hover { background: rgba(255,158,44,.16); }
 .sh-holo.mini .sh-caption { left: auto; right: 190px; bottom: 52px; transform: none; width: min(430px, 50vw); text-align: right; }
@@ -7759,6 +7769,33 @@ a.doc-abrir { text-decoration: none; }
 .sara-nota button { padding: 2px 9px; border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent); border-radius: 999px; background: transparent; cursor: pointer; font-size: 13px; opacity: .7; }
 .sara-nota button.ativo { opacity: 1; border-color: var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 10%, transparent); }
 .sara-pensando { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
+/* O que a SARA está fazendo agora (24/10): etapa atual com o tempo, resumo e a lista dos passos ao tocar. */
+.sara-atividade { display: flex; flex-direction: column; gap: 4px; }
+.sara-atividade-linha { display: flex; align-items: center; gap: 10px; width: 100%; padding: 4px 0; border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
+.sara-atividade-linha:hover .sara-atividade-texto { color: var(--text-primary); }
+.sara-atividade-texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sara-atividade-texto b { font-weight: 600; color: var(--accent-blue); }
+.sara-atividade-linha small { flex-shrink: 0; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.sara-atividade-linha > i { font-style: normal; color: var(--text-muted); }
+.sara-atividade-pontos { display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; width: 21px; }
+.sara-atividade-pontos > span { display: block; flex: 0 0 5px; width: 5px; height: 5px; padding: 0; border-radius: 50%; background: var(--accent-amber); animation: sara-ponto-vivo 1.2s ease-in-out infinite; }
+.sara-atividade-pontos > span:nth-child(2) { animation-delay: .2s; } .sara-atividade-pontos > span:nth-child(3) { animation-delay: .4s; }
+@keyframes sara-ponto-vivo { 0%, 80%, 100% { opacity: .25; transform: scale(.8); } 40% { opacity: 1; transform: scale(1); } }
+.sara-atividade-resumo { font-size: var(--fs-micro); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.sara-atividade-nota { font-size: var(--fs-micro); color: var(--accent-blue); }
+.sara-atividade-alerta { font-size: var(--fs-micro); color: var(--accent-red); }
+.sara-passos { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-xs); color: var(--text-secondary); max-height: 220px; overflow-y: auto; }
+.sara-passos li { display: flex; gap: 8px; align-items: baseline; }
+.sara-passos li.agente { padding-left: 14px; }
+.sara-passos li > span:first-child { width: 12px; flex-shrink: 0; text-align: center; color: var(--text-muted); }
+.sara-passos li.feito > span:first-child { color: var(--accent-green); }
+.sara-passos li.falhou > span:first-child, .sara-passos li.falhou { color: var(--accent-red); }
+.sara-passos li.rodando > span:first-child { color: var(--accent-amber); }
+.sara-passos li > span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sara-passos li b { font-weight: 600; color: var(--accent-blue); }
+.sara-passos li small { flex-shrink: 0; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.sara-como button { padding: 0; border: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: var(--fs-micro); cursor: pointer; text-align: left; }
+.sara-como button:hover { color: var(--text-primary); }
 /* Caixa de mensagem da SARA (padrão dos chats): texto em cima; + à esquerda; microfone e enviar à direita. */
 .sara-caixa { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 8px 8px 8px 12px; border-radius: 22px;
   border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent); background: color-mix(in srgb, var(--bg-surface) 78%, transparent);
@@ -7848,7 +7885,7 @@ a.doc-abrir { text-decoration: none; }
 .sara-borda.nw { top: 0; left: 0; cursor: nwse-resize; } .sara-borda.se { bottom: 0; right: 0; cursor: nwse-resize; }
 .sara-ponto.pulsa.aviso { animation: sara-pulso-aviso 2.2s ease-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .sara-botao.pulsa-urgente::after, .sara-botao.pulsa-aviso::after, .sara-ponto.pulsa, .sara-avisos.pulsa-urgente { animation: none; }
+  .sara-botao.pulsa-urgente::after, .sara-botao.pulsa-aviso::after, .sara-ponto.pulsa, .sara-avisos.pulsa-urgente, .sara-atividade-pontos > span { animation: none; }
   .sara-botao.pulsa-urgente::after { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-red) 60%, transparent); }
   .sara-botao.pulsa-aviso::after { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue) 55%, transparent); }
 }

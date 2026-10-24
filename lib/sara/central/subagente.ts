@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Fonte, Ferramenta, SaraModulo } from "../base.ts";
+import { comoAgente, iniciarPasso } from "../progresso.ts";
 import { dicaVisual, type Visual } from "../visual.ts";
 
 /**
@@ -53,8 +54,11 @@ export function ferramentaPerguntarASara(modulos: Pick<SaraModulo, "modulo" | "r
       if (!m) return { dados: { erro: `Sem permissão para a SARA de "${modulo}" (ou o módulo não existe).` }, fontes: [] };
       const pergunta = String(e.pergunta ?? "").trim().slice(0, 1500);
       if (pergunta.length < 3) return { dados: { erro: "Faltou a pergunta." }, fontes: [] };
+      // Na tela: "Conversando com a SARA · Financeiro", e os passos dela saem em nome da área.
+      const passo = iniciarPasso("agente", `Conversando com a SARA · ${m.rotulo}: ${pergunta.length > 70 ? `${pergunta.slice(0, 69)}…` : pergunta}`);
       try {
-        const r = await rodar(sb, modulo, pergunta);
+        const r = await comoAgente(m.rotulo, () => rodar(sb, modulo, pergunta));
+        passo.fim(true, `SARA · ${m.rotulo} respondeu`);
         usos.push(r.uso);
         visuais.push(...r.visuais);
         respostas.push({ area: m.rotulo, resposta: r.texto }, ...r.visuais);
@@ -65,6 +69,7 @@ export function ferramentaPerguntarASara(modulos: Pick<SaraModulo, "modulo" | "r
           ...(r.visuais.length ? { apresentado_na_tela: `${r.visuais.length} visual(is) — a plataforma mostra na tela; fale deles, não repita os números` } : {}),
           ...(painel.dicas.length ? { para_mostrar_no_painel: painel.dicas } : {}) }, fontes: r.fontes, paraVisual: painel.dados };
       } catch (err) {
+        passo.fim(false, `SARA · ${m.rotulo} não respondeu`);
         usos.push({ modulo, modelo: "", tokensEntrada: 0, tokensSaida: 0, cacheLido: 0, cacheGravado: 0, ok: false });
         return { dados: { area: m.rotulo, erro: `A SARA da área não respondeu: ${err instanceof Error ? err.message.slice(0, 160) : "erro"}` }, fontes: [] };
       }

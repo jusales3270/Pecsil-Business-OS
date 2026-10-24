@@ -9,6 +9,7 @@ import { MOSTRAR } from "../../../../lib/sara/visual";
 import { PROPOR_HABILIDADE, instrucoesDeHabilidades, nomearHabilidade, pareceLacuna, pedidoRecorrente, validarProposta, type Passo } from "../../../../lib/sara/habilidades";
 import { regrasDaSara } from "../../../../lib/sara/modulos";
 import { ACOES } from "../../../../lib/sara/acoes";
+import { comProgresso, iniciarPasso } from "../../../../lib/sara/progresso";
 import { parametrosUsados, type Usada } from "../../../../lib/sara/parametros";
 import { validarGuia } from "../../../../lib/sara/guias";
 import { conferirNumeros, marcarSemFonte, type Conferencia } from "../../../../lib/sara/central/verificador";
@@ -101,11 +102,36 @@ export async function GET(_request: Request, context: { params: Promise<{ modulo
   });
 }
 
+type Corpo = { pergunta?: string; conversa?: string | null; habilidade?: string | null; imagem?: { tipo?: string; dados?: string } | null; voz?: boolean; anexo?: { nome?: string; texto?: string } | null;
+  /** A tela quer ver os passos enquanto a SARA trabalha (resposta em fluxo, uma linha JSON por passo). */
+  progresso?: boolean };
+type Preparado = Exclude<Awaited<ReturnType<typeof preparar>>, { erro: unknown }>;
+
 export async function POST(request: Request, context: { params: Promise<{ modulo: string }> }) {
   const { modulo } = await context.params;
   const p = await preparar(modulo);
   if ("erro" in p) return p.erro;
-  const corpo = (await request.json().catch(() => null)) as { pergunta?: string; conversa?: string | null; habilidade?: string | null; imagem?: { tipo?: string; dados?: string } | null; voz?: boolean; anexo?: { nome?: string; texto?: string } | null } | null;
+  const corpo = (await request.json().catch(() => null)) as Corpo | null;
+  if (!corpo?.progresso) return responder(p, modulo, corpo);
+  // Passos ao vivo (24/10): cada linha é { tipo: "passo", passo } e a última é { tipo: "fim", status, corpo },
+  // com a mesma resposta de sempre. "vivo" a cada 10 s mantém a conexão aberta numa consulta longa.
+  // no-transform: a compressão do servidor não segura as linhas até o fim.
+  const enc = new TextEncoder();
+  const fluxo = new ReadableStream<Uint8Array>({
+    start(ctrl) {
+      let aberto = true;
+      const linha = (o: unknown) => { if (aberto) { try { ctrl.enqueue(enc.encode(`${JSON.stringify(o)}\n`)); } catch { aberto = false; } } };
+      const vivo = setInterval(() => linha({ tipo: "vivo" }), 10_000);
+      void comProgresso((passo) => linha({ tipo: "passo", passo }), () => responder(p, modulo, corpo))
+        .then(async (res) => linha({ tipo: "fim", status: res.status, corpo: await res.json().catch(() => null) }))
+        .catch((e) => { console.error("[sara] falha no fluxo", e instanceof Error ? e.message.slice(0, 200) : e); linha({ tipo: "fim", status: 503, corpo: { error: "A SARA está indisponível agora. Tente de novo em instantes." } }); })
+        .finally(() => { clearInterval(vivo); if (aberto) { aberto = false; ctrl.close(); } });
+    },
+  });
+  return new Response(fluxo, { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store, no-transform", "x-accel-buffering": "no" } });
+}
+
+async function responder(p: Preparado, modulo: string, corpo: Corpo | null): Promise<Response> {
   // (o cliente do Supabase só envia a consulta quando alguém espera por ela: sem o await, não contava)
   if (corpo?.habilidade && UUID.test(corpo.habilidade) && p.habilidades.some((h) => h.id === corpo.habilidade)) await p.sb.rpc("sara_habilidade_usada", { p_id: corpo.habilidade });
   // Foto (E2): só JPEG, PNG ou WebP, já reduzida no celular; vai ao modelo nesta pergunta e não fica guardada.
@@ -191,12 +217,14 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   // conta). O que não bate é apontado no fim da resposta. Conferido pela plataforma, não pelo modelo.
   let conferencia: Conferencia | null = null;
   if (p.sara.central && !fora) {
+    const passoConferir = iniciarPasso("conferencia", "Conferindo cada número com a fonte das áreas");
     // Fontes: o que as áreas devolveram agora e as respostas anteriores desta conversa (já conferidas).
     conferencia = conferirNumeros(r.texto, [...(r.resultados ?? []).map((x) => x.dados), ...fontesDaConversa,
       // O que a vigia aprendeu (números do histórico, calculados pela plataforma).
       ...(memoria.tipos.length ? [memoria.texto] : [])]);
     // Os gráficos que as áreas montaram vão para a tela (a central apresenta).
     r = { ...r, texto: marcarSemFonte(r.texto, conferencia), visuais: [...r.visuais, ...p.visuaisSubagentes].slice(0, 8) };
+    passoConferir.fim(true);
   }
   // Cumprimento e aviso de retomada vêm da plataforma (hora certa de São Paulo, nome de quem está logado).
   const nomeCurto = tratamento(interlocutor);
@@ -204,6 +232,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   if (!p.sara.central) r = { ...r, texto: comAbertura(r.texto, abertura({ nome: nomeCurto, situacao }), nomeCurto) };
   // O "Senhor" é só do fundador verificado: a plataforma corrige o que o modelo tenha concedido a outra pessoa.
   r = { ...r, texto: semTratamentoIndevido(r.texto, interlocutor) };
+  const passoGravar = iniciarPasso("conferencia", "Guardando a conversa");
   const { data: reg, error } = await p.sb.rpc("sara_registrar", {
     p_conversa: conversa, p_modulo: modulo, p_pergunta: `${imagem ? "📷 " : ""}${corpo?.voz ? "🎤 " : ""}${anexo ? `📎 ${anexo.nome} · ` : ""}${pergunta}`, p_resposta: r.texto,
     p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou }, tempos: { total_ms: Date.now() - inicioRota, conversa_ms: msModelo, etapas: r.tempos ?? [] },
@@ -211,6 +240,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
       ...(p.sara.central ? { verificador: conferencia, subagentes: p.subagentes, documentos: p.documentos?.criados ?? [] } : {}) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
+  passoGravar.fim(!error);
   const ids = reg as { conversa: string; mensagem: string } | null;
   // J5: a lição proposta na primeira mensagem nasce antes da conversa; liga a lição à conversa agora.
   if (p.sara.central && !conversa && ids?.conversa && r.ferramentas.some((f) => f.nome === "propor_licao")) {

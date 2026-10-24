@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-24-sara-passos-ao-vivo",
+    data: "2026-10-24",
+    area: "SARA",
+    titulo: "Você vê o que a SARA está fazendo enquanto responde",
+    itens: [
+      "Enquanto a SARA trabalha, aparece a etapa atual com o tempo dela: \"Entendendo o pedido\", \"Consultando cotações pendentes\", \"Montando o gráfico\". Toque na linha para ver todos os passos.",
+      "Na SARA central, aparecem as SARAs das áreas trabalhando ao mesmo tempo, cada uma com o nome dela e o que está consultando.",
+      "Se uma etapa demorar, a SARA avisa se é uma consulta grande (a conexão segue ativa) ou se a conexão caiu.",
+      "Depois da resposta, \"Como chegou à resposta\" mostra os passos feitos e quanto tempo levou cada um.",
+    ],
+  },
+  {
     id: "2026-10-24-sara-janela",
     data: "2026-10-24",
     area: "SARA",
