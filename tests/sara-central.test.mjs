@@ -79,10 +79,10 @@ test("SARA central: na War Room, Sonnet, sem consulta direta, com o verificador 
   const sessao = ler("lib/sara/sessao.ts");
   assert.match(sessao, /if \(sara\.central\) \{/);
   assert.match(sessao, /ferramentaPerguntarASara\(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos\.fontes\), calcular, PERIODO/);
-  assert.match(sessao, /const calcular: Ferramenta = \{ \.\.\.CALCULAR, rodar: async \(sb, e\) => \{ const r = await CALCULAR\.rodar\(sb, e\); documentos\.fontes\.push\(r\.dados\)/, "a conta vira fonte dos documentos");
+  assert.match(sessao, /const calcular: Ferramenta = \{ \.\.\.CALCULAR, rotulo: "conta da plataforma com os números das áreas", rodar: async \(sb, e\) => \{[\s\S]*documentos\.fontes\.push\(\{ resultados: resultados\.filter/, "a conta (com fonte) vira fonte dos documentos");
   assert.match(sessao, /access\.canModule\(x\.feature\) && access\.can\(x\.permissao, "ver"\)/, "só as áreas da pessoa");
   const rota = ler("app/api/sara/[modulo]/route.ts");
-  assert.match(rota, /if \(p\.sara\.central && !fora\) \{[^}]*conferencia = conferirNumeros\(r\.texto, \[\.\.\.\(r\.resultados \?\? \[\]\)\.map\(\(x\) => x\.dados\), \.\.\.historico\.filter/);
+  assert.match(rota, /if \(p\.sara\.central && !fora\) \{[^}]*conferencia = conferirNumeros\(r\.texto, \[\.\.\.\(r\.resultados \?\? \[\]\)\.map\(\(x\) => x\.dados\), \.\.\.fontesDaConversa/);
   const sql = ler("supabase/migrations/202610230002_sara_central.sql");
   assert.match(sql, /\('warroom\.sara', 'warroom', 'SARA central \(conselho\)', '\{ver\}', 20\)/);
   assert.match(sql, /'claude-sonnet-5-5', 60000000/);
@@ -129,7 +129,7 @@ test("CEO apresentando: navega pelas telas das áreas, minimiza para mostrar e a
   const sessao = ler("lib/sara/sessao.ts");
   assert.match(sessao, /const navegarCentral = ferramentaDeTelas\(/, "telas de todas as áreas da pessoa");
   assert.match(sessao, /f\.nome === "abrir_lancamento" && f\.exige\.some\(pode\)/);
-  assert.match(ler("app/api/sara/[modulo]/route.ts"), /visuais: \[\.\.\.r\.visuais, \.\.\.p\.visuaisSubagentes\]\.slice\(0, 4\)/);
+  assert.match(ler("app/api/sara/[modulo]/route.ts"), /visuais: \[\.\.\.r\.visuais, \.\.\.p\.visuaisSubagentes\]\.slice\(0, 8\)/);
   assert.match(SARA_CENTRAL.manual, /apresentando à diretoria/);
 });
 
@@ -215,4 +215,49 @@ test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números d
   const holo = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
   assert.match(holo, /if \(nome === "consultar_sara_central"\) \{[\s\S]*await consultar\(/, "o cérebro continua sendo a SARA central");
   assert.match(holo, /\.catch\(\(e\) => \{ console\.warn\("\[sara\] voz da SARA indisponível"[^\n]*setSemVoz\(true\); return null; \}\)/, "sem a chave, só legenda e Whisper");
+});
+
+test("painel da central: monta com mostrar a partir das consultas das áreas e da calculadora; conta sem fonte é recusada", async () => {
+  const { semFonteNaConta } = await import("../lib/sara/central/verificador.ts");
+  const fontes = [{ area: "Financeiro", resposta: "Recebido de jul a set: R$ 2.345.678,90; outubro: R$ 812.345,10." }];
+  assert.deepEqual(semFonteNaConta("2345678,90 + 812345,10", fontes), [], "parcelas que vieram da área");
+  assert.deepEqual(semFonteNaConta("812345.10 * 3 / 100", fontes), [], "constantes (3, 100) não precisam de fonte");
+  assert.deepEqual(semFonteNaConta("100000*(1+0,0185)^12", fontes), ["100000"], "valor inventado é apontado");
+  const { dadosDePainel } = await import("../lib/sara/central/subagente.ts");
+  const p = dadosDePainel("financeiro", "Financeiro", [
+    { nome: "contas_a_receber", rotulo: "contas a receber", dados: { por_mes: [{ mes: "2026-07", total: 10 }, { mes: "2026-08", total: 20 }] }, fontes: [] },
+    { nome: "mostrar", dados: { ok: true } }, { nome: "calcular", dados: { resultados: [] } },
+  ]);
+  assert.deepEqual(p.dados.map((x) => x.nome), ["financeiro.contas_a_receber"], "o nome ganha a área; mostrar e calcular ficam fora");
+  assert.equal(p.dados[0].rotulo, "Financeiro › contas a receber");
+  assert.match(p.dicas[0], /consulta "financeiro\.contas_a_receber"[\s\S]*por_mes \(2 itens; campos: mes, total\)/);
+  assert.ok(!/10|20/.test(p.dicas[0].replace(/\d+ itens/, "")), "a dica não leva número");
+  const { resolverVisual } = await import("../lib/sara/visual.ts");
+  const v = resolverVisual({ componente: "barras", titulo: "Trimestres", consulta: "calcular", caminho: "resultados", rotulo: "nome", valor: "resultado", formato: "moeda" },
+    [{ nome: "calcular", rotulo: "calcular", dados: { resultados: [{ nome: "Jul–Set", expressao: "1+2", resultado: 2345678.9 }, { nome: "Out–Dez", expressao: "x", resultado: 812345.1 }] }, fontes: [] }]);
+  assert.ok("visual" in v && v.visual.componente === "barras" && v.visual.pontos.length === 2, "comparativo da calculadora vira barras");
+  const calc = [{ nome: "calcular", rotulo: "calcular", dados: { resultados: [{ nome: "Total", resultado: 59 }, { nome: "Jul–Set", resultado: 3 }, { nome: "Out–Dez", resultado: 7 }, { nome: "Jan–Mar", resultado: 5 }] }, fontes: [] }];
+  const so = resolverVisual({ componente: "barras", titulo: "T", consulta: "calcular", caminho: "resultados", rotulo: "nome", valor: "resultado", somente: ["Jul–Set", "Out–Dez", "Jan–Mar"] }, calc);
+  assert.deepEqual("visual" in so && so.visual.pontos.map((x) => x.rotulo), ["Jul–Set", "Out–Dez", "Jan–Mar"], "só as contas do gráfico, na ordem pedida (sem o Total)");
+  const falta = resolverVisual({ componente: "linha", titulo: "T", consulta: "calcular", caminho: "resultados", rotulo: "nome", valor: "resultado", somente: ["Abr–Jun"] }, calc);
+  assert.match("erro" in falta ? falta.erro : "", /não existem no resultado: Abr–Jun[\s\S]*Jul–Set/);
+
+  const sessao = ler("lib/sara/sessao.ts");
+  assert.match(sessao, /semFonteNaConta\(String\(c\.expressao/);
+  assert.match(sessao, /por_nome: porNome/, "indicadores do painel apontam para as contas pelo nome");
+  const ind = resolverVisual({ componente: "indicadores", titulo: "Recebíveis", consulta: "calcular", caminho: "por_nome", campos: [{ campo: "Total em aberto" }] },
+    [{ nome: "calcular", rotulo: "calcular", dados: { resultados: [], por_nome: { "Total em aberto": 59217223.6 } }, fontes: [] }]);
+  assert.ok("visual" in ind && ind.visual.itens[0].valor === 59217223.6);
+  assert.match(ler("lib/sara/laco.ts"), /\(os\|o\) campos\? do mostrar\|\(não\|nao\) aceit\(ou\|aram\) o caminho/, "frase de bastidor da ferramenta não entra na resposta");
+  assert.match(sessao, /\/\/ Painel na tela[\s\S]*MOSTRAR,/);
+  const laco = ler("lib/sara/laco.ts");
+  assert.match(laco, /if \(res\.paraVisual\?\.length\) resultados\.push\(\.\.\.res\.paraVisual\);/);
+  assert.match(laco, /visuais\.length < \(a\.maxVisuais \?\? 4\)/);
+  const rota = ler("app/api/sara/[modulo]/route.ts");
+  assert.match(rota, /maxVisuais: p\.sara\.central \? 8 : undefined/);
+  assert.match(rota, /replace\(\/⚠️\?\\s\*Sem fonte conferida/, "o aviso do que não teve fonte não vira fonte");
+  const { SARA_CENTRAL } = await import("../lib/sara/central/sara.ts");
+  assert.match(SARA_CENTRAL.manual, /PAINEL NA TELA[\s\S]*até 8 visuais[\s\S]*para_mostrar_no_painel[\s\S]*consulta "calcular"[\s\S]*caminho "resultados"[\s\S]*caminho "por_nome"[\s\S]*Não diga que não consegue montar painel/);
+  const holo = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
+  assert.match(holo, /sh-palco-grade/, "dois ou mais visuais aparecem juntos, como painel");
 });

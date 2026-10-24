@@ -57,6 +57,8 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const [docs, setDocs] = useState<{ documentos: DocCriado[]; acoes: CartaoAcao[]; modulo: string } | null>(null);
   const [decidindo, setDecidindo] = useState<string | null>(null);
   const [slide, setSlide] = useState(0);
+  // Dois ou mais visuais: todos juntos, como painel (dashboard); "um por vez" para apresentar.
+  const [emPainel, setEmPainel] = useState(true);
   // A sessão de voz (Grok Realtime, voz "luna", pt-BR): abre ao invocar e fala tudo o que ela diz; o
   // microfone liga e desliga dentro dela (aoVivo = escutando).
   const [aoVivo, setAoVivo] = useState(false);
@@ -165,7 +167,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     if (!abrir && !visuais.length) return;
     setTimeout(() => {
       setPainel(false); setModo("mini");
-      if (visuais.length) { setPalco(visuais); setSlide(0); }
+      if (visuais.length) { setPalco(visuais); setSlide(0); setEmPainel(visuais.length > 1); }
       if (abrir) {
         navegar(abrir.modulo, abrir.secao ?? undefined);
         const registro = abrir.registro;
@@ -247,8 +249,8 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     }
     if (nome === "minimizar") { setPainel(false); setModo("mini"); return { saida: { ok: true } }; }
     if (nome === "tela_cheia") { setModo("cheio"); return { saida: { ok: true } }; }
-    if (nome === "proximo_visual") { setSlide((n) => n + 1); return { saida: { ok: true } }; }
-    if (nome === "visual_anterior") { setSlide((n) => Math.max(0, n - 1)); return { saida: { ok: true } }; }
+    if (nome === "proximo_visual") { setEmPainel(false); setSlide((n) => n + 1); return { saida: { ok: true } }; }
+    if (nome === "visual_anterior") { setEmPainel(false); setSlide((n) => Math.max(0, n - 1)); return { saida: { ok: true } }; }
     if (nome === "fechar_apresentacao") { setPalco([]); return { saida: { ok: true } }; }
     return { saida: { erro: `Função desconhecida: ${nome}` } };
   }, [consultar]);
@@ -366,17 +368,20 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   return (
     <>
       {palco.length > 0 && visual && (
-        <section className="sh-palco" aria-label="Apresentação da SARA">
+        <section className={`sh-palco${emPainel && palco.length > 1 ? " painel" : ""}`} aria-label={emPainel && palco.length > 1 ? "Painel da SARA" : "Apresentação da SARA"}>
           <header>
-            <b>Apresentação da SARA</b>
-            {palco.length > 1 && <span>{slide + 1} de {palco.length}</span>}
+            <b>{emPainel && palco.length > 1 ? "Painel da SARA" : "Apresentação da SARA"}</b>
+            {palco.length > 1 && <span>{emPainel ? `${palco.length} visuais` : `${slide + 1} de ${palco.length}`}</span>}
             <span className="sh-palco-acoes">
-              {palco.length > 1 && <button type="button" onClick={() => setSlide((n) => Math.max(0, n - 1))} disabled={slide === 0} aria-label="Anterior">‹</button>}
-              {palco.length > 1 && <button type="button" onClick={() => setSlide((n) => Math.min(palco.length - 1, n + 1))} disabled={slide >= palco.length - 1} aria-label="Próximo">›</button>}
+              {palco.length > 1 && <button type="button" className="sh-palco-modo" onClick={() => setEmPainel((v) => !v)} aria-pressed={emPainel}>{emPainel ? "Um por vez" : "Painel"}</button>}
+              {palco.length > 1 && !emPainel && <button type="button" onClick={() => setSlide((n) => Math.max(0, n - 1))} disabled={slide === 0} aria-label="Anterior">‹</button>}
+              {palco.length > 1 && !emPainel && <button type="button" onClick={() => setSlide((n) => Math.min(palco.length - 1, n + 1))} disabled={slide >= palco.length - 1} aria-label="Próximo">›</button>}
               <button type="button" onClick={() => setPalco([])} aria-label="Fechar a apresentação">✕</button>
             </span>
           </header>
-          <div className="sh-palco-corpo"><SaraVisual v={visual} /></div>
+          {emPainel && palco.length > 1
+            ? <div className="sh-palco-grade">{palco.map((v, i) => <div key={i} className={`sh-palco-cartao c-${v.componente}`}><SaraVisual v={v} /></div>)}</div>
+            : <div className="sh-palco-corpo"><SaraVisual v={visual} /></div>}
         </section>
       )}
       {docs && (docs.documentos.length > 0 || docs.acoes.length > 0) && (

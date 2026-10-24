@@ -250,6 +250,20 @@ A SARA central monta documentos sob pedido e envia a quem se destina. Exemplo: "
 - orçamento e proposta a partir do orçamento cadastrado (preços só do registro);
 - envio por e-mail (M365) e WhatsApp (número dedicado), sempre com a prévia e o Permitir.
 
+## 4f. Painel na tela da SARA central (proprietário, 24/10/2026)
+
+O proprietário pediu um comparativo de faturamento para ver na tela, com gráficos. A central respondeu que não tinha o recurso e entregou um PDF. As SARAs das áreas já montavam visuais; a central não tinha a ferramenta. Agora tem.
+
+- **`mostrar` na central**, com até 8 visuais por resposta. Os números são preenchidos pela plataforma; o modelo só aponta de onde vêm.
+  - **Dados das áreas:** o resultado bruto de cada consulta da área fica na plataforma (`paraVisual`, com o nome `area.consulta`). O modelo recebe só a dica dos caminhos e dos campos, sem número.
+  - **Contas da central:** saem da calculadora (`resultados`, mais `por_nome` para indicadores). O campo `somente` escolhe quais contas entram em cada gráfico, na ordem pedida.
+  - **Trava nova:** cada número usado numa conta da central tem de ter vindo das áreas ou da conversa. Constantes como meses e percentuais ficam de fora da exigência.
+- **Holograma:** com 2 ou mais visuais, eles aparecem juntos como painel. "Um por vez" serve para a apresentação por voz.
+- **Manual:** "ver na tela" é painel; PDF só quando pedirem um documento.
+- **Baixas com direção (achado no teste):** a consulta de baixas não separava pagamento de recebimento. O painel chegou a chamar R$ 6,5 milhões de pagamentos de "recebido".
+  - A relação passou a ter dois saltos (baixa → parcela → título), e a descrição obriga a separar pela direção.
+  - Fato do banco, a ser tratado pelo Financeiro: das 657 parcelas a receber, nenhuma tem baixa registrada.
+
 ## 4e. J5: a SARA aprende com as respostas e o efeito (24/10/2026)
 
 A J3 já guarda, para cada achado da vigia, a resposta da área e o efeito: se a situação saiu dos avisos, quando saiu e depois de quem respondeu "Vou tratar". A J5 transforma esse histórico e o que as pessoas ensinam nas conversas em **memória**. Vale a regra de sempre: **quem decide o que vira regra é a área**, nunca o modelo nem o proprietário pela área.

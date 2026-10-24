@@ -7514,6 +7514,13 @@ button.holiday-row:hover {
 .sh-palco header b { font-size: var(--fs-sm); letter-spacing: .02em; }
 .sh-palco header > span:not(.sh-palco-acoes) { font-size: var(--fs-xs); color: var(--text-muted); }
 .sh-palco-acoes { margin-left: auto; display: flex; gap: 6px; }
+/* Painel (dashboard): os visuais da resposta juntos, em grade; indicadores e tabela ocupam a linha toda. */
+.sh-palco.painel { width: min(1240px, calc(100vw - 32px)); top: 46%; max-height: min(80vh, 980px); transform: translate(-50%, -50%); }
+.sh-palco-grade { display: flex; flex-wrap: wrap; align-items: stretch; gap: 12px; padding: 14px; overflow-y: auto; min-height: 0; }
+.sh-palco-cartao { flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; }
+.sh-palco-cartao > * { flex: 1; }
+.sh-palco-cartao.c-indicadores, .sh-palco-cartao.c-tabela { flex-basis: 100%; }
+.sh-palco-acoes .sh-palco-modo { width: auto; padding: 0 12px; border-radius: 999px; font-size: var(--fs-xs); }
 .sh-palco-acoes button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-primary); font-size: 16px; cursor: pointer; }
 .sh-palco-acoes button:disabled { opacity: .4; cursor: default; }
 .sh-palco-corpo { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px 20px; }

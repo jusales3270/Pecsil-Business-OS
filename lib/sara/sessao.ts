@@ -24,6 +24,7 @@ import { FORA_DA_SUBAGENTE, REGRA_SUBAGENTE, ferramentaPerguntarASara, type Roda
 import { DOCUMENTOS_RECEBIDOS, ENVIAR_DOCUMENTO, ferramentaCriarDocumento, type ContextoDocumentos } from "./central/documentos";
 import { ferramentaCriarMensagemDeVoz } from "./central/mensagem-de-voz";
 import { ferramentaProporLicao, memoriaDaSara } from "./central/licoes";
+import { semFonteNaConta } from "./central/verificador";
 import type { Ferramenta } from "./base";
 import { FERRAMENTAS } from "./ferramentas";
 import type { Visual } from "./visual";
@@ -74,9 +75,26 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
     const lancamento = FERRAMENTAS.find((f) => f.nome === "abrir_lancamento" && f.exige.some(pode));
     // Documentos (só a central cria): as fontes dos números são o que as áreas e a calculadora devolveram.
     const documentos: ContextoDocumentos = { fontes: [], visuais: visuaisSubagentes, criados: [], conversa: null };
-    const calcular: Ferramenta = { ...CALCULAR, rodar: async (sb, e) => { const r = await CALCULAR.rodar(sb, e); documentos.fontes.push(r.dados); return r; } };
+    // Zero-inference na conta: cada parcela tem de ter vindo das áreas (ou de uma conta anterior), porque o
+    // resultado vai para o painel e para os documentos. Parcela sem fonte: a conta volta com o erro.
+    const calcular: Ferramenta = { ...CALCULAR, rotulo: "conta da plataforma com os números das áreas", rodar: async (sb, e) => {
+      const r = await CALCULAR.rodar(sb, e);
+      const d = r.dados as { resultados: { nome: string | null; expressao: unknown; resultado?: number; erro?: string }[] };
+      const resultados = d.resultados.map((c) => {
+        if (c.erro) return c;
+        const falta = semFonteNaConta(String(c.expressao ?? ""), documentos.fontes);
+        return falta.length ? { nome: c.nome, expressao: c.expressao, erro: `Estes números não vieram das áreas nesta conversa: ${falta.join(", ")}. Use o valor exato que a área devolveu (ou pergunte a ela).` } : c;
+      });
+      // Também por nome ({ "Jul–Set": 879913.8 }): indicadores e barras do painel apontam direto para as contas.
+      const porNome = Object.fromEntries(resultados.filter((c) => !("erro" in c && c.erro) && c.nome && typeof (c as { resultado?: number }).resultado === "number").map((c) => [String(c.nome).slice(0, 60), (c as { resultado: number }).resultado]));
+      const dados = { resultados, ...(Object.keys(porNome).length ? { por_nome: porNome } : {}) };
+      documentos.fontes.push({ resultados: resultados.filter((c) => !("erro" in c && c.erro)) });
+      return { ...r, dados };
+    } };
     const ferramentas: Ferramenta[] = [ferramentaPerguntarASara(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos.fontes), calcular, PERIODO,
       ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ferramentaCriarDocumento(documentos), ENVIAR_DOCUMENTO, ferramentaCriarMensagemDeVoz(documentos),
+      // Painel na tela (como as SARAs das áreas): os números vêm das consultas das áreas ou da calculadora.
+      MOSTRAR,
       // J5: o que a pessoa ensina vira lição, aprovada pela área.
       ferramentaProporLicao(areas.map((x) => ({ modulo: x.modulo, rotulo: x.rotulo })), documentos)];
     return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades: [] as HabilidadeAtiva[], eventos: [] as { tipo: string; rotulo: string }[], subagentes, visuaisSubagentes, documentos } as const;
@@ -118,6 +136,7 @@ async function rodarSubagente(sb: SupabaseClient, modulo: string, pergunta: stri
   const r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico: [], pergunta, ferramentas, maxTokens: p.sara.maxTokens });
   return {
     texto: r.texto, fontes: r.fontes, visuais: r.visuais, consultas: r.ferramentas.filter((f) => f.ok && f.nome !== "mostrar").map((f) => ferramentas.find((x) => x.nome === f.nome)?.rotulo ?? f.nome),
+    resultados: r.resultados ?? [],
     uso: { modulo, modelo: r.modelo, tokensEntrada: r.tokensEntrada, tokensSaida: r.tokensSaida, cacheLido: r.cacheLido, cacheGravado: r.cacheGravado, ok: true, tempos: r.tempos },
   };
 }

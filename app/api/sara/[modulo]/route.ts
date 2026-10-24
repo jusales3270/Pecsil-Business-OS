@@ -130,6 +130,10 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const historico = conversa
     ? ((await p.sb.from("sara_mensagens").select("papel, texto, created_at").eq("conversa_id", conversa).order("created_at", { ascending: false }).order("papel", { ascending: false }).limit(24)).data ?? []).reverse() as { papel: "pessoa" | "sara"; texto: string; created_at: string }[]
     : [];
+  // Fontes que já estão na conversa: as respostas anteriores (conferidas; sem o aviso do que NÃO teve fonte) e
+  // os números que a própria pessoa disse. Valem para a calculadora, o painel e os documentos da central.
+  const fontesDaConversa = historico.map((m) => m.texto.replace(/⚠️?\s*Sem fonte conferida:[^\n]*/g, ""));
+  if (p.documentos) p.documentos.fontes.push(...fontesDaConversa);
   // Nova, continuação ou retomada (outro dia ou pausa longa), pela hora da última mensagem.
   // Pela voz da SARA central, a conversa já foi aberta por ela (o cumprimento já foi dito): a área vai direto à resposta.
   const situacao = corpo?.voz && !p.sara.central ? { tipo: "continua" as const, ultima: null, ontem: false } : situacaoDaConversa(historico.at(-1)?.created_at ?? null);
@@ -166,7 +170,7 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   let falha: unknown = null;
   try {
     // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
-    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined });
+    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined, maxVisuais: p.sara.central ? 8 : undefined });
   } catch (e) { falha = e; }
   const v = await verificacao;
   const textoRecusa = recusa(empresa, p.sara.rotulo);
@@ -188,11 +192,11 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   let conferencia: Conferencia | null = null;
   if (p.sara.central && !fora) {
     // Fontes: o que as áreas devolveram agora e as respostas anteriores desta conversa (já conferidas).
-    conferencia = conferirNumeros(r.texto, [...(r.resultados ?? []).map((x) => x.dados), ...historico.filter((m) => m.papel === "sara").map((m) => m.texto),
+    conferencia = conferirNumeros(r.texto, [...(r.resultados ?? []).map((x) => x.dados), ...fontesDaConversa,
       // O que a vigia aprendeu (números do histórico, calculados pela plataforma).
       ...(memoria.tipos.length ? [memoria.texto] : [])]);
     // Os gráficos que as áreas montaram vão para a tela (a central apresenta).
-    r = { ...r, texto: marcarSemFonte(r.texto, conferencia), visuais: [...r.visuais, ...p.visuaisSubagentes].slice(0, 4) };
+    r = { ...r, texto: marcarSemFonte(r.texto, conferencia), visuais: [...r.visuais, ...p.visuaisSubagentes].slice(0, 8) };
   }
   // Cumprimento e aviso de retomada vêm da plataforma (hora certa de São Paulo, nome de quem está logado).
   const nomeCurto = tratamento(interlocutor);

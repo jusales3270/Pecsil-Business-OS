@@ -43,7 +43,7 @@ export type RespostaSara = {
   /** Ações preparadas nesta resposta (a pessoa decide no cartão). */
   acoes: AcaoProposta[];
   /** O que cada consulta devolveu (o verificador da SARA central confere os números da resposta com isto). */
-  resultados?: { nome: string; dados: unknown }[];
+  resultados?: { nome: string; rotulo?: string; dados: unknown; fontes?: Fonte[] }[];
   /** Quanto levou cada chamada ao modelo e cada consulta (ms), para medir onde vai o tempo. */
   tempos?: { etapa: string; ms: number }[];
 };
@@ -64,7 +64,7 @@ const API = "https://api.anthropic.com/v1/messages";
 /** Frase curta de passagem antes de uma consulta ("Vou consultar as contas…"), que não é resposta. */
 const PASSAGEM = /^(vou|deixa eu|deixe-me|um momento|já vou|só um instante)\b[^\n]{0,160}$/i;
 /** Frase em que o modelo comenta o próprio raciocínio ("é uma dúvida de conceito, então respondo com meu conhecimento"). */
-const META = /[^.!?\n]*\b(então respondo|respondo (com|pelo|a partir d[oe]) (o )?meu conhecimento|sem consultar a plataforma|é uma dúvida de (conceito|conhecimento)|respondo direto|isso é conhecimento geral sobre a regra)\b[^.!?\n]*[.!?]\s*/gi;
+const META = /[^.!?\n]*\b(então respondo|respondo (com|pelo|a partir d[oe]) (o )?meu conhecimento|sem consultar a plataforma|é uma dúvida de (conceito|conhecimento)|respondo direto|isso é conhecimento geral sobre a regra|(os|o) campos? do mostrar|(não|nao) aceit(ou|aram) o caminho|apontam para as consultas|vou refazer (com|o|a)|(a|o) ferramenta (mostrar|calcular)|chamada (do|de) mostrar)\b[^.!?\n]*[.!?]\s*/gi;
 /** Linha que só anuncia o próximo passo ("Vou mostrar o comparativo por terceiro."), sem número. */
 const PASSAGEM_LINHA = /^(agora\s+)?(vou|deixa eu|deixe-me|vamos)\s+(mostrar|montar|consultar|buscar|pesquisar|verificar|conferir|confirmar|trazer|levantar|calcular|separar|detalhar|abrir|ver)\b[^\d\n]{0,120}[.:…]?$/i;
 const RODADAS = 6;
@@ -121,6 +121,8 @@ export async function conversarCom(sb: SupabaseClient, a: {
   imagem?: Imagem | null;
   /** Documento anexado (Excel, Word, PDF, texto), já em texto. */
   anexo?: Anexo | null;
+  /** Quantos visuais por resposta (padrão 4; a SARA central monta painéis de até 8). */
+  maxVisuais?: number;
 }): Promise<RespostaSara> {
   const chave = a.chave;
   const buscar = a.buscar ?? fetch;
@@ -167,7 +169,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
     if (nome === MOSTRAR.nome && podeMostrar) {
       const r = resolverVisual(entrada, resultados);
       if ("erro" in r) return { conteudo: JSON.stringify({ erro: r.erro }), ok: false };
-      if (visuais.length < 4) visuais.push(r.visual);
+      if (visuais.length < (a.maxVisuais ?? 4)) visuais.push(r.visual);
       return { conteudo: JSON.stringify({ mostrado: true, componente: r.visual.componente, observacao: "O visual aparece abaixo do seu texto: não repita os números dele no texto, só o resumo." }), ok: true };
     }
     const f = a.ferramentas.find((x) => x.nome === nome);
@@ -194,6 +196,8 @@ export async function conversarCom(sb: SupabaseClient, a: {
       fontes.push(...res.fontes);
       if (res.abrir) abrir = res.abrir;
       resultados.push({ nome, rotulo: f.rotulo ?? nome.replace(/_/g, " "), dados: res.dados, fontes: res.fontes });
+      // O resultado bruto das consultas das áreas (SARA central): fica aqui para o mostrar, não vai ao modelo.
+      if (res.paraVisual?.length) resultados.push(...res.paraVisual);
       const dica = podeMostrar && !res.abrir ? dicaVisual(nome, res.dados) : null;
       return { conteudo: json.slice(0, 30_000) + (dica ? `\n\n${dica}` : ""), ok: true };
     } catch (e) { return { conteudo: JSON.stringify({ erro: `A consulta falhou: ${e instanceof Error ? e.message.slice(0, 200) : "erro"}` }), ok: false }; }
@@ -250,7 +254,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
     if (corpo.stop_reason !== "tool_use" || !pedidos.length) {
       const texto = juntar();
       return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais, acoes, tempos,
-        resultados: resultados.map((x) => ({ nome: x.nome, dados: x.dados })) };
+        resultados: resultados.map((x) => ({ nome: x.nome, rotulo: x.rotulo, dados: x.dados, fontes: x.fontes })) };
     }
     mensagens.push({ role: "assistant", content: corpo.content });
     // Só abrir a tela ou mostrar, e nada escrito ainda: o modelo que pensa entre ferramentas (Sonnet) às

@@ -10,7 +10,14 @@ export type Fonte = { rotulo: string; link: string };
 /** Registro exato a abrir dentro da tela (hoje: título do Financeiro, na aba onde ele está). */
 export type Registro = { tipo: "titulo"; id: string; direcao: "payable" | "receivable"; aba: "aberto" | "previsoes" | "quitados"; mes: string | null };
 export type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: Registro };
-export type Resultado = { dados: unknown; fontes: Fonte[]; abrir?: Abrir };
+export type Resultado = {
+  dados: unknown; fontes: Fonte[]; abrir?: Abrir;
+  /**
+   * Dados que ficam na plataforma para o `mostrar` (não vão ao modelo): a SARA central monta o painel com o
+   * resultado bruto das consultas que as áreas fizeram ("financeiro.contas_a_receber").
+   */
+  paraVisual?: { nome: string; rotulo: string; dados: unknown; fontes: Fonte[] }[];
+};
 export type Ferramenta = {
   nome: string;
   /** Como a consulta aparece para quem usa ("Consultou: cotações pendentes"). */

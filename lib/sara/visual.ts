@@ -16,6 +16,8 @@ export type Pedido = {
   campos?: { campo: string; rotulo?: string; formato?: Formato }[]; rotulo?: string; valor?: string; data?: string; formato?: Formato;
   /** Barras e rosca: quantos itens mostrar (o "top 5"). */
   maximo?: number;
+  /** Só estes itens (pelo valor do campo `rotulo`), nesta ordem: escolhe as contas da calculadora que entram no gráfico. */
+  somente?: string[];
 };
 export type ResultadoConsulta = { nome: string; rotulo: string; dados: unknown; fontes: Fonte[] };
 export type Celula = string | number | null;
@@ -45,6 +47,7 @@ export const MOSTRAR: Ferramenta = {
       data: { type: "string", description: "Para lista_de_datas: o campo com a data." },
       formato: { type: "string", enum: FORMATOS, description: "Formato do valor (moeda, numero, dias, data)." },
       maximo: { type: "integer", description: "Barras e rosca: quantos itens mostrar (ex.: 5 para um top 5). Linhas com o mesmo nome são somadas." },
+      somente: { type: "array", items: { type: "string" }, description: "Só estes itens, pelo nome (valor do campo rotulo), na ordem em que entram no gráfico ou na tabela. Use com a calculadora: os nomes das contas daquele gráfico." },
     },
     required: ["componente", "titulo", "consulta"],
   },
@@ -112,9 +115,19 @@ export function resolverVisual(entrada: unknown, resultados: ResultadoConsulta[]
     if (pares.length && pares.every((x) => x.valor !== null)) return montar(comp as "barras" | "linha" | "rosca", comum, fmt(p.formato), pares as { rotulo: string; valor: number }[], p.maximo);
   }
   if (!Array.isArray(base)) return { erro: `O caminho "${p.caminho ?? ""}" não leva a uma lista. Listas no resultado: ${chavesDe(r.dados).filter((k) => Array.isArray((r.dados as Record<string, unknown>)[k])).join(", ") || "nenhuma"}.` };
-  const lista = base.filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === "object" && !Array.isArray(x));
-  if (!lista.length) return { erro: "A lista está vazia: responda só com o texto." };
-  const existentes = camposDe(lista);
+  const todos = base.filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === "object" && !Array.isArray(x));
+  if (!todos.length) return { erro: "A lista está vazia: responda só com o texto." };
+  const existentes = camposDe(todos);
+  // Só os itens pedidos (pelo nome), na ordem pedida.
+  const nomes = Array.isArray(p.somente) ? p.somente.map((x) => String(x).trim()).filter(Boolean) : [];
+  const chaveNome = p.rotulo && existentes.includes(p.rotulo) ? p.rotulo : null;
+  let lista = todos;
+  if (nomes.length) {
+    if (!chaveNome) return { erro: `Para "somente", diga o campo "rotulo" (o nome de cada item). Campos disponíveis: ${existentes.join(", ")}.` };
+    lista = nomes.map((n) => todos.find((x) => String(x[chaveNome] ?? "").trim() === n)).filter((x): x is Record<string, unknown> => Boolean(x));
+    const faltam = nomes.filter((n) => !todos.some((x) => String(x[chaveNome] ?? "").trim() === n));
+    if (faltam.length) return { erro: `Estes itens não existem no resultado: ${faltam.join(", ")}. Nomes que existem: ${todos.map((x) => String(x[chaveNome] ?? "")).slice(0, 20).join(", ")}.` };
+  }
 
   if (comp === "tabela") {
     const cols = (p.campos ?? []).filter((c) => c?.campo && existentes.includes(c.campo)).slice(0, 4);
@@ -135,10 +148,10 @@ export function resolverVisual(entrada: unknown, resultados: ResultadoConsulta[]
   if (!campoRotulo || !campoValor) return { erro: `Para ${comp}, diga os campos "rotulo" e "valor". Campos disponíveis: ${existentes.join(", ")}.` };
   const pontos = lista.map((x) => ({ rotulo: String(x[campoRotulo] ?? "—").slice(0, 40), valor: numero(x[campoValor]) })).filter((x): x is { rotulo: string; valor: number } => x.valor !== null);
   if (!pontos.length) return { erro: `O campo "${campoValor}" não é numérico.` };
-  return montar(comp as "barras" | "linha" | "rosca", comum, fmt(p.formato, campoValor), pontos, p.maximo);
+  return montar(comp as "barras" | "linha" | "rosca", comum, fmt(p.formato, campoValor), pontos, p.maximo, nomes.length > 0);
 }
 
-function montar(comp: "barras" | "linha" | "rosca", comum: { titulo: string; origem: string; fonte: Fonte | null }, formato: Formato, entrada: { rotulo: string; valor: number }[], maximo?: number): { visual: Visual } {
+function montar(comp: "barras" | "linha" | "rosca", comum: { titulo: string; origem: string; fonte: Fonte | null }, formato: Formato, entrada: { rotulo: string; valor: number }[], maximo?: number, ordemPedida = false): { visual: Visual } {
   // Barras e rosca são por categoria: linhas com o mesmo nome (várias parcelas do mesmo fornecedor) viram
   // uma barra só, com a soma, e o ranking sai do maior para o menor. Linha (série no tempo) fica como veio.
   let pontos = entrada;
@@ -147,7 +160,8 @@ function montar(comp: "barras" | "linha" | "rosca", comum: { titulo: string; ori
     for (const x of entrada) soma.set(x.rotulo, (soma.get(x.rotulo) ?? 0) + x.valor);
     if (soma.size < entrada.length) pontos = [...soma].map(([rotulo, valor]) => ({ rotulo, valor: Math.round(valor * 100) / 100 }));
     // Barras é ranking: sempre do maior para o menor.
-    if (comp === "barras" || soma.size < entrada.length) pontos = [...pontos].sort((a, b) => b.valor - a.valor);
+    // Com "somente", a ordem é a pedida (ex.: trimestre anterior, atual, próximo).
+    if (!ordemPedida && (comp === "barras" || soma.size < entrada.length)) pontos = [...pontos].sort((a, b) => b.valor - a.valor);
   }
   const teto = Number.isInteger(maximo) && (maximo as number) > 0 ? Math.min(maximo as number, LIMITE[comp]) : LIMITE[comp];
   let lim = pontos.slice(0, teto);

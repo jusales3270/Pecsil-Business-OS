@@ -71,6 +71,17 @@ function bate(valor: number, fonte: number): boolean {
 
 export type Conferencia = { conferidos: number; semFonte: string[] };
 
+/**
+ * Os números de uma conta da calculadora (SARA central) que não vieram das áreas: o resultado da conta vai
+ * para o painel e para os documentos, então cada parcela tem de ter fonte. Constantes da conta ficam de fora:
+ * menores que 10 (taxas, 1 do juros composto) e inteiros até 400 (meses, dias, 100 do percentual).
+ */
+export function semFonteNaConta(expressao: string, fontes: unknown[]): string[] {
+  const base = numerosDasFontes(fontes);
+  const lidos = numerosDoTexto(expressao).filter((l) => !(Math.abs(l.valor) < 10 || (Number.isInteger(l.valor) && l.valor <= 400)));
+  return [...new Set(lidos.filter((l) => !base.some((f) => bate(l.valor, f))).map((l) => l.como))];
+}
+
 /** Confere cada número da resposta com os números das fontes. */
 export function conferirNumeros(resposta: string, fontes: unknown[]): Conferencia {
   const base = numerosDasFontes(fontes);

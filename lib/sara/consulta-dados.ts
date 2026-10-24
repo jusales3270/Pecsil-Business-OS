@@ -69,7 +69,12 @@ export function validar(p: Pedido, t: TabelaCatalogo): string | null {
 function montarSelect(t: TabelaCatalogo, precisa: Set<string>, filtrados: Set<string>) {
   const partes = [...precisa].filter((c) => t.colunas[c]);
   // Nome legível usado em filtro: junção "inner", para o filtro valer sobre as linhas.
-  for (const [alias, r] of Object.entries(t.rel ?? {})) if (precisa.has(alias) || filtrados.has(alias)) partes.push(`${alias}:${r.tabela}!${r.fk}${filtrados.has(alias) ? "!inner" : ""}(${r.campo})`);
+  for (const [alias, r] of Object.entries(t.rel ?? {})) {
+    if (!precisa.has(alias) && !filtrados.has(alias)) continue;
+    const inner = filtrados.has(alias) ? "!inner" : "";
+    // Dois saltos (baixa → parcela → título): a tabela do meio entra com o apelido do nome, a final como "r".
+    partes.push(r.via ? `${alias}:${r.via.tabela}!${r.via.fk}${inner}(r:${r.tabela}!${r.fk}${inner}(${r.campo}))` : `${alias}:${r.tabela}!${r.fk}${inner}(${r.campo})`);
+  }
   return partes.length ? partes.join(",") : Object.keys(t.colunas).slice(0, 1).join(",");
 }
 
@@ -77,7 +82,8 @@ function achatar(linha: Record<string, unknown>, t: TabelaCatalogo) {
   const o: Record<string, unknown> = { ...linha };
   for (const [alias, r] of Object.entries(t.rel ?? {})) {
     const v = o[alias];
-    if (v && typeof v === "object") o[alias] = (v as Record<string, unknown>)[r.campo] ?? null;
+    const fim = r.via && v && typeof v === "object" ? (v as Record<string, unknown>).r : v;
+    o[alias] = fim && typeof fim === "object" ? (fim as Record<string, unknown>)[r.campo] ?? null : r.via ? null : v;
   }
   // Lista fechada: sai com o nome da tela (a SARA não traduz código por conta própria).
   for (const [c, mapa] of Object.entries(t.opcoes ?? {})) if (typeof o[c] === "string" && mapa[o[c] as string]) o[c] = mapa[o[c] as string];
@@ -142,7 +148,7 @@ async function ler(sb: SupabaseClient, t: TabelaCatalogo, p: Pedido) {
   ]);
   const filtrados = new Set((p.filtros ?? []).map((x) => x.campo).filter((c) => t.rel?.[c]));
   const select = montarSelect(t, precisa, filtrados);
-  const alvo = (campo: string) => (t.rel?.[campo] ? `${campo}.${t.rel[campo].campo}` : campo);
+  const alvo = (campo: string) => (t.rel?.[campo] ? (t.rel[campo].via ? `${campo}.r.${t.rel[campo].campo}` : `${campo}.${t.rel[campo].campo}`) : campo);
   const linhas: Record<string, unknown>[] = [];
   let truncado = false;
   for (let de = 0; de < MAX_LINHAS; de += PAGINA) {

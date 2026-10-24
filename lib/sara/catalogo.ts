@@ -16,7 +16,11 @@ import { LEITORES_MATERIAIS } from "./agentes/almoxarifado.ts";
  */
 
 export type TipoColuna = "texto" | "numero" | "data" | "logico";
-export type Relacao = { tabela: string; fk: string; campo: string };
+export type Relacao = {
+  tabela: string; fk: string; campo: string;
+  /** Dois saltos: a chave da linha leva a `via`, e a chave de `via` leva à `tabela` (baixa → parcela → título). */
+  via?: { tabela: string; fk: string };
+};
 export type TabelaCatalogo = {
   tabela: string;
   modulo: string;
@@ -133,10 +137,15 @@ export const CATALOGO: TabelaCatalogo[] = [
     fonte: f("financeiro", "Financeiro", "Contas a pagar"),
   },
   {
-    tabela: "finance_settlements", modulo: "financeiro", rotulo: "baixas (pagamentos e recebimentos)", descricao: "Baixas: data, valor, desconto, juros, multa, forma de pagamento (estornadas têm reversed_at).",
+    tabela: "finance_settlements", modulo: "financeiro", rotulo: "baixas (pagamentos e recebimentos)", descricao: "Baixas: data, valor, desconto, juros, multa, forma de pagamento (estornadas têm reversed_at). SEMPRE separe pela direcao (A pagar = pagamento que a empresa fez; A receber = recebimento): somar sem a direção mistura o que a empresa pagou com o que recebeu.",
     exige: ["financeiro.pagar", "financeiro.bancos"], data: "settlement_date",
     colunas: { settlement_date: "data", amount: "numero", discount: "numero", interest: "numero", penalty: "numero", payment_method: "texto", reversed_at: "data" },
-    rel: { banco: { tabela: "finance_bank_accounts", fk: "bank_account_id", campo: "bank_name" } },
+    rel: {
+      banco: { tabela: "finance_bank_accounts", fk: "bank_account_id", campo: "bank_name" },
+      direcao: { tabela: "finance_titles", fk: "title_id", campo: "direction", via: { tabela: "finance_installments", fk: "installment_id" } },
+      fornecedor_cliente: { tabela: "finance_titles", fk: "title_id", campo: "counterparty_name", via: { tabela: "finance_installments", fk: "installment_id" } },
+    },
+    opcoes: { direcao: DIRECAO },
     fonte: f("financeiro", "Financeiro", "Contas a pagar"),
   },
   {

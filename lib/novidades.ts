@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-24-sara-central-painel",
+    data: "2026-10-24",
+    area: "SARA",
+    titulo: "A SARA central monta painéis na tela",
+    modulos: ["warroom"],
+    itens: [
+      "Peça \"monte um painel na tela com…\" e a SARA central monta, na própria tela, até 8 gráficos, tabelas e indicadores juntos, como um dashboard. Ela só faz PDF quando você pede um documento.",
+      "Os números do painel vêm das consultas das áreas ou de contas feitas pela plataforma com esses números, nunca digitados pelo modelo.",
+      "Na apresentação, o botão \"Um por vez\" mostra cada gráfico em tela cheia.",
+    ],
+  },
+  {
     id: "2026-10-24-sara-aprende",
     data: "2026-10-24",
     area: "SARA",
