@@ -16,6 +16,9 @@ import { CATALOGO } from "../../../../lib/sara/catalogo";
 import { preparar } from "../../../../lib/sara/sessao";
 import { temaDe } from "../../../../lib/sara/temas";
 import { PERSONALIDADE, regraDeTratamento, semTratamentoIndevido, tratamento } from "../../../../lib/sara/personalidade";
+import { memoriaDaSara } from "../../../../lib/sara/central/licoes";
+import { SARAS } from "../../../../lib/sara/modulos";
+import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -145,10 +148,13 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   // Ações deste módulo que a pessoa não tem o nível para fazer: a SARA diz "Você não tem permissão" em vez de perguntar detalhes.
   const acoesFechadas = ACOES.filter((f) => f.acao && f.acao.modulos !== "todos" && f.acao.modulos.includes(modulo) && !p.ferramentas.some((x) => x.nome === f.nome))
     .map((f) => f.descricao.replace(/^PREPARA /, "").split(" (")[0]);
+  // J5: o que a empresa ensinou (lições aprovadas pela área) e, na central, o que a vigia aprendeu nas áreas da pessoa.
+  const areasDaMemoria = p.sara.central ? Object.values(SARAS).filter((s) => !s.central && p.access.canModule(s.feature) && p.access.can(s.permissao, "ver")).map((s) => s.modulo) : [modulo];
+  const memoria = await memoriaDaSara(areasDaMemoria, Boolean(p.sara.central));
   // Fixo (vai para o cache) + do momento (hora, quem conversa, situação da conversa, o que não pode).
   const sistema = {
     fixo: `${PERSONALIDADE}\n\n${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
-    variavel: `${contextoDeTempo({ nome: tratamento(interlocutor), situacao })}\n${regraDeTratamento(interlocutor)}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}${acoesFechadas.length ? `\nAções que esta pessoa NÃO tem permissão de fazer (se ela pedir, comece com "Você não tem permissão para…" e diga quem pode; não pergunte detalhes): ${acoesFechadas.join("; ")}.` : ""}${notaAcoes}${corpo?.voz && !p.sara.central ? "\nA pergunta veio pela voz da SARA: o PRIMEIRO parágrafo é o que será falado. Comece por ele, com a resposta direta e os números (até 60 palavras); o detalhe vem depois, para o painel." : ""}\nResponda sempre em português do Brasil.`,
+    variavel: `${contextoDeTempo({ nome: tratamento(interlocutor), situacao })}\n${regraDeTratamento(interlocutor)}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}${acoesFechadas.length ? `\nAções que esta pessoa NÃO tem permissão de fazer (se ela pedir, comece com "Você não tem permissão para…" e diga quem pode; não pergunte detalhes): ${acoesFechadas.join("; ")}.` : ""}${notaAcoes}${memoria.texto ? `\n\n${memoria.texto}` : ""}${corpo?.voz && !p.sara.central ? "\nA pergunta veio pela voz da SARA: o PRIMEIRO parágrafo é o que será falado. Comece por ele, com a resposta direta e os números (até 60 palavras); o detalhe vem depois, para o painel." : ""}\nResponda sempre em português do Brasil.`,
   };
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
@@ -182,7 +188,9 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   let conferencia: Conferencia | null = null;
   if (p.sara.central && !fora) {
     // Fontes: o que as áreas devolveram agora e as respostas anteriores desta conversa (já conferidas).
-    conferencia = conferirNumeros(r.texto, [...(r.resultados ?? []).map((x) => x.dados), ...historico.filter((m) => m.papel === "sara").map((m) => m.texto)]);
+    conferencia = conferirNumeros(r.texto, [...(r.resultados ?? []).map((x) => x.dados), ...historico.filter((m) => m.papel === "sara").map((m) => m.texto),
+      // O que a vigia aprendeu (números do histórico, calculados pela plataforma).
+      ...(memoria.tipos.length ? [memoria.texto] : [])]);
     // Os gráficos que as áreas montaram vão para a tela (a central apresenta).
     r = { ...r, texto: marcarSemFonte(r.texto, conferencia), visuais: [...r.visuais, ...p.visuaisSubagentes].slice(0, 4) };
   }
@@ -200,6 +208,13 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
   const ids = reg as { conversa: string; mensagem: string } | null;
+  // J5: a lição proposta na primeira mensagem nasce antes da conversa; liga a lição à conversa agora.
+  if (p.sara.central && !conversa && ids?.conversa && r.ferramentas.some((f) => f.nome === "propor_licao")) {
+    try {
+      const eu = (await p.sb.rpc("current_profile_id")).data as string | null;
+      if (eu) await createSupabaseAdminClient().from("sara_licoes").update({ conversa_id: ids.conversa }).eq("ensinada_por", eu).is("conversa_id", null).gte("created_at", new Date(inicioRota).toISOString());
+    } catch (e) { console.error("[sara] não ligou a lição à conversa", e instanceof Error ? e.message : e); }
+  }
   // Ações preparadas: ficam pendentes (15 min) até a pessoa decidir no cartão.
   const acoes: ReturnType<typeof cartao>[] = [];
   for (const a of r.acoes) {

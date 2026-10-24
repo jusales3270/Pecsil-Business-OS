@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-24-sara-aprende",
+    data: "2026-10-24",
+    area: "SARA",
+    titulo: "A SARA aprende com a sua área",
+    itens: [
+      "Quando alguém corrige a SARA central ou explica uma regra do negócio, ela propõe a lição a quem decide na área, em \"Decisões para você\". A lição só vale depois de aprovada, e quem aprovou pode mudar a resposta ali mesmo.",
+      "Se a sua área responde \"Não é problema\" várias vezes ao mesmo aviso, a vigia pergunta se pode parar de mandá-lo.",
+      "Problema que sai dos avisos e volta passa a chegar marcado como recorrente, com mais prioridade.",
+      "A lição ajuda a SARA a entender e explicar. Os números continuam vindo das consultas.",
+    ],
+  },
+  {
     id: "2026-10-24-sara-personalidade",
     data: "2026-10-24",
     area: "SARA",

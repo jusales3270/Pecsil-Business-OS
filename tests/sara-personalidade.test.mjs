@@ -22,6 +22,8 @@ test("personalidade: o fundador verificado é Senhor; os demais, pelo nome; iden
   const carlos = { nome: "Carlos Temporário", fundador: false, verificado: true };
   assert.equal(semTratamentoIndevido("Boa noite, Carlos.\n\nSenhor, há 17 contas. Posso abrir para o Senhor?", carlos), "Boa noite, Carlos.\n\nCarlos, há 17 contas. Posso abrir para o Carlos?");
   assert.equal(semTratamentoIndevido("Senhor, há 17 contas.", { nome: "Júnior", fundador: true, verificado: true }), "Senhor, há 17 contas.", "o fundador verificado continua Senhor");
+  assert.equal(semTratamentoIndevido("Não, Dona Ana, não precisa de crachá.", { nome: "Ana Claudia", fundador: false, verificado: true }), "Não, Ana, não precisa de crachá.", "nada de Dona/Seu deduzido pelo nome");
+  assert.equal(semTratamentoIndevido("Seu Carlos, o seu pedido e o seu CNPJ estão ok.", carlos), "Carlos, o seu pedido e o seu CNPJ estão ok.", "o possessivo fica");
   assert.equal(semTratamentoIndevido("O Senhorio do galpão…", carlos), "O Senhorio do galpão…", "só a palavra inteira");
 });
 
@@ -72,7 +74,7 @@ test("mensagem de voz: a API de texto para fala do Grok só para a mensagem de W
   assert.match(m, /process\.env\.XAI_API_KEY/, "a chave só no servidor");
   assert.doesNotMatch(ler("modules/warroom/src/holograma/voz-ao-vivo.ts"), /\/v1\/tts/, "a voz da plataforma continua sendo o Realtime");
   assert.doesNotMatch(ler("modules/warroom/src/holograma/SaraHolograma.tsx"), /\/v1\/tts/);
-  assert.match(ler("lib/sara/sessao.ts"), /ENVIAR_DOCUMENTO, ferramentaCriarMensagemDeVoz\(documentos\)\]/, "só a central grava");
+  assert.match(ler("lib/sara/sessao.ts"), /ENVIAR_DOCUMENTO, ferramentaCriarMensagemDeVoz\(documentos\),/, "só a central grava");
   assert.match(ler("supabase/migrations/202610230007_sara_mensagem_voz.sql"), /check \(tipo in \('relatorio', 'carta', 'mensagem_voz'\)\)/);
 });
 

@@ -89,7 +89,7 @@ ajuda antes de ser pedido. A SARA central faz isso para a empresa inteira.
 | J2 | Bom dia por pessoa, às 7h | avisos dos módulos (`alertasDo`), decisões, ações e guias da pessoa | **no ar** (Deploy 23/10): `lib/sara/central/bom-dia*.ts`, rota `/api/sara/bom-dia/rodar` na tarefa de 10 em 10 minutos; migração 202610230003 aplicada, QA 24/24 |
 | J3 | Vigia: achados, responsável acionado, cobrança e efeito; quadro na War Room | sinais (avisos + Parados), análise com verificador, Decisões, cobrança | **no ar** (Deploy 23/10): `lib/sara/central/vigia*.ts`, rotas `/api/sara/vigia/rodar` e `/api/sara/central/vigia`, quadro em Conselho; migração 202610230004 aplicada, QA 27/27 |
 | J4 | Conselho e crescimento semanal | pesquisa aberta só com o assunto, `avaliarInvestimento`, relatório anterior | **no ar** (Deploy 24/10; o 1º relatório sai segunda, 26/10, às 8h): `lib/sara/central/crescimento*.ts`, rotas `/api/sara/crescimento/rodar` e `/api/sara/central/crescimento`, seção Crescimento no Conselho; migração 202610230005 aplicada, QA 22/22 |
-| J5 | Aprende com as respostas e o efeito | memória | na fila |
+| J5 | Aprende com as respostas e o efeito | histórico da vigia, `propor_licao`, Decisões da área | **construída** (24/10): ver §4e; migração 202610240001 aplicada, QA real 12/12; falta o Deploy |
 
 **Como a J1 funciona no código:**
 - `SARA_CENTRAL` (`lib/sara/central/sara.ts`) entra em `SARAS` como a SARA do módulo `warroom`, com `central: true`. A janela é a mesma das outras.
@@ -249,6 +249,42 @@ A SARA central monta documentos sob pedido e envia a quem se destina. Exemplo: "
 **D2, quando houver os recursos:**
 - orçamento e proposta a partir do orçamento cadastrado (preços só do registro);
 - envio por e-mail (M365) e WhatsApp (número dedicado), sempre com a prévia e o Permitir.
+
+## 4e. J5: a SARA aprende com as respostas e o efeito (24/10/2026)
+
+A J3 já guarda, para cada achado da vigia, a resposta da área e o efeito: se a situação saiu dos avisos, quando saiu e depois de quem respondeu "Vou tratar". A J5 transforma esse histórico e o que as pessoas ensinam nas conversas em **memória**. Vale a regra de sempre: **quem decide o que vira regra é a área**, nunca o modelo nem o proprietário pela área.
+
+**1. Pelo histórico da vigia (regra da plataforma, sem modelo, últimos 90 dias)**
+- **Números por tipo de achado:** quantas vezes apareceu, quantas a área disse "Não é problema", quantas foram resolvidas, quantas depois de "Vou tratar", a mediana de dias para resolver e quantas vezes voltou depois de resolvida.
+- **Recorrente:** o mesmo tipo resolvido duas vezes ou mais e de volta em 60 dias.
+  - O achado novo sobe um nível de impacto.
+  - O "por que" começa com "Recorrente: é a 3ª vez em 60 dias", texto da plataforma.
+- **Parar de avisar:** a área disse "Não é problema" em 3 das últimas 4 vezes.
+  - A vigia pergunta à área, em Decisões: "Parar de avisar" ou "Continuar avisando".
+  - Com "Parar de avisar", aquele tipo fica em silêncio até a área reativar.
+  - Sem a resposta da área, nada muda além do silêncio de 30 dias da J3.
+
+**2. Pelo que as pessoas ensinam na conversa com a central**
+- Quando alguém corrige a SARA ou explica uma regra do negócio, a central propõe uma **lição** com a ferramenta `propor_licao`.
+  - Exemplos: "FINIMP vence por contrato, não é atraso"; "a conta 2.1.05 é câmbio".
+  - A lição tem uma área e o texto, entre 10 e 500 caracteres, sem CPF ou PIS.
+- A lição vai a quem decide naquela área (`sara_responsaveis`), em Decisões, com as opções "Aprovar" ou "Não aprovar". Se quem ensinou já é responsável daquela área, a lição entra direto.
+- A lição aprovada entra no texto da SARA central (só as das áreas que a pessoa pode usar), no da SARA da área e no da subagente daquela área, com quem ensinou e quem aprovou.
+- **Lição é contexto, nunca dado.** Nenhum número sai de uma lição: os números continuam vindo das consultas e do verificador.
+- A área ou o proprietário pode desativar uma lição a qualquer momento.
+
+**3. Onde aparece**
+- War Room › Conselho › **Aprendizado**. Lá ficam:
+  - as lições: proposta, ativa, recusada ou desativada, com quem ensinou, quem decidiu e o botão Desativar;
+  - o que a vigia aprendeu por tipo: vezes, "Não é problema", resolvidos, dias para resolver, se é recorrente e se está em silêncio.
+- A SARA central recebe um resumo do aprendizado, calculado pela plataforma, para responder "o que costuma travar no Compras?" com os números do histórico.
+
+**Construção:**
+- Migração `202610240001_sara_licoes.sql`: tabela `sara_licoes` e as funções propor, criar, desativar e decisão → lição, essa última por gatilho em `decisoes`.
+- Regras puras em `lib/sara/central/aprendizado.ts` (testadas em `tests/sara-aprendizado.test.mjs`).
+- Ferramenta em `lib/sara/central/licoes.ts`.
+- A vigia passa a usar o histórico.
+- Rota `/api/sara/central/aprendizado` e tela `modules/warroom/src/Aprendizado.tsx`.
 
 ## 5. Decisões do proprietário (aprovadas em 23/10/2026)
 

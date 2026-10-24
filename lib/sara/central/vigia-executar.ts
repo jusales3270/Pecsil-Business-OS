@@ -7,6 +7,8 @@ import { sessaoComo } from "../guias-executar";
 import { SARAS } from "../modulos";
 import { agoraSP } from "../tempo";
 import { janelaDoBomDia } from "./bom-dia";
+import { APRENDIZADO, aprendizadoDaVigia, comRecorrencia, doMesmoProblema, textoDoSilencio } from "./aprendizado";
+import { historicoDaVigia } from "./licoes";
 import {
   VIGIA, achadosDaPlataforma, analisarSinais, decisaoDoAchado, mesmoProblema, ordenarPorImpacto, precisaCobrar, resgatarDescartados, sinaisDe, situacaoPelasRespostas,
   tipoDaChave, tipoDoAchado, validarAchados, type Achado, type AchadoAberto, type Envio, type Parado, type Sinal,
@@ -21,12 +23,14 @@ import {
  *   3. Análise do dia (Sonnet), conferida número a número; sem o modelo, os urgentes viram achados da plataforma.
  *   4. Cada achado novo vai a quem decide na área (sara_responsaveis), como "Decisão para você", só se essa
  *      pessoa também enxerga os sinais dele com a sessão dela.
+ *   5. J5: pelo histórico de 90 dias, o problema recorrente sobe de impacto; o tipo que a área mandou parar de
+ *      avisar (lição aprovada) fica em silêncio; "Não é problema" repetido vira a pergunta "parar de avisar?".
  */
 
 const ATIVOS = ["aberto", "enviado", "tratando", "ajuda", "sem_responsavel", "silenciado"];
 const rotulo = (m: string) => SARAS[m]?.rotulo ?? m;
 type Linha = { id: string; tipo: string; modulo: string; titulo: string; sinais: string[]; situacao: string; envios: Envio[]; created_at: string; updated_at: string };
-export type RelatorioVigia = { rodada?: string; sinais: number; novos: number; enviados: number; resolvidos: number; cobrados: number; descartados: string[]; jaRodou?: boolean; erro?: string };
+export type RelatorioVigia = { rodada?: string; sinais: number; novos: number; enviados: number; resolvidos: number; cobrados: number; descartados: string[]; recorrentes?: number; perguntasDeSilencio?: number; jaRodou?: boolean; erro?: string };
 export type OpcoesVigia = {
   agora?: Date; disparo?: "agenda" | "manual";
   /** Sessão da visão (o proprietário pedindo na War Room). Sem ela, o servidor abre a do proprietário. */
@@ -104,6 +108,11 @@ export async function rodarVigia(admin: SupabaseClient, o: OpcoesVigia = {}): Pr
     const ativos: AchadoAberto[] = abertos.filter((a) => ATIVOS.includes(a.situacao)).map((a) => ({ id: a.id, tipo: a.tipo, modulo: a.modulo, titulo: a.titulo, sinais: a.sinais, situacao: a.situacao }));
     // "Não é problema" há menos de N dias: aquele tipo fica em silêncio para a área.
     const silencio = abertos.filter((a) => a.situacao === "nao_e_problema" && agora.getTime() - Date.parse(a.updated_at) < VIGIA.silencioDias * 86_400_000);
+    // J5: o que a vigia aprendeu (90 dias) e os tipos que a área mandou parar de avisar (lição aprovada).
+    const aprendido = aprendizadoDaVigia(await historicoDaVigia(admin, agora, dono.organization_id), agora);
+    const { data: licoesSil } = await admin.from("sara_licoes").select("tipo_achado, situacao, created_at").eq("organization_id", dono.organization_id).eq("efeito", "silenciar");
+    const silenciar = ((licoesSil ?? []) as { tipo_achado: string; situacao: string; created_at: string }[]);
+    const pediuSilencio = (modulo: string, tipos: string[]) => silenciar.some((l) => l.situacao === "ativa" && mesmoProblema({ modulo, tipos }, { id: l.tipo_achado, tipo: l.tipo_achado, modulo: l.tipo_achado.split(":")[0], titulo: "", sinais: [], situacao: "silenciado" }));
 
     // --- Análise do dia ----------------------------------------------------------------------------------
     const modulos = Object.values(SARAS).filter((s) => !s.central).map((s) => s.modulo);
@@ -136,15 +145,32 @@ export async function rodarVigia(admin: SupabaseClient, o: OpcoesVigia = {}): Pr
       }
       if (novos.length >= VIGIA.maxAchados) break;
       const tipo = tipoDoAchado(a.modulo, ss);
-      const calado = silencio.some((x) => mesmoProblema({ modulo: a.modulo, tipos }, { id: x.id, tipo: x.tipo, modulo: x.modulo, titulo: x.titulo, sinais: x.sinais, situacao: x.situacao }));
+      const porLicao = pediuSilencio(a.modulo, tipos);
+      const calado = porLicao || silencio.some((x) => mesmoProblema({ modulo: a.modulo, tipos }, { id: x.id, tipo: x.tipo, modulo: x.modulo, titulo: x.titulo, sinais: x.sinais, situacao: x.situacao }));
+      // Recorrente (saiu dos avisos e voltou): sobe um nível e o "por que" diz quantas vezes.
+      const rec = comRecorrencia(a, doMesmoProblema(aprendido, { modulo: a.modulo, tipos }));
+      if (rec.recorrente) rel.recorrentes = (rel.recorrentes ?? 0) + 1;
       const { data: criado } = await admin.from("sara_achados").upsert({
-        organization_id: dono.organization_id, rodada_id: rodada.id, chave: `${tipo}:${hoje}`.slice(0, 200), tipo, modulo: a.modulo, area: a.area, titulo: a.titulo, por_que: a.por_que,
-        evidencias, sinais: ss.map((s) => s.chave), impacto: a.impacto, ligacoes: a.ligacoes, contencao: a.contencao, confianca: a.confianca, origem: a.origem,
-        situacao: calado ? "silenciado" : "aberto",
+        organization_id: dono.organization_id, rodada_id: rodada.id, chave: `${tipo}:${hoje}`.slice(0, 200), tipo, modulo: a.modulo, area: a.area, titulo: a.titulo, por_que: rec.por_que,
+        evidencias, sinais: ss.map((s) => s.chave), impacto: rec.impacto, ligacoes: a.ligacoes, contencao: a.contencao, confianca: a.confianca, origem: a.origem,
+        situacao: calado ? "silenciado" : "aberto", efeito: porLicao ? "A área pediu para a vigia não avisar mais este tipo (lição aprovada em Aprendizado)." : null,
       }, { onConflict: "organization_id,chave", ignoreDuplicates: true }).select("id");
       if (!criado?.length) continue;
       rel.novos++;
-      if (!calado) novos.push({ id: criado[0].id, a });
+      if (!calado) novos.push({ id: criado[0].id, a: { ...a, impacto: rec.impacto, por_que: rec.por_que } });
+    }
+
+    // --- J5: "Não é problema" repetido vira a pergunta à área: a vigia pode parar de avisar? ---------------------
+    // Uma vez por tipo a cada 90 dias (se a área disser "Continuar avisando", não pergunta de novo tão cedo).
+    // No teste (responsáveis trocados), não pergunta: a pergunta iria a quem trabalha.
+    if (!o.responsaveis) {
+      const recente = agora.getTime() - APRENDIZADO.janelaDias * 86_400_000;
+      for (const t of aprendido.filter((x) => x.propoeSilencio)) {
+        if (silenciar.some((l) => l.tipo_achado === t.tipo && (l.situacao === "ativa" || l.situacao === "proposta" || Date.parse(l.created_at) >= recente))) continue;
+        const { data: lic } = await admin.rpc("sara_licao_criar", { p_org: dono.organization_id, p_modulo: t.modulo, p_texto: textoDoSilencio(t), p_origem: "vigia", p_efeito: "silenciar",
+          p_tipo_achado: t.tipo, p_ensinou: null, p_conversa: null, p_evidencia: { vezes: t.vezes, respondidas: t.respondidas, nao_e_problema: t.naoEProblema } });
+        if ((lic as { situacao?: string } | null)?.situacao === "proposta") rel.perguntasDeSilencio = (rel.perguntasDeSilencio ?? 0) + 1;
+      }
     }
 
     // --- Entrega a quem decide ---------------------------------------------------------------------------

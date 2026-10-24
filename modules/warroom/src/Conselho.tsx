@@ -1,6 +1,7 @@
 "use client";
 
 import { SARA_CENTRAL } from "../../../lib/sara/central/sara";
+import { Aprendizado } from "./Aprendizado";
 import { Crescimento } from "./Crescimento";
 import { Documentos } from "./Documentos";
 import { Vigia } from "./Vigia";
@@ -34,6 +35,7 @@ export function Conselho() {
       <Vigia />
       <Crescimento />
       <Documentos />
+      <Aprendizado />
     </section>
   );
 }

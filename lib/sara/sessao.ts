@@ -23,6 +23,7 @@ import { contextoDeTempo, primeiroNome, situacaoDaConversa } from "./tempo";
 import { FORA_DA_SUBAGENTE, REGRA_SUBAGENTE, ferramentaPerguntarASara, type Rodar, type UsoSubagente } from "./central/subagente";
 import { DOCUMENTOS_RECEBIDOS, ENVIAR_DOCUMENTO, ferramentaCriarDocumento, type ContextoDocumentos } from "./central/documentos";
 import { ferramentaCriarMensagemDeVoz } from "./central/mensagem-de-voz";
+import { ferramentaProporLicao, memoriaDaSara } from "./central/licoes";
 import type { Ferramenta } from "./base";
 import { FERRAMENTAS } from "./ferramentas";
 import type { Visual } from "./visual";
@@ -75,7 +76,9 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
     const documentos: ContextoDocumentos = { fontes: [], visuais: visuaisSubagentes, criados: [], conversa: null };
     const calcular: Ferramenta = { ...CALCULAR, rodar: async (sb, e) => { const r = await CALCULAR.rodar(sb, e); documentos.fontes.push(r.dados); return r; } };
     const ferramentas: Ferramenta[] = [ferramentaPerguntarASara(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos.fontes), calcular, PERIODO,
-      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ferramentaCriarDocumento(documentos), ENVIAR_DOCUMENTO, ferramentaCriarMensagemDeVoz(documentos)];
+      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ferramentaCriarDocumento(documentos), ENVIAR_DOCUMENTO, ferramentaCriarMensagemDeVoz(documentos),
+      // J5: o que a pessoa ensina vira lição, aprovada pela área.
+      ferramentaProporLicao(areas.map((x) => ({ modulo: x.modulo, rotulo: x.rotulo })), documentos)];
     return { sara, sb: session.supabase, access, cfg, ferramentas, habilidades: [] as HabilidadeAtiva[], eventos: [] as { tipo: string; rotulo: string }[], subagentes, visuaisSubagentes, documentos } as const;
   }
   const dados = consultarDados(pode, modulo);
@@ -103,9 +106,11 @@ async function rodarSubagente(sb: SupabaseClient, modulo: string, pergunta: stri
     sb.from("organizations").select("display_name, legal_name").limit(1).maybeSingle(),
   ]);
   const empresa = org?.display_name || org?.legal_name || "empresa";
+  // J5: as lições aprovadas pela área também valem quando a central pergunta a ela.
+  const memoria = await memoriaDaSara([modulo], false);
   const sistema = {
     fixo: `${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, null)}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
-    variavel: `${contextoDeTempo({ nome: primeiroNome(eu?.full_name), situacao: situacaoDaConversa(null) })}\n${REGRA_SUBAGENTE}\nResponda sempre em português do Brasil.`,
+    variavel: `${contextoDeTempo({ nome: primeiroNome(eu?.full_name), situacao: situacaoDaConversa(null) })}\n${REGRA_SUBAGENTE}${memoria.texto ? `\n\n${memoria.texto}` : ""}\nResponda sempre em português do Brasil.`,
   };
   // Gráfico só quando a central pediu (cada visual é mais uma rodada do modelo).
   const pediuVisual = /gr[aá]fico|tabela|visual|barras|linha|rosca|mostre|mostrar/i.test(pergunta);
