@@ -60,7 +60,7 @@ export function Produtos({ notify }: { notify: (m: string) => void }) {
   return (
     <div className="icms-modulo">
       <div className="finance-page-head">
-        <div><p className="eyebrow">COMERCIAL · VENDAS</p><h1>Produtos</h1><p>As peças que a PecSil vende: código interno, NCM, desenho e material. Os orçamentos e as notas usam este cadastro.</p></div>
+        <div><p className="eyebrow">COMERCIAL · VENDAS</p><h1>Produtos</h1><p>As peças que a Pecsil vende: código interno, NCM, desenho e material. Os orçamentos e as notas usam este cadastro.</p></div>
         {dados?.podeOperar && (
           <div className="icms-acoes">
             <Button variant="secondary" onClick={() => setGrupos(true)}>Grupos e códigos</Button>

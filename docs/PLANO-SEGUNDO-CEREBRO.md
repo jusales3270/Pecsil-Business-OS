@@ -1,4 +1,4 @@
-# Plano do Segundo Cérebro da PecSil
+# Plano do Segundo Cérebro da Pecsil
 
 > **A ordem de construção está em [`ROADMAP.md`](ROADMAP.md)** (fonte única desde 16/10/2026). Este documento guarda o desenho, as decisões e os critérios de aceite.
 
@@ -6,7 +6,7 @@
 > critério de aceite, e nenhuma etapa muda de escopo sem decisão registrada
 > aqui (seção 8).
 >
-> Criado em 10/10/2026 · Dono: proprietário da PecSil · Execução: Claude
+> Criado em 10/10/2026 · Dono: proprietário da Pecsil · Execução: Claude
 > Faz parte da Fase 6 (SARA) do [blueprint](./BLUEPRINT-PECSIL-BUSINESS-OS.md#sara-como-harness-corporativo-10102026):
 > o Segundo Cérebro é a **memória** do harness corporativo.
 
@@ -14,7 +14,7 @@
 
 ## 1. O que é e o que não é
 
-O **Segundo Cérebro** é a memória da empresa: os documentos da PecSil e os dados que já
+O **Segundo Cérebro** é a memória da empresa: os documentos da Pecsil e os dados que já
 estão na plataforma, **ligados entre si e pesquisáveis**, sempre respeitando o que cada
 pessoa tem permissão de ver.
 
@@ -190,7 +190,7 @@ O dono apontou que não faz sentido receber arquivos sem conseguir lê-los: a le
 - **Texto guardado** (`company_document_texts`): todo documento guardado tem o texto lido no
   servidor, a partir do original. Quem lê o texto é só quem vê o documento; quem grava é só o
   servidor.
-- **OCR local (D4):** PDF escaneado e foto são lidos no servidor da PecSil com o tesseract.js
+- **OCR local (D4):** PDF escaneado e foto são lidos no servidor da Pecsil com o tesseract.js
   e o português empacotado pelo npm. Nada sai da empresa. Uma tarefa agendada do Coolify
   (a cada 5 minutos) lê a fila, inclusive os documentos guardados antes desta etapa.
 - **Fica para depois:** planilha livre com mapeamento de colunas pelo Clef (é importar dados,
@@ -201,7 +201,7 @@ O dono apontou que não faz sentido receber arquivos sem conseguir lê-los: a le
 ### Etapa 4: Ligações por regra
 
 **Construída em 11/10/2026** (`company_document_links`, `lib/ligacoes/`): exatas por chave de
-acesso, CNPJ + nº da NF, CNPJ (menos o da PecSil), origem do documento e, pela nota, fornecedor,
+acesso, CNPJ + nº da NF, CNPJ (menos o da Pecsil), origem do documento e, pela nota, fornecedor,
 cotação e título; prováveis (a confirmar) por nº de cotação/OC e de OS citados com prefixo.
 Descartada não volta. Bloco "Documentos ligados" na nota do ICMS, recebimento, cotação/OC,
 fornecedor (Compras e Cadastros) e cliente. **Adiado:** valor + data → extrato/título (os títulos
@@ -248,7 +248,7 @@ enquanto carregado (descarrega após 10 min parado); servidor com 15 GB.
   sugeridas pelo modelo entram como **sugestão a confirmar**.
 - **Depende de:** decisão D5 (**respondida em 11/10/2026: local**) e da SARA nível 1 (consulta) em uso.
 - **Como (D5 = local):** um modelo pequeno de significado, que entende português, roda no
-  servidor da PecSil (como o OCR), e os vetores ficam no banco (extensão `vector`, já
+  servidor da Pecsil (como o OCR), e os vetores ficam no banco (extensão `vector`, já
   disponível no servidor). Nada sai da empresa. A busca por palavras do próprio banco
   (`unaccent` + `pg_trgm` + texto em português) pode vir antes, porque não depende de nada.
 - Perguntas sobre os documentos, com resposta escrita, exigem um modelo que escreve (o Clef
@@ -258,7 +258,7 @@ enquanto carregado (descarrega após 10 min parado); servidor com 15 GB.
 
 - **Quando:** só se as Etapas 1–2 mostrarem volume relevante fora do alcance do
   navegador (disco inteiro, unidades de rede, varredura agendada).
-- **Como:** programa da PecSil baixado de dentro da plataforma, entrando com a conta da
+- **Como:** programa da Pecsil baixado de dentro da plataforma, entrando com a conta da
   pessoa, com o **mesmo aceite e o mesmo registro**, e enviando para a mesma triagem e
   conferência.
 - **Não é computer use.** A IA controlando tela e mouse é lenta, cara e frágil para
@@ -294,8 +294,8 @@ anterior cumprir o aceite e estiver em produção sem incidente.
 | D1 | Quem pode coletar arquivos dos computadores? | **Respondida em 10/10/2026: só quem o proprietário credenciar**, módulo a módulo ("Coletar arquivos" nos acessos de cada módulo, `<setor>.coleta`; revisto no mesmo dia: antes era um acesso único na Fundação). |
 | D2 | Quais pastas sugerir e quais excluir? | **Respondida em 10/10/2026:** sugerir Documentos, Área de trabalho, Downloads e a pasta da rede; ignorar sempre pastas de sistema, de programas e de fotos/vídeos pessoais. |
 | D3 | Depois de ler um arquivo (ex.: extrato), guardar o original? | **Respondida em 10/10/2026: guardar o original** junto do dado extraído. |
-| D4 | OCR de escaneados: onde roda? | **Respondida em 10/10/2026: local, no servidor da PecSil** (tesseract.js, português empacotado; nenhum documento sai da empresa). |
-| D5 | Busca por significado: onde roda? | **Respondida em 11/10/2026: local, no servidor da PecSil** (modelo pequeno de significado em português; vetores no banco; nenhum documento sai da empresa). |
+| D4 | OCR de escaneados: onde roda? | **Respondida em 10/10/2026: local, no servidor da Pecsil** (tesseract.js, português empacotado; nenhum documento sai da empresa). |
+| D5 | Busca por significado: onde roda? | **Respondida em 11/10/2026: local, no servidor da Pecsil** (modelo pequeno de significado em português; vetores no banco; nenhum documento sai da empresa). |
 | D6 | Teto de uso de IA por setor | Valor mensal por setor e quem acompanha o painel. |
 
 ---
@@ -321,7 +321,7 @@ anterior cumprir o aceite e estiver em produção sem incidente.
 |---|---|---|---|
 | 10/10/2026 | todas | Arquivos entram uma vez só no banco (fonte única); o Segundo Cérebro é a camada de ligações e busca por cima, derivada e reconstruível | Proprietário |
 | 10/10/2026 | 2 | Coleta começa pelo navegador, com aceite registrado (quem, quando, computador, pasta) e conferência antes de subir; programa instalado só se precisar | Proprietário |
-| 10/10/2026 | 2 | Todos os computadores da PecSil são Windows | Proprietário |
+| 10/10/2026 | 2 | Todos os computadores da Pecsil são Windows | Proprietário |
 | 10/10/2026 | todas | SARA tratada como harness corporativo; o Segundo Cérebro é a memória dela (blueprint, Fase 6) | Proprietário |
 | 10/10/2026 | 0, 2, 3 | O modelo de decisão é o Clef; a base comum do PLANO-JEV (feita com o Clef) é pré-requisito das Etapas 2 e 3 | Proprietário |
 | 10/10/2026 | 1 | D3: o arquivo original fica guardado, mesmo depois da leitura dos dados | Proprietário |

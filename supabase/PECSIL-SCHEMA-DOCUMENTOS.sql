@@ -1,5 +1,5 @@
 -- ============================================================================
--- PecSil Business OS — Documentos do RH (aplicar sobre a base já existente)
+-- Pecsil Business OS — Documentos do RH (aplicar sobre a base já existente)
 --
 -- Acrescenta employee_id e signature_status à tabela documents, cria o bucket
 -- privado rh-documents e suas políticas de RLS no Storage.

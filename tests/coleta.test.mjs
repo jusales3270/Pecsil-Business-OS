@@ -48,7 +48,7 @@ test("coleta: documento de colaborador e nome com CPF nÃ£o sobem (RH); pessoal Ã
 });
 
 test("coleta: sha256 do navegador igual ao do servidor", async () => {
-  const dados = new TextEncoder().encode("PecSil coleta de arquivos");
+  const dados = new TextEncoder().encode("Pecsil coleta de arquivos");
   assert.equal(await sha256Hex(dados), createHash("sha256").update(dados).digest("hex"));
 });
 

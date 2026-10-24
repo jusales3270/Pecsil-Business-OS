@@ -14,7 +14,7 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 
-const [arquivo, nome = "SARA PecSil pt-BR"] = process.argv.slice(2);
+const [arquivo, nome = "SARA Pecsil pt-BR"] = process.argv.slice(2);
 const chave = process.env.XAI_API_KEY?.trim();
 if (!arquivo || !chave) { console.error("Uso: node --env-file=.env.local scripts/criar-voz-sara.mjs <gravacao.wav> [nome]  (precisa de XAI_API_KEY)"); process.exit(1); }
 const form = new FormData();

@@ -7,7 +7,7 @@ import { Button } from "../../packages/design-system";
  * Modelo único dos relatórios gerados pela plataforma (PDF A4).
  *
  * Todo relatório novo usa estas peças: `ReportDocument` (barra de ações na
- * tela, documento claro, título do arquivo) e `ReportHeader` (logo da PecSil,
+ * tela, documento claro, título do arquivo) e `ReportHeader` (logo da Pecsil,
  * título, período e data de geração). O estilo está em
  * packages/design-system/report.css. O PDF sai pelo "Salvar como PDF" do
  * navegador, sem nada instalado no servidor.

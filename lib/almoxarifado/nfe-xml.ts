@@ -4,7 +4,7 @@
  * Tira da nota o que o recebimento e o Painel do ICMS precisam: chave, número,
  * série, emissão, emitente, totais (produtos, nota, base e valor do ICMS, IPI),
  * itens e duplicatas (vencimentos). É texto puro — nenhuma biblioteca nem
- * serviço externo; o XML nunca sai do servidor da PecSil.
+ * serviço externo; o XML nunca sai do servidor da Pecsil.
  */
 
 export type NfeItem = {

@@ -1,5 +1,5 @@
 -- ============================================================================
--- PecSil Business OS — schema completo: Fundação + Financeiro + RH
+-- Pecsil Business OS — schema completo: Fundação + Financeiro + RH
 --
 -- COMO USAR
 --   Studio do servidor → SQL Editor → New query → cole tudo → Run

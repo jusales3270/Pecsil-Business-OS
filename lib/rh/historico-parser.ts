@@ -1,5 +1,5 @@
 /**
- * Leitura do histórico de funcionários (planilha da PecSil convertida em
+ * Leitura do histórico de funcionários (planilha da Pecsil convertida em
  * Markdown, uma seção `## NOME` por colaborador).
  *
  * Só lê Férias e Afastamento; a seção de salário é ignorada de propósito.

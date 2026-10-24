@@ -5,7 +5,7 @@
  *
  * Extrai visitantes (com biometria facial), visitas, frota, terceiros e
  * encomendas do projeto Supabase Cloud da Portaria para um snapshot JSON,
- * que scripts/import-portaria-json.mjs grava no banco da PecSil.
+ * que scripts/import-portaria-json.mjs grava no banco da Pecsil.
  *
  * O snapshot tem biometria e dados pessoais: fica FORA do repositório
  * (padrão ~/.config/pecsil/portaria-snapshot.json, permissão 600).

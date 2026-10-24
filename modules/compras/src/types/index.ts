@@ -31,7 +31,7 @@ export interface User {
 
 export type StatusCotacao = 'PENDENTE' | 'APROVADO' | 'REJEITADO' | 'COMPRADO';
 
-/** Frete na Ordem de Compra: CIF (fornecedor), FOB (PecSil) ou sem frete. */
+/** Frete na Ordem de Compra: CIF (fornecedor), FOB (Pecsil) ou sem frete. */
 export type FreteTipo = 'CIF' | 'FOB' | 'SEM';
 
 export type StatusProduto = 'PENDENTE' | 'APROVADO' | 'REJEITADO';

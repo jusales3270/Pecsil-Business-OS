@@ -161,7 +161,7 @@ test("holograma: a fala antiga não derruba o estado da pergunta nova", () => {
 test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números ditos exatamente como a central conferiu", async () => {
   const v = await import("../lib/sara/central/voz-ao-vivo.ts");
   assert.equal(v.VOZ_DA_SARA, "luna");
-  const s = v.sessaoDeVoz({ instrucoes: "x", termos: ["PecSil"] });
+  const s = v.sessaoDeVoz({ instrucoes: "x", termos: ["Pecsil"] });
   assert.equal(s.voice, "luna");
   assert.equal(s.audio.input.transcription.language_hint, "pt-BR");
   assert.deepEqual(s.audio.input.format, { type: "audio/pcm", rate: 24000 });
@@ -171,7 +171,7 @@ test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números d
   assert.match(ins, /português do Brasil/);
   assert.match(ins, /nunca diga um número, nome ou situação que não veio da central/);
   assert.match(ins, /quem decide é a área/);
-  assert.deepEqual(v.termosChave([["PecSil", "pecsil", " Ana "], ["x"], ["Fundição"]]), ["PecSil", "Ana", "Fundição"]);
+  assert.deepEqual(v.termosChave([["Pecsil", "pecsil", " Ana "], ["x"], ["Fundição"]]), ["Pecsil", "Ana", "Fundição"]);
   assert.equal(v.termosChave([Array.from({ length: 150 }, (_, i) => `termo ${i}`)]).length, 100);
   assert.equal(v.extrairToken({ value: "a".repeat(20) }), "a".repeat(20));
   assert.equal(v.extrairToken({ client_secret: { value: "b".repeat(20) } }), "b".repeat(20));

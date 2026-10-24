@@ -1,6 +1,6 @@
 /**
  * OCR local (decisão D4 do proprietário, 10/10/2026): o texto de PDF escaneado e de foto é lido
- * NO SERVIDOR da PecSil, com o tesseract.js (WebAssembly) e o português empacotado pelo npm
+ * NO SERVIDOR da Pecsil, com o tesseract.js (WebAssembly) e o português empacotado pelo npm
  * (@tesseract.js-data/por). Nenhum arquivo sai da empresa e nada é baixado durante o uso.
  *
  * PDF escaneado: o pdfjs entrega as imagens de cada página (já decodificadas); viram PNG e vão

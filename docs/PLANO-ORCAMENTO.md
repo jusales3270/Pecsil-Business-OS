@@ -5,7 +5,7 @@
 > Documento de referência. Nenhuma etapa começa sem a anterior cumprir o critério de
 > aceite, e nenhuma decisão da seção 4 muda sem registro na seção 9.
 >
-> Criado em 13/10/2026 · Dono: proprietário da PecSil · Execução: Claude
+> Criado em 13/10/2026 · Dono: proprietário da Pecsil · Execução: Claude
 > Origem: o PDF do Jefferson ("passo-a-passo-emissão-nfe"), o áudio do Rafael
 > ("Orçamento comercial") e as respostas do Jefferson no WhatsApp (13/10).
 
@@ -220,7 +220,7 @@ com quem vai usar (Rafael, Jefferson) testando com dado real.
 2. **Nunca faturar acima do pedido.** O teto fica no banco, e não só na tela.
 3. **O treino nunca mexe em saldo, título ou estoque real.**
 4. **Multiempresa:** numeração, modelos de cotação, regras fiscais e famílias de produto
-   são configuração por empresa, nunca fixos da PecSil no código.
+   são configuração por empresa, nunca fixos da Pecsil no código.
 5. **Cada número rastreável:** a nota aponta para o item do orçamento, o item para a OS,
    e o título para a nota.
 6. **Custo e margem** ([PLANO-CUSTO-MARGEM.md](PLANO-CUSTO-MARGEM.md), etapa 8) entram no

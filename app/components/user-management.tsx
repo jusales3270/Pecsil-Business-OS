@@ -500,7 +500,7 @@ function CreateUserForm({
           <div>
             <p className="eyebrow">PESSOAS E ACESSOS · NOVO USUÁRIO</p>
             <h2>Novo usuário</h2>
-            <p>Diga quem é (colaborador da PecSil, administrativo ou terceiro), defina a senha inicial e marque o que a pessoa poderá acessar.</p>
+            <p>Diga quem é (colaborador da Pecsil, administrativo ou terceiro), defina a senha inicial e marque o que a pessoa poderá acessar.</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar">
             ✕
@@ -512,7 +512,7 @@ function CreateUserForm({
             <span className="access-step-title">1. Quem é</span>
             <div className="access-kind" role="radiogroup" aria-label="Tipo de usuário">
               {([
-                ["colaborador", "Colaborador da PecSil", "Está no quadro do RH"],
+                ["colaborador", "Colaborador da Pecsil", "Está no quadro do RH"],
                 ["administrativo", "Administrativo", "Diretor, gerente, assistente ou estagiário"],
                 ["terceiro", "Terceiro", "Prestador de fora do quadro"],
               ] as const).map(([value, label, hint]) => (

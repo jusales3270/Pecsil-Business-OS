@@ -1,10 +1,10 @@
-# Roadmap único — PecSil Business OS + Forja
+# Roadmap único — Pecsil Business OS + Forja
 
 > **Fonte única da ordem de construção.** Os planos de detalhe (Blueprint, Plano do Jev, custo e margem,
 > orçamento, almoxarifado, Segundo Cérebro, Visão de produto e o roadmap da Forja) guardam o desenho
 > técnico, as decisões e os critérios de aceite de cada item. **A ordem é decidida só aqui.**
 >
-> Criado em 16/10/2026 · Dono: proprietário da PecSil · Execução: Claude
+> Criado em 16/10/2026 · Dono: proprietário da Pecsil · Execução: Claude
 > Painel visual: publicado a partir deste documento (seção 9).
 
 ---
@@ -17,7 +17,7 @@
 |---|---|---|
 | I-01 | Unificação de fornecedores e clientes pelo Clef (Jev, Etapa 1) | Calibração; fila "para unificar" a partir de 17/10 |
 
-**Próximos 5** — pela nota (seção 2), entre os itens que melhoram o PecSil com os portões abertos (17/10: white label e tenants ficam para depois). Os de nota maior que estão fora esperam uma dependência ou um OK; B-02, P-01, P-03, P-07 e C-08 foram adiados pelo proprietário em 16/10. Só sobram 3 itens do Marco 1 livres, então a fila completa com os do Marco 2
+**Próximos 5** — pela nota (seção 2), entre os itens que melhoram o Pecsil com os portões abertos (17/10: white label e tenants ficam para depois). Os de nota maior que estão fora esperam uma dependência ou um OK; B-02, P-01, P-03, P-07 e C-08 foram adiados pelo proprietário em 16/10. Só sobram 3 itens do Marco 1 livres, então a fila completa com os do Marco 2
 
 | Ordem | Item | O quê | Nota | Por que agora |
 |---|---|---|---|---|
@@ -96,7 +96,7 @@ abaixo, em vez de perguntar por fora.
 | Categorias e prazos dos chamados de TI (entraram provisórios: 10 categorias; urgente 4 h, alta 8 h, normal 24 h, baixa 72 h) e se o prazo para em "aguardando" | Cesar (supervisor de TI), em TI › Regras | T-06 | PLANO-TI, T-06 |
 | Liberar o IP de saída da nuvem do vigia (100.60.102.71) no firewall da fábrica, para religar os testes de fora | Cesar (supervisor de TI) | T-03 | VIGIA-EXTERNO |
 | Auditoria 0008 (esconder o rastro dos usuários de teste) | Proprietário (plataforma) | — | Auditoria central |
-| A PecSil entrega com frota e motoristas próprios (quantos veículos)? Quem responde pela expedição e decide como as entregas são operadas? | Proprietário (indica a área) | L-01 a L-03 | Debate 19/10 |
+| A Pecsil entrega com frota e motoristas próprios (quantos veículos)? Quem responde pela expedição e decide como as entregas são operadas? | Proprietário (indica a área) | L-01 a L-03 | Debate 19/10 |
 | Regra de privacidade do rastreio do motorista (quando o GPS fica ligado, ciência por escrito) | Rosana (RH) | L-03 | Debate 19/10 |
 
 **Pedidos à equipe** (dados que não dependem de construção, mas destravam itens)
@@ -119,10 +119,10 @@ abaixo, em vez de perguntar por fora.
 plataforma e pela Forja, sem voltar ao GRV. Os critérios de aceite estão na E8 do plano do orçamento e na M7 do
 almoxarifado. Pré-requisitos fora da construção: NF-e em produção e a contagem física do estoque.
 
-> **17/10/2026, decisão do proprietário:** primeiro fechar a construção do PecSil Business OS pronto e validado. Abertura de outras empresas (tenants) e venda white label ficam para depois: a raia Z está adiada e o Marco 2 só volta quando o proprietário decidir.
+> **17/10/2026, decisão do proprietário:** primeiro fechar a construção do Pecsil Business OS pronto e validado. Abertura de outras empresas (tenants) e venda white label ficam para depois: a raia Z está adiada e o Marco 2 só volta quando o proprietário decidir.
 
 **Marco 2 — Pronta para escalar.** Uma segunda empresa de teste é criada do zero, sem nenhum código ou texto
-da PecSil fixo:
+da Pecsil fixo:
 - identidade, regras e numeração como configuração;
 - isolamento por empresa testado;
 - custo e margem no ar como prova de resultado;
@@ -176,7 +176,7 @@ Marco: **1**, **2** ou **+**.
 | B-01 | Recuperar o SSH e fechar o perímetro (portas do Supabase, porta 80 da Forja) | 1 | 5 | 3 | 1 | 3 | 11,0 | travado | Senha SSH | INFRA-SSH/PERIM; BP Fase 0 |
 | B-02 | Backup externo do banco e da Forja, com restore testado | 1 | 5 | 4 | 1 | 2 | 13,0 | no ar (= T-02, 19/10; Forja ainda fora) | Papel backup_leitura; projeto na nuvem | INFRA-BACKUP; Forja H3; BACKUP-EXTERNO |
 | B-03 | Cofre de segredos e troca das chaves | 1 | 4 | 2 | 1,5 | 2 | 5,3 | na fila | B-01 | VIS 6.3a |
-| B-04 | Canal de WhatsApp pela Evolution API (chip interno pelo WhatsApp Web; quem é de fora pela API oficial na W5): alertas internos, SARA pelo WhatsApp (texto com texto, áudio com áudio) e confirmação pelo WhatsApp só do que a área liberar | 1 | 4 | 3 | 0,5 | 2 | 20,0 | próximo (W1: medir a memória do servidor e conectar o chip) | — | [PLANO-WHATSAPP.md](PLANO-WHATSAPP.md) |
+| B-04 | Canal de WhatsApp pela Evolution API (chip interno pelo WhatsApp Web; quem é de fora pela API oficial na W5): alertas internos, SARA pelo WhatsApp (texto com texto, áudio com áudio) e confirmação pelo WhatsApp só do que a área liberar | 1 | 4 | 3 | 0,5 | 2 | 20,0 | em construção: W1 no ar (24/10, chip conectado, teste recebido); próximo W2 | — | [PLANO-WHATSAPP.md](PLANO-WHATSAPP.md) |
 | B-05 | VPN: só o Business OS público | 1 | 4 | 2 | 1 | 3 | 8,0 | travado | Roteador | INFRA-VPN |
 | B-06 | Estabilizar a porta 443 | 1 | 4 | 3 | 0,5 | 3 | 20,0 | travado | Operadora; SSH | INFRA-443 |
 | B-07 | Build fora do servidor e webhook de deploy | 2 | 3 | 2 | 1 | 1 | 7,0 | não fazer (proprietário 17/10: o Deploy manual pelo painel está funcionando) | — | INFRA-BUILD; VIS P1.1e |
@@ -304,7 +304,7 @@ veículo, comprovante). O consignado da Russer (estoque parado em hospital) não
 | I-16 | Custo da IA em R$ (E4), só para o proprietário, com aviso aos 80% do teto | 1 | 3 | 4 | 1 | 1 | 11,0 | construído 22/10, aguarda migração e Deploy | migração 202610220001 | PLANO-SARA §6 |
 | I-17 | Consulta mais humana (E5): parâmetros usados, datas soltas e anexos na conversa | + | 3 | 3 | 2 | 2 | 4,5 | construído 22/10 (QA 9/9 com a SARA real) | — | PLANO-SARA §6 |
 | I-18 | Servidor MCP com a credencial da pessoa (E6), só pela VPN ou com autenticação forte | + | 3 | 2 | 2 | 2 | 3,5 | não fazer (proprietário 22/10: a IA é a SARA, nativa; abrir a plataforma a outras IAs não traz ganho) | — | PLANO-SARA §6 |
-| I-19 | SARA central, o "Jarvis" da PecSil (E7): responde, vigia, aciona o responsável e pensa no crescimento | + | 4 | 2 | 4 | 3 | 2,0 | J1 (Responde, holograma, voz ao vivo), J2 (Bom dia) e J3 (Vigia) no ar (Deploy 23/10); J4 (Crescimento) aplicada, falta o Deploy; Documentos em PDF (D1, só a central cria) construídos; J5 na fila | I-13, I-15 | PLANO-MINDMASTER |
+| I-19 | SARA central, o "Jarvis" da Pecsil (E7): responde, vigia, aciona o responsável e pensa no crescimento | + | 4 | 2 | 4 | 3 | 2,0 | J1 (Responde, holograma, voz ao vivo), J2 (Bom dia) e J3 (Vigia) no ar (Deploy 23/10); J4 (Crescimento) aplicada, falta o Deploy; Documentos em PDF (D1, só a central cria) construídos; J5 na fila | I-13, I-15 | PLANO-MINDMASTER |
 
 ### K — Custo e análise
 
@@ -334,7 +334,7 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | T-07 | Evento TI → Produção: coletor ou servidor fora do ar marca a CNC como "sem telemetria" | 2 | 3 | 1 | 0,5 | 2 | 10,0 | na fila | T-03 ou T-04; telemetria das CNCs (P-10) | TI §7.1 |
 | T-08 | Camada agêntica: política determinística, ações seguras (reiniciar serviço, trocar de link), olhar para trás semanal | + | 4 | 1 | 2 | 3 | 3,0 | na fila | T-03, T-04, T-06; uso de IA no Plano do Jev | TI §6 |
 | T-09 | SARA de TI e alertas falados (TTS local: Kokoro ou Piper) | + | 3 | 1 | 1 | 2 | 5,0 | em parte: a SARA de TI (consultas e avisos) veio com o T-06; faltam os alertas falados | T-06; teste de voz na CPU; voz da SARA (I-09) | TI §7.2 |
-| T-10 | Produtização: TI agêntica white label, governança da autonomia, serviço por SLA | + | — | — | — | 3 | — | adiado (white label) | PecSil pronta e validada (17/10) | TI §8; raia Z |
+| T-10 | Produtização: TI agêntica white label, governança da autonomia, serviço por SLA | + | — | — | — | 3 | — | adiado (white label) | Pecsil pronta e validada (17/10) | TI §8; raia Z |
 
 ### Z — Produto (multiempresa)
 
@@ -383,7 +383,7 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | Composio como hub agora; nunca no e-mail do Comercial | Integrações ficam nativas |
 | IoT e DNC nas máquinas | Depende de hardware; o Tótem cobre |
 | RFID como solução primária; `travaMaquina` | Decisões da Forja |
-| Regras de aprovação escritas por frase | As regras da PecSil são poucas e fixas |
+| Regras de aprovação escritas por frase | As regras da Pecsil são poucas e fixas |
 | Incorporar o código do Fleetbase à plataforma | Decisão de 19/10. O Fleetbase é AGPL-3.0: a plataforma inteira herdaria a licença, e o produto licenciado (VIS §7) cairia. Ele fica como serviço separado, por API (L-01), como o transmissor GPL |
 | Religar a Busca Corporativa (I-07) | Proprietário, 18/10: a SARA de cada módulo já acha e abre o registro com as permissões de quem pergunta; a busca entre módulos fica com a SARA principal (I-08). A tela segue escondida pela flag |
 
@@ -438,7 +438,7 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | 17/10/2026 | A-07 construído: "precisa até" no pedido de material, comparativo na cotação (selos de preço, entrega e pagamento; regra entrega no prazo e depois menor custo), economia gravada na aprovação e impressa na OC. Migração 202610170004 aplicada; teste 7/7 | Claude |
 | 17/10/2026 | R-01 construído: RH sem caminho de demonstração (ação sem banco vira erro), cartão de SST calculado, conferência de documento gravada, aba Homologação real (critérios, conferência dos dados, registro por perfil). Migração 202610170003 aplicada; teste com dois perfis de RH 9/9. Homologação final: Rosana e Bianca (precisam da permissão Homologação do RH) | Claude |
 | 17/10/2026 | A-11 (Fundação › Parados, migração 202610170002 aplicada, teste 4/4) e F-08 (conciliação: CNPJ nas sugestões, motivo de cada uma, explicação da linha sem par, pares de mesmo CNPJ e valor para confirmar em lote; sem migração) construídos. Achado: consultas do Financeiro paravam em 1.000 linhas (limite do Supabase) e passaram a ler em páginas | Claude |
-| 17/10/2026 | Foco só no PecSil até o projeto pronto e validado; raia Z (tenants, white label) adiada. Fila: A-11, F-08, R-01, A-07, F-09 | Proprietário |
+| 17/10/2026 | Foco só no Pecsil até o projeto pronto e validado; raia Z (tenants, white label) adiada. Fila: A-11, F-08, R-01, A-07, F-09 | Proprietário |
 | 19/10/2026 | Formato do produto: instalação licenciada no cliente (implementação + manutenção mensal, como o GRV), não SaaS por assinatura. Raia Z continua adiada; quando voltar, nasce neste formato (VISAO-PRODUTO-ESCALA §7) | Proprietário |
 | 19/10/2026 | Nova raia L (Logística): o Fleetbase (fork `fleetbase-frota`) entra como serviço separado no mesmo servidor, consumido por API, e não incorporado ao código (AGPL-3.0). L-01 (instalação, nota 4,0), L-02 (entregas na plataforma, 3,0) e L-03 (motorista e frota, 3,3), todos fora do caminho crítico (+). Antes, é preciso confirmar a frota própria e quem responde pela expedição | Proprietário |
 | 19/10/2026 | L-02 ganha o mapa ao vivo e o link de rastreio para o cliente; L-03 passa a depender do B-06 (443 aberta de fora) e da regra de privacidade do rastreio (Rosana) | Proprietário |

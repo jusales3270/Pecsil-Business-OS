@@ -1,4 +1,4 @@
-# Infraestrutura da PecSil — o que roda, onde e como recuperar
+# Infraestrutura da Pecsil — o que roda, onde e como recuperar
 
 > Item **B-09** do [roadmap](ROADMAP.md). Este é o mapa da infraestrutura para quem precisar
 > recuperar o servidor sem depender de memória: o proprietário, ou um técnico chamado numa pane.

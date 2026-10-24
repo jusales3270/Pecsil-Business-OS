@@ -1,8 +1,8 @@
 -- ============================================================================
--- PecSil Business OS — SCHEMA DO RH (aplicar sobre a Fundação já existente)
+-- Pecsil Business OS — SCHEMA DO RH (aplicar sobre a Fundação já existente)
 --
 -- Use este arquivo quando a Fundação e o Financeiro JÁ estão no servidor
--- (é o caso da PecSil). Cria 8 tabelas rh_*, enums, auditoria e RLS.
+-- (é o caso da Pecsil). Cria 8 tabelas rh_*, enums, auditoria e RLS.
 --
 -- Studio → SQL Editor → New query → cole tudo → Run.
 -- Roda como transação única: se falhar, nada é gravado.

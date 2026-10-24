@@ -41,7 +41,7 @@ const arg = (flag) => { const i = args.indexOf(flag); return i >= 0 && args[i + 
 const apply = args.includes("--apply");
 const comCnpj = args.includes("--cnpj");
 const arquivo = (arg("--arquivo") ?? "~/Downloads/CLIENTE.xlsx").replace(/^~/, homedir());
-const relatorio = (arg("--relatorio") ?? "~/Desktop/PecSil - Clientes do GRV (conferência).csv").replace(/^~/, homedir());
+const relatorio = (arg("--relatorio") ?? "~/Desktop/Pecsil - Clientes do GRV (conferência).csv").replace(/^~/, homedir());
 const HOJE = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
 if (!existsSync(arquivo)) { console.error(`Planilha não encontrada: ${arquivo}`); process.exit(1); }

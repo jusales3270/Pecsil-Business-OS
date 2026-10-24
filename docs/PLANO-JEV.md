@@ -1,4 +1,4 @@
-# Plano de uso do Jev no PecSil Business OS
+# Plano de uso do Jev no Pecsil Business OS
 
 > **A ordem de construção está em [`ROADMAP.md`](ROADMAP.md)** (fonte única desde 16/10/2026). Este documento guarda o desenho, as decisões e os critérios de aceite.
 
@@ -6,7 +6,7 @@
 > critério de aceite, e nenhuma etapa muda de escopo sem decisão registrada
 > aqui (seção 6).
 >
-> Criado em 25/09/2026 · Dono: proprietário da PecSil · Execução: Claude
+> Criado em 25/09/2026 · Dono: proprietário da Pecsil · Execução: Claude
 
 > **Troca de modelo: Clef no lugar do Jev** (decidida em 03/10/2026, registrada em
 > 10/10/2026). O modelo chamado passa a ser o **Clef**, da Cloudflare: `clef-flash` para
@@ -108,7 +108,7 @@ repetir cliente, auditoria e marcação na tela em cada módulo.
 - **Selo na tela:** "Sugestão do Clef · 87%", seguindo a mesma regra de exibição do
   `CLAUDE.md`.
 - **Variáveis no Coolify:** as da Cloudflare, no lugar de `TYPESAFE_API_KEY`.
-- **Antes de ligar qualquer uso:** simulação em português com casos reais da PecSil
+- **Antes de ligar qualquer uso:** simulação em português com casos reais da Pecsil
   (fornecedores parecidos, gastos, pedidos de material) pelo `jev-simular`, com
   relatório conferido pelo proprietário. Os números publicados são da própria Cloudflare
   e precisam ser confirmados aqui.

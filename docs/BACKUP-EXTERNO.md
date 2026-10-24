@@ -8,8 +8,8 @@ nenhum backup saía do servidor: uma pane de disco perdia tudo ([PLANO-TI.md](PL
 
 1. **Criptografado antes de sair.** O backup leva tudo: CPF, salários, CID, documentos do RH e as
    fotos de cadastro da Portaria. Cada arquivo é criptografado no servidor com o `age`, usando a
-   **chave pública** da PecSil. A **chave privada** fica só com o proprietário. A nuvem guarda um
-   arquivo que ela mesma não consegue ler. Sem a chave privada, ninguém abre o backup, nem a PecSil:
+   **chave pública** da Pecsil. A **chave privada** fica só com o proprietário. A nuvem guarda um
+   arquivo que ela mesma não consegue ler. Sem a chave privada, ninguém abre o backup, nem a Pecsil:
    ela precisa ficar guardada em dois lugares fora do servidor.
 2. **O servidor só grava.** O serviço entra na nuvem com um usuário que só tem permissão de inserir
    no bucket `backups`: não lista, não sobrescreve e não apaga. No banco da fábrica, ele usa o papel

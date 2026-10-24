@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 /**
  * Modelo de significado LOCAL (D5 do proprietário): multilingual-e5-small, rodando no servidor da
- * PecSil (ONNX, sem placa de vídeo). Nenhum texto sai da empresa: só o modelo é baixado, uma vez
+ * Pecsil (ONNX, sem placa de vídeo). Nenhum texto sai da empresa: só o modelo é baixado, uma vez
  * (≈118 MB), para `MODELOS_DIR` ou `.modelos/` no projeto.
  *
  * Ocupa ≈430 MB de memória enquanto carregado. Carrega quando precisa (busca ou rodada) e é

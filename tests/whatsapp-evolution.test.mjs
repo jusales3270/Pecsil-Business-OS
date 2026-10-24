@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { estadoDaConexao, evolution, INSTANCIA_INTERNA, numeroLegivel, numeroWhatsApp, pedirQr, situacao } from "../lib/whatsapp/evolution.ts";
+import { estadoDaConexao, evolution, INSTANCIA_INTERNA, nomeDeInstancia, numeroLegivel, numeroWhatsApp, pedirQr, situacao } from "../lib/whatsapp/evolution.ts";
 
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 const resposta = (status, corpo) => ({ ok: status < 400, status, text: async () => JSON.stringify(corpo) });
@@ -42,17 +42,27 @@ test("whatsapp: situação e QR Code (sem configuração, sem instância, conect
     // Sem instância: o QR cria a instância do chip interno (WhatsApp Web) e devolve a imagem.
     const pedidos = [];
     const vazia = async (url, init) => { pedidos.push(`${init.method} ${url}`); return url.includes("/instance/create") ? resposta(201, { qrcode: { base64: "data:image/png;base64,AAA" } }) : resposta(200, []); };
-    assert.equal((await situacao(vazia)).estado, "sem_instancia");
-    assert.deepEqual(await pedirQr(vazia), { qr: "data:image/png;base64,AAA", conectado: false });
+    assert.equal((await situacao("pecsil-comercial", vazia)).estado, "sem_instancia");
+    assert.deepEqual(await pedirQr("pecsil-comercial", vazia), { qr: "data:image/png;base64,AAA", conectado: false });
     assert.ok(pedidos.some((p) => p === "POST http://evo:8080/instance/create"));
+    assert.ok(pedidos.some((p) => p.includes("instanceName=pecsil-comercial")), "cada número é a sua instância");
+    await assert.rejects(situacao("../admin", vazia).then((x) => { if (x.estado === "fora_do_ar") throw new Error(x.detalhe); }), /Instância inválida/);
     // Conectado: mostra o número; pedir QR não cria nada.
-    const ligada = async () => resposta(200, [{ name: INSTANCIA_INTERNA, connectionStatus: "open", ownerJid: "5515996622530@s.whatsapp.net", profileName: "PecSil" }]);
-    assert.deepEqual(await situacao(ligada), { estado: "conectado", numero: "+55 15 99662-2530", nome: "PecSil" });
-    assert.deepEqual(await pedirQr(ligada), { qr: null, conectado: true });
+    const ligada = async () => resposta(200, [{ name: INSTANCIA_INTERNA, connectionStatus: "open", ownerJid: "5515996622530@s.whatsapp.net", profileName: "Pecsil" }]);
+    assert.deepEqual(await situacao(INSTANCIA_INTERNA, ligada), { estado: "conectado", numero: "+55 15 99662-2530", nome: "Pecsil" });
+    assert.deepEqual(await pedirQr(INSTANCIA_INTERNA, ligada), { qr: null, conectado: true });
     // Evolution fora do ar.
     const fora = async () => { throw new Error("connect ECONNREFUSED"); };
-    assert.equal((await situacao(fora)).estado, "fora_do_ar");
+    assert.equal((await situacao(INSTANCIA_INTERNA, fora)).estado, "fora_do_ar");
   } finally { process.env = antes; }
+});
+
+test("whatsapp: nome da instância de um número novo, fixo e sem repetir", () => {
+  assert.equal(nomeDeInstancia("Atendimento a Clientes", []), "pecsil-atendimento-a-clientes");
+  assert.equal(nomeDeInstancia("Comercial", ["pecsil-comercial"]), "pecsil-comercial-2");
+  assert.equal(nomeDeInstancia("Comercial", ["pecsil-comercial", "pecsil-comercial-2"]), "pecsil-comercial-3");
+  assert.equal(nomeDeInstancia("Fiscal & Contábil!", []), "pecsil-fiscal-contabil");
+  assert.equal(nomeDeInstancia("!!!", []), "pecsil-canal");
 });
 
 test("whatsapp: tela na Fundação, só do proprietário; chave nunca no navegador", () => {

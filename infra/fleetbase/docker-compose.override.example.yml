@@ -1,4 +1,4 @@
-# Modelo do override do Fleetbase da PecSil (infra/fleetbase/README.md). SEM segredos: preencha os <…>.
+# Modelo do override do Fleetbase da Pecsil (infra/fleetbase/README.md). SEM segredos: preencha os <…>.
 # Versão travada; portas só em 127.0.0.1 (no servidor, o acesso é pela rede interna); MySQL com senha.
 services:
   database:

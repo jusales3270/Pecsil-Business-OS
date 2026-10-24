@@ -1,4 +1,4 @@
-# Processos da PecSil — mapa das cadeias entre departamentos
+# Processos da Pecsil — mapa das cadeias entre departamentos
 
 > Documento vivo. Cada cadeia descreve como um fato em um departamento leva a uma
 > ação em outro. É daqui que saem as **reações** entre módulos do Business OS —

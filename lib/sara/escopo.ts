@@ -4,7 +4,7 @@
  *   1. a regra fixa no prompt (regrasDeEscopo), que manda recusar com o texto padrão;
  *   2. um verificador separado (verificarEscopo), uma chamada curta que só classifica a mensagem em
  *      DENTRO ou FORA. Roda em paralelo à conversa; se der FORA, a resposta é descartada e vai a recusa.
- * O nome da empresa vem do cadastro (multiempresa: nada da PecSil fixo aqui).
+ * O nome da empresa vem do cadastro (multiempresa: nada da Pecsil fixo aqui).
  *
  * Não lê o ambiente (chave e fetch entram por parâmetro), para os testes.
  */

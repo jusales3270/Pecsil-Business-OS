@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Compras: Supabase Cloud (app compras-pecsil) → Supabase da PecSil.
+ * Compras: Supabase Cloud (app compras-pecsil) → Supabase da Pecsil.
  *
  * Enquanto o app antigo estiver em uso, a NUVEM é a fonte da verdade. Este
  * script copia o estado dela para o banco da plataforma:

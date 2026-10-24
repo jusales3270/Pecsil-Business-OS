@@ -43,7 +43,7 @@ Relação com o que já existe:
    - Por isso, todos os títulos dessas contas ficam fora do grafo, por regra (`cerebro_contas_pessoais`):
      os ramos "Gastos com funcionários" (Adm, Usinagem e Fundição) com todas as subcontas, retirada e
      aporte de sócios, pró-labore e o IR dele, comissão de vendas e a tarifa da folha. São 97 contas.
-7. **Nada sai da empresa.** O grafo é montado e consultado no servidor da PecSil. A busca pelo
+7. **Nada sai da empresa.** O grafo é montado e consultado no servidor da Pecsil. A busca pelo
    sentido usa o modelo local que já roda na busca de documentos.
 
 ---

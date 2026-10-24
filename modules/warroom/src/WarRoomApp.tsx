@@ -8,7 +8,7 @@ import { Cerebro } from "./Cerebro";
 import { Conselho } from "./Conselho";
 
 /**
- * War Room (docs/PLANO-WAR-ROOM-CEREBRO.md): o conselho da PecSil. Por enquanto só o proprietário entra
+ * War Room (docs/PLANO-WAR-ROOM-CEREBRO.md): o conselho da Pecsil. Por enquanto só o proprietário entra
  * (W1). Submenus: Conselho (a SARA central, docs/PLANO-MINDMASTER.md) e Segundo Cérebro (o grafo).
  */
 const SECOES = [

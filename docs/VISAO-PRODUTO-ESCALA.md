@@ -1,4 +1,4 @@
-# Visão de produto — do PecSil Business OS para outras indústrias
+# Visão de produto — do Pecsil Business OS para outras indústrias
 
 > **A ordem de construção está em [`ROADMAP.md`](ROADMAP.md)** (fonte única desde 16/10/2026). Este documento guarda o desenho, as decisões e os critérios de aceite.
 
@@ -23,7 +23,7 @@ software é entregue como **serviço** a outras indústrias parecidas
   dinheiro parado" e muitas vezes estão "dirigindo um caminhão cego".
 - **O diferencial não é a IA genérica.** É o conhecimento vertical do processo
   industrial transformado num sistema operacional com IA por cima.
-- **O papel da PecSil:** é a **fábrica de validação**. O que funcionar aqui, medido
+- **O papel da Pecsil:** é a **fábrica de validação**. O que funcionar aqui, medido
   e com resultado comprovado, é o que se leva à segunda empresa.
 
 O caso analisado é quase idêntico ao nosso: um diretor operacional de indústria
@@ -53,7 +53,7 @@ convence é o dono ver no celular "quanto custa cada item".
 Legenda:
 - **P1:** sem isso não dá para vender nem mostrar o "número que arrepia";
 - **P2:** transforma o ERP em ecossistema com inteligência;
-- **P3:** transforma o sistema da PecSil em produto;
+- **P3:** transforma o sistema da Pecsil em produto;
 - **P4:** estratégia de negócio e escala.
 
 ### P1.1 — Pré-requisitos para levar a outra empresa (confiabilidade)
@@ -68,7 +68,7 @@ Legenda:
 - **Pronto quando:** uma semana sem queda, portas fechadas, chaves novas e nenhum dado fictício em tela.
 
 ### P1.2 — Almoxarifado / Estoque ("dinheiro parado")
-- **Por quê:** o vídeo destaca o estoque gigantesco e o capital parado. Além disso, é o elo que falta na cadeia real da PecSil: Compras aprova → Almoxarifado recebe → Financeiro gera a conta a pagar (`docs/PROCESSOS-PECSIL.md`, Cadeia 1).
+- **Por quê:** o vídeo destaca o estoque gigantesco e o capital parado. Além disso, é o elo que falta na cadeia real da Pecsil: Compras aprova → Almoxarifado recebe → Financeiro gera a conta a pagar (`docs/PROCESSOS-PECSIL.md`, Cadeia 1).
 - **Reflexo no sistema:**
   - novo módulo (hoje "planejado" em `modules/planned.ts`): recebimento contra a cotação aprovada, entradas e saídas, saldo, giro e capital parado;
   - cadastro mestre de **item** (ainda não existe; fornecedor e centro de custo já existem);
@@ -84,7 +84,7 @@ Legenda:
   - custo-hora (RH).
 
   O resultado é custo e margem por OS, por peça e por cliente, mais o **custo da parada**.
-- **Depende de:** P1.2 (material por item), do mapeamento de como a PecSil calcula custo hoje e de trazer eventos do Forja para a trilha.
+- **Depende de:** P1.2 (material por item), do mapeamento de como a Pecsil calcula custo hoje e de trazer eventos do Forja para a trilha.
 - **Fase do blueprint:** Fase 4 e Fase 5.
 - **Pronto quando:** para uma OS finalizada, o sistema mostra o custo real comparado ao orçado e a margem, e o número bate com a conferência manual.
 
@@ -121,17 +121,17 @@ Legenda:
 - **Fase do blueprint:** Fase 4 e Fase 5.
 - **Pronto quando:** a Cadeia 1 roda de ponta a ponta sem planilha nem WhatsApp.
 
-### P3.1 — Produtização (da PecSil para qualquer indústria)
-- **Por quê:** para a segunda empresa, o sistema não pode ter a PecSil "no código".
+### P3.1 — Produtização (da Pecsil para qualquer indústria)
+- **Por quê:** para a segunda empresa, o sistema não pode ter a Pecsil "no código".
 - **Reflexo no sistema:**
   - **Roteiro de implantação:** diagnóstico, mapeamento de processos (o `PROCESSOS-PECSIL.md` vira modelo), importação da folha, dos fornecedores e dos itens.
-  - **Adaptadores de produção:** o Forja é da PecSil. Outras fábricas precisam de apontamento próprio, ou de integração com o sistema que já usam.
+  - **Adaptadores de produção:** o Forja é da Pecsil. Outras fábricas precisam de apontamento próprio, ou de integração com o sistema que já usam.
   - **Separar o que é específico:** nome e marca, integração com o Forja, os ajustes de "caixa 1/2" do Compras, textos fixos.
   - **Modelo de hospedagem: DECIDIDO em 19/10/2026.** Um servidor por cliente, com instalação licenciada, e não nuvem com várias empresas. Ver a seção 7.
 - **Fase do blueprint:** depois da Fase 5; é pré-requisito da escala.
 - **Pronto quando:** uma segunda indústria é implantada em semanas, sem mudar código.
 
-### P3.2 — Prova de resultado (o estudo de caso PecSil)
+### P3.2 — Prova de resultado (o estudo de caso Pecsil)
 - **Por quê:** o que vende para a segunda indústria é o resultado medido na primeira.
 - **Reflexo no sistema:**
   - registrar agora a **linha de base** (pontualidade, tempo parado, capital parado e custo por peça, quando existir);
@@ -167,20 +167,20 @@ Legenda:
 - Infraestrutura ainda frágil: HTTPS oscilando, Supabase exposto, chaves antigas.
 - Financeiro com dados fictícios em tela.
 - Almoxarifado inexistente: a cadeia de compras para no meio.
-- A Produção depende do Forja, que é específico da PecSil.
+- A Produção depende do Forja, que é específico da Pecsil.
 - Integração ainda "só fala": os módulos anunciam, mas ninguém reage.
 
 ## 6. Diretriz de construção: produto multiempresa (11/10/2026)
 
 Decisão do proprietário: o Business OS vai ser **empacotado como produto para outras
-empresas**. A PecSil continua sendo a fábrica de validação e a primeira cliente, mas **toda
+empresas**. A Pecsil continua sendo a fábrica de validação e a primeira cliente, mas **toda
 arquitetura e toda feature nova já nascem pensadas para dados empresariais genéricos**. A
 identidade e as regras de cada empresa são **variáveis** que respondem a um mesmo núcleo, o
 **"harness business"**.
 
 ### 6.1 O que vira variável de cada empresa
 
-| Variável | Hoje, na PecSil | Destino |
+| Variável | Hoje, na Pecsil | Destino |
 |---|---|---|
 | Identidade (razão social, CNPJ, IE, endereço, telefones) | `lib/empresa.ts` (`EMPRESA_PECSIL`) e `CNPJ_PECSIL` em `lib/finance/extrato-classificar.ts` | **Feito em parte (12/10/2026):** `fiscal_config` (Fiscal › Configuração) guarda o emitente por organização. A Ordem de Compra passa a ler dali quando for mexida. |
 | Certificado digital, série e numeração, regras fiscais | — | `fiscal_config` + cofre (Vault) + `fiscal_series`, por organização ([FISCAL-NFE.md](FISCAL-NFE.md)) |
@@ -198,12 +198,12 @@ proprietário escolher. Trocar por uma API paga é trocar a implementação do c
 
 ### 6.2 Regras para construir daqui em diante
 
-1. **Código novo não fixa a PecSil.** Lê a identidade da organização ou da configuração da
+1. **Código novo não fixa a Pecsil.** Lê a identidade da organização ou da configuração da
    empresa. Exemplo do jeito certo: as ligações por regra excluem o CNPJ da própria empresa
    lendo `organizations.tax_id`, e não uma constante.
 2. **O banco já é multiempresa** (`organization_id` em tudo, RLS por organização). Manter
    assim em toda tabela nova.
-3. **Vieses da PecSil são bem-vindos**, desde que entrem como dado ou configuração, e não
+3. **Vieses da Pecsil são bem-vindos**, desde que entrem como dado ou configuração, e não
    como regra escondida no código.
 4. Os pontos fixos da tabela 6.1 são levados para configuração **quando o trabalho passar
    por eles**, sem refatoração avulsa.
@@ -243,7 +243,7 @@ segredos.
 Será uma **instalação licenciada no cliente**, como o GRV. O cliente paga a **implementação** uma vez e
 a **manutenção** todo mês.
 
-**Por que cabe no que já existe.** A PecSil já roda assim: a plataforma e o banco (o Supabase instalado
+**Por que cabe no que já existe.** A Pecsil já roda assim: a plataforma e o banco (o Supabase instalado
 no servidor, não na nuvem) estão no servidor da própria fábrica, sob o Coolify. O produto é repetir essa
 instalação em cada cliente. Os dados ficam na empresa, que é o diferencial da seção 1. O `organization_id`
 continua em todas as tabelas: ninguém usa várias empresas na mesma instalação, mas isso não atrapalha.
@@ -283,11 +283,11 @@ sem contrato, mas não segura cópia determinada. O que segura a recorrência é
 cliente obriga a disponibilizar o código **dele**, não o da plataforma, que fala com ele só por HTTP (seção 6.1).
 
 **O que falta construir** (raia Z do ROADMAP, ainda adiada pela decisão de 17/10):
-- **Z-02:** tirar a PecSil do código (marca, CNPJ, setores, triagem, conector da Forja, cookie). São cerca de
-  60 arquivos que citam a PecSil, muitos só em comentário.
+- **Z-02:** tirar a Pecsil do código (marca, CNPJ, setores, triagem, conector da Forja, cookie). São cerca de
+  60 arquivos que citam a Pecsil, muitos só em comentário.
 - **Novos:** licença assinada, instalador, canal de atualização e integrações opcionais (Forja, GRV, bancos).
 - **Z-05:** cadastro e suporte de cada cliente. A cobrança vira contrato de manutenção, não assinatura.
 
-**Quando.** Continua valendo a decisão de 17/10: primeiro a PecSil pronta e validada, com o GRV desligado
+**Quando.** Continua valendo a decisão de 17/10: primeiro a Pecsil pronta e validada, com o GRV desligado
 (Marco 1). Quando a raia Z voltar, ela nasce neste formato.
 

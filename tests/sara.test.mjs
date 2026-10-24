@@ -708,13 +708,13 @@ test("SARA pesquisa: pesquisa longa pausada (pause_turn) continua em vez de resp
 
 test("SARA escopo: o tema entra no prompt e no verificador; dúvida de outro tema vai para a SARA certa", async () => {
   const { regrasDeEscopo, verificarEscopo } = await import("../lib/sara/escopo.ts");
-  const r = regrasDeEscopo("PecSil", "Financeiro", { assunto: "finanças da empresa", exemplos: "juros simples e compostos" });
+  const r = regrasDeEscopo("Pecsil", "Financeiro", { assunto: "finanças da empresa", exemplos: "juros simples e compostos" });
   assert.match(r, /TEMA do seu módulo é finanças da empresa/);
   assert.match(r, /MESMO que a resposta não esteja na plataforma/);
   assert.match(r, /OUTRO tema da empresa/);
   assert.match(r, /Não estou autorizada/, "fora da empresa continua com a recusa padrão");
   let corpo;
-  await verificarEscopo({ chave: "x", empresa: "PecSil", pergunta: "o que é DIFAL?", tema: "tributos", buscar: async (_u, init) => { corpo = JSON.parse(init.body); return { ok: true, json: async () => ({ content: [{ type: "text", text: "DENTRO" }] }) }; } });
+  await verificarEscopo({ chave: "x", empresa: "Pecsil", pergunta: "o que é DIFAL?", tema: "tributos", buscar: async (_u, init) => { corpo = JSON.parse(init.body); return { ok: true, json: async () => ({ content: [{ type: "text", text: "DENTRO" }] }) }; } });
   assert.match(corpo.system, /Este assistente é do tema: tributos/);
   assert.match(corpo.system, /"o que é DIFAL\?"/);
 });

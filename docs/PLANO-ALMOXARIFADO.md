@@ -5,7 +5,7 @@
 > Documento de referência. Nenhuma etapa começa sem a anterior cumprir o critério de
 > aceite, e nenhuma decisão da seção 5 muda sem registro na seção 10.
 >
-> Criado em 15/10/2026 · Dono: proprietário da PecSil · Execução: Claude
+> Criado em 15/10/2026 · Dono: proprietário da Pecsil · Execução: Claude
 > Origem: as quatro exportações do cadastro de itens do GRV (Matéria-prima, Embalagem,
 > Produto intermediário e Material de uso e consumo), baixadas em 15/10.
 
@@ -61,7 +61,7 @@ São 9.340 itens com códigos únicos, sem repetição entre os quatro arquivos.
 | Produto intermediário (7-xx) | 1.032 | brocas, fresas, pastilhas, machos, abrasivos, resinas e tintas, lubrificantes, gases, filtros | 374 |
 | Uso e consumo (8-xx e 9-xx) | 3.981 | pintura e obra 1.015, elétrico 974, produção 800, EPI 230, escritório, limpeza, copa, uniformes | 1.921 |
 
-**Batem com o que a PecSil compra:**
+**Batem com o que a Pecsil compra:**
 - 77% das 360 compras e 76% dos 497 itens cotados na plataforma têm o item correspondente
   no GRV;
 - mais de 200 já trazem o código do GRV no próprio texto;
@@ -285,7 +285,7 @@ com quem vai usar testando com dado real:
 5. **Multiempresa:**
    - família, grupo, prefixo, unidades, os grupos que controlam estoque e os locais são
      configuração por empresa;
-   - nada da PecSil fica fixo no código.
+   - nada da Pecsil fica fixo no código.
 6. **Custo e plano de contas:** o estoque não muda a conta a pagar. Ela continua saindo da
    nota, como hoje; o custo médio é do estoque.
 7. **Fornecedor e item no serviço externo:** se algum modelo de decisão (Clef) for usado para

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  *
  * Quem chama é a tarefa agendada do Coolify, de DENTRO do contêiner
  * (`curl -H "x-sync-secret: …" http://localhost:3000/api/comercial/sync`).
- * Rodar por dentro tem uma razão prática: a porta 443 da PecSil oscila, e a
+ * Rodar por dentro tem uma razão prática: a porta 443 da Pecsil oscila, e a
  * entrada de e-mail não pode depender dela.
  *
  * Esta rota não tem sessão de usuário — ela grava com a chave de serviço. Por

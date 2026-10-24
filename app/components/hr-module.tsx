@@ -1577,7 +1577,7 @@ function ReportsSection({ access }: { notify: (message: string) => void; access:
         <div>
           <p className="eyebrow">FECHAMENTO MENSAL</p>
           <h2>Relatório de terceiros</h2>
-          <p>Horas de cada terceiro no mês, somadas a partir dos apontamentos da Portaria, para enviar ao Financeiro. Sai em PDF com a identidade da PecSil.</p>
+          <p>Horas de cada terceiro no mês, somadas a partir dos apontamentos da Portaria, para enviar ao Financeiro. Sai em PDF com a identidade da Pecsil.</p>
         </div>
       </div>
       <div className="report-launch-actions">

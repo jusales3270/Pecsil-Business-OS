@@ -1,7 +1,7 @@
 /* ============================================================================
    Relatórios da plataforma (documento A4 para impressão e PDF)
 
-   Todo relatório gerado pela plataforma usa este modelo: logo da PecSil no
+   Todo relatório gerado pela plataforma usa este modelo: logo da Pecsil no
    cabeçalho, tipografia (Geist) e cores dos tokens do tema claro, rodapé com
    a origem e a numeração de páginas. O documento é sempre claro, mesmo com o
    tema escuro ativo: a página fixa data-theme="light" (ver report-layout.tsx).
@@ -11,7 +11,7 @@
   size: A4;
   margin: 14mm 14mm 16mm;
   @bottom-left {
-    content: "PecSil Business OS · documento gerado pela plataforma";
+    content: "Pecsil Business OS · documento gerado pela plataforma";
     font-family: var(--font-sans);
     font-size: 7.5pt;
     color: #848c99;

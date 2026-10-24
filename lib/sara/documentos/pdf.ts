@@ -238,7 +238,7 @@ function carta(d: Documento, numero: string, quando: Date, e: Empresa): ReactEle
 export async function gerarPdf(d: Documento, o: { numero: string; empresa: Empresa; logo: Uint8Array | null; quando?: Date }): Promise<{ bytes: Uint8Array; paginas: number }> {
   const quando = o.quando ?? new Date();
   const interno = d.tipo === "relatorio";
-  const doc = h(Document, { title: `${o.numero} ${d.titulo}`, author: o.empresa.nome_fantasia || o.empresa.razao_social, creator: "PecSil Business OS", producer: "PecSil Business OS", language: "pt-BR" },
+  const doc = h(Document, { title: `${o.numero} ${d.titulo}`, author: o.empresa.nome_fantasia || o.empresa.razao_social, creator: "Pecsil Business OS", producer: "Pecsil Business OS", language: "pt-BR" },
     h(Page, { size: "A4", style: s.pagina, wrap: true },
       timbre(o.empresa, o.logo),
       ...rodape(interno ? `${o.numero} · Documento interno · gerado pela SARA central em ${dataCurta(quando)}` : `${limpar(o.empresa.nome_fantasia || o.empresa.razao_social)} · ${o.numero}`),

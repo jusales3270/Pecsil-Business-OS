@@ -863,7 +863,7 @@ export const NOVIDADES: Novidade[] = [
     titulo: "Busca pelo sentido",
     itens: [
       "A busca de documentos entende o que você quis dizer, não só as palavras: \"conserto da fornalha\" acha o contrato de manutenção dos fornos, e \"conta de luz\" acha o extrato com a energia elétrica.",
-      "Esses resultados aparecem depois dos que têm as palavras exatas, marcados como \"Pelo sentido\". Tudo é feito no servidor da PecSil: nenhum documento sai da empresa.",
+      "Esses resultados aparecem depois dos que têm as palavras exatas, marcados como \"Pelo sentido\". Tudo é feito no servidor da Pecsil: nenhum documento sai da empresa.",
     ],
   },
   {
@@ -901,7 +901,7 @@ export const NOVIDADES: Novidade[] = [
     titulo: "A plataforma lê o conteúdo dos documentos",
     itens: [
       "Na coleta, o conteúdo de PDF, Word, Excel e XML é lido no próprio computador antes da conferência: uma nota com nome genérico é reconhecida pela chave de acesso, e um holerite escondido fica barrado como documento do RH. O texto não sai do computador.",
-      "Os documentos guardados têm o texto lido, inclusive os antigos. PDF escaneado e foto passam por leitura de imagem (OCR) no servidor da PecSil, sem sair da empresa.",
+      "Os documentos guardados têm o texto lido, inclusive os antigos. PDF escaneado e foto passam por leitura de imagem (OCR) no servidor da Pecsil, sem sair da empresa.",
       "Em Documentos, cada arquivo mostra se já foi lido. É a base para ligar cada documento ao fornecedor, à nota e à ordem de compra (próxima etapa).",
     ],
   },
@@ -974,7 +974,7 @@ export const NOVIDADES: Novidade[] = [
     modulos: ["compras"],
     titulo: "Ordem de compra em PDF depois da aprovação",
     itens: [
-      "Cotação aprovada ganha o botão Ordem de compra: abre o documento no modelo da PecSil (logo, dados do fornecedor, materiais, ICMS, IPI e totais) para baixar em PDF e mandar ao fornecedor.",
+      "Cotação aprovada ganha o botão Ordem de compra: abre o documento no modelo da Pecsil (logo, dados do fornecedor, materiais, ICMS, IPI e totais) para baixar em PDF e mandar ao fornecedor.",
       "O número da ordem de compra é o da cotação, e só os itens aprovados entram.",
       "Na cotação, o novo bloco Entrega e frete guarda frete (CIF, FOB ou sem frete), valor do frete, seguro, outras despesas, prazo de entrega e a observação para o fornecedor; o Ricardo aprova vendo o total do pedido.",
       "No cadastro de fornecedores entrou o CEP, que também sai na ordem de compra.",

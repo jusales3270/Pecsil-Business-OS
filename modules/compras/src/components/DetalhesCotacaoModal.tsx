@@ -277,7 +277,7 @@ export default function DetalhesCotacaoModal({ cotacao, onClose, onComprar, only
             </div>
             {/* Pedido: frete, despesas e entrega (saem na Ordem de Compra) */}
             <div className="mt-2 pt-2 border-t border-black/[0.06] flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-              <span className="text-[#757575]">Frete: <strong className="text-[#212121]">{currentCotacao.freteTipo === 'FOB' ? 'FOB (PecSil)' : currentCotacao.freteTipo === 'SEM' ? 'Sem frete' : 'CIF (fornecedor)'}</strong></span>
+              <span className="text-[#757575]">Frete: <strong className="text-[#212121]">{currentCotacao.freteTipo === 'FOB' ? 'FOB (Pecsil)' : currentCotacao.freteTipo === 'SEM' ? 'Sem frete' : 'CIF (fornecedor)'}</strong></span>
               {(currentCotacao.freteValor ?? 0) > 0 && <span className="text-[#757575]">Valor do frete: <strong className="text-[#212121]">{formatAmount(currentCotacao.freteValor ?? 0)}</strong></span>}
               {(currentCotacao.seguroValor ?? 0) > 0 && <span className="text-[#757575]">Seguro: <strong className="text-[#212121]">{formatAmount(currentCotacao.seguroValor ?? 0)}</strong></span>}
               {(currentCotacao.outrasDespesas ?? 0) > 0 && <span className="text-[#757575]">Outras despesas: <strong className="text-[#212121]">{formatAmount(currentCotacao.outrasDespesas ?? 0)}</strong></span>}

@@ -1,9 +1,9 @@
-# Fleetbase da PecSil (serviço de entregas)
+# Fleetbase da Pecsil (serviço de entregas)
 
 O motor das entregas da Logística ([docs/PLANO-LOGISTICA.md](../../docs/PLANO-LOGISTICA.md)). Roda como **serviço
 separado** (AGPL-3.0) e a plataforma fala com ele só pela API. O código é o fork
 [`jusales3270/fleetbase-frota`](https://github.com/jusales3270/fleetbase-frota), sem alteração no código dele: o que
-é da PecSil fica aqui, como configuração.
+é da Pecsil fica aqui, como configuração.
 
 ## O que fica neste diretório
 

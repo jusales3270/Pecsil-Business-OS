@@ -275,7 +275,7 @@ function CostCenters({centers,payables}:{centers:FinanceSnapshot["costCenters"];
   const total=payables.reduce((a,b)=>a+b.value,0)||1;
   return <><Header eyebrow="FINANCEIRO · CLASSIFICAÇÃO" title="Centros de custo" description="Despesas lançadas por centro de custo."/>
     {centers.length?<div className="cost-grid">{centers.map(c=>{const value=payables.filter(x=>x.costCenter===c.name).reduce((a,b)=>a+b.value,0);const share=`${Math.round(value/total*100)}%`;return <Card key={c.id}><span><FIcon name="cost"/></span>{c.code&&<Status>{c.code}</Status>}<h2>{c.name}</h2><strong>{money(value)}</strong><small>Contas a pagar lançadas · {share} do total</small><div><i style={{width:share}}/></div></Card>})}</div>
-    :<Card className="finance-empty-card"><div className="finance-empty"><b>Nenhum centro de custo cadastrado</b><small>Os centros de custo entram junto com o plano de contas da PecSil (decisão D1 do plano de custo e margem).</small></div></Card>}
+    :<Card className="finance-empty-card"><div className="finance-empty"><b>Nenhum centro de custo cadastrado</b><small>Os centros de custo entram junto com o plano de contas da Pecsil (decisão D1 do plano de custo e margem).</small></div></Card>}
   </>}
 function Reports({open,canExpense}:{open:(title:string)=>void;canExpense:boolean}){
   const [expense,setExpense]=useState(false);

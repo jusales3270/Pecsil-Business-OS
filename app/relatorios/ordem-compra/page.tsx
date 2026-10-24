@@ -38,7 +38,7 @@ function OrdemDeCompra({ ordem, emitente: e, saving }: { ordem: OrdemCompra; emi
       <header className="oc-topo">
         <div className="oc-logo">
           {/* eslint-disable-next-line @next/next/no-img-element -- impressão precisa da imagem direta, sem otimização */}
-          <img src="/logo-pecsil.png" alt="PecSil" />
+          <img src="/logo-pecsil.png" alt="Pecsil" />
         </div>
         <div className="oc-titulo"><h1>Ordem de Compra</h1><p>Nº: {ordem.numero}</p></div>
         <div className="oc-empresa">
@@ -169,10 +169,10 @@ function OrdemCompraPage() {
   }, [id, valido]);
 
   const nomeFornecedor = estado.status === "ready" ? ` - ${estado.ordem.fornecedor.nome}` : "";
-  const arquivo = `PecSil - Ordem de Compra ${valido ? id : ""}${nomeFornecedor}`.replace(/[\\/:*?"<>|]/g, " ").trim();
+  const arquivo = `Pecsil - Ordem de Compra ${valido ? id : ""}${nomeFornecedor}`.replace(/[\\/:*?"<>|]/g, " ").trim();
 
   if (!valido) {
-    return <ReportDocument fileTitle="PecSil - Ordem de Compra" ready={false} tip="ordem de compra"><p className="report-empty">Cotação inválida. Abra a ordem de compra pela cotação no Compras.</p></ReportDocument>;
+    return <ReportDocument fileTitle="Pecsil - Ordem de Compra" ready={false} tip="ordem de compra"><p className="report-empty">Cotação inválida. Abra a ordem de compra pela cotação no Compras.</p></ReportDocument>;
   }
   if (estado.status !== "ready") {
     return (

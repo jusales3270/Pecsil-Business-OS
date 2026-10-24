@@ -186,7 +186,7 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
           <div>
             <p className="eyebrow">COMERCIAL · CRM</p>
             <h1>Clientes</h1>
-            <p>Quem compra da PecSil, com os e-mails por onde cada um escreve.</p>
+            <p>Quem compra da Pecsil, com os e-mails por onde cada um escreve.</p>
           </div>
         </div>
         {/* O mesmo cadastro de Fundação › Cadastros › Clientes: uma tela só. */}
@@ -202,7 +202,7 @@ export default function ComercialApp({ access, onExit, onEvent, notify, initialA
           <div>
             <p className="eyebrow">COMERCIAL · CRM</p>
             <h1>{secao?.label}</h1>
-            <p>Entrada de e-mails, qualificação, funil e cobrança dos clientes da PecSil.</p>
+            <p>Entrada de e-mails, qualificação, funil e cobrança dos clientes da Pecsil.</p>
           </div>
           <Status tone="attention">Em construção</Status>
         </div>

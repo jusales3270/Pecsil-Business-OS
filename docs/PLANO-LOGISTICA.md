@@ -1,7 +1,7 @@
 # Plano da Logística: entregas e frota (raia L do ROADMAP)
 
 > A ordem fica no [ROADMAP](ROADMAP.md), raia L. Aqui estão o desenho, as decisões e o aceite.
-> Criado em 20/10/2026. A PecSil tem **frota própria** (confirmado pelo proprietário em 19/10).
+> Criado em 20/10/2026. A Pecsil tem **frota própria** (confirmado pelo proprietário em 19/10).
 
 ## 1. Arquitetura
 
@@ -42,7 +42,7 @@ Forja e do transmissor de NF-e. Os motivos:
   - fica em `~/fleetbase-frota`, com `docker-compose.override.yml` próprio;
   - portas só em 127.0.0.1 e MySQL com senha (o original vem sem senha);
   - as credenciais ficam em `~/fleetbase-frota/.credenciais-locais` (permissão 600).
-- **Origem das entregas:** é configuração da Logística (nome, endereço, coordenada), não um texto fixo da PecSil
+- **Origem das entregas:** é configuração da Logística (nome, endereço, coordenada), não um texto fixo da Pecsil
   no código. Segue a diretriz de produto (VISAO-PRODUTO-ESCALA §6).
 - **Endereço → coordenada:**
   - o cadastro do cliente (CEP, logradouro, número, bairro, município, UF) vai para o Nominatim (OpenStreetMap)

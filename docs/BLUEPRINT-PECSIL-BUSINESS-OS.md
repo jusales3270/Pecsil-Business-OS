@@ -1,4 +1,4 @@
-# Blueprint Mestre — PecSil Business OS
+# Blueprint Mestre — Pecsil Business OS
 
 > **A ordem de construção está em [`ROADMAP.md`](ROADMAP.md)** (fonte única desde 16/10/2026). Este documento guarda o desenho, as decisões e os critérios de aceite.
 
@@ -13,8 +13,8 @@
 
 ## 1 — O que estamos construindo
 
-O PecSil Business OS é uma **plataforma empresarial modular** que centraliza a operação
-da PecSil em um único ecossistema. Substitui sistemas e planilhas isoladas por módulos
+O Pecsil Business OS é uma **plataforma empresarial modular** que centraliza a operação
+da Pecsil em um único ecossistema. Substitui sistemas e planilhas isoladas por módulos
 que compartilham autenticação, usuários, banco de dados, permissões, documentos,
 auditoria, notificações e Design System.
 
@@ -116,7 +116,7 @@ Cada fase tem **critérios de saída objetivos**. Fase não termina por sensaç�
 Nada da Fase 1 se prova sem isto.
 
 - [ ] `docker ps` no servidor para identificar o gateway (Kong ou Envoy) e a porta
-- [ ] DNS `supabase.pecsil.com.br` → IP público da PecSil
+- [ ] DNS `supabase.pecsil.com.br` → IP público da Pecsil
 - [ ] Reverse proxy (Caddy + Let's Encrypt), somente 80/443, com WebSocket e `X-Forwarded`
 - [ ] Postgres 5432/6543, Studio, Docker, SSH e MCP **não** expostos
 - [ ] Backup completo antes da primeira migration
@@ -192,7 +192,7 @@ orçamento · custos · resultados · indicadores · visão gerencial.
 Os 10 domínios do Blueprint: RH · Financeiro · Compras · Estoque · Produção ·
 Qualidade · Manutenção · Portaria e Frota · Fiscal · Comercial.
 
-**A ordem não é rígida** — segue a prioridade operacional da PecSil. Recomendação de
+**A ordem não é rígida** — segue a prioridade operacional da Pecsil. Recomendação de
 sequência por acoplamento de dados (revisável): **Compras → Estoque → Produção →
 Qualidade**, porque formam a cadeia física e alimentam o Financeiro com dados reais.
 
@@ -249,7 +249,7 @@ colocado em cima do ERP. Construído em níveis:
 > Decidido com o proprietário em 10/10/2026. Mudança leve (§10): detalha *como* a
 > SARA é construída, sem mexer nos princípios nem nas restrições acima.
 
-A SARA é o **harness corporativo da PecSil**: o programa que coordena os modelos de IA
+A SARA é o **harness corporativo da Pecsil**: o programa que coordena os modelos de IA
 para cumprir uma tarefa. Ele entrega a informação certa, oferece as ferramentas,
 controla o que pode ser feito e mantém o trabalho andando até o resultado ou até
 precisar parar e perguntar. Ela não é um chat colocado em cima do sistema. Usa as
@@ -265,7 +265,7 @@ Quase todas as peças desse harness já existem na plataforma:
 | **Ferramentas** | As rotas e funções da plataforma (consultar títulos, criar pedido, ler nota, gerar ordem de compra…). Cada uma confere a permissão de quem chama. |
 | **Registro** | Trilha de eventos dos módulos (`module_events`) e registro de envios de arquivo (`file_intakes`). |
 | **Memória** | O banco de dados e o **Segundo Cérebro** (documentos da empresa ligados aos dados), em [`docs/PLANO-SEGUNDO-CEREBRO.md`](./PLANO-SEGUNDO-CEREBRO.md). |
-| **Skills** | O jeito PecSil de trabalhar, escrito em [`docs/PROCESSOS-PECSIL.md`](./PROCESSOS-PECSIL.md), virando instrução para a IA seguir. |
+| **Skills** | O jeito Pecsil de trabalhar, escrito em [`docs/PROCESSOS-PECSIL.md`](./PROCESSOS-PECSIL.md), virando instrução para a IA seguir. |
 | **Vários modelos** | Clef (Cloudflare) para decisões rápidas e baratas; um modelo maior só para conversa e análise. Cada tarefa usa o mais barato que resolve. |
 | **Teto de uso** | Limite de consumo de IA por setor, com painel de quem usa o quê (a construir). |
 
@@ -287,13 +287,13 @@ são fundação, não a SARA.
 > Modelo de conversa: Claude (Anthropic). Desenho em [`docs/PLANO-SARA.md`](./PLANO-SARA.md).
 >
 > **Duas camadas (17/10/2026):** as SARAs dos módulos são **subagentes** (copilots, só dentro do
-> seu módulo). A **SARA principal, a mindmaster da PecSil**, é a orquestradora: delega e executa por
+> seu módulo). A **SARA principal, a mindmaster da Pecsil**, é a orquestradora: delega e executa por
 > meio delas, tem um corpo de conselho de agentes especialistas (CFO, operações, técnico…) e participa
-> da **war room**, o conselho da PecSil, com os diretores. A principal vem depois, com plano próprio.
+> da **war room**, o conselho da Pecsil, com os diretores. A principal vem depois, com plano próprio.
 
 ---
 
-### Fase 7 — PecSil Module Builder 🔵 *backlog estratégico*
+### Fase 7 — Pecsil Module Builder 🔵 *backlog estratégico*
 
 Permitir que um administrador crie módulos sem programar — descrevendo em linguagem
 natural e obtendo entidades, campos, telas, formulários, dashboards, workflows,

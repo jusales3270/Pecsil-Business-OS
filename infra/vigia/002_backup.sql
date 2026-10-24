@@ -1,10 +1,10 @@
 -- ============================================================
--- Backup externo da PecSil (T-02 = B-02, docs/PLANO-TI.md §10)
+-- Backup externo da Pecsil (T-02 = B-02, docs/PLANO-TI.md §10)
 -- ============================================================
 -- Roda no MESMO projeto Supabase da nuvem do vigia (rodar depois do 001).
 --
 -- O serviço de backup da fábrica (services/backup) envia, todo dia, os
--- arquivos JÁ CRIPTOGRAFADOS (age, com a chave pública da PecSil; a chave
+-- arquivos JÁ CRIPTOGRAFADOS (age, com a chave pública da Pecsil; a chave
 -- privada fica só com o proprietário). A nuvem guarda um arquivo que ela mesma
 -- não consegue ler: CPF, salários, documentos do RH e fotos não saem legíveis.
 --

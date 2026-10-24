@@ -45,7 +45,7 @@ function RelatorioTerceirosPage() {
 
   const titulo = "Relatório de horários · Terceiros";
   const periodo = valido ? `Período: ${formatarData(`${mes}-01`)} a ${formatarData(estado.status === "ready" ? estado.relatorio.fim : `${mes}-01`)}` : "";
-  const arquivo = valido ? `PecSil - Terceiros - ${nomeDoMes(mes)}` : "PecSil - Terceiros";
+  const arquivo = valido ? `Pecsil - Terceiros - ${nomeDoMes(mes)}` : "Pecsil - Terceiros";
 
   if (!valido) {
     return <ReportDocument fileTitle={arquivo} ready={false}><p className="report-empty">Mês inválido. Gere o relatório pela tela de Relatórios do RH.</p></ReportDocument>;

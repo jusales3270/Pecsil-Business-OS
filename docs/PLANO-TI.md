@@ -8,10 +8,10 @@ Status: em planejamento (nada implementado)
 
 ## 1. Contexto e motivação
 
-O Pecsil Business OS deve ser um ecossistema em que os departamentos da PecSil se conversam, e não apenas um ERP. Conforme a camada de inteligência cresce, a TI fica mais crítica do que costuma ser numa indústria, porque sustenta todo o resto.
+O Pecsil Business OS deve ser um ecossistema em que os departamentos da Pecsil se conversam, e não apenas um ERP. Conforme a camada de inteligência cresce, a TI fica mais crítica do que costuma ser numa indústria, porque sustenta todo o resto.
 
 **Infraestrutura atual**
-- Servidor interno da PecSil, só CPU (sem GPU), que hospeda:
+- Servidor interno da Pecsil, só CPU (sem GPU), que hospeda:
   - a base do ecossistema (Business OS + Supabase);
   - o monitoramento das máquinas CNC.
 - GRV ainda em uso, a ser substituído gradualmente conforme o ecossistema cresce.
@@ -84,7 +84,7 @@ O módulo de TI **consome os dados** dessas ferramentas, em vez de reimplementar
 
 | Opção | Características |
 |---|---|
-| **RustDesk auto-hospedado** | Parecido com o AnyDesk, mas roda no servidor da PecSil, com controle de quem acessou |
+| **RustDesk auto-hospedado** | Parecido com o AnyDesk, mas roda no servidor da Pecsil, com controle de quem acessou |
 | **MeshCentral** | Acesso remoto, inventário de máquinas e Wake-on-LAN (ligar computadores pela rede) |
 
 As duas opções são gratuitas e registram cada sessão, o que se integra à auditoria do Business OS.
@@ -145,7 +145,7 @@ Foi analisado um conteúdo sobre um ciclo agêntico de correção de código (ag
 
 ## 8. Produtização
 
-A PecSil funciona como laboratório. Depois de validado lá dentro, o módulo vira produto:
+A Pecsil funciona como laboratório. Depois de validado lá dentro, o módulo vira produto:
 
 1. **TI agêntica white-label para indústria pequena e média.** A maioria não tem equipe de TI. O produto monitora rede, servidores e máquinas, corrige o que é seguro, escala o resto e entrega um relatório mensal de falhas recorrentes com evidência.
 
@@ -187,7 +187,7 @@ A PecSil funciona como laboratório. Depois de validado lá dentro, o módulo vi
 - [ ] O FORJA e o Business OS rodam 100% no servidor interno ou dependem de algo na nuvem? (Define se a oscilação da internet deveria derrubar o FORJA.)
 - [ ] Existe backup do Supabase fora do servidor?
 - [ ] O servidor tem iDRAC, iLO ou IPMI?
-- [ ] A PecSil tem, ou pode ter, um link de internet reserva (segunda operadora)?
+- [ ] A Pecsil tem, ou pode ter, um link de internet reserva (segunda operadora)?
 - [ ] Qual modelo de nobreak existe hoje, e se ele é gerenciável?
 - [ ] Testar Kokoro e Piper na CPU do servidor com frases típicas da Sara (tempo de geração e qualidade da voz).
 
@@ -226,7 +226,7 @@ cruzamento com o que o repositório já registra.
 | Telemetria das CNCs (§7.1) | P-10 | na fila |
 
 Os itens do módulo estão na raia **T — TI** do [ROADMAP.md](ROADMAP.md), seguindo a ordem do §9.
-A produtização (§8) fica estacionada pela regra de 17/10: primeiro a PecSil pronta e validada.
+A produtização (§8) fica estacionada pela regra de 17/10: primeiro a Pecsil pronta e validada.
 
 ### Respostas que o repositório já dá às pendências do §11
 

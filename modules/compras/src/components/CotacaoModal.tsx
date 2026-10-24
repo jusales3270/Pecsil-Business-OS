@@ -798,7 +798,7 @@ export default function CotacaoModal({ cotacao, onClose, pedido = null, ramo = n
                   className="w-full px-3 py-2 rounded-lg border border-black/[0.08] text-xs bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 >
                   <option value="CIF">CIF — por conta do fornecedor</option>
-                  <option value="FOB">FOB — por conta da PecSil</option>
+                  <option value="FOB">FOB — por conta da Pecsil</option>
                   <option value="SEM">Sem frete</option>
                 </select>
               </div>

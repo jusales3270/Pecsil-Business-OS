@@ -1,6 +1,6 @@
 # Ligar a leitura de e-mail do CRM (Microsoft 365)
 
-> Para quem administra o Microsoft 365 da PecSil. São 5 passos, feitos uma vez.
+> Para quem administra o Microsoft 365 da Pecsil. São 5 passos, feitos uma vez.
 > Ao final, o Business OS passa a ler a caixa comercial e a registrar os pedidos
 > e cobranças que chegam por e-mail.
 >
@@ -30,7 +30,7 @@ divulgado aos clientes.
 ## Passo 2 — Registrar o aplicativo no Entra ID
 
 1. Entra ID → **Registros de aplicativo** → **Novo registro**.
-2. Nome: `PecSil Business OS — E-mail`. Contas: **somente neste diretório**.
+2. Nome: `Pecsil Business OS — E-mail`. Contas: **somente neste diretório**.
    Sem URI de redirecionamento (não há login de usuário).
 3. Guardar da tela **Visão geral**: **ID do aplicativo (cliente)** e **ID do diretório (locatário)**.
 4. **Certificados e segredos** → **Novo segredo do cliente** → validade de 24 meses.
@@ -54,7 +54,7 @@ Connect-ExchangeOnline
 # ATENÇÃO: os dois ids saem da página "Aplicativos empresariais" (não de
 # "Registros de aplicativo", que mostra outro Object Id).
 New-ServicePrincipal -AppId <ID do aplicativo> -ObjectId <Object Id do aplicativo empresarial> `
-  -DisplayName "PecSil Business OS - E-mail"
+  -DisplayName "Pecsil Business OS - E-mail"
 
 # 3.2 — grupo com a caixa comercial, e escopo em cima dele.
 New-DistributionGroup -Name "BOS-Caixa-Comercial" -Type Security `
@@ -79,8 +79,8 @@ New-ManagementRoleAssignment -App <ID do aplicativo> -Role "Application Mail.Rea
 **Conferir antes de sair** (deve mostrar `InScope: True` só onde é esperado):
 
 ```powershell
-Test-ServicePrincipalAuthorization -Identity "PecSil Business OS - E-mail" -Resource comercial@pecsil.com.br | Format-Table
-Test-ServicePrincipalAuthorization -Identity "PecSil Business OS - E-mail" -Resource <outra caixa qualquer> | Format-Table
+Test-ServicePrincipalAuthorization -Identity "Pecsil Business OS - E-mail" -Resource comercial@pecsil.com.br | Format-Table
+Test-ServicePrincipalAuthorization -Identity "Pecsil Business OS - E-mail" -Resource <outra caixa qualquer> | Format-Table
 ```
 
 A segunda chamada precisa dar **False** em tudo. Se der True, ainda existe
@@ -117,7 +117,7 @@ Ainda no Coolify, na aplicação do Business OS, **Scheduled Tasks** → nova ta
   ```
 
 A chamada é feita **por dentro do contêiner**, em `localhost`. Isso é
-deliberado: a porta 443 da PecSil oscila, e a entrada de e-mail não pode
+deliberado: a porta 443 da Pecsil oscila, e a entrada de e-mail não pode
 depender dela.
 
 ---

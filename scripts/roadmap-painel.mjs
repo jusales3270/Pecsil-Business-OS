@@ -88,7 +88,7 @@ const pill = (sit) => `<span class="pill s-${slug(sit)}">${esc(sit)}</span>`;
 const NOME_MARCO = { '1': 'Marco 1 · GRV desligado', '2': 'Marco 2 · Pronta para escalar', '+': 'Fora do caminho crítico' };
 const DESC_MARCO = {
   '1': 'Uma semana inteira de pedidos, OS, notas, compras, estoque e financeiro só pela plataforma e pela Forja.',
-  '2': 'Uma segunda empresa de teste criada do zero, sem nenhum código ou texto da PecSil fixo.',
+  '2': 'Uma segunda empresa de teste criada do zero, sem nenhum código ou texto da Pecsil fixo.',
   '+': 'Melhorias de valor que entram quando abre uma frente livre.',
 };
 
@@ -112,7 +112,7 @@ const cartaoItem = (i) => `<li class="item" data-marco="${esc(i.marco)}" data-gr
   </div>
 </li>`;
 
-const html = `<title>Roadmap PecSil</title>
+const html = `<title>Roadmap Pecsil</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -214,7 +214,7 @@ footer{color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);padd
 
 <div class="wrap">
   <header class="topo">
-    <span class="eyebrow">PecSil Business OS + Forja · atualizado em ${esc(atualizado)}</span>
+    <span class="eyebrow">Pecsil Business OS + Forja · atualizado em ${esc(atualizado)}</span>
     <h1>Roadmap único</h1>
     <p>Uma linha só até a plataforma pronta: primeiro desligar o GRV, depois ficar pronta para outra empresa. Cada item tem a nota de prioridade abaixo; mudar a ordem é mudar uma nota.</p>
     <div class="formula"><b>Nota = (V + 2·D) ÷ E</b> V valor · D destrava o marco · E semanas · R risco (R3 só entra com a dependência resolvida)</div>

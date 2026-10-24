@@ -1,4 +1,4 @@
-# Plano da SARA central — o "Jarvis" da PecSil (E7)
+# Plano da SARA central — o "Jarvis" da Pecsil (E7)
 
 > Etapa E7 do plano "o que absorver da LIA/TOTVS" (ROADMAP I-19). Desenho das duas camadas: [PLANO-SARA §0](PLANO-SARA.md).
 > Onde ela mora: War Room › Conselho ([PLANO-WAR-ROOM-CEREBRO §4](PLANO-WAR-ROOM-CEREBRO.md)).
@@ -187,7 +187,7 @@ O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor d
   - instrução de brasileira nativa na sessão (pronúncia e entonação paulistanas, sem sotaque estrangeiro);
   - a voz passa a vir de `XAI_VOZ_SARA`, com a luna como padrão.
 - **A solução de raiz:** uma voz personalizada da xAI (`POST /v1/custom-voices`, `language: pt-BR`, gravação de até 120 s de uma brasileira nativa, com autorização por escrito), criada com `scripts/criar-voz-sara.mjs`. Ela vale para o Realtime, as ligações e o TTS do WhatsApp.
-- **Amostras para comparar:** `Desktop/PecSil - SARA ações/Sotaque da voz (comparar)`.
+- **Amostras para comparar:** `Desktop/Pecsil - SARA ações/Sotaque da voz (comparar)`.
 
 ## 4d. Personalidade (proprietário, 23/10/2026)
 

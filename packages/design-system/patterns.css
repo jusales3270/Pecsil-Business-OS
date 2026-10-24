@@ -5537,7 +5537,7 @@ button.holiday-row:hover {
   .access-matrix-row { grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
 }
 
-/* Novo usuário: colaborador da PecSil ou terceiro. */
+/* Novo usuário: colaborador da Pecsil ou terceiro. */
 .access-kind {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -9210,3 +9210,40 @@ a.doc-abrir { text-decoration: none; }
   .wa-qr > button { grid-column: auto; justify-self: center; }
   .wa-teste { grid-template-columns: 1fr; }
 }
+/* As duas listas de números (interna e externa). */
+.wa-listas { display: flex; flex-direction: column; gap: var(--sp-3); padding-top: var(--sp-4); border-top: 1px solid var(--border-subtle, color-mix(in srgb, var(--text-primary) 10%, transparent)); }
+.wa-listas h3 { margin: 0; font-size: var(--fs-md, var(--fs-sm)); }
+.wa-listas > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.wa-listas h2 { margin: 0; font-size: var(--fs-lg); }
+.wa-listas > header small { display: block; margin-top: 4px; color: var(--text-secondary); font-size: var(--fs-sm); }
+.wa-listas-nota { margin: 0; color: var(--text-secondary); font-size: var(--fs-sm); max-width: 90ch; }
+.wa-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-2) var(--sp-3); align-items: end; padding: var(--sp-4); border-radius: 14px; background: var(--bg-subtle); }
+.wa-form > b { grid-column: 1 / -1; font-size: var(--fs-sm); }
+.wa-form label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--text-secondary); position: relative; }
+.wa-form input, .wa-form select { min-height: 38px; padding: 8px 10px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--text-primary) 15%, transparent); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.wa-form .wa-obs { grid-column: 1 / -1; }
+.wa-form .wa-acoes { grid-column: 1 / -1; justify-content: flex-end; }
+.wa-vinculo ul { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; margin: 4px 0 0; padding: 4px; list-style: none; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent); background: var(--bg-surface-raised); box-shadow: 0 10px 24px rgba(10, 14, 24, .18); }
+.wa-vinculo li button { width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-primary); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
+.wa-vinculo li button:hover { background: var(--bg-hover); }
+.wa-vinculo li small { color: var(--text-muted); }
+.wa-ligado { color: var(--accent-green); font-size: var(--fs-xs); }
+.wa-tabela { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.wa-tabela th, .wa-tabela td { padding: 8px var(--sp-3); border-bottom: 1px solid var(--border-subtle, color-mix(in srgb, var(--text-primary) 8%, transparent)); text-align: left; vertical-align: middle; white-space: nowrap; color: var(--text-primary); }
+.wa-tabela td:first-child { font-variant-numeric: tabular-nums; }
+.wa-tabela thead th { background: var(--bg-subtle); font-size: var(--fs-micro); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+.wa-tabela tr.inativo td { color: var(--text-muted); }
+.wa-tabela td small { color: var(--text-muted); }
+.wa-linha-acoes { display: flex; justify-content: flex-end; gap: 4px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* Vários números (canais): cada cartão com departamento, SARA responsável e descrição. */
+.wa-canal.inativo { opacity: .75; }
+.wa-canal header h2 small.wa-depto { display: inline; margin: 0; font-size: var(--fs-sm); font-weight: 500; color: var(--text-secondary); }
+.wa-canal-info { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 0; font-size: var(--fs-sm); color: var(--text-secondary); max-width: 90ch; }
+.wa-canal-info b { color: var(--text-primary); font-weight: 600; }
+.wa-falta { color: var(--accent-amber); font-style: normal; }
+.wa-canal-estado { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.wa-confirmar { padding: 10px 12px; border-radius: 12px; background: var(--bg-subtle); }
+.wa-form textarea { min-height: 38px; padding: 8px 10px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--text-primary) 15%, transparent); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); resize: vertical; }
+.wa-form-canal { margin-bottom: var(--sp-4); }
+

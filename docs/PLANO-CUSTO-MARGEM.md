@@ -5,7 +5,7 @@
 > Documento de referência. Nenhuma etapa começa sem a anterior cumprir o critério
 > de aceite, e nenhuma decisão da seção 3 muda sem registro na seção 8.
 >
-> Criado em 25/09/2026 · Dono: proprietário da PecSil · Execução: Claude
+> Criado em 25/09/2026 · Dono: proprietário da Pecsil · Execução: Claude
 > Origem: estudo do case SP Alumínio (extrusora, ~R$ 90 mi/ano), em que o ganho veio
 > de medir custo por produto e margem por cliente, e não de ferramenta.
 
@@ -48,12 +48,12 @@ custo; e o salário (necessário ao custo de mão de obra) não está em lugar n
 
 ## 3. Decisões de negócio (antes de qualquer código)
 
-Estas decisões são da PecSil. O Claude prepara as opções e a simulação; o
+Estas decisões são da Pecsil. O Claude prepara as opções e a simulação; o
 proprietário decide e registra na seção 8.
 
 | # | Decisão | Por que trava | Quem decide |
 |---|---|---|---|
-| D1 | **Plano de contas e centros de custo** da PecSil (estrutura e nomes) | Sem eles, nenhum custo tem onde ser classificado | Ana (Financeiro) + contabilidade |
+| D1 | **Plano de contas e centros de custo** da Pecsil (estrutura e nomes) | Sem eles, nenhum custo tem onde ser classificado | Ana (Financeiro) + contabilidade |
 | D2 | **Modelo de custo-hora de máquina:** o que entra (depreciação, energia, manutenção, ferramental) e como se calcula por máquina ou por etapa | Horas do Forja sem custo não viram dinheiro | Rafael (Produção) + Ana (Financeiro) |
 | D3 | **Custo de mão de obra:** onde fica o salário (RH ou Financeiro, o "item 3" pendente), quem vê e como vira custo-hora por centro | Sem isso, o maior custo da OS fica fora | Rosana (RH) + Ana (Financeiro) |
 | D4 | **Rateio do indireto:** administração, fundição, qualidade e manutenção, e por qual critério (hora-máquina, peso, receita) | Decide se a margem é bruta ou de contribuição | Ana (Financeiro) + contabilidade |

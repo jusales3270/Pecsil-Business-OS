@@ -65,7 +65,7 @@ export const TEMAS: Record<string, Tema> = {
     exemplos: "o que é a regra 3-2-1 de backup; como ligar o religamento automático na BIOS; diferença entre nobreak online e interativo; como calcular a autonomia de um nobreak; o que é VLAN; como funciona o failover de link; o que a LGPD pede de segurança; por que um contêiner do Docker reinicia sozinho; como ver o disco cheio no Linux; como configurar o NUT com o nobreak; impressora de rede some da rede; como testar a restauração de um backup do Postgres",
     // TI é a exceção da lista "órgão oficial ou entidade do setor" (proprietário, 19/10/2026): a fonte
     // de verdade em infraestrutura é a documentação de quem faz o sistema ou o equipamento. A lista
-    // continua fechada: CERT.br/NIC.br e governo (LGPD), sistemas e plataformas que a PecSil usa,
+    // continua fechada: CERT.br/NIC.br e governo (LGPD), sistemas e plataformas que a Pecsil usa,
     // rede, servidores, nobreak, impressoras, monitoramento e acesso remoto, e o CNC das máquinas.
     dominios: [
       ...GOV, "cert.br", "nic.br",

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# Aplica as migrations no Supabase da PecSil.
+# Aplica as migrations no Supabase da Pecsil.
 #
 # Lê PECSIL_DB_PASSWORD do .env.local — a senha nunca é passada por argumento,
 # para não ficar no histórico do shell nem visível em `ps`.

@@ -40,7 +40,7 @@ const args = process.argv.slice(2);
 const arg = (flag) => { const i = args.indexOf(flag); return i >= 0 && args[i + 1] ? args[i + 1] : null; };
 const apply = args.includes("--apply");
 const arquivo = (arg("--arquivo") ?? "~/Downloads/FORNECEDORES.xlsx").replace(/^~/, homedir());
-const relatorio = (arg("--relatorio") ?? "~/Desktop/PecSil - Fornecedores do GRV (conferência).csv").replace(/^~/, homedir());
+const relatorio = (arg("--relatorio") ?? "~/Desktop/Pecsil - Fornecedores do GRV (conferência).csv").replace(/^~/, homedir());
 
 if (!existsSync(arquivo)) { console.error(`Planilha não encontrada: ${arquivo}`); process.exit(1); }
 const [cabeca, ...resto] = lerXlsx(readFileSync(arquivo));

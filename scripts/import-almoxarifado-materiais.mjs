@@ -47,12 +47,12 @@ const args = process.argv.slice(2);
 const arg = (flag) => { const i = args.indexOf(flag); return i >= 0 && args[i + 1] ? args[i + 1] : null; };
 const apply = args.includes("--apply");
 const dir = (arg("--dir") ?? "~/Downloads").replace(/^~/, homedir());
-const relatorio = (arg("--relatorio") ?? "~/Desktop/PecSil - Materiais do GRV (pendências).csv").replace(/^~/, homedir());
+const relatorio = (arg("--relatorio") ?? "~/Desktop/Pecsil - Materiais do GRV (pendências).csv").replace(/^~/, homedir());
 const ARQUIVOS = arg("--arquivos")?.split(",").map((s) => s.trim()).filter(Boolean)
   ?? ["MATERIA PRIMA.xlsx", "EMBALAGEM.xlsx", "PRODUTO INTERMEDIÁRIO.xlsx", "MATERIAL DE USO E CONSUMO.xlsx"];
 const HOJE = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
-// Decisão A2 (por empresa; aqui, a da PecSil).
+// Decisão A2 (por empresa; aqui, a da Pecsil).
 const REGRAS = {
   familiasComEstoque: new Set(["materia_prima", "embalagem", "produto_intermediario"]),
   gruposComEstoque: new Set(["EPI", "PRODUÇÃO"]),

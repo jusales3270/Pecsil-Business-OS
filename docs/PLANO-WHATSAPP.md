@@ -20,13 +20,20 @@ tem de avisar justamente quando o nosso servidor cai; não pode depender de nada
 
 - **Credencial:** quem fala com a SARA pelo WhatsApp é a pessoa do cadastro, com as permissões dela (a mesma sessão
   que as guias usam). Número sem pessoa ligada recebe só a resposta padrão de que o número não está cadastrado.
-- **Número confirmado pela própria pessoa:** ela informa o número em "Minha conta", recebe um código de 6 dígitos
-  pelo WhatsApp e digita o código na plataforma. Só então o número passa a valer (aceite registrado).
+- **Lista fechada de números (decisão do proprietário, 24/10):** só os números cadastrados à mão em
+  Fundação › WhatsApp, cada um ligado a um usuário da plataforma, falam com a SARA. Mensagem de qualquer outro
+  número é **ignorada em silêncio**: a SARA não responde, não marca como lida e não mostra "digitando". Fica só a
+  contagem (data, hora e os 4 últimos dígitos, sem o conteúdo), para o proprietário ver se alguém tentou.
+  Grupos são sempre ignorados.
+- **A credencial vem do cadastro:** o número identifica o usuário e a SARA responde com a sessão e as permissões
+  dele, como na plataforma. Usuário desativado ou com acesso vencido: o número para de valer sozinho.
 - **Chip interno só com quem aceitou:** volume baixo, sem disparo em massa e sem contato de fora. O WhatsApp Web
   automatizado é cliente não oficial e o número pode ser banido sem recurso; esta é a proteção.
 - **Tudo auditado:** cada mensagem que entra e sai fica registrada (quem, quando, tipo, ligação com a conversa da
   SARA e com a ação). O conteúdo segue as regras da SARA: nada de CPF, saúde ou folha em mensagem.
-- **Horário silencioso** (P-06) para alertas; a conversa iniciada pela pessoa é respondida a qualquer hora.
+- **Horário silencioso** (P-06, decidido em 24/10): nenhum alerta sai entre 20h e 7h nem aos domingos; o que surgir
+  vai junto no primeiro envio do horário seguinte. A conversa iniciada pela pessoa é respondida a qualquer hora.
+  O alerta de infraestrutura do vigia (T-03) não segue essa regra (sai pela Meta).
 - **Nenhum dado da empresa sai por canal que a pessoa não pode ver:** a SARA só manda o que a credencial da pessoa
   permite ver, como na plataforma.
 
@@ -102,7 +109,7 @@ A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está 
 | # | Etapa | Entrega | Portão |
 |---|---|---|---|
 | W1 | Canal | Evolution API + Postgres + Redis no Coolify (rede interna); chip conectado por QR em **Fundação › WhatsApp** (estrutura da plataforma, só o proprietário): estado da conexão, QR Code, desconectar e envio de teste; conferência do formato de áudio | Memória do servidor medida; o proprietário lê o QR com o chip |
-| W2 | Número da pessoa e alertas internos | Número confirmado por código em "Minha conta"; quem quer receber cada aviso; alertas da plataforma e da Forja (P-06) com horário silencioso; auditoria das mensagens | W1 |
+| W2 | Vários números, listas e alertas internos | **Vários números da plataforma** (cada um uma instância da Evolution): nome, departamento, descrição do que atende e **SARA responsável**; conectar pelo QR, teste, desconectar, desativar e remover. Em cada número, duas listas fechadas: **Comunicação interna** (número + usuário, que precisa ter a SARA do número) e **Comunicação externa** (número + nome + fornecedor/cliente/outro, com vínculo opcional ao cadastro); ativar/desativar, remover, boas-vindas opcional e auditoria (migração 202610240002); alertas da plataforma e da Forja (P-06) com horário silencioso (20h–7h e domingo); quais avisos vão ao WhatsApp: **a decidir** | W1 |
 | W3 | SARA pelo WhatsApp | Entrada pelo webhook, identificação da pessoa, a SARA da área certa (ou a central, para quem tem) com a sessão dela, texto com texto e áudio com áudio (§4), Permitir por link | W2 |
 | W4 | Confirmar pelo WhatsApp e envios da central | Marca "pode confirmar pelo WhatsApp" no quadro de limites (§5); documentos em PDF e mensagens de voz da SARA central para pessoas da empresa, com o Permitir | W3; áreas liberam as ações |
 | W5 | Quem é de fora | Número na API oficial da Meta (instância `WHATSAPP-BUSINESS`), modelos de mensagem aprovados, convite e cobrança a fornecedores, mensagens a clientes | Número oficial e conta Meta Business verificada |
@@ -118,5 +125,9 @@ A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está 
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 24/10/2026 | Vários números (pedido do proprietário): cada número com departamento, descrição e SARA responsável (ex.: um só para o Comercial, outro para o atendimento a clientes, outro para o Fiscal); as listas passam a ser de cada número; o chip atual vira o primeiro número | Proprietário |
+| 24/10/2026 | Duas listas (pedido do proprietário): Comunicação interna (funcionários, ligados ao usuário) e Comunicação externa (fornecedores, clientes e outros, para os envios e respostas autorizadas da W5). Um número vale para uma lista só | Proprietário |
+| 24/10/2026 | Lista fechada de números cadastrada à mão pelo proprietário, ligada ao usuário (no lugar do número confirmado pela própria pessoa); número fora da lista é ignorado em silêncio. Horário silencioso 20h–7h e domingo. Quais avisos vão ao WhatsApp: a decidir | Proprietário |
+| 24/10/2026 | **W1 concluída:** Deploy feito pelo proprietário; chip interno conectado pelo QR em Fundação › WhatsApp e mensagem de teste recebida no celular dele. A v2.3.7 conectou sem problema de protocolo | Proprietário |
 | 24/10/2026 | W1: Evolution API **v2.3.7** instalada no Coolify (serviço `evolution-api-whatsapp`, só rede interna, tetos de memória 1 GB / 256 MB / 128 MB, telemetria desligada). A 2.4.0 ainda é versão de teste; a 2.3.7 não pede ativação. A tela do canal fica na **Fundação › WhatsApp** (decisão do proprietário: é estrutura, não TI) | Proprietário |
 | 24/10/2026 | Plano criado: Evolution API v2; chip interno existente; ativação aceita; meio-termo para confirmar ações; resposta no mesmo formato da mensagem (texto ou áudio) | Proprietário |

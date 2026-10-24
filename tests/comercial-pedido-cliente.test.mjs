@@ -59,7 +59,7 @@ test("pedido do cliente: código da peça e candidatos por de-para, artigo, tipo
   assert.equal(forma[0].motivo, "artigo");
   assert.match(forma[0].explicacao, /artigo 563916, tipo forma \(BM\), material CI-882/);
   assert.equal(candidatos({ descricao: "BF.563916.08C300.NI806", codigoMaterial: null }, produtos)[0].produto.id, "fb");
-  // De-para exato vence, mesmo com o artigo do cliente diferente do da PecSil (563422 → 504010).
+  // De-para exato vence, mesmo com o artigo do cliente diferente do da Pecsil (563422 → 504010).
   const dp = candidatos({ descricao: "BM.563422.08C50Y.CI882", codigoMaterial: null }, produtos);
   assert.equal(dp.length, 1);
   assert.equal(dp[0].produto.id, "skol");

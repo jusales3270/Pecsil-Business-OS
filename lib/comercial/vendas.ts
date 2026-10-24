@@ -13,7 +13,7 @@ export const SITUACOES_ORCAMENTO: Record<string, string> = {
   rascunho: "Rascunho", enviado: "Enviado ao cliente", ganho: "Ganho", perdido: "Perdido", cancelado: "Cancelado",
 };
 
-export const MODALIDADES_FRETE: Record<number, string> = { 0: "Por conta da PecSil (CIF)", 1: "Por conta do cliente (FOB)", 2: "Por conta de terceiros", 9: "Sem frete" };
+export const MODALIDADES_FRETE: Record<number, string> = { 0: "Por conta da Pecsil (CIF)", 1: "Por conta do cliente (FOB)", 2: "Por conta de terceiros", 9: "Sem frete" };
 
 const txt = (v: unknown, max: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 const opc = (v: unknown, max: number) => txt(v, max) || null;

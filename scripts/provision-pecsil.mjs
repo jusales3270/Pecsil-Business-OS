@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Provisiona o proprietário e a organização no Supabase da PecSil.
+ * Provisiona o proprietário e a organização no Supabase da Pecsil.
  *
  *   1. cria o usuário proprietário no Supabase Auth (idempotente)
  *   2. roda o bootstrap: organização, papéis, catálogo de módulos, vínculo

@@ -351,7 +351,7 @@ function CostCentersTab({ notify }: { notify: (message: string) => void }) {
     <Card className="md-card">
       <div className="md-toolbar">
         <p className="md-hint">
-          Centros de custo servem ao Financeiro e, quando o processo definir, ao Compras. Crie aqui os centros da PecSil.
+          Centros de custo servem ao Financeiro e, quando o processo definir, ao Compras. Crie aqui os centros da Pecsil.
         </p>
         {canEdit && <span><Button onClick={() => setEditing("new")}>+ Novo centro</Button></span>}
       </div>

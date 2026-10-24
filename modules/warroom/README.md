@@ -1,6 +1,6 @@
 # War Room
 
-O conselho da PecSil ([docs/PLANO-WAR-ROOM-CEREBRO.md](../../docs/PLANO-WAR-ROOM-CEREBRO.md)).
+O conselho da Pecsil ([docs/PLANO-WAR-ROOM-CEREBRO.md](../../docs/PLANO-WAR-ROOM-CEREBRO.md)).
 
 - **Segundo Cérebro** (etapa G2): o grafo da empresa, desenhado com sigma.js e graphology (WebGL), com o
   ForceAtlas2 num worker. Grupos com cor, busca, isolar, dependências, caminho, expandir ligação nos

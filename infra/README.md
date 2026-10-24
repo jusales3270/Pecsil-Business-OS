@@ -4,7 +4,7 @@ Runbook para fechar o perímetro e habilitar a integração real. Siga na ordem.
 
 ## Topologia de produção (Coolify) — setembro/2026
 
-A plataforma inteira roda no Coolify do servidor da PecSil. **A única porta
+A plataforma inteira roda no Coolify do servidor da Pecsil. **A única porta
 pública é o Business OS, em HTTPS.** O Supabase não é publicado para fora.
 
 ```

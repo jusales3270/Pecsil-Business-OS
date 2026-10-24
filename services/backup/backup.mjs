@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Backup externo da PecSil (T-02 = B-02, docs/BACKUP-EXTERNO.md).
+ * Backup externo da Pecsil (T-02 = B-02, docs/BACKUP-EXTERNO.md).
  *
  * Todo dia, no horário BACKUP_HORA (Brasília):
  *   1. pg_dump do banco da plataforma (papel backup_leitura, só leitura) e, se
  *      configurado, do banco da Forja;
  *   2. se configurado, os arquivos do Storage da plataforma (menos os buckets
  *      excluídos — os desenhos da Forja ficam fora, decisão de 18/10);
- *   3. cada um CRIPTOGRAFADO com age (chave pública da PecSil) antes de sair;
+ *   3. cada um CRIPTOGRAFADO com age (chave pública da Pecsil) antes de sair;
  *   4. envio ao bucket "backups" do projeto do vigia (o usuário do backup só grava);
  *   5. aviso ao vigia (sem aviso por 26 h = incidente e alerta).
  *

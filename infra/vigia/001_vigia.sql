@@ -1,5 +1,5 @@
 -- ============================================================
--- Vigia externo da PecSil (T-03, docs/PLANO-TI.md §3.1)
+-- Vigia externo da Pecsil (T-03, docs/PLANO-TI.md §3.1)
 -- ============================================================
 -- Roda num projeto Supabase NA NUVEM, separado do Supabase do servidor da
 -- fábrica: o monitor não pode ficar no servidor que ele vigia.
@@ -176,7 +176,7 @@ begin
   on conflict do nothing returning id into inc;
   if inc is not null then
     perform public.vigia_enfileirar(inc, 'caiu',
-      format('PecSil: %s fora do ar desde %s. Provável: %s.', a.nome,
+      format('Pecsil: %s fora do ar desde %s. Provável: %s.', a.nome,
              public.vigia_hora(coalesce(case when a.tipo = 'sinal' then a.ultimo_sinal end, now())), p_causa));
   end if;
 end $$;
@@ -195,7 +195,7 @@ begin
    where alvo = p_alvo and fim is null returning * into i;
   if i.id is not null then
     perform public.vigia_enfileirar(i.id, 'voltou',
-      format('PecSil: %s voltou às %s, depois de %s fora. %s.', a.nome, public.vigia_hora(now()),
+      format('Pecsil: %s voltou às %s, depois de %s fora. %s.', a.nome, public.vigia_hora(now()),
              public.vigia_duracao(extract(epoch from now() - i.inicio)), i.causa));
   end if;
 end $$;
@@ -401,7 +401,7 @@ select cron.unschedule(jobid) from cron.job where jobname in ('vigia-minuto', 'v
 select cron.schedule('vigia-minuto', '* * * * *', 'select public.vigia_minuto()');
 select cron.schedule('vigia-limpar', '0 6 * * *', 'select public.vigia_limpar()');
 
--- Alvos da PecSil (o sinal do servidor e os dois testes de fora).
+-- Alvos da Pecsil (o sinal do servidor e os dois testes de fora).
 insert into public.vigia_alvos (id, nome, tipo, url, aceita, tolerancia_s, falhas_para_cair) values
   ('servidor-pecsil', 'Servidor da fábrica', 'sinal', null, '2xx', 180, 2),
   ('link-fabrica', 'Internet da fábrica', 'http', 'http://181.224.8.145/', 'qualquer', 180, 2),

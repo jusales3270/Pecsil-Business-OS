@@ -4,8 +4,20 @@
  * navegador). Aqui ficam as chamadas e as regras puras (número, estado), testadas sem a Evolution.
  */
 
-/** A instância do chip interno (WhatsApp Web). Quem é de fora fica para a API oficial (W5), em outra instância. */
+/** O primeiro chip (W1). Cada número da plataforma é uma instância (whatsapp_canais.instancia). */
 export const INSTANCIA_INTERNA = "pecsil-interno";
+
+/**
+ * Nome da instância de um canal novo, a partir do nome dado pelo proprietário: "Atendimento a cliente" →
+ * "pecsil-atendimento-a-cliente". Fixo depois de criado; se já existir, ganha -2, -3…
+ */
+export function nomeDeInstancia(nome: string, existentes: string[]): string {
+  const base = `pecsil-${String(nome).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32) || "canal"}`;
+  if (!existentes.includes(base)) return base;
+  for (let i = 2; ; i++) if (!existentes.includes(`${base}-${i}`)) return `${base}-${i}`;
+}
+const INSTANCIA = /^pecsil-[a-z0-9-]{2,40}$/;
+const conferir = (instancia: string) => { if (!INSTANCIA.test(instancia)) throw new ErroEvolution(400, "Instância inválida."); return instancia; };
 
 export type EstadoCanal = "sem_configuracao" | "fora_do_ar" | "sem_instancia" | "desconectado" | "aguardando_qr" | "conectado";
 export type Situacao = { estado: EstadoCanal; numero: string | null; nome: string | null; detalhe?: string };
@@ -70,50 +82,59 @@ export async function evolution<T = unknown>(c: Config, metodo: "GET" | "POST" |
 
 type Instancia = { name?: string; connectionStatus?: string; ownerJid?: string | null; profileName?: string | null };
 
-/** Situação do chip interno: configurado, de pé, com instância, conectado e com qual número. */
-export async function situacao(buscar: typeof fetch = fetch): Promise<Situacao> {
+/** Situação de um número: configurado, de pé, com instância, conectado e com qual número. */
+export async function situacao(instancia: string = INSTANCIA_INTERNA, buscar: typeof fetch = fetch): Promise<Situacao> {
   const c = configuracao();
   if (!c) return { estado: "sem_configuracao", numero: null, nome: null, detalhe: "Falta EVOLUTION_API_URL ou EVOLUTION_API_KEY no servidor." };
   let lista: Instancia[];
   try {
-    lista = await evolution<Instancia[]>(c, "GET", `/instance/fetchInstances?instanceName=${INSTANCIA_INTERNA}`, undefined, buscar);
+    lista = await evolution<Instancia[]>(c, "GET", `/instance/fetchInstances?instanceName=${conferir(instancia)}`, undefined, buscar);
   } catch (e) {
     if (e instanceof ErroEvolution && e.status === 404) return { estado: "sem_instancia", numero: null, nome: null };
     return { estado: "fora_do_ar", numero: null, nome: null, detalhe: e instanceof Error ? e.message.slice(0, 200) : "sem resposta" };
   }
-  const i = (Array.isArray(lista) ? lista : []).find((x) => x.name === INSTANCIA_INTERNA);
+  const i = (Array.isArray(lista) ? lista : []).find((x) => x.name === instancia);
   if (!i) return { estado: "sem_instancia", numero: null, nome: null };
   const estado = estadoDaConexao(i.connectionStatus);
   return { estado, numero: estado === "conectado" ? numeroLegivel(i.ownerJid) : null, nome: estado === "conectado" ? i.profileName ?? null : null };
 }
 
-/** Pede o QR Code para conectar o chip (cria a instância na primeira vez). Devolve a imagem em data URL. */
-export async function pedirQr(buscar: typeof fetch = fetch): Promise<{ qr: string | null; conectado: boolean }> {
+/** Pede o QR Code para conectar o número (cria a instância na primeira vez). Devolve a imagem em data URL. */
+export async function pedirQr(instancia: string = INSTANCIA_INTERNA, buscar: typeof fetch = fetch): Promise<{ qr: string | null; conectado: boolean }> {
   const c = configuracao();
   if (!c) throw new ErroEvolution(503, "Falta a configuração da Evolution no servidor.");
-  const atual = await situacao(buscar);
+  const atual = await situacao(conferir(instancia), buscar);
   if (atual.estado === "conectado") return { qr: null, conectado: true };
   if (atual.estado === "fora_do_ar") throw new ErroEvolution(503, `A Evolution não respondeu: ${atual.detalhe ?? ""}`.trim());
   if (atual.estado === "sem_instancia") {
     const r = await evolution<{ qrcode?: { base64?: string } }>(c, "POST", "/instance/create",
-      { instanceName: INSTANCIA_INTERNA, integration: "WHATSAPP-BAILEYS", qrcode: true, groupsIgnore: true, alwaysOnline: false, readMessages: false, syncFullHistory: false }, buscar);
+      { instanceName: instancia, integration: "WHATSAPP-BAILEYS", qrcode: true, groupsIgnore: true, alwaysOnline: false, readMessages: false, syncFullHistory: false }, buscar);
     if (r?.qrcode?.base64) return { qr: r.qrcode.base64, conectado: false };
   }
-  const r = await evolution<{ base64?: string }>(c, "GET", `/instance/connect/${INSTANCIA_INTERNA}`, undefined, buscar);
+  const r = await evolution<{ base64?: string }>(c, "GET", `/instance/connect/${instancia}`, undefined, buscar);
   return { qr: r?.base64 ?? null, conectado: false };
 }
 
-/** Desliga o chip da plataforma (o WhatsApp do celular segue normal; é só o "aparelho conectado" que sai). */
-export async function desconectar(buscar: typeof fetch = fetch): Promise<void> {
+/** Desliga o número da plataforma (o WhatsApp do celular segue normal; é só o "aparelho conectado" que sai). */
+export async function desconectar(instancia: string = INSTANCIA_INTERNA, buscar: typeof fetch = fetch): Promise<void> {
   const c = configuracao();
   if (!c) throw new ErroEvolution(503, "Falta a configuração da Evolution no servidor.");
-  await evolution(c, "DELETE", `/instance/logout/${INSTANCIA_INTERNA}`, undefined, buscar);
+  await evolution(c, "DELETE", `/instance/logout/${conferir(instancia)}`, undefined, buscar);
 }
 
-/** Mensagem de texto pelo chip interno. */
-export async function enviarTexto(numero: string, texto: string, buscar: typeof fetch = fetch): Promise<{ id: string | null }> {
+/** Apaga a instância na Evolution (ao remover o canal). Se ela não existir mais, segue. */
+export async function apagarInstancia(instancia: string, buscar: typeof fetch = fetch): Promise<void> {
   const c = configuracao();
   if (!c) throw new ErroEvolution(503, "Falta a configuração da Evolution no servidor.");
-  const r = await evolution<{ key?: { id?: string } }>(c, "POST", `/message/sendText/${INSTANCIA_INTERNA}`, { number: numero, text: texto }, buscar);
+  await evolution(c, "DELETE", `/instance/logout/${conferir(instancia)}`, undefined, buscar).catch(() => null);
+  try { await evolution(c, "DELETE", `/instance/delete/${instancia}`, undefined, buscar); }
+  catch (e) { if (!(e instanceof ErroEvolution && e.status === 404)) throw e; }
+}
+
+/** Mensagem de texto por um número da plataforma. */
+export async function enviarTexto(instancia: string, numero: string, texto: string, buscar: typeof fetch = fetch): Promise<{ id: string | null }> {
+  const c = configuracao();
+  if (!c) throw new ErroEvolution(503, "Falta a configuração da Evolution no servidor.");
+  const r = await evolution<{ key?: { id?: string } }>(c, "POST", `/message/sendText/${conferir(instancia)}`, { number: numero, text: texto }, buscar);
   return { id: r?.key?.id ?? null };
 }

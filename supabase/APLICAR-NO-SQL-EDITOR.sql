@@ -253,7 +253,7 @@ as $$
       when 'unit'       then g.entity_id is not null and g.entity_id = a.unit_id
       when 'department' then g.entity_id is not null and g.entity_id = a.department_id
       when 'team'       then g.entity_id is not null and g.entity_id = a.team_id
-      -- Escopo de MÓDULO: é assim que a PecSil organiza o acesso — a pessoa é
+      -- Escopo de MÓDULO: é assim que a Pecsil organiza o acesso — a pessoa é
       -- "Gestor do Financeiro", "Diretor do RH". Restringe os módulos de
       -- negócio (rh, financeiro, compras, ...) mas NÃO os serviços
       -- compartilhados da Fundação (core.*, platform.*): sem eles o usuário
