@@ -10,6 +10,7 @@ import { ModuleNavProvider, useModuleNav } from "../lib/module-nav-context";
 import { AuditoriaCentral } from "./components/auditoria-central";
 import { LinhaDeBase } from "./components/linha-de-base";
 import { Parados } from "./components/parados";
+import { WhatsappCanal } from "./components/whatsapp-canal";
 import { HrModule } from "./components/hr-module";
 import { UserManagement } from "./components/user-management";
 import { MasterDataView } from "./components/master-data";
@@ -29,7 +30,7 @@ import { ACCESS_CATALOG, ACCESS_LEVELS, LEVEL_LABELS, levelRank, type AccessGran
 import { usePwa } from "./components/pwa-provider";
 import { useInbox, type InboxItem } from "../lib/use-inbox";
 
-type View = "Visão Geral" | "Módulos" | "Pessoas e Acessos" | "Estrutura" | "Cadastros" | "Eventos" | "Sugestões da IA" | "Permissões e Segurança" | "Busca Corporativa" | "Documentos" | "Notificações" | "Parados" | "Auditoria" | "O que a SARA aprendeu" | "Linha de base" | "Banco e Autenticação" | "Configurações";
+type View = "Visão Geral" | "Módulos" | "Pessoas e Acessos" | "Estrutura" | "Cadastros" | "Eventos" | "Sugestões da IA" | "Permissões e Segurança" | "Busca Corporativa" | "Documentos" | "Notificações" | "Parados" | "Auditoria" | "O que a SARA aprendeu" | "Linha de base" | "Banco e Autenticação" | "WhatsApp" | "Configurações";
 
 type OperationalEvent = {
   id: number;
@@ -54,7 +55,7 @@ const nav: { label: View; icon: string }[] = [
   { label: "Permissões e Segurança", icon: "lock" },
   ...(BUSCA_CORPORATIVA_ATIVA ? [{ label: "Busca Corporativa" as View, icon: "search" }] : []),
   { label: "Documentos", icon: "file" }, { label: "Notificações", icon: "bell" }, { label: "Parados", icon: "clock" },
-  { label: "Auditoria", icon: "shield" }, { label: "O que a SARA aprendeu", icon: "spark" }, { label: "Linha de base", icon: "chart" }, { label: "Banco e Autenticação", icon: "database" }, { label: "Configurações", icon: "settings" },
+  { label: "Auditoria", icon: "shield" }, { label: "O que a SARA aprendeu", icon: "spark" }, { label: "Linha de base", icon: "chart" }, { label: "Banco e Autenticação", icon: "database" }, { label: "WhatsApp", icon: "chat" }, { label: "Configurações", icon: "settings" },
 ];
 
 /** Título e subtítulo que o cabeçalho exibe para cada área. Sempre presente:
@@ -76,6 +77,7 @@ const headerCopy: Record<View, [string, string]> = {
   "O que a SARA aprendeu": ["O que a SARA aprendeu", "Habilidades propostas, pedidos que ela ainda não atende e respostas que não agradaram"],
   "Linha de base": ["Linha de base", "Os números de antes da virada, para comparar o antes × depois"],
   "Banco e Autenticação": ["Banco e autenticação", "Fundação PostgreSQL, RLS e provisionamento"],
+  "WhatsApp": ["WhatsApp", "O canal da plataforma pelo chip interno: conexão, QR Code e teste"],
   "Configurações": ["Configurações", "Parâmetros centrais herdados por todos os módulos"],
 };
 
@@ -85,7 +87,7 @@ const LINHA_DE_BASE_AREAS: [string, "ver" | "operar" | "aprovar"][] = [
 ];
 
 /** Áreas exclusivas do proprietário: acessos de usuários, segurança e infraestrutura. */
-const OWNER_ONLY_VIEWS: View[] = ["Pessoas e Acessos", "Permissões e Segurança", "Banco e Autenticação", "Configurações"];
+const OWNER_ONLY_VIEWS: View[] = ["Pessoas e Acessos", "Permissões e Segurança", "Banco e Autenticação", "WhatsApp", "Configurações"];
 
 const viewPermissions: Partial<Record<View, string>> = {
   "Pessoas e Acessos": "core.people.view",
@@ -115,6 +117,7 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, React.ReactNode> = {
     grid: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
     modules: <><path d="m12 3 8 4-8 4-8-4 8-4Z"/><path d="m4 12 8 4 8-4M4 17l8 4 8-4"/></>,
+    chat: <><path d="M4 5h16v11H9l-5 4V5Z"/><path d="M8 9h8M8 12h5"/></>,
     users: <><circle cx="9" cy="8" r="3"/><path d="M3 20c0-4 2-6 6-6s6 2 6 6M16 5a3 3 0 0 1 0 6M17 14c3 .3 4 2.2 4 5"/></>,
     org: <><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/></>,
     file: <><path d="M6 3h8l4 4v14H6zM14 3v5h4M9 13h6M9 17h6"/></>,
@@ -649,7 +652,7 @@ function HomeContent() {
         const sara=area&&SARAS[area]?area:activeModuleId;
         return sara&&SARAS[sara]&&!SARAS[sara].central&&!deniedTarget?<SaraPainel key={sara} modulo={sara} abrirAoCarregar={abrirSara} abrirGuias={abrirGuias} navegar={(m,s)=>openModule(m,s)}/>:null;
       })()}
-      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={`${snapshot.loadedAt}-${moduleSection?.n??0}`} initialSection={moduleSection?.secao} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?<ModuloComColeta key={`${activeModuleId}-${moduleSection?.n??0}`} moduloId={activeModuleId} moduloNome={activeModule?.name??activeModuleId} access={access} notify={notify}>{renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined,initialSection:moduleSection?.secao})}</ModuloComColeta>:view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule} onOpenDocumentos={(busca)=>{change("Documentos");setBuscaDocumentos(busca)}}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Sugestões da IA"?<SugestoesIaView notify={notify}/>:view==="Documentos"?<DocumentosSetorView key={buscaDocumentos} notify={notify} buscaInicial={buscaDocumentos}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents} inbox={inbox.items} unread={inbox.unread} onOpen={openInboxItem} onMarkAll={()=>void inbox.markRead("all")}/>:view==="Parados"?<Parados abrir={(link)=>{const q=new URL(link,window.location.origin).searchParams;const m=q.get("module");if(m)openModule(m,q.get("secao")??undefined)}}/>:view==="Auditoria"?<AuditoriaCentral/>:view==="O que a SARA aprendeu"?<SaraAprendizado notify={notify}/>:view==="Linha de base"?<LinhaDeBase notify={notify}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
+      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={`${snapshot.loadedAt}-${moduleSection?.n??0}`} initialSection={moduleSection?.secao} people={snapshot.people} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?<ModuloComColeta key={`${activeModuleId}-${moduleSection?.n??0}`} moduloId={activeModuleId} moduloNome={activeModule?.name??activeModuleId} access={access} notify={notify}>{renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined,initialSection:moduleSection?.secao})}</ModuloComColeta>:view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule} onOpenDocumentos={(busca)=>{change("Documentos");setBuscaDocumentos(busca)}}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Sugestões da IA"?<SugestoesIaView notify={notify}/>:view==="Documentos"?<DocumentosSetorView key={buscaDocumentos} notify={notify} buscaInicial={buscaDocumentos}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents} inbox={inbox.items} unread={inbox.unread} onOpen={openInboxItem} onMarkAll={()=>void inbox.markRead("all")}/>:view==="Parados"?<Parados abrir={(link)=>{const q=new URL(link,window.location.origin).searchParams;const m=q.get("module");if(m)openModule(m,q.get("secao")??undefined)}}/>:view==="Auditoria"?<AuditoriaCentral/>:view==="O que a SARA aprendeu"?<SaraAprendizado notify={notify}/>:view==="Linha de base"?<LinhaDeBase notify={notify}/>:view==="WhatsApp"?<WhatsappCanal notify={notify}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
       <nav className="mobile-bottom-nav" aria-label="Navegação rápida móvel">
         <button
           type="button"

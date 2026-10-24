@@ -9189,3 +9189,24 @@ a.doc-abrir { text-decoration: none; }
 .aprendeu-custos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sp-3); min-width: 0; }
 .aprendeu-custos .aprendeu-tabela { min-width: 0; overflow-x: auto; }
 .aprendeu-custos :is(th, td).r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Fundação › WhatsApp (PLANO-WHATSAPP, W1): situação do chip, QR Code, teste e desconectar. */
+.wa-canal { display: flex; flex-direction: column; gap: var(--sp-4); margin-bottom: var(--sp-4); padding: var(--sp-5); border-radius: 18px; border: 1px solid var(--border-subtle, color-mix(in srgb, var(--text-primary) 10%, transparent)); background: var(--bg-surface); }
+.wa-canal header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.wa-canal h2 { margin: 0; font-size: var(--fs-lg); }
+.wa-canal header small { display: block; margin-top: 4px; color: var(--text-secondary); font-size: var(--fs-sm); }
+.wa-acoes { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.wa-acoes small { flex: 1 1 260px; color: var(--text-secondary); font-size: var(--fs-xs); }
+.wa-qr { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-4); align-items: start; }
+.wa-qr img { width: 240px; height: 240px; padding: 10px; border-radius: 14px; background: #fff; image-rendering: pixelated; }
+.wa-qr ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--text-secondary); font-size: var(--fs-sm); }
+.wa-qr > button { grid-column: 2; justify-self: start; }
+.wa-teste { display: grid; grid-template-columns: minmax(160px, 220px) minmax(200px, 1fr) auto; gap: var(--sp-2) var(--sp-3); align-items: end; }
+.wa-teste > b { grid-column: 1 / -1; font-size: var(--fs-sm); }
+.wa-teste label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.wa-teste input { min-height: 38px; padding: 8px 10px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--text-primary) 15%, transparent); background: var(--bg-inset); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+@media (max-width: 700px) {
+  .wa-qr { grid-template-columns: 1fr; justify-items: center; }
+  .wa-qr > button { grid-column: auto; justify-self: center; }
+  .wa-teste { grid-template-columns: 1fr; }
+}

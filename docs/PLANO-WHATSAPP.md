@@ -9,7 +9,7 @@ Forja e do Business OS) e o envio da SARA central (PLANO-MINDMASTER §3).
 |---|---|---|
 | 1 | Ferramenta | **Evolution API v2**, não a Evolution Go. Ela faz o WhatsApp Web (QR Code) e a API oficial da Meta (`WHATSAPP-BUSINESS`) na mesma interface; a Go só faz o WhatsApp Web, e o plano precisa dos dois. |
 | 2 | Número | **O chip de uso interno já existe.** Ele entra pelo WhatsApp Web. Quem é de fora (fornecedores e clientes) fica para um número na API oficial, mais tarde (W5). |
-| 3 | Ativação | **Aceita.** A ativação é com o e-mail e o telefone indicados pelo proprietário (guardados fora do repositório). O sinal a cada 5 minutos leva versão, contagem de mensagens, recursos ligados e o IP do servidor; não leva conteúdo, contatos nem números (documentação da Evolution; conferir o tráfego na W1). |
+| 3 | Ativação | **Aceita**, para quando a versão 2.4 (que pede ativação) for usada; a 2.3.7 instalada na W1 não pede. A ativação é com o e-mail e o telefone indicados pelo proprietário (guardados fora do repositório). O sinal a cada 5 minutos leva versão, contagem de mensagens, recursos ligados e o IP do servidor; não leva conteúdo, contatos nem números (documentação da Evolution; conferir o tráfego na W1). |
 | 4 | Ação pedida pelo WhatsApp | **Meio-termo.** Ação de baixo risco, com limite, pode ser confirmada no próprio WhatsApp; o resto vai como link para o Permitir da plataforma (§5). |
 | 5 | Formato da resposta | **A SARA responde no formato em que recebeu.** Texto vira texto; áudio vira áudio (§4). |
 
@@ -101,7 +101,7 @@ A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está 
 
 | # | Etapa | Entrega | Portão |
 |---|---|---|---|
-| W1 | Canal | Evolution API + Postgres + Redis no Coolify (rede interna), ativação, chip conectado por QR numa tela de TI (estado da conexão, reconectar), envio de teste, conferência do tráfego da ativação e do formato de áudio | Memória do servidor medida; o proprietário lê o QR com o chip |
+| W1 | Canal | Evolution API + Postgres + Redis no Coolify (rede interna); chip conectado por QR em **Fundação › WhatsApp** (estrutura da plataforma, só o proprietário): estado da conexão, QR Code, desconectar e envio de teste; conferência do formato de áudio | Memória do servidor medida; o proprietário lê o QR com o chip |
 | W2 | Número da pessoa e alertas internos | Número confirmado por código em "Minha conta"; quem quer receber cada aviso; alertas da plataforma e da Forja (P-06) com horário silencioso; auditoria das mensagens | W1 |
 | W3 | SARA pelo WhatsApp | Entrada pelo webhook, identificação da pessoa, a SARA da área certa (ou a central, para quem tem) com a sessão dela, texto com texto e áudio com áudio (§4), Permitir por link | W2 |
 | W4 | Confirmar pelo WhatsApp e envios da central | Marca "pode confirmar pelo WhatsApp" no quadro de limites (§5); documentos em PDF e mensagens de voz da SARA central para pessoas da empresa, com o Permitir | W3; áreas liberam as ações |
@@ -118,4 +118,5 @@ A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está 
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 24/10/2026 | W1: Evolution API **v2.3.7** instalada no Coolify (serviço `evolution-api-whatsapp`, só rede interna, tetos de memória 1 GB / 256 MB / 128 MB, telemetria desligada). A 2.4.0 ainda é versão de teste; a 2.3.7 não pede ativação. A tela do canal fica na **Fundação › WhatsApp** (decisão do proprietário: é estrutura, não TI) | Proprietário |
 | 24/10/2026 | Plano criado: Evolution API v2; chip interno existente; ativação aceita; meio-termo para confirmar ações; resposta no mesmo formato da mensagem (texto ou áudio) | Proprietário |
