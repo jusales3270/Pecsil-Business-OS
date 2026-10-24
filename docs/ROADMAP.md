@@ -72,7 +72,6 @@ abaixo, em vez de perguntar por fora.
 | Decisão | Quem decide | Destrava | Origem |
 |---|---|---|---|
 | Reenviar o certificado A1 e homologar a NF-e — "não" em 16/10; reabrir quando o Fiscal quiser | Jefferson (Fiscal) | C-09 → C-10, C-12, C-13 | FISCAL-NFE |
-| Número de WhatsApp dedicado (chip) para os alertas da plataforma e da Forja | Proprietário (recurso) | B-04, P-06 | 16/10 |
 | Duas OS por item (fundição e usinagem)? | Rafael | C-13, P-08 | PLANO-ORCAMENTO, O1 |
 | A3 contagem · A5 saída no balcão · A9 reposição · A10 locais | Henrique | A-02, A-03, A-05, A-06 | PLANO-ALMOXARIFADO |
 | A4 custo do estoque (médio ponderado) | Ana | A-02 | PLANO-ALMOXARIFADO |
@@ -177,7 +176,7 @@ Marco: **1**, **2** ou **+**.
 | B-01 | Recuperar o SSH e fechar o perímetro (portas do Supabase, porta 80 da Forja) | 1 | 5 | 3 | 1 | 3 | 11,0 | travado | Senha SSH | INFRA-SSH/PERIM; BP Fase 0 |
 | B-02 | Backup externo do banco e da Forja, com restore testado | 1 | 5 | 4 | 1 | 2 | 13,0 | no ar (= T-02, 19/10; Forja ainda fora) | Papel backup_leitura; projeto na nuvem | INFRA-BACKUP; Forja H3; BACKUP-EXTERNO |
 | B-03 | Cofre de segredos e troca das chaves | 1 | 4 | 2 | 1,5 | 2 | 5,3 | na fila | B-01 | VIS 6.3a |
-| B-04 | Monitoramento com alertas pelo WhatsApp (canal compartilhado com o P-06) | 1 | 4 | 3 | 0,5 | 2 | 20,0 | decisão | Número de WhatsApp dedicado | INFRA-MON |
+| B-04 | Canal de WhatsApp pela Evolution API (chip interno pelo WhatsApp Web; quem é de fora pela API oficial na W5): alertas internos, SARA pelo WhatsApp (texto com texto, áudio com áudio) e confirmação pelo WhatsApp só do que a área liberar | 1 | 4 | 3 | 0,5 | 2 | 20,0 | próximo (W1: medir a memória do servidor e conectar o chip) | — | [PLANO-WHATSAPP.md](PLANO-WHATSAPP.md) |
 | B-05 | VPN: só o Business OS público | 1 | 4 | 2 | 1 | 3 | 8,0 | travado | Roteador | INFRA-VPN |
 | B-06 | Estabilizar a porta 443 | 1 | 4 | 3 | 0,5 | 3 | 20,0 | travado | Operadora; SSH | INFRA-443 |
 | B-07 | Build fora do servidor e webhook de deploy | 2 | 3 | 2 | 1 | 1 | 7,0 | não fazer (proprietário 17/10: o Deploy manual pelo painel está funcionando) | — | INFRA-BUILD; VIS P1.1e |
@@ -478,6 +477,7 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | 19/10/2026 | Supervisor de TI confirmado: Cesar Augusto Santos (decide as regras do módulo de TI). T-06 construído: migração 202610190001 (inventário, incidentes, chamados, regras; escrita só por funções, cada uma com a sua permissão), 003_painel.sql na nuvem (leitura do vigia com o token do sinal, sem telefone nem token), cópia das quedas pelo sinal de vida a cada minuto, telas TI › Painel/Chamados/Incidentes/Inventário/Regras, "Chamados de TI" no menu da conta para todos e a SARA de TI. SQL 51/51 num Postgres descartável com a estrutura de produção; painel da nuvem testado; 440 testes. Aplicados no mesmo dia (migração e 003 na nuvem); QA de navegador 32/32 com usuários temporários (abrir pelo menu da conta, atender, resolver, voltar pelo aviso, inventário, incidente manual, SARA de TI); o aviso "Chamar a TI" à empresa espera o Cesar revisar as regras (proprietário) | Proprietário / Claude |
 | 19/10/2026 | SARA de TI com o modelo mais capaz (Sonnet 5.5), a única: agente técnico (linguagem técnica, passos e comandos em bloco, até 5 buscas em documentação de fabricantes e sistemas), mesmos guardrails. Ajustes que valem para todas: dúvida de outro módulo indica a SARA certa em vez da recusa padrão; citação da pesquisa não quebra a frase; lembrete de escrever a resposta quando o modelo só abre a tela. Teste com o modelo real 7/7 | Proprietário / Claude |
 | 24/10/2026 | A-13 construído (compra assistida, degrau 1). Aprovar cotação pela SARA ficou de fora: a tela aprova direto na tabela, sem função do banco, e aprovar é do Domingo e do Ricardo; só entra com o "sim" deles. Degrau 2 (compra recorrente pré-autorizada com teto) é decisão do Compras; degrau 3 (reposição pelo mínimo) espera o A-02 e o A-03; degrau 4 (falar com o fornecedor) espera o B-04 e o C-14 | Proprietário |
+| 24/10/2026 | WhatsApp: Evolution API v2 (não a Go), chip interno já existe, ativação aceita, meio-termo para confirmar ações pelo WhatsApp, resposta no mesmo formato (texto ou áudio). Plano em PLANO-WHATSAPP.md (W1–W5); o vigia T-03 segue na API oficial da Meta | Proprietário |
 
 ## 9. Painel
 
