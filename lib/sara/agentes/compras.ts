@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brl, dataBR, dias, hoje, link, num, plural, reais, termo, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
 import { FICHA_FORNECEDOR, HISTORICO_PRECO } from "../cerebro-ferramentas.ts";
+import { foraDaCurva, sugerirFornecedores, type Comprado, type Cotado } from "../../compras/compra-assistida.ts";
 
 /**
  * SARA do Compras: cotações (que viram OC quando aprovadas), aprovações, compras realizadas e diretas,
@@ -34,7 +35,80 @@ async function pedidosParaCotar(sb: SupabaseClient): Promise<Pedido[]> {
   return (data ?? []) as unknown as Pedido[];
 }
 
+// --- Compra assistida (24/10): a quem pedir preço e o preço fora da curva --------------------------------
+type Fornec = { name: string; trade_name: string | null; tax_id: string | null } | null;
+const nomeDe = (s: Fornec, texto: string | null) => s?.trade_name?.trim() || s?.name || texto || "sem nome";
+
+/** Compras dos últimos 2 anos e itens cotados, com o fornecedor do cadastro (o RLS do Compras vale). */
+async function historico(sb: SupabaseClient): Promise<{ comprados: Comprado[]; cotados: Cotado[] }> {
+  const de = new Date(Date.now() - 730 * 86_400_000).toISOString().slice(0, 10);
+  const [c, q] = await Promise.all([
+    sb.from("compras").select("produto, valor_unit, unidade, data_compra, fornecedor, supplier_id, suppliers(name, trade_name, tax_id)").gte("data_compra", de).order("data_compra", { ascending: false }).limit(3000),
+    sb.from("cotacao_produtos").select("produto, valor_unit, unidade, status, created_at, cotacoes!inner(fornecedor, supplier_id, deleted_at, suppliers(name, trade_name, tax_id))")
+      .gte("created_at", de).is("cotacoes.deleted_at", null).order("created_at", { ascending: false }).limit(3000),
+  ]);
+  if (c.error) throw new Error(c.error.message);
+  if (q.error) throw new Error(q.error.message);
+  type LC = { produto: string; valor_unit: number; unidade: string | null; data_compra: string; fornecedor: string; supplier_id: string | null; suppliers: Fornec };
+  type LQ = { produto: string; valor_unit: number | null; unidade: string | null; status: string | null; created_at: string; cotacoes: { fornecedor: string | null; supplier_id: string | null; suppliers: Fornec } };
+  return {
+    comprados: ((c.data ?? []) as unknown as LC[]).map((x) => ({ produto: x.produto, fornecedor: nomeDe(x.suppliers, x.fornecedor), fornecedor_id: x.supplier_id, cnpj: x.suppliers?.tax_id ?? null,
+      preco: Number(x.valor_unit), unidade: x.unidade, data: x.data_compra })),
+    cotados: ((q.data ?? []) as unknown as LQ[]).map((x) => ({ produto: x.produto, fornecedor: nomeDe(x.cotacoes.suppliers, x.cotacoes.fornecedor), fornecedor_id: x.cotacoes.supplier_id,
+      cnpj: x.cotacoes.suppliers?.tax_id ?? null, preco: x.valor_unit == null ? null : Number(x.valor_unit), unidade: x.unidade, data: x.created_at.slice(0, 10), status: x.status ?? "" })),
+  };
+}
+
+type ItemAberto = { produto: string; busca: string };
+/** Itens do pedido que ainda não foram comprados; a busca usa a descrição do catálogo quando o item está ligado. */
+async function itensAbertos(sb: SupabaseClient, numero: number): Promise<{ pedido: { id: string; numero: number }; itens: ItemAberto[] } | { erro: string }> {
+  const { data: ped } = await sb.from("material_requests").select("id, numero, status").eq("numero", numero).maybeSingle();
+  if (!ped) return { erro: `O pedido nº ${numero} não foi encontrado (ou você não tem acesso a ele).` };
+  const [{ data: itens }, { data: estados }] = await Promise.all([
+    sb.from("material_request_items").select("id, produto, materials(descricao)").eq("request_id", ped.id).order("ordem"),
+    sb.rpc("compras_estado_itens", { p_pedido: ped.id }),
+  ]);
+  const comprado = new Set(((estados ?? []) as { item_id: string; estado: string }[]).filter((x) => x.estado === "comprado").map((x) => x.item_id));
+  const lista = ((itens ?? []) as unknown as { id: string; produto: string; materials: { descricao: string } | null }[]).filter((i) => !comprado.has(i.id))
+    .map((i) => ({ produto: i.produto, busca: i.materials?.descricao ?? i.produto.replace(/^[\w.]+\s+·\s+/, "") }));
+  return { pedido: { id: ped.id, numero: ped.numero }, itens: lista };
+}
+
+const SUGERIR_FORNECEDORES: Ferramenta = {
+  nome: "compras_sugerir_fornecedores", rotulo: "a quem pedir preço", exige: ["compras.cotacoes", "compras.aprovacoes"],
+  descricao: "A QUEM PEDIR PREÇO: para um pedido de material (ou uma lista de itens), quem já vendeu ou cotou cada item, com o último preço pago, a unidade e a data, e os fornecedores que cobrem mais itens do pedido. Pelo histórico das compras e cotações (o mesmo item é achado pelo nome). É sugestão: quem escolhe é o Compras. Depois, convidar_fornecedor gera o link para ele cotar.",
+  esquema: { type: "object", properties: {
+    pedido: { type: "integer", description: "Número do pedido de material." },
+    itens: { type: "array", items: { type: "string" }, description: "Ou a descrição dos itens, sem pedido." },
+  } },
+  rodar: async (sb, e) => {
+    let itens: ItemAberto[], pedido: number | null = null;
+    if (Number.isInteger(Number(e.pedido)) && Number(e.pedido) > 0) {
+      const r = await itensAbertos(sb, Number(e.pedido));
+      if ("erro" in r) return { dados: { erro: r.erro }, fontes: [] };
+      itens = r.itens; pedido = r.pedido.numero;
+    } else itens = (Array.isArray(e.itens) ? e.itens : []).map((x) => termo(x)).filter((x) => x.length >= 2).slice(0, 20).map((x) => ({ produto: x, busca: x }));
+    if (!itens.length) return { dados: { erro: pedido ? `O pedido nº ${pedido} não tem item em aberto.` : "Diga o número do pedido ou os itens." }, fontes: [] };
+    const h = await historico(sb);
+    const buscas = itens.map((i) => i.busca);
+    const sugestoes = sugerirFornecedores(buscas, h.comprados, h.cotados);
+    const porItem = itens.map((i) => ({ item: i.produto,
+      quem_vendeu: sugerirFornecedores([i.busca], h.comprados, []).slice(0, 3).map((x) => ({ fornecedor: x.fornecedor, compras: x.compras, ultimo_preco: x.precos[0]?.ultimo ?? null, unidade: x.precos[0]?.unidade ?? null, em: x.precos[0]?.em ?? null })),
+      quem_cotou: sugerirFornecedores([i.busca], [], h.cotados).slice(0, 3).map((x) => ({ fornecedor: x.fornecedor, cotacoes: x.cotacoes, ultima: x.ultima })) }));
+    return {
+      dados: {
+        pedido, itens_em_aberto: itens.length,
+        fornecedores: sugestoes.map((x) => ({ fornecedor: x.fornecedor, cnpj: x.cnpj, cobre: `${x.itens.length} de ${itens.length}`, compras: x.compras, cotacoes: x.cotacoes, ultima: x.ultima })),
+        por_item: porItem, sem_historico: porItem.filter((x) => !x.quem_vendeu.length && !x.quem_cotou.length).map((x) => x.item),
+        aviso: "Sugestão pelo histórico (compras desde jul/2026 e cotações). Quem escolhe o fornecedor é o Compras.",
+      },
+      fontes: [fonte("compras", "Compras realizadas"), fonte("cotacoes", "Minhas cotações")],
+    };
+  },
+};
+
 const ferramentas: Ferramenta[] = [
+  SUGERIR_FORNECEDORES,
   FICHA_FORNECEDOR, HISTORICO_PRECO,
   {
     nome: "compras_cotacoes_pendentes", rotulo: "cotações pendentes", exige: COTAR,
@@ -183,6 +257,58 @@ const regras: Agente["regras"] = [
     },
   },
   {
+    // Preço fora da curva: item de cotação pendente acima da mediana das últimas compras do mesmo item.
+    exige: COTAR,
+    gerar: async (sb, c) => {
+      const { data, error } = await sb.from("cotacoes").select("id, fornecedor, cotacao_produtos(produto, valor_unit, unidade, status)")
+        .eq("status", "PENDENTE").is("deleted_at", null).order("id").limit(300);
+      if (error) throw new Error(error.message);
+      const pendentes = (data ?? []) as unknown as { id: number; fornecedor: string | null; cotacao_produtos: { produto: string; valor_unit: number | null; unidade: string | null; status: string | null }[] }[];
+      if (!pendentes.length) return [];
+      const { comprados } = await historico(sb);
+      const achados = pendentes.flatMap((q) => (q.cotacao_produtos ?? []).filter((p) => p.status !== "REJEITADO").map((p) => {
+        const f = foraDaCurva(p.produto, Number(p.valor_unit), p.unidade, comprados);
+        return f ? { cotacao: q.id, fornecedor: q.fornecedor, produto: p.produto, preco: Number(p.valor_unit), ...f } : null;
+      }).filter((x) => x !== null)).sort((a, b) => b.acima - a.acima);
+      if (!achados.length) return [];
+      const pct = (v: number) => `${Math.round(v * 100)}%`;
+      return [{
+        chave: `compras.fora_da_curva:${achados.map((a) => `${a.cotacao}-${Math.round(a.acima * 100)}`).join(",")}`, nivel: "aviso",
+        titulo: `${plural(achados.length, "item cotado", "itens cotados")} acima do que a empresa costuma pagar`,
+        detalhe: achados.slice(0, 3).map((a) => `Cotação nº ${a.cotacao} (${a.fornecedor ?? "sem fornecedor"}): ${a.produto.slice(0, 60)} a ${brl(a.preco)}/${a.unidade}, ${pct(a.acima)} acima da mediana de ${brl(a.referencia)} (${plural(a.compras, "compra", "compras")})`).join(" · ")
+          + `${achados.length > 3 ? ` e mais ${achados.length - 3}` : ""}. Vale negociar ou cotar com outro fornecedor.`,
+        abrir: c.pode("compras.aprovacoes") ? tela("pendentes", "Pendentes de aprovação") : tela("cotacoes", "Minhas cotações"),
+      }];
+    },
+  },
+  {
+    // Pedido novo: a SARA já sugere a quem pedir preço e deixa o convite pronto para o Permitir.
+    exige: ["compras.cotacoes"],
+    gerar: async (sb) => {
+      const { data } = await sb.from("material_requests").select("numero").eq("status", "aberta").order("created_at", { ascending: false }).limit(5);
+      const numeros = ((data ?? []) as { numero: number }[]).map((p) => p.numero);
+      if (!numeros.length) return [];
+      const h = await historico(sb);
+      const saida: Alerta[] = [];
+      for (const n of numeros) {
+        const r = await itensAbertos(sb, n);
+        if ("erro" in r || !r.itens.length) continue;
+        const [melhor] = sugerirFornecedores(r.itens.map((i) => i.busca), h.comprados, h.cotados, 1);
+        if (!melhor?.compras) continue; // só quem já vendeu algum item; quem só cotou fica na consulta
+        const cobertos = r.itens.filter((i) => melhor.itens.includes(i.busca));
+        saida.push({
+          chave: `compras.sugestao:${n}:${melhor.fornecedor_id ?? melhor.fornecedor}:${cobertos.length}`, nivel: "aviso",
+          titulo: `Pedido nº ${n}: ${melhor.fornecedor} já vendeu ${cobertos.length === r.itens.length ? (r.itens.length === 1 ? "o item" : `os ${r.itens.length} itens`) : `${cobertos.length} de ${r.itens.length} itens`}`,
+          detalhe: `${melhor.precos.slice(0, 2).map((p) => `${p.item.slice(0, 50)}: ${brl(p.ultimo)}/${p.unidade} em ${dataBR(p.em)}`).join(" · ")}. Sugestão pelo histórico; quem escolhe é você. Pergunte à SARA "a quem pedir preço do pedido ${n}?" para ver os outros.`,
+          abrir: tela("solicitacoes", "Pedidos almoxarifado"),
+          propor: { ferramenta: "convidar_fornecedor", entrada: { pedido: n, fornecedor: melhor.cnpj && melhor.cnpj.replace(/\D/g, "").length === 14 ? melhor.cnpj : melhor.fornecedor, itens: cobertos.map((i) => i.produto) },
+            rotulo: `Convidar ${melhor.fornecedor} a cotar` },
+        });
+      }
+      return saida;
+    },
+  },
+  {
     exige: ["compras.fornecedores"],
     gerar: async (sb) => {
       const { count } = await sb.from("supplier_cnpj_suggestions").select("id", { count: "exact", head: true }).eq("status", "pendente");
@@ -206,13 +332,14 @@ Seções (aparecem conforme a permissão e a visão — Orçamentista cota, Gest
 - Fornecedores: cadastro, histórico e unificação de duplicados.
 Fluxo: pedido de material → cotação → aprovação (OC) → compra → a nota é recebida no Almoxarifado, que cria a conta a pagar no Financeiro.
 Ficha do fornecedor (ficha_fornecedor) e histórico de preço (historico_de_preco) vêm do Segundo Cérebro: o que cada fornecedor vende, a que preço e desde quando, juntando os nomes do mesmo item.
+Compra assistida: para "a quem pedir preço?", use compras_sugerir_fornecedores (histórico de compras e cotações por item); depois, com o OK da pessoa, prepare convidar_fornecedor (o link aparece uma vez no cartão, para ela mandar ao fornecedor). Quando a cotação chegar, compare pelo comparativo e diga o que recomendaria como OPINIÃO sua, com o motivo; aprovar é do Domingo e do Ricardo, na tela de Pendentes. Preço acima do que a empresa costuma pagar aparece nos avisos.
 Quem decide: aprovar cotação é do Domingo e do Ricardo; o cadastro de fornecedores é da equipe de Compras com o Rafael.`;
 
 export const compras: Agente = {
   sara: {
     modulo: M, nome: "SARA do Compras", rotulo: "Compras", feature: M, permissao: "compras.sara", manual: MANUAL,
     ferramentas: ferramentas.map((f) => f.nome), telas,
-    sugestoes: ["Quantas cotações estão esperando aprovação?", "Quais OCs aprovadas ainda não viraram compra?", "Quem vende a resina mais barato?", "Tem pedido de material para cotar?"],
+    sugestoes: ["A quem pedir preço do pedido mais novo?", "Quantas cotações estão esperando aprovação?", "Quais OCs aprovadas ainda não viraram compra?", "Quem vende a resina mais barato?", "Tem pedido de material para cotar?"],
   },
   ferramentas, regras,
 };

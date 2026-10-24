@@ -17,6 +17,11 @@ export type Resultado = {
    * resultado bruto das consultas que as áreas fizeram ("financeiro.contas_a_receber").
    */
   paraVisual?: { nome: string; rotulo: string; dados: unknown; fontes: Fonte[] }[];
+  /**
+   * Mostrado UMA vez a quem permitiu e nunca gravado (nem no histórico da ação, nem na conversa): o link do
+   * convite ao fornecedor, que no banco só existe como hash. O caminho vira endereço completo na rota.
+   */
+  umaVez?: { rotulo: string; caminho: string };
 };
 export type Ferramenta = {
   nome: string;
@@ -46,6 +51,8 @@ export type Acao = {
   /** Módulos cuja SARA oferece a ação ("todos" = qualquer SARA, ex.: abrir chamado de TI). */
   modulos: string[] | "todos";
   preparar: (sb: SupabaseClient, entrada: Record<string, unknown>) => Promise<Proposta | { erro: string }>;
+  /** Só com a pessoa presente: a guia nunca faz sozinha (o resultado, como um link mostrado uma vez, se perderia). */
+  soComPessoa?: boolean;
 };
 
 /** Tela que a SARA pode abrir para a pessoa (só se ela tiver a funcionalidade). */

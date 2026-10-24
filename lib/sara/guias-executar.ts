@@ -122,7 +122,7 @@ async function rodarUma(admin: SupabaseClient, e: Execucao): Promise<string> {
       const { count } = await s.sb.from("sara_acoes").select("id", { count: "exact", head: true }).eq("guia_id", g.id).eq("ferramenta", a.ferramenta).eq("automatica", true).gte("created_at", hoje);
       const limite = dentroDoLimite(g.limites?.[a.ferramenta], a.entrada, count ?? 0);
       const f = ferramentas.find((x) => x.nome === a.ferramenta && x.acao);
-      if (limite.sozinha && f && a.risco !== "alto") {
+      if (limite.sozinha && f && a.risco !== "alto" && !f.acao?.soComPessoa) {
         // Dentro do limite da área: a guia faz sozinha (o banco confere o limite de novo).
         const { data: id, error: e1 } = await s.sb.rpc("sara_acao_propor", { ...base, p_validade_min: 15, p_automatica: true });
         if (!e1 && id) {

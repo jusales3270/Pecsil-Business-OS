@@ -19,7 +19,9 @@ import { SaraGuias } from "./sara-guias";
  */
 
 /** Ação que a SARA preparou (E1): só acontece se a pessoa tocar em Permitir. */
-type Cartao = { id: string; resumo: string; detalhes: string[]; risco: string; situacao: string; feito: string | null; erro: string | null; expiraEm?: string };
+type Cartao = { id: string; resumo: string; detalhes: string[]; risco: string; situacao: string; feito: string | null; erro: string | null; expiraEm?: string;
+  /** Só na tela, logo depois do Permitir (o link do convite ao fornecedor): não volta do servidor. */
+  umaVez?: { rotulo: string; link: string } | null };
 type Parametro = { consulta: string; filtros: string[] };
 type Salva = { parametros?: Parametro[]; id: string; papel: "pessoa" | "sara"; texto: string; quando: string; nota: number | null; consultas: string[]; fontes: { rotulo: string; link: string }[]; abrir: Abrir | null; fora: boolean; visuais?: Visual[]; acoes?: Cartao[] };
 type Estado = { nome: string; configurada: boolean; ferramentas: string[]; alcance?: { outrosModulos: boolean; dados: boolean; pesquisa: boolean }; rotulos?: Record<string, string>; habilidades?: { id: string; nome: string; pedido: string }[]; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
@@ -167,6 +169,19 @@ function LeitorDeCodigo({ onLido, onFechar }: { onLido: (valor: string, formato:
 
 type Aviso = { chave: string; nivel: "urgente" | "aviso"; titulo: string; detalhe: string; abrir?: Abrir; visto: boolean; propor?: { rotulo: string } };
 
+/** O link que só aparece agora (o banco guarda só o hash): copiar e mandar ao fornecedor. */
+function LinkUmaVez({ rotulo, link }: { rotulo: string; link: string }) {
+  const [copiado, setCopiado] = useState(false);
+  const copiar = () => navigator.clipboard?.writeText(link).then(() => setCopiado(true)).catch(() => setCopiado(false));
+  return (
+    <div className="sara-acao-link">
+      <small>{rotulo}. Copie agora: ele não aparece de novo.</small>
+      <input readOnly value={link} aria-label={rotulo} onFocus={(e) => e.currentTarget.select()} />
+      <div className="sara-acao-botoes"><button type="button" className="sim" onClick={copiar}>{copiado ? "Copiado" : "Copiar link"}</button></div>
+    </div>
+  );
+}
+
 /** Cartão de autorização: a SARA preparou, a pessoa decide (na conversa ou dentro de um aviso). */
 function CartaoAcao({ c, decidindo, confirmar, decidir }: { c: Cartao; decidindo: string | null; confirmar: string | null; decidir: (c: Cartao, permitir: boolean) => void }) {
   const vencida = c.situacao === "pendente" && c.expiraEm && Date.parse(c.expiraEm) < Date.now();
@@ -184,6 +199,7 @@ function CartaoAcao({ c, decidindo, confirmar, decidir }: { c: Cartao; decidindo
       )}
       {confirmar === c.id && <small className="sara-acao-aviso">Esta ação não se desfaz pela SARA. Toque em Confirmar para seguir.</small>}
       {c.feito && <small className="sara-acao-feito">{c.feito}</small>}
+      {c.umaVez && <LinkUmaVez rotulo={c.umaVez.rotulo} link={c.umaVez.link} />}
       {c.erro && <small className="sara-acao-erro">{c.erro}</small>}
     </div>
   );
@@ -197,6 +213,23 @@ const lerPos = (chave: string): Pos | null => {
   try { const v = JSON.parse(window.localStorage.getItem(chave) ?? "null"); return v && Number.isFinite(v.x) && Number.isFinite(v.y) ? v : null; } catch { return null; }
 };
 const guardarPos = (chave: string, p: Pos) => { try { window.localStorage.setItem(chave, JSON.stringify(p)); } catch { /* sem armazenamento: só não lembra */ } };
+type Tamanho = { w: number; h: number };
+/** Menor tamanho da janela: abaixo disso o chat (cabeçalho, avisos, conversa e caixa de texto) deforma. */
+const MIN_W = 360, MIN_H = 460;
+const lerTamanho = (chave: string): Tamanho | null => {
+  try { const v = JSON.parse(window.localStorage.getItem(`${chave}.tamanho`) ?? "null"); return v && Number.isFinite(v.w) && Number.isFinite(v.h) ? v : null; } catch { return null; }
+};
+const guardarTamanho = (chave: string, t: Tamanho | null) => {
+  try { if (t) window.localStorage.setItem(`${chave}.tamanho`, JSON.stringify(t)); else window.localStorage.removeItem(`${chave}.tamanho`); } catch { /* sem armazenamento: só não lembra */ }
+};
+/** O tamanho cabe na tela (com a margem) e não fica abaixo do mínimo. */
+const caberTamanho = (t: Tamanho): Tamanho => ({
+  w: Math.round(Math.min(Math.max(MIN_W, t.w), window.innerWidth - 2 * MARGEM)),
+  h: Math.round(Math.min(Math.max(MIN_H, t.h), window.innerHeight - 2 * MARGEM)),
+});
+/** Bordas e cantos que redimensionam a janela (n = cima, s = baixo, e = direita, w = esquerda). */
+const BORDAS = ["n", "s", "e", "w", "ne", "nw", "se", "sw"] as const;
+type Borda = (typeof BORDAS)[number];
 const caber = (p: Pos, el: HTMLElement | null): Pos => {
   const w = el?.offsetWidth ?? 0, h = el?.offsetHeight ?? 0;
   return { x: Math.min(Math.max(MARGEM, p.x), Math.max(MARGEM, window.innerWidth - w - MARGEM)), y: Math.min(Math.max(MARGEM, p.y), Math.max(MARGEM, window.innerHeight - h - MARGEM)) };
@@ -213,10 +246,16 @@ function useArrastar(chave: string, ativo: boolean) {
   // O elemento fica em estado (ref de callback), não em useRef: nada de ref lido durante a renderização.
   const [el, setEl] = useState<HTMLElement | null>(null);
   const [pos, setPos] = useState<Pos | null>(null);
+  const [tamanho, setTamanho] = useState<Tamanho | null>(null);
   useEffect(() => {
     if (!ativo) return;
-    const t = setTimeout(() => { const p = lerPos(chave); if (p && !telaEstreita()) setPos(caber(p, el)); }, 0);
-    const ajustar = () => setPos((p) => (p ? caber(p, el) : p));
+    const t = setTimeout(() => {
+      if (telaEstreita()) return;
+      const tam = lerTamanho(chave);
+      if (tam) setTamanho(caberTamanho(tam));
+      const p = lerPos(chave); if (p) setPos(caber(p, el));
+    }, 0);
+    const ajustar = () => { setTamanho((x) => (x ? caberTamanho(x) : x)); setPos((p) => (p ? caber(p, el) : p)); };
     window.addEventListener("resize", ajustar);
     return () => { clearTimeout(t); window.removeEventListener("resize", ajustar); };
   }, [chave, ativo, el]);
@@ -243,9 +282,41 @@ function useArrastar(chave: string, ativo: boolean) {
     window.addEventListener("pointermove", mover);
     window.addEventListener("pointerup", soltar);
   };
-  const estilo = pos ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" } : undefined;
+  /**
+   * Puxar uma borda ou um canto muda o tamanho (o lado oposto fica parado). O chat se reorganiza dentro:
+   * a conversa cresce, o cabeçalho e a caixa de texto ficam como são. Dois cliques voltam ao tamanho padrão.
+   */
+  const redimensionar = (e: EventoPonteiro<HTMLElement>, borda: Borda) => {
+    if (e.button !== 0 || !el || telaEstreita()) return;
+    e.preventDefault(); e.stopPropagation();
+    const r = el.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY;
+    let ultimo: { pos: Pos; tam: Tamanho } | null = null;
+    const mover = (ev: PointerEvent) => {
+      const dx = ev.clientX - x0, dy = ev.clientY - y0;
+      // Até onde a borda pode ir sem sair da tela.
+      const maxW = borda.includes("w") ? r.right - MARGEM : window.innerWidth - MARGEM - r.left;
+      const maxH = borda.includes("n") ? r.bottom - MARGEM : window.innerHeight - MARGEM - r.top;
+      const w = borda.includes("e") ? r.width + dx : borda.includes("w") ? r.width - dx : r.width;
+      const h = borda.includes("s") ? r.height + dy : borda.includes("n") ? r.height - dy : r.height;
+      const tam = { w: Math.round(Math.min(Math.max(MIN_W, w), maxW)), h: Math.round(Math.min(Math.max(MIN_H, h), maxH)) };
+      const p = { x: borda.includes("w") ? r.right - tam.w : r.left, y: borda.includes("n") ? r.bottom - tam.h : r.top };
+      ultimo = { pos: p, tam };
+      setTamanho(tam); setPos(p);
+    };
+    const soltar = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      document.body.style.removeProperty("user-select");
+      if (ultimo) { guardarTamanho(chave, ultimo.tam); guardarPos(chave, ultimo.pos); }
+    };
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar);
+  };
+  const tamanhoPadrao = () => { setTamanho(null); guardarTamanho(chave, null); setPos((p) => (p ? caber(p, el) : p)); };
+  const estilo = pos || tamanho ? { ...(pos ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" } : {}), ...(tamanho ? { width: tamanho.w, height: tamanho.h } : {}) } : undefined;
   const arrastou = useCallback(() => ARRASTOU.get(chave) === true, [chave]);
-  return { prender: setEl, estilo, iniciar, arrastou };
+  return { prender: setEl, estilo, iniciar, arrastou, redimensionar, tamanhoPadrao };
 }
 
 export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = false }: { modulo: string; navegar: (modulo: string, secao?: string) => void; abrirAoCarregar?: number; abrirGuias?: boolean }) {
@@ -302,8 +373,19 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [novos, setNovos] = useState<Set<string>>(new Set());
   const [verAvisos, setVerAvisos] = useState(false);
+  // Urgentes que a pessoa já abriu na lista: enquanto houver urgente fora dela, o título dos avisos pulsa.
+  const [urgentesAbertos, setUrgentesAbertos] = useState("");
+  // Lembrado por módulo neste navegador: recarregar a página não faz pulsar de novo o que a pessoa já abriu.
+  useEffect(() => {
+    const t = setTimeout(() => { try { setUrgentesAbertos(window.localStorage.getItem(`sara.urgentes.${modulo}`) ?? ""); } catch { /* sem armazenamento */ } }, 0);
+    return () => clearTimeout(t);
+  }, [modulo]);
+  const abrirUrgentes = (chave: string) => {
+    setUrgentesAbertos(chave);
+    try { window.localStorage.setItem(`sara.urgentes.${modulo}`, chave); } catch { /* sem armazenamento: só não lembra */ }
+  };
   const { prender: prenderBotao, estilo: estiloBotao, iniciar: arrastarBotao, arrastou: botaoArrastou } = useArrastar("sara.botao", Boolean(estado) && !aberto);
-  const { prender: prenderJanela, estilo: estiloJanela, iniciar: arrastarJanela } = useArrastar("sara.janela", Boolean(estado) && aberto);
+  const { prender: prenderJanela, estilo: estiloJanela, iniciar: arrastarJanela, redimensionar, tamanhoPadrao } = useArrastar("sara.janela", Boolean(estado) && aberto);
 
   const carregar = useCallback(async () => {
     const r = await fetch(`/api/sara/${modulo}`, { cache: "no-store" }).catch(() => null);
@@ -346,21 +428,19 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
     return () => { clearTimeout(t); document.removeEventListener("visibilitychange", atualizar); };
   }, [carregarAvisos]);
   // Abriu a janela: a pessoa tomou ciência dos avisos novos (eles ficam marcados como "novo" nesta abertura).
-  // Se a conversa é o Bom dia de hoje (J2), os avisos já estão nele: a lista fica recolhida e o Bom dia à vista.
+  // A lista começa sempre recolhida (pedido do proprietário, 24/10): a conversa fica à vista e a pessoa abre os
+  // avisos quando quiser; havendo urgente que ela ainda não abriu, o título pulsa em vermelho.
   useEffect(() => {
     if (!aberto) return;
     const pendentes = avisos.filter((a) => !a.visto);
     if (!pendentes.length) return;
     const t = setTimeout(() => {
-      const ultimaPergunta = [...msgs].reverse().find((m) => m.papel === "pessoa");
-      const bomDiaRecente = Boolean(ultimaPergunta?.texto.startsWith("☀️ Bom dia") && ultimaPergunta.quando && Date.now() - Date.parse(ultimaPergunta.quando) < 18 * 3600_000);
       setNovos((n) => new Set([...n, ...pendentes.map((a) => a.chave)]));
-      if (!bomDiaRecente) setVerAvisos(true);
       setAvisos((l) => l.map((a) => ({ ...a, visto: true })));
       void fetch(`/api/sara/${modulo}/alertas`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alertas: pendentes.map((a) => ({ chave: a.chave, nivel: a.nivel })) }) }).catch(() => null);
     }, 0);
     return () => clearTimeout(t);
-  }, [aberto, avisos, modulo, msgs]);
+  }, [aberto, avisos, modulo]);
   // Sempre na última interação: ao abrir a janela, ao chegar mensagem e enquanto ela pensa.
   useEffect(() => {
     if (!aberto) return;
@@ -479,7 +559,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
       .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
     setDecidindo(null);
     if (!r.ok) { mudarCartao(c.id, { erro: r.body?.error ?? "Sem conexão com o servidor." }); return; }
-    mudarCartao(c.id, { situacao: r.body.situacao, feito: r.body.feito ?? null, erro: r.body.erro ?? null });
+    mudarCartao(c.id, { situacao: r.body.situacao, feito: r.body.feito ?? null, erro: r.body.erro ?? null, umaVez: r.body.umaVez ?? null });
     if (r.body.abrir) abrir(r.body.abrir);
   };
   const avaliar = async (i: number, nota: number) => {
@@ -491,6 +571,8 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
 
   if (semAcesso || !estado) return null;
   const pode = estado.configurada;
+  const chaveUrgentes = avisos.filter((a) => a.nivel === "urgente").map((a) => a.chave).sort().join("|");
+  const pulsarAvisos = !verAvisos && chaveUrgentes !== "" && chaveUrgentes !== urgentesAbertos;
   const rotulo = (nome: string) => estado.rotulos?.[nome] ?? CONSULTA[nome] ?? nome.replace(/_/g, " ");
   const naoVistos = avisos.filter((a) => !a.visto);
   const pulso = naoVistos.some((a) => a.nivel === "urgente") ? "urgente" : naoVistos.length ? "aviso" : null;
@@ -508,6 +590,10 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
       )}
       {aberto && (
         <aside ref={prenderJanela} className="sara-painel sara-vidro" style={estiloJanela} aria-label={NOME}>
+          {BORDAS.map((b) => (
+            <span key={b} className={`sara-borda ${b}`} aria-hidden onPointerDown={(e) => redimensionar(e, b)} onDoubleClick={tamanhoPadrao}
+              title="Segure e arraste para mudar o tamanho · dois cliques voltam ao tamanho padrão" />
+          ))}
           <header className="sara-alca" onPointerDown={(e) => arrastarJanela(e, false)} title="Segure e arraste para mudar de lugar">
             {/* eslint-disable-next-line @next/next/no-img-element -- avatar pequeno e fixo (o favicon) */}
             <img src={AVATAR} alt="" className="sara-avatar" draggable={false} />
@@ -519,9 +605,10 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
             </span>
           </header>
           {avisos.length > 0 && (
-            <section className="sara-avisos" aria-label="Avisos do módulo">
-              <button type="button" className="sara-avisos-titulo" onClick={() => setVerAvisos((v) => !v)} aria-expanded={verAvisos}>
-                <span className={`sara-ponto ${avisos.some((a) => a.nivel === "urgente") ? "urgente" : "aviso"}`} aria-hidden />
+            <section className={`sara-avisos${pulsarAvisos ? " pulsa-urgente" : ""}`} aria-label="Avisos do módulo">
+              <button type="button" className="sara-avisos-titulo" onClick={() => { if (!verAvisos) abrirUrgentes(chaveUrgentes); setVerAvisos((v) => !v); }} aria-expanded={verAvisos}
+                aria-label={`Avisos: ${avisos.length} no total${pulsarAvisos ? ", com urgência que você ainda não viu" : ""}. ${verAvisos ? "Recolher" : "Abrir"} a lista`}>
+                <span className={`sara-ponto ${avisos.some((a) => a.nivel === "urgente") ? "urgente" : "aviso"}${pulsarAvisos ? " pulsa" : ""}`} aria-hidden />
                 <b>Avisos</b>
                 <small>{avisos.filter((a) => a.nivel === "urgente").length ? `${avisos.filter((a) => a.nivel === "urgente").length} urgente${avisos.filter((a) => a.nivel === "urgente").length > 1 ? "s" : ""} · ` : ""}{avisos.length} no total</small>
                 <i aria-hidden>{verAvisos ? "▾" : "▸"}</i>

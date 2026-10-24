@@ -40,7 +40,7 @@ export async function GET(_request: Request, context: { params: Promise<{ modulo
     guias: d.guias.map((g) => ({
       ...g, quando: descreverGatilho(g.gatilho, rotuloEvento),
       passos: g.passos.map((x) => ({ ...x, rotulo: rotulos[x.ferramenta] ?? x.ferramenta.replace(/_/g, " ") })),
-      acoes: [...new Set(g.passos.map((x) => x.ferramenta).filter((n) => ACOES.some((a) => a.nome === n)))].map((n) => ({ nome: n, rotulo: ACAO_ROTULO[n] ?? n.replace(/_/g, " ") })),
+      acoes: [...new Set(g.passos.map((x) => x.ferramenta).filter((n) => ACOES.some((a) => a.nome === n)))].map((n) => ({ nome: n, rotulo: ACAO_ROTULO[n] ?? n.replace(/_/g, " "), soComPessoa: ACOES.find((a) => a.nome === n)?.acao?.soComPessoa === true })),
     })),
   });
 }

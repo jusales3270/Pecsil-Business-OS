@@ -75,6 +75,63 @@ const ENCAMINHAR_PARA_COTAR: Ferramenta = {
   },
 };
 
+// --- Compras: convidar o fornecedor a responder pelo link (compra assistida, 24/10) --------------------
+/**
+ * Os itens que já aguardam preço com esse fornecedor reaproveitam o encaminhamento aberto; os demais ganham
+ * um encaminhamento novo. O link sai uma vez só, para quem permitiu: o banco guarda apenas o hash.
+ */
+async function ramoDoConvite(sb: SupabaseClient, r: Ramo): Promise<{ existente: string | null; novos: Ramo["itens"] }> {
+  const { data } = await sb.from("compras_ramos").select("id, created_at, compras_ramo_itens(item_id)")
+    .eq("material_request_id", r.pedido.id).eq("supplier_id", r.fornecedor.id).eq("situacao", "aguardando").order("created_at", { ascending: false });
+  const ramos = (data ?? []) as { id: string; compras_ramo_itens: { item_id: string }[] }[];
+  const jaAguardando = new Set(ramos.flatMap((x) => x.compras_ramo_itens.map((i) => i.item_id)));
+  const novos = r.itens.filter((i) => !jaAguardando.has(i.id));
+  const existente = ramos.find((x) => x.compras_ramo_itens.some((i) => r.itens.some((e) => e.id === i.item_id)))?.id ?? null;
+  return { existente, novos };
+}
+const diasDoConvite = (v: unknown) => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= 30 ? n : 7; };
+
+const CONVIDAR_FORNECEDOR: Ferramenta = {
+  nome: "convidar_fornecedor", rotulo: "preparou um convite ao fornecedor", exige: ["compras.cotacoes"],
+  descricao: "PREPARA o convite para um fornecedor cotar itens de um pedido de material pelo link (ele responde sem login e a resposta vira cotação ligada ao pedido); a pessoa confirma no cartão. Os itens entram em 'aguardando preço' com ele. O link aparece UMA vez no cartão, para a pessoa copiar e mandar (WhatsApp ou e-mail); se perder, prepare outro. Sem itens: todos os que ainda não foram comprados. Use compras_sugerir_fornecedores para saber a quem pedir.",
+  esquema: {
+    type: "object",
+    properties: {
+      pedido: { type: "integer", description: "Número do pedido de material." },
+      fornecedor: { type: "string", description: "Nome do fornecedor no cadastro, ou o CNPJ." },
+      itens: { type: "array", items: { type: "string" }, description: "Descrição (ou parte) de cada item; vazio = todos os itens em aberto." },
+      dias: { type: "integer", description: "Quantos dias o link vale (padrão 7, máximo 30)." },
+    },
+    required: ["pedido", "fornecedor"],
+  },
+  acao: {
+    nivel: "operar", modulos: ["compras"], soComPessoa: true,
+    preparar: async (sb, e) => {
+      const r = await resolverRamo(sb, e);
+      if ("erro" in r) return r;
+      return { resumo: `Gerar o link para ${r.fornecedor.nome} cotar ${r.itens.length === 1 ? "1 item" : `${r.itens.length} itens`} do pedido nº ${r.pedido.numero} (vale ${diasDoConvite(e.dias)} dias). O link aparece uma vez, aqui, para você mandar a ele.`,
+        detalhes: r.itens.map((i) => `${Number(i.quantidade).toLocaleString("pt-BR")} ${i.unidade ?? "UN"} · ${i.produto}`) };
+    },
+  },
+  rodar: async (sb, e) => {
+    const r = await resolverRamo(sb, e);
+    if ("erro" in r) throw new Error(r.erro);
+    const { existente, novos } = await ramoDoConvite(sb, r);
+    let ramo = existente;
+    if (novos.length) {
+      const { data, error } = await sb.rpc("compras_ramo_criar", { p_pedido: r.pedido.id, p_itens: novos.map((i) => i.id), p_supplier: r.fornecedor.id });
+      if (error) throw new Error(error.message);
+      ramo = (data as { id: string }).id;
+    }
+    const { data, error } = await sb.rpc("compras_convite_criar", { p_pedido: r.pedido.id, p_supplier: r.fornecedor.id, p_fornecedor: r.fornecedor.nome, p_dias: diasDoConvite(e.dias), p_ramo: ramo });
+    if (error) throw new Error(error.message);
+    const c = data as { codigo: string; expira_em: string };
+    return { dados: { feito: `Convite criado para ${r.fornecedor.nome} (pedido nº ${r.pedido.numero}), válido até ${dataBR(c.expira_em)}. A resposta dele vira cotação ligada ao pedido.` },
+      umaVez: { rotulo: `Link para ${r.fornecedor.nome}`, caminho: `/cotar/${c.codigo}` },
+      fontes: [{ rotulo: "Compras › Pedidos almoxarifado", link: link("compras", "solicitacoes") }] };
+  },
+};
+
 // --- Fiscal: pendência para o escritório contábil ------------------------------------------------------
 async function competencia(sb: SupabaseClient, mes: unknown): Promise<Resolvido<{ id: string | null; rotulo: string | null }>> {
   const m = String(mes ?? "").trim();
@@ -316,10 +373,10 @@ const ENTRADA_DE_PRODUCAO: Ferramenta = {
   },
 };
 
-export const ACOES_AREAS: Ferramenta[] = [ENCAMINHAR_PARA_COTAR, PENDENCIA_ESCRITORIO, INCLUIR_TERCEIRO, CADASTRAR_EQUIPAMENTO, REGISTRAR_INCIDENTE, ATENDER_CHAMADO, ENTRADA_DE_PRODUCAO];
+export const ACOES_AREAS: Ferramenta[] = [ENCAMINHAR_PARA_COTAR, CONVIDAR_FORNECEDOR, PENDENCIA_ESCRITORIO, INCLUIR_TERCEIRO, CADASTRAR_EQUIPAMENTO, REGISTRAR_INCIDENTE, ATENDER_CHAMADO, ENTRADA_DE_PRODUCAO];
 
 /** Nome de cada ação para quem lê (quadro de limites das guias). */
 export const ROTULO_DAS_ACOES: Record<string, string> = {
-  encaminhar_para_cotar: "Encaminhar itens para cotar", pendencia_para_o_escritorio: "Abrir pendência para o escritório", incluir_terceiro: "Incluir terceiro no quadro",
+  encaminhar_para_cotar: "Encaminhar itens para cotar", convidar_fornecedor: "Convidar fornecedor a cotar pelo link", pendencia_para_o_escritorio: "Abrir pendência para o escritório", incluir_terceiro: "Incluir terceiro no quadro",
   cadastrar_equipamento: "Cadastrar equipamento", registrar_incidente: "Registrar incidente de TI", atender_chamado_ti: "Atender chamado de TI", entrada_de_producao: "Dar entrada de produção",
 };

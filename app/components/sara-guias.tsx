@@ -15,7 +15,7 @@ type Limite = { sozinha?: boolean; max_por_dia?: number; max_itens?: number; hor
 type Execucao = { id: string; disparo: string; situacao: string; resumo: string | null; pendentes: number; feitas: number; erro: string | null; quando: string; evento: string | null };
 type Guia = {
   id: string; nome: string; descricao: string; quando: string; situacao: string; pausada: boolean; limites: Record<string, Limite>; responsavel: string | null; minha: boolean;
-  passos: { ferramenta: string; para_que: string; rotulo: string }[]; acoes: { nome: string; rotulo: string }[]; formato: string | null;
+  passos: { ferramenta: string; para_que: string; rotulo: string }[]; acoes: { nome: string; rotulo: string; soComPessoa?: boolean }[]; formato: string | null;
   decidido_por: string | null; motivo: string | null; proxima_em: string | null; execucoes: Execucao[];
 };
 
@@ -34,6 +34,7 @@ function QuadroDeLimites({ acoes, limites, mudar }: { acoes: Guia["acoes"]; limi
       <small>Sem marcar, cada ação vira um cartão para quem criou a guia permitir (vale 24 h).</small>
       {acoes.map((a) => {
         const l = limites[a.nome] ?? {};
+        if (a.soComPessoa) return <small key={a.nome} className="sara-guia-nota">{a.rotulo}: sempre com o seu Permitir (o resultado é mostrado uma vez só, para você).</small>;
         return (
           <div key={a.nome} className="sara-guia-limite">
             <label className="sara-guia-marca"><input type="checkbox" checked={Boolean(l.sozinha)} onChange={(e) => por(a.nome, { sozinha: e.target.checked })} /> {a.rotulo} sozinha</label>

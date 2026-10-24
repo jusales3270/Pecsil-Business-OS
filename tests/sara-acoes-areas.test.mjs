@@ -8,8 +8,8 @@ const A = Object.fromEntries(ACOES.map((f) => [f.nome, f]));
 const fonte = readFileSync(new URL("../lib/sara/acoes-areas.ts", import.meta.url), "utf8");
 const pode = (g) => (f, n) => (g[f] === "aprovar") || (g[f] === "operar" && n === "operar");
 
-test("as 7 ações novas entram na lista da SARA, todas como 'operar' e de baixo risco", () => {
-  assert.equal(ACOES_AREAS.length, 7);
+test("as 8 ações das áreas entram na lista da SARA, todas como 'operar' e de baixo risco", () => {
+  assert.equal(ACOES_AREAS.length, 8);
   for (const f of ACOES_AREAS) {
     assert.ok(A[f.nome], f.nome);
     assert.equal(f.acao?.nivel, "operar", f.nome);
@@ -20,13 +20,16 @@ test("as 7 ações novas entram na lista da SARA, todas como 'operar' e de baixo
 });
 
 test("cada ação chama a MESMA função do banco que a tela usa", () => {
-  for (const fn of ["compras_ramo_criar", "fiscal_portal_pendencia_abrir", "rh_terceiro_incluir", "ti_salvar_ativo", "ti_salvar_incidente", "ti_chamado_acao", "producao_entrada_registrar"]) {
+  for (const fn of ["compras_ramo_criar", "compras_convite_criar", "fiscal_portal_pendencia_abrir", "rh_terceiro_incluir", "ti_salvar_ativo", "ti_salvar_incidente", "ti_chamado_acao", "producao_entrada_registrar"]) {
     assert.match(fonte, new RegExp(`sb\\.rpc\\("${fn}"`), fn);
   }
   // As de risco maior ficam de fora até o "sim" da área.
-  for (const fn of ["finance_aprovar_titulo", "finance_settle_title", "finance_reconcile_entry", "compras_direta_registrar", "compras_ramo_cancelar", "almoxarifado_confirmar_recebimento", "almoxarifado_cancelar_solicitacao", "fundicao_cancelar_pedido", "rh_documento_conferir", "rh_terceiro_excluir", "compras_convite_criar"]) {
+  for (const fn of ["finance_aprovar_titulo", "finance_settle_title", "finance_reconcile_entry", "compras_direta_registrar", "compras_ramo_cancelar", "almoxarifado_confirmar_recebimento", "almoxarifado_cancelar_solicitacao", "fundicao_cancelar_pedido", "rh_documento_conferir", "rh_terceiro_excluir"]) {
     assert.doesNotMatch(fonte, new RegExp(fn), `${fn} não é ação da SARA`);
   }
+  // O convite ficou de fora em 22/10 porque o link só existe como hash. Desde 24/10 (compra assistida) ele
+  // aparece uma vez para quem permitiu, nunca é gravado, e a guia não faz o convite sozinha.
+  assert.equal(A.convidar_fornecedor.acao.soComPessoa, true);
 });
 
 test("cada módulo oferece só as suas ações, e só a quem tem o nível", () => {
@@ -34,6 +37,8 @@ test("cada módulo oferece só as suas ações, e só a quem tem o nível", () =
   assert.ok(nomes("compras", { "compras.cotacoes": "operar" }).includes("encaminhar_para_cotar"));
   assert.ok(!nomes("compras", { "compras.cotacoes": "ver" }).includes("encaminhar_para_cotar"));
   assert.ok(!nomes("fundicao", { "compras.cotacoes": "operar" }).includes("encaminhar_para_cotar"), "só na SARA do Compras");
+  assert.ok(nomes("compras", { "compras.cotacoes": "operar" }).includes("convidar_fornecedor"));
+  assert.ok(!nomes("compras", { "compras.cotacoes": "ver" }).includes("convidar_fornecedor"));
   assert.ok(nomes("fiscal", { "fiscal.escritorio": "operar" }).includes("pendencia_para_o_escritorio"));
   assert.ok(nomes("rh", { "rh.terceiros": "operar" }).includes("incluir_terceiro"));
   assert.deepEqual(nomes("ti", { "ti.ativos": "operar" }).filter((n) => ACOES_AREAS.some((f) => f.nome === n)), ["cadastrar_equipamento"]);
@@ -51,6 +56,7 @@ test("o cartão confere a entrada antes de chegar ao banco", async () => {
   assert.ok("erro" in await A.incluir_terceiro.acao.preparar(null, { nome: "x" }));
   assert.ok("erro" in await A.pendencia_para_o_escritorio.acao.preparar(null, { assunto: "ab", texto: "" }));
   assert.ok("erro" in await A.encaminhar_para_cotar.acao.preparar(null, { fornecedor: "X" }), "sem o número do pedido");
+  assert.ok("erro" in await A.convidar_fornecedor.acao.preparar(null, { fornecedor: "X" }), "convite sem o número do pedido");
   assert.ok("erro" in await A.atender_chamado_ti.acao.preparar(null, { acao: "resolver" }), "sem o número do chamado");
   assert.ok("erro" in await A.entrada_de_producao.acao.preparar(null, { quantidade: 3 }), "sem o orçamento");
 });

@@ -7422,6 +7422,9 @@ button.holiday-row:hover {
 .sara-acao-aviso { font-size: var(--fs-micro); color: var(--accent-amber); }
 .sara-acao-feito { font-size: var(--fs-xs); font-weight: 700; color: var(--accent-green); }
 .sara-acao-erro { font-size: var(--fs-xs); color: var(--accent-red); }
+.sara-acao-link { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 12px; border: 1px dashed color-mix(in srgb, var(--accent-green) 55%, transparent); background: var(--bg-surface); }
+.sara-acao-link small { font-size: var(--fs-micro); color: var(--text-secondary); }
+.sara-acao-link input { width: 100%; min-width: 0; padding: 6px 8px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--text-primary) 15%, transparent); background: var(--bg-inset); color: var(--text-primary); font: inherit; font-size: var(--fs-xs); }
 .sara-acao-botoes .neutro { border: 1px solid color-mix(in srgb, var(--text-primary) 18%, transparent); background: transparent; color: var(--text-primary); }
 /* SARA central em holograma (E7): visual do proprietário (saraholo.zip), âmbar sobre preto, de propósito
    um mundo só escuro (vale nos dois temas). Classes "sh-" isoladas do resto da plataforma. */
@@ -7832,9 +7835,20 @@ a.doc-abrir { text-decoration: none; }
 .sara-ponto.aviso { background: var(--accent-blue); }
 .sara-avisos-titulo .sara-ponto { margin-top: 0; }
 .sara-ponto.pulsa.urgente { animation: sara-pulso-urgente 1.6s ease-out infinite; }
+/* Lista recolhida com urgente que a pessoa ainda não abriu: a caixa dos avisos pulsa em vermelho. */
+.sara-avisos.pulsa-urgente { border-color: color-mix(in srgb, var(--accent-red) 55%, transparent); animation: sara-pulso-urgente 1.6s ease-out infinite; }
+/* Bordas e cantos que mudam o tamanho da janela (ficam dentro dela, invisíveis, só o cursor muda). */
+.sara-borda { position: absolute; z-index: 2; touch-action: none; }
+.sara-borda.n, .sara-borda.s { left: 18px; right: 18px; height: 8px; cursor: ns-resize; }
+.sara-borda.n { top: 0; } .sara-borda.s { bottom: 0; }
+.sara-borda.e, .sara-borda.w { top: 18px; bottom: 18px; width: 8px; cursor: ew-resize; }
+.sara-borda.e { right: 0; } .sara-borda.w { left: 0; }
+.sara-borda.ne, .sara-borda.nw, .sara-borda.se, .sara-borda.sw { width: 18px; height: 18px; }
+.sara-borda.ne { top: 0; right: 0; cursor: nesw-resize; } .sara-borda.sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.sara-borda.nw { top: 0; left: 0; cursor: nwse-resize; } .sara-borda.se { bottom: 0; right: 0; cursor: nwse-resize; }
 .sara-ponto.pulsa.aviso { animation: sara-pulso-aviso 2.2s ease-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .sara-botao.pulsa-urgente::after, .sara-botao.pulsa-aviso::after, .sara-ponto.pulsa { animation: none; }
+  .sara-botao.pulsa-urgente::after, .sara-botao.pulsa-aviso::after, .sara-ponto.pulsa, .sara-avisos.pulsa-urgente { animation: none; }
   .sara-botao.pulsa-urgente::after { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-red) 60%, transparent); }
   .sara-botao.pulsa-aviso::after { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue) 55%, transparent); }
 }
@@ -7843,6 +7857,8 @@ a.doc-abrir { text-decoration: none; }
   .sara-painel { left: 0 !important; top: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw; height: 100dvh; border-radius: 0;
     padding: calc(var(--sp-4) + env(safe-area-inset-top, 0px)) calc(var(--sp-4) + env(safe-area-inset-right, 0px)) calc(var(--sp-3) + env(safe-area-inset-bottom, 0px)) calc(var(--sp-4) + env(safe-area-inset-left, 0px)); }
   .sara-painel::before { display: none; }
+  .sara-painel { width: 100vw !important; height: 100dvh !important; }
+  .sara-borda { display: none; }
   .sara-alca { cursor: default; }
 }
 

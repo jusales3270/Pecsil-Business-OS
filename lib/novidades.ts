@@ -44,6 +44,31 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-24-sara-janela",
+    data: "2026-10-24",
+    area: "SARA",
+    titulo: "A janela da SARA muda de tamanho e os avisos ficam recolhidos",
+    itens: [
+      "Os avisos começam fechados, para a conversa ficar à vista. Clique em \"Avisos\" para ver a lista.",
+      "Quando há aviso urgente que você ainda não abriu, a caixa dos avisos pulsa em vermelho.",
+      "Segure uma borda ou um canto da janela da SARA e arraste para deixá-la do tamanho que quiser. Ela lembra o tamanho; dois cliques num canto voltam ao tamanho padrão.",
+    ],
+  },
+  {
+    id: "2026-10-24-compra-assistida",
+    data: "2026-10-24",
+    area: "Compras",
+    titulo: "A SARA do Compras ajuda a escolher a quem pedir preço",
+    modulos: ["compras"],
+    funcionalidades: ["compras.cotacoes", "compras.aprovacoes"],
+    itens: [
+      "Pergunte \"a quem pedir preço do pedido 25?\" e a SARA mostra quem já vendeu ou cotou cada item, com o último preço pago e a data. Quem escolhe continua sendo você.",
+      "Ela também prepara o convite para o fornecedor cotar pelo link. Depois do seu Permitir, o link aparece uma vez só, no cartão, para você copiar e mandar.",
+      "Quando chega um pedido novo, o aviso da SARA já sugere o fornecedor que vendeu o item e traz o convite pronto.",
+      "Item cotado acima do que a empresa costuma pagar vira aviso, com a diferença e a mediana das últimas compras.",
+    ],
+  },
+  {
     id: "2026-10-24-sara-central-painel",
     data: "2026-10-24",
     area: "SARA",
