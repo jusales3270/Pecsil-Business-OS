@@ -107,7 +107,7 @@ export function WhatsappListas({ notify, canal }: { notify: (m: string) => void;
       {form && (
         <form className="wa-form" onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
           <b>{form.id ? "Alterar" : "Novo"} {aba === "interna" ? "número de funcionário" : "contato externo"}</b>
-          <label>Número com DDD<input value={form.numero} onChange={(e) => mudar({ numero: e.target.value })} inputMode="tel" placeholder="15 99662-2530" required /></label>
+          <label>Número com DDD<input value={form.numero} onChange={(e) => mudar({ numero: e.target.value })} inputMode="tel" placeholder="15 91234-5678" required /></label>
           {aba === "interna" ? (
             <label>Usuário da plataforma
               <select value={form.profile_id} onChange={(e) => mudar({ profile_id: e.target.value })} required>

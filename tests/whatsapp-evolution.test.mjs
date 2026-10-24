@@ -7,14 +7,14 @@ const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 const resposta = (status, corpo) => ({ ok: status < 400, status, text: async () => JSON.stringify(corpo) });
 
 test("whatsapp: número com DDD vira o formato do WhatsApp (55 + DDD + número)", () => {
-  assert.deepEqual(numeroWhatsApp("(15) 99662-2530"), { numero: "5515996622530" });
+  assert.deepEqual(numeroWhatsApp("(15) 91234-5678"), { numero: "5515912345678" });
   assert.deepEqual(numeroWhatsApp("15 3333-4444"), { numero: "551533334444" });
-  assert.deepEqual(numeroWhatsApp("+55 15 99662-2530"), { numero: "5515996622530" });
-  assert.deepEqual(numeroWhatsApp("015 99662-2530"), { numero: "5515996622530" });
-  assert.ok("erro" in numeroWhatsApp("99662-2530"));
+  assert.deepEqual(numeroWhatsApp("+55 15 91234-5678"), { numero: "5515912345678" });
+  assert.deepEqual(numeroWhatsApp("015 91234-5678"), { numero: "5515912345678" });
+  assert.ok("erro" in numeroWhatsApp("91234-5678"));
   assert.ok("erro" in numeroWhatsApp(""));
-  assert.equal(numeroLegivel("5515996622530@s.whatsapp.net"), "+55 15 99662-2530");
-  assert.equal(numeroLegivel("5515996622530:12@s.whatsapp.net"), "+55 15 99662-2530");
+  assert.equal(numeroLegivel("5515912345678@s.whatsapp.net"), "+55 15 91234-5678");
+  assert.equal(numeroLegivel("5515912345678:12@s.whatsapp.net"), "+55 15 91234-5678");
   assert.equal(numeroLegivel(null), null);
 });
 
@@ -48,8 +48,8 @@ test("whatsapp: situação e QR Code (sem configuração, sem instância, conect
     assert.ok(pedidos.some((p) => p.includes("instanceName=pecsil-comercial")), "cada número é a sua instância");
     await assert.rejects(situacao("../admin", vazia).then((x) => { if (x.estado === "fora_do_ar") throw new Error(x.detalhe); }), /Instância inválida/);
     // Conectado: mostra o número; pedir QR não cria nada.
-    const ligada = async () => resposta(200, [{ name: INSTANCIA_INTERNA, connectionStatus: "open", ownerJid: "5515996622530@s.whatsapp.net", profileName: "Pecsil" }]);
-    assert.deepEqual(await situacao(INSTANCIA_INTERNA, ligada), { estado: "conectado", numero: "+55 15 99662-2530", nome: "Pecsil" });
+    const ligada = async () => resposta(200, [{ name: INSTANCIA_INTERNA, connectionStatus: "open", ownerJid: "5515912345678@s.whatsapp.net", profileName: "Pecsil" }]);
+    assert.deepEqual(await situacao(INSTANCIA_INTERNA, ligada), { estado: "conectado", numero: "+55 15 91234-5678", nome: "Pecsil" });
     assert.deepEqual(await pedirQr(INSTANCIA_INTERNA, ligada), { qr: null, conectado: true });
     // Evolution fora do ar.
     const fora = async () => { throw new Error("connect ECONNREFUSED"); };

@@ -26,10 +26,10 @@ test("listas: as SARAs que o usuário pode usar vêm da credencial dele", () => 
 });
 
 test("listas: interna exige usuário cuja credencial libere a SARA do número", () => {
-  assert.deepEqual(validarInterno({ numero: "15 99662-2530", profile_id: P }, true),
-    { lista: "interna", numero: "5515996622530", profile_id: P, observacao: null });
-  assert.match(validarInterno({ numero: "15 99662-2530", profile_id: P }, false).erro, /não libera a SARA responsável/);
-  assert.match(validarInterno({ numero: "15 99662-2530", profile_id: "x" }, true).erro, /usuário/);
+  assert.deepEqual(validarInterno({ numero: "15 91234-5678", profile_id: P }, true),
+    { lista: "interna", numero: "5515912345678", profile_id: P, observacao: null });
+  assert.match(validarInterno({ numero: "15 91234-5678", profile_id: P }, false).erro, /não libera a SARA responsável/);
+  assert.match(validarInterno({ numero: "15 91234-5678", profile_id: "x" }, true).erro, /usuário/);
   assert.match(validarInterno({ numero: "9966", profile_id: P }, true).erro, /DDD/);
 });
 

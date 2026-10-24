@@ -23,17 +23,17 @@ export type EstadoCanal = "sem_configuracao" | "fora_do_ar" | "sem_instancia" | 
 export type Situacao = { estado: EstadoCanal; numero: string | null; nome: string | null; detalhe?: string };
 
 /**
- * Número no formato do WhatsApp (só dígitos, com o 55): "(15) 99662-2530" → "5515996622530".
+ * Número no formato do WhatsApp (só dígitos, com o 55): "(15) 91234-5678" → "5515912345678".
  * Aceita celular e fixo do Brasil com DDD; com o 55 já na frente também.
  */
 export function numeroWhatsApp(entrada: unknown): { numero: string } | { erro: string } {
   const d = String(entrada ?? "").replace(/\D/g, "").replace(/^0+/, "");
   if (d.length === 10 || d.length === 11) return { numero: `55${d}` };
   if ((d.length === 12 || d.length === 13) && d.startsWith("55")) return { numero: d };
-  return { erro: "Informe o número com DDD (ex.: 15 99662-2530)." };
+  return { erro: "Informe o número com DDD (ex.: 15 91234-5678)." };
 }
 
-/** "5515996622530@s.whatsapp.net" → "+55 15 99662-2530", para mostrar na tela. */
+/** "5515912345678@s.whatsapp.net" → "+55 15 91234-5678", para mostrar na tela. */
 export function numeroLegivel(jid: string | null | undefined): string | null {
   const d = String(jid ?? "").split("@")[0].split(":")[0].replace(/\D/g, "");
   if (!d) return null;

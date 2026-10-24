@@ -226,7 +226,7 @@ function CartaoCanal({ canal, notify, recarregar, editar }: { canal: Canal; noti
       {s.estado === "conectado" && (
         <form className="wa-teste" onSubmit={(e) => { e.preventDefault(); void testar(); }}>
           <b>Mensagem de teste</b>
-          <label>Número com DDD<input value={numero} onChange={(e) => setNumero(e.target.value)} inputMode="tel" placeholder="15 99662-2530" /></label>
+          <label>Número com DDD<input value={numero} onChange={(e) => setNumero(e.target.value)} inputMode="tel" placeholder="15 91234-5678" /></label>
           <label>Mensagem<input value={texto} onChange={(e) => setTexto(e.target.value)} maxLength={500} placeholder={`Teste do WhatsApp "${canal.nome}" do Pecsil Business OS.`} /></label>
           <Button type="submit" disabled={ocupado || numero.replace(/\D/g, "").length < 10}>{ocupado ? "Enviando…" : "Enviar teste"}</Button>
         </form>
