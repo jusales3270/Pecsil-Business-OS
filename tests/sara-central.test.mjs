@@ -81,7 +81,7 @@ test("SARA central: na War Room, Sonnet, sem consulta direta, com o verificador 
   assert.match(sessao, /ferramentaPerguntarASara\(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos\.fontes\), calcular, PERIODO/);
   assert.match(sessao, /const calcular: Ferramenta = \{ \.\.\.CALCULAR, rotulo: "conta da plataforma com os números das áreas", rodar: async \(sb, e\) => \{[\s\S]*documentos\.fontes\.push\(\{ resultados: resultados\.filter/, "a conta (com fonte) vira fonte dos documentos");
   assert.match(sessao, /access\.canModule\(x\.feature\) && access\.can\(x\.permissao, "ver"\)/, "só as áreas da pessoa");
-  const rota = ler("app/api/sara/[modulo]/route.ts");
+  const rota = (ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts"));
   assert.match(rota, /if \(p\.sara\.central && !fora\) \{[^}]*conferencia = conferirNumeros\(r\.texto, \[\.\.\.\(r\.resultados \?\? \[\]\)\.map\(\(x\) => x\.dados\), \.\.\.fontesDaConversa/);
   const sql = ler("supabase/migrations/202610230002_sara_central.sql");
   assert.match(sql, /\('warroom\.sara', 'warroom', 'SARA central \(conselho\)', '\{ver\}', 20\)/);
@@ -130,7 +130,7 @@ test("CEO apresentando: navega pelas telas das áreas, minimiza para mostrar e a
   const sessao = ler("lib/sara/sessao.ts");
   assert.match(sessao, /const navegarCentral = ferramentaDeTelas\(/, "telas de todas as áreas da pessoa");
   assert.match(sessao, /f\.nome === "abrir_lancamento" && f\.exige\.some\(pode\)/);
-  assert.match(ler("app/api/sara/[modulo]/route.ts"), /visuais: \[\.\.\.r\.visuais, \.\.\.p\.visuaisSubagentes\]\.slice\(0, 8\)/);
+  assert.match((ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts")), /visuais: \[\.\.\.r\.visuais, \.\.\.p\.visuaisSubagentes\]\.slice\(0, 8\)/);
   assert.match(SARA_CENTRAL.manual, /apresentando à diretoria/);
 });
 
@@ -254,7 +254,7 @@ test("painel da central: monta com mostrar a partir das consultas das áreas e d
   const laco = ler("lib/sara/laco.ts");
   assert.match(laco, /if \(res\.paraVisual\?\.length\) resultados\.push\(\.\.\.res\.paraVisual\);/);
   assert.match(laco, /visuais\.length < \(a\.maxVisuais \?\? 4\)/);
-  const rota = ler("app/api/sara/[modulo]/route.ts");
+  const rota = (ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts"));
   assert.match(rota, /maxVisuais: p\.sara\.central \? 8 : undefined/);
   assert.match(rota, /replace\(\/⚠️\?\\s\*Sem fonte conferida/, "o aviso do que não teve fonte não vira fonte");
   const { SARA_CENTRAL } = await import("../lib/sara/central/sara.ts");

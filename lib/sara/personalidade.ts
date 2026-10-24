@@ -92,6 +92,12 @@ const EXPRESSOES: [RegExp, string][] = [
   [/\*\s*(pausa(?:\s+breve)?)\s*\*|\[pausa\]/gi, "[pause]"],
   [/\*\s*(leve\s+pigarro|pigarro|pigarreia)\s*\*|\[pigarro\]/gi, "[cough]"],
 ];
+/** Para resposta escrita (WhatsApp): as expressões da personalidade saem; o negrito normal fica. */
+export function semExpressoes(texto: string): string {
+  let t = texto;
+  for (const [re] of EXPRESSOES) t = t.replace(re, " ");
+  return t.replace(/[ \t]{2,}/g, " ").replace(/\s+([.,;:!?])/g, "$1").replace(/^ +/gm, "").trim();
+}
 /** As tags que o motor de voz entende (nunca lidas em voz alta). */
 export const TAG_DE_VOZ = /<soft>\[laugh\]<\/soft>|\[(?:sigh|laugh|pause|long-pause|cough)\]/g;
 

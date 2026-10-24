@@ -5,7 +5,7 @@ import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 import { requireUserSession } from "../../../../lib/supabase/session";
 import { validarCanal } from "../../../../lib/whatsapp/contatos";
 import { SARA_OPCOES } from "../../../../lib/whatsapp/saras";
-import { apagarInstancia, configuracao, desconectar, enviarTexto, ErroEvolution, nomeDeInstancia, numeroWhatsApp, pedirQr, situacao } from "../../../../lib/whatsapp/evolution";
+import { apagarInstancia, configuracao, desconectar, enviarTexto, ErroEvolution, garantirWebhook, nomeDeInstancia, numeroWhatsApp, pedirQr, situacao } from "../../../../lib/whatsapp/evolution";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -47,8 +47,22 @@ export async function GET() {
   const { data, error } = await d.sb.from("whatsapp_canais").select("id, instancia, nome, departamento, descricao, sara_modulo, conexao, ativo, created_at").order("created_at");
   if (error) return NextResponse.json({ error: tabelaFaltando(error.message, error.code) ? "As tabelas dos números ainda não foram criadas no banco (migração 202610240002)." : error.message }, { status: 500 });
   const rotulo = new Map(SARA_OPCOES.map((s) => [s.modulo, s.rotulo]));
-  const canais = await Promise.all(((data ?? []) as Linha[]).map(async (c) => ({ ...c, sara: c.sara_modulo ? { modulo: c.sara_modulo, rotulo: rotulo.get(c.sara_modulo) ?? c.sara_modulo } : null,
-    situacao: c.conexao === "whatsapp_web" ? await situacao(c.instancia) : { estado: "api_oficial", numero: null, nome: null } })));
+  // Movimento dos últimos 7 dias por número (W3). Sem a tabela ainda (antes da migração 0003), fica sem números.
+  const desde = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const { data: mov } = await d.sb.from("whatsapp_mensagens").select("canal_id, situacao, motivo").eq("direcao", "entrada").gte("created_at", desde).limit(5000);
+  const movimento = new Map<string, { respondidas: number; ignoradas: number; fora_da_lista: number; falhas: number }>();
+  for (const m of (mov ?? []) as { canal_id: string; situacao: string; motivo: string | null }[]) {
+    const x = movimento.get(m.canal_id) ?? { respondidas: 0, ignoradas: 0, fora_da_lista: 0, falhas: 0 };
+    if (m.situacao === "respondida") x.respondidas++; else if (m.situacao === "ignorada") { x.ignoradas++; if (m.motivo === "fora_da_lista") x.fora_da_lista++; } else if (m.situacao === "falhou") x.falhas++;
+    movimento.set(m.canal_id, x);
+  }
+  const canais = await Promise.all(((data ?? []) as Linha[]).map(async (c) => {
+    const sit = c.conexao === "whatsapp_web" ? await situacao(c.instancia) : { estado: "api_oficial", numero: null, nome: null };
+    // Número conectado: a Evolution tem de avisar a plataforma das mensagens (W3); liga se não estiver ligado.
+    const recebimento = sit.estado === "conectado" && c.ativo ? await garantirWebhook(c.instancia) : null;
+    return { ...c, sara: c.sara_modulo ? { modulo: c.sara_modulo, rotulo: rotulo.get(c.sara_modulo) ?? c.sara_modulo } : null, situacao: sit, recebimento,
+      movimento: movimento.get(c.id) ?? { respondidas: 0, ignoradas: 0, fora_da_lista: 0, falhas: 0 } };
+  }));
   return NextResponse.json({ canais, saras: SARA_OPCOES.map((s) => ({ modulo: s.modulo, rotulo: s.rotulo })), configurada: Boolean(configuracao()) }, { headers: { "cache-control": "no-store" } });
 }
 
@@ -87,6 +101,8 @@ export async function POST(request: Request) {
   try {
     if (acao === "conectar") {
       const r = await pedirQr(canal.instancia);
+      // O recebimento fica ligado desde já (a instância existe depois do QR pedido).
+      await garantirWebhook(canal.instancia).catch(() => null);
       if (r.conectado) return NextResponse.json({ conectado: true });
       await auditar(d.sb, "whatsapp.qr_pedido", { canal: id, instancia: canal.instancia });
       return NextResponse.json({ conectado: false, qr: r.qr });

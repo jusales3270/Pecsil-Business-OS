@@ -53,7 +53,7 @@ test("E5 parâmetros usados: filtros reais das consultas, datas em BR, sem naveg
     { consulta: "contas a pagar", filtros: ["período: 01/09/2026 a 30/09/2026", "situação: vencidas", "limite: 30"] },
     { consulta: "fundicao pedidos", filtros: ["padrão da consulta"] },
   ]);
-  const rota = ler("app/api/sara/[modulo]/route.ts");
+  const rota = (ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts"));
   assert.match(rota, /parametros: parametrosUsados\(r\.ferramentas as Usada\[\]/);
   assert.match(ler("app/components/sara-painel.tsx"), /<summary>Parâmetros usados<\/summary>/);
 });
@@ -70,7 +70,7 @@ test("E5 anexo: lido no servidor pelo leitor do Segundo Cérebro, vai como texto
   assert.match(rota, /await preparar\(modulo\)/);
   assert.doesNotMatch(rota, /storage|insert|upload|createSupabaseAdminClient/i, "o arquivo não é guardado");
   assert.match(rota, /escaneado/i, "PDF escaneado orienta usar a foto");
-  const conversa = ler("app/api/sara/[modulo]/route.ts");
+  const conversa = (ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts"));
   assert.match(conversa, /anexo \? `📎 \$\{anexo\.nome\} · ` : ""/, "a conversa grava só o nome do anexo");
   assert.match(conversa, /texto: corpo\.anexo\.texto\.slice\(0, 40_000\)/);
 });

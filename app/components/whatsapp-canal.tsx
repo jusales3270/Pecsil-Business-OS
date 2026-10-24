@@ -13,7 +13,9 @@ import { WhatsappListas } from "./whatsapp-listas";
 type Estado = "sem_configuracao" | "fora_do_ar" | "sem_instancia" | "desconectado" | "aguardando_qr" | "conectado" | "api_oficial";
 type Situacao = { estado: Estado; numero: string | null; nome: string | null; detalhe?: string };
 type Sara = { modulo: string; rotulo: string };
-type Canal = { id: string; instancia: string; nome: string; departamento: string | null; descricao: string | null; sara: Sara | null; sara_modulo: string | null; conexao: "whatsapp_web" | "api_oficial"; ativo: boolean; situacao: Situacao };
+type Movimento = { respondidas: number; ignoradas: number; fora_da_lista: number; falhas: number };
+type Canal = { id: string; instancia: string; nome: string; departamento: string | null; descricao: string | null; sara: Sara | null; sara_modulo: string | null; conexao: "whatsapp_web" | "api_oficial"; ativo: boolean; situacao: Situacao;
+  recebimento: { ligado: boolean; erro?: string } | null; movimento: Movimento };
 type Dados = { canais: Canal[]; saras: Sara[]; configurada: boolean };
 type FormCanal = { id?: string; nome: string; departamento: string; descricao: string; sara_modulo: string; conexao: "whatsapp_web" | "api_oficial" };
 
@@ -184,6 +186,11 @@ function CartaoCanal({ canal, notify, recarregar, editar }: { canal: Canal; noti
           <p className="wa-canal-info">
             <span><b>SARA responsável:</b> {canal.sara?.rotulo ?? <em className="wa-falta">nenhuma: este número não responde ninguém</em>}</span>
             {canal.descricao && <span>{canal.descricao}</span>}
+            {canal.recebimento && (canal.recebimento.ligado
+              ? <span className="wa-movimento">Últimos 7 dias: {canal.movimento.respondidas} {canal.movimento.respondidas === 1 ? "respondida" : "respondidas"}
+                  {canal.movimento.fora_da_lista ? ` · ${canal.movimento.fora_da_lista} de números fora da lista (ignoradas)` : ""}
+                  {canal.movimento.falhas ? ` · ${canal.movimento.falhas} com falha` : ""}</span>
+              : <em className="wa-falta">Recebimento de mensagens desligado: {canal.recebimento.erro ?? "a Evolution não aceitou o webhook"}</em>)}
           </p>
         </div>
         <div className="wa-canal-estado">

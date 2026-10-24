@@ -108,7 +108,7 @@ test("progresso no navegador: junta o passo pelo id e mostra o último que está
 });
 
 test("progresso: a rota só transmite quando a tela pede, sem compressão segurando as linhas", () => {
-  const rota = ler("app/api/sara/[modulo]/route.ts");
+  const rota = (ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts"));
   assert.match(rota, /if \(!corpo\?\.progresso\) return responder\(p, modulo, corpo\);/);
   assert.match(rota, /"cache-control": "no-store, no-transform"/);
   assert.match(rota, /linha\(\{ tipo: "vivo" \}\), 10_000/);

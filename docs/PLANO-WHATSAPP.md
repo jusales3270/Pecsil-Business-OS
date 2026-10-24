@@ -125,6 +125,7 @@ A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está 
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 24/10/2026 | W3 construída: webhook da Evolution pela rede interna (alias `pecsil-business-os`, segredo no caminho), registro das mensagens (migração 202610240003, sem o conteúdo), fora da lista em silêncio, a SARA do número com a sessão da pessoa pela mesma função da tela (`lib/sara/responder.ts`), texto com texto e áudio com nota de voz | — |
 | 24/10/2026 | Vários números (pedido do proprietário): cada número com departamento, descrição e SARA responsável (ex.: um só para o Comercial, outro para o atendimento a clientes, outro para o Fiscal); as listas passam a ser de cada número; o chip atual vira o primeiro número | Proprietário |
 | 24/10/2026 | Duas listas (pedido do proprietário): Comunicação interna (funcionários, ligados ao usuário) e Comunicação externa (fornecedores, clientes e outros, para os envios e respostas autorizadas da W5). Um número vale para uma lista só | Proprietário |
 | 24/10/2026 | Lista fechada de números cadastrada à mão pelo proprietário, ligada ao usuário (no lugar do número confirmado pela própria pessoa); número fora da lista é ignorado em silêncio. Horário silencioso 20h–7h e domingo. Quais avisos vão ao WhatsApp: a decidir | Proprietário |

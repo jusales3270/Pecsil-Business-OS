@@ -9246,4 +9246,4 @@ a.doc-abrir { text-decoration: none; }
 .wa-confirmar { padding: 10px 12px; border-radius: 12px; background: var(--bg-subtle); }
 .wa-form textarea { min-height: 38px; padding: 8px 10px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--text-primary) 15%, transparent); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); resize: vertical; }
 .wa-form-canal { margin-bottom: var(--sp-4); }
-
+.wa-movimento { font-size: var(--fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }

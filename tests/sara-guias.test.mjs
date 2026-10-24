@@ -116,7 +116,7 @@ test("migração: freios, laço e permissões das guias", () => {
 test("a tarefa agendada roda a fila das guias e a conversa registra a guia pedida", () => {
   const cron = ler("scripts/sync-os-cron.mjs");
   assert.match(cron, /"\/api\/producao\/sync-os", "\/api\/sara\/guias\/rodar"/);
-  const rota = ler("app/api/sara/[modulo]/route.ts");
+  const rota = (ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts"));
   assert.match(rota, /sara_guia_propor/);
   const exec = ler("lib/sara/guias-executar.ts");
   // Roda com a sessão de quem criou e encerra a sessão no fim.

@@ -150,7 +150,7 @@ test("E2: a foto vai ao modelo como imagem junto da pergunta, e não fica guarda
   assert.equal(ultima[0].type, "image");
   assert.deepEqual(ultima[0].source, { type: "base64", media_type: "image/jpeg", data: "QUJD" });
   assert.equal(ultima[1].text, "o que é?");
-  const rota = ler("app/api/sara/[modulo]/route.ts");
+  const rota = (ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts"));
   assert.match(rota, /const TIPOS_FOTO = \["image\/jpeg", "image\/png", "image\/webp"\]/);
   assert.match(rota, /dados\.length > 5_400_000/, "limite de tamanho da foto");
   assert.match(rota, /p_pergunta: `\$\{imagem \? "📷 " : ""\}/, "na conversa fica só a marca da foto, não a imagem");
@@ -197,7 +197,7 @@ test("E2 voz: Whisper da Cloudflare (conta do Clef), áudio conferido e não gua
   const rota = ler("app/api/sara/[modulo]/voz/route.ts");
   assert.match(rota, /await preparar\(modulo\)/, "mesma regra de acesso da SARA");
   assert.doesNotMatch(rota, /createSupabaseAdminClient|SERVICE_ROLE/);
-  assert.match(ler("app/api/sara/[modulo]/route.ts"), /corpo\?\.voz \? "🎤 " : ""/, "a conversa marca que a pergunta foi falada");
+  assert.match((ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts")), /corpo\?\.voz \? "🎤 " : ""/, "a conversa marca que a pergunta foi falada");
   const painel = ler("app/components/sara-painel.tsx");
   assert.match(painel, /new MediaRecorder\(fluxo/);
   assert.match(painel, /setTimeout\(\(\) => pararGravacao\(true\), 60_000\)/, "para sozinha em 1 minuto");

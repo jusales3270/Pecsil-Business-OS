@@ -1,0 +1,107 @@
+/**
+ * WhatsApp W3 (PLANO-WHATSAPP §4): ler o aviso de mensagem que a Evolution manda (messages.upsert) e preparar a
+ * resposta da SARA para o WhatsApp. Regras puras, testadas sem a Evolution.
+ */
+
+export type TipoMensagem = "texto" | "audio" | "imagem" | "documento" | "outro";
+export type Recebida = {
+  instancia: string;
+  waId: string;
+  /** Número de quem mandou: 55 + DDD + número, só dígitos. */
+  numero: string;
+  /** O endereço como veio (para marcar como lida e responder no mesmo chat). */
+  jid: string;
+  tipo: TipoMensagem;
+  texto: string;
+  /** Áudio, imagem ou documento em base64, quando a Evolution manda junto (webhook com base64). */
+  base64: string | null;
+  mimetype: string | null;
+  nome: string | null;
+};
+export type Descartada = { descartar: string; instancia?: string; waId?: string; numero?: string };
+
+type Chave = { remoteJid?: string; fromMe?: boolean; id?: string; remoteJidAlt?: string; senderPn?: string; participant?: string };
+type Conteudo = {
+  conversation?: string; extendedTextMessage?: { text?: string };
+  audioMessage?: { mimetype?: string }; imageMessage?: { mimetype?: string; caption?: string };
+  documentMessage?: { mimetype?: string; caption?: string; fileName?: string }; documentWithCaptionMessage?: { message?: Conteudo };
+  base64?: string;
+};
+
+const digitos = (jid: string | undefined) => String(jid ?? "").split("@")[0].split(":")[0].replace(/\D/g, "");
+
+/**
+ * Lê o aviso da Evolution. Descarta (sem responder nada) o que não é conversa de uma pessoa: o que o próprio chip
+ * mandou, grupo, status, transmissão e evento que não é mensagem nova.
+ */
+export function lerMensagem(payload: unknown): Recebida | Descartada {
+  const p = (payload ?? {}) as { event?: string; instance?: string; data?: { key?: Chave; message?: Conteudo; messageType?: string; pushName?: string } };
+  const evento = String(p.event ?? "").toLowerCase().replace(/_/g, ".");
+  if (evento !== "messages.upsert") return { descartar: "evento" };
+  const instancia = String(p.instance ?? "");
+  const k = p.data?.key ?? {};
+  const waId = String(k.id ?? "");
+  if (!instancia || !waId) return { descartar: "sem_id" };
+  if (k.fromMe) return { descartar: "do_proprio_chip", instancia, waId };
+  const jid = String(k.remoteJid ?? "");
+  if (/@g\.us$|@broadcast$|@newsletter$/.test(jid) || jid === "status@broadcast") return { descartar: "grupo", instancia, waId };
+  // Endereço novo do WhatsApp (LID): o telefone vem no campo alternativo.
+  const telefone = /@lid$/.test(jid) ? (k.senderPn || k.remoteJidAlt || "") : jid;
+  const numero = digitos(telefone);
+  if (!/^55\d{10,11}$/.test(numero)) return { descartar: "numero_desconhecido", instancia, waId, numero };
+  const m = p.data?.message ?? {};
+  const doc = m.documentWithCaptionMessage?.message?.documentMessage ?? m.documentMessage;
+  const base = { instancia, waId, numero, jid, base64: m.base64 ?? null, nome: p.data?.pushName?.trim() || null };
+  if (m.conversation || m.extendedTextMessage?.text) return { ...base, tipo: "texto", texto: String(m.conversation || m.extendedTextMessage?.text).trim(), mimetype: null };
+  if (m.audioMessage) return { ...base, tipo: "audio", texto: "", mimetype: m.audioMessage.mimetype ?? "audio/ogg" };
+  if (m.imageMessage) return { ...base, tipo: "imagem", texto: (m.imageMessage.caption ?? "").trim(), mimetype: m.imageMessage.mimetype ?? "image/jpeg" };
+  if (doc) return { ...base, tipo: "documento", texto: (doc.caption ?? "").trim(), mimetype: doc.mimetype ?? null };
+  return { ...base, tipo: "outro", texto: "", mimetype: null };
+}
+
+/**
+ * Resposta da SARA (markdown) no formato do WhatsApp: *negrito*, títulos em negrito, tabela em linhas, link
+ * da plataforma com o endereço completo, sem a marcação que o WhatsApp não entende.
+ */
+export function paraWhatsApp(texto: string, base: string): string {
+  const absoluto = (url: string) => (url.startsWith("/") ? `${base.replace(/\/+$/, "")}${url}` : url);
+  const linhas: string[] = [];
+  for (const bruta of String(texto ?? "").split("\n")) {
+    let l = bruta.trimEnd();
+    if (/^\s*\|?\s*:?-{3,}/.test(l) && /\|/.test(l)) continue; // separador de tabela
+    if (/^\s*\|.*\|\s*$/.test(l)) l = l.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim()).filter(Boolean).join(" · ");
+    l = l.replace(/^#{1,6}\s+(.+)$/, "*$1*");
+    l = l.replace(/\*\*(.+?)\*\*/g, "*$1*").replace(/__(.+?)__/g, "_$1_");
+    l = l.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, t: string, u: string) => `${t}: ${absoluto(u)}`);
+    l = l.replace(/^(\s*)[-*]\s+/, "$1• ");
+    linhas.push(l);
+  }
+  return linhas.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/** Texto longo em partes (o WhatsApp corta mensagens muito grandes), quebrando em parágrafo ou linha. */
+export function dividir(texto: string, max = 3500): string[] {
+  const partes: string[] = [];
+  let resto = texto.trim();
+  while (resto.length > max) {
+    let corte = resto.lastIndexOf("\n\n", max);
+    if (corte < max * 0.5) corte = resto.lastIndexOf("\n", max);
+    if (corte < max * 0.5) corte = resto.lastIndexOf(" ", max);
+    if (corte <= 0) corte = max;
+    partes.push(resto.slice(0, corte).trim());
+    resto = resto.slice(corte).trim();
+  }
+  if (resto) partes.push(resto);
+  return partes;
+}
+
+/**
+ * O que vai junto da resposta em áudio, por escrito: o que não dá para ouvir (link do Permitir, gráfico na
+ * plataforma). Sem nada disso, a resposta em áudio vai sozinha.
+ */
+export function complementoEscrito(o: { acoesPendentes: number; visuais: number; linkSara: string }): string | null {
+  const partes: string[] = [];
+  if (o.acoesPendentes) partes.push(`${o.acoesPendentes === 1 ? "Preparei uma ação" : `Preparei ${o.acoesPendentes} ações`} que precisa${o.acoesPendentes === 1 ? "" : "m"} do seu Permitir na plataforma: ${o.linkSara}`);
+  if (o.visuais) partes.push(`${o.visuais === 1 ? "Montei um gráfico" : `Montei ${o.visuais} gráficos`}: veja na plataforma, ${o.linkSara}`);
+  return partes.length ? partes.join("\n") : null;
+}

@@ -47,7 +47,7 @@ test("personalidade: expressões viram tags do motor de voz (nunca lidas) e saem
 });
 
 test("personalidade: entra em toda SARA que fala com a pessoa, não na subagente nem na guia", () => {
-  const rota = ler("app/api/sara/[modulo]/route.ts");
+  const rota = (ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts"));
   assert.match(rota, /fixo: `\$\{PERSONALIDADE\}\\n\\n\$\{p\.sara\.manual\}/, "no topo do texto fixo da conversa (módulos e central)");
   assert.match(rota, /\$\{regraDeTratamento\(interlocutor\)\}/, "o tratamento no texto do momento");
   assert.match(rota, /r = \{ \.\.\.r, texto: semTratamentoIndevido\(r\.texto, interlocutor\) \};/, "a trava do Senhor na resposta");

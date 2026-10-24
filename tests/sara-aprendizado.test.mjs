@@ -74,7 +74,7 @@ test("aprendizado: ligado na central (propor_licao, memória e verificador), na 
   const sessao = ler("lib/sara/sessao.ts");
   assert.match(sessao, /ferramentaProporLicao\(areas\.map/, "só a central propõe lição");
   assert.match(sessao, /const memoria = await memoriaDaSara\(\[modulo\], false\);[\s\S]*REGRA_SUBAGENTE\}\$\{memoria\.texto/, "a subagente usa as lições da área");
-  const rota = ler("app/api/sara/[modulo]/route.ts");
+  const rota = (ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts"));
   assert.match(rota, /memoriaDaSara\(areasDaMemoria, Boolean\(p\.sara\.central\)\)/);
   assert.match(rota, /\.\.\.\(memoria\.tipos\.length \? \[memoria\.texto\] : \[\]\)/, "os números do histórico contam como fonte da central");
   const vigia = ler("lib/sara/central/vigia-executar.ts");

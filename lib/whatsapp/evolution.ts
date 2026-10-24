@@ -138,3 +138,59 @@ export async function enviarTexto(instancia: string, numero: string, texto: stri
   const r = await evolution<{ key?: { id?: string } }>(c, "POST", `/message/sendText/${conferir(instancia)}`, { number: numero, text: texto }, buscar);
   return { id: r?.key?.id ?? null };
 }
+
+// --- W3: receber e responder (PLANO-WHATSAPP §3 e §4) ---------------------------------------------------
+
+/** Onde a Evolution avisa a plataforma das mensagens: pela rede interna do Coolify, com o segredo no caminho. */
+export function urlDoWebhook(): string | null {
+  const segredo = process.env.WHATSAPP_WEBHOOK_SEGREDO?.trim();
+  if (!segredo) return null;
+  const base = (process.env.WHATSAPP_WEBHOOK_BASE?.trim() || "http://pecsil-business-os:3000").replace(/\/+$/, "");
+  return `${base}/api/whatsapp/webhook/${segredo}`;
+}
+
+/**
+ * Garante que o número avisa a plataforma das mensagens novas (com o áudio junto, em base64). Só regrava se o
+ * endereço mudou. Devolve se o recebimento está ligado.
+ */
+export async function garantirWebhook(instancia: string, buscar: typeof fetch = fetch): Promise<{ ligado: boolean; erro?: string }> {
+  const c = configuracao();
+  const url = urlDoWebhook();
+  if (!c || !url) return { ligado: false, erro: "Falta o segredo do webhook (WHATSAPP_WEBHOOK_SEGREDO) no servidor." };
+  try {
+    const atual = await evolution<{ enabled?: boolean; url?: string; webhookBase64?: boolean; events?: string[] } | null>(c, "GET", `/webhook/find/${conferir(instancia)}`, undefined, buscar).catch(() => null);
+    if (atual?.enabled && atual.url === url && atual.webhookBase64 && (atual.events ?? []).includes("MESSAGES_UPSERT")) return { ligado: true };
+    await evolution(c, "POST", `/webhook/set/${instancia}`, { webhook: { enabled: true, url, byEvents: false, base64: true, events: ["MESSAGES_UPSERT"] } }, buscar);
+    return { ligado: true };
+  } catch (e) { return { ligado: false, erro: e instanceof Error ? e.message.slice(0, 200) : "sem resposta" }; }
+}
+
+/** Marca a mensagem como lida (só para quem está na lista; número de fora nem isso recebe). */
+export async function marcarLida(instancia: string, jid: string, waId: string, buscar: typeof fetch = fetch): Promise<void> {
+  const c = configuracao();
+  if (!c) return;
+  await evolution(c, "POST", `/chat/markMessageAsRead/${conferir(instancia)}`, { readMessages: [{ remoteJid: jid, fromMe: false, id: waId }] }, buscar).catch(() => null);
+}
+
+/** "Digitando…" ou "gravando áudio…" enquanto a SARA prepara a resposta. */
+export async function presenca(instancia: string, numero: string, tipo: "composing" | "recording", buscar: typeof fetch = fetch): Promise<void> {
+  const c = configuracao();
+  if (!c) return;
+  await evolution(c, "POST", `/chat/sendPresence/${conferir(instancia)}`, { number: numero, delay: 15_000, presence: tipo }, buscar).catch(() => null);
+}
+
+/** O áudio (ou outra mídia) de uma mensagem recebida, quando não veio junto no aviso. */
+export async function baixarMidia(instancia: string, waId: string, buscar: typeof fetch = fetch): Promise<{ base64: string; mimetype: string | null } | null> {
+  const c = configuracao();
+  if (!c) return null;
+  const r = await evolution<{ base64?: string; mimetype?: string }>(c, "POST", `/chat/getBase64FromMediaMessage/${conferir(instancia)}`, { message: { key: { id: waId } }, convertToMp4: false }, buscar).catch(() => null);
+  return r?.base64 ? { base64: r.base64, mimetype: r.mimetype ?? null } : null;
+}
+
+/** Nota de voz (aparece como áudio gravado no WhatsApp); a Evolution converte para o formato do WhatsApp. */
+export async function enviarAudio(instancia: string, numero: string, audioBase64: string, buscar: typeof fetch = fetch): Promise<{ id: string | null }> {
+  const c = configuracao();
+  if (!c) throw new ErroEvolution(503, "Falta a configuração da Evolution no servidor.");
+  const r = await evolution<{ key?: { id?: string } }>(c, "POST", `/message/sendWhatsAppAudio/${conferir(instancia)}`, { number: numero, audio: audioBase64, encoding: true }, buscar);
+  return { id: r?.key?.id ?? null };
+}

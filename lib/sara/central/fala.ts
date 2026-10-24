@@ -10,7 +10,11 @@ const CUMPRIMENTO = /^(bom dia|boa tarde|boa noite|ol[áa]|oi)\b[^.!?\d]{0,40}[.
 /** Tags do motor de voz (personalidade): passam intactas pela limpeza da marcação. */
 const TAG = /<soft>\[laugh\]<\/soft>|\[(?:sigh|laugh|pause|long-pause|cough)\]/g;
 
-export function resumoFalado(entrada: string, max = 420): string {
+/**
+ * `onde`: onde fica o resto da resposta. No holograma, "no painel" (ao lado); no WhatsApp, "na plataforma" (a pessoa
+ * só ouve o áudio).
+ */
+export function resumoFalado(entrada: string, max = 420, onde: { detalhe: string; semTexto: string } = { detalhe: "O detalhe está no painel.", semTexto: "A resposta está no painel ao lado." }): string {
   const tags: string[] = [];
   const texto = entrada.replace(TAG, (m) => { tags.push(m); return ` §${tags.length - 1}§ `; });
   // O primeiro parágrafo de texto corrido é o que a central escreveu para ser falado; o resto fica no painel.
@@ -30,7 +34,7 @@ export function resumoFalado(entrada: string, max = 420): string {
     .replace(/\*\*([^*]+)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1").replace(/[*_#>]/g, "")
     .replace(/\s+/g, " ").trim();
   // Sem texto corrido (só tabela ou lista): avisa que o detalhe está no painel.
-  const base = corrido || "A resposta está no painel ao lado.";
+  const base = corrido || onde.semTexto;
   // Fim de frase é o ponto seguido de espaço: o ponto de "R$ 48.200" não corta a frase.
   const frases = base.split(/(?<=[.!?])\s+/).map((f) => f.trim()).filter(Boolean);
   let fala = "";
@@ -39,7 +43,7 @@ export function resumoFalado(entrada: string, max = 420): string {
     fala = `${fala} ${f}`.trim();
   }
   if (fala.length > max) fala = `${fala.slice(0, max - 1).replace(/\s+\S*$/, "")}…`;
-  if (corrido && (frases.length > 3 || corrido.length > fala.length + 20 || ficouDeFora)) fala = `${fala} O detalhe está no painel.`;
+  if (corrido && (frases.length > 3 || corrido.length > fala.length + 20 || ficouDeFora)) fala = `${fala} ${onde.detalhe}`;
   const final = aviso ? `${fala} Atenção: ${aviso.replace(/\.?\s*Confira antes de usar.*$/, "")}.` : fala;
   return final.replace(/\s*§(\d+)§\s*/g, (_m, i) => ` ${tags[Number(i)] ?? ""} `).replace(/\s{2,}/g, " ").trim();
 }
