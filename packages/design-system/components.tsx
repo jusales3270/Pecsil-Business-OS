@@ -255,12 +255,15 @@ export function Donut({
   slices,
   total,
   caption,
+  centro,
   size = 180,
   thickness = 18,
 }: {
   slices: Slice[];
   total?: number;
   caption?: ReactNode;
+  /** O que vai no centro no lugar do total (ex.: "R$ 7,42 mi", que cabe no anel). */
+  centro?: ReactNode;
   size?: number;
   thickness?: number;
 }) {
@@ -306,7 +309,7 @@ export function Donut({
         </g>
       </svg>
       <div className="ds-donut-center">
-        <strong>{displayTotal.toLocaleString("pt-BR")}</strong>
+        <strong>{centro ?? displayTotal.toLocaleString("pt-BR")}</strong>
         {caption ? <span>{caption}</span> : null}
       </div>
     </div>

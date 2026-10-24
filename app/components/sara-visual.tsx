@@ -72,7 +72,7 @@ export function SaraVisual({ v }: { v: Visual }) {
     const total = v.pontos.reduce((s, p) => s + p.valor, 0);
     corpo = (
       <div className="sv-rosca">
-        <Donut slices={v.pontos.map((p) => ({ label: p.rotulo, value: p.valor }))} total={v.formato === "moeda" ? undefined : total} caption={v.formato === "moeda" ? moeda(total) : "total"} size={136} thickness={18} />
+        <Donut slices={v.pontos.map((p) => ({ label: p.rotulo, value: p.valor }))} total={total} centro={v.formato === "moeda" ? moeda(total) : undefined} caption="total" size={136} thickness={18} />
         <ul>{v.pontos.map((p, k) => <li key={k}><i style={{ background: seriesColor(k) }} />{p.rotulo}<b>{fmt(p.valor, v.formato)} <small>({total ? Math.round((p.valor / total) * 100) : 0}%)</small></b></li>)}</ul>
       </div>
     );
