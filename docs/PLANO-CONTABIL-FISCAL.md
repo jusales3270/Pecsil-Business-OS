@@ -266,6 +266,13 @@ UF ou CNAE fica no código.
 Nome escolhido porque "Vigia" já é duas coisas (`lib/sara/central/vigia.ts` e o monitor de TI de
 [VIGIA-EXTERNO.md](VIGIA-EXTERNO.md)).
 
+> **Construída em 25/10/2026** (`supabase/migrations/202610250007_contabil_sentinela.sql` e `0008`,
+> `lib/contabil/sentinela/`, aba Fiscal › Parâmetros legais › Sentinela). 18 fontes ativas na v1; INLABS (DOU),
+> Portal da NF-e e sistema de normas da Receita ficam desligados, com o motivo na tela. O envio por "Decisões para
+> você" começa desligado (o proprietário liga na própria aba). Lições da primeira coleta real: o RSS de notícias da
+> Receita parou em julho (usar o de últimas notícias); a Selic "acumulada no mês" do mês corrente é parcial (gravar
+> só mês fechado); datas do Senado em DD/MM/AAAA; o filtro por pasta do CONFAZ devolve vazio (usar por tipo).
+
 ### 4.1 Fontes da v1
 
 Catorze fontes, todas testadas em 25/10/2026, com URL, formato, acesso, cadência e restrições em
@@ -354,5 +361,6 @@ Canal: "Decisões para você".
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 25/10/2026 | N-02 construída e aplicada (Sentinela; migrações 0007 e 0008); primeira coleta real sem erro; QA 30/30 | Proprietário / Claude |
 | 25/10/2026 | N-01 construído e aplicado (migração 202610250006; `lib/contabil/`; tela Fiscal › Parâmetros legais); QA 48/48. N-01 entrou nas frentes no lugar do B-04 | Proprietário / Claude |
 | 25/10/2026 | Plano criado a partir da leitura do pacote "57 Agents Contabilidade", de cinco frentes de pesquisa e das decisões do proprietário (dois modos, Sentinela com automático só para dado de API, folha desligada na Pecsil, "só registrar agora") | Proprietário / Claude |
