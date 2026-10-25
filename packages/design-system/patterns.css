@@ -9299,3 +9299,13 @@ a.doc-abrir { text-decoration: none; }
 .pcf-perfil fieldset:disabled input:not([type="checkbox"]):not([type="file"]), .pcf-perfil fieldset:disabled select, .pcf-perfil fieldset:disabled textarea { background: var(--bg-subtle); color: var(--text-muted); border-style: dashed; cursor: not-allowed; }
 .pcf-json { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-xs); }
 @media (max-width: 720px) { .pcf-valor > div { grid-template-columns: 1fr; gap: 0; } }
+/* Fiscal › Parâmetros legais › Sentinela (N-02): Tipo · Assunto · Origem · Recebida; fontes. */
+.pcf-propostas { grid-template-columns: max-content minmax(280px, 1fr) max-content max-content; }
+.pcf-fontes-tabela { grid-template-columns: minmax(260px, 1fr) repeat(4, max-content); }
+.pcf-propostas > button[role="row"] { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; width: 100%; border: 0; border-top: 1px solid var(--border-subtle); background: none; font: inherit; text-align: left; color: var(--text-primary); cursor: pointer; }
+.pcf-propostas > button[role="row"]:hover { background: var(--bg-hover); }
+:is(.pcf-propostas, .pcf-fontes-tabela) > [role="row"] > span small { display: block; font-size: var(--fs-xs); color: var(--text-muted); white-space: normal; }
+.pcf-modelo { color: var(--accent-blue); font-weight: 600; }
+.pcf-sentinela-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2); margin: var(--sp-3) 0; }
+.pcf-comparar { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-3); }
+.pcf-config { margin-top: var(--sp-4); display: grid; gap: var(--sp-2); }

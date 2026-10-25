@@ -4,7 +4,8 @@
  * SARA (E3: as de agenda que venceram e as disparadas por acontecimentos) e o Bom dia da SARA (J2: de
  * segunda a sábado, das 7h às 11h; fora disso a rota não faz nada). A vigia da SARA central (J3) vem antes
  * do Bom dia: roda uma vez por dia, a partir das 6h30, e os achados entregues já entram no Bom dia. O relatório
- * de crescimento (J4) sai uma vez por semana, na segunda a partir das 8h.
+ * de crescimento (J4) sai uma vez por semana, na segunda a partir das 8h. A Sentinela do Contábil-Fiscal (N-02)
+ * lê as fontes oficiais, cada uma na sua cadência.
  *
  * Roda como tarefa agendada do Coolify, DENTRO do contêiner do Business OS, a
  * cada 10 minutos: chama as rotas locais /api/producao/sync-os, /api/sara/guias/rodar, /api/sara/vigia/rodar e
@@ -19,7 +20,7 @@ if (!secret) {
   process.exit(1);
 }
 let falhou = false;
-for (const rota of ["/api/producao/sync-os", "/api/sara/guias/rodar", "/api/sara/vigia/rodar", "/api/sara/bom-dia/rodar", "/api/sara/crescimento/rodar", "/api/whatsapp/agendados/rodar", "/api/whatsapp/conexao/vigiar"]) {
+for (const rota of ["/api/producao/sync-os", "/api/sara/guias/rodar", "/api/sara/vigia/rodar", "/api/sara/bom-dia/rodar", "/api/sara/crescimento/rodar", "/api/whatsapp/agendados/rodar", "/api/whatsapp/conexao/vigiar", "/api/contabil/sentinela/rodar"]) {
   try {
     const response = await fetch(`http://127.0.0.1:${port}${rota}`, {
       method: "POST",

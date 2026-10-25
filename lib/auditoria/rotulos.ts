@@ -34,6 +34,8 @@ const FIXOS: Record<string, string> = {
   "contabil_parametros.proposto": "Propôs nova vigência de parâmetro legal",
   "contabil_parametros.descartado": "Descartou rascunho de parâmetro legal",
   "contabil_teses.tese_conferida": "Conferiu tese de tribunal",
+  "contabil_parametros.automatico": "Atualizou parâmetro pela API oficial (Sentinela)",
+  "contabil_propostas.proposta_recusada": "Recusou proposta da Sentinela",
   "fiscal_nfe.carta": "Registrou carta de correção",
   "fiscal_nfe.descartada": "Descartou nota fiscal",
   "fiscal_nfe.inutilizacao": "Inutilizou numeração de nota",

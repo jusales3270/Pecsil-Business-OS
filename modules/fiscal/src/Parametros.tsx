@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../../packages/design-system";
 import { atuais, historico, type Parametro } from "../../../lib/contabil/parametros";
 import { api, date, dataHora, hoje } from "./comum";
+import { Sentinela } from "./Sentinela";
 
 /**
  * Fiscal › Parâmetros (Contábil-Fiscal, N-01): as tabelas, alíquotas, prazos e códigos com vigência e
@@ -12,8 +13,8 @@ import { api, date, dataHora, hoje } from "./comum";
  * Desenho em docs/PLANO-CONTABIL-FISCAL.md.
  */
 
-type Linha = Parametro & { origem: string; motivo_descarte: string | null; conferido_por_nome: string | null; conferido_em: string | null; criado_por_nome: string | null; created_at: string };
-type Tese = {
+export type Linha = Parametro & { origem: string; motivo_descarte: string | null; conferido_por_nome: string | null; conferido_em: string | null; criado_por_nome: string | null; created_at: string };
+export type Tese = {
   id: string; tribunal: string; tema: string; leading_case: string | null; titulo: string; tese: string; data: string | null; modulacao: string | null;
   situacao: "firmada" | "firmada_modulacao_pendente" | "pendente" | "superada"; impacto: string | null; observacao: string | null;
   parametros_afetados: string[]; fontes: string[]; confianca: "alta" | "media" | "baixa"; conferida_por_nome: string | null; conferida_em: string | null;
@@ -21,10 +22,10 @@ type Tese = {
 type Perfil = { modo: "interna" | "escritorio"; regime: "presumido" | "real" | "a_definir"; cnaes_secundarios: string[]; rat: number | null; fap: number | null; beneficio_estadual: string | null; observacao: string | null; updated_at: string | null; updated_by_name: string | null };
 type Empresa = { cnpj: string | null; cnae: string | null; crt: number | null; uf: string | null; municipio: string | null; codigo_municipio: string | null } | null;
 type Dados = { parametros: Linha[]; teses: Tese[]; perfil: Perfil; empresa: Empresa; podeCurar: boolean; podeEditarPerfil: boolean };
-type Aba = "parametros" | "teses" | "perfil";
+type Aba = "parametros" | "teses" | "sentinela" | "perfil";
 type Filtro = "todos" | "conferir" | "reforma";
 
-const CONFIANCA: Record<Linha["confianca"], string> = { alta: "Confiança alta", media: "Confiança média", baixa: "Confiança baixa" };
+export const CONFIANCA: Record<Linha["confianca"], string> = { alta: "Confiança alta", media: "Confiança média", baixa: "Confiança baixa" };
 const SITUACAO: Record<Linha["situacao"], { rotulo: string; tom: "attention" | "success" | "neutral" }> = {
   rascunho: { rotulo: "A conferir", tom: "attention" }, conferido: { rotulo: "Conferido", tom: "success" }, descartado: { rotulo: "Descartado", tom: "neutral" },
 };
@@ -84,7 +85,7 @@ export function Parametros({ notify }: { notify: (m: string) => void }) {
             <Kpi label="Teses a acompanhar" value={String(pendentesTese)} caption="Pendentes ou com modulação em aberto" tone="red" onOpen={() => setAba("teses")} />
           </KpiGrid>
           <div className="almox-filtros">
-            <Segmented<Aba> options={[{ value: "parametros", label: `Parâmetros · ${lista.length}` }, { value: "teses", label: `Teses · ${dados.teses.length}` }, { value: "perfil", label: "Perfil da empresa" }]} value={aba} onChange={setAba} ariaLabel="Lista" compact />
+            <Segmented<Aba> options={[{ value: "parametros", label: `Parâmetros · ${lista.length}` }, { value: "teses", label: `Teses · ${dados.teses.length}` }, { value: "sentinela", label: "Sentinela" }, { value: "perfil", label: "Perfil da empresa" }]} value={aba} onChange={setAba} ariaLabel="Lista" compact />
           </div>
           {aba === "parametros" && (
             <section className="almox-bloco">
@@ -129,6 +130,7 @@ export function Parametros({ notify }: { notify: (m: string) => void }) {
               </div>
             </section>
           )}
+          {aba === "sentinela" && <Sentinela parametros={dados.parametros} teses={dados.teses} notify={notify} onMudou={() => void carregar()} />}
           {aba === "perfil" && <PerfilEmpresa key={dados.perfil.updated_at ?? "novo"} perfil={dados.perfil} empresa={dados.empresa} podeEditar={dados.podeEditarPerfil} onFeito={depois} />}
         </>
       )}
@@ -138,8 +140,20 @@ export function Parametros({ notify }: { notify: (m: string) => void }) {
   );
 }
 
+/** As chaves técnicas do valor (sem acento) viram rótulo em português: "aliquota" → "alíquota". */
+const ACENTOS: Record<string, string> = {
+  aliquota: "alíquota", aliquotas: "alíquotas", diario: "diário", competencia: "competência", vigencia: "vigência", deducao: "dedução", contribuicao: "contribuição",
+  salario: "salário", maxima: "máxima", maximo: "máximo", minimo: "mínimo", minima: "mínima", isencao: "isenção", reducao: "redução", obrigacao: "obrigação",
+  rejeicao: "rejeição", observacao: "observação", situacao: "situação", credito: "crédito", creditos: "créditos", presuncao: "presunção", codigo: "código",
+  codigos: "códigos", servicos: "serviços", industria: "indústria", comercio: "comércio", retencao: "retenção", extincao: "extinção", referencia: "referência",
+  transicao: "transição", exportacao: "exportação", reducao_60: "redução de 60%", reducao_30: "redução de 30%", periodo: "período", calculo: "cálculo",
+  pis: "PIS", cofins: "COFINS", csll: "CSLL", irpj: "IRPJ", irrf: "IRRF", inss: "INSS", iss: "ISS", icms: "ICMS", ipi: "IPI", ibs: "IBS", cbs: "CBS", lc: "LC",
+  nao: "não", tributaria: "tributária", financeira: "financeira", acrescimo: "acréscimo", mes: "mês", orcamento: "orçamento", municipio: "município",
+};
+const rotuloDoCampo = (k: string) => (ACENTOS[k] ?? k.split("_").map((w) => ACENTOS[w] ?? w).join(" "));
+
 /** Valor do parâmetro em linhas legíveis (o JSON do banco vira "campo: valor"). */
-function Valor({ valor, nivel = 0 }: { valor: unknown; nivel?: number }) {
+export function Valor({ valor, nivel = 0 }: { valor: unknown; nivel?: number }) {
   if (valor === null || valor === undefined) return <span className="pcf-vazio">—</span>;
   if (typeof valor === "number") return <span className="pcf-num">{valor.toLocaleString("pt-BR", { maximumFractionDigits: 6 })}</span>;
   if (typeof valor !== "object") return <span>{String(valor)}</span>;
@@ -149,7 +163,7 @@ function Valor({ valor, nivel = 0 }: { valor: unknown; nivel?: number }) {
   return (
     <dl className={nivel ? "pcf-valor pcf-valor-sub" : "pcf-valor"}>
       {Object.entries(valor as Record<string, unknown>).map(([k, v]) => (
-        <div key={k}><dt>{k.replace(/_/g, " ")}</dt><dd><Valor valor={v} nivel={nivel + 1} /></dd></div>
+        <div key={k}><dt>{rotuloDoCampo(k)}</dt><dd><Valor valor={v} nivel={nivel + 1} /></dd></div>
       ))}
     </dl>
   );
@@ -213,13 +227,15 @@ function DetalheParametro({ versoes, podeCurar, onClose, onFeito }: { versoes: L
   );
 }
 
-function NovaVigencia({ base, onClose, onFeito }: { base: Linha; onClose: () => void; onFeito: (m: string) => void }) {
+export type Preenchido = { norma?: string | null; url?: string | null; trecho?: string | null; vigente_de?: string | null; proposta_id?: string };
+
+export function NovaVigencia({ base, onClose, onFeito, preenchido }: { base: Linha; onClose: () => void; onFeito: (m: string) => void; preenchido?: Preenchido }) {
   const [valor, setValor] = useState(() => JSON.stringify(base.valor, null, 2));
-  const [de, setDe] = useState("");
+  const [de, setDe] = useState(preenchido?.vigente_de ?? "");
   const [ate, setAte] = useState("");
-  const [norma, setNorma] = useState("");
-  const [url, setUrl] = useState("");
-  const [trecho, setTrecho] = useState("");
+  const [norma, setNorma] = useState(preenchido?.norma ?? "");
+  const [url, setUrl] = useState(preenchido?.url ?? "");
+  const [trecho, setTrecho] = useState(preenchido?.trecho ?? "");
   const [confianca, setConfianca] = useState<Linha["confianca"]>("alta");
   const [obs, setObs] = useState("");
   const [erro, setErro] = useState("");
@@ -229,7 +245,7 @@ function NovaVigencia({ base, onClose, onFeito }: { base: Linha; onClose: () => 
     let v: unknown;
     try { v = JSON.parse(valor); } catch { setErro("O valor não está num formato válido (JSON). Confira as vírgulas e as aspas."); return; }
     setOcupado(true); setErro("");
-    const r = await api("/api/fiscal/parametros", { method: "POST", body: JSON.stringify({ acao: "propor", proposta: { chave: base.chave, titulo: base.titulo, escopo: base.escopo, uf: base.uf, codigo_municipio: base.codigo_municipio, valor: v, vigente_de: de, vigente_ate: ate || null, norma, url, trecho, confianca, observacao: obs } }) });
+    const r = await api("/api/fiscal/parametros", { method: "POST", body: JSON.stringify({ acao: "propor", proposta: { chave: base.chave, titulo: base.titulo, escopo: base.escopo, uf: base.uf, codigo_municipio: base.codigo_municipio, valor: v, vigente_de: de, vigente_ate: ate || null, norma, url, trecho, confianca, observacao: obs, ...(preenchido?.proposta_id ? { proposta_id: preenchido.proposta_id } : {}) } }) });
     setOcupado(false);
     if (!r.ok) { setErro(r.error); return; }
     onFeito(`Nova vigência de "${base.titulo}" proposta a partir de ${date(de)}. Ela só vale depois de conferida.`);

@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-25-sentinela",
+    data: "2026-10-25",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.parametros", "fiscal.config", "fiscal.escritorio", "fiscal.portal"],
+    titulo: "Sentinela: os parâmetros legais se mantêm atualizados",
+    itens: [
+      "Nova aba Sentinela em Fiscal › Parâmetros legais: a plataforma lê as fontes oficiais (Receita Federal, Comitê Gestor do IBS, Senado, Diário Oficial de SP, CONFAZ, eSocial, NFS-e, PGFN, CARF, STF, STJ e TST) e aponta o que pode mudar uma regra.",
+      "O que vem da leitura automática aparece como \"Sugestão do modelo\", com a confiança e o trecho da norma. Nada muda sem uma pessoa conferir na fonte e aprovar; ao aprovar, a nova vigência vale na hora e a anterior fecha na véspera.",
+      "Selic, IPCA, INPC e os feriados nacionais vêm direto das APIs oficiais (Banco Central e BrasilAPI) e entram sozinhos, com registro na auditoria.",
+      "A aba mostra também cada fonte e se ela está em dia, com erro ou em silêncio fora do normal.",
+    ],
+  },
+  {
     id: "2026-10-25-parametros-legais",
     data: "2026-10-25",
     area: "Fiscal",

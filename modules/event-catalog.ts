@@ -107,6 +107,8 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "fiscal.parametro.conferido", module: "fiscal", label: "Parâmetro legal conferido", description: "A curadoria conferiu uma versão de parâmetro legal (tabela, alíquota, prazo ou código); a versão anterior fecha na véspera." },
   { type: "fiscal.parametro.proposto", module: "fiscal", label: "Nova vigência proposta", description: "Uma nova vigência de parâmetro legal entrou como rascunho, com a norma e o link; não vale até ser conferida." },
   { type: "fiscal.parametro.descartado", module: "fiscal", label: "Rascunho de parâmetro descartado", description: "Um rascunho de parâmetro legal foi descartado, com o motivo; fica no histórico." },
+  { type: "fiscal.parametro.automatico", module: "fiscal", label: "Parâmetro atualizado pela API oficial", description: "A Sentinela gravou um dado de API oficial (Selic, IPCA, INPC, feriados) como nova vigência conferida." },
+  { type: "fiscal.parametro.proposta_recusada", module: "fiscal", label: "Proposta da Sentinela recusada", description: "A curadoria ou quem responde pelo Fiscal recusou uma proposta de mudança de parâmetro ou de tese." },
   { type: "fiscal.parametro.tese_conferida", module: "fiscal", label: "Tese conferida", description: "A curadoria conferiu uma tese de tribunal, súmula ou solução de consulta ligada aos parâmetros." },
   { type: "fiscal.competencia.enviada", module: "fiscal", label: "Competência enviada ao escritório", description: "A empresa marcou o fechamento do mês como pronto para o escritório de contabilidade." },
   { type: "fiscal.competencia.conferida", module: "fiscal", label: "Competência conferida", description: "O escritório de contabilidade conferiu o fechamento do mês." },
