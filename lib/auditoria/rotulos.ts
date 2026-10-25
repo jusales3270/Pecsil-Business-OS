@@ -10,7 +10,7 @@ const OBJETOS: Record<string, string> = {
   rh_absences: "afastamento", rh_absence_clinical: "dado clínico de afastamento", rh_ppe_deliveries: "entrega de EPI",
   rh_sst_records: "registro de SST", rh_holidays: "férias", rh_benefit_enrollments: "benefício", rh_benefit_requests: "pedido de benefício",
   products: "produto", product_groups: "grupo de produto", sales_quotes: "orçamento", production_entries: "entrada de produção", customers: "cliente",
-  profiles: "usuário", user_roles: "papel de usuário",
+  profiles: "usuário", user_roles: "papel de usuário", contabil_perfil_empresa: "perfil fiscal da empresa",
 };
 const VERBOS: Record<string, string> = { insert: "Criou", update: "Alterou", delete: "Excluiu" };
 
@@ -30,6 +30,10 @@ const FIXOS: Record<string, string> = {
   "fiscal_nfe.devolvida": "Devolveu nota fiscal para correção",
   "fiscal_nfe.autorizada_treino": "Aprovou e transmitiu nota fiscal (treino)",
   "fiscal_nfe.cancelada": "Cancelou nota fiscal",
+  "contabil_parametros.conferido": "Conferiu parâmetro legal",
+  "contabil_parametros.proposto": "Propôs nova vigência de parâmetro legal",
+  "contabil_parametros.descartado": "Descartou rascunho de parâmetro legal",
+  "contabil_teses.tese_conferida": "Conferiu tese de tribunal",
   "fiscal_nfe.carta": "Registrou carta de correção",
   "fiscal_nfe.descartada": "Descartou nota fiscal",
   "fiscal_nfe.inutilizacao": "Inutilizou numeração de nota",

@@ -17,6 +17,7 @@ import { NotasEmitidas } from "./NotasEmitidas";
 import { AFaturar } from "./AFaturar";
 import { ConfiguracaoFiscal } from "./ConfiguracaoFiscal";
 import { MascarasImpostos } from "./MascarasImpostos";
+import { Parametros } from "./Parametros";
 import { PortalEscritorio } from "./PortalEscritorio";
 
 /**
@@ -50,6 +51,7 @@ const SECOES = [
   { id: "A faturar", icon: "receivable" },
   { id: "Notas emitidas", icon: "edit" },
   { id: "Máscaras de impostos", icon: "report" },
+  { id: "Parâmetros legais", icon: "database" },
   { id: "Escritório contábil", icon: "briefcase" },
   { id: "Portal do contador", icon: "briefcase" },
   { id: "Configuração", icon: "settings" },
@@ -59,7 +61,8 @@ type Secao = (typeof SECOES)[number]["id"];
 /**
  * Fiscal: cada seção aparece para quem tem a funcionalidade dela. Painel do ICMS (fiscal.icms);
  * Notas recebidas da SEFAZ (fiscal.icms ou fiscal.nfe); Notas emitidas — por ora o treino (fiscal.nfe); Escritório contábil (fiscal.escritorio ou o dono);
- * Portal do contador (fiscal.portal — o escritório, que só vê esta seção); Configuração (fiscal.config,
+ * Portal do contador (fiscal.portal — o escritório); Parâmetros legais (fiscal.parametros, a configuração, o
+ * lado da empresa no portal ou o escritório: todos leem, só a curadoria confere); Configuração (fiscal.config,
  * fiscal.certificado ou o dono).
  */
 export default function FiscalApp({ notify, access, initialSection }: ModuleRuntimeProps) {
@@ -71,6 +74,7 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
       : id === "Notas recebidas" ? pode("fiscal.icms") || pode("fiscal.nfe")
         : id === "Notas emitidas" || id === "A faturar" ? pode("fiscal.nfe")
         : id === "Máscaras de impostos" ? pode("fiscal.nfe") || pode("fiscal.config")
+        : id === "Parâmetros legais" ? pode("fiscal.parametros") || pode("fiscal.config") || empresa || pode("fiscal.portal")
         : id === "Escritório contábil" ? empresa
           : id === "Portal do contador" ? !empresa && pode("fiscal.portal")
             : pode("fiscal.config") || pode("fiscal.certificado"));
@@ -93,6 +97,7 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
   if (secao === "Notas emitidas") return <NotasEmitidas notify={notify} abrir={notaParaAbrir} onAberta={() => setNotaParaAbrir(null)} />;
   if (secao === "A faturar") return <AFaturar notify={notify} onAbrirNota={(id) => { setNotaParaAbrir(id); setSecao("Notas emitidas"); }} />;
   if (secao === "Máscaras de impostos") return <MascarasImpostos notify={notify} />;
+  if (secao === "Parâmetros legais") return <Parametros notify={notify} />;
   if (secao === "Configuração") return <ConfiguracaoFiscal notify={notify} />;
   if (secao === "Escritório contábil" || secao === "Portal do contador") return <PortalEscritorio notify={notify} />;
   if (secao === "Painel do ICMS") return <PainelIcms notify={notify} />;

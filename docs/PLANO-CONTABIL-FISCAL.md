@@ -161,6 +161,13 @@ gerador**.
 
 ### 3.2 Esquema (migração da N-01)
 
+> **Construído em 25/10/2026** (`supabase/migrations/202610250006_contabil_parametros.sql`). Diferenças do desenho abaixo:
+> a curadoria é a tabela `contabil_curadoria` (uma organização, hoje a Pecsil) + a permissão `fiscal.parametros`
+> (operar); a situação é `rascunho | conferido | descartado` (conferir uma versão nova fecha a anterior na véspera,
+> em vez de marcá-la "substituída"); cada parâmetro tem `titulo`; `contabil_propostas`, `contabil_fontes`,
+> `contabil_itens_coletados` e `contabil_excecoes` ficam para a N-02 (Sentinela) e para quando houver a primeira
+> exceção. A auditoria e os eventos da curadoria saem em nome da organização curadora (a tabela é global).
+
 ```sql
 -- Camadas 1 e 2: sem organization_id; leitura para todos; escrita só pela função de curadoria.
 contabil_parametros (
@@ -311,7 +318,7 @@ aprovação é um clique e vale na hora para todas as empresas, porque parâmetr
 
 | Item | Entrega | Aceite |
 |---|---|---|
-| N-01 | Fundação: tabelas das três camadas, teses, perfil com o modo, exceções; carga de `parametros-2026.json` e `teses.json` em `rascunho`; tela Fiscal › Parâmetros (ver, conferir, nova vigência, histórico) | Contador confere a carga e muda para `conferido`; uma segunda organização de teste não vê o perfil da Pecsil; registro de teste apagado pelo id |
+| N-01 | Fundação: tabelas das três camadas, teses, perfil com o modo, exceções; carga de `parametros-2026.json` e `teses.json` em `rascunho`; tela Fiscal › Parâmetros (ver, conferir, nova vigência, histórico). **Construído em 25/10/2026; falta Deploy e a conferência do contador** | Contador confere a carga e muda para `conferido`; uma segunda organização de teste não vê o perfil da Pecsil; registro de teste apagado pelo id |
 | N-02 | Sentinela v1 | 14 fontes coletando; regressão da 4.4 passando; uma proposta real aprovada em 1 clique e aplicada sem deploy; métrica no painel |
 | N-03 | IBS/CBS completo | XML com os grupos da NT vigente aceito em homologação (C-09); apuração informativa de 2026 batendo com as notas; CBS 2027 lida do parâmetro |
 | N-04 | Núcleo contábil 1 | Um mês inteiro de eventos lançado por regra; balancete fecha (D = C) e bate com os títulos e o extrato conciliado |
@@ -347,4 +354,5 @@ Canal: "Decisões para você".
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 25/10/2026 | N-01 construído e aplicado (migração 202610250006; `lib/contabil/`; tela Fiscal › Parâmetros legais); QA 48/48. N-01 entrou nas frentes no lugar do B-04 | Proprietário / Claude |
 | 25/10/2026 | Plano criado a partir da leitura do pacote "57 Agents Contabilidade", de cinco frentes de pesquisa e das decisões do proprietário (dois modos, Sentinela com automático só para dado de API, folha desligada na Pecsil, "só registrar agora") | Proprietário / Claude |

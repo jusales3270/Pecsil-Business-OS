@@ -9273,3 +9273,29 @@ a.doc-abrir { text-decoration: none; }
 .con-lotes { margin: 0; padding-left: var(--sp-4); font-size: var(--fs-sm); color: var(--text-secondary); display: grid; gap: 4px; }
 .wa-tabela .num { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 720px) { .con-objeto { grid-template-columns: 1fr; } }
+
+/* Fiscal › Parâmetros legais (Contábil-Fiscal, N-01): Parâmetro · Onde vale · Vigência · Confiança · Situação; teses; versões. */
+.pcf-tabela { grid-template-columns: minmax(280px, 1fr) repeat(4, max-content); }
+.pcf-teses { grid-template-columns: max-content max-content minmax(280px, 1fr) repeat(2, max-content); }
+.pcf-versoes { grid-template-columns: max-content minmax(200px, 1fr) max-content; }
+:is(.pcf-tabela, .pcf-teses, .pcf-versoes) > button[role="row"] { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; width: 100%; border: 0; border-top: 1px solid var(--border-subtle); background: none; font: inherit; text-align: left; color: var(--text-primary); cursor: pointer; }
+:is(.pcf-tabela, .pcf-teses, .pcf-versoes) > button[role="row"]:hover { background: var(--bg-hover); }
+:is(.pcf-tabela, .pcf-teses, .pcf-versoes) > [role="row"] > span small { display: block; font-size: var(--fs-xs); color: var(--text-muted); }
+.pcf-versoes > button[aria-current="true"] { background: var(--bg-hover); }
+.pcf-busca { flex: 1 1 240px; max-width: 360px; }
+.pcf-detalhe { gap: var(--sp-3); }
+.pcf-valor { display: grid; gap: 4px; margin: 0; font-size: var(--fs-sm); }
+.pcf-valor > div { display: grid; grid-template-columns: minmax(140px, max-content) 1fr; gap: var(--sp-3); align-items: baseline; }
+.pcf-valor dt { color: var(--text-muted); }
+.pcf-valor dd { margin: 0; color: var(--text-primary); overflow-wrap: anywhere; }
+.pcf-valor-sub { padding-left: var(--sp-2); border-left: 1px solid var(--border-subtle); }
+.pcf-lista { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.pcf-num { font-variant-numeric: tabular-nums; }
+.pcf-vazio { color: var(--text-muted); }
+.pcf-fonte { margin: 0; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.pcf-fonte a, .pcf-fontes a { color: var(--accent-blue); }
+.pcf-fontes { margin: 0; padding-left: 1.2em; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.pcf-trecho { margin: var(--sp-2) 0 0; padding-left: var(--sp-3); border-left: 2px solid var(--border-subtle); color: var(--text-muted); font-size: var(--fs-sm); }
+.pcf-perfil fieldset:disabled input:not([type="checkbox"]):not([type="file"]), .pcf-perfil fieldset:disabled select, .pcf-perfil fieldset:disabled textarea { background: var(--bg-subtle); color: var(--text-muted); border-style: dashed; cursor: not-allowed; }
+.pcf-json { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-xs); }
+@media (max-width: 720px) { .pcf-valor > div { grid-template-columns: 1fr; gap: 0; } }

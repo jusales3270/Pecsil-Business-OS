@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-25-parametros-legais",
+    data: "2026-10-25",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.parametros", "fiscal.config", "fiscal.escritorio", "fiscal.portal"],
+    titulo: "Parâmetros legais com vigência e fonte oficial",
+    itens: [
+      "Nova tela Fiscal › Parâmetros legais: salário mínimo, INSS, IRRF (com a redução da Lei 15.270), FGTS, prazos, retenções, Lucro Presumido, PIS/COFINS, códigos de DARF e a reforma tributária, cada um com a vigência, a norma e o link da fonte oficial.",
+      "Tudo entra \"a conferir\": vale para consulta, e os cálculos avisam até o contador conferir na norma. Mudança de lei vira nova vigência, e a versão anterior fecha na véspera, sem apagar nada.",
+      "Aba Teses: as decisões do STF, do STJ, do TST e do CARF que mexem nas regras, separadas em firmadas e pendentes (por exemplo, o ISS fora do PIS/COFINS, julgado em 21/10, com a modulação ainda em aberto).",
+      "Aba Perfil da empresa: modo de operação (contabilidade interna ou escritório externo), regime do IRPJ, RAT, FAP e CNAEs secundários.",
+    ],
+  },
+  {
     id: "2026-10-25-confirmar-pelo-whatsapp",
     data: "2026-10-25",
     area: "SARA",
