@@ -135,25 +135,29 @@ A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está 
 
 ## 6. Etapas
 
-| # | Etapa | Entrega | Portão |
+| # | Etapa | Entrega | Situação |
 |---|---|---|---|
-| W1 | Canal | Evolution API + Postgres + Redis no Coolify (rede interna); chip conectado por QR em **Fundação › WhatsApp** (estrutura da plataforma, só o proprietário): estado da conexão, QR Code, desconectar e envio de teste; conferência do formato de áudio | Memória do servidor medida; o proprietário lê o QR com o chip |
-| W2 | Vários números, listas e alertas internos | **Vários números da plataforma** (cada um uma instância da Evolution): nome, departamento, descrição do que atende e **SARA responsável**; conectar pelo QR, teste, desconectar, desativar e remover. Em cada número, duas listas fechadas: **Comunicação interna** (número + usuário, que precisa ter a SARA do número) e **Comunicação externa** (número + nome + fornecedor/cliente/outro, com vínculo opcional ao cadastro); ativar/desativar, remover, boas-vindas opcional e auditoria (migração 202610240002); alertas da plataforma e da Forja (P-06) com horário silencioso (20h–7h e domingo); quais avisos vão ao WhatsApp: **a decidir** | W1 |
-| W3 | SARA pelo WhatsApp | Entrada pelo webhook, identificação da pessoa, a SARA da área certa (ou a central, para quem tem) com a sessão dela, texto com texto e áudio com áudio (§4), Permitir por link | W2 |
-| W4 | Envios da central e confirmar pelo WhatsApp | **Envio (construído):** a SARA central manda pelo WhatsApp documentos em PDF, mensagens de voz e texto a quem está nas listas de um número (interna e externa), com o Permitir, só pelo proprietário por enquanto (`enviar_pelo_whatsapp`). **Confirmar por enquete (§5):** quadro "Confirmar pelo WhatsApp" por área, enquete com a ação liberada, só o primeiro voto vale e a enquete some depois (migração 202610250001) | W3 |
-| W5 | Respostas a quem é de fora | **Sem API oficial (decisão do proprietário, 24/10/2026): tudo pela Evolution.** O envio a fornecedores e clientes já existe na W4; a W5 define o que a SARA pode responder a um contato externo que escreve (sem credencial: só o que o proprietário autorizar) | W4 |
+| W1 | Canal | Evolution API + Postgres + Redis no Coolify (rede interna); chip conectado por QR em **Fundação › WhatsApp** (só o proprietário): estado da conexão, QR Code, desconectar e envio de teste | **No ar** (24/10) |
+| W2 | Números e allowlist | Vários números (cada um uma instância da Evolution), cada um com departamento, descrição, **comportamento (prompt) e modelo**; **allowlist por número**: usuário da plataforma + SARA de cada pessoa + número (+ apelido) | **No ar** (25/10; migrações 202610240002, 202610250002/0003) |
+| W2 | Alertas da plataforma e da Forja pelo WhatsApp (P-06) | Horário silencioso pronto (20h–7h e domingo); **quais avisos vão: a decidir pelo proprietário** | Esperando decisão |
+| W3 | SARA pelo WhatsApp | Webhook, a SARA de cada pessoa com a sessão dela, texto com texto e áudio com áudio (§4), comportamento e modelo do número, defesa contra injeção | **No ar** (24–25/10) |
+| W4 | Envios da central e confirmar | Envio de PDF, voz e texto com o Permitir (`enviar_pelo_whatsapp`), com prévia também de documento já existente; **confirmar por enquete** do que a área liberar (migração 202610250001); **envios agendados** (migração 202610250005) | **No ar**; enquete esperando as áreas liberarem ações |
+| W5 | Contatos de fora (fornecedores e clientes) | **Sem API oficial (decisão de 24/10): tudo pela Evolution, de preferência num número separado do Chip interno** (risco de bloqueio). Allowlist externa e o que a SARA pode responder a quem é de fora | Para depois (decisão do proprietário, 25/10) |
+
+Também no ar, fora das etapas: o **Bom dia** da SARA às 7h30 também pelo WhatsApp, em texto, para quem está na allowlist (a partir de 27/10); o **apelido** da allowlist em toda fala da SARA; o **vigia da conexão** (chip caído → aviso no sino do proprietário, uma vez, e "voltou" depois).
 
 ## 7. Pendências
 
-- Medir a memória livre do servidor (antes da W1).
-- O proprietário lê o QR Code com o chip interno (W1).
-- As áreas escolhem quais ações podem ser confirmadas pelo WhatsApp (W4).
-- Para a W5: número oficial e conta Meta Business verificada (a mesma que o vigia T-03 vai usar).
+- **Canal do alerta do vigia externo (T-03):** o vigia roda na nuvem e avisa quando o servidor cai; a Evolution está no próprio servidor, então não serve para isso. Opções: Telegram, e-mail, SMS ou um segundo número fora do servidor. **Decisão do proprietário (adiada em 25/10).**
+- **Quais avisos vão ao WhatsApp (W2):** decisão do proprietário (adiada em 25/10).
+- **Ações liberadas para a enquete:** Cesar (TI) e Guilherme (Fundição) perguntados em 25/10; RH e Produção ainda não.
+- **W5:** quando o proprietário quiser abrir o canal para fornecedores e clientes.
 
 ## 8. Registro
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 25/10/2026 | Envios agendados; Bom dia às 7h30 também pelo WhatsApp (a partir de 27/10); apelido sempre; vigia da conexão; prévia de documento já existente no cartão da central; o verificador da central deixa de marcar telefone, DOC e código como "sem fonte". Etapas e pendências revistas (canal do vigia T-03 e avisos ao WhatsApp: decisões adiadas; W5 para depois) | Proprietário |
 | 25/10/2026 | **Allowlist por número** no lugar das listas interna e externa (externa fica para depois); cada pessoa com a sua SARA; cada número com prompt de sistema (complementa a SARA; segurança por cima) e modelo. A SARA do número passou para cada pessoa; a coluna antiga sai depois do Deploy | Proprietário |
 | 25/10/2026 | **Confirmar por enquete** no lugar do "SIM + código". Teste real no celular do proprietário: botões aceitos pela Evolution mas não exibidos (vêm como "visualização única"); lista quebra na Evolution 2.3.7; enquete entregue com o voto legível. O quadro passa a ser por ação, com a área dona da ação decidindo (o quadro das Guias vale para uma guia, e a ação do WhatsApp não vem de guia). Bug achado pelo proprietário: cada voto trocado era processado de novo; agora só o primeiro vale e a enquete é apagada | Proprietário |
 | 24/10/2026 | **Sem API oficial da Meta:** tudo pela Evolution, inclusive fornecedores e clientes (decisão do proprietário). W3 no ar e testada por ele ("respondeu perfeitamente"). W4 (envio da central pelo WhatsApp) em construção | Proprietário |

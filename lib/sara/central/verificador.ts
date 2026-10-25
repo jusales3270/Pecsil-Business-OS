@@ -2,7 +2,9 @@
  * Verificador da SARA central (E7, J1): todo número da resposta final tem de estar no que as SARAs dos
  * módulos devolveram (ou numa conta da ferramenta calcular). É uma etapa da plataforma, não do modelo:
  * o número que não bate é apontado na resposta ("sem fonte conferida"), para ninguém usá-lo como apurado.
- * Datas, horas, anos e números de 1 dígito ficam de fora (não são valores apurados).
+ * Datas, horas, anos e números de 1 dígito ficam de fora (não são valores apurados), e também os identificadores:
+ * telefone, número de documento (DOC-2026-0012), código com hífen (8-10-00953) e números dentro de links. O número
+ * de pedido ou OS ("nº 21") continua conferido: pega número inventado.
  */
 
 /** Um valor lido do texto: o número e como ele apareceu. */
@@ -10,6 +12,13 @@ export type Lido = { valor: number; como: string };
 
 const DATA = /\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g;
 const HORA = /\b\d{1,2}[:h]\d{2}\b/g;
+/** Identificadores, não valores: link, documento da SARA, telefone e código com hífen. */
+const IDENTIFICADORES = [
+  /https?:\/\/\S+/gi,
+  /\bDOC-\d{4}-\d{4,}\b/gi,
+  /(?:\+?55\s?)?\(?\b\d{2}\)?\s?9?\d{4}-\d{4}\b/g,
+  /\b\d+(?:-\d+)+\b/g,
+];
 const MULTIPLO: Record<string, number> = { mil: 1e3, milhao: 1e6, milhoes: 1e6, milhão: 1e6, milhões: 1e6, bi: 1e9, bilhao: 1e9, bilhão: 1e9, bilhoes: 1e9, bilhões: 1e9 };
 
 /** "1.234,56" → 1234.56; "12,5" → 12.5; "1234" → 1234; "1,2 milhão" → 1200000. */
@@ -25,7 +34,7 @@ function paraNumero(bruto: string, multiplo?: string): number | null {
 
 /** Números de um texto (valores, quantidades, percentuais), sem datas, horas e anos. */
 export function numerosDoTexto(texto: string): Lido[] {
-  const limpo = texto.replace(DATA, " ").replace(HORA, " ");
+  const limpo = IDENTIFICADORES.reduce((t, r) => t.replace(r, " "), texto).replace(DATA, " ").replace(HORA, " ");
   const saida: Lido[] = [];
   for (const m of limpo.matchAll(/(R\$\s?)?(\d[\d.,]*\d|\d)(?:\s?(mil|milh[aã]o|milh[oõ]es|bi|bilh[aã]o|bilh[oõ]es)\b)?(\s?%)?/gi)) {
     const valor = paraNumero(m[2], m[3]);

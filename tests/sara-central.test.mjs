@@ -263,3 +263,10 @@ test("painel da central: monta com mostrar a partir das consultas das áreas e d
   const holo = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
   assert.match(holo, /sh-palco-grade/, "dois ou mais visuais aparecem juntos, como painel");
 });
+
+test("verificador: identificador não é valor (telefone, DOC, código, link); nº de pedido e valor sem fonte continuam apontados", async () => {
+  const { conferirNumeros } = await import("../lib/sara/central/verificador.ts");
+  const t = "Ao permitir, o Cesar recebe no número +55 11 99607-4753 os documentos DOC-2026-0012 e DOC-2026-0013. Material 8-10-00953, link https://home.pecsil.com.br/?decisoes=9c697574-fea0. São 50 cotações, R$ 92.584,07.";
+  assert.deepEqual(conferirNumeros(t, [{ n: 50, total: 92584.07 }]), { conferidos: 2, semFonte: [] });
+  assert.deepEqual(conferirNumeros("Vence no 15 e são 37 títulos, R$ 1.500,00; a cotação nº 30.", [{ x: 1500 }]).semFonte, ["15", "37", "30"], "nº de cotação inventado continua apontado");
+});

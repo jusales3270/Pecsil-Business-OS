@@ -230,6 +230,19 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
     acoes.push(cartao({ id: String(id), mensagem_id: ids?.mensagem ?? null, resumo: a.resumo, detalhes: a.detalhes, risco: a.risco ?? "normal", situacao: "pendente", resultado: null, erro: null,
       expira_em: new Date(Date.now() + 15 * 60_000).toISOString(), created_at: new Date().toISOString() }));
   }
+  // Central: o envio pelo WhatsApp de documentos que JÁ existiam (criados antes ou fora desta conversa) também
+  // aparece com a prévia (PDF e áudio), para quem permite ver o que vai sair, não só o número.
+  const documentos = [...(p.documentos?.criados ?? [])];
+  if (p.sara.central) {
+    const refs = [...new Set(r.acoes.filter((a) => a.ferramenta === "enviar_pelo_whatsapp").flatMap((a) => (Array.isArray(a.entrada?.documentos) ? a.entrada.documentos : []).map(String)))]
+      .filter((x) => !documentos.some((d) => d.id === x || d.numero === x.toUpperCase())).slice(0, 5);
+    if (refs.length) {
+      const ids = refs.filter((x) => UUID.test(x)), numeros = refs.map((x) => x.toUpperCase()).filter((x) => /^DOC-\d{4}-\d{4,}$/.test(x));
+      const { data: ja } = !ids.length && !numeros.length ? { data: [] } : await p.sb.from("sara_documentos").select("id, numero, titulo, tipo, paginas")
+        .or([ids.length ? `id.in.(${ids.join(",")})` : "", numeros.length ? `numero.in.(${numeros.join(",")})` : ""].filter(Boolean).join(","));
+      for (const d of (ja ?? []) as { id: string; numero: string; titulo: string; tipo: string; paginas: number | null }[]) documentos.push({ ...d, paginas: d.paginas ?? 0 });
+    }
+  }
 
   // Colheita para o Segundo Cérebro (depois da resposta, sem atrasar a conversa): as lacunas e as
   // habilidades que a SARA propôs — e a rede de segurança da plataforma quando ela não lembrou de propor.
@@ -270,7 +283,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
 
   return NextResponse.json({
     conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, ferramentas: r.ferramentas.map((f) => f.nome), foraDoEscopo: Boolean(fora), visuais: r.visuais, acoes,
-    documentos: p.documentos?.criados ?? [],
+    documentos,
     parametros: parametrosUsados(r.ferramentas as Usada[], rotulosDe(p.ferramentas), new Set(ACOES.map((f) => f.nome)), TABELAS),
   });
 }
