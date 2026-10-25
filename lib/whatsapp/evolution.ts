@@ -227,3 +227,10 @@ export async function enviarInterativo(instancia: string, forma: Interativo, num
   const r = await evolution<{ key?: { id?: string } }>(c, "POST", `${caminho}/${conferir(instancia)}`, corpo, buscar);
   return { id: r?.key?.id ?? null };
 }
+
+/** Apaga para todos uma mensagem que o número da plataforma mandou (a enquete depois do primeiro voto). */
+export async function apagarMensagem(instancia: string, jid: string, waId: string, buscar: typeof fetch = fetch): Promise<boolean> {
+  const c = configuracao();
+  if (!c) return false;
+  return evolution(c, "DELETE", `/chat/deleteMessageForEveryone/${conferir(instancia)}`, { id: waId, remoteJid: jid, fromMe: true }, buscar).then(() => true, () => false);
+}

@@ -53,6 +53,49 @@ function QuadroDeLimites({ acoes, limites, mudar }: { acoes: Guia["acoes"]; limi
   );
 }
 
+type PeloWhatsapp = { nome: string; rotulo: string; ate: number | null; por: string | null };
+
+/**
+ * Quadro "Confirmar pelo WhatsApp" das ações desta área (PLANO-WHATSAPP §5): liberada, a ação pedida pelo WhatsApp
+ * vem com uma enquete "Sim / Não" (só o primeiro voto vale); sem liberar, vai o link para o Permitir. Quem responde
+ * pela área liga e define o limite por pessoa por dia; os outros só veem.
+ */
+function QuadroWhatsapp({ acoes, podeAprovar, salvar, ocupado }: { acoes: PeloWhatsapp[]; podeAprovar: boolean; salvar: (nome: string, ate: number) => Promise<string | null>; ocupado: boolean }) {
+  const [rascunho, setRascunho] = useState<Record<string, number | null>>({});
+  const [aviso, setAviso] = useState<string | null>(null);
+  if (!acoes.length) return null;
+  const valor = (a: PeloWhatsapp) => (a.nome in rascunho ? rascunho[a.nome] : a.ate);
+  return (
+    <section className="sara-guia sara-guia-whatsapp" aria-label="Confirmar pelo WhatsApp">
+      <div className="sara-guia-limites" role="group" aria-label="O que pode ser confirmado pelo WhatsApp">
+        <b>Confirmar pelo WhatsApp</b>
+        <small>Liberada, a ação pedida à SARA pelo WhatsApp vem com uma enquete “Sim / Não” (vale 15 minutos; só o primeiro voto conta). Sem liberar, a pessoa confirma pelo Permitir na plataforma.</small>
+        {acoes.map((a) => {
+          const v = valor(a);
+          const mudou = a.nome in rascunho && rascunho[a.nome] !== a.ate;
+          if (!podeAprovar) return <small key={a.nome} className="sara-guia-nota">{a.rotulo}: {a.ate ? `pelo WhatsApp, até ${a.ate} por pessoa por dia` : "só pelo Permitir na plataforma"}{a.ate && a.por ? ` (liberado por ${a.por})` : ""}.</small>;
+          return (
+            <div key={a.nome} className="sara-guia-limite">
+              <label className="sara-guia-marca"><input type="checkbox" checked={Boolean(v)} disabled={ocupado} onChange={(e) => setRascunho({ ...rascunho, [a.nome]: e.target.checked ? (a.ate ?? 3) : null })} /> {a.rotulo} pelo WhatsApp</label>
+              {Boolean(v) && (
+                <div className="sara-guia-campos">
+                  <label>Até <input type="number" min={1} max={20} inputMode="numeric" value={v ?? ""} disabled={ocupado}
+                    onChange={(e) => setRascunho({ ...rascunho, [a.nome]: Math.max(1, Math.min(20, Math.round(Number(e.target.value)) || 1)) })} /> por pessoa por dia</label>
+                </div>
+              )}
+              {mudou && <button type="button" className="sim" disabled={ocupado} onClick={() => void salvar(a.nome, v ?? 0).then((erro) => {
+                setAviso(erro ?? (v ? `${a.rotulo}: liberada pelo WhatsApp.` : `${a.rotulo}: só pelo Permitir.`));
+                if (!erro) setRascunho((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== a.nome)));
+              })}>Salvar</button>}
+            </div>
+          );
+        })}
+        {aviso && <small className="sara-guia-nota" role="status">{aviso}</small>}
+      </div>
+    </section>
+  );
+}
+
 function CartaoGuia({ g, podeAprovar, agir, ocupado }: { g: Guia; podeAprovar: boolean; agir: (g: Guia, corpo: Record<string, unknown>) => Promise<string | null>; ocupado: boolean }) {
   const [limites, setLimites] = useState<Record<string, Limite>>(g.limites ?? {});
   const [editando, setEditando] = useState(false);
@@ -107,7 +150,7 @@ function CartaoGuia({ g, podeAprovar, agir, ocupado }: { g: Guia; podeAprovar: b
 }
 
 export function SaraGuias({ modulo, voltar }: { modulo: string; voltar: () => void }) {
-  const [dados, setDados] = useState<{ podeAprovar: boolean; guias: Guia[] } | null>(null);
+  const [dados, setDados] = useState<{ podeAprovar: boolean; guias: Guia[]; whatsapp?: PeloWhatsapp[] } | null>(null);
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const carregar = useCallback(async () => {
@@ -127,6 +170,16 @@ export function SaraGuias({ modulo, voltar }: { modulo: string; voltar: () => vo
       return j?.texto ?? null;
     } finally { setOcupado(false); }
   };
+  const salvarWhatsapp = async (ferramenta: string, ate: number) => {
+    setOcupado(true);
+    try {
+      const r = await fetch(`/api/sara/${modulo}/guias`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ acao: "whatsapp", ferramenta, ate }) }).catch(() => null);
+      const j = await r?.json().catch(() => null);
+      if (!r?.ok) return j?.error ?? "Não deu certo. Tente de novo.";
+      await carregar();
+      return null;
+    } finally { setOcupado(false); }
+  };
   const para = dados?.guias.filter((g) => g.situacao === "proposta") ?? [];
   const outras = dados?.guias.filter((g) => g.situacao !== "proposta") ?? [];
   return (
@@ -143,6 +196,7 @@ export function SaraGuias({ modulo, voltar }: { modulo: string; voltar: () => vo
       {para.map((g) => <CartaoGuia key={g.id} g={g} podeAprovar={Boolean(dados?.podeAprovar)} agir={agir} ocupado={ocupado} />)}
       {outras.length > 0 && para.length > 0 && <h4 className="sara-guias-grupo">Guias</h4>}
       {outras.map((g) => <CartaoGuia key={g.id} g={g} podeAprovar={Boolean(dados?.podeAprovar)} agir={agir} ocupado={ocupado} />)}
+      {dados?.whatsapp && <QuadroWhatsapp acoes={dados.whatsapp} podeAprovar={dados.podeAprovar} salvar={salvarWhatsapp} ocupado={ocupado} />}
     </div>
   );
 }

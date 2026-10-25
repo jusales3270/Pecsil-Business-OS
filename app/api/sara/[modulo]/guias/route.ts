@@ -6,6 +6,7 @@ import { FERRAMENTAS } from "../../../../../lib/sara/ferramentas";
 import { descreverGatilho, limparLimites, type Gatilho, type Limites } from "../../../../../lib/sara/guias";
 import type { Passo } from "../../../../../lib/sara/habilidades";
 import { preparar } from "../../../../../lib/sara/sessao";
+import { PODE_PELO_WHATSAPP } from "../../../../../lib/whatsapp/confirmar-regras";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,6 +25,8 @@ type LinhaGuia = { id: string; nome: string; descricao: string; passos: Passo[];
  * outros, só as suas), com o gatilho em português e as ações de cada uma (para o quadro de limites).
  * POST: decidir (aprovar, recusar, arquivar e os limites — quem responde pela área), pausar/retomar
  * (quem criou ou quem aprova) e rodar agora (quem criou). O banco confere cada permissão.
+ * Junto, o quadro "Confirmar pelo WhatsApp" das ações que são desta área (PLANO-WHATSAPP §5): quem aprova liga cada
+ * uma com o limite por pessoa por dia; os outros só leem.
  */
 export async function GET(_request: Request, context: { params: Promise<{ modulo: string }> }) {
   const { modulo } = await context.params;
@@ -35,8 +38,14 @@ export async function GET(_request: Request, context: { params: Promise<{ modulo
   // Nome de cada passo para quem lê (também para quem aprova e não tem a consulta): ação pelo verbo, consulta pelo nome.
   const rotulos: Record<string, string> = Object.fromEntries([...FERRAMENTAS, ...p.ferramentas].filter((f) => !f.acao && f.rotulo).map((f) => [f.nome, f.rotulo as string]));
   Object.assign(rotulos, ACAO_ROTULO);
+  const doModulo = Object.entries(PODE_PELO_WHATSAPP).filter(([, x]) => x.modulo === modulo);
+  const { data: liberadas } = doModulo.length
+    ? await p.sb.from("sara_whatsapp_confirmar").select("ferramenta, ate_por_dia, liberado_por_nome, updated_at").in("ferramenta", doModulo.map(([n]) => n))
+    : { data: [] };
+  const porNome = new Map(((liberadas ?? []) as { ferramenta: string; ate_por_dia: number; liberado_por_nome: string | null; updated_at: string }[]).map((x) => [x.ferramenta, x]));
   return NextResponse.json({
     podeAprovar: d.pode_aprovar,
+    whatsapp: doModulo.map(([nome, x]) => ({ nome, rotulo: x.rotulo, ate: porNome.get(nome)?.ate_por_dia ?? null, por: porNome.get(nome)?.liberado_por_nome ?? null, em: porNome.get(nome)?.updated_at ?? null })),
     guias: d.guias.map((g) => ({
       ...g, quando: descreverGatilho(g.gatilho, rotuloEvento),
       passos: g.passos.map((x) => ({ ...x, rotulo: rotulos[x.ferramenta] ?? x.ferramenta.replace(/_/g, " ") })),
@@ -49,7 +58,16 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   const { modulo } = await context.params;
   const p = await preparar(modulo);
   if ("erro" in p) return p.erro;
-  const corpo = (await request.json().catch(() => null)) as { acao?: string; id?: string; situacao?: string; limites?: unknown; motivo?: string; pausada?: boolean } | null;
+  const corpo = (await request.json().catch(() => null)) as { acao?: string; id?: string; situacao?: string; limites?: unknown; motivo?: string; pausada?: boolean; ferramenta?: string; ate?: unknown } | null;
+  if (corpo?.acao === "whatsapp") {
+    // Ligar (1 a 20 por dia) ou desligar (0) uma ação desta área para confirmar pela enquete do WhatsApp.
+    const f = String(corpo.ferramenta ?? "");
+    if (PODE_PELO_WHATSAPP[f]?.modulo !== modulo) return NextResponse.json({ error: "Esta ação não é desta área." }, { status: 400 });
+    const ate = Math.round(Number(corpo.ate ?? 0));
+    if (!Number.isFinite(ate) || ate < 0 || ate > 20) return NextResponse.json({ error: "O limite vai de 1 a 20 por dia." }, { status: 400 });
+    const { error } = await p.sb.rpc("sara_whatsapp_confirmar_salvar", { p_ferramenta: f, p_ate: ate });
+    return error ? NextResponse.json({ error: error.message }, { status: error.code === "42501" ? 403 : 400 }) : NextResponse.json({ ok: true });
+  }
   const id = String(corpo?.id ?? "");
   if (!UUID.test(id)) return NextResponse.json({ error: "Guia não encontrada." }, { status: 404 });
   const erro = (e: { message: string; code?: string }) => NextResponse.json({ error: e.message }, { status: e.code === "42501" ? 403 : 400 });

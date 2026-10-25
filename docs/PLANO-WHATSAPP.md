@@ -92,13 +92,21 @@ Regras da resposta em áudio:
 
 A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está em onde a pessoa confirma:
 
-- **Confirmar no WhatsApp:** só as ações que a área liberou para isso, com limite. Mesmo quadro de limites das
-  Guias (E3), com uma marca a mais por ação: "pode confirmar pelo WhatsApp", até N por dia. Quem libera é quem
-  responde pela área (decisão da área, não do proprietário). O padrão é nada liberado.
-  - A SARA responde com o resumo e um código curto: "Abrir chamado de TI: impressora do Almoxarifado sem papel.
-    Responda **SIM 4821** para confirmar." Vale 15 minutos e só do mesmo número que pediu.
-  - "SIM" sem o código, código errado ou vencido não confirma nada.
-  - Áudio dizendo "sim" não confirma: a confirmação é sempre digitada, com o código.
+- **Confirmar no WhatsApp, por enquete** (decisão do proprietário em 25/10/2026, depois do teste real: pelo chip, os
+  botões e a lista não aparecem no celular; a enquete aparece e o voto volta legível):
+  - **Quem libera:** só as ações que a área liberou, com limite por pessoa por dia, no quadro **SARA › Guias ›
+    "Confirmar pelo WhatsApp"**. Quem decide é quem aprova a SARA da área **dona da ação** (TI, Fundição, RH,
+    Produção), não a SARA que propôs; é decisão da área, não do proprietário. O padrão é nada liberado
+    (`sara_whatsapp_confirmar`, migração 202610250001).
+  - **Ações que podem ser liberadas:** abrir chamado, registrar incidente, atender chamado e cadastrar equipamento
+    (TI); anotar na Biblioteca (Fundição); incluir terceiro (RH); dar entrada de produção (Produção).
+  - **Como funciona:** com UMA ação liberada na resposta, a SARA manda junto a enquete "Confirma? <resumo>" com
+    Sim / Não. Ela vale 15 minutos e cada pessoa tem uma enquete aberta por vez. "Sim" faz o mesmo que o Permitir
+    da tela, com a sessão da pessoa; "Não" recusa.
+  - **Só o primeiro voto vale.** O WhatsApp não trava a enquete; por isso a plataforma guarda a enquete
+    (`whatsapp_enquetes`) e aceita o voto uma vez só. Depois a enquete é **apagada para todos** e fica a mensagem
+    com o resultado. Voto trocado, retirado ou repetido é ignorado em silêncio.
+  - **O voto só vale do número que recebeu a enquete:** a conversa é um a um.
 - **Todo o resto vai para o Permitir na plataforma:** a SARA manda o link do cartão; quem confirma entra com a
   senha ou a digital. Ação de risco alto, dinheiro, pedido de material, convite a fornecedor e qualquer envio para
   fora ficam sempre aqui.
@@ -111,7 +119,7 @@ A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está 
 | W1 | Canal | Evolution API + Postgres + Redis no Coolify (rede interna); chip conectado por QR em **Fundação › WhatsApp** (estrutura da plataforma, só o proprietário): estado da conexão, QR Code, desconectar e envio de teste; conferência do formato de áudio | Memória do servidor medida; o proprietário lê o QR com o chip |
 | W2 | Vários números, listas e alertas internos | **Vários números da plataforma** (cada um uma instância da Evolution): nome, departamento, descrição do que atende e **SARA responsável**; conectar pelo QR, teste, desconectar, desativar e remover. Em cada número, duas listas fechadas: **Comunicação interna** (número + usuário, que precisa ter a SARA do número) e **Comunicação externa** (número + nome + fornecedor/cliente/outro, com vínculo opcional ao cadastro); ativar/desativar, remover, boas-vindas opcional e auditoria (migração 202610240002); alertas da plataforma e da Forja (P-06) com horário silencioso (20h–7h e domingo); quais avisos vão ao WhatsApp: **a decidir** | W1 |
 | W3 | SARA pelo WhatsApp | Entrada pelo webhook, identificação da pessoa, a SARA da área certa (ou a central, para quem tem) com a sessão dela, texto com texto e áudio com áudio (§4), Permitir por link | W2 |
-| W4 | Envios da central e confirmar pelo WhatsApp | **Envio (construído):** a SARA central manda pelo WhatsApp documentos em PDF, mensagens de voz e texto a quem está nas listas de um número (interna e externa), com o Permitir, só pelo proprietário por enquanto (`enviar_pelo_whatsapp`). **Depois:** a marca "pode confirmar pelo WhatsApp" no quadro de limites (§5) | W3 |
+| W4 | Envios da central e confirmar pelo WhatsApp | **Envio (construído):** a SARA central manda pelo WhatsApp documentos em PDF, mensagens de voz e texto a quem está nas listas de um número (interna e externa), com o Permitir, só pelo proprietário por enquanto (`enviar_pelo_whatsapp`). **Confirmar por enquete (§5):** quadro "Confirmar pelo WhatsApp" por área, enquete com a ação liberada, só o primeiro voto vale e a enquete some depois (migração 202610250001) | W3 |
 | W5 | Respostas a quem é de fora | **Sem API oficial (decisão do proprietário, 24/10/2026): tudo pela Evolution.** O envio a fornecedores e clientes já existe na W4; a W5 define o que a SARA pode responder a um contato externo que escreve (sem credencial: só o que o proprietário autorizar) | W4 |
 
 ## 7. Pendências
@@ -125,6 +133,7 @@ A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está 
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 25/10/2026 | **Confirmar por enquete** no lugar do "SIM + código". Teste real no celular do proprietário: botões aceitos pela Evolution mas não exibidos (vêm como "visualização única"); lista quebra na Evolution 2.3.7; enquete entregue com o voto legível. O quadro passa a ser por ação, com a área dona da ação decidindo (o quadro das Guias vale para uma guia, e a ação do WhatsApp não vem de guia). Bug achado pelo proprietário: cada voto trocado era processado de novo; agora só o primeiro vale e a enquete é apagada | Proprietário |
 | 24/10/2026 | **Sem API oficial da Meta:** tudo pela Evolution, inclusive fornecedores e clientes (decisão do proprietário). W3 no ar e testada por ele ("respondeu perfeitamente"). W4 (envio da central pelo WhatsApp) em construção | Proprietário |
 | 24/10/2026 | W3 construída: webhook da Evolution pela rede interna (alias `pecsil-business-os`, segredo no caminho), registro das mensagens (migração 202610240003, sem o conteúdo), fora da lista em silêncio, a SARA do número com a sessão da pessoa pela mesma função da tela (`lib/sara/responder.ts`), texto com texto e áudio com nota de voz | — |
 | 24/10/2026 | Vários números (pedido do proprietário): cada número com departamento, descrição e SARA responsável (ex.: um só para o Comercial, outro para o atendimento a clientes, outro para o Fiscal); as listas passam a ser de cada número; o chip atual vira o primeiro número | Proprietário |

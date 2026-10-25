@@ -7,7 +7,8 @@ import { responder } from "../sara/responder";
 import { prepararCom } from "../sara/sessao";
 import { transcrever } from "../sara/voz";
 import { createSupabaseAdminClient } from "../supabase/admin";
-import { baixarMidia, enviarAudio, enviarTexto, marcarLida, presenca } from "./evolution";
+import { avaliarEnquete, mandarEnquete, receberVoto } from "./confirmar";
+import { apagarMensagem, baixarMidia, enviarAudio, enviarInterativo, enviarTexto, marcarLida, presenca } from "./evolution";
 import { complementoEscrito, dividir, lerMensagem, paraWhatsApp, type Recebida } from "./mensagem";
 import { SARA_OPCOES } from "./saras";
 
@@ -19,15 +20,17 @@ import { SARA_OPCOES } from "./saras";
  * - Na lista: a SARA responsável pelo número responde com a SESSÃO da pessoa (as permissões dela), pela mesma
  *   função da tela (lib/sara/responder.ts). Texto vira texto; áudio vira nota de voz (Whisper → SARA → voz luna).
  *   O que não dá para ouvir (link do Permitir, gráfico) vai junto, por escrito.
- * - Ação que grava não acontece pelo WhatsApp: fica pendente, com o link para o Permitir da plataforma.
+ * - Ação que grava fica pendente, com o link para o Permitir da plataforma; se a área dona da ação liberou, vai junto
+ *   uma enquete "Sim / Não" e só o primeiro voto vale (lib/whatsapp/confirmar.ts).
  * As chamadas à Evolution e à voz são trocáveis (`Deps`), para testar o caminho inteiro sem o chip.
  */
 
 export type Deps = {
   enviarTexto: typeof enviarTexto; enviarAudio: typeof enviarAudio; marcarLida: typeof marcarLida; presenca: typeof presenca;
   baixarMidia: typeof baixarMidia; transcrever: typeof transcrever; gravarVoz: typeof gravarMensagemDeVoz;
+  enviarInterativo: typeof enviarInterativo; apagarMensagem: typeof apagarMensagem;
 };
-const PADRAO: Deps = { enviarTexto, enviarAudio, marcarLida, presenca, baixarMidia, transcrever, gravarVoz: gravarMensagemDeVoz };
+const PADRAO: Deps = { enviarTexto, enviarAudio, marcarLida, presenca, baixarMidia, transcrever, gravarVoz: gravarMensagemDeVoz, enviarInterativo, apagarMensagem };
 
 export type Resultado = { situacao: "descartada" | "repetida" | "ignorada" | "respondida" | "falhou"; motivo?: string; conversa?: string | null; respostas?: number };
 
@@ -63,6 +66,21 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
   if (!perfil || perfil.status !== "active" || (perfil.access_expires_at && Date.parse(perfil.access_expires_at) < Date.now())) return ignorar("usuario_inativo", { contato_id: contato.id, profile_id: contato.profile_id });
   await marcar({ contato_id: contato.id, profile_id: perfil.id });
 
+  // Voto numa enquete: confirma a ação (só o primeiro voto vale). Voto repetido ou retirado: silêncio total.
+  if (m.escolha?.forma === "enquete") {
+    const comRegistro = { ...d, enviarTexto: async (i: string, n: string, t: string) => { const r = await d.enviarTexto(i, n, t); await registrarSaida(admin, canal, contato.id, perfil.id, r.id, "texto"); return r; } };
+    try {
+      const v = await receberVoto(admin, comRegistro, canal, contato.id, perfil.id, m.numero, m.jid, m.escolha);
+      await marcar({ situacao: v.situacao, motivo: v.motivo });
+      return { situacao: v.situacao, motivo: v.motivo, respostas: v.respostas };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "erro";
+      console.error("[whatsapp] voto", msg);
+      await marcar({ situacao: "falhou", erro: msg.slice(0, 300) });
+      return { situacao: "falhou", motivo: msg.slice(0, 120) };
+    }
+  }
+
   // A partir daqui é alguém da lista: "lida" e "digitando" (ou "gravando", se veio áudio).
   const audio = m.tipo === "audio";
   await d.marcarLida(canal.instancia, m.jid, m.waId);
@@ -74,7 +92,7 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
   };
 
   try {
-    // Toque num botão ou voto numa enquete (teste de 25/10): por enquanto só confirma o que chegou; nada é feito.
+    // Toque num botão ou numa lista (só o teste: pelo chip eles não aparecem no celular): confirma o que chegou.
     if (m.escolha) {
       const forma = { botao: "no botão", lista: "na lista", enquete: "na enquete" }[m.escolha.forma];
       const n = await responderTexto(m.escolha.texto
@@ -125,14 +143,17 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
         return { situacao: "respondida", respostas: n };
       }
       const resposta = await responder(p, canal.sara_modulo, { pergunta: pergunta || (imagem ? "" : "Oi"), conversa, voz: audio, imagem, canal: "whatsapp" });
-      const corpo = (await resposta.json().catch(() => null)) as { texto?: string; conversa?: string; acoes?: { situacao: string }[]; visuais?: unknown[]; error?: string } | null;
+      const corpo = (await resposta.json().catch(() => null)) as { texto?: string; conversa?: string; acoes?: { id: string; situacao: string }[]; visuais?: unknown[]; error?: string } | null;
       if (!resposta.ok || !corpo?.texto) {
         const n = await responderTexto(corpo?.error ?? "A SARA está indisponível agora. Tente de novo em instantes.");
         await marcar({ situacao: "falhou", erro: (corpo?.error ?? `status ${resposta.status}`).slice(0, 300) });
         return { situacao: "falhou", respostas: n };
       }
       const linkSara = `${base()}/?module=${canal.sara_modulo}&sara=1`;
-      const extra = complementoEscrito({ acoesPendentes: (corpo.acoes ?? []).filter((a) => a.situacao === "pendente").length, visuais: (corpo.visuais ?? []).length, linkSara });
+      const pendentes = (corpo.acoes ?? []).filter((a) => a.situacao === "pendente");
+      // Uma ação que a área liberou para o WhatsApp: vai a enquete depois da resposta.
+      const enquete = await avaliarEnquete(admin, perfil.id, contato.id, pendentes.map((a) => a.id)).catch(() => null);
+      const extra = complementoEscrito({ acoesPendentes: pendentes.length, visuais: (corpo.visuais ?? []).length, linkSara, enquete: Boolean(enquete) });
       let n = 0;
       if (audio) {
         // Áudio com áudio: a parte falada é a resposta direta; o resto que não dá para ouvir vai por escrito.
@@ -149,6 +170,7 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
       } else {
         n += await responderTexto(`${paraWhatsApp(semExpressoes(semTags(corpo.texto)), base())}${extra ? `\n\n${extra}` : ""}`);
       }
+      if (enquete && await mandarEnquete(admin, d, canal, contato.id, perfil.id, m.numero, enquete)) n++;
       await marcar({ situacao: "respondida", conversa_id: corpo.conversa ?? conversa });
       return { situacao: "respondida", conversa: corpo.conversa ?? conversa, respostas: n };
     } finally { await s.sair(); }

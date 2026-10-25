@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-25-confirmar-pelo-whatsapp",
+    data: "2026-10-25",
+    area: "SARA",
+    modulos: ["ti", "fundicao", "rh", "producao"],
+    funcionalidades: ["ti.sara", "fundicao.sara", "rh.sara", "producao.sara"],
+    titulo: "Confirmar pelo WhatsApp o que a SARA preparou",
+    itens: [
+      "Quem responde pela área decide, em SARA › Guias › \"Confirmar pelo WhatsApp\", quais ações podem ser confirmadas pelo próprio WhatsApp e quantas vezes por dia cada pessoa pode usar.",
+      "Liberada, a ação pedida à SARA pelo WhatsApp vem com uma enquete \"Sim / Não\". Vale 15 minutos e só o primeiro voto conta: depois dele a enquete some e fica a mensagem com o resultado.",
+      "Sem liberar, nada muda: a SARA manda o link para confirmar pelo Permitir na plataforma.",
+    ],
+  },
+  {
     id: "2026-10-24-sara-passos-ao-vivo",
     data: "2026-10-24",
     area: "SARA",

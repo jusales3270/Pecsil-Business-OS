@@ -20,7 +20,11 @@ export type Recebida = {
   /** Toque num botão ou numa lista, ou voto numa enquete (tipo "outro"). Texto vazio: chegou sem a opção legível. */
   escolha?: Escolha;
 };
-export type Escolha = { forma: "botao" | "lista" | "enquete"; id: string | null; texto: string };
+export type Escolha = {
+  forma: "botao" | "lista" | "enquete"; id: string | null; texto: string;
+  /** No voto: a enquete a que ele responde (id e conversa da mensagem original). */
+  enquete?: { waId: string; jid: string | null };
+};
 export type Descartada = { descartar: string; instancia?: string; waId?: string; numero?: string };
 
 type Chave = { remoteJid?: string; fromMe?: boolean; id?: string; remoteJidAlt?: string; senderPn?: string; participant?: string };
@@ -33,7 +37,7 @@ type Conteudo = {
   templateButtonReplyMessage?: { selectedId?: string; selectedDisplayText?: string };
   listResponseMessage?: { title?: string; singleSelectReply?: { selectedRowId?: string } };
   interactiveResponseMessage?: { body?: { text?: string }; nativeFlowResponseMessage?: { paramsJson?: string } };
-  pollUpdateMessage?: { vote?: { selectedOptions?: unknown[] } };
+  pollUpdateMessage?: { pollCreationMessageKey?: { id?: string; remoteJid?: string }; vote?: { selectedOptions?: unknown[] } };
 };
 
 /** A escolha feita num botão, numa lista ou numa enquete, nas formas que o WhatsApp devolve. */
@@ -46,9 +50,10 @@ function lerEscolha(m: Conteudo): Escolha | null {
     return { forma: "botao", id: p?.id ?? null, texto: String(m.interactiveResponseMessage.body?.text ?? "").trim() };
   }
   if (m.pollUpdateMessage) {
-    // O voto chega cifrado; só fica legível se a Evolution decifrar e mandar o nome da opção.
+    // A Evolution decifra o voto e troca as opções pelo nome (2.3.7). Sem nome: voto retirado ou não decifrado.
     const nomes = (m.pollUpdateMessage.vote?.selectedOptions ?? []).filter((x): x is string => typeof x === "string");
-    return { forma: "enquete", id: null, texto: nomes.join(", ").trim() };
+    const chave = m.pollUpdateMessage.pollCreationMessageKey;
+    return { forma: "enquete", id: null, texto: nomes.join(", ").trim(), ...(chave?.id ? { enquete: { waId: String(chave.id), jid: chave.remoteJid ? String(chave.remoteJid) : null } } : {}) };
   }
   return null;
 }
@@ -125,9 +130,10 @@ export function dividir(texto: string, max = 3500): string[] {
  * O que vai junto da resposta em áudio, por escrito: o que não dá para ouvir (link do Permitir, gráfico na
  * plataforma). Sem nada disso, a resposta em áudio vai sozinha.
  */
-export function complementoEscrito(o: { acoesPendentes: number; visuais: number; linkSara: string }): string | null {
+export function complementoEscrito(o: { acoesPendentes: number; visuais: number; linkSara: string; enquete?: boolean }): string | null {
   const partes: string[] = [];
-  if (o.acoesPendentes) partes.push(`${o.acoesPendentes === 1 ? "Preparei uma ação" : `Preparei ${o.acoesPendentes} ações`} que precisa${o.acoesPendentes === 1 ? "" : "m"} do seu Permitir na plataforma: ${o.linkSara}`);
+  if (o.enquete) partes.push(`Confirme na enquete abaixo (vale 15 minutos; só o primeiro voto conta). Se preferir, pelo Permitir na plataforma: ${o.linkSara}`);
+  else if (o.acoesPendentes) partes.push(`${o.acoesPendentes === 1 ? "Preparei uma ação" : `Preparei ${o.acoesPendentes} ações`} que precisa${o.acoesPendentes === 1 ? "" : "m"} do seu Permitir na plataforma: ${o.linkSara}`);
   if (o.visuais) partes.push(`${o.visuais === 1 ? "Montei um gráfico" : `Montei ${o.visuais} gráficos`}: veja na plataforma, ${o.linkSara}`);
   return partes.length ? partes.join("\n") : null;
 }
