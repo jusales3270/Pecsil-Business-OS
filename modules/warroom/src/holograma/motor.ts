@@ -13,7 +13,7 @@
 
 export type EstadoHolo = "idle" | "listening" | "thinking" | "speaking";
 
-const PALETA = ["#FFB54D", "#FF8C1A", "#FFD591", "#C25607", "#FFEDC4", "#FF7A00"];
+const PALETA = ["#7DB6FF", "#3B82F6", "#DCE3EC", "#1E4FD1", "#F1F5F9", "#4D9BFF"];
 const N_ARCOS = 42;
 const N_NOS = 13;
 const cor = () => PALETA[Math.floor(Math.random() * PALETA.length)];
@@ -152,9 +152,9 @@ export function desenhar(ctx: CanvasRenderingContext2D, W: number, H: number, sy
   const coreR = Math.max(0.1, R * 0.16 * coreI * coreScr);
   const nucleo = () => {
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 2.4);
-    g.addColorStop(0, `rgba(255,236,196,${Math.min(1, 0.5 + A * 0.5 + sys.coreFlash * 0.5)})`);
-    g.addColorStop(0.35, `rgba(255,158,44,${Math.min(1, 0.28 + A * 0.4)})`);
-    g.addColorStop(1, "rgba(255,122,0,0)");
+    g.addColorStop(0, `rgba(236,243,252,${Math.min(1, 0.5 + A * 0.5 + sys.coreFlash * 0.5)})`);
+    g.addColorStop(0.35, `rgba(77,155,255,${Math.min(1, 0.28 + A * 0.4)})`);
+    g.addColorStop(1, "rgba(40,100,237,0)");
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(cx, cy, coreR * 2.4, 0, 7); ctx.fill();
   };
@@ -218,7 +218,7 @@ export function desenhar(ctx: CanvasRenderingContext2D, W: number, H: number, sy
   // Anéis de tique giroscópicos.
   for (const tr of tickRings) {
     const B = tr.B, raio = tr.r * R, n = 72, r0 = t * 0.05 * (tr.step % 2 ? -1 : 1);
-    ctx.globalAlpha = 0.1 + A * 0.22; ctx.strokeStyle = "#FF9E2C"; ctx.lineWidth = 0.7;
+    ctx.globalAlpha = 0.1 + A * 0.22; ctx.strokeStyle = "#4D9BFF"; ctx.lineWidth = 0.7;
     for (let i = 0; i < n; i += tr.step) {
       const ang = r0 + (i / n) * Math.PI * 2, ca = Math.cos(ang), sa = Math.sin(ang), r1 = raio - 3, r2 = raio + 3;
       const [bx, by] = projetar(...girar(B[0] * ca * r1 + B[3] * sa * r1, B[1] * ca * r1 + B[4] * sa * r1, B[2] * ca * r1 + B[5] * sa * r1));
@@ -234,7 +234,7 @@ export function desenhar(ctx: CanvasRenderingContext2D, W: number, H: number, sy
     if (f.life <= 0) { sys.flares.splice(i, 1); continue; }
     const r1 = f.r0, r2 = f.r0 + f.len * (1 - f.life);
     const [p1x, p1y] = projetar(...girar(f.dx * r1, f.dy * r1, f.dz * r1)), [p2x, p2y] = projetar(...girar(f.dx * r2, f.dy * r2, f.dz * r2));
-    ctx.globalAlpha = f.life * 0.7; ctx.strokeStyle = "#FFD591"; ctx.lineWidth = 1.1;
+    ctx.globalAlpha = f.life * 0.7; ctx.strokeStyle = "#DCE3EC"; ctx.lineWidth = 1.1;
     ctx.beginPath(); ctx.moveTo(p1x, p1y); ctx.lineTo(p2x, p2y); ctx.stroke();
   }
 
@@ -254,7 +254,7 @@ export function desenhar(ctx: CanvasRenderingContext2D, W: number, H: number, sy
     ctx.globalAlpha = Math.min(1, wl * 1.1) * 0.85 * (0.5 + s1 / (2 * coreScr));
     ctx.strokeStyle = cm.col; ctx.lineWidth = 1.3;
     ctx.beginPath(); ctx.moveTo(p1x, p1y); ctx.lineTo(p2x, p2y); ctx.stroke();
-    ctx.fillStyle = "#FFEDC4"; ctx.fillRect(p1x - 1, p1y - 1, 2, 2);
+    ctx.fillStyle = "#F1F5F9"; ctx.fillRect(p1x - 1, p1y - 1, 2, 2);
   }
   sys.sonarClock++;
   if (wl > 0.2 && sys.sonarClock % 55 === 0) sys.rings.push({ r: R * 1.05, life: 1, B: tickRings[sys.rings.length % 3].B });
@@ -262,7 +262,7 @@ export function desenhar(ctx: CanvasRenderingContext2D, W: number, H: number, sy
     const rg = sys.rings[i]; rg.r -= R * 0.0075; rg.life -= 0.011;
     if (rg.life <= 0 || rg.r < R * 0.16) { sys.rings.splice(i, 1); continue; }
     const B = rg.B;
-    ctx.globalAlpha = Math.sin(rg.life * Math.PI) * 0.4 * Math.max(wl, 0.05); ctx.strokeStyle = "#FFEDC4"; ctx.lineWidth = 1.2;
+    ctx.globalAlpha = Math.sin(rg.life * Math.PI) * 0.4 * Math.max(wl, 0.05); ctx.strokeStyle = "#F1F5F9"; ctx.lineWidth = 1.2;
     ctx.beginPath();
     for (let k = 0; k <= 40; k++) {
       const ang = (k / 40) * Math.PI * 2, ca = Math.cos(ang) * rg.r, sa = Math.sin(ang) * rg.r;
@@ -280,10 +280,10 @@ export function desenhar(ctx: CanvasRenderingContext2D, W: number, H: number, sy
         const d = Math.hypot(nodes[j].x - nodes[i].x, nodes[j].y - nodes[i].y, nodes[j].z - nodes[i].z);
         if (d > maxD) continue;
         ctx.globalAlpha = wt * (0.1 + 0.22 * Math.abs(Math.sin(t * 2.6 + i * 2.1 + j * 1.3))) * (1 - d / maxD);
-        ctx.strokeStyle = "#FF9E2C"; ctx.lineWidth = 0.7;
+        ctx.strokeStyle = "#4D9BFF"; ctx.lineWidth = 0.7;
         ctx.beginPath(); ctx.moveTo(nodes[i].sx, nodes[i].sy); ctx.lineTo(nodes[j].sx, nodes[j].sy); ctx.stroke();
       }
-      ctx.globalAlpha = wt * 0.55; ctx.fillStyle = "#FFD591";
+      ctx.globalAlpha = wt * 0.55; ctx.fillStyle = "#DCE3EC";
       ctx.fillRect(nodes[i].sx - 1.4, nodes[i].sy - 1.4, 2.8, 2.8);
     }
     if (Math.random() < wt * 0.06) {
@@ -296,7 +296,7 @@ export function desenhar(ctx: CanvasRenderingContext2D, W: number, H: number, sy
   for (let i = sys.bolts.length - 1; i >= 0; i--) {
     const b = sys.bolts[i]; b.life -= 0.13;
     if (b.life <= 0) { sys.bolts.splice(i, 1); continue; }
-    ctx.globalAlpha = b.life * Math.max(wt, 0.05); ctx.strokeStyle = "#FFEDC4"; ctx.lineWidth = 1.1;
+    ctx.globalAlpha = b.life * Math.max(wt, 0.05); ctx.strokeStyle = "#F1F5F9"; ctx.lineWidth = 1.1;
     ctx.beginPath(); b.pts.forEach((q, k) => (k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.stroke();
   }
 
@@ -304,7 +304,7 @@ export function desenhar(ctx: CanvasRenderingContext2D, W: number, H: number, sy
   for (let i = sys.waves.length - 1; i >= 0; i--) {
     const wv = sys.waves[i]; wv.r += wv.v; wv.life -= 0.016;
     if (wv.life <= 0) { sys.waves.splice(i, 1); continue; }
-    ctx.globalAlpha = wv.life * 0.42 * Math.max(ws, 0.12); ctx.strokeStyle = "#FFB54D"; ctx.lineWidth = 0.4 + wv.life * 1.6;
+    ctx.globalAlpha = wv.life * 0.42 * Math.max(ws, 0.12); ctx.strokeStyle = "#7DB6FF"; ctx.lineWidth = 0.4 + wv.life * 1.6;
     ctx.beginPath(); ctx.arc(cx, cy, wv.r * (FOV / CAM), 0, 7); ctx.stroke();
   }
   if (ws > 0.03) {
