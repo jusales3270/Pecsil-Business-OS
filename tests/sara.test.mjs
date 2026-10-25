@@ -175,7 +175,7 @@ test("SARA: com o verificador dando FORA, a conversa é cancelada e a resposta �
   const parar = new AbortController(); parar.abort();
   await assert.rejects(conversarCom({}, { chave: "x", buscar: async () => { throw new Error("não devia chamar"); }, modelo: "m", sistema: "s", historico: [], pergunta: "?", ferramentas: [], sinal: parar.signal }), /CANCELADA/);
   const rota = readFileSync(new URL("../app/api/sara/[modulo]/route.ts", import.meta.url), "utf8") + readFileSync(new URL("../lib/sara/responder.ts", import.meta.url), "utf8") + readFileSync(new URL("../lib/sara/sessao.ts", import.meta.url), "utf8");
-  assert.match(rota, /verificar\(\{ empresa, pergunta, contexto: ultima, tema: tema\?\.assunto \?\? null \}\)\.then\(\(v\) => \{ if \(!v\.dentro\) parar\.abort\(\); return v; \}\)/);
+  assert.match(rota, /verificar\(\{ empresa, pergunta, contexto: contextoParaVerificar\(pergunta, ultima\), tema: tema\?\.assunto \?\? null \}\)\.then\(\(v\) => \{ if \(!v\.dentro\) parar\.abort\(\); return v; \}\)/);
   assert.match(rota, /if \(!v\.dentro\) \{\s+fora = "verificador";\s+r = \{ texto: textoRecusa, fontes: \[\], abrir: null, ferramentas: \[\]/);
   assert.match(rota, /regrasDeEscopo\(empresa, p\.sara\.rotulo, temaDe\(modulo\)\)/);
   assert.match(rota, /escopo: \{ fora, verificador_falhou: v\.falhou \}/, "a recusa fica registrada para auditoria");

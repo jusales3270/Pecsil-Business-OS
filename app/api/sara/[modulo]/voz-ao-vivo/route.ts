@@ -13,8 +13,8 @@ export const runtime = "nodejs";
  * Voz ao vivo da SARA central (Grok Voice, xAI). POST: confere a permissão (a SARA central da pessoa),
  * confere se a voz "luna" existe e pede um token temporário (5 min) para o navegador conectar direto ao
  * Grok, sem a chave sair do servidor (`XAI_API_KEY`). Devolve o endereço e a sessão (pt-BR, a persona e as
- * funções). Os dados da empresa não passam por aqui: o Grok chama `perguntar_a_area` (a rota normal da SARA
- * daquela área) ou `consultar_sara_central` (a rota da central), com as permissões, o verificador e o registro.
+ * funções). Os dados da empresa não passam por aqui: o Grok chama `responder_pela_area` (a rota normal da SARA
+ * daquela área) ou `responder` (a rota da central), com as permissões, o verificador e o registro.
  */
 let vozConferida: { quando: number; ok: boolean } | null = null;
 

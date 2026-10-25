@@ -34,7 +34,7 @@ type DocCriado = { id: string; numero: string; titulo: string; tipo: string; pag
 type CartaoAcao = { id: string; resumo: string; detalhes: string[]; risco: string; situacao: string; feito?: string | null; erro?: string | null };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
 type Modo = "fechado" | "cheio" | "mini";
-const ROTULO: Record<EstadoHolo, string> = { idle: "PRONTA", listening: "OUVINDO", thinking: "CONSULTANDO AS ÁREAS", speaking: "FALANDO" };
+const ROTULO: Record<EstadoHolo, string> = { idle: "PRONTA", listening: "OUVINDO", thinking: "PENSANDO", speaking: "FALANDO" };
 const CHAVE_VOZ = "pecsil.sara-holo.voz";
 const lerVozLigada = () => { try { return window.localStorage.getItem(CHAVE_VOZ) !== "0"; } catch { return true; } };
 const guardarVozLigada = (v: boolean) => { try { window.localStorage.setItem(CHAVE_VOZ, v ? "1" : "0"); } catch { /* sem armazenamento: só não lembra */ } };
@@ -230,17 +230,13 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     setLinhaPessoa(`▸ ${pergunta}`); setLegenda(""); setAceso(0);
     setEstado("thinking");
     try {
-      // Com a voz ligada, a pergunta digitada entra na conversa do Grok, como a falada: ele confirma na hora e
-      // manda à SARA da área (pergunta de uma área) ou à central (várias áreas, documento, mensagem de voz).
-      if (vozLigada) {
-        const v = await garantirVoz();
-        if (v && await v.perguntar(pergunta)) return;
-      }
+      // A pergunta digitada vai direto à SARA central (sem passar pela camada de voz, que reescrevia o pedido e
+      // somava um modelo no caminho); a voz só fala a resposta conferida (24/10/2026, pedido do proprietário).
       const r = await consultar(pergunta, voz);
       if ("erro" in r) { setEstado("idle"); falar(r.erro); return; }
       falar(resumoFalado(paraVoz(r.texto)));
     } finally { ocupado.current = false; }
-  }, [consultar, falar, pararFala, setEstado, vozLigada, garantirVoz]);
+  }, [consultar, falar, pararFala, setEstado]);
 
   /* ---- voz ao vivo (Grok Voice, "luna", pt-BR) ---- */
   const legendaAoVivo = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -253,7 +249,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     legendaAoVivo.current = setInterval(() => { setAceso(++i); if (i >= total && legendaAoVivo.current) clearInterval(legendaAoVivo.current); }, 380);
   }, []);
   const executarDaVoz = useCallback(async (nome: string, args: Record<string, unknown>) => {
-    if (nome === "consultar_sara_central") {
+    if (nome === "responder") {
       const pergunta = String(args.pergunta ?? "").trim();
       if (pergunta) setLinhaPessoa(`▸ ${pergunta}`);
       const r = await consultar(pergunta || "Resumo da empresa hoje.", true);
@@ -261,7 +257,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
       const fala = resumoFalado(paraVoz(r.texto));
       return { saida: { ok: true, resposta_conferida: fala, observacao: "A plataforma já vai falar esta resposta, exatamente como está. Não repita os números." }, falar: fala };
     }
-    if (nome === "perguntar_a_area") {
+    if (nome === "responder_pela_area") {
       const area = String(args.area ?? "").trim();
       const pergunta = String(args.pergunta ?? "").trim();
       if (!area || pergunta.length < 2) return { saida: { erro: "Diga a área e a pergunta." } };

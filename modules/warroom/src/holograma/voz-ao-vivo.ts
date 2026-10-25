@@ -182,7 +182,7 @@ export async function iniciarVozAoVivo(modulo: string, ev: AoVivo, o: { microfon
   const executarChamada = (nome: string, callId: string, bruto: string) => {
     let args: Record<string, unknown> = {};
     try { args = bruto ? JSON.parse(bruto) : {}; } catch { args = {}; }
-    if (nome === "consultar_sara_central" || nome === "perguntar_a_area") ocupada = true;
+    if (nome === "responder" || nome === "responder_pela_area") ocupada = true;
     const p = ev.executar(nome, args)
       .catch((e) => ({ saida: { erro: e instanceof Error ? e.message : "falhou" }, falar: undefined }))
       .then((res) => { enviar({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify(res.saida ?? { ok: true }) } }); return { falar: res.falar }; });

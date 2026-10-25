@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { chaveConfigurada, conversar, verificar } from "./claude";
-import { MODELO_VERIFICADOR, recusa, regrasDeEscopo } from "./escopo";
+import { contextoParaVerificar, MODELO_VERIFICADOR, recusa, regrasDeEscopo } from "./escopo";
 import type { RespostaSara } from "./laco";
 import { abertura, comAbertura, contextoDeTempo, situacaoDaConversa } from "./tempo";
 import { FERRAMENTAS, LACUNA } from "./ferramentas";
@@ -27,6 +27,10 @@ import { createSupabaseAdminClient } from "../supabase/admin";
  * igual nos dois lugares: mesmas ferramentas, escopo, verificador, registro e ações com Permitir.
  */
 const UUID = /^[0-9a-f-]{36}$/i;
+/** A resposta diz que há um cartão para permitir (ou um envio preparado)? */
+export const prometeuCartao = (texto: string) =>
+  /toque(?:\s+\w+){0,3}\s+em\s+permitir|falta(?:m)?\s+o\s+seu\s+(?:toque|permitir)|cart[aã]o\s+(?:de\s+aprova[cç][aã]o|logo\s+abaixo|na\s+tela|com\s+o\s+resumo)|(?:envio|a[cç][aã]o)\s+(?:est[aá]\s+|ficou\s+)?preparad[oa]|preparei\s+o\s+envio/i.test(texto);
+const AVISO_SEM_CARTAO = "AVISO DA PLATAFORMA (não é a pessoa falando): na sua resposta anterior você disse que preparou um envio ou uma ação para a pessoa permitir, mas NENHUMA ferramenta de ação foi chamada, então não existe cartão na tela. Chame agora a ferramenta de ação certa para o que a pessoa pediu (reaproveitando documentos e mensagens de voz já criados nesta conversa, pelo número DOC-…) e responda de novo. Se não for possível, diga com clareza que nada foi preparado e por quê.";
 /**
  * Depois da resposta (colheita do Segundo Cérebro, aviso do teto): pelo `after` do Next dentro de uma requisição;
  * fora dela (o WhatsApp atendido em segundo plano, um teste), roda logo em seguida, sem segurar a resposta.
@@ -126,13 +130,14 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const parar = new AbortController();
   const ultima = [...historico].reverse().find((m) => m.papel === "sara")?.texto ?? null;
   const tema = temaDe(modulo);
-  const verificacao = verificar({ empresa, pergunta, contexto: ultima, tema: tema?.assunto ?? null }).then((v) => { if (!v.dentro) parar.abort(); return v; });
+  const verificacao = verificar({ empresa, pergunta, contexto: contextoParaVerificar(pergunta, ultima), tema: tema?.assunto ?? null }).then((v) => { if (!v.dentro) parar.abort(); return v; });
   const inicioRota = Date.now();
   let r: RespostaSara | null = null;
   let falha: unknown = null;
+  const argsConversa = { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: corpo?.canal === "whatsapp" ? p.ferramentas.filter((f) => !["mostrar", "abrir_tela", "abrir_lancamento"].includes(f.nome)) : p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined, maxVisuais: p.sara.central ? 8 : undefined };
   try {
     // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
-    r = await conversar(p.sb, { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: corpo?.canal === "whatsapp" ? p.ferramentas.filter((f) => !["mostrar", "abrir_tela", "abrir_lancamento"].includes(f.nome)) : p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined, maxVisuais: p.sara.central ? 8 : undefined });
+    r = await conversar(p.sb, argsConversa);
   } catch (e) { falha = e; }
   const v = await verificacao;
   const textoRecusa = recusa(empresa, p.sara.rotulo);
@@ -147,6 +152,17 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   } else {
     r = { ...r, tokensEntrada: r.tokensEntrada + v.tokensEntrada, tokensSaida: r.tokensSaida + v.tokensSaida };
     if (r.texto.replace(/["“”]/g, "").trim() === textoRecusa) { fora = "modelo"; r = { ...r, texto: textoRecusa, fontes: [], abrir: null, visuais: [], acoes: [] }; }
+    // Trava (24/10): a resposta promete um cartão ("toque em Permitir", "envio preparado") sem nenhuma ação
+    // preparada. A SARA tenta de novo, uma vez, chamando a ferramenta de verdade; se ainda não preparar, a resposta
+    // sai com o aviso de que nada foi preparado (a pessoa não procura um cartão que não existe).
+    else if (!r.acoes.length && prometeuCartao(r.texto) && p.ferramentas.some((f) => f.acao)) {
+      const antes = r;
+      const deNovo = await conversar(p.sb, { ...argsConversa, historico: [...historico, { papel: "pessoa", texto: pergunta, created_at: new Date().toISOString() }, { papel: "sara", texto: antes.texto, created_at: new Date().toISOString() }],
+        pergunta: AVISO_SEM_CARTAO }).catch(() => null);
+      if (deNovo) r = { ...deNovo, ferramentas: [...antes.ferramentas, ...deNovo.ferramentas], tokensEntrada: antes.tokensEntrada + deNovo.tokensEntrada, tokensSaida: antes.tokensSaida + deNovo.tokensSaida,
+        cacheLido: antes.cacheLido + deNovo.cacheLido, cacheGravado: antes.cacheGravado + deNovo.cacheGravado, resultados: [...(antes.resultados ?? []), ...(deNovo.resultados ?? [])] };
+      if (!r.acoes.length && prometeuCartao(r.texto)) r = { ...r, texto: `${r.texto}\n\n⚠️ Nada foi preparado nesta resposta: não há cartão para permitir. Peça de novo.` };
+    }
   }
   const msModelo = Date.now() - inicioRota;
   // SARA central (E7): todo número da resposta tem de estar no que as SARAs das áreas devolveram (ou numa

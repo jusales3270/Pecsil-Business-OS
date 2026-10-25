@@ -300,6 +300,27 @@ A J3 já guarda, para cada achado da vigia, a resposta da área e o efeito: se a
 - A vigia passa a usar o histórico.
 - Rota `/api/sara/central/aprendizado` e tela `modules/warroom/src/Aprendizado.tsx`.
 
+## 4g. Calibração do próprio texto da SARA (ideia estacionada, 25/10/2026)
+
+Inspirada no Harness² (Google Research, out/2026): melhorar o agente mexendo no que fica em volta do modelo, sem treinar o modelo. Isso inclui instruções, descrição das ferramentas e roteamento. A J5 já faz a metade "guardar o que aprendeu". Falta a outra metade: **testar se o texto da própria SARA poderia ser melhor.**
+
+**Como seria**
+- **Base de teste:** perguntas reais recentes de cada área, já filtradas de dado pessoal (o mesmo filtro da análise das habilidades).
+- **Comparação:** a mesma pergunta roda com o texto atual e com uma variante proposta. Grava os passos de cada uma (os "passos ao vivo" já registram).
+- **O que se mede é o comportamento, não o número:**
+  - a ferramenta e a fonte certas;
+  - a área certa (área × central);
+  - recusar só o que a credencial não permite.
+- **Resultado:** a variante melhor vira uma proposta de alteração no repositório, com o antes e o depois.
+
+**Regras**
+- **Nada se reescreve sozinho em produção.** O caminho é proposta, revisão, push e Deploy.
+- Lição continua sendo contexto, nunca dado.
+- Roda sob demanda e numa amostra pequena: cada comparação repete a pergunta duas vezes ou mais, e conta no teto da central.
+- Usar só o que já temos: Claude, as SARAs e o banco. O código do Harness² espera Vertex AI e mandaria as perguntas reais para outro serviço externo.
+
+**Quando:** depois da ordem combinada (ações por módulo → Android → E7 → conector universal), e com algumas centenas de perguntas reais por área já acumuladas.
+
 ## 5. Decisões do proprietário (aprovadas em 23/10/2026)
 
 1. A central mora em War Room › Conselho; só o proprietário usa a visão da empresa inteira por enquanto (permissão `warroom.sara`).

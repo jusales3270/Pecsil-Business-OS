@@ -42,35 +42,55 @@ async function destinos(): Promise<Destino[]> {
       nome: (c.lista === "interna" ? perfil.get(c.profile_id ?? "")?.full_name : c.nome) ?? "sem nome", lista: c.lista, organizacao: c.organization_id, perfil: c.profile_id }));
 }
 
-/** Acha o destinatário pelo nome falado; o mesmo contato em dois números conta uma vez (o primeiro, pela ordem). */
-async function acharDestino(nome: string): Promise<Destino | { erro: string }> {
+/** "para mim", "me manda", "eu": quem pediu é o destinatário. */
+export const ehQuemPede = (nome: string) => /^(para |pra )?(mim|eu|me|o proprio|a propria|o senhor|a senhora|voce)$/i.test(nome.normalize("NFD").replace(/[̀-ͯ]/g, "").trim());
+
+/**
+ * Acha o destinatário pelo nome falado ("para mim" = quem pediu); o mesmo contato em dois números conta uma vez
+ * (o primeiro, pela ordem).
+ */
+async function acharDestino(nome: string, sb: SupabaseClient): Promise<Destino | { erro: string }> {
   const lista = await destinos();
   const unicos = lista.filter((d, i) => lista.findIndex((x) => x.nome === d.nome && x.numero === d.numero) === i);
+  if (ehQuemPede(nome)) {
+    const { data: eu } = await sb.rpc("current_profile_id");
+    const meu = unicos.find((d) => d.lista === "interna" && d.perfil === eu);
+    return meu ?? { erro: "O seu número não está em nenhuma lista de WhatsApp da plataforma. Cadastre-o em Fundação › WhatsApp." };
+  }
   const achou = acharPessoa(nome, unicos.map((d) => ({ id: d.contato, nome: d.nome })));
   if ("erro" in achou) return { erro: `${achou.erro} Pelo WhatsApp, só recebe quem está nas listas de um número da plataforma (Fundação › WhatsApp).` };
   return unicos.find((d) => d.contato === achou.pessoa.id)!;
 }
 
-async function documentos(sb: SupabaseClient, ids: string[]): Promise<Doc[] | { erro: string }> {
-  if (!ids.length) return [];
-  const { data } = await sb.from("sara_documentos").select("id, numero, tipo, titulo, caminho").in("id", ids);
+/** Os documentos pedidos, pelo id interno ou pelo número (DOC-2026-0008), na ordem pedida. */
+async function documentos(sb: SupabaseClient, refs: string[]): Promise<Doc[] | { erro: string }> {
+  if (!refs.length) return [];
+  const ids = refs.filter((x) => UUID.test(x)), numeros = refs.filter((x) => NUMERO.test(x)).map((x) => x.toUpperCase());
+  const invalidos = refs.filter((x) => !UUID.test(x) && !NUMERO.test(x));
+  if (invalidos.length) return { erro: `Não reconheci ${invalidos.join(", ")}: use o número do documento (DOC-AAAA-NNNN) ou o id que criar_documento devolveu.` };
+  const q = sb.from("sara_documentos").select("id, numero, tipo, titulo, caminho");
+  const { data } = await (ids.length && numeros.length ? q.or(`id.in.(${ids.join(",")}),numero.in.(${numeros.join(",")})`) : ids.length ? q.in("id", ids) : q.in("numero", numeros));
   const docs = (data ?? []) as Doc[];
-  const falta = ids.filter((id) => !docs.some((d) => d.id === id));
-  if (falta.length) return { erro: "Documento não encontrado. Use o id que criar_documento ou criar_mensagem_de_voz devolveu." };
-  const semArquivo = docs.filter((d) => !d.caminho);
+  const achar = (r: string) => docs.find((d) => d.id === r || d.numero === r.toUpperCase());
+  const falta = refs.filter((r) => !achar(r));
+  if (falta.length) return { erro: `Documento não encontrado: ${falta.join(", ")}.` };
+  const lista = refs.map((r) => achar(r)!).filter((d, i, l) => l.findIndex((x) => x.id === d.id) === i);
+  const semArquivo = lista.filter((d) => !d.caminho);
   if (semArquivo.length) return { erro: `O arquivo de ${semArquivo.map((d) => d.numero).join(", ")} não foi gerado.` };
-  return ids.map((id) => docs.find((d) => d.id === id)!);
+  return lista;
 }
 
-const lerIds = (v: unknown) => (Array.isArray(v) ? v : v ? [v] : []).map(String).filter((x) => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 5);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NUMERO = /^DOC-\d{4}-\d{4,}$/i;
+const lerIds = (v: unknown) => (Array.isArray(v) ? v : v ? [v] : []).map((x) => String(x).trim()).filter(Boolean).slice(0, 5);
 const ehVoz = (d: Doc) => d.tipo === "mensagem_voz";
 
 export const ENVIAR_WHATSAPP: Ferramenta = {
   nome: "enviar_pelo_whatsapp", rotulo: "preparou um envio pelo WhatsApp", exige: [],
-  descricao: "PREPARA o envio pelo WhatsApp, por um número da plataforma, de documentos já criados (criar_documento: chega como PDF), mensagens de voz já gravadas (criar_mensagem_de_voz: chega como áudio gravado) e/ou um texto, para quem está nas listas de um número da plataforma (pessoas da Pecsil e contatos externos: fornecedores, clientes e outros). A pessoa que pediu permite antes. Diga o nome de quem recebe como foi falado e os ids dos documentos.",
+  descricao: "PREPARA o envio pelo WhatsApp, por um número da plataforma, de documentos já criados (criar_documento: chega como PDF), mensagens de voz já gravadas (criar_mensagem_de_voz: chega como áudio gravado) e/ou um texto, para quem está nas listas de um número da plataforma (pessoas da Pecsil e contatos externos: fornecedores, clientes e outros). A pessoa que pediu permite antes. Diga quem recebe como foi falado (\"para mim\" quando é para quem pediu) e o número (DOC-…) de cada documento. Reaproveite os documentos e mensagens de voz já criados nesta conversa: não crie de novo para enviar.",
   esquema: { type: "object", properties: {
     para: { type: "string", description: "Nome de quem recebe (ex.: \"Júnior\", \"White Martins\")." },
-    documentos: { type: "array", items: { type: "string" }, description: "Ids que criar_documento ou criar_mensagem_de_voz devolveram (até 5)." },
+    documentos: { type: "array", items: { type: "string" }, description: "O número de cada documento ou mensagem de voz (ex.: DOC-2026-0008) ou o id que criar_documento/criar_mensagem_de_voz devolveu (até 5)." },
     texto: { type: "string", description: "Mensagem de texto opcional, enviada antes dos arquivos." },
   }, required: ["para"] },
   acao: {
@@ -78,7 +98,7 @@ export const ENVIAR_WHATSAPP: Ferramenta = {
     preparar: async (sb, e) => {
       const { data: dono } = await sb.rpc("is_owner");
       if (!dono) return { erro: "O envio pelo WhatsApp é do proprietário, por enquanto." };
-      const d = await acharDestino(String(e.para ?? ""));
+      const d = await acharDestino(String(e.para ?? ""), sb);
       if ("erro" in d) return d;
       const docs = await documentos(sb, lerIds(e.documentos));
       if ("erro" in docs) return docs;
@@ -94,7 +114,7 @@ export const ENVIAR_WHATSAPP: Ferramenta = {
   rodar: async (sb, e) => {
     const { data: dono } = await sb.rpc("is_owner");
     if (!dono) throw new Error("O envio pelo WhatsApp é do proprietário, por enquanto.");
-    const d = await acharDestino(String(e.para ?? ""));
+    const d = await acharDestino(String(e.para ?? ""), sb);
     if ("erro" in d) throw new Error(d.erro);
     const docs = await documentos(sb, lerIds(e.documentos));
     if ("erro" in docs) throw new Error(docs.erro);

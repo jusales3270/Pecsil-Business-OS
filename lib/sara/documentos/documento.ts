@@ -159,6 +159,13 @@ export function acharPessoa(nome: string, pessoas: { id: string; nome: string }[
   const palavras = alvo.split(" ").filter((w) => w.length >= 2);
   const achados = pessoas.filter((p) => { const pn = ` ${n(p.nome)} `; return palavras.every((w) => pn.includes(` ${w} `) || pn.includes(` ${w}`)); });
   if (achados.length === 1) return { pessoa: achados[0] };
-  if (!achados.length) return { erro: `Não achei ninguém ativo na plataforma chamado "${nome}".` };
+  if (!achados.length) {
+    // Último recurso: o primeiro nome, quando só uma pessoa o tem ("Júnior Salles" acha o "Júnior" cadastrado só
+    // com o primeiro nome). Quem pede vê no cartão o nome e o destino antes de permitir.
+    const primeiro = palavras[0];
+    const pelo = primeiro ? pessoas.filter((p) => n(p.nome).split(" ")[0] === primeiro) : [];
+    if (pelo.length === 1) return { pessoa: pelo[0] };
+    return { erro: `Não achei ninguém ativo na plataforma chamado "${nome}".` };
+  }
   return { erro: `Há mais de uma pessoa: ${achados.slice(0, 6).map((p) => p.nome).join(", ")}. Para qual delas?` };
 }

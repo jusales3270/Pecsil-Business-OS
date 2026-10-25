@@ -165,11 +165,11 @@ test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números d
   assert.equal(s.voice, "luna");
   assert.equal(s.audio.input.transcription.language_hint, "pt-BR");
   assert.deepEqual(s.audio.input.format, { type: "audio/pcm", rate: 24000 });
-  assert.deepEqual(s.tools.map((t) => t.name), ["consultar_sara_central", "minimizar", "tela_cheia", "proximo_visual", "visual_anterior", "fechar_apresentacao"]);
+  assert.deepEqual(s.tools.map((t) => t.name), ["responder", "minimizar", "tela_cheia", "proximo_visual", "visual_anterior", "fechar_apresentacao"]);
   assert.ok(s.tools.every((t) => t.type === "function"), "sem busca na internet nem outras ferramentas do Grok");
   const ins = v.instrucoesDeVoz({ empresa: "Empresa X", nome: "Júnior", quemDecide: "Financeiro: Ana" });
   assert.match(ins, /português do Brasil/);
-  assert.match(ins, /nunca diga um número, nome ou situação que não veio da central/);
+  assert.match(ins, /nunca diga um número, nome ou situação que não veio dessa função/);
   assert.match(ins, /quem decide é a área/);
   assert.deepEqual(v.termosChave([["Pecsil", "pecsil", " Ana "], ["x"], ["Fundição"]]), ["Pecsil", "Ana", "Fundição"]);
   assert.equal(v.termosChave([Array.from({ length: 150 }, (_, i) => `termo ${i}`)]).length, 100);
@@ -182,19 +182,20 @@ test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números d
   // Roteamento (23/10): pergunta de uma área vai direto à SARA dela; várias áreas, documento e voz, à central.
   const areas = [{ modulo: "financeiro", rotulo: "Financeiro" }, { modulo: "rh", rotulo: "RH" }];
   const comAreas = v.sessaoDeVoz({ instrucoes: "x", termos: [], areas });
-  assert.equal(comAreas.tools[0].name, "perguntar_a_area");
+  assert.equal(comAreas.tools[0].name, "responder_pela_area");
   assert.deepEqual(comAreas.tools[0].parameters.properties.area.enum, ["financeiro", "rh"], "só as áreas que a pessoa pode usar");
   assert.deepEqual(comAreas.tools[0].parameters.required, ["area", "pergunta"]);
-  assert.ok(comAreas.tools.some((t) => t.name === "consultar_sara_central"));
+  assert.ok(comAreas.tools.some((t) => t.name === "responder"));
   const insAreas = v.instrucoesDeVoz({ empresa: "X", nome: "A", quemDecide: "", areas });
-  assert.match(insAreas, /cabe numa área só[\s\S]*perguntar_a_area/);
-  assert.match(insAreas, /mais de uma área[\s\S]*consultar_sara_central/);
-  assert.match(insAreas, /pergunta completa/);
+  assert.match(insAreas, /cabe numa área só[\s\S]*responder_pela_area/);
+  assert.match(insAreas, /mais de uma área[\s\S]*responder/);
+  assert.match(insAreas, /completando só com o período e os nomes ditos antes/);
   assert.match(insAreas, /nunca diga um número, nome ou situação que não veio delas/);
   const holoVoz = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
-  assert.match(holoVoz, /nome === "perguntar_a_area"/);
+  assert.match(holoVoz, /nome === "responder_pela_area"/);
   assert.match(holoVoz, /(fetch|perguntarComPassos)\(`\/api\/sara\/\$\{modulo\}`/, "a área responde pela rota dela (permissão, verificador e registro)");
-  assert.match(holoVoz, /v\.perguntar\(pergunta\)/, "pergunta digitada passa pelo Grok, que roteia");
+  // Desde 24/10 (pedido do proprietário): a pergunta digitada vai direto à SARA central; a voz só fala a resposta.
+  assert.doesNotMatch(holoVoz, /v\.perguntar\(pergunta\)/, "pergunta digitada não passa mais pela camada de voz");
 
   const rota = ler("app/api/sara/[modulo]/voz-ao-vivo/route.ts");
   assert.match(rota, /p\.access\.can\(s\.permissao, "ver"\)/, "área só com a permissão da SARA dela");
@@ -214,7 +215,7 @@ test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números d
   assert.match(motor, /tipo === "response\.function_call_arguments\.done"\) \{ executarChamada\(/, "executa a função na chegada (agindo enquanto fala)");
   assert.match(motor, /type: "function_call_output", call_id: callId/);
   const holo = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
-  assert.match(holo, /if \(nome === "consultar_sara_central"\) \{[\s\S]*await consultar\(/, "o cérebro continua sendo a SARA central");
+  assert.match(holo, /if \(nome === "responder"\) \{[\s\S]*await consultar\(/, "o cérebro continua sendo a SARA central");
   assert.match(holo, /\.catch\(\(e\) => \{ console\.warn\("\[sara\] voz da SARA indisponível"[^\n]*setSemVoz\(true\); return null; \}\)/, "sem a chave, só legenda e Whisper");
 });
 
