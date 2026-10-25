@@ -1,0 +1,21 @@
+{
+  "name": "pecsil-conector",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Conector universal do Pecsil Business OS: lê uma fonte (banco só leitura) e manda a descoberta do esquema e os registros para a área de chegada da plataforma. docs/PLANO-CONECTOR.md",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node conector.mjs",
+    "test": "node --test teste/*.test.mjs"
+  },
+  "dependencies": {
+    "mssql": "12.7.4",
+    "mysql2": "3.24.5",
+    "node-firebird": "2.18.2",
+    "pg": "8.23.1"
+  }
+}

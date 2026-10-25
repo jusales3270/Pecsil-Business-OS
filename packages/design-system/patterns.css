@@ -9258,3 +9258,18 @@ a.doc-abrir { text-decoration: none; }
 .wa-vinculo li button:disabled { color: var(--text-muted); cursor: not-allowed; background: transparent; }
 .wa-prompt-resumo { white-space: pre-line; color: var(--text-secondary); }
 .wa-movimento { font-size: var(--fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* Fundação › Conectores (docs/PLANO-CONECTOR.md) */
+.con-form { margin-bottom: var(--sp-4); }
+.con-erro { margin: 6px 0 0; color: var(--accent-red, var(--accent-amber)); font-size: var(--fs-sm); }
+.con-segredo { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-4); border-radius: 14px; border: 1px dashed var(--accent-amber); background: color-mix(in srgb, var(--accent-amber) 8%, transparent); }
+.con-segredo pre, .con-amostra { margin: 0; padding: var(--sp-3); border-radius: 10px; background: var(--bg-inset); color: var(--text-primary); font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-xs); white-space: pre-wrap; word-break: break-all; max-height: 320px; overflow: auto; }
+.con-bloco { display: flex; flex-direction: column; gap: var(--sp-2); }
+.con-bloco > summary { cursor: pointer; font-weight: 600; font-size: var(--fs-sm); color: var(--text-primary); }
+.con-rolagem { position: relative; max-height: 420px; overflow: auto; }
+.con-objeto { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(160px, 1fr) auto; gap: var(--sp-2) var(--sp-3); align-items: end; grid-column: 1 / -1; margin: 0; padding: var(--sp-3); border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent); border-radius: 12px; }
+.con-objeto .wa-obs { grid-column: 1 / -1; }
+.con-objeto textarea { font-family: var(--font-mono, ui-monospace, monospace); }
+.con-lotes { margin: 0; padding-left: var(--sp-4); font-size: var(--fs-sm); color: var(--text-secondary); display: grid; gap: 4px; }
+.wa-tabela .num { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) { .con-objeto { grid-template-columns: 1fr; } }

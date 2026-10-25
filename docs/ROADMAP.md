@@ -15,19 +15,18 @@
 
 | Item | O quê | Situação |
 |---|---|---|
+| B-12 | Conector universal (prioridade máxima do proprietário, 22/10) | C1 e C2 construídas em 25/10 (área de chegada, serviço conector com drivers testados em PostgreSQL, Firebird e MySQL, descoberta, de-para por regra, Fundação › Conectores); C3 (GRV) espera o Cesar dizer o banco e o IP |
+| B-04 | WhatsApp pela Evolution | No ar: SARA por texto e áudio, envios da central, confirmar por enquete, allowlist por número com prompt e modelo, defesa contra injeção. Esperando: as áreas liberarem ações para a enquete; o canal do vigia T-03 (sem API oficial); quais alertas vão ao WhatsApp |
 | I-01 | Unificação de fornecedores e clientes pelo Clef (Jev, Etapa 1) | Calibração; fila "para unificar" a partir de 17/10 |
 
-**Próximos 5** — pela nota (seção 2), entre os itens que melhoram o Pecsil com os portões abertos (17/10: white label e tenants ficam para depois). Os de nota maior que estão fora esperam uma dependência ou um OK; B-02, P-01, P-03, P-07 e C-08 foram adiados pelo proprietário em 16/10. Só sobram 3 itens do Marco 1 livres, então a fila completa com os do Marco 2
+**Próximos**, pela ordem combinada com o proprietário em 22/10 (a fila de 17/10 foi toda feita, descartada ou travada: B-09 feito, B-11 e F-07 no ar, B-07 não fazer, A-08 travado no portão do Jev):
 
-| Ordem | Item | O quê | Nota | Por que agora |
-|---|---|---|---|---|
-| 1 | B-09 | Infraestrutura documentada no Git (Coolify, serviços, variáveis sem os valores, rotina de recuperação) | 12,0 | Sem isso, uma pane no servidor depende de memória |
-| 2 | B-11 | IP do login na auditoria (passa pelo proxy) | 8,0 | A trilha de auditoria fica completa |
-| 3 | B-07 | Build fora do servidor e webhook de deploy | 7,0 | O build deixa de pesar no servidor da produção (muda o jeito do Deploy: OK do proprietário antes) |
-| 4 | F-07 | Fluxo de caixa de 90 dias (cenários por regra) | 4,0 | A Ana vê o caixa à frente, não só o passado |
-| 5 | A-08 | Equivalência de itens em cotações (revisto depois do A-01) | 3,3 | Comparativo de cotação mais preciso |
-
-A fila de 17/10 (A-11, F-08, R-01, A-07, F-09) foi toda construída e está no ar (Deploy de `5e2e354` em 17/10, 23h29).
+| Ordem | O quê | Situação |
+|---|---|---|
+| 1 | Mais ações da SARA por módulo | Esperando as respostas das áreas (13 perguntas de 23/10, sem resposta em 25/10) |
+| 2 | Teste real no Android (foto, leitor de código, voz e atalho da SARA) | Com o proprietário (cerca de 10 minutos) |
+| 3 | E7, SARA central (mindmaster) | Feito (J1–J5 no ar em 24/10) |
+| 4 | Conector universal, C3 em diante: GRV | Esperando o Cesar (banco, IP e usuário só de leitura); destrava C-01, C-13, A-03 e A-10 |
 
 **Quem decide o quê** (regra de 16/10/2026): o proprietário cuida da **construção e dos recursos** da
 plataforma: ordem do roadmap, acessos e permissões, infraestrutura, caixas de e-mail conectadas, uso e custo
@@ -176,7 +175,7 @@ Marco: **1**, **2** ou **+**.
 | B-01 | Recuperar o SSH e fechar o perímetro (portas do Supabase, porta 80 da Forja) | 1 | 5 | 3 | 1 | 3 | 11,0 | travado | Senha SSH | INFRA-SSH/PERIM; BP Fase 0 |
 | B-02 | Backup externo do banco e da Forja, com restore testado | 1 | 5 | 4 | 1 | 2 | 13,0 | no ar (= T-02, 19/10; Forja ainda fora) | Papel backup_leitura; projeto na nuvem | INFRA-BACKUP; Forja H3; BACKUP-EXTERNO |
 | B-03 | Cofre de segredos e troca das chaves | 1 | 4 | 2 | 1,5 | 2 | 5,3 | na fila | B-01 | VIS 6.3a |
-| B-04 | Canal de WhatsApp pela Evolution API (chip interno pelo WhatsApp Web; quem é de fora pela API oficial na W5): alertas internos, SARA pelo WhatsApp (texto com texto, áudio com áudio) e confirmação pelo WhatsApp só do que a área liberar | 1 | 4 | 3 | 0,5 | 2 | 20,0 | em construção: W1 no ar (24/10, chip conectado, teste recebido); próximo W2 | — | [PLANO-WHATSAPP.md](PLANO-WHATSAPP.md) |
+| B-04 | Canal de WhatsApp pela Evolution API, tudo pelo chip (sem API oficial, decisão de 24/10): SARA pelo WhatsApp (texto com texto, áudio com áudio), envios da central, confirmação por enquete do que a área liberar, allowlist por número com prompt e modelo | 1 | 4 | 3 | 0,5 | 2 | 20,0 | no ar: W1–W4 (SARA por texto e áudio, envios da central, confirmar por enquete), allowlist por número com prompt e modelo, defesa contra injeção (25/10); esperando as áreas liberarem ações para a enquete, o canal do vigia T-03 e a decisão de quais alertas vão | — | [PLANO-WHATSAPP.md](PLANO-WHATSAPP.md) |
 | B-05 | VPN: só o Business OS público | 1 | 4 | 2 | 1 | 3 | 8,0 | travado | Roteador | INFRA-VPN |
 | B-06 | Estabilizar a porta 443 | 1 | 4 | 3 | 0,5 | 3 | 20,0 | travado | Operadora; SSH | INFRA-443 |
 | B-07 | Build fora do servidor e webhook de deploy | 2 | 3 | 2 | 1 | 1 | 7,0 | não fazer (proprietário 17/10: o Deploy manual pelo painel está funcionando) | — | INFRA-BUILD; VIS P1.1e |
@@ -184,6 +183,7 @@ Marco: **1**, **2** ou **+**.
 | B-09 | Infraestrutura documentada no Git | 2 | 2 | 2 | 0,5 | 1 | 12,0 | feito ([INFRA.md](INFRA.md)) | — | INFRA-DOC |
 | B-10 | Plano B: nobreak, link reserva, réplica do banco | 2 | 3 | 1 | 1 | 3 | 5,0 | travado | Compra | INFRA-PLANOB |
 | B-11 | IP do login na auditoria (passa pelo proxy) | + | 2 | 1 | 0,5 | 1 | 8,0 | no ar (conferir em produção) | — | AUD-IP |
+| B-12 | Conector universal: ler qualquer ERP, banco antigo ou pasta em degraus (API, banco só leitura, arquivos, computer use), área de chegada com sha256 e de-para aprovado pela área; começa pelo GRV | 1 | 5 | 5 | 3 | 2 | 5,0 | em construção: C1 e C2 construídas (25/10); C3 espera o Cesar | Cesar (banco, IP, usuário só leitura) | [PLANO-CONECTOR.md](PLANO-CONECTOR.md) |
 
 ### C — Comercial e faturamento
 
@@ -416,6 +416,7 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 25/10/2026 | Quadro de agora revisto: a fila de 17/10 estava toda feita, descartada ou travada. Entra o B-12 (conector universal, prioridade máxima): C1 e C2 construídas, C3 espera o Cesar. B-04 (WhatsApp) atualizado: tudo pela Evolution, confirmação por enquete, allowlist por número | Claude |
 | 16/10/2026 | Roadmap único criado: Marco 1 (GRV desligado) e Marco 2 (pronta para escalar); critério (V + 2·D) ÷ E e portões; os planos de detalhe passam a apontar para cá | Proprietário |
 | 16/10/2026 | Entram os itens novos da comparação com o GRV Max: A-07, C-05, A-11, B-08, A-09 e F-10. Os 14 da lista ficam assim: 1 C-05 · 2 A-07, A-08 · 3 A-11, P-06 · 4 B-08 · 5 A-09 · 6 I-08 · 7 F-07 · 8 F-08, I-04 · 9 I-10 · 10 K-05, K-06, P-03 · 11 P-10 · 12 R-03, A-04 · 13 P-06 · 14 F-10 | Proprietário |
 | 16/10/2026 | P-02 construído na Forja (branch `feat/terceiros-operacao`): tela de terceiros na operação do artigo e a correção da aba de lotes, que mostrava toda OP como interna; teste de navegador 15/15 | Claude |
