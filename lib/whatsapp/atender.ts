@@ -74,6 +74,16 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
   };
 
   try {
+    // Toque num botão ou voto numa enquete (teste de 25/10): por enquanto só confirma o que chegou; nada é feito.
+    if (m.escolha) {
+      const forma = { botao: "no botão", lista: "na lista", enquete: "na enquete" }[m.escolha.forma];
+      const n = await responderTexto(m.escolha.texto
+        ? `Recebi a sua escolha ${forma}: "${m.escolha.texto}". Por enquanto é só teste: nada foi feito.`
+        : `Recebi a sua resposta ${forma}, mas ela chegou sem a opção legível. Por enquanto é só teste: nada foi feito.`);
+      await marcar({ situacao: "respondida", motivo: `escolha_${m.escolha.forma}${m.escolha.texto ? "" : "_ilegivel"}` });
+      return { situacao: "respondida", motivo: `escolha_${m.escolha.forma}`, respostas: n };
+    }
+
     // O que a pessoa disse: o texto, a transcrição do áudio ou a foto.
     let pergunta = m.texto;
     let imagem: { tipo: string; dados: string } | null = null;

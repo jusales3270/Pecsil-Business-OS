@@ -126,6 +126,7 @@ function CartaoCanal({ canal, notify, recarregar, editar }: { canal: Canal; noti
   const [texto, setTexto] = useState("");
   const [confirmar, setConfirmar] = useState<"desconectar" | "remover" | null>(null);
   const [verListas, setVerListas] = useState(false);
+  const [interativo, setInterativo] = useState<string | null>(null);
   const s = canal.situacao;
 
   const acao = useCallback(async (corpo: Record<string, unknown>) => chamar({ canal: canal.id, ...corpo }), [canal.id]);
@@ -163,6 +164,17 @@ function CartaoCanal({ canal, notify, recarregar, editar }: { canal: Canal; noti
     const { ok, d } = await acao({ acao: "teste", numero, texto });
     setOcupado(false);
     notify(ok ? "Mensagem de teste enviada." : d.error || "Não foi possível enviar.");
+  };
+  const testarInterativo = async () => {
+    setOcupado(true);
+    const { ok, d } = await acao({ acao: "teste_interativo", numero });
+    setOcupado(false);
+    const nomes: Record<string, string> = { botoes: "Botões", lista: "Lista", enquete: "Enquete" };
+    const r = (d.resultados ?? []) as { forma: string; ok: boolean; erro?: string }[];
+    const texto = ok ? r.map((x) => `${nomes[x.forma] ?? x.forma}: ${x.ok ? "enviado" : `não saiu (${x.erro})`}`).join(" · ") : d.error || "Não foi possível enviar.";
+    // O resultado fica na tela (o aviso some em segundos): é o que o teste quer mostrar.
+    setInterativo(texto);
+    notify(texto);
   };
 
   const [rotulo, tom] = ROTULO[s.estado];
@@ -228,6 +240,9 @@ function CartaoCanal({ canal, notify, recarregar, editar }: { canal: Canal; noti
           <label>Número com DDD<input value={numero} onChange={(e) => setNumero(e.target.value)} inputMode="tel" placeholder="15 91234-5678" /></label>
           <label>Mensagem<input value={texto} onChange={(e) => setTexto(e.target.value)} maxLength={500} placeholder={`Teste do WhatsApp "${canal.nome}" do Pecsil Business OS.`} /></label>
           <Button type="submit" disabled={ocupado || numero.replace(/\D/g, "").length < 10}>{ocupado ? "Enviando…" : "Enviar teste"}</Button>
+          <Button type="button" variant="secondary" onClick={() => void testarInterativo()} disabled={ocupado || numero.replace(/\D/g, "").length < 10}
+            title="Manda a mesma pergunta em botões, lista e enquete, para ver o que aparece no celular e o que volta">Enviar botões e enquete</Button>
+          {interativo && <small className="wa-teste-resultado" role="status">{interativo}. Toque numa opção de cada uma no celular: a resposta da SARA mostra o que chegou à plataforma.</small>}
         </form>
       )}
 

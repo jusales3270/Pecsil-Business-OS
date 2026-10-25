@@ -203,3 +203,27 @@ export async function enviarDocumento(instancia: string, numero: string, base64:
     { number: numero, mediatype: "document", mimetype: "application/pdf", media: base64, fileName: nomeArquivo, caption: legenda }, buscar);
   return { id: r?.key?.id ?? null };
 }
+
+// --- Botões, lista e enquete (teste de 25/10/2026) --------------------------------------------------------
+// Pelo WhatsApp Web (Baileys) o WhatsApp não garante que botões e lista apareçam no celular; a enquete é nativa.
+// O teste em Fundação › WhatsApp mostra o que chega e o que volta antes de usar qualquer um no "SIM + código".
+
+export type Interativo = "botoes" | "lista" | "enquete";
+
+/** O corpo de cada forma na Evolution v2 (sendButtons, sendList, sendPoll). Puro, para testar sem o chip. */
+export function corpoInterativo(forma: Interativo, numero: string, pergunta: string, opcoes: { id: string; texto: string }[]): { caminho: string; corpo: Record<string, unknown> } {
+  if (forma === "botoes") return { caminho: "/message/sendButtons", corpo: { number: numero, title: "Pecsil", description: pergunta, footer: "Pecsil Business OS",
+    buttons: opcoes.slice(0, 3).map((o) => ({ type: "reply", displayText: o.texto, id: o.id })) } };
+  if (forma === "lista") return { caminho: "/message/sendList", corpo: { number: numero, title: "Pecsil", description: pergunta, buttonText: "Ver opções", footerText: "Pecsil Business OS",
+    sections: [{ title: "Opções", rows: opcoes.map((o) => ({ title: o.texto, description: "", rowId: o.id })) }] } };
+  return { caminho: "/message/sendPoll", corpo: { number: numero, name: pergunta, selectableCount: 1, values: opcoes.map((o) => o.texto) } };
+}
+
+/** Botões, lista ou enquete por um número da plataforma. */
+export async function enviarInterativo(instancia: string, forma: Interativo, numero: string, pergunta: string, opcoes: { id: string; texto: string }[], buscar: typeof fetch = fetch): Promise<{ id: string | null }> {
+  const c = configuracao();
+  if (!c) throw new ErroEvolution(503, "Falta a configuração da Evolution no servidor.");
+  const { caminho, corpo } = corpoInterativo(forma, numero, pergunta, opcoes);
+  const r = await evolution<{ key?: { id?: string } }>(c, "POST", `${caminho}/${conferir(instancia)}`, corpo, buscar);
+  return { id: r?.key?.id ?? null };
+}

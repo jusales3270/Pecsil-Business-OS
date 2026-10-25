@@ -66,3 +66,18 @@ test("W3: webhook com segredo (404 se errado), atendimento em silêncio para que
   assert.match(a, /const s = await sessaoComo\(admin, perfil\.id\)/);
   assert.match(ler("supabase/migrations/202610240003_whatsapp_mensagens.sql"), /revoke insert, update, delete on public\.whatsapp_mensagens from authenticated/);
 });
+
+test("botões, lista e enquete: a escolha vem junto (tipo outro) e a SARA só confirma o recebimento", () => {
+  const b = lerMensagem(aviso({ key: chave(), message: { buttonsResponseMessage: { selectedButtonId: "teste-sim", selectedDisplayText: "Sim" } } }));
+  assert.equal(b.tipo, "outro"); assert.deepEqual(b.escolha, { forma: "botao", id: "teste-sim", texto: "Sim" });
+  assert.deepEqual(lerMensagem(aviso({ key: chave(), message: { templateButtonReplyMessage: { selectedId: "x", selectedDisplayText: "Não" } } })).escolha, { forma: "botao", id: "x", texto: "Não" });
+  assert.deepEqual(lerMensagem(aviso({ key: chave(), message: { listResponseMessage: { title: "Sim", singleSelectReply: { selectedRowId: "teste-sim" } } } })).escolha, { forma: "lista", id: "teste-sim", texto: "Sim" });
+  assert.deepEqual(lerMensagem(aviso({ key: chave(), message: { interactiveResponseMessage: { body: { text: "Sim" }, nativeFlowResponseMessage: { paramsJson: '{"id":"teste-sim"}' } } } })).escolha, { forma: "botao", id: "teste-sim", texto: "Sim" });
+  assert.deepEqual(lerMensagem(aviso({ key: chave(), message: { pollUpdateMessage: { vote: { encPayload: "x", encIv: "y" } } } })).escolha, { forma: "enquete", id: null, texto: "" }, "voto cifrado: sem a opção");
+  assert.equal(lerMensagem(aviso({ key: chave(), message: { pollUpdateMessage: { vote: { selectedOptions: ["Não"] } } } })).escolha.texto, "Não");
+  assert.equal(lerMensagem(aviso({ key: chave(), message: { stickerMessage: {} } })).escolha, undefined);
+  const a = ler("lib/whatsapp/atender.ts");
+  assert.match(a, /if \(m\.escolha\)/);
+  assert.match(a, /Por enquanto é só teste: nada foi feito/);
+  assert.ok(a.indexOf("if (m.escolha)") > a.indexOf('return ignorar("fora_da_lista")'), "fora da lista continua em silêncio");
+});

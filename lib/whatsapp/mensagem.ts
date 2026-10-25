@@ -17,7 +17,10 @@ export type Recebida = {
   base64: string | null;
   mimetype: string | null;
   nome: string | null;
+  /** Toque num botão ou numa lista, ou voto numa enquete (tipo "outro"). Texto vazio: chegou sem a opção legível. */
+  escolha?: Escolha;
 };
+export type Escolha = { forma: "botao" | "lista" | "enquete"; id: string | null; texto: string };
 export type Descartada = { descartar: string; instancia?: string; waId?: string; numero?: string };
 
 type Chave = { remoteJid?: string; fromMe?: boolean; id?: string; remoteJidAlt?: string; senderPn?: string; participant?: string };
@@ -26,7 +29,29 @@ type Conteudo = {
   audioMessage?: { mimetype?: string }; imageMessage?: { mimetype?: string; caption?: string };
   documentMessage?: { mimetype?: string; caption?: string; fileName?: string }; documentWithCaptionMessage?: { message?: Conteudo };
   base64?: string;
+  buttonsResponseMessage?: { selectedButtonId?: string; selectedDisplayText?: string };
+  templateButtonReplyMessage?: { selectedId?: string; selectedDisplayText?: string };
+  listResponseMessage?: { title?: string; singleSelectReply?: { selectedRowId?: string } };
+  interactiveResponseMessage?: { body?: { text?: string }; nativeFlowResponseMessage?: { paramsJson?: string } };
+  pollUpdateMessage?: { vote?: { selectedOptions?: unknown[] } };
 };
+
+/** A escolha feita num botão, numa lista ou numa enquete, nas formas que o WhatsApp devolve. */
+function lerEscolha(m: Conteudo): Escolha | null {
+  const b = m.buttonsResponseMessage ?? (m.templateButtonReplyMessage && { selectedButtonId: m.templateButtonReplyMessage.selectedId, selectedDisplayText: m.templateButtonReplyMessage.selectedDisplayText });
+  if (b) return { forma: "botao", id: b.selectedButtonId ?? null, texto: String(b.selectedDisplayText ?? "").trim() };
+  if (m.listResponseMessage) return { forma: "lista", id: m.listResponseMessage.singleSelectReply?.selectedRowId ?? null, texto: String(m.listResponseMessage.title ?? "").trim() };
+  if (m.interactiveResponseMessage) {
+    const p = (() => { try { return JSON.parse(m.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson ?? "") as { id?: string }; } catch { return null; } })();
+    return { forma: "botao", id: p?.id ?? null, texto: String(m.interactiveResponseMessage.body?.text ?? "").trim() };
+  }
+  if (m.pollUpdateMessage) {
+    // O voto chega cifrado; só fica legível se a Evolution decifrar e mandar o nome da opção.
+    const nomes = (m.pollUpdateMessage.vote?.selectedOptions ?? []).filter((x): x is string => typeof x === "string");
+    return { forma: "enquete", id: null, texto: nomes.join(", ").trim() };
+  }
+  return null;
+}
 
 const digitos = (jid: string | undefined) => String(jid ?? "").split("@")[0].split(":")[0].replace(/\D/g, "");
 
@@ -56,7 +81,8 @@ export function lerMensagem(payload: unknown): Recebida | Descartada {
   if (m.audioMessage) return { ...base, tipo: "audio", texto: "", mimetype: m.audioMessage.mimetype ?? "audio/ogg" };
   if (m.imageMessage) return { ...base, tipo: "imagem", texto: (m.imageMessage.caption ?? "").trim(), mimetype: m.imageMessage.mimetype ?? "image/jpeg" };
   if (doc) return { ...base, tipo: "documento", texto: (doc.caption ?? "").trim(), mimetype: doc.mimetype ?? null };
-  return { ...base, tipo: "outro", texto: "", mimetype: null };
+  const escolha = lerEscolha(m);
+  return { ...base, tipo: "outro", texto: escolha?.texto ?? "", mimetype: null, ...(escolha ? { escolha } : {}) };
 }
 
 /**

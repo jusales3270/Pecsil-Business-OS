@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { estadoDaConexao, evolution, INSTANCIA_INTERNA, nomeDeInstancia, numeroLegivel, numeroWhatsApp, pedirQr, situacao } from "../lib/whatsapp/evolution.ts";
+import { corpoInterativo, estadoDaConexao, evolution, INSTANCIA_INTERNA, nomeDeInstancia, numeroLegivel, numeroWhatsApp, pedirQr, situacao } from "../lib/whatsapp/evolution.ts";
 
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 const resposta = (status, corpo) => ({ ok: status < 400, status, text: async () => JSON.stringify(corpo) });
@@ -72,4 +72,19 @@ test("whatsapp: tela na Fundação, só do proprietário; chave nunca no navegad
   assert.match(ler("app/api/foundation/whatsapp/route.ts"), /if \(!access\?\.isOwner\)/);
   assert.doesNotMatch(ler("app/components/whatsapp-canal.tsx"), /EVOLUTION_API|apikey/);
   assert.doesNotMatch(ler("lib/whatsapp/evolution.ts"), /NEXT_PUBLIC_/);
+});
+
+test("whatsapp: botões, lista e enquete com a mesma pergunta (teste de 25/10)", () => {
+  const op = [{ id: "teste-sim", texto: "Sim" }, { id: "teste-nao", texto: "Não" }];
+  const b = corpoInterativo("botoes", "5515912345678", "Confirma?", op);
+  assert.equal(b.caminho, "/message/sendButtons");
+  assert.deepEqual(b.corpo.buttons, [{ type: "reply", displayText: "Sim", id: "teste-sim" }, { type: "reply", displayText: "Não", id: "teste-nao" }]);
+  const l = corpoInterativo("lista", "5515912345678", "Confirma?", op);
+  assert.equal(l.caminho, "/message/sendList");
+  assert.deepEqual(l.corpo.sections[0].rows.map((r) => r.rowId), ["teste-sim", "teste-nao"]);
+  const e = corpoInterativo("enquete", "5515912345678", "Confirma?", op);
+  assert.deepEqual(e, { caminho: "/message/sendPoll", corpo: { number: "5515912345678", name: "Confirma?", selectableCount: 1, values: ["Sim", "Não"] } });
+  const rota = ler("app/api/foundation/whatsapp/route.ts");
+  assert.match(rota, /acao === "teste_interativo"/);
+  assert.match(rota, /"whatsapp\.teste_interativo", \{ canal: id, para: `…\$\{n\.numero\.slice\(-4\)\}`/, "só os 4 últimos dígitos na auditoria");
 });

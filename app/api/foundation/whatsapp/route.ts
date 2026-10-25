@@ -5,7 +5,7 @@ import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 import { requireUserSession } from "../../../../lib/supabase/session";
 import { validarCanal } from "../../../../lib/whatsapp/contatos";
 import { SARA_OPCOES } from "../../../../lib/whatsapp/saras";
-import { apagarInstancia, configuracao, desconectar, enviarTexto, ErroEvolution, garantirWebhook, nomeDeInstancia, numeroWhatsApp, pedirQr, situacao } from "../../../../lib/whatsapp/evolution";
+import { apagarInstancia, configuracao, desconectar, enviarInterativo, enviarTexto, ErroEvolution, garantirWebhook, nomeDeInstancia, numeroWhatsApp, pedirQr, situacao } from "../../../../lib/whatsapp/evolution";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
   if (!UUID.test(id)) return NextResponse.json({ error: "Número da plataforma não encontrado." }, { status: 404 });
   const { data: canal } = await d.sb.from("whatsapp_canais").select("id, instancia, nome, conexao, ativo").eq("id", id).maybeSingle();
   if (!canal) return NextResponse.json({ error: "Número da plataforma não encontrado." }, { status: 404 });
-  if (canal.conexao !== "whatsapp_web" && ["conectar", "desconectar", "teste"].includes(acao)) return NextResponse.json({ error: "A conexão pela API oficial ainda não está pronta (etapa W5)." }, { status: 400 });
+  if (canal.conexao !== "whatsapp_web" && ["conectar", "desconectar", "teste", "teste_interativo"].includes(acao)) return NextResponse.json({ error: "A conexão pela API oficial ainda não está pronta (etapa W5)." }, { status: 400 });
 
   try {
     if (acao === "conectar") {
@@ -120,6 +120,22 @@ export async function POST(request: Request) {
       // Só os 4 últimos dígitos na auditoria.
       await auditar(d.sb, "whatsapp.teste_enviado", { canal: id, para: `…${n.numero.slice(-4)}`, mensagem: r.id });
       return NextResponse.json({ ok: true, id: r.id });
+    }
+    if (acao === "teste_interativo") {
+      // Botões, lista e enquete com a mesma pergunta: mostra o que o WhatsApp entrega pelo chip (Baileys) e, quando a
+      // pessoa toca ou vota, o que volta à plataforma (aparece no movimento do número). Nada é feito com a escolha.
+      const n = numeroWhatsApp(e.numero);
+      if ("erro" in n) return NextResponse.json({ error: n.erro }, { status: 400 });
+      const opcoes = [{ id: "teste-sim", texto: "Sim" }, { id: "teste-nao", texto: "Não" }];
+      const resultados: { forma: string; ok: boolean; erro?: string }[] = [];
+      await enviarTexto(canal.instancia, n.numero, "Teste de botões, lista e enquete do Pecsil Business OS. Toque numa opção de cada uma: é só teste, nada será feito.");
+      for (const [forma, pergunta] of [["botoes", "Teste 1 de 3 (botões): confirma o envio da OC nº 0000?"], ["lista", "Teste 2 de 3 (lista): confirma o envio da OC nº 0000?"],
+        ["enquete", "Teste 3 de 3 (enquete): confirma o envio da OC nº 0000?"]] as const) {
+        try { await enviarInterativo(canal.instancia, forma, n.numero, pergunta, opcoes); resultados.push({ forma, ok: true }); }
+        catch (err) { resultados.push({ forma, ok: false, erro: err instanceof Error ? err.message.slice(0, 160) : "sem resposta" }); }
+      }
+      await auditar(d.sb, "whatsapp.teste_interativo", { canal: id, para: `…${n.numero.slice(-4)}`, resultados });
+      return NextResponse.json({ ok: true, resultados });
     }
     if (acao === "ativar" || acao === "desativar") {
       const { error } = await d.sb.from("whatsapp_canais").update({ ativo: acao === "ativar" }).eq("id", id);
