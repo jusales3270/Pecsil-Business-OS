@@ -215,7 +215,7 @@ export function corpoInterativo(forma: Interativo, numero: string, pergunta: str
   if (forma === "botoes") return { caminho: "/message/sendButtons", corpo: { number: numero, title: "Pecsil", description: pergunta, footer: "Pecsil Business OS",
     buttons: opcoes.slice(0, 3).map((o) => ({ type: "reply", displayText: o.texto, id: o.id })) } };
   if (forma === "lista") return { caminho: "/message/sendList", corpo: { number: numero, title: "Pecsil", description: pergunta, buttonText: "Ver opções", footerText: "Pecsil Business OS",
-    sections: [{ title: "Opções", rows: opcoes.map((o) => ({ title: o.texto, description: "", rowId: o.id })) }] } };
+    sections: [{ title: "Opções", rows: opcoes.map((o) => ({ title: o.texto, description: "Toque para escolher", rowId: o.id })) }] } };
   return { caminho: "/message/sendPoll", corpo: { number: numero, name: pergunta, selectableCount: 1, values: opcoes.map((o) => o.texto) } };
 }
 

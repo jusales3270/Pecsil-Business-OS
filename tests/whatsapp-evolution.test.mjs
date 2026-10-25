@@ -88,3 +88,8 @@ test("whatsapp: botões, lista e enquete com a mesma pergunta (teste de 25/10)",
   assert.match(rota, /acao === "teste_interativo"/);
   assert.match(rota, /"whatsapp\.teste_interativo", \{ canal: id, para: `…\$\{n\.numero\.slice\(-4\)\}`/, "só os 4 últimos dígitos na auditoria");
 });
+
+test("lista: cada opção leva descrição (a Evolution recusa vazia, visto no teste real de 25/10)", () => {
+  const l = corpoInterativo("lista", "5515912345678", "Confirma?", [{ id: "a", texto: "Sim" }]);
+  assert.ok(l.corpo.description && l.corpo.sections[0].rows.every((r) => r.description));
+});
