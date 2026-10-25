@@ -413,7 +413,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
               <div>
                 <b>{d.titulo}</b><small>Mensagem de voz {d.numero} · na voz da SARA</small>
                 <audio controls preload="none" src={`/api/sara/documentos/${d.id}/arquivo`} aria-label={`Ouvir a mensagem ${d.numero}`} />
-                <small>Envio pelo WhatsApp: aguardando o número dedicado da empresa.</small>
+                <small>Para mandar pelo WhatsApp, peça à SARA o envio e permita no cartão.</small>
               </div>
               <a href={`/api/sara/documentos/${d.id}/arquivo?baixar=1`}>Baixar</a>
             </div>

@@ -19,7 +19,7 @@ if (!secret) {
   process.exit(1);
 }
 let falhou = false;
-for (const rota of ["/api/producao/sync-os", "/api/sara/guias/rodar", "/api/sara/vigia/rodar", "/api/sara/bom-dia/rodar", "/api/sara/crescimento/rodar"]) {
+for (const rota of ["/api/producao/sync-os", "/api/sara/guias/rodar", "/api/sara/vigia/rodar", "/api/sara/bom-dia/rodar", "/api/sara/crescimento/rodar", "/api/whatsapp/agendados/rodar"]) {
   try {
     const response = await fetch(`http://127.0.0.1:${port}${rota}`, {
       method: "POST",

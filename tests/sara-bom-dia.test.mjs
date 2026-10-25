@@ -6,9 +6,10 @@ import { BOM_DIA, escreverBomDia, janelaDoBomDia, moduloDoBomDia, ordenarItens, 
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 const item = (x) => ({ tipo: "aviso", nivel: "aviso", modulo: "financeiro", area: "Financeiro", titulo: "Aviso", ...x });
 
-test("bom dia: janela de segunda a sábado, das 7h às 11h de São Paulo", () => {
-  // 23/10/2026 é sexta-feira.
-  assert.deepEqual(janelaDoBomDia(new Date("2026-10-23T07:00:00-03:00")), { dia: "2026-10-23", semana: 5 });
+test("bom dia: janela de segunda a sábado, das 7h30 às 11h de São Paulo", () => {
+  // 23/10/2026 é sexta-feira. Desde 26/10/2026 o horário oficial é 7h30.
+  assert.deepEqual(janelaDoBomDia(new Date("2026-10-23T07:30:00-03:00")), { dia: "2026-10-23", semana: 5 });
+  assert.equal(janelaDoBomDia(new Date("2026-10-23T07:29:00-03:00")), null, "antes das 7h30 não sai");
   assert.deepEqual(janelaDoBomDia(new Date("2026-10-24T10:59:00-03:00")), { dia: "2026-10-24", semana: 6 });
   assert.equal(janelaDoBomDia(new Date("2026-10-23T06:59:00-03:00")), null);
   assert.equal(janelaDoBomDia(new Date("2026-10-23T11:00:00-03:00")), null);

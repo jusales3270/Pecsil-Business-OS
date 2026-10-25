@@ -63,7 +63,11 @@ export async function GET() {
     return { ...c, situacao: sit, recebimento,
       movimento: movimento.get(c.id) ?? { respondidas: 0, ignoradas: 0, fora_da_lista: 0, falhas: 0 } };
   }));
-  return NextResponse.json({ canais, modelos: MODELOS, configurada: Boolean(configuracao()) }, { headers: { "cache-control": "no-store" } });
+  // Envios agendados: os que ainda vão sair e os 20 últimos (só o proprietário lê).
+  const { data: agendados } = await d.sb.from("whatsapp_agendados").select("id, canal_id, para_nome, quando, texto, documentos, situacao, tentativas, erro, enviado_em")
+    .order("quando", { ascending: false }).limit(60);
+  return NextResponse.json({ canais, modelos: MODELOS, configurada: Boolean(configuracao()),
+    agendados: ((agendados ?? []) as { situacao: string; texto: string | null; documentos: string[] }[]).map((x) => ({ ...x, texto: x.texto ? x.texto.slice(0, 200) : null, documentos: x.documentos.length })) }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(request: Request) {
@@ -72,6 +76,17 @@ export async function POST(request: Request) {
   const e = ((await request.json().catch(() => null)) ?? {}) as Record<string, unknown>;
   const acao = String(e.acao ?? "");
   const id = String(e.canal ?? "");
+
+  if (acao === "cancelar_agendado") {
+    const ag = String(e.agendado ?? "");
+    if (!UUID.test(ag)) return NextResponse.json({ error: "Envio não encontrado." }, { status: 404 });
+    // Só o que ainda não saiu; quem grava é o servidor (o proprietário só lê a tabela).
+    const { data, error } = await createSupabaseAdminClient().from("whatsapp_agendados").update({ situacao: "cancelado" }).eq("id", ag).eq("situacao", "agendado").select("id, para_nome").maybeSingle();
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (!data) return NextResponse.json({ error: "Esse envio já saiu ou já foi cancelado." }, { status: 409 });
+    await auditar(d.sb, "whatsapp.agendado_cancelado", { agendado: ag, para: data.para_nome });
+    return NextResponse.json({ ok: true });
+  }
 
   if (acao === "salvar_canal") {
     const v = validarCanal(e);

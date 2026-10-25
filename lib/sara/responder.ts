@@ -74,7 +74,7 @@ export type Preparado = Exclude<Awaited<ReturnType<typeof preparar>>, { erro: un
  * Só o servidor passa (nunca o corpo da requisição): o comportamento e o modelo do número de WhatsApp por onde a
  * pergunta chegou. O comportamento complementa a SARA; as regras de segurança acima dele continuam valendo.
  */
-export type DoCanal = { comportamento?: string | null; modelo?: string | null };
+export type DoCanal = { comportamento?: string | null; modelo?: string | null; apelido?: string | null };
 
 export async function responder(p: Preparado, modulo: string, corpo: Corpo | null, doCanal: DoCanal = {}): Promise<Response> {
   if (doCanal.modelo) p = { ...p, cfg: { ...p.cfg, modelo: doCanal.modelo } };
@@ -115,7 +115,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   ]);
   const empresa = org?.display_name || org?.legal_name || "empresa";
   // Quem conversa, como a sessão autenticou (o tratamento da personalidade vem daqui).
-  const interlocutor = { nome: me?.full_name, fundador: p.access.isOwner, verificado: true };
+  const interlocutor = { nome: me?.full_name, fundador: p.access.isOwner, verificado: true, apelido: doCanal.apelido ?? null };
   // O que aconteceu com as ações desta conversa (a pessoa decide fora do modelo): a SARA fica sabendo.
   const recentes = conversa ? (((await p.sb.from("sara_acoes").select(COLUNAS_ACAO).eq("conversa_id", conversa).order("created_at", { ascending: false }).limit(5)).data ?? []) as LinhaAcao[]).map(cartao) : [];
   const SITUACAO: Record<string, string> = { pendente: "esperando a pessoa decidir", permitida: "permitida, executando", recusada: "a pessoa NÃO permitiu", expirada: "venceu sem decisão (nada foi feito)", executada: "FEITA", falhou: "falhou" };

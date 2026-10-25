@@ -46,7 +46,7 @@ test("allowlist: a migração passa a SARA do número para cada pessoa e não ap
   assert.doesNotMatch(mig, /drop column/i, "a coluna antiga sai só depois do Deploy");
   const a = ler("lib/whatsapp/atender.ts");
   assert.match(a, /const sara = contato\.sara_modulo;/);
-  assert.match(a, /\{ comportamento: canal\.prompt, modelo: canal\.modelo \}/);
+  assert.match(a, /\{ comportamento: canal\.prompt, modelo: canal\.modelo, apelido: contato\.nome \}/);
   const r = ler("lib/sara/responder.ts");
   assert.match(r, /export async function responder\(p: Preparado, modulo: string, corpo: Corpo \| null, doCanal: DoCanal = \{\}\)/, "o prompt do número não vem do corpo da requisição");
   assert.doesNotMatch(r, /corpo\?\.comportamento|corpo\?\.modelo/);

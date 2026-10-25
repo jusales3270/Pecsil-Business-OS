@@ -2,7 +2,8 @@ import { semPensar } from "../base.ts";
 import { conferirNumeros } from "./verificador.ts";
 
 /**
- * Bom dia da SARA (E7, J2 — docs/PLANO-MINDMASTER.md). Às 7h, de segunda a sábado, cada pessoa com a SARA
+ * Bom dia da SARA (E7, J2 — docs/PLANO-MINDMASTER.md). Às 7h30 (horário oficial desde 26/10/2026, decisão do
+ * proprietário), de segunda a sábado, cada pessoa com a SARA
  * liberada recebe um resumo do que importa HOJE para ela: os avisos dos módulos que ela usa, as decisões e
  * as ações esperando por ela e o que as guias dela fizeram. Tudo é colhido com a sessão dela (só o que ela
  * já vê). O texto é escrito pelo Haiku SÓ com esses fatos; se algum número não bater com eles (o mesmo
@@ -11,7 +12,7 @@ import { conferirNumeros } from "./verificador.ts";
  */
 
 /** Quando sai (fuso de São Paulo). Depois de `ate`, o dia que não saiu não sai mais (ninguém quer bom dia à tarde). */
-export const BOM_DIA = { dias: [1, 2, 3, 4, 5, 6], hora: "07:00", ate: "11:00", maxItens: 12, modelo: "claude-haiku-5-5" } as const;
+export const BOM_DIA = { dias: [1, 2, 3, 4, 5, 6], hora: "07:30", ate: "11:00", maxItens: 12, modelo: "claude-haiku-5-5" } as const;
 
 export type ItemBomDia = {
   tipo: "aviso" | "decisao" | "acao" | "guia" | "novidade";

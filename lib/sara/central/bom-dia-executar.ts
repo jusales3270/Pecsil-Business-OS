@@ -7,7 +7,8 @@ import { alertasDo } from "../alertas";
 import { sessaoComo } from "../guias-executar";
 import { SARAS } from "../modulos";
 import { agoraSP } from "../tempo";
-import { tratamento } from "../personalidade";
+import { semExpressoes, semTags, tratamento } from "../personalidade";
+import { paraWhatsApp } from "../../whatsapp/mensagem";
 import { BOM_DIA, DIAS_DA_SEMANA, escreverBomDia, janelaDoBomDia, moduloDoBomDia, ordenarItens, resumoDoBomDia, type ItemBomDia } from "./bom-dia";
 
 /**
@@ -83,7 +84,11 @@ async function rodarUm(admin: SupabaseClient, l: Linha): Promise<string> {
       s.sb.from("sara_modulos").select("teto_tokens_mes").eq("modulo", modulo).maybeSingle(),
       s.sb.rpc("sara_uso_mes", { p_modulo: modulo }),
     ]);
-    const nome = tratamento({ nome: me?.full_name, fundador: Boolean(me?.is_owner), verificado: true });
+    // Quem está na allowlist do WhatsApp recebe o Bom dia também por lá, em texto (decisão do proprietário, 25/10/2026),
+    // e é chamado pelo apelido registrado nela.
+    const { data: wa } = await admin.from("whatsapp_contatos").select("id, canal_id, nome, whatsapp_canais!inner(ativo, conexao)").eq("profile_id", l.profile_id)
+      .eq("lista", "interna").eq("ativo", true).eq("whatsapp_canais.ativo", true).eq("whatsapp_canais.conexao", "whatsapp_web").order("created_at").limit(1).maybeSingle<{ id: string; canal_id: string; nome: string | null }>();
+    const nome = tratamento({ nome: me?.full_name, fundador: Boolean(me?.is_owner), verificado: true, apelido: wa?.nome ?? null });
     const agora = agoraSP(new Date(`${l.dia}T12:00:00-03:00`));
     const semana = DIAS_DA_SEMANA[new Date(`${l.dia}T12:00:00-03:00`).getUTCDay()];
     // Passou do teto do mês do módulo: sai o texto da plataforma (sem custo de modelo).
@@ -101,6 +106,14 @@ async function rodarUm(admin: SupabaseClient, l: Linha): Promise<string> {
     await admin.from("notifications").insert({ organization_id: l.organization_id, recipient_profile_id: l.profile_id, module_code: modulo, severity: urgentes ? "attention" : "info",
       title: `☀️ Bom dia${nome ? `, ${nome}` : ""}: ${urgentes ? `${urgentes} ${urgentes === 1 ? "assunto urgente" : "assuntos urgentes"} hoje` : "o resumo de hoje"}`.slice(0, 200),
       body: `${resumo}. Toque para ver na SARA.`.slice(0, 600), action_url: `/?module=${modulo}&sara=1` });
+    if (wa) {
+      // Sai na mesma rodada da tarefa de 10 em 10 minutos (os envios agendados rodam logo depois do Bom dia).
+      const base = (process.env.PLATAFORMA_URL?.trim() || "https://home.pecsil.com.br").replace(/\/+$/, "");
+      const texto = `${paraWhatsApp(semExpressoes(semTags(e.texto)), base)}\n\n${base}/?module=${modulo}&sara=1\n_SARA · em fase de teste_`.slice(0, 4000);
+      const { error: eWa } = await admin.from("whatsapp_agendados").insert({ organization_id: l.organization_id, canal_id: wa.canal_id, contato_id: wa.id,
+        para_nome: (wa.nome || me?.full_name || "Bom dia").slice(0, 120), quando: new Date().toISOString(), texto, criado_por_nome: "SARA (Bom dia)" });
+      if (eWa) console.error("[sara] bom dia: não agendou o WhatsApp", eWa.message);
+    }
     await terminar(admin, l.id, { situacao: "feita", modulo, conversa_id: ids.conversa, mensagem_id: ids.mensagem, itens: itens.length + restantes, urgentes, resumo: resumo.slice(0, 600) });
     return "feita";
   } catch (err) {

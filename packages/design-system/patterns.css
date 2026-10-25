@@ -9234,7 +9234,7 @@ a.doc-abrir { text-decoration: none; }
 .wa-vinculo li small { color: var(--text-muted); }
 .wa-ligado { color: var(--accent-green); font-size: var(--fs-xs); }
 /* O rótulo invisível "Ações" (sr-only, absoluto) fica dentro da rolagem da tabela: sem isso, estica a página no celular. */
-.wa-listas .fin-tabela-rolagem { position: relative; }
+.wa-listas .fin-tabela-rolagem, .wa-agendados { position: relative; }
 .wa-tabela { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 .wa-tabela th, .wa-tabela td { padding: 8px var(--sp-3); border-bottom: 1px solid var(--border-subtle, color-mix(in srgb, var(--text-primary) 8%, transparent)); text-align: left; vertical-align: middle; white-space: nowrap; color: var(--text-primary); }
 .wa-tabela td:first-child { font-variant-numeric: tabular-nums; }

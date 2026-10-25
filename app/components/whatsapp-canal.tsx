@@ -16,7 +16,8 @@ type Modelo = { provedor: string; id: string; rotulo: string; nota: string };
 type Movimento = { respondidas: number; ignoradas: number; fora_da_lista: number; falhas: number };
 type Canal = { id: string; instancia: string; nome: string; departamento: string | null; descricao: string | null; prompt: string | null; modelo: string | null; conexao: "whatsapp_web" | "api_oficial"; ativo: boolean; situacao: Situacao;
   recebimento: { ligado: boolean; erro?: string } | null; movimento: Movimento };
-type Dados = { canais: Canal[]; modelos: Modelo[]; configurada: boolean };
+type Agendado = { id: string; para_nome: string; quando: string; texto: string | null; documentos: number; situacao: string; tentativas: number; erro: string | null; enviado_em: string | null };
+type Dados = { canais: Canal[]; modelos: Modelo[]; configurada: boolean; agendados?: Agendado[] };
 type FormCanal = { id?: string; nome: string; departamento: string; descricao: string; prompt: string; modelo: string; conexao: "whatsapp_web" | "api_oficial" };
 
 const ROTULO: Record<Estado, [string, "success" | "attention" | "danger" | "neutral" | "info"]> = {
@@ -88,6 +89,8 @@ export function WhatsappCanal({ notify }: { notify: (m: string) => void }) {
         : dados.canais.map((c) => (
           <CartaoCanal key={c.id} canal={c} notify={notify} recarregar={carregar} editar={() => setForm({ id: c.id, nome: c.nome, departamento: c.departamento ?? "", descricao: c.descricao ?? "", prompt: c.prompt ?? "", modelo: c.modelo ?? "", conexao: c.conexao })} modelos={dados.modelos} />
         ))}
+
+      {(dados.agendados ?? []).length > 0 && <Agendados lista={dados.agendados ?? []} notify={notify} recarregar={carregar} />}
 
       <Callout variant="info" title="Como usar os números pelo QR Code">
         Cada número conectado pelo QR Code é um WhatsApp Web automatizado, pela Evolution: use com quem está nas listas, em volume baixo e sem disparo em massa, porque o WhatsApp não é oficial nesse modo e o número pode ser bloqueado. Para fornecedores e clientes, prefira um número separado do Chip interno.
@@ -254,6 +257,47 @@ function CartaoCanal({ canal, notify, recarregar, editar, modelos }: { canal: Ca
       )}
 
       {verListas && <WhatsappListas notify={notify} canal={{ id: canal.id, nome: canal.nome, conectado: s.estado === "conectado" && web }} />}
+    </section>
+  );
+}
+
+const SITUACAO_AGENDADO: Record<string, [string, "success" | "attention" | "danger" | "neutral" | "info"]> = {
+  agendado: ["Agendado", "info"], enviando: ["Enviando", "attention"], enviado: ["Enviado", "success"], falhou: ["Falhou", "danger"], cancelado: ["Cancelado", "neutral"],
+};
+const quandoBr = (iso: string | null) => (iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
+
+/** Envios agendados pelo WhatsApp (a tarefa de 10 em 10 minutos manda o que venceu; nada sai no horário silencioso). */
+function Agendados({ lista, notify, recarregar }: { lista: Agendado[]; notify: (m: string) => void; recarregar: () => Promise<Dados | null> }) {
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  const cancelar = async (a: Agendado) => {
+    setOcupado(a.id);
+    const { ok, d } = await chamar({ acao: "cancelar_agendado", agendado: a.id });
+    setOcupado(null);
+    notify(ok ? `Envio para ${a.para_nome} cancelado.` : d.error || "Não foi possível cancelar.");
+    if (ok) void recarregar();
+  };
+  return (
+    <section className="wa-canal" aria-label="Envios agendados">
+      <header><div><h2>Envios agendados</h2><small>Saem na primeira rodada depois do horário (de 10 em 10 minutos). Nada sai entre 20h e 7h nem aos domingos.</small></div></header>
+      <div className="fin-tabela-rolagem wa-agendados">
+        <table className="wa-tabela">
+          <thead><tr><th>Quando</th><th>Para</th><th>O quê</th><th>Situação</th><th><span className="sr-only">Ações</span></th></tr></thead>
+          <tbody>
+            {lista.map((a) => {
+              const [rotulo, tom] = SITUACAO_AGENDADO[a.situacao] ?? [a.situacao, "neutral"];
+              return (
+                <tr key={a.id}>
+                  <td>{quandoBr(a.situacao === "enviado" ? a.enviado_em : a.quando)}</td>
+                  <td>{a.para_nome}</td>
+                  <td><small>{[a.documentos ? `${a.documentos} ${a.documentos === 1 ? "arquivo" : "arquivos"}` : null, a.texto ? `"${a.texto.slice(0, 90)}${a.texto.length > 90 ? "…" : ""}"` : null].filter(Boolean).join(" + ")}</small>{a.erro ? <small className="wa-falta"> · {a.erro}</small> : null}</td>
+                  <td><Status tone={tom}>{rotulo}</Status></td>
+                  <td className="wa-linha-acoes">{a.situacao === "agendado" && <Button type="button" variant="ghost" disabled={ocupado === a.id} onClick={() => void cancelar(a)}>Cancelar</Button>}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

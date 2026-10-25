@@ -51,12 +51,12 @@ test("personalidade: entra em toda SARA que fala com a pessoa, não na subagente
   assert.match(rota, /fixo: `\$\{PERSONALIDADE\}\\n\\n\$\{p\.sara\.manual\}/, "no topo do texto fixo da conversa (módulos e central)");
   assert.match(rota, /\$\{regraDeTratamento\(interlocutor\)\}/, "o tratamento no texto do momento");
   assert.match(rota, /r = \{ \.\.\.r, texto: semTratamentoIndevido\(r\.texto, interlocutor\) \};/, "a trava do Senhor na resposta");
-  assert.match(rota, /const interlocutor = \{ nome: me\?\.full_name, fundador: p\.access\.isOwner, verificado: true \};/, "o tratamento vem da sessão");
+  assert.match(rota, /const interlocutor = \{ nome: me\?\.full_name, fundador: p\.access\.isOwner, verificado: true, apelido: doCanal\.apelido \?\? null \};/, "o tratamento vem da sessão (e o apelido, só do servidor)");
   assert.match(rota, /pessoa: tratamento\(\{ nome: me\?\.full_name, fundador: p\.access\.isOwner, verificado: true \}\)/, "o cumprimento do holograma também");
   assert.doesNotMatch(ler("lib/sara/sessao.ts"), /PERSONALIDADE/, "a subagente responde à central, sem personalidade");
   assert.doesNotMatch(ler("lib/sara/guias-executar.ts"), /PERSONALIDADE/);
   assert.match(ler("lib/sara/central/voz-ao-vivo.ts"), /Personalidade: a assistente britânica impecável/, "a voz ao vivo também");
-  assert.match(ler("lib/sara/central/bom-dia-executar.ts"), /tratamento\(\{ nome: me\?\.full_name, fundador: Boolean\(me\?\.is_owner\), verificado: true \}\)/, "o Bom dia do fundador é para o Senhor");
+  assert.match(ler("lib/sara/central/bom-dia-executar.ts"), /tratamento\(\{ nome: me\?\.full_name, fundador: Boolean\(me\?\.is_owner\), verificado: true, apelido: wa\?\.nome \?\? null \}\)/, "o Bom dia do fundador é para o Senhor (e o dos outros, pelo apelido)");
   const holo = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
   assert.equal((holo.match(/resumoFalado\(paraVoz\(r\.texto\)\)/g) ?? []).length, 3, "a fala digitada, a por voz (central) e a da área levam as tags");
   assert.match(holo, /const texto = semTags\(bruto\);/, "a legenda sem as tags");
@@ -110,4 +110,17 @@ test("calibração: voz a 1,2, fala do primeiro parágrafo, central numa rodada 
   assert.equal(resumoFalado("Há 394 contas vencidas, somando R$ 1.330.419,47 (dados do Financeiro, situação em 23/10/2026). Abri a tela."), "Há 394 contas vencidas, somando R$ 1.330.419,47. Abri a tela.", "parênteses fora da fala");
   const { comAbertura } = await import("../lib/sara/tempo.ts");
   assert.equal(comAbertura("QA QA, há 394 contas.", "Boa noite, QA.", "QA"), "Boa noite, QA.\n\nHá 394 contas.", "o nome repetido no começo sai");
+});
+
+test("apelido (decisão de 25/10): segue sempre o apelido da allowlist; o fundador continua Senhor", async () => {
+  const { tratamento, regraDeTratamento, semTratamentoIndevido } = await import("../lib/sara/personalidade.ts");
+  assert.equal(tratamento({ nome: "Domingo Duque", fundador: false, verificado: true, apelido: "Chefe" }), "Chefe");
+  assert.equal(tratamento({ nome: "RAFAEL ARAUJO DOS SANTOS", fundador: false, verificado: true, apelido: " Rafa " }), "Rafa");
+  assert.equal(tratamento({ nome: "Ana Claudia", fundador: false, verificado: true, apelido: null }), "Ana", "sem apelido: o primeiro nome");
+  assert.equal(tratamento({ nome: "Júnior", fundador: true, verificado: true, apelido: "Ju" }), "Senhor");
+  assert.match(regraDeTratamento({ nome: "Domingo Duque", fundador: false, verificado: true, apelido: "Chefe" }), /prefere ser chamada de "Chefe".*SEMPRE/);
+  assert.equal(semTratamentoIndevido("Bom dia, Senhor.", { nome: "Domingo Duque", fundador: false, verificado: true, apelido: "Chefe" }), "Bom dia, Chefe.");
+  const bd = readFileSync(new URL("../lib/sara/central/bom-dia-executar.ts", import.meta.url), "utf8");
+  assert.match(bd, /apelido: wa\?\.nome \?\? null/);
+  assert.match(bd, /from\("whatsapp_agendados"\)\.insert/, "o Bom dia de quem está na allowlist vai também pelo WhatsApp");
 });

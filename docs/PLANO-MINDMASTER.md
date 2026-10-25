@@ -40,7 +40,7 @@ ajuda antes de ser pedido. A SARA central faz isso para a empresa inteira.
    - a concorrência (o que é público na internet);
    - investimentos pontuais, cada um com premissas, custo, retorno, prazo de retorno e risco.
    Tudo marcado como opinião da IA, com a confiança.
-4. **Bom dia** (J2): às 7h, um resumo do dia para cada pessoa, com só o que ela pode ver: avisos, guias,
+4. **Bom dia** (J2): às 7h30 (horário oficial desde 26/10/2026), um resumo do dia para cada pessoa, com só o que ela pode ver: avisos, guias,
    decisões pendentes e achados da área.
 
 ## 2. Regras que não mudam
@@ -86,7 +86,7 @@ ajuda antes de ser pedido. A SARA central faz isso para a empresa inteira.
 | # | Etapa | Ferramentas | Situação |
 |---|---|---|---|
 | **J1** | Responde: orquestrador + subagentes em paralelo + verificador, em War Room › Conselho | `perguntar_a_sara`, verificador, `calcular`, `periodo` | **no ar** (Deploy 23/10): `lib/sara/central/`, laço com chamadas paralelas; holograma e voz ao vivo |
-| J2 | Bom dia por pessoa, às 7h | avisos dos módulos (`alertasDo`), decisões, ações e guias da pessoa | **no ar** (Deploy 23/10): `lib/sara/central/bom-dia*.ts`, rota `/api/sara/bom-dia/rodar` na tarefa de 10 em 10 minutos; migração 202610230003 aplicada, QA 24/24 |
+| J2 | Bom dia por pessoa, às 7h30 (era 7h até 25/10/2026); quem está na allowlist do WhatsApp recebe também por lá, em texto, chamado pelo apelido | avisos dos módulos (`alertasDo`), decisões, ações e guias da pessoa | **no ar** (Deploy 23/10): `lib/sara/central/bom-dia*.ts`, rota `/api/sara/bom-dia/rodar` na tarefa de 10 em 10 minutos; migração 202610230003 aplicada, QA 24/24 |
 | J3 | Vigia: achados, responsável acionado, cobrança e efeito; quadro na War Room | sinais (avisos + Parados), análise com verificador, Decisões, cobrança | **no ar** (Deploy 23/10): `lib/sara/central/vigia*.ts`, rotas `/api/sara/vigia/rodar` e `/api/sara/central/vigia`, quadro em Conselho; migração 202610230004 aplicada, QA 27/27 |
 | J4 | Conselho e crescimento semanal | pesquisa aberta só com o assunto, `avaliarInvestimento`, relatório anterior | **no ar** (Deploy 24/10; o 1º relatório sai segunda, 26/10, às 8h): `lib/sara/central/crescimento*.ts`, rotas `/api/sara/crescimento/rodar` e `/api/sara/central/crescimento`, seção Crescimento no Conselho; migração 202610230005 aplicada, QA 22/22 |
 | J5 | Aprende com as respostas e o efeito | histórico da vigia, `propor_licao`, Decisões da área | **construída** (24/10): ver §4e; migração 202610240001 aplicada, QA real 12/12; falta o Deploy |
@@ -325,7 +325,7 @@ Inspirada no Harness² (Google Research, out/2026): melhorar o agente mexendo no
 
 1. A central mora em War Room › Conselho; só o proprietário usa a visão da empresa inteira por enquanto (permissão `warroom.sara`).
 2. Achados vão direto ao responsável da área pelo "quem decide o quê", e o proprietário acompanha tudo.
-3. "Bom dia" às 7h, de segunda a sábado, para quem tem a SARA liberada.
+3. "Bom dia" às 7h30 (era 7h; mudou em 25/10/2026), de segunda a sábado, para quem tem a SARA liberada. A partir de 27/10/2026 também pelo WhatsApp, em texto, para quem está na allowlist.
 4. Pesquisa de concorrência e de recursos na internet aberta, só com o assunto.
 5. Sonnet 5.5 na central, na vigia e no crescimento; Haiku no "Bom dia". Teto da central em cerca de R$ 300 por mês (60 milhões de tokens), com aviso aos 80%.
 6. Ordem: J1 → J2 → J3 → J4 → J5.

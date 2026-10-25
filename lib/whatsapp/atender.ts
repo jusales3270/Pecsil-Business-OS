@@ -40,7 +40,7 @@ const CONTINUA_MS = 12 * 3600_000;
 const base = () => (process.env.PLATAFORMA_URL?.trim() || "https://home.pecsil.com.br").replace(/\/+$/, "");
 
 type Canal = { id: string; organization_id: string; instancia: string; nome: string; prompt: string | null; modelo: string | null; conexao: string; ativo: boolean };
-type Contato = { id: string; lista: string; profile_id: string | null; sara_modulo: string | null; ativo: boolean };
+type Contato = { id: string; lista: string; profile_id: string | null; sara_modulo: string | null; nome: string | null; ativo: boolean };
 
 export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin: SupabaseClient = createSupabaseAdminClient()): Promise<Resultado> {
   const d = { ...PADRAO, ...deps };
@@ -58,7 +58,7 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
   const ignorar = async (motivo: string, extra: Record<string, unknown> = {}) => { await marcar({ situacao: "ignorada", motivo, ...extra }); return { situacao: "ignorada" as const, motivo }; };
 
   if (!canal.ativo || canal.conexao !== "whatsapp_web") return ignorar("canal_inativo");
-  const { data: contato } = await admin.from("whatsapp_contatos").select("id, lista, profile_id, sara_modulo, ativo").eq("canal_id", canal.id).eq("numero", m.numero).maybeSingle<Contato>();
+  const { data: contato } = await admin.from("whatsapp_contatos").select("id, lista, profile_id, sara_modulo, nome, ativo").eq("canal_id", canal.id).eq("numero", m.numero).maybeSingle<Contato>();
   // Silêncio total para quem não está na lista (nem "lida", nem "digitando").
   if (!contato || !contato.ativo) return ignorar("fora_da_lista");
   if (contato.lista !== "interna" || !contato.profile_id) return ignorar("externa", { contato_id: contato.id });
@@ -144,7 +144,7 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
         await marcar({ situacao: "respondida", motivo: "sem_permissao" });
         return { situacao: "respondida", respostas: n };
       }
-      const resposta = await responder(p, sara, { pergunta: pergunta || (imagem ? "" : "Oi"), conversa, voz: audio, imagem, canal: "whatsapp" }, { comportamento: canal.prompt, modelo: canal.modelo });
+      const resposta = await responder(p, sara, { pergunta: pergunta || (imagem ? "" : "Oi"), conversa, voz: audio, imagem, canal: "whatsapp" }, { comportamento: canal.prompt, modelo: canal.modelo, apelido: contato.nome });
       const corpo = (await resposta.json().catch(() => null)) as { texto?: string; conversa?: string; acoes?: { id: string; situacao: string }[]; visuais?: unknown[]; error?: string } | null;
       if (!resposta.ok || !corpo?.texto) {
         const n = await responderTexto(corpo?.error ?? "A SARA está indisponível agora. Tente de novo em instantes.");
