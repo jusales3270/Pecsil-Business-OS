@@ -11,12 +11,16 @@ const SARAS = [
 ];
 const P = "0b8c2a1e-1111-4222-8333-944455556666";
 
-test("números: o canal tem nome, departamento, descrição e uma SARA que existe", () => {
-  assert.deepEqual(validarCanal({ nome: " Comercial ", departamento: "Comercial", descricao: "Pedidos e orçamentos de clientes", sara_modulo: "comercial" }, SARAS),
-    { nome: "Comercial", departamento: "Comercial", descricao: "Pedidos e orçamentos de clientes", sara_modulo: "comercial" });
-  assert.deepEqual(validarCanal({ nome: "Atendimento" }, SARAS), { nome: "Atendimento", departamento: null, descricao: null, sara_modulo: null }, "SARA pode ficar para depois");
-  assert.match(validarCanal({ nome: "A" }, SARAS).erro, /nome/);
-  assert.match(validarCanal({ nome: "Fiscal", sara_modulo: "inventada" }, SARAS).erro, /não existe/);
+test("números: o canal tem nome, departamento, descrição, o comportamento (prompt) e o modelo (25/10)", () => {
+  const prompt = "Você atende os funcionários da Pecsil.\r\nSeja direta.\n\n\n\nResponda só sobre o trabalho.";
+  assert.deepEqual(validarCanal({ nome: " Comercial ", departamento: "Comercial", descricao: "Pedidos e orçamentos de clientes", prompt, modelo: "claude-haiku-5-5", sara_modulo: "comercial" }),
+    { nome: "Comercial", departamento: "Comercial", descricao: "Pedidos e orçamentos de clientes", prompt: "Você atende os funcionários da Pecsil.\nSeja direta.\n\nResponda só sobre o trabalho.", provedor: "anthropic", modelo: "claude-haiku-5-5" },
+    "a SARA não é mais do número (é de cada pessoa da allowlist); o prompt guarda as quebras de linha");
+  assert.deepEqual(validarCanal({ nome: "Atendimento" }), { nome: "Atendimento", departamento: null, descricao: null, prompt: null, provedor: "anthropic", modelo: null }, "sem prompt e com o modelo da SARA");
+  assert.match(validarCanal({ nome: "A" }).erro, /nome/);
+  assert.match(validarCanal({ nome: "Fiscal", modelo: "gpt-qualquer" }).erro, /modelos da lista/);
+  assert.match(validarCanal({ nome: "Fiscal", prompt: "Seja breve." }).erro, /curto demais/);
+  assert.equal(validarCanal({ nome: "Fiscal", prompt: "x".repeat(5000) }).prompt.length, 4000);
 });
 
 test("listas: as SARAs que o usuário pode usar vêm da credencial dele", () => {
@@ -25,12 +29,28 @@ test("listas: as SARAs que o usuário pode usar vêm da credencial dele", () => 
   assert.equal(sarasDoUsuario(SARAS, new Set(["fundicao.pedidos"]), false).length, 0);
 });
 
-test("listas: interna exige usuário cuja credencial libere a SARA do número", () => {
-  assert.deepEqual(validarInterno({ numero: "15 91234-5678", profile_id: P }, true),
-    { lista: "interna", numero: "5515912345678", profile_id: P, observacao: null });
-  assert.match(validarInterno({ numero: "15 91234-5678", profile_id: P }, false).erro, /não libera a SARA responsável/);
-  assert.match(validarInterno({ numero: "15 91234-5678", profile_id: "x" }, true).erro, /usuário/);
-  assert.match(validarInterno({ numero: "9966", profile_id: P }, true).erro, /DDD/);
+test("allowlist: usuário da plataforma, a SARA de cada pessoa (liberada pela credencial dela) e o apelido", () => {
+  assert.deepEqual(validarInterno({ numero: "15 91234-5678", profile_id: P, sara_modulo: "fundicao", nome: " Gui " }, ["fundicao"]),
+    { lista: "interna", numero: "5515912345678", profile_id: P, sara_modulo: "fundicao", nome: "Gui", observacao: null });
+  assert.match(validarInterno({ numero: "15 91234-5678", profile_id: P, sara_modulo: "comercial" }, ["fundicao"]).erro, /não libera essa SARA/);
+  assert.match(validarInterno({ numero: "15 91234-5678", profile_id: P }, ["fundicao"]).erro, /de qual SARA/);
+  assert.match(validarInterno({ numero: "15 91234-5678", profile_id: "x", sara_modulo: "fundicao" }, ["fundicao"]).erro, /usuários da plataforma/);
+  assert.match(validarInterno({ numero: "9966", profile_id: P, sara_modulo: "fundicao" }, ["fundicao"]).erro, /DDD/);
+});
+
+test("allowlist: a migração passa a SARA do número para cada pessoa e não apaga a coluna antes do Deploy", () => {
+  const mig = ler("supabase/migrations/202610250002_whatsapp_allowlist.sql");
+  assert.match(mig, /update public\.whatsapp_contatos c set sara_modulo = k\.sara_modulo/);
+  assert.match(mig, /check \(lista <> 'interna' or sara_modulo is not null\)/);
+  assert.match(mig, /provedor text not null default 'anthropic' check \(provedor in \('anthropic'\)\)/);
+  assert.doesNotMatch(mig, /drop column/i, "a coluna antiga sai só depois do Deploy");
+  const a = ler("lib/whatsapp/atender.ts");
+  assert.match(a, /const sara = contato\.sara_modulo;/);
+  assert.match(a, /\{ comportamento: canal\.prompt, modelo: canal\.modelo \}/);
+  const r = ler("lib/sara/responder.ts");
+  assert.match(r, /export async function responder\(p: Preparado, modulo: string, corpo: Corpo \| null, doCanal: DoCanal = \{\}\)/, "o prompt do número não vem do corpo da requisição");
+  assert.doesNotMatch(r, /corpo\?\.comportamento|corpo\?\.modelo/);
+  assert.match(r, /as regras de segurança, de permissão e de escopo da empresa continuam valendo e prevalecem/);
 });
 
 test("listas: externa exige nome e categoria; vínculo só com o cadastro da categoria", () => {

@@ -17,7 +17,8 @@ import { SARA_OPCOES } from "./saras";
  *
  * - Número fora da lista interna daquele número: ignorado em silêncio (sem resposta, sem "lida", sem "digitando");
  *   fica só o registro com os 4 últimos dígitos. Lista externa: fica para a W5 (API oficial), também em silêncio.
- * - Na lista: a SARA responsável pelo número responde com a SESSÃO da pessoa (as permissões dela), pela mesma
+ * - Na allowlist: a SARA daquela pessoa (whatsapp_contatos.sara_modulo) responde com a SESSÃO dela (as permissões
+ *   dela), no comportamento (prompt) e no modelo do número, pela mesma
  *   função da tela (lib/sara/responder.ts). Texto vira texto; áudio vira nota de voz (Whisper → SARA → voz luna).
  *   O que não dá para ouvir (link do Permitir, gráfico) vai junto, por escrito.
  * - Ação que grava fica pendente, com o link para o Permitir da plataforma; se a área dona da ação liberou, vai junto
@@ -38,15 +39,15 @@ export type Resultado = { situacao: "descartada" | "repetida" | "ignorada" | "re
 const CONTINUA_MS = 12 * 3600_000;
 const base = () => (process.env.PLATAFORMA_URL?.trim() || "https://home.pecsil.com.br").replace(/\/+$/, "");
 
-type Canal = { id: string; organization_id: string; instancia: string; nome: string; sara_modulo: string | null; conexao: string; ativo: boolean };
-type Contato = { id: string; lista: string; profile_id: string | null; ativo: boolean };
+type Canal = { id: string; organization_id: string; instancia: string; nome: string; prompt: string | null; modelo: string | null; conexao: string; ativo: boolean };
+type Contato = { id: string; lista: string; profile_id: string | null; sara_modulo: string | null; ativo: boolean };
 
 export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin: SupabaseClient = createSupabaseAdminClient()): Promise<Resultado> {
   const d = { ...PADRAO, ...deps };
   const m = lerMensagem(payload);
   if ("descartar" in m) return { situacao: "descartada", motivo: m.descartar };
 
-  const { data: canal } = await admin.from("whatsapp_canais").select("id, organization_id, instancia, nome, sara_modulo, conexao, ativo").eq("instancia", m.instancia).maybeSingle<Canal>();
+  const { data: canal } = await admin.from("whatsapp_canais").select("id, organization_id, instancia, nome, prompt, modelo, conexao, ativo").eq("instancia", m.instancia).maybeSingle<Canal>();
   if (!canal) return { situacao: "descartada", motivo: "instancia_desconhecida" };
 
   // Registro da entrada (o mesmo aviso repetido pela Evolution não passa daqui).
@@ -57,11 +58,12 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
   const ignorar = async (motivo: string, extra: Record<string, unknown> = {}) => { await marcar({ situacao: "ignorada", motivo, ...extra }); return { situacao: "ignorada" as const, motivo }; };
 
   if (!canal.ativo || canal.conexao !== "whatsapp_web") return ignorar("canal_inativo");
-  const { data: contato } = await admin.from("whatsapp_contatos").select("id, lista, profile_id, ativo").eq("canal_id", canal.id).eq("numero", m.numero).maybeSingle<Contato>();
+  const { data: contato } = await admin.from("whatsapp_contatos").select("id, lista, profile_id, sara_modulo, ativo").eq("canal_id", canal.id).eq("numero", m.numero).maybeSingle<Contato>();
   // Silêncio total para quem não está na lista (nem "lida", nem "digitando").
   if (!contato || !contato.ativo) return ignorar("fora_da_lista");
   if (contato.lista !== "interna" || !contato.profile_id) return ignorar("externa", { contato_id: contato.id });
-  if (!canal.sara_modulo) return ignorar("sem_sara", { contato_id: contato.id, profile_id: contato.profile_id });
+  const sara = contato.sara_modulo;
+  if (!sara) return ignorar("sem_sara", { contato_id: contato.id, profile_id: contato.profile_id });
   const { data: perfil } = await admin.from("profiles").select("id, status, access_expires_at").eq("id", contato.profile_id).maybeSingle<{ id: string; status: string; access_expires_at: string | null }>();
   if (!perfil || perfil.status !== "active" || (perfil.access_expires_at && Date.parse(perfil.access_expires_at) < Date.now())) return ignorar("usuario_inativo", { contato_id: contato.id, profile_id: contato.profile_id });
   await marcar({ contato_id: contato.id, profile_id: perfil.id });
@@ -135,21 +137,21 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
     const s = await sessaoComo(admin, perfil.id);
     if ("erro" in s) throw new Error(s.erro);
     try {
-      const p = await prepararCom(s.sb, canal.sara_modulo);
-      const rotulo = SARA_OPCOES.find((x) => x.modulo === canal.sara_modulo)?.rotulo ?? "SARA";
+      const p = await prepararCom(s.sb, sara);
+      const rotulo = SARA_OPCOES.find((x) => x.modulo === sara)?.rotulo ?? "SARA";
       if ("erro" in p) {
         const n = await responderTexto(`Seu acesso à ${rotulo} não está liberado na plataforma. Fale com o proprietário.`);
         await marcar({ situacao: "respondida", motivo: "sem_permissao" });
         return { situacao: "respondida", respostas: n };
       }
-      const resposta = await responder(p, canal.sara_modulo, { pergunta: pergunta || (imagem ? "" : "Oi"), conversa, voz: audio, imagem, canal: "whatsapp" });
+      const resposta = await responder(p, sara, { pergunta: pergunta || (imagem ? "" : "Oi"), conversa, voz: audio, imagem, canal: "whatsapp" }, { comportamento: canal.prompt, modelo: canal.modelo });
       const corpo = (await resposta.json().catch(() => null)) as { texto?: string; conversa?: string; acoes?: { id: string; situacao: string }[]; visuais?: unknown[]; error?: string } | null;
       if (!resposta.ok || !corpo?.texto) {
         const n = await responderTexto(corpo?.error ?? "A SARA está indisponível agora. Tente de novo em instantes.");
         await marcar({ situacao: "falhou", erro: (corpo?.error ?? `status ${resposta.status}`).slice(0, 300) });
         return { situacao: "falhou", respostas: n };
       }
-      const linkSara = `${base()}/?module=${canal.sara_modulo}&sara=1`;
+      const linkSara = `${base()}/?module=${sara}&sara=1`;
       const pendentes = (corpo.acoes ?? []).filter((a) => a.situacao === "pendente");
       // Uma ação que a área liberou para o WhatsApp: vai a enquete depois da resposta.
       const enquete = await avaliarEnquete(admin, perfil.id, contato.id, pendentes.map((a) => a.id)).catch(() => null);

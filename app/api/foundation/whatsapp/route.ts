@@ -5,7 +5,7 @@ import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 import { requireUserSession } from "../../../../lib/supabase/session";
 import { registrarEnqueteDeTeste } from "../../../../lib/whatsapp/confirmar";
 import { validarCanal } from "../../../../lib/whatsapp/contatos";
-import { SARA_OPCOES } from "../../../../lib/whatsapp/saras";
+import { MODELOS } from "../../../../lib/sara/modelos";
 import { apagarInstancia, configuracao, desconectar, enviarInterativo, enviarTexto, ErroEvolution, garantirWebhook, nomeDeInstancia, numeroWhatsApp, pedirQr, situacao } from "../../../../lib/whatsapp/evolution";
 
 export const dynamic = "force-dynamic";
@@ -13,9 +13,9 @@ export const runtime = "nodejs";
 
 /**
  * Fundação › WhatsApp (PLANO-WHATSAPP): os números da plataforma (canais). Só o proprietário (é infraestrutura,
- * como Banco e Autenticação). GET: os canais com a situação de cada um na Evolution. POST: criar, alterar e
- * remover canal; conectar (QR Code), desconectar e mensagem de teste de um canal. Tudo na auditoria; o QR Code
- * e a chave da Evolution nunca são gravados.
+ * como Banco e Autenticação). GET: os canais com a situação de cada um na Evolution, o comportamento (prompt) e o
+ * modelo. POST: criar, alterar e remover canal; conectar (QR Code), desconectar e mensagem de teste de um canal.
+ * Tudo na auditoria (o prompt não: só se mudou); o QR Code e a chave da Evolution nunca são gravados.
  */
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -39,15 +39,14 @@ async function auditar(sb: SupabaseClient, evento: string, metadata: Record<stri
 }
 
 const falha = (e: unknown) => NextResponse.json({ error: e instanceof Error ? e.message : "A Evolution não respondeu." }, { status: e instanceof ErroEvolution && e.status < 500 ? 400 : 503 });
-type Linha = { id: string; instancia: string; nome: string; departamento: string | null; descricao: string | null; sara_modulo: string | null; conexao: string; ativo: boolean; created_at: string };
+type Linha = { id: string; instancia: string; nome: string; departamento: string | null; descricao: string | null; prompt: string | null; provedor: string; modelo: string | null; conexao: string; ativo: boolean; created_at: string };
 const tabelaFaltando = (msg: string, code?: string) => code === "42P01" || /whatsapp_canais/.test(msg) && /does not exist|não existe/.test(msg);
 
 export async function GET() {
   const d = await dono();
   if ("erro" in d) return d.erro;
-  const { data, error } = await d.sb.from("whatsapp_canais").select("id, instancia, nome, departamento, descricao, sara_modulo, conexao, ativo, created_at").order("created_at");
+  const { data, error } = await d.sb.from("whatsapp_canais").select("id, instancia, nome, departamento, descricao, prompt, provedor, modelo, conexao, ativo, created_at").order("created_at");
   if (error) return NextResponse.json({ error: tabelaFaltando(error.message, error.code) ? "As tabelas dos números ainda não foram criadas no banco (migração 202610240002)." : error.message }, { status: 500 });
-  const rotulo = new Map(SARA_OPCOES.map((s) => [s.modulo, s.rotulo]));
   // Movimento dos últimos 7 dias por número (W3). Sem a tabela ainda (antes da migração 0003), fica sem números.
   const desde = new Date(Date.now() - 7 * 86_400_000).toISOString();
   const { data: mov } = await d.sb.from("whatsapp_mensagens").select("canal_id, situacao, motivo").eq("direcao", "entrada").gte("created_at", desde).limit(5000);
@@ -61,10 +60,10 @@ export async function GET() {
     const sit = c.conexao === "whatsapp_web" ? await situacao(c.instancia) : { estado: "api_oficial", numero: null, nome: null };
     // Número conectado: a Evolution tem de avisar a plataforma das mensagens (W3); liga se não estiver ligado.
     const recebimento = sit.estado === "conectado" && c.ativo ? await garantirWebhook(c.instancia) : null;
-    return { ...c, sara: c.sara_modulo ? { modulo: c.sara_modulo, rotulo: rotulo.get(c.sara_modulo) ?? c.sara_modulo } : null, situacao: sit, recebimento,
+    return { ...c, situacao: sit, recebimento,
       movimento: movimento.get(c.id) ?? { respondidas: 0, ignoradas: 0, fora_da_lista: 0, falhas: 0 } };
   }));
-  return NextResponse.json({ canais, saras: SARA_OPCOES.map((s) => ({ modulo: s.modulo, rotulo: s.rotulo })), configurada: Boolean(configuracao()) }, { headers: { "cache-control": "no-store" } });
+  return NextResponse.json({ canais, modelos: MODELOS, configurada: Boolean(configuracao()) }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(request: Request) {
@@ -75,12 +74,13 @@ export async function POST(request: Request) {
   const id = String(e.canal ?? "");
 
   if (acao === "salvar_canal") {
-    const v = validarCanal(e, SARA_OPCOES);
+    const v = validarCanal(e);
     if ("erro" in v) return NextResponse.json({ error: v.erro }, { status: 400 });
     if (UUID.test(id)) {
+      const { data: antes } = await d.sb.from("whatsapp_canais").select("prompt").eq("id", id).maybeSingle();
       const { error } = await d.sb.from("whatsapp_canais").update(v).eq("id", id);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-      await auditar(d.sb, "whatsapp.canal_alterado", { canal: id, nome: v.nome, sara: v.sara_modulo });
+      await auditar(d.sb, "whatsapp.canal_alterado", { canal: id, nome: v.nome, modelo: v.modelo, prompt_alterado: (antes?.prompt ?? null) !== v.prompt });
       return NextResponse.json({ ok: true, id });
     }
     // Número novo: a instância nasce aqui com nome fixo; a Evolution cria na hora do QR Code.
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
     const conexao = e.conexao === "api_oficial" ? "api_oficial" : "whatsapp_web";
     const { data, error } = await d.sb.from("whatsapp_canais").insert({ ...v, instancia, conexao, organization_id: org?.id, criado_por: eu }).select("id").single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    await auditar(d.sb, "whatsapp.canal_criado", { canal: data.id, instancia, nome: v.nome, sara: v.sara_modulo, conexao });
+    await auditar(d.sb, "whatsapp.canal_criado", { canal: data.id, instancia, nome: v.nome, modelo: v.modelo, com_prompt: Boolean(v.prompt), conexao });
     return NextResponse.json({ ok: true, id: data.id });
   }
 

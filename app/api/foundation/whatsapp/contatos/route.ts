@@ -11,9 +11,11 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * Fundação › WhatsApp: as listas de cada número da plataforma (interna e externa). Só o proprietário (o RLS das
- * tabelas também só deixa ele). GET ?canal=: as listas do canal e os usuários com as SARAs que cada um pode usar;
- * GET ?busca=&tipo=: fornecedor ou cliente para o vínculo. POST: salvar, ativar/desativar, remover e boas-vindas.
+ * Fundação › WhatsApp: a allowlist de cada número da plataforma (decisão do proprietário, 25/10/2026): só quem
+ * está nela fala com o número. Cada pessoa é um usuário da plataforma, com a SARA de que recebe e envia informação
+ * (a credencial dela tem de liberar essa SARA). Só o proprietário (o RLS das tabelas também só deixa ele).
+ * GET ?canal=: a allowlist e os usuários com as SARAs que cada um pode usar; GET ?busca=&tipo=: fornecedor ou
+ * cliente (para a lista externa, que fica para depois). POST: salvar, ativar/desativar, remover e boas-vindas.
  * Tudo na auditoria, com só os 4 últimos dígitos do número.
  */
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -72,20 +74,23 @@ export async function GET(request: Request) {
   const canal = q.get("canal") ?? "";
   if (!UUID.test(canal)) return NextResponse.json({ error: "Escolha o número da plataforma." }, { status: 400 });
   const [{ data: contatos, error }, lista] = await Promise.all([
-    d.sb.from("whatsapp_contatos").select("id, lista, numero, profile_id, nome, categoria, ativo, observacao, created_at, suppliers(name, trade_name), customers(name)").eq("canal_id", canal).order("created_at"),
+    d.sb.from("whatsapp_contatos").select("id, lista, numero, profile_id, nome, sara_modulo, categoria, ativo, observacao, created_at, suppliers(name, trade_name), customers(name)").eq("canal_id", canal).order("created_at"),
     usuarios(),
   ]);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const nomes = new Map(lista.map((u) => [u.id, u]));
-  type Linha = { id: string; lista: string; numero: string; profile_id: string | null; nome: string | null; categoria: string | null; ativo: boolean; observacao: string | null;
+  const rotulo = new Map(SARA_OPCOES.map((s) => [s.modulo, s.rotulo]));
+  type Linha = { id: string; lista: string; numero: string; profile_id: string | null; nome: string | null; sara_modulo: string | null; categoria: string | null; ativo: boolean; observacao: string | null;
     suppliers: { name: string; trade_name: string | null } | null; customers: { name: string } | null };
   const linhas = ((contatos ?? []) as unknown as Linha[]).map((c) => {
     const u = c.profile_id ? nomes.get(c.profile_id) : null;
     return { id: c.id, lista: c.lista, numero: c.numero, numeroLegivel: numeroLegivel(c.numero), ativo: c.ativo, observacao: c.observacao,
       usuario: c.profile_id ? { id: c.profile_id, nome: u?.nome ?? "usuário inativo", ativo: Boolean(u) } : null,
+      sara: c.sara_modulo ? { modulo: c.sara_modulo, rotulo: rotulo.get(c.sara_modulo) ?? c.sara_modulo, liberada: Boolean(u?.saras.includes(c.sara_modulo)) } : null,
       nome: c.nome, categoria: c.categoria, vinculo: c.suppliers ? (c.suppliers.trade_name?.trim() || c.suppliers.name) : c.customers?.name ?? null };
   });
-  return NextResponse.json({ interna: linhas.filter((x) => x.lista === "interna"), externa: linhas.filter((x) => x.lista === "externa"), usuarios: lista }, { headers: { "cache-control": "no-store" } });
+  return NextResponse.json({ interna: linhas.filter((x) => x.lista === "interna"), externa: linhas.filter((x) => x.lista === "externa"), usuarios: lista,
+    saras: SARA_OPCOES.map((s) => ({ modulo: s.modulo, rotulo: s.rotulo })) }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(request: Request) {
@@ -94,19 +99,18 @@ export async function POST(request: Request) {
   const e = ((await request.json().catch(() => null)) ?? {}) as Record<string, unknown>;
   const acao = String(e.acao ?? "");
   const id = String(e.id ?? "");
-  const repetido = (msg: string) => (/whatsapp_contatos_numero_unico/.test(msg) ? "Este número já está numa das listas deste WhatsApp." : msg);
+  const repetido = (msg: string) => (/whatsapp_contatos_numero_unico/.test(msg) ? "Este número já está na allowlist deste WhatsApp." : msg);
 
   if (acao === "salvar") {
     const canalId = String(e.canal ?? "");
-    const { data: canal } = UUID.test(canalId) ? await d.sb.from("whatsapp_canais").select("id, organization_id, sara_modulo").eq("id", canalId).maybeSingle() : { data: null };
+    const { data: canal } = UUID.test(canalId) ? await d.sb.from("whatsapp_canais").select("id, organization_id").eq("id", canalId).maybeSingle() : { data: null };
     if (!canal) return NextResponse.json({ error: "Escolha o número da plataforma." }, { status: 400 });
     const lista = e.lista === "externa" ? "externa" : "interna";
     let dados: Record<string, unknown>;
     if (lista === "interna") {
       const u = (await usuarios()).find((x) => x.id === e.profile_id);
       if (!u) return NextResponse.json({ error: "Usuário não encontrado ou inativo." }, { status: 400 });
-      if (!canal.sara_modulo) return NextResponse.json({ error: "Escolha antes a SARA responsável por este número." }, { status: 400 });
-      const v = validarInterno(e, u.saras.includes(canal.sara_modulo));
+      const v = validarInterno(e, u.saras);
       if ("erro" in v) return NextResponse.json({ error: v.erro }, { status: 400 });
       dados = v;
     } else {
@@ -120,13 +124,13 @@ export async function POST(request: Request) {
       : d.sb.from("whatsapp_contatos").insert({ ...dados, canal_id: canal.id, organization_id: canal.organization_id, criado_por: eu }).select("id").single();
     const { data, error } = await q;
     if (error) return NextResponse.json({ error: repetido(error.message) }, { status: 400 });
-    await auditar(d.sb, UUID.test(id) ? "whatsapp.contato_alterado" : "whatsapp.contato_incluido", { id: data.id, canal: canal.id, lista, numero: `…${String(dados.numero).slice(-4)}` });
+    await auditar(d.sb, UUID.test(id) ? "whatsapp.contato_alterado" : "whatsapp.contato_incluido", { id: data.id, canal: canal.id, lista, numero: `…${String(dados.numero).slice(-4)}`, sara: dados.sara_modulo ?? null });
     return NextResponse.json({ ok: true, id: data.id });
   }
   if (!UUID.test(id)) return NextResponse.json({ error: "Contato não encontrado." }, { status: 404 });
-  const { data: c } = await d.sb.from("whatsapp_contatos").select("id, lista, numero, profile_id, ativo, canal_id, whatsapp_canais(instancia, nome, sara_modulo, conexao)").eq("id", id).maybeSingle();
+  const { data: c } = await d.sb.from("whatsapp_contatos").select("id, lista, numero, profile_id, sara_modulo, ativo, canal_id, whatsapp_canais(instancia, nome, conexao)").eq("id", id).maybeSingle();
   if (!c) return NextResponse.json({ error: "Contato não encontrado." }, { status: 404 });
-  const canal = c.whatsapp_canais as unknown as { instancia: string; nome: string; sara_modulo: string | null; conexao: string } | null;
+  const canal = c.whatsapp_canais as unknown as { instancia: string; nome: string; conexao: string } | null;
 
   if (acao === "ativar" || acao === "desativar") {
     const { error } = await d.sb.from("whatsapp_contatos").update({ ativo: acao === "ativar" }).eq("id", id);
@@ -141,9 +145,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
   if (acao === "boas_vindas") {
-    if (c.lista !== "interna" || !c.ativo || !canal || canal.conexao !== "whatsapp_web") return NextResponse.json({ error: "Boas-vindas só para número ativo da lista interna, num WhatsApp conectado pelo QR." }, { status: 400 });
+    if (c.lista !== "interna" || !c.ativo || !canal || canal.conexao !== "whatsapp_web") return NextResponse.json({ error: "Boas-vindas só para número ativo da allowlist, num WhatsApp conectado pelo QR." }, { status: 400 });
     const u = (await usuarios()).find((x) => x.id === c.profile_id);
-    const sara = SARA_OPCOES.find((s) => s.modulo === canal.sara_modulo)?.rotulo ?? null;
+    const sara = SARA_OPCOES.find((s) => s.modulo === c.sara_modulo)?.rotulo ?? null;
     try {
       await enviarTexto(canal.instancia, c.numero, boasVindas(u?.nome.split(/\s+/)[0] ?? null, canal.nome, sara));
     } catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : "A Evolution não respondeu." }, { status: 503 }); }

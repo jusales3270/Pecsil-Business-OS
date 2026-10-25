@@ -1,19 +1,20 @@
+import { modeloValido } from "../sara/modelos.ts";
 import { numeroWhatsApp } from "./evolution.ts";
 
 /**
- * Os números (canais) de WhatsApp da Pecsil e as listas de cada um (PLANO-WHATSAPP, W2; decisões do proprietário
- * em 24/10/2026). Canal: nome, departamento, descrição do que atende e a SARA responsável. Lista interna:
- * alguém da Pecsil, ligado ao usuário da plataforma (fala com a SARA do canal com a credencial dele). Lista
- * externa: fornecedores, clientes e outros (envios e respostas autorizadas pela API oficial, W5).
- * Regras puras: conferem a entrada antes de chegar ao banco (que confere de novo).
+ * Os números (canais) de WhatsApp da Pecsil e a allowlist de cada um (PLANO-WHATSAPP; decisões do proprietário em
+ * 24 e 25/10/2026). Número: nome, departamento, descrição, o PROMPT (como a SARA se comporta ali; complementa a SARA)
+ * e o MODELO. Allowlist: só quem está nela fala com o número; cada pessoa é um usuário da plataforma (o nome digitado
+ * é só apelido) com a SARA de que recebe e envia informação, sempre com a credencial dela. Lista externa
+ * (fornecedores e clientes): fica para depois. Regras puras: conferem a entrada antes do banco (que confere de novo).
  */
 
 export type Lista = "interna" | "externa";
 export type Categoria = "fornecedor" | "cliente" | "outro";
 export type SaraOpcao = { modulo: string; rotulo: string; permissao: string };
 
-export type Canal = { nome: string; departamento: string | null; descricao: string | null; sara_modulo: string | null };
-export type ContatoInterno = { lista: "interna"; numero: string; profile_id: string; observacao: string | null };
+export type Canal = { nome: string; departamento: string | null; descricao: string | null; prompt: string | null; provedor: "anthropic"; modelo: string | null };
+export type ContatoInterno = { lista: "interna"; numero: string; profile_id: string; sara_modulo: string; nome: string | null; observacao: string | null };
 export type ContatoExterno = { lista: "externa"; numero: string; nome: string; categoria: Categoria; supplier_id: string | null; customer_id: string | null; observacao: string | null };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,28 +25,35 @@ export function sarasDoUsuario(saras: SaraOpcao[], permissoes: Set<string>, dono
   return saras.filter((s) => dono || permissoes.has(s.permissao));
 }
 
-/** Confere os dados de um canal (número da plataforma). A SARA responsável tem de existir. */
-export function validarCanal(e: Record<string, unknown>, saras: SaraOpcao[]): Canal | { erro: string } {
+/** O prompt do número: texto livre com quebras de linha (até 4.000 caracteres). */
+const prompt = (v: unknown) => { const t = String(v ?? "").replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(); return t ? t.slice(0, 4000) : null; };
+
+/** Confere os dados de um canal (número da plataforma): nome, departamento, descrição, prompt e modelo. */
+export function validarCanal(e: Record<string, unknown>): Canal | { erro: string } {
   const nome = texto(e.nome, 60);
   if (!nome || nome.length < 2) return { erro: "Dê um nome ao número (ex.: Comercial, Atendimento a clientes)." };
   const departamento = texto(e.departamento, 60);
   if (departamento && departamento.length < 2) return { erro: "O departamento ficou curto demais." };
-  const sara = texto(e.sara_modulo, 30);
-  if (sara && !saras.some((s) => s.modulo === sara)) return { erro: "Essa SARA não existe." };
-  return { nome, departamento, descricao: texto(e.descricao, 400), sara_modulo: sara };
+  const p = prompt(e.prompt);
+  if (p && p.length < 20) return { erro: "O comportamento ficou curto demais: descreva como a SARA deve agir neste número." };
+  const modelo = texto(e.modelo, 60);
+  if (modelo && !modeloValido("anthropic", modelo)) return { erro: "Escolha um dos modelos da lista." };
+  return { nome, departamento, descricao: texto(e.descricao, 400), prompt: p, provedor: "anthropic", modelo };
 }
 
 /**
- * Confere um contato da lista interna do canal. `podeSaraDoCanal`: a credencial do usuário libera a SARA
- * responsável pelo canal (sem isso a SARA não teria o que responder a ele).
+ * Confere uma pessoa da allowlist: usuário da plataforma, a SARA dela e o número. `sarasDoUsuario`: as SARAs que
+ * a credencial do usuário libera (sem isso a SARA não teria o que responder a ele).
  */
-export function validarInterno(e: Record<string, unknown>, podeSaraDoCanal: boolean): ContatoInterno | { erro: string } {
+export function validarInterno(e: Record<string, unknown>, sarasDoUsuario: string[]): ContatoInterno | { erro: string } {
   const n = numeroWhatsApp(e.numero);
   if ("erro" in n) return n;
   const perfil = String(e.profile_id ?? "");
-  if (!UUID.test(perfil)) return { erro: "Escolha o usuário da plataforma." };
-  if (!podeSaraDoCanal) return { erro: "A credencial deste usuário não libera a SARA responsável por este número. Libere em Pessoas e Acessos ou escolha outro número." };
-  return { lista: "interna", numero: n.numero, profile_id: perfil, observacao: texto(e.observacao, 300) };
+  if (!UUID.test(perfil)) return { erro: "Escolha a pessoa na lista de usuários da plataforma." };
+  const sara = texto(e.sara_modulo, 30);
+  if (!sara) return { erro: "Escolha de qual SARA esta pessoa recebe e envia informação." };
+  if (!sarasDoUsuario.includes(sara)) return { erro: "A credencial deste usuário não libera essa SARA. Libere em Pessoas e Acessos ou escolha outra." };
+  return { lista: "interna", numero: n.numero, profile_id: perfil, sara_modulo: sara, nome: texto(e.nome, 60), observacao: texto(e.observacao, 300) };
 }
 
 /** Confere um contato da lista externa. */

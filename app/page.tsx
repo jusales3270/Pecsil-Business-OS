@@ -77,7 +77,7 @@ const headerCopy: Record<View, [string, string]> = {
   "O que a SARA aprendeu": ["O que a SARA aprendeu", "Habilidades propostas, pedidos que ela ainda não atende e respostas que não agradaram"],
   "Linha de base": ["Linha de base", "Os números de antes da virada, para comparar o antes × depois"],
   "Banco e Autenticação": ["Banco e autenticação", "Fundação PostgreSQL, RLS e provisionamento"],
-  "WhatsApp": ["WhatsApp", "Os números da plataforma: departamento, SARA responsável e quem fala com cada um"],
+  "WhatsApp": ["WhatsApp", "Os números da plataforma: departamento, comportamento da SARA, modelo e a allowlist de cada um"],
   "Configurações": ["Configurações", "Parâmetros centrais herdados por todos os módulos"],
 };
 

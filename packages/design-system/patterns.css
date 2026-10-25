@@ -9222,6 +9222,10 @@ a.doc-abrir { text-decoration: none; }
 .wa-form > b { grid-column: 1 / -1; font-size: var(--fs-sm); }
 .wa-form label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--text-secondary); position: relative; }
 .wa-form input, .wa-form select { min-height: 38px; padding: 8px 10px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--text-primary) 15%, transparent); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+/* Rótulo com seletor: alinhado como os outros e o seletor na largura da coluna (a regra global centraliza e deixa o texto da opção definir a largura). */
+.wa-form label { align-items: stretch; }
+.wa-form select { width: 100%; min-width: 0; }
+.wa-form label > small:not([class]) { color: var(--text-muted); }
 .wa-form .wa-obs { grid-column: 1 / -1; }
 .wa-form .wa-acoes { grid-column: 1 / -1; justify-content: flex-end; }
 .wa-vinculo ul { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; margin: 4px 0 0; padding: 4px; list-style: none; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent); background: var(--bg-surface-raised); box-shadow: 0 10px 24px rgba(10, 14, 24, .18); }
@@ -9229,6 +9233,8 @@ a.doc-abrir { text-decoration: none; }
 .wa-vinculo li button:hover { background: var(--bg-hover); }
 .wa-vinculo li small { color: var(--text-muted); }
 .wa-ligado { color: var(--accent-green); font-size: var(--fs-xs); }
+/* O rótulo invisível "Ações" (sr-only, absoluto) fica dentro da rolagem da tabela: sem isso, estica a página no celular. */
+.wa-listas .fin-tabela-rolagem { position: relative; }
 .wa-tabela { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 .wa-tabela th, .wa-tabela td { padding: 8px var(--sp-3); border-bottom: 1px solid var(--border-subtle, color-mix(in srgb, var(--text-primary) 8%, transparent)); text-align: left; vertical-align: middle; white-space: nowrap; color: var(--text-primary); }
 .wa-tabela td:first-child { font-variant-numeric: tabular-nums; }
@@ -9247,4 +9253,8 @@ a.doc-abrir { text-decoration: none; }
 .wa-confirmar { padding: 10px 12px; border-radius: 12px; background: var(--bg-subtle); }
 .wa-form textarea { min-height: 38px; padding: 8px 10px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--text-primary) 15%, transparent); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); resize: vertical; }
 .wa-form-canal { margin-bottom: var(--sp-4); }
+.wa-form .wa-prompt textarea { min-height: 150px; line-height: 1.5; resize: vertical; }
+.wa-form .wa-prompt small { color: var(--text-muted); }
+.wa-vinculo li button:disabled { color: var(--text-muted); cursor: not-allowed; background: transparent; }
+.wa-prompt-resumo { white-space: pre-line; color: var(--text-secondary); }
 .wa-movimento { font-size: var(--fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }

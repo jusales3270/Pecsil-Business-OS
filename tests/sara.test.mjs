@@ -178,7 +178,7 @@ test("SARA: com o verificador dando FORA, a conversa é cancelada e a resposta �
   assert.match(rota, /verificar\(\{ empresa, pergunta, contexto: contextoParaVerificar\(pergunta, ultima\), tema: tema\?\.assunto \?\? null \}\)\.then\(\(v\) => \{ if \(!v\.dentro\) parar\.abort\(\); return v; \}\)/);
   assert.match(rota, /if \(!v\.dentro\) \{\s+fora = "verificador";\s+r = \{ texto: textoRecusa, fontes: \[\], abrir: null, ferramentas: \[\]/);
   assert.match(rota, /regrasDeEscopo\(empresa, p\.sara\.rotulo, temaDe\(modulo\)\)/);
-  assert.match(rota, /escopo: \{ fora, verificador_falhou: v\.falhou \}/, "a recusa fica registrada para auditoria");
+  assert.match(rota, /escopo: \{ fora, verificador_falhou: v\.falhou(, sigilo)? \}/, "a recusa fica registrada para auditoria");
   assert.match(rota, /from\("organizations"\)\.select\("display_name, legal_name"\)/);
   assert.match(rota, /\.order\("created_at", \{ ascending: false \}\)\.order\("papel", \{ ascending: false \}\)\.limit\(24\)\)\.data \?\? \[\]\)\.reverse\(\)/, "as 24 mais recentes, em ordem; no empate do horário, a pergunta antes da resposta");
 });

@@ -23,11 +23,11 @@ async function destinos(): Promise<Destino[]> {
   // O usuário de cada contato vem numa consulta à parte: whatsapp_contatos liga a profiles duas vezes (o usuário e
   // quem cadastrou), e o embutido ficaria ambíguo.
   const { data, error } = await admin.from("whatsapp_contatos")
-    .select("id, lista, numero, nome, profile_id, organization_id, whatsapp_canais!inner(id, instancia, nome, sara_modulo, conexao, ativo, created_at)")
+    .select("id, lista, numero, nome, profile_id, sara_modulo, organization_id, whatsapp_canais!inner(id, instancia, nome, conexao, ativo, created_at)")
     .eq("ativo", true).eq("whatsapp_canais.ativo", true).eq("whatsapp_canais.conexao", "whatsapp_web");
   if (error) throw new Error(`Não consegui ler as listas do WhatsApp: ${error.message}`);
-  type L = { id: string; lista: "interna" | "externa"; numero: string; nome: string | null; profile_id: string | null; organization_id: string;
-    whatsapp_canais: { id: string; instancia: string; nome: string; sara_modulo: string | null; created_at: string } };
+  type L = { id: string; lista: "interna" | "externa"; numero: string; nome: string | null; profile_id: string | null; sara_modulo: string | null; organization_id: string;
+    whatsapp_canais: { id: string; instancia: string; nome: string; created_at: string } };
   const linhas = (data ?? []) as unknown as L[];
   const ids = [...new Set(linhas.map((c) => c.profile_id).filter(Boolean))] as string[];
   const { data: perfis, error: eP } = ids.length ? await admin.from("profiles").select("id, full_name, status, access_expires_at").in("id", ids) : { data: [], error: null };
@@ -36,8 +36,8 @@ async function destinos(): Promise<Destino[]> {
   const ativo = (id: string | null) => { const p = id ? perfil.get(id) : null; return Boolean(p && p.status === "active" && (!p.access_expires_at || Date.parse(p.access_expires_at) > Date.now())); };
   return linhas
     .filter((c) => c.lista === "externa" || ativo(c.profile_id))
-    // O número da SARA central primeiro; depois o mais antigo.
-    .sort((a, b) => Number(b.whatsapp_canais.sara_modulo === "warroom") - Number(a.whatsapp_canais.sara_modulo === "warroom") || a.whatsapp_canais.created_at.localeCompare(b.whatsapp_canais.created_at))
+    // Primeiro o número em que a pessoa fala com a SARA central; depois o mais antigo.
+    .sort((a, b) => Number(b.sara_modulo === "warroom") - Number(a.sara_modulo === "warroom") || a.whatsapp_canais.created_at.localeCompare(b.whatsapp_canais.created_at))
     .map((c) => ({ contato: c.id, canal: c.whatsapp_canais.id, instancia: c.whatsapp_canais.instancia, canalNome: c.whatsapp_canais.nome, numero: c.numero,
       nome: (c.lista === "interna" ? perfil.get(c.profile_id ?? "")?.full_name : c.nome) ?? "sem nome", lista: c.lista, organizacao: c.organization_id, perfil: c.profile_id }));
 }

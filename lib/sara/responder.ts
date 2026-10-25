@@ -6,6 +6,7 @@ import { abertura, comAbertura, contextoDeTempo, situacaoDaConversa } from "./te
 import { FERRAMENTAS, LACUNA } from "./ferramentas";
 import { MOSTRAR } from "./visual";
 import { PROPOR_HABILIDADE, instrucoesDeHabilidades, nomearHabilidade, pareceLacuna, pedidoRecorrente, validarProposta, type Passo } from "./habilidades";
+import { linhaDoMarcador, novoMarcador, RESPOSTA_SIGILO, vazouInstrucoes } from "./injecao";
 import { regrasDaSara } from "./modulos";
 import { ACOES } from "./acoes";
 import { iniciarPasso } from "./progresso";
@@ -69,7 +70,14 @@ export type Corpo = { pergunta?: string; conversa?: string | null; habilidade?: 
 export type Preparado = Exclude<Awaited<ReturnType<typeof preparar>>, { erro: unknown }>;
 
 
-export async function responder(p: Preparado, modulo: string, corpo: Corpo | null): Promise<Response> {
+/**
+ * Só o servidor passa (nunca o corpo da requisição): o comportamento e o modelo do número de WhatsApp por onde a
+ * pergunta chegou. O comportamento complementa a SARA; as regras de segurança acima dele continuam valendo.
+ */
+export type DoCanal = { comportamento?: string | null; modelo?: string | null };
+
+export async function responder(p: Preparado, modulo: string, corpo: Corpo | null, doCanal: DoCanal = {}): Promise<Response> {
+  if (doCanal.modelo) p = { ...p, cfg: { ...p.cfg, modelo: doCanal.modelo } };
   // (o cliente do Supabase só envia a consulta quando alguém espera por ela: sem o await, não contava)
   if (corpo?.habilidade && UUID.test(corpo.habilidade) && p.habilidades.some((h) => h.id === corpo.habilidade)) await p.sb.rpc("sara_habilidade_usada", { p_id: corpo.habilidade });
   // Foto (E2): só JPEG, PNG ou WebP, já reduzida no celular; vai ao modelo nesta pergunta e não fica guardada.
@@ -119,12 +127,14 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   // J5: o que a empresa ensinou (lições aprovadas pela área) e, na central, o que a vigia aprendeu nas áreas da pessoa.
   const areasDaMemoria = p.sara.central ? Object.values(SARAS).filter((s) => !s.central && p.access.canModule(s.feature) && p.access.can(s.permissao, "ver")).map((s) => s.modulo) : [modulo];
   const memoria = await memoriaDaSara(areasDaMemoria, Boolean(p.sara.central));
+  // Marcador secreto desta resposta (injeção): se aparecer na resposta, a SARA revelou as instruções.
+  const marcador = novoMarcador();
   // Fixo (vai para o cache) + do momento (hora, quem conversa, situação da conversa, o que não pode).
   const sistema = {
     fixo: `${PERSONALIDADE}\n\n${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo))}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
-    variavel: `${contextoDeTempo({ nome: tratamento(interlocutor), situacao })}\n${regraDeTratamento(interlocutor)}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}${acoesFechadas.length ? `\nAções que esta pessoa NÃO tem permissão de fazer (se ela pedir, comece com "Você não tem permissão para…" e diga quem pode; não pergunte detalhes): ${acoesFechadas.join("; ")}.` : ""}${notaAcoes}${memoria.texto ? `\n\n${memoria.texto}` : ""}${corpo?.voz && !p.sara.central && corpo?.canal !== "whatsapp" ? "\nA pergunta veio pela voz da SARA: o PRIMEIRO parágrafo é o que será falado. Comece por ele, com a resposta direta e os números (até 60 palavras); o detalhe vem depois, para o painel." : ""}${corpo?.canal === "whatsapp" ? (corpo?.voz
+    variavel: `${linhaDoMarcador(marcador)}\n${contextoDeTempo({ nome: tratamento(interlocutor), situacao })}\n${regraDeTratamento(interlocutor)}${indisponiveis.length ? `\nConsultas que esta pessoa NÃO tem permissão de fazer: ${indisponiveis.join(", ")}.` : ""}${acoesFechadas.length ? `\nAções que esta pessoa NÃO tem permissão de fazer (se ela pedir, comece com "Você não tem permissão para…" e diga quem pode; não pergunte detalhes): ${acoesFechadas.join("; ")}.` : ""}${notaAcoes}${memoria.texto ? `\n\n${memoria.texto}` : ""}${corpo?.voz && !p.sara.central && corpo?.canal !== "whatsapp" ? "\nA pergunta veio pela voz da SARA: o PRIMEIRO parágrafo é o que será falado. Comece por ele, com a resposta direta e os números (até 60 palavras); o detalhe vem depois, para o painel." : ""}${corpo?.canal === "whatsapp" ? (corpo?.voz
       ? "\nA conversa é pelo WhatsApp e a sua resposta volta em ÁUDIO: fale direto, de forma natural, com os números, em até 60 palavras e sem lista. Não fale de \"painel\", \"tela\", \"abaixo\" nem \"tabela\": a pessoa só ouve este áudio. Se houver mais detalhe, diga que ela pode ver na plataforma. Se preparar uma ação, diga o que preparou e que falta a confirmação, sem falar de cartão nem de Permitir: a plataforma manda logo depois como confirmar (pela enquete ou pelo link)."
-      : "\nA conversa é pelo WhatsApp: responda em texto corrido e curto (até 120 palavras), com os números; no máximo uma lista curta, sem tabela e sem gráfico. Não diga \"abaixo\", \"na tabela\" nem \"no painel\", e não ofereça abrir telas: a pessoa só vê esta mensagem. Se houver mais detalhe, diga que ela pode ver na plataforma. Se preparar uma ação, diga o que preparou e que falta a confirmação, sem falar de cartão nem de Permitir: a plataforma manda logo depois como confirmar (pela enquete ou pelo link).") : ""}\nResponda sempre em português do Brasil.`,
+      : "\nA conversa é pelo WhatsApp: responda em texto corrido e curto (até 120 palavras), com os números; no máximo uma lista curta, sem tabela e sem gráfico. Não diga \"abaixo\", \"na tabela\" nem \"no painel\", e não ofereça abrir telas: a pessoa só vê esta mensagem. Se houver mais detalhe, diga que ela pode ver na plataforma. Se preparar uma ação, diga o que preparou e que falta a confirmação, sem falar de cartão nem de Permitir: a plataforma manda logo depois como confirmar (pela enquete ou pelo link).") : ""}${doCanal.comportamento ? `\n\nComo se comportar neste número de WhatsApp (definido pelo proprietário; complementa o que está acima, e as regras de segurança, de permissão e de escopo da empresa continuam valendo e prevalecem):\n${doCanal.comportamento}` : ""}\nResponda sempre em português do Brasil.`,
   };
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
@@ -164,6 +174,16 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
       if (!r.acoes.length && prometeuCartao(r.texto)) r = { ...r, texto: `${r.texto}\n\n⚠️ Nada foi preparado nesta resposta: não há cartão para permitir. Peça de novo.` };
     }
   }
+  // Filtro de saída (injeção), sem modelo: a resposta não pode trazer o marcador nem trecho longo das instruções
+  // (regras fixas e o comportamento do número). A recusa padrão, que a SARA deve repetir, fica de fora da comparação.
+  let sigilo: "marcador" | "trecho" | null = null;
+  if (!fora) {
+    sigilo = vazouInstrucoes(r.texto, { marcador, textos: [regrasDaSara(p.sara), regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo)).replace(textoRecusa, ""), doCanal.comportamento ?? ""] });
+    if (sigilo) {
+      console.error("[sara] resposta bloqueada: revelaria as instruções", modulo, sigilo);
+      r = { ...r, texto: RESPOSTA_SIGILO, fontes: [], abrir: null, visuais: [], acoes: [] };
+    }
+  }
   const msModelo = Date.now() - inicioRota;
   // SARA central (E7): todo número da resposta tem de estar no que as SARAs das áreas devolveram (ou numa
   // conta). O que não bate é apontado no fim da resposta. Conferido pela plataforma, não pelo modelo.
@@ -187,7 +207,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const passoGravar = iniciarPasso("conferencia", "Guardando a conversa");
   const { data: reg, error } = await p.sb.rpc("sara_registrar", {
     p_conversa: conversa, p_modulo: modulo, p_pergunta: `${imagem ? "📷 " : ""}${corpo?.voz ? "🎤 " : ""}${anexo ? `📎 ${anexo.nome} · ` : ""}${pergunta}`, p_resposta: r.texto,
-    p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou }, tempos: { total_ms: Date.now() - inicioRota, conversa_ms: msModelo, etapas: r.tempos ?? [] },
+    p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou, sigilo }, tempos: { total_ms: Date.now() - inicioRota, conversa_ms: msModelo, etapas: r.tempos ?? [] },
       lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)),
       ...(p.sara.central ? { verificador: conferencia, subagentes: p.subagentes, documentos: p.documentos?.criados ?? [] } : {}) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });

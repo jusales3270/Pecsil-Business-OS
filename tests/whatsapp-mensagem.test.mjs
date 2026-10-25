@@ -62,7 +62,7 @@ test("W3: webhook com segredo (404 se errado), atendimento em silêncio para que
   // Fora da lista: ignora ANTES de marcar como lida ou mostrar "digitando".
   const iFora = a.indexOf('return ignorar("fora_da_lista")'), iLida = a.indexOf("await d.marcarLida(");
   assert.ok(iFora > 0 && iLida > iFora, "fora da lista sai antes de qualquer sinal");
-  assert.match(a, /responder\(p, canal\.sara_modulo, \{ pergunta/);
+  assert.match(a, /responder\(p, sara, \{ pergunta/);
   assert.match(a, /const s = await sessaoComo\(admin, perfil\.id\)/);
   assert.match(ler("supabase/migrations/202610240003_whatsapp_mensagens.sql"), /revoke insert, update, delete on public\.whatsapp_mensagens from authenticated/);
 });

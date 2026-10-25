@@ -6,18 +6,18 @@ import { WhatsappListas } from "./whatsapp-listas";
 
 /**
  * Fundação › WhatsApp (PLANO-WHATSAPP): os números da plataforma. Cada número (canal) tem nome, departamento,
- * a descrição do que atende e a SARA responsável; é uma instância da Evolution, conectada pelo QR Code
- * (WhatsApp Web, Evolution API: decisão do proprietário, 24/10/2026, sem API oficial). Dentro de cada número, as listas de quem
- * fala com ele (interna e externa). Só o proprietário.
+ * descrição, o comportamento da SARA ali (prompt de sistema; complementa a SARA) e o modelo; é uma instância da
+ * Evolution, conectada pelo QR Code (WhatsApp Web, sem API oficial: decisão do proprietário, 24/10/2026). Dentro
+ * de cada número, a allowlist: só quem está nela fala com ele, cada pessoa com a sua SARA. Só o proprietário.
  */
 type Estado = "sem_configuracao" | "fora_do_ar" | "sem_instancia" | "desconectado" | "aguardando_qr" | "conectado" | "api_oficial";
 type Situacao = { estado: Estado; numero: string | null; nome: string | null; detalhe?: string };
-type Sara = { modulo: string; rotulo: string };
+type Modelo = { provedor: string; id: string; rotulo: string; nota: string };
 type Movimento = { respondidas: number; ignoradas: number; fora_da_lista: number; falhas: number };
-type Canal = { id: string; instancia: string; nome: string; departamento: string | null; descricao: string | null; sara: Sara | null; sara_modulo: string | null; conexao: "whatsapp_web" | "api_oficial"; ativo: boolean; situacao: Situacao;
+type Canal = { id: string; instancia: string; nome: string; departamento: string | null; descricao: string | null; prompt: string | null; modelo: string | null; conexao: "whatsapp_web" | "api_oficial"; ativo: boolean; situacao: Situacao;
   recebimento: { ligado: boolean; erro?: string } | null; movimento: Movimento };
-type Dados = { canais: Canal[]; saras: Sara[]; configurada: boolean };
-type FormCanal = { id?: string; nome: string; departamento: string; descricao: string; sara_modulo: string; conexao: "whatsapp_web" | "api_oficial" };
+type Dados = { canais: Canal[]; modelos: Modelo[]; configurada: boolean };
+type FormCanal = { id?: string; nome: string; departamento: string; descricao: string; prompt: string; modelo: string; conexao: "whatsapp_web" | "api_oficial" };
 
 const ROTULO: Record<Estado, [string, "success" | "attention" | "danger" | "neutral" | "info"]> = {
   conectado: ["Conectado", "success"],
@@ -29,7 +29,8 @@ const ROTULO: Record<Estado, [string, "success" | "attention" | "danger" | "neut
   api_oficial: ["API oficial (não usada)", "neutral"],
 };
 const DEPARTAMENTOS = ["Comunicação interna", "Comercial", "Atendimento a clientes", "Compras", "Fiscal", "Financeiro", "RH", "Produção", "Fundição", "Almoxarifado", "TI", "Portaria"];
-const VAZIO: FormCanal = { nome: "", departamento: "", descricao: "", sara_modulo: "", conexao: "whatsapp_web" };
+const VAZIO: FormCanal = { nome: "", departamento: "", descricao: "", prompt: "", modelo: "", conexao: "whatsapp_web" };
+const EXEMPLO_PROMPT = "Ex.: Você atende os funcionários da Pecsil pelo WhatsApp. Seja direta e cordial, trate todos pelo primeiro nome e responda só sobre o trabalho. Em dúvida sobre um número, diga de onde veio. Se a pessoa pedir algo fora da sua área, diga quem pode ajudar.";
 
 async function chamar(corpo?: Record<string, unknown>) {
   const r = await fetch("/api/foundation/whatsapp", corpo
@@ -72,7 +73,7 @@ export function WhatsappCanal({ notify }: { notify: (m: string) => void }) {
         <div>
           <p className="eyebrow">CANAIS DA PLATAFORMA</p>
           <h1>WhatsApp</h1>
-          <p>Os números de WhatsApp da Pecsil, cada um com o departamento que atende e a SARA responsável. Dentro de cada número, as listas de quem pode falar com ele.</p>
+          <p>Os números de WhatsApp da Pecsil, cada um com o departamento que atende, o comportamento da SARA e o modelo. Dentro de cada número, a allowlist: só quem está nela fala com ele.</p>
         </div>
         <div className="icms-acoes">
           <Button type="button" variant="secondary" onClick={() => void carregar()} disabled={ocupado}>Atualizar</Button>
@@ -80,12 +81,12 @@ export function WhatsappCanal({ notify }: { notify: (m: string) => void }) {
         </div>
       </div>
 
-      {form && <FormularioCanal form={form} saras={dados.saras} ocupado={ocupado} mudar={(c) => setForm((f) => (f ? { ...f, ...c } : f))} salvar={() => void salvar()} cancelar={() => setForm(null)} />}
+      {form && <FormularioCanal form={form} modelos={dados.modelos} ocupado={ocupado} mudar={(c) => setForm((f) => (f ? { ...f, ...c } : f))} salvar={() => void salvar()} cancelar={() => setForm(null)} />}
 
       {!dados.canais.length
         ? <div className="finance-empty almox-vazio"><b>Nenhum número cadastrado</b><small>Adicione o primeiro número e conecte o chip pelo QR Code.</small></div>
         : dados.canais.map((c) => (
-          <CartaoCanal key={c.id} canal={c} notify={notify} recarregar={carregar} editar={() => setForm({ id: c.id, nome: c.nome, departamento: c.departamento ?? "", descricao: c.descricao ?? "", sara_modulo: c.sara_modulo ?? "", conexao: c.conexao })} />
+          <CartaoCanal key={c.id} canal={c} notify={notify} recarregar={carregar} editar={() => setForm({ id: c.id, nome: c.nome, departamento: c.departamento ?? "", descricao: c.descricao ?? "", prompt: c.prompt ?? "", modelo: c.modelo ?? "", conexao: c.conexao })} modelos={dados.modelos} />
         ))}
 
       <Callout variant="info" title="Como usar os números pelo QR Code">
@@ -95,7 +96,7 @@ export function WhatsappCanal({ notify }: { notify: (m: string) => void }) {
   );
 }
 
-function FormularioCanal({ form, saras, ocupado, mudar, salvar, cancelar }: { form: FormCanal; saras: Sara[]; ocupado: boolean; mudar: (c: Partial<FormCanal>) => void; salvar: () => void; cancelar: () => void }) {
+function FormularioCanal({ form, modelos, ocupado, mudar, salvar, cancelar }: { form: FormCanal; modelos: Modelo[]; ocupado: boolean; mudar: (c: Partial<FormCanal>) => void; salvar: () => void; cancelar: () => void }) {
   return (
     <form className="wa-form wa-form-canal" onSubmit={(e) => { e.preventDefault(); salvar(); }}>
       <b>{form.id ? "Alterar número" : "Novo número da plataforma"}</b>
@@ -104,13 +105,18 @@ function FormularioCanal({ form, saras, ocupado, mudar, salvar, cancelar }: { fo
         <input value={form.departamento} onChange={(e) => mudar({ departamento: e.target.value })} maxLength={60} list="wa-departamentos" placeholder="A qual departamento se destina" />
         <datalist id="wa-departamentos">{DEPARTAMENTOS.map((d) => <option key={d} value={d} />)}</datalist>
       </label>
-      <label>SARA responsável
-        <select value={form.sara_modulo} onChange={(e) => mudar({ sara_modulo: e.target.value })}>
-          <option value="">Escolha…</option>
-          {saras.map((s) => <option key={s.modulo} value={s.modulo}>{s.rotulo}</option>)}
+      <label>Modelo
+        <select value={form.modelo} onChange={(e) => mudar({ modelo: e.target.value })}>
+          <option value="">O da SARA de cada pessoa</option>
+          {modelos.map((m) => <option key={m.id} value={m.id}>{m.rotulo}</option>)}
         </select>
+        <small>{modelos.find((m) => m.id === form.modelo)?.nota ?? "Cada pessoa usa o modelo da SARA dela."}</small>
       </label>
       <label className="wa-obs">Descrição<textarea value={form.descricao} onChange={(e) => mudar({ descricao: e.target.value })} maxLength={400} rows={2} placeholder="Para que serve este número e quem ele atende" /></label>
+      <label className="wa-obs wa-prompt">Comportamento da SARA neste número (prompt de sistema)
+        <textarea value={form.prompt} onChange={(e) => mudar({ prompt: e.target.value })} maxLength={4000} rows={7} placeholder={EXEMPLO_PROMPT} />
+        <small>Tom, assunto e limites deste número. Complementa a SARA: as regras de segurança (permissões de cada pessoa, só assuntos da empresa, nada feito sem confirmação) continuam valendo e não podem ser desligadas aqui. {form.prompt.length}/4000</small>
+      </label>
       <div className="wa-acoes">
         <Button type="button" variant="secondary" onClick={cancelar}>Cancelar</Button>
         <Button type="submit" disabled={ocupado}>{ocupado ? "Salvando…" : "Salvar"}</Button>
@@ -119,7 +125,7 @@ function FormularioCanal({ form, saras, ocupado, mudar, salvar, cancelar }: { fo
   );
 }
 
-function CartaoCanal({ canal, notify, recarregar, editar }: { canal: Canal; notify: (m: string) => void; recarregar: () => Promise<Dados | null>; editar: () => void }) {
+function CartaoCanal({ canal, notify, recarregar, editar, modelos }: { canal: Canal; notify: (m: string) => void; recarregar: () => Promise<Dados | null>; editar: () => void; modelos: Modelo[] }) {
   const [qr, setQr] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [numero, setNumero] = useState("");
@@ -188,7 +194,8 @@ function CartaoCanal({ canal, notify, recarregar, editar }: { canal: Canal; noti
           <h2>{canal.nome}{canal.departamento ? <small className="wa-depto"> · {canal.departamento}</small> : null}</h2>
           <small>{s.estado === "conectado" ? `${s.numero ?? "número não informado"}${s.nome ? ` · ${s.nome}` : ""}` : s.detalhe ?? (web ? "Chip pelo QR Code (WhatsApp Web)." : "API oficial da Meta.")}</small>
           <p className="wa-canal-info">
-            <span><b>SARA responsável:</b> {canal.sara?.rotulo ?? <em className="wa-falta">nenhuma: este número não responde ninguém</em>}</span>
+            <span><b>Modelo:</b> {modelos.find((m) => m.id === canal.modelo)?.rotulo ?? "o da SARA de cada pessoa"}</span>
+            <span><b>Comportamento:</b> {canal.prompt ? <span className="wa-prompt-resumo" title={canal.prompt}>{canal.prompt.length > 160 ? `${canal.prompt.slice(0, 159)}…` : canal.prompt}</span> : <em className="wa-falta">sem prompt próprio: a SARA de cada pessoa, no jeito padrão</em>}</span>
             {canal.descricao && <span>{canal.descricao}</span>}
             {canal.recebimento && (canal.recebimento.ligado
               ? <span className="wa-movimento">Últimos 7 dias: {canal.movimento.respondidas} {canal.movimento.respondidas === 1 ? "respondida" : "respondidas"}
@@ -206,7 +213,7 @@ function CartaoCanal({ canal, notify, recarregar, editar }: { canal: Canal; noti
       <div className="wa-acoes">
         {podeConectar && !qr && <Button type="button" onClick={() => void conectar()} disabled={ocupado}>{ocupado ? "Pedindo o QR Code…" : "Conectar o chip"}</Button>}
         <Button type="button" variant="secondary" onClick={editar}>Alterar</Button>
-        <Button type="button" variant="secondary" onClick={() => setVerListas((v) => !v)} aria-expanded={verListas}>{verListas ? "Esconder quem fala com este número" : "Quem fala com este número"}</Button>
+        <Button type="button" variant="secondary" onClick={() => setVerListas((v) => !v)} aria-expanded={verListas}>{verListas ? "Esconder a allowlist" : "Allowlist"}</Button>
         <Button type="button" variant="ghost" onClick={() => void simples({ acao: canal.ativo ? "desativar" : "ativar" }, canal.ativo ? "Número desativado." : "Número ativado.")} disabled={ocupado}>{canal.ativo ? "Desativar" : "Ativar"}</Button>
         {s.estado === "conectado" && confirmar !== "desconectar" && <Button type="button" variant="ghost" onClick={() => setConfirmar("desconectar")} disabled={ocupado}>Desconectar o chip</Button>}
         {confirmar !== "remover" && <Button type="button" variant="ghost" onClick={() => setConfirmar("remover")} disabled={ocupado}>Remover</Button>}
@@ -246,7 +253,7 @@ function CartaoCanal({ canal, notify, recarregar, editar }: { canal: Canal; noti
         </form>
       )}
 
-      {verListas && <WhatsappListas notify={notify} canal={{ id: canal.id, nome: canal.nome, sara: canal.sara, conectado: s.estado === "conectado" && web }} />}
+      {verListas && <WhatsappListas notify={notify} canal={{ id: canal.id, nome: canal.nome, conectado: s.estado === "conectado" && web }} />}
     </section>
   );
 }
