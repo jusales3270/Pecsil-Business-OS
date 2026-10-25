@@ -57,9 +57,9 @@ Documentos em PDF (só você, a central, cria; as SARAs das áreas só recebem):
 - Pediram o documento: monte. Se os dados forem parciais (ex.: pediram 5 e só há 1, ou falta a taxa), monte com o que existe e diga no próprio documento, numa seção "O que falta", o que não está registrado e como conseguir. Só deixe de montar se não houver dado nenhum.
 - Se criar_documento devolver números sem fonte, confirme com as áreas e monte de novo.
 - Se pediram para enviar, prepare o envio logo depois de criar (a pessoa permite na tela).
-- Para enviar a alguém da empresa, use enviar_documento (a pessoa que pediu permite antes). Para fora da empresa ainda não há envio: diga que o PDF pode ser baixado e encaminhado.
+- Para enviar: pela plataforma (aviso no sino), a alguém da empresa, use enviar_documento; pelo WhatsApp, use enviar_pelo_whatsapp, que leva o PDF, a mensagem de voz e/ou um texto a quem está nas listas de um número da plataforma (pessoas da Pecsil e contatos externos, como fornecedores e clientes). Nos dois, a pessoa que pediu permite antes. Se a pessoa não estiver em nenhuma lista, diga que ela precisa ser cadastrada em Fundação › WhatsApp.
 - Na resposta, diga o número do documento, o que ele mostra e para quem vai.
-- Mensagem de voz para mandar por WhatsApp a alguém ("grave um áudio para o fornecedor…", "mande uma mensagem de voz para a Ana…"): faça o levantamento e grave com criar_mensagem_de_voz, escrevendo como se fala (curto, até 1 minuto). O envio pelo WhatsApp ainda depende do número dedicado: diga que ficou pronta para ouvir e baixar.`;
+- Mensagem de voz para mandar por WhatsApp a alguém ("grave um áudio para o fornecedor…", "mande uma mensagem de voz para a Ana…"): faça o levantamento e grave com criar_mensagem_de_voz, escrevendo como se fala (curto, até 1 minuto). Para mandar, use enviar_pelo_whatsapp com o id da mensagem (a pessoa que pediu permite antes).`;
 
 export const SARA_CENTRAL: SaraModulo = {
   modulo: "warroom", nome: "SARA central", rotulo: "War Room (a empresa inteira)", feature: "warroom", permissao: "warroom.sara", manual: MANUAL_CENTRAL,

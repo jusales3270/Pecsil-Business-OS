@@ -7,7 +7,7 @@ import { Button, Callout, Segmented, Status } from "../../packages/design-system
  * Fundação › WhatsApp: as duas listas de um número da plataforma (decisões do proprietário, 24/10/2026).
  * Comunicação interna: quem é da Pecsil, ligado ao usuário da plataforma; só estes falam com a SARA do número,
  * com a credencial do usuário (número fora da lista é ignorado em silêncio). Comunicação externa: fornecedores,
- * clientes e outros, para os envios e respostas autorizadas pela API oficial (etapa seguinte).
+ * clientes e outros: a SARA central envia a eles pelo WhatsApp com o Permitir (W4); as respostas autorizadas vêm na W5.
  */
 type Sara = { modulo: string; rotulo: string };
 type Usuario = { id: string; nome: string; saras: string[] };
@@ -98,7 +98,7 @@ export function WhatsappListas({ notify, canal }: { notify: (m: string) => void;
       <p className="wa-listas-nota">
         {aba === "interna"
           ? <>Funcionários da Pecsil, cada número ligado ao usuário da plataforma. Quem responde é a <b>{canal.sara?.rotulo ?? "SARA responsável (ainda não escolhida)"}</b>, com a credencial do usuário: o que ele não vê na plataforma, não vê pelo WhatsApp. Usuário desativado ou com acesso vencido deixa de valer sozinho.</>
-          : "Fornecedores, clientes e outros. O envio de mensagens e as respostas autorizadas a eles começam na etapa da API oficial da Meta; por enquanto, só o cadastro."}
+          : "Fornecedores, clientes e outros. A SARA central já pode enviar a eles por este número (documento, mensagem de voz ou texto), sempre com o seu Permitir. Por enquanto, o que eles responderem fica sem resposta da SARA: as respostas autorizadas são a próxima etapa."}
       </p>
       {aba === "interna" && !canal.sara && <Callout variant="warning" title="Falta a SARA responsável">Escolha em Alterar a SARA que responde por este número antes de incluir funcionários.</Callout>}
 

@@ -7,7 +7,7 @@ import { WhatsappListas } from "./whatsapp-listas";
 /**
  * Fundação › WhatsApp (PLANO-WHATSAPP): os números da plataforma. Cada número (canal) tem nome, departamento,
  * a descrição do que atende e a SARA responsável; é uma instância da Evolution, conectada pelo QR Code
- * (WhatsApp Web) ou, numa etapa seguinte, pela API oficial da Meta. Dentro de cada número, as listas de quem
+ * (WhatsApp Web, Evolution API: decisão do proprietário, 24/10/2026, sem API oficial). Dentro de cada número, as listas de quem
  * fala com ele (interna e externa). Só o proprietário.
  */
 type Estado = "sem_configuracao" | "fora_do_ar" | "sem_instancia" | "desconectado" | "aguardando_qr" | "conectado" | "api_oficial";
@@ -26,7 +26,7 @@ const ROTULO: Record<Estado, [string, "success" | "attention" | "danger" | "neut
   sem_instancia: ["Ainda não conectado", "neutral"],
   fora_do_ar: ["Evolution sem resposta", "danger"],
   sem_configuracao: ["Sem configuração no servidor", "danger"],
-  api_oficial: ["API oficial (etapa seguinte)", "info"],
+  api_oficial: ["API oficial (não usada)", "neutral"],
 };
 const DEPARTAMENTOS = ["Comunicação interna", "Comercial", "Atendimento a clientes", "Compras", "Fiscal", "Financeiro", "RH", "Produção", "Fundição", "Almoxarifado", "TI", "Portaria"];
 const VAZIO: FormCanal = { nome: "", departamento: "", descricao: "", sara_modulo: "", conexao: "whatsapp_web" };
@@ -89,7 +89,7 @@ export function WhatsappCanal({ notify }: { notify: (m: string) => void }) {
         ))}
 
       <Callout variant="info" title="Como usar os números pelo QR Code">
-        Cada número conectado pelo QR Code é um WhatsApp Web automatizado: use com quem aceitou receber, em volume baixo e sem disparo em massa, porque o WhatsApp não é oficial nesse modo e o número pode ser bloqueado. Para falar com muitos fornecedores e clientes, o caminho é um número na API oficial da Meta, numa etapa seguinte.
+        Cada número conectado pelo QR Code é um WhatsApp Web automatizado, pela Evolution: use com quem está nas listas, em volume baixo e sem disparo em massa, porque o WhatsApp não é oficial nesse modo e o número pode ser bloqueado. Para fornecedores e clientes, prefira um número separado do Chip interno.
       </Callout>
     </>
   );
@@ -110,14 +110,6 @@ function FormularioCanal({ form, saras, ocupado, mudar, salvar, cancelar }: { fo
           {saras.map((s) => <option key={s.modulo} value={s.modulo}>{s.rotulo}</option>)}
         </select>
       </label>
-      {!form.id && (
-        <label>Conexão
-          <select value={form.conexao} onChange={(e) => mudar({ conexao: e.target.value as FormCanal["conexao"] })}>
-            <option value="whatsapp_web">Chip pelo QR Code (WhatsApp Web)</option>
-            <option value="api_oficial" disabled>API oficial da Meta (etapa seguinte)</option>
-          </select>
-        </label>
-      )}
       <label className="wa-obs">Descrição<textarea value={form.descricao} onChange={(e) => mudar({ descricao: e.target.value })} maxLength={400} rows={2} placeholder="Para que serve este número e quem ele atende" /></label>
       <div className="wa-acoes">
         <Button type="button" variant="secondary" onClick={cancelar}>Cancelar</Button>

@@ -22,6 +22,7 @@ import { instrucoesDeHabilidades } from "./habilidades";
 import { contextoDeTempo, primeiroNome, situacaoDaConversa } from "./tempo";
 import { FORA_DA_SUBAGENTE, REGRA_SUBAGENTE, ferramentaPerguntarASara, type Rodar, type UsoSubagente } from "./central/subagente";
 import { DOCUMENTOS_RECEBIDOS, ENVIAR_DOCUMENTO, ferramentaCriarDocumento, type ContextoDocumentos } from "./central/documentos";
+import { ENVIAR_WHATSAPP } from "../whatsapp/enviar";
 import { ferramentaCriarMensagemDeVoz } from "./central/mensagem-de-voz";
 import { ferramentaProporLicao, memoriaDaSara } from "./central/licoes";
 import { semFonteNaConta } from "./central/verificador";
@@ -92,7 +93,7 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
       return { ...r, dados };
     } };
     const ferramentas: Ferramenta[] = [ferramentaPerguntarASara(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos.fontes), calcular, PERIODO,
-      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ferramentaCriarDocumento(documentos), ENVIAR_DOCUMENTO, ferramentaCriarMensagemDeVoz(documentos),
+      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ferramentaCriarDocumento(documentos), ENVIAR_DOCUMENTO, ENVIAR_WHATSAPP, ferramentaCriarMensagemDeVoz(documentos),
       // Painel na tela (como as SARAs das áreas): os números vêm das consultas das áreas ou da calculadora.
       MOSTRAR,
       // J5: o que a pessoa ensina vira lição, aprovada pela área.

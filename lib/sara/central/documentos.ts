@@ -126,7 +126,7 @@ async function pessoasAtivas(sb: SupabaseClient): Promise<Pessoa[]> {
 
 export const ENVIAR_DOCUMENTO: Ferramenta = {
   nome: "enviar_documento", rotulo: "preparou o envio de um documento", exige: [],
-  descricao: "PREPARA o envio de um documento já criado (criar_documento) para uma pessoa da empresa, pela plataforma (aviso no sino e \"Documentos para você\"). A pessoa que pediu permite antes. Diga o id do documento e o nome de quem recebe, como foi falado. Para fora da empresa (e-mail, WhatsApp) ainda não há envio: diga que o PDF pode ser baixado e encaminhado.",
+  descricao: "PREPARA o envio de um documento já criado (criar_documento) para uma pessoa da empresa, pela plataforma (aviso no sino e \"Documentos para você\"). A pessoa que pediu permite antes. Diga o id do documento e o nome de quem recebe, como foi falado. Para mandar pelo WhatsApp (a pessoas da empresa ou contatos externos das listas), use enviar_pelo_whatsapp; por e-mail ainda não há envio.",
   esquema: { type: "object", properties: { documento: { type: "string", description: "O id que criar_documento devolveu." }, para: { type: "string", description: "Nome de quem recebe (ex.: \"Ana\")." } }, required: ["documento", "para"] },
   acao: {
     nivel: "operar", modulos: ["warroom"],

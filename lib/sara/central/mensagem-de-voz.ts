@@ -15,7 +15,7 @@ import { conferirNumeros } from "./verificador";
  *   - O texto é conferido como os documentos: todo número tem de estar no que as áreas devolveram.
  *   - As expressões da personalidade (*suspira*, *pausa breve*…) viram as tags do motor (nunca lidas).
  *   - O áudio (MP3) fica no bucket privado dos documentos, como um documento do tipo mensagem_voz.
- *   - O ENVIO pelo WhatsApp depende do número dedicado (B-04): até lá, a mensagem fica pronta para ouvir e baixar.
+ *   - O ENVIO pelo WhatsApp é a ação enviar_pelo_whatsapp (lib/whatsapp/enviar.ts, W4), com o Permitir.
  */
 
 export const URL_TTS = "https://api.x.ai/v1/tts";
@@ -75,7 +75,7 @@ export function ferramentaCriarMensagemDeVoz(ctx: ContextoDocumentos): Ferrament
       const { error: eArq } = await sb.rpc("sara_documento_arquivo", { p_documento: id, p_caminho: caminho, p_paginas: null, p_bytes: audio.length });
       if (eArq) return { dados: { erro: `Não ligou o áudio: ${eArq.message}` }, fontes: [] };
       ctx.criados.push({ id, numero, titulo: `${titulo} (para ${para})`, tipo: "mensagem_voz", paginas: 0 });
-      return { dados: { gravada: true, id, numero, observacao: "A mensagem aparece na tela para ouvir e baixar. O envio pelo WhatsApp ainda depende do número dedicado da empresa." },
+      return { dados: { gravada: true, id, numero, observacao: "A mensagem aparece na tela para ouvir e baixar. Para mandar pelo WhatsApp, use enviar_pelo_whatsapp com este id." },
         fontes: [{ rotulo: `Mensagem de voz ${numero}`, link: `/api/sara/documentos/${id}/arquivo` }] };
     },
   };

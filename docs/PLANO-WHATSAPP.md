@@ -111,8 +111,8 @@ A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está 
 | W1 | Canal | Evolution API + Postgres + Redis no Coolify (rede interna); chip conectado por QR em **Fundação › WhatsApp** (estrutura da plataforma, só o proprietário): estado da conexão, QR Code, desconectar e envio de teste; conferência do formato de áudio | Memória do servidor medida; o proprietário lê o QR com o chip |
 | W2 | Vários números, listas e alertas internos | **Vários números da plataforma** (cada um uma instância da Evolution): nome, departamento, descrição do que atende e **SARA responsável**; conectar pelo QR, teste, desconectar, desativar e remover. Em cada número, duas listas fechadas: **Comunicação interna** (número + usuário, que precisa ter a SARA do número) e **Comunicação externa** (número + nome + fornecedor/cliente/outro, com vínculo opcional ao cadastro); ativar/desativar, remover, boas-vindas opcional e auditoria (migração 202610240002); alertas da plataforma e da Forja (P-06) com horário silencioso (20h–7h e domingo); quais avisos vão ao WhatsApp: **a decidir** | W1 |
 | W3 | SARA pelo WhatsApp | Entrada pelo webhook, identificação da pessoa, a SARA da área certa (ou a central, para quem tem) com a sessão dela, texto com texto e áudio com áudio (§4), Permitir por link | W2 |
-| W4 | Confirmar pelo WhatsApp e envios da central | Marca "pode confirmar pelo WhatsApp" no quadro de limites (§5); documentos em PDF e mensagens de voz da SARA central para pessoas da empresa, com o Permitir | W3; áreas liberam as ações |
-| W5 | Quem é de fora | Número na API oficial da Meta (instância `WHATSAPP-BUSINESS`), modelos de mensagem aprovados, convite e cobrança a fornecedores, mensagens a clientes | Número oficial e conta Meta Business verificada |
+| W4 | Envios da central e confirmar pelo WhatsApp | **Envio (construído):** a SARA central manda pelo WhatsApp documentos em PDF, mensagens de voz e texto a quem está nas listas de um número (interna e externa), com o Permitir, só pelo proprietário por enquanto (`enviar_pelo_whatsapp`). **Depois:** a marca "pode confirmar pelo WhatsApp" no quadro de limites (§5) | W3 |
+| W5 | Respostas a quem é de fora | **Sem API oficial (decisão do proprietário, 24/10/2026): tudo pela Evolution.** O envio a fornecedores e clientes já existe na W4; a W5 define o que a SARA pode responder a um contato externo que escreve (sem credencial: só o que o proprietário autorizar) | W4 |
 
 ## 7. Pendências
 
@@ -125,6 +125,7 @@ A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está 
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 24/10/2026 | **Sem API oficial da Meta:** tudo pela Evolution, inclusive fornecedores e clientes (decisão do proprietário). W3 no ar e testada por ele ("respondeu perfeitamente"). W4 (envio da central pelo WhatsApp) em construção | Proprietário |
 | 24/10/2026 | W3 construída: webhook da Evolution pela rede interna (alias `pecsil-business-os`, segredo no caminho), registro das mensagens (migração 202610240003, sem o conteúdo), fora da lista em silêncio, a SARA do número com a sessão da pessoa pela mesma função da tela (`lib/sara/responder.ts`), texto com texto e áudio com nota de voz | — |
 | 24/10/2026 | Vários números (pedido do proprietário): cada número com departamento, descrição e SARA responsável (ex.: um só para o Comercial, outro para o atendimento a clientes, outro para o Fiscal); as listas passam a ser de cada número; o chip atual vira o primeiro número | Proprietário |
 | 24/10/2026 | Duas listas (pedido do proprietário): Comunicação interna (funcionários, ligados ao usuário) e Comunicação externa (fornecedores, clientes e outros, para os envios e respostas autorizadas da W5). Um número vale para uma lista só | Proprietário |
