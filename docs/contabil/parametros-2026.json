@@ -1,0 +1,475 @@
+{
+  "_sobre": "Semente da camada 1 (legal) e da camada 2 (UF/município) do módulo Contábil-Fiscal. Pesquisa de 25/10/2026 em fonte oficial; onde o Planalto ou o PDF não respondeu, a confirmação veio de cópia integral (Câmara/legin, normaslegais) e está na confiança. Tudo fica 'rascunho' até o contador conferir. Nenhum valor sem fonte.",
+  "_esquema": "chave · escopo (legal | uf | municipio) · uf · valor (jsonb) · vigente_de · vigente_ate · fonte {norma, url} · confianca (alta | media | baixa) · situacao · observacao",
+  "parametros": [
+    {
+      "chave": "salario_minimo",
+      "escopo": "legal",
+      "valor": { "mensal": 1621.00, "diario": 54.04, "hora": 7.37 },
+      "vigente_de": "2026-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Decreto 12.797, de 23/12/2025, art. 1º (DOU 24/12/2025)", "url": "https://www.in.gov.br/en/web/dou/-/decreto-n-12.797-de-23-de-dezembro-de-2025-677935309" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "inss_segurado_tabela",
+      "escopo": "legal",
+      "valor": {
+        "progressiva_por_faixa": true,
+        "faixas": [
+          { "ate": 1621.00, "aliquota": 0.075 },
+          { "ate": 2902.84, "aliquota": 0.09 },
+          { "ate": 4354.27, "aliquota": 0.12 },
+          { "ate": 8475.55, "aliquota": 0.14 }
+        ],
+        "teto_salario_contribuicao": 8475.55,
+        "desconto_maximo_aprox": 988.09
+      },
+      "vigente_de": "2026-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Portaria Interministerial MPS/MF 13, de 09/01/2026 (DOU 12/01/2026), arts. 2º e 7º e Anexo II", "url": "https://www.gov.br/previdencia/pt-br/assuntos/rpps/destaques/publicada-a-portaria-interministerial-mps-mf-no-13-de-9-01-2026-que-dispoe-sobre-o-reajuste-dos-beneficios-pagos-pelo-inss-e-demais-valores" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "salario_familia",
+      "escopo": "legal",
+      "valor": { "cota": 67.54, "remuneracao_maxima": 1980.38, "idade_maxima_filho": 14 },
+      "vigente_de": "2026-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Portaria Interministerial MPS/MF 13/2026, art. 4º", "url": "https://www.gov.br/esocial/pt-br/noticias/liberado-o-envio-de-eventos-de-folha-para-o-esocial-apos-publicacao-de-portaria-que-reajusta-valores-previdenciarios-em-2026-1" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "irrf_tabela_mensal",
+      "escopo": "legal",
+      "valor": {
+        "faixas": [
+          { "ate": 2428.80, "aliquota": 0.0, "deduzir": 0.0 },
+          { "ate": 2826.65, "aliquota": 0.075, "deduzir": 182.16 },
+          { "ate": 3751.05, "aliquota": 0.15, "deduzir": 394.16 },
+          { "ate": 4664.68, "aliquota": 0.225, "deduzir": 675.49 },
+          { "ate": null, "aliquota": 0.275, "deduzir": 908.73 }
+        ],
+        "deducao_dependente": 189.59,
+        "desconto_simplificado_mensal": 607.20
+      },
+      "vigente_de": "2025-05-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Lei 15.191/2025 (tabela); RFB, tabelas 2026", "url": "https://www.gov.br/receitafederal/pt-br/assuntos/meu-imposto-de-renda/tabelas/2026" },
+      "confianca": "alta",
+      "situacao": "rascunho",
+      "observacao": "A tabela não mudou em 2026; o que mudou foi a redução da Lei 15.270 (chave irrf_reducao_lei_15270)."
+    },
+    {
+      "chave": "irrf_reducao_lei_15270",
+      "escopo": "legal",
+      "valor": {
+        "regra": "Calcular o imposto pela tabela (após INSS e dependentes, ou simplificado) e subtrair a redução, calculada sobre o rendimento bruto tributável; limitada ao imposto; vale também no 13º.",
+        "ate_5000": "redução igual ao imposto (até 312,89): zera",
+        "de_5000_01_ate_7350": "978,62 − 0,133145 × rendimento_tributável",
+        "acima_7350": "sem redução"
+      },
+      "vigente_de": "2026-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Lei 15.270, de 26/11/2025, art. 2º (Lei 9.250/1995 art. 3º-A); efeitos desde 01/01/2026 (art. 8º)", "url": "https://www2.camara.leg.br/legin/fed/lei/2025/lei-15270-26-novembro-2025-798354-publicacaooriginal-177117-pl.html" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "dividendos_retencao_fonte",
+      "escopo": "legal",
+      "valor": {
+        "aliquota": 0.10,
+        "base": "lucros e dividendos pagos pela mesma PJ à mesma PF acima de R$ 50.000 no mês (total do mês)",
+        "fora": "lucros apurados até 2025 com distribuição aprovada até 31/12/2025",
+        "irpfm": "renda anual acima de R$ 600 mil: alíquota linear até 10% em R$ 1,2 mi; só na declaração anual (exercício 2027)"
+      },
+      "vigente_de": "2026-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Lei 15.270/2025 (Lei 9.250 arts. 6º-A e 16-A)", "url": "https://www2.camara.leg.br/legin/fed/lei/2025/lei-15270-26-novembro-2025-798354-publicacaooriginal-177117-pl.html" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "fgts",
+      "escopo": "legal",
+      "valor": { "aliquota": 0.08, "vencimento_mensal": "dia 20 do mês seguinte (antecipa se não útil), FGTS Digital", "rescisorio": "10º dia corrido", "multa_rescisoria": 0.40, "adicional_10_pct": "extinto para dispensas desde 01/01/2020" },
+      "vigente_de": "2024-03-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Lei 8.036/1990 art. 15 (red. Lei 14.438/2022) e art. 18 §1º; Lei 13.932/2019 art. 12", "url": "https://www.gov.br/pt-br/servicos/emissao-de-guia-para-recolhimento-do-fgts-atraves-do-fgts-digital" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "prazo_esocial_fechamento",
+      "escopo": "legal",
+      "valor": { "evento": "S-1299", "prazo": "dia 15 do mês seguinte; 13º até 20/12" },
+      "vigente_de": "2024-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Manual de Orientação do eSocial S-1.3", "url": "https://www.gov.br/esocial/pt-br/documentacao-tecnica" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "prazo_efd_reinf",
+      "escopo": "legal",
+      "valor": { "prazo": "dia 15 do mês seguinte; posterga para o dia útil seguinte" },
+      "vigente_de": "2024-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "IN RFB 2.043/2021 art. 3º §1º (red. IN 2.181/2024) e art. 6º (red. IN 2.163/2023)", "url": "http://normas.receita.fazenda.gov.br/" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "prazo_dctfweb",
+      "escopo": "legal",
+      "valor": { "prazo": "último dia útil do mês seguinte", "observacao": "DCTF PGD extinta para fatos geradores desde 01/2025 (débitos via MIT)" },
+      "vigente_de": "2025-02-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "IN RFB 2.237/2024 art. 6º (red. IN RFB 2.248/2025)", "url": "https://www.gov.br/receitafederal/pt-br/assuntos/noticias/2025/fevereiro/contribuintes-ganham-mais-tempo-para-entregar-a-dctfweb" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "prazo_efd_contribuicoes",
+      "escopo": "legal",
+      "valor": { "prazo": "10º dia útil do 2º mês seguinte à competência" },
+      "vigente_de": "2012-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "IN RFB 1.252/2012 art. 7º", "url": "http://normas.receita.fazenda.gov.br/" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "prazo_efd_icms_ipi",
+      "escopo": "uf",
+      "uf": "SP",
+      "valor": { "prazo": "dia 20 do mês seguinte" },
+      "vigente_de": "2016-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Portaria CAT 147/2009 art. 10 (red. Portaria CAT 22/2016)", "url": "https://legislacao.fazenda.sp.gov.br/Paginas/pcat1472009.aspx" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "gia_sp",
+      "escopo": "uf",
+      "uf": "SP",
+      "valor": { "situacao": "dispensada para o RPA desde 01/01/2026 (GIA-ST desde 07/2025)" },
+      "vigente_de": "2026-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Portaria SRE 2/2025", "url": "https://portal.fazenda.sp.gov.br/servicos/gia/paginas/eliminacao-da-gia.aspx" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "prazo_ecd",
+      "escopo": "legal",
+      "valor": { "prazo": "último dia útil de junho do ano seguinte" },
+      "vigente_de": "2021-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "IN RFB 2.003/2021", "url": "http://sped.rfb.gov.br/projeto/show/273" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "prazo_ecf",
+      "escopo": "legal",
+      "valor": { "prazo": "último dia útil de julho do ano seguinte" },
+      "vigente_de": "2021-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "IN RFB 2.004/2021 art. 3º", "url": "http://sped.rfb.gov.br/projeto/show/269" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "dirf",
+      "escopo": "legal",
+      "valor": { "situacao": "extinta para fatos geradores desde 01/01/2025; última foi a DIRF 2025 (ano-calendário 2024); substituída por EFD-Reinf R-4000 e eSocial" },
+      "vigente_de": "2025-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "RFB, Perguntas e Respostas DIRF 2025", "url": "https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/perguntas-e-respostas/dirf/dirf2025-perguntas-respostas-v20241230.pdf" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "fap_vigencia_2026",
+      "escopo": "legal",
+      "valor": { "portaria": "MPS/MF 10, de 10/09/2025", "consulta_desde": "2025-09-30", "rat": "1%, 2% ou 3% pelo CNAE; RAT × FAP (0,5 a 2,0)" },
+      "vigente_de": "2026-01-01",
+      "vigente_ate": "2026-12-31",
+      "fonte": { "norma": "Portaria MPS/MF 10/2025", "url": "https://www.gov.br/previdencia/pt-br" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "fap_vigencia_2027",
+      "escopo": "legal",
+      "valor": { "portaria": "MPS/MF 16, de 24/09/2026 (DOU 29/09/2026)", "consulta_desde": "2026-09-30", "contestacao": "01 a 30/11/2026" },
+      "vigente_de": "2027-01-01",
+      "vigente_ate": "2027-12-31",
+      "fonte": { "norma": "Portaria MPS/MF 16/2026", "url": "https://www.gov.br/previdencia/pt-br/noticias/2026/setembro/fator-acidentario-de-prevencao-fap-com-vigencia-para-2027-esta-disponivel-para-consulta-a-partir-desta-quarta-feira-30" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "terceiros_base_calculo",
+      "escopo": "legal",
+      "valor": { "teto_20_salarios_minimos": false, "regra": "base integral para SESI/SENAI/SESC/SENAC (Tema 1.079 STJ) e para salário-educação, INCRA, SEBRAE, SENAR, SEST/SENAT etc. (Tema 1.390 STJ, sem modulação; ED pendentes)" },
+      "vigente_de": "2024-05-02",
+      "vigente_ate": null,
+      "fonte": { "norma": "STJ, Temas 1.079 (13/03/2024) e 1.390 (11/02/2026)", "url": "https://www.stj.jus.br/sites/portalp/Paginas/Comunicacao/Noticias/2026/23022026-Repetitivo-afasta-teto-de-20-salarios-minimos-para-base-de-calculo-das-contribuicoes-parafiscais.aspx" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "lucro_presumido_percentuais",
+      "escopo": "legal",
+      "valor": {
+        "industria_comercio": { "irpj": 0.08, "csll": 0.12 },
+        "servicos": { "irpj": 0.32, "csll": 0.32 },
+        "irpj_aliquota": 0.15,
+        "irpj_adicional": { "aliquota": 0.10, "excedente_trimestral": 60000.00 },
+        "csll_aliquota": 0.09,
+        "lc_224_2025": {
+          "acrescimo_relativo": 0.10,
+          "percentuais_majorados": { "industria_comercio": { "irpj": 0.088, "csll": 0.132 }, "servicos": { "irpj": 0.352, "csll": 0.352 } },
+          "aplica_sobre": "parcela da receita bruta anual que exceder R$ 5.000.000 (R$ 1.250.000 por trimestre, com ajuste no ano; proporcional por atividade)",
+          "vigencia_irpj": "2026-01-01",
+          "vigencia_csll": "2026-04-01"
+        }
+      },
+      "vigente_de": "2026-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Lei 9.249/1995 arts. 15 e 20; LC 224, de 26/12/2025, art. 4º §4º VII e §5º; Decreto 12.808/2025; IN RFB 2.305/2025 e 2.306/2026", "url": "https://www.normaslegais.com.br/legislacao/lei-complementar-224-2025.htm" },
+      "confianca": "alta",
+      "situacao": "rascunho",
+      "observacao": "Há liminares isoladas (TRF2) suspendendo o acréscimo, sem efeito geral; ADI 8002 (CNI) pendente no STF. Não existe 'tributação mínima' para PJ: o IRPFM da Lei 15.270 é só de PF."
+    },
+    {
+      "chave": "pis_cofins_aliquotas",
+      "escopo": "legal",
+      "valor": {
+        "nao_cumulativo": { "pis": 0.0165, "cofins": 0.076 },
+        "cumulativo": { "pis": 0.0065, "cofins": 0.03 },
+        "receita_financeira_nao_cumulativo": { "pis": 0.0065, "cofins": 0.04 },
+        "icms_fora_da_base": "Tema 69 STF (ICMS destacado)",
+        "icms_fora_dos_creditos_desde": "2023-05-01 (Lei 14.592/2023; Tema 1364 STJ)",
+        "extincao": "2027-01-01 (CBS)"
+      },
+      "vigente_de": "2023-05-01",
+      "vigente_ate": "2026-12-31",
+      "fonte": { "norma": "Lei 10.637 art. 2º; Lei 10.833 art. 2º; Lei 9.715 art. 8º; Lei 9.718 art. 8º; Decreto 8.426/2015 art. 1º; Lei 14.592/2023 arts. 6º–7º", "url": "https://www.normaslegais.com.br/legislacao/lei-14592-2023.htm" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "codigos_darf",
+      "escopo": "legal",
+      "valor": {
+        "2089": "IRPJ lucro presumido",
+        "0220": "IRPJ lucro real trimestral",
+        "2362": "IRPJ lucro real estimativa mensal",
+        "2430": "IRPJ lucro real ajuste anual",
+        "2372": "CSLL lucro presumido",
+        "6012": "CSLL lucro real trimestral",
+        "2484": "CSLL estimativa mensal",
+        "6773": "CSLL ajuste anual",
+        "8109": "PIS faturamento (cumulativo)",
+        "6912": "PIS não cumulativo",
+        "8301": "PIS sobre folha (não é o cumulativo)",
+        "2172": "COFINS cumulativa",
+        "5856": "COFINS não cumulativa",
+        "5123": "IPI demais produtos",
+        "1708": "IRRF serviços prestados por PJ",
+        "8045": "IRRF outros rendimentos (comissões, propaganda)",
+        "5952": "CSRF (PIS/COFINS/CSLL retidos)"
+      },
+      "vigente_de": "2026-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "SIEF Receitas (consolidação 19/10/2026)", "url": "https://siefreceitas.receita.economia.gov.br" },
+      "confianca": "media",
+      "situacao": "rascunho",
+      "observacao": "Lista vem de reprodução do SIEF (buscadorncm.com.br/darf); a página oficial não renderizou. Conferir código a código."
+    },
+    {
+      "chave": "vencimentos_federais",
+      "escopo": "legal",
+      "valor": {
+        "irpj_csll_trimestral": "último dia útil do mês seguinte ao trimestre (quota única ou 3 quotas com Selic)",
+        "irpj_csll_estimativa": "último dia útil do mês seguinte",
+        "pis_cofins": "dia 25 do mês seguinte (antecipa se não útil)",
+        "ipi": "dia 25 do mês seguinte (cigarros dia 10)",
+        "irrf_1708_8045": "último dia útil do 2º decêndio do mês seguinte (dia 20)",
+        "csrf_5952": "último dia útil do 2º decêndio do mês seguinte ao pagamento (dia 20)",
+        "inss_patronal_e_retido_11": "dia 20 do mês seguinte (antecipa)"
+      },
+      "vigente_de": "2009-05-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Lei 9.430/1996 arts. 5º e 6º; Lei 11.933/2009 arts. 1º e 4º; Lei 11.196/2005 art. 70 I 'e'; Lei 10.833 art. 35", "url": "https://www.contadores.cnt.br/legislacoes/lei-n-11-933-de-28-de-abril-de-2009.html" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "retencao_irrf_tomador_pj",
+      "escopo": "legal",
+      "valor": {
+        "servicos_profissionais": 0.015,
+        "limpeza_conservacao_seguranca_vigilancia_locacao_mao_de_obra": 0.01,
+        "comissoes_propaganda": 0.015,
+        "dispensa": "IR retido ≤ R$ 10,00 (Lei 9.430 art. 67)",
+        "prestador_simples": "sem retenção",
+        "codigos": ["1708", "8045"]
+      },
+      "vigente_de": "2015-06-22",
+      "vigente_ate": null,
+      "fonte": { "norma": "RIR/2018 (Decreto 9.580) arts. 714, 716, 718, 723; Lei 9.430/1996 art. 67", "url": "http://normas.receita.fazenda.gov.br/sijut2consulta/anexoOutros.action?idArquivoBinario=75717" },
+      "confianca": "media",
+      "situacao": "rascunho",
+      "observacao": "Regra alta; numeração dos artigos do RIR a confirmar no Planalto (inacessível na pesquisa)."
+    },
+    {
+      "chave": "retencao_csrf_tomador_pj",
+      "escopo": "legal",
+      "valor": { "total": 0.0465, "csll": 0.01, "cofins": 0.03, "pis": 0.0065, "dispensa": "retenção ≤ R$ 10,00 (Lei 10.833 art. 31 §3º)", "codigo": "5952", "vencimento": "último dia útil do 2º decêndio do mês seguinte ao pagamento" },
+      "vigente_de": "2015-06-22",
+      "vigente_ate": null,
+      "fonte": { "norma": "Lei 10.833/2003 arts. 30, 31 e 35 (red. Lei 13.137/2015)", "url": "https://www.normaslegais.com.br/legislacao/tributario/lei10833.htm" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "retencao_inss_11_cessao_mao_de_obra",
+      "escopo": "legal",
+      "valor": {
+        "aliquota": 0.11,
+        "aplica": "cessão de mão de obra ou empreitada (lista taxativa da IN: arts. 111 e 112)",
+        "base": "valor bruto da NF; materiais e equipamentos discriminados saem da base (art. 116)",
+        "simples": "sem retenção, salvo Anexo IV",
+        "empreitada_total_e_avulsos": "fora da retenção (IN RFB 2.289/2025)",
+        "escrituracao": "R-2010 da EFD-Reinf (fato gerador = emissão da NF) → DCTFWeb → DARF",
+        "vencimento": "dia 20 do mês seguinte à emissão da NF"
+      },
+      "vigente_de": "2022-10-19",
+      "vigente_ate": null,
+      "fonte": { "norma": "Lei 8.212/1991 art. 31 (red. Lei 11.933/2009); IN RFB 2.110/2022 arts. 108–121; IN RFB 2.289/2025", "url": "https://www.normaslegais.com.br/legislacao/trabalhista/lei8212.htm" },
+      "confianca": "media",
+      "situacao": "rascunho",
+      "observacao": "Lei: alta. Rol completo do art. 112 da IN a conferir no texto da IN (PDF inacessível). Usinagem e manutenção de máquina: SC Cosit 28/2017 e 93/2021 (só com subordinação ao tomador)."
+    },
+    {
+      "chave": "iss_regra_geral",
+      "escopo": "legal",
+      "valor": { "local": "estabelecimento do prestador, salvo incisos I–XXV do art. 3º (local da execução)", "responsavel_tomador": "art. 6º §2º II: tomador PJ responsável nos subitens 3.05, 7.02, 7.04, 7.05, 7.09, 7.10, 7.12, 7.16, 7.17, 7.19, 11.02, 17.05, 17.10; demais casos só se a lei do município prevê", "aliquotas": "2% a 5%" },
+      "vigente_de": "2017-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "LC 116/2003 arts. 3º e 6º (red. LC 157/2016); STF Tema 1.020 (CPOM)", "url": "https://www.tjmg.jus.br/portal-tjmg/jurisprudencia/recurso-repetitivo-e-repercussao-geral/constitucionalidade-de-lei-municipal-a-determinar-retencao-do-iss-pelo-tomador-de-servico-em-razao-da-ausencia-de-cadastro-do-prestador-nao-estabelecido-no-territorio-do-referido-municipio-tema-1020-stf.htm" },
+      "confianca": "media",
+      "situacao": "rascunho",
+      "observacao": "A lei do município da Pecsil (camada 2) ainda não foi levantada."
+    },
+    {
+      "chave": "reforma_2026_fase_teste",
+      "escopo": "legal",
+      "valor": {
+        "cbs": 0.009,
+        "ibs": 0.001,
+        "recolhimento": "dispensado para quem cumpre as obrigações acessórias (LC 214 art. 348 §1º); apuração meramente informativa (Decreto 12.955 art. 464)",
+        "obrigacao": "destacar os grupos IBS/CBS nos documentos fiscais; NF-e, NFC-e, CT-e e MDF-e obrigatórios desde 03/08/2026; NFS-e geral desde 01/10/2026; Simples e NF-e de importação desde 01/01/2027",
+        "rejeicao": "suspensa (Ato Técnico Conjunto RFB/CGIBS 1/2026); data de retomada não publicada",
+        "leiaute": "NT 2025.002 v1.52 (01/10/2026)",
+        "conformidade": "corrigir inconsistências até 31/12/2026 (Ato Conjunto 5/2026)"
+      },
+      "vigente_de": "2026-01-01",
+      "vigente_ate": "2026-12-31",
+      "fonte": { "norma": "ADCT art. 125; LC 214/2025 arts. 343, 346, 348; LC 227/2026; Decreto 12.955/2026; Atos Conjuntos RFB/CGIBS 1/2025, 4/2026, 5/2026", "url": "https://www.cgibs.gov.br/atos-conjuntos" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "reforma_2027",
+      "escopo": "legal",
+      "valor": {
+        "cbs": "plena: alíquota de referência menos 0,1 p.p. em 2027–2028",
+        "pis_cofins": "extintos",
+        "ibs": "0,05% estadual + 0,05% municipal",
+        "ipi": "zero, exceto produtos com alíquota ≥ 6,5% na TIPI de 31/12/2023 industrializados na ZFM (lista do Executivo pendente, LC 214 art. 454)",
+        "imposto_seletivo": "veículos, embarcações/aeronaves, fumígenos, bebidas alcoólicas e açucaradas, bens minerais (teto 0,25%), prognósticos; peças fundidas e usinadas fora; MP das alíquotas pendente",
+        "split_payment": "opcional em 2027 (testes desde 15/10/2026); obrigatoriedade sinalizada para 2028, sem ato"
+      },
+      "vigente_de": "2027-01-01",
+      "vigente_ate": "2028-12-31",
+      "fonte": { "norma": "ADCT arts. 126–127; LC 214/2025 arts. 31–36, 344, 347, 409–422, 454", "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/Lcp214.htm" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "reforma_aliquota_referencia",
+      "escopo": "legal",
+      "valor": { "estimativa_total": 0.2791, "ibs": 0.1870, "cbs_por_diferenca": 0.0921, "natureza": "parâmetro orçamentário 2027, não é alíquota vigente", "cbs_2027": "TCU até 30/10/2026; Resolução do Senado até 15/12/2026; sem resolução publicada em 25/10/2026" },
+      "vigente_de": "2026-07-31",
+      "vigente_ate": null,
+      "fonte": { "norma": "Resolução CGIBS 14/2026 (29/07/2026); LC 214 arts. 349 e 353; Resolução TCU 388/2026", "url": "https://www.cgibs.gov.br/resolucoes" },
+      "confianca": "media",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "reforma_2029_2033",
+      "escopo": "legal",
+      "valor": {
+        "transicao_icms_iss": { "2029": 0.9, "2030": 0.8, "2031": 0.7, "2032": 0.6 },
+        "2033": "ICMS e ISS extintos; IBS pleno",
+        "saldos_icms_31_12_2032": "homologação em até 5 anos a partir de 01/01/2033; Estado responde em 24 meses; silêncio = homologação; IPCA desde 01/02/2033; compensação com IBS em 240 parcelas; crédito do ICMS-ST do estoque",
+        "beneficios_estaduais": "reduzidos na mesma proporção 2029–2032; compensação só para benefícios onerosos (FCBF; habilitação 01/01/2026–31/12/2028 pelo e-CAC, Portaria RFB 635/2025)"
+      },
+      "vigente_de": "2029-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "ADCT arts. 128–129 e 134; LC 227/2026 arts. 132–143; LC 214 arts. 384+", "url": "https://www2.camara.leg.br/legin/fed/leicom/2026/leicomplementar-227-13-janeiro-2026-798657-publicacaooriginal-177770-pl.html" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "reforma_creditos_e_regimes",
+      "escopo": "legal",
+      "valor": {
+        "nao_cumulatividade": "crédito sobre toda aquisição com débito extinto, exceto uso e consumo pessoal (art. 47)",
+        "uso_consumo_pessoal": "joias, obras de arte, bebidas alcoólicas, tabaco, armas, lazer e estética, bens cedidos a sócios e empregados; EPI, uniformes, alimentação no local e saúde ocupacional ficam FORA (crédito mantido, art. 57 §3º)",
+        "bens_de_capital": "crédito integral e imediato (art. 108); suspensão por ato conjunto ainda não publicado (art. 109)",
+        "exportacao": "imune, com apropriação e utilização dos créditos (arts. 8º e 79)",
+        "reducao_60": "educação, saúde, dispositivos médicos, medicamentos, alimentos, insumos agropecuários etc. (art. 128)",
+        "reducao_30": "profissões regulamentadas (art. 127)",
+        "fundicao_usinagem": "regime regular, alíquota cheia, crédito pleno"
+      },
+      "vigente_de": "2027-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "LC 214/2025 arts. 8º, 47, 57, 79, 108–109, 125–128", "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/Lcp214.htm" },
+      "confianca": "alta",
+      "situacao": "rascunho"
+    },
+    {
+      "chave": "depreciacao_taxas_fiscais",
+      "escopo": "legal",
+      "valor": { "edificacoes": { "anos": 25, "taxa": 0.04 }, "maquinas_equipamentos": { "anos": 10, "taxa": 0.10 }, "veiculos": { "anos": 5, "taxa": 0.20 }, "moveis_utensilios": { "anos": 10, "taxa": 0.10 }, "computadores": { "anos": 5, "taxa": 0.20 }, "ferramentas": { "anos": 5, "taxa": 0.20 }, "turnos": { "2": 1.5, "3": 2.0 }, "pequeno_valor": "custo até R$ 1.200 ou vida útil até 1 ano pode ir a despesa (RIR art. 313 II)", "ciap": "48 parcelas mensais" },
+      "vigente_de": "2017-03-16",
+      "vigente_ate": null,
+      "fonte": { "norma": "IN RFB 1.700/2017 Anexo III; RIR/2018 arts. 312–323; Lei Kandir (CIAP)", "url": "http://normas.receita.fazenda.gov.br/" },
+      "confianca": "media",
+      "situacao": "rascunho",
+      "observacao": "Valores de conhecimento geral; não foram conferidos no texto da IN nesta pesquisa. Conferir antes de usar."
+    },
+    {
+      "chave": "feriados_nacionais",
+      "escopo": "legal",
+      "valor": { "fonte_automatica": "BrasilAPI /api/feriados/v1/{ano} e ANBIMA feriados_nacionais.xls", "regra_antecipacao": "DAS, DARF, GPS/DARF INSS e DAE FGTS antecipam para o último dia útil anterior; ICMS SP antecipa; outros Estados variam; ECD/ECF em geral mantêm" },
+      "vigente_de": "2026-01-01",
+      "vigente_ate": null,
+      "fonte": { "norma": "Lei 662/1949; Lei 10.607/2002; Lei 14.759/2023 (Consciência Negra)", "url": "https://brasilapi.com.br/api/feriados/v1/2026" },
+      "confianca": "media",
+      "situacao": "rascunho",
+      "observacao": "A regra de antecipação por tributo precisa ser conferida norma a norma antes do calendário (N-06)."
+    }
+  ]
+}

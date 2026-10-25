@@ -349,6 +349,32 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 
 ---
 
+### N — Contábil-Fiscal (núcleo contábil, apurações, Sentinela)
+
+Origem: [PLANO-CONTABIL-FISCAL.md](PLANO-CONTABIL-FISCAL.md) (25/10/2026). Dois modos de operação
+sobre o mesmo núcleo (contabilidade interna / escritório externo); a Pecsil começa no modo escritório
+externo. Fecha as objeções do comprador "contabilidade fica com o escritório" e "IBS/CBS parcial". A
+ordem abaixo é proposta; a construção entra quando uma frente fechar.
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| N-01 | Fundação: parâmetros legais com vigência (3 camadas: legal, UF/município, empresa), teses, perfil da empresa com o modo de operação, exceções; carga 2026 em rascunho até o contador conferir; tela Fiscal › Parâmetros | 1 | 4 | 3 | 1,5 | 2 | 6,7 | decisão | Contador confere a carga; regime Presumido × Real (Jefferson) | PCF N-01 |
+| N-02 | Sentinela v1: 14 fontes oficiais, coleta, triagem, extração, proposta com diff e trecho, aprovação em 1 clique por "Decisões para você"; automático só para dado de API (Selic, IPCA, feriados, NCM, FAP); auditoria, métrica, teste de regressão | 1 | 5 | 3 | 3 | 2 | 3,7 | na fila | N-01; cadastro INLABS; extração registrada no Plano do Jev | PCF §4 |
+| N-03 | IBS/CBS completo: grupos no XML pela NT vigente (NF-e, NFS-e), apuração informativa 2026 por estabelecimento, apuração assistida e DeRE quando as APIs saírem do piloto, split payment, CBS 2027 pela Resolução do Senado | 1 | 5 | 5 | 2 | 2 | 7,5 | decisão | N-01; OK do Jefferson com o contador; C-09 para testar em homologação | PCF N-03 |
+| N-04 | Núcleo contábil 1: plano de contas contábil com referencial da RFB, regras de lançamento por evento (dado com vigência), lançamentos automáticos dos eventos existentes, lançamento manual com trilha, razão e balancete com integridade | 1 | 5 | 3 | 4 | 3 | 2,8 | decisão | N-01; D1 (plano e centros); regras com Ana, Jefferson e o contador | PCF §3.5 |
+| N-05 | Núcleo contábil 2: provisões, depreciação, fechamento por competência com trava, DRE e balanço (CPC 26), DFC, exportação para o escritório | 1 | 4 | 3 | 3 | 2 | 3,3 | na fila | N-04; N-08 | PCF §3.5 |
+| N-06 | Calendário fiscal da empresa: obrigações e vencimentos pelo perfil, regra de feriado, Agendas Tributárias federal e paulista importadas, avisos D-7/D-3/D-1 (sino, Bom dia, WhatsApp) | 1 | 4 | 2 | 1 | 2 | 8,0 | na fila | N-01; N-02 (agendas) | PCF N-06 |
+| N-07 | Apurações e guias: PIS/COFINS, IRPJ/CSLL (Presumido com a LC 224; Real com LALUR simplificado), IPI, ICMS, retenções do tomador no título a pagar com memória de cálculo; modo interno gera a guia, modo escritório confere a guia devolvida antes da aprovação | 1 | 4 | 3 | 2,5 | 2 | 4,0 | na fila | N-01; F-09; regras de retenção com a Ana e o contador | PCF N-07 |
+| N-08 | Patrimônio e depreciação: cadastro do bem, taxa fiscal × contábil, depreciação mensal, CIAP; alimenta o custo-hora (K-03) e o N-05 | 2 | 4 | 3 | 2 | 2 | 5,0 | na fila | Ativo do GRV (decisão A7); D2 | PCF N-08 |
+| N-09 | Checagem das notas de entrada: CFOP × CST × NCM, ativo (1.551/1.554, CIAP), devolução, grupos IBS/CBS presentes | + | 3 | 3 | 1 | 1 | 9,0 | na fila | N-01 | PCF N-09 |
+| N-10 | Obrigações em arquivo, por degraus: Reinf R-2010/R-4020 → EFD-Contribuições → EFD ICMS/IPI → ECD → ECF; o ECOS gera e valida, o responsável técnico do modo assina e transmite | 2 | 4 | 2 | 5 | 3 | 1,6 | na fila | N-04, N-05, N-07, N-09 | PCF N-10 |
+| N-11 | Simulador da reforma 2026→2033 no orçamento e no caixa (IPI zero, CBS do Senado, split payment, saldo de ICMS) | + | 4 | 2 | 1,5 | 2 | 5,3 | na fila | N-01; N-03 | PCF N-11 |
+| N-12 | DRE gerencial, indicadores e relatório mensal de 1 página (Guia da SARA central) | + | 4 | 2 | 1,5 | 3 | 5,3 | decisão | N-05; F-05 (D1) | PCF N-12 |
+| N-13 | Levantamento de créditos de PIS/COFINS (Tema 779, EPI, energia, frete de insumo) para o contador, só se Lucro Real | + | 3 | 1 | 1,5 | 3 | 3,3 | decisão | N-09; regime (Jefferson + contador) | PCF N-13 |
+| N-14 | Folha: capacidade do produto (tabelas já na camada 1; cálculo, holerite, eSocial S-1200/S-1210/S-1299), desligada na Pecsil | 2 | 3 | 1 | 6 | 3 | 0,8 | adiado (produto) | N-01, N-02; cliente que precise; na Pecsil, Rosana e Ana | PCF N-14 |
+
+---
+
 ## 4. Entregue (histórico)
 
 | Quando | O quê | Commit |
@@ -479,6 +505,7 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | 19/10/2026 | SARA de TI com o modelo mais capaz (Sonnet 5.5), a única: agente técnico (linguagem técnica, passos e comandos em bloco, até 5 buscas em documentação de fabricantes e sistemas), mesmos guardrails. Ajustes que valem para todas: dúvida de outro módulo indica a SARA certa em vez da recusa padrão; citação da pesquisa não quebra a frase; lembrete de escrever a resposta quando o modelo só abre a tela. Teste com o modelo real 7/7 | Proprietário / Claude |
 | 24/10/2026 | A-13 construído (compra assistida, degrau 1). Aprovar cotação pela SARA ficou de fora: a tela aprova direto na tabela, sem função do banco, e aprovar é do Domingo e do Ricardo; só entra com o "sim" deles. Degrau 2 (compra recorrente pré-autorizada com teto) é decisão do Compras; degrau 3 (reposição pelo mínimo) espera o A-02 e o A-03; degrau 4 (falar com o fornecedor) espera o B-04 e o C-14 | Proprietário |
 | 24/10/2026 | WhatsApp: Evolution API v2 (não a Go), chip interno já existe, ativação aceita, meio-termo para confirmar ações pelo WhatsApp, resposta no mesmo formato (texto ou áudio). Plano em PLANO-WHATSAPP.md (W1–W5); o vigia T-03 segue na API oficial da Meta | Proprietário |
+| 25/10/2026 | Pacote "57 Agents Contabilidade" lido por inteiro: licença "não redistribuir" e números errados para 2026 (salário mínimo, teto do INSS, DCTFWeb, FGTS, códigos DARF); fica só a ideia. Estudo de caso em fonte oficial (parâmetros 2026, reforma, jurisprudência firmada × pautada, 14 fontes monitoráveis testadas), com sementes em `docs/contabil/`. Decisões do proprietário: módulo com **dois modos** (contabilidade interna / escritório externo) sobre um núcleo contábil próprio; **Sentinela** (automático só para dado de API; o resto em 1 clique); folha como capacidade do produto, desligada na Pecsil; construção só quando uma frente fechar. Contexto do produto ECOS (R$ 155 mil + suporte mensal; objeções do comprador: contabilidade própria, SPED, IBS/CBS). Entra a raia N (N-01 a N-14); plano em [PLANO-CONTABIL-FISCAL.md](PLANO-CONTABIL-FISCAL.md) | Proprietário / Claude |
 
 ## 9. Painel
 
