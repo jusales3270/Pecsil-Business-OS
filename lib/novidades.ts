@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-26-calendario-fiscal",
+    data: "2026-10-26",
+    area: "Fiscal",
+    modulos: ["fiscal", "financeiro"],
+    funcionalidades: ["fiscal.icms", "fiscal.config", "fiscal.parametros", "fiscal.nfe", "fiscal.escritorio", "fiscal.portal", "fiscal.contabilidade", "financeiro.pagar"],
+    titulo: "Calendário fiscal com os vencimentos da empresa",
+    itens: [
+      "Nova tela Fiscal › Calendário fiscal: declarações e guias (DCTFWeb, eSocial, EFD-Reinf, FGTS, IRRF, PIS/COFINS, IPI, EFD, ECD, ECF…) com a data já ajustada pelo feriado e o porquê (\"antecipado: dia 20 cai em domingo\").",
+      "O que vence nos próximos 7 dias aparece nos avisos da SARA do Fiscal e, para quem paga, do Financeiro (só as guias), e entra no Bom dia. Vence hoje ou amanhã fica em vermelho.",
+      "A agenda baixa em .ics, para o Outlook ou o Google Agenda, com lembrete 3 dias antes.",
+      "Os prazos estão nos Parâmetros legais e valem como rascunho até o contador conferir. O vencimento do ICMS de SP depende da classificação da empresa e fica a definir.",
+    ],
+  },
+  {
     id: "2026-10-26-crescimento-pdf",
     data: "2026-10-26",
     area: "War Room",

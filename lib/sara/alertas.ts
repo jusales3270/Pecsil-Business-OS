@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { AGENTES } from "./agentes/index.ts";
 import type { Abrir, Alerta, ContextoAlertas, Regra } from "./base.ts";
 import { dias } from "./base.ts";
+import { avisosDoCalendario } from "../contabil/calendario-avisos.ts";
 import { FERRAMENTAS } from "./ferramentas.ts";
 import { SARAS } from "./modulos.ts";
 
@@ -31,6 +32,11 @@ const rodar = async (sb: SupabaseClient, nome: string, entrada: Record<string, u
 export const EXTRATO_ATRASADO_DIAS = 7;
 
 const FINANCEIRO: Regra[] = [
+  {
+    // Guias dos próximos 7 dias pelo calendário fiscal (N-06): quem paga é o Financeiro.
+    exige: ["financeiro.pagar"],
+    gerar: (sb, c) => avisosDoCalendario(sb, c.hoje, { somenteGuias: true, abrir: tela("Contas a pagar"), prefixo: "financeiro" }),
+  },
   {
     // Conciliação e extratos: o que impede o financeiro de ficar consolidado.
     exige: ["financeiro.bancos"],

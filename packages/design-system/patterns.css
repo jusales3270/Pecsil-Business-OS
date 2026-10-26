@@ -9373,6 +9373,11 @@ a.doc-abrir { text-decoration: none; }
 .ctb-manual-linha select, .ctb-manual-linha input { min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }
 .ctb-fecha { margin: 0; color: var(--accent-green, inherit); font-weight: 600; }
 .ctb-nao-fecha { margin: 0; color: var(--accent-amber); font-weight: 600; }
+/* Fiscal › Calendário fiscal (N-06) */
+.cal-tabela { grid-template-columns: max-content minmax(260px, 1fr) max-content max-content max-content max-content; }
+.cal-mes::first-letter { text-transform: uppercase; }
+.cal-passado { opacity: 0.6; }
+.cal-definir { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); color: var(--text-secondary, var(--text-primary)); }
 .pcf-mes { display: grid; gap: 2px; font-size: var(--fs-sm); }
 .pcf-mes span { color: var(--text-muted); font-size: var(--fs-xs); }
 .pcf-mes select { min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }

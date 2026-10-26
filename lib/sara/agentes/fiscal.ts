@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brl, dataBR, dias, hoje, link, plural, reais, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
 import { aFaturar } from "./comercial.ts";
+import { avisosDoCalendario } from "../../contabil/calendario-avisos.ts";
 
 /**
  * SARA do Fiscal: ICMS do mês, notas recebidas (SEFAZ), notas emitidas (só PRODUÇÃO conta), o que
@@ -125,10 +126,18 @@ const telas: Tela[] = [
   { id: "fiscal_mascaras", modulo: M, secao: "Máscaras de impostos", rotulo: "Fiscal › Máscaras de impostos", exige: ["fiscal.nfe", "fiscal.config"], serve: "regras de impostos por tipo de operação" },
   { id: "fiscal_escritorio", modulo: M, secao: "Escritório contábil", rotulo: "Fiscal › Escritório contábil", exige: ["fiscal.escritorio"], serve: "fechamento do mês e guias" },
   { id: "fiscal_portal", modulo: M, secao: "Portal do contador", rotulo: "Fiscal › Portal do contador", exige: ["fiscal.portal"], serve: "o lado do escritório no fechamento" },
+  { id: "fiscal_calendario", modulo: M, secao: "Calendário fiscal", rotulo: "Fiscal › Calendário fiscal", exige: ["fiscal.icms", "fiscal.config", "fiscal.parametros", "fiscal.nfe", "fiscal.escritorio", "fiscal.contabilidade"], serve: "vencimentos de declarações e guias" },
+  { id: "fiscal_ibscbs", modulo: M, secao: "IBS e CBS", rotulo: "Fiscal › IBS e CBS", exige: ["fiscal.icms", "fiscal.config", "fiscal.parametros", "fiscal.nfe", "fiscal.escritorio"], serve: "apuração informativa do IBS e da CBS, nota a nota" },
+  { id: "fiscal_contabilidade", modulo: M, secao: "Contabilidade", rotulo: "Fiscal › Contabilidade", exige: ["fiscal.contabilidade"], serve: "plano de contas, lançamentos, balancete e razão" },
   { id: "fiscal_configuracao", modulo: M, secao: "Configuração", rotulo: "Fiscal › Configuração", exige: ["fiscal.config", "fiscal.certificado"], serve: "dados do emitente, ambiente e certificado" },
 ];
 
 const regras: Agente["regras"] = [
+  {
+    // Calendário fiscal (N-06): o que vence nos próximos 7 dias, declarações e guias.
+    exige: ["fiscal.icms", "fiscal.config", "fiscal.parametros", "fiscal.nfe", "fiscal.escritorio", "fiscal.contabilidade"],
+    gerar: (sb, c) => avisosDoCalendario(sb, c.hoje, { somenteGuias: false, abrir: tela("Calendário fiscal"), prefixo: "fiscal" }),
+  },
   {
     exige: ["fiscal.config", "fiscal.certificado"],
     gerar: async (sb, c) => {
