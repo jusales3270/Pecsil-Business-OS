@@ -5,7 +5,9 @@
  * reais de fornecedores (out/2026).
  */
 
-export type ItemIbsCbs = { nItem: number; cst: string; cClassTrib: string; vBC: number; pIBSUF: number; vIBSUF: number; pIBSMun: number; vIBSMun: number; pCBS: number; vCBS: number };
+/** Valores do item que formam a base do IBS/CBS (LC 214 art. 12; NT 2025.002): o que soma e o que sai. */
+export type ComposicaoBase = { vProd: number; vDesc: number; vFrete: number; vSeg: number; vOutro: number; vII: number; vICMS: number; vFCP: number; vICMSUFDest: number; vFCPUFDest: number; vPIS: number; vCOFINS: number };
+export type ItemIbsCbs = { nItem: number; cst: string; cClassTrib: string; vBC: number; pIBSUF: number; vIBSUF: number; pIBSMun: number; vIBSMun: number; pCBS: number; vCBS: number } & ComposicaoBase;
 export type NotaIbsCbs = {
   chave: string | null;
   modelo: string | null;
@@ -14,6 +16,8 @@ export type NotaIbsCbs = {
   competencia: string | null;
   emitenteCnpj: string | null;
   emitenteNome: string | null;
+  /** Regime do emitente (CRT): 1 Simples, 2 Simples com excesso de sublimite, 3 normal, 4 MEI. */
+  emitenteCrt: number | null;
   destinatarioCnpj: string | null;
   lado: "entrada" | "saida" | "outra";
   /** Nota de devolução, cancelamento etc. (finNFe 4 = devolução). */
@@ -61,8 +65,15 @@ export function lerIbsCbs(xml: string, cnpjEmpresa: string): NotaIbsCbs | null {
     const uf = bloco(valores, "gIBSUF") ?? "";
     const mun = bloco(valores, "gIBSMun") ?? "";
     const cbs = bloco(valores, "gCBS") ?? "";
+    const prod = bloco(m[2], "prod") ?? "";
+    const icms = bloco(m[2], "ICMS") ?? "";
+    const dif = bloco(m[2], "ICMSUFDest") ?? "";
     itens.push({
       nItem: Number(m[1]), cst: tag(g, "CST") ?? "", cClassTrib: tag(g, "cClassTrib") ?? "",
+      vProd: num(tag(prod, "vProd")), vDesc: num(tag(prod, "vDesc")), vFrete: num(tag(prod, "vFrete")), vSeg: num(tag(prod, "vSeg")), vOutro: num(tag(prod, "vOutro")),
+      vII: num(tag(bloco(m[2], "II") ?? "", "vII")), vICMS: num(tag(icms, "vICMS")), vFCP: num(tag(icms, "vFCP")),
+      vICMSUFDest: num(tag(dif, "vICMSUFDest")), vFCPUFDest: num(tag(dif, "vFCPUFDest")),
+      vPIS: num(tag(bloco(m[2], "PIS") ?? "", "vPIS")), vCOFINS: num(tag(bloco(m[2], "COFINS") ?? "", "vCOFINS")),
       vBC: num(tag(valores, "vBC")), pIBSUF: num(tag(uf, "pIBSUF")), vIBSUF: num(tag(uf, "vIBSUF")),
       pIBSMun: num(tag(mun, "pIBSMun")), vIBSMun: num(tag(mun, "vIBSMun")), pCBS: num(tag(cbs, "pCBS")), vCBS: num(tag(cbs, "vCBS")),
     });
@@ -80,7 +91,7 @@ export function lerIbsCbs(xml: string, cnpjEmpresa: string): NotaIbsCbs | null {
     chave: inf.length ? (xml.match(/<infNFe[^>]*Id="NFe(\d{44})"/)?.[1] ?? null) : null,
     modelo: tag(ide, "mod"), numero: tag(ide, "nNF"),
     emissao, competencia: emissao ? emissao.slice(0, 7) : null,
-    emitenteCnpj: emitente, emitenteNome: textoXml(tag(emit, "xNome")), destinatarioCnpj: destinatario,
+    emitenteCnpj: emitente, emitenteNome: textoXml(tag(emit, "xNome")), emitenteCrt: tag(emit, "CRT") ? Number(tag(emit, "CRT")) : null, destinatarioCnpj: destinatario,
     lado: emitente === empresa ? "saida" : destinatario === empresa ? "entrada" : "outra",
     finalidade: tag(ide, "finNFe"),
     temGrupo: itens.length > 0,
@@ -92,19 +103,23 @@ export function lerIbsCbs(xml: string, cnpjEmpresa: string): NotaIbsCbs | null {
   };
 }
 
-export type LinhaApuracao = { competencia: string; debitoIBS: number; debitoCBS: number; creditoIBS: number; creditoCBS: number; saldoIBS: number; saldoCBS: number; notasSaida: number; notasEntrada: number; semGrupo: number };
+export type LinhaApuracao = { competencia: string; debitoIBS: number; debitoCBS: number; creditoIBS: number; creditoCBS: number; saldoIBS: number; saldoCBS: number; notasSaida: number; notasEntrada: number; semGrupo: number; simplesSemGrupo: number };
+
+/** Simples Nacional (CRT 1, 2 e 4): o grupo do IBS/CBS só é obrigatório para ele a partir de 01/01/2027. */
+export const doSimples = (crt: number | null | undefined) => crt === 1 || crt === 2 || crt === 4;
 
 /**
  * Apuração informativa por competência (2026: o recolhimento é dispensado para quem cumpre as obrigações
  * acessórias, LC 214 art. 348). Saída gera débito; entrada gera crédito (não-cumulatividade ampla, art. 47).
- * Devolução (finNFe 4) inverte o lado. Nota sem o grupo conta à parte, para cobrar do fornecedor.
+ * Devolução (finNFe 4) inverte o lado. Nota sem o grupo conta à parte, para cobrar do fornecedor; a do Simples
+ * Nacional, dispensado do grupo em 2026, conta à parte de novo, sem ser cobrança.
  */
 export function apurar(notas: NotaIbsCbs[]): LinhaApuracao[] {
   const porMes = new Map<string, LinhaApuracao>();
   for (const n of notas) {
     if (!n.competencia || n.lado === "outra") continue;
-    const l = porMes.get(n.competencia) ?? { competencia: n.competencia, debitoIBS: 0, debitoCBS: 0, creditoIBS: 0, creditoCBS: 0, saldoIBS: 0, saldoCBS: 0, notasSaida: 0, notasEntrada: 0, semGrupo: 0 };
-    if (!n.temGrupo) { l.semGrupo++; porMes.set(n.competencia, l); continue; }
+    const l = porMes.get(n.competencia) ?? { competencia: n.competencia, debitoIBS: 0, debitoCBS: 0, creditoIBS: 0, creditoCBS: 0, saldoIBS: 0, saldoCBS: 0, notasSaida: 0, notasEntrada: 0, semGrupo: 0, simplesSemGrupo: 0 };
+    if (!n.temGrupo) { if (doSimples(n.emitenteCrt) && n.competencia < "2027-01") l.simplesSemGrupo++; else l.semGrupo++; porMes.set(n.competencia, l); continue; }
     const devolucao = n.finalidade === "4";
     const debito = (n.lado === "saida") !== devolucao;
     if (debito) { l.debitoIBS = r2(l.debitoIBS + n.vIBS); l.debitoCBS = r2(l.debitoCBS + n.vCBS); }
@@ -115,4 +130,19 @@ export function apurar(notas: NotaIbsCbs[]): LinhaApuracao[] {
     porMes.set(n.competencia, l);
   }
   return [...porMes.values()].sort((a, b) => b.competencia.localeCompare(a.competencia));
+}
+
+/**
+ * A mesma NF-e pode chegar por dois caminhos (enviada no Fiscal e no recebimento do Almoxarifado): conta uma vez,
+ * pela chave de acesso, ficando a primeira lida. Sem chave, não há como saber: fica.
+ */
+export function semRepetidas<T extends { chave: string | null }>(notas: readonly T[]): { notas: T[]; repetidas: number } {
+  const vistas = new Set<string>();
+  const unicas: T[] = [];
+  for (const n of notas) {
+    if (n.chave && vistas.has(n.chave)) continue;
+    if (n.chave) vistas.add(n.chave);
+    unicas.push(n);
+  }
+  return { notas: unicas, repetidas: notas.length - unicas.length };
 }

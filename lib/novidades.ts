@@ -44,6 +44,21 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-25-ibs-cbs-conferencia",
+    data: "2026-10-25",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.icms", "fiscal.config", "fiscal.parametros", "fiscal.nfe", "fiscal.escritorio", "fiscal.portal"],
+    titulo: "IBS e CBS: cada nota conferida pela lei da data dela",
+    itens: [
+      "A nota é lida assim que o XML chega (envio no Fiscal, recebimento do Almoxarifado ou nota da SEFAZ), sem esperar alguém abrir a tela.",
+      "Cada nota é conferida pela alíquota em vigor na data dela, com a base refeita item a item. A coluna Conferência e o cartão Valor divergente mostram o que não fecha; clique na nota para ver item por item.",
+      "Quando uma alíquota nova for aprovada em Parâmetros legais, as notas já lidas são conferidas de novo pela regra da data delas.",
+      "Fornecedor do Simples Nacional sem o grupo deixa de aparecer como falta: o Simples só é obrigado a partir de 01/01/2027.",
+      "A mesma nota enviada por dois caminhos conta uma vez só.",
+    ],
+  },
+  {
     id: "2026-10-25-ibs-cbs",
     data: "2026-10-25",
     area: "Fiscal",

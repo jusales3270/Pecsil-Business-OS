@@ -9310,7 +9310,22 @@ a.doc-abrir { text-decoration: none; }
 .pcf-comparar { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-3); }
 .pcf-config { margin-top: var(--sp-4); display: grid; gap: var(--sp-2); }
 /* Fiscal › IBS e CBS (N-03): Emissão · Emitente · Lado · Base · IBS · CBS · Grupo. */
-.ibs-tabela { grid-template-columns: max-content minmax(240px, 1fr) max-content repeat(3, minmax(90px, max-content)) max-content; }
+.ibs-tabela { grid-template-columns: max-content minmax(240px, 1fr) max-content repeat(3, minmax(90px, max-content)) repeat(2, max-content); }
+.ibs-tabela > button[role="row"] { width: 100%; border: 0; border-top: 1px solid var(--border-subtle); background: none; font: inherit; text-align: left; color: var(--text-primary); cursor: pointer; }
+.ibs-tabela > button[role="row"]:hover { background: var(--bg-hover); }
+.ibs-tabela > .cabeca > .r, .ibs-itens > .cabeca > .r { text-align: right; }
+.ibs-detalhe { gap: var(--sp-3); }
+/* Três valores na 1ª linha, os dois alertas (sem o grupo, divergentes) na 2ª, cada linha na largura toda. */
+@media (min-width: 1100px) {
+  .ibs-kpis .ds-kpi-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .ibs-kpis .ds-kpi-grid > :nth-child(-n + 3) { grid-column: span 2; }
+  .ibs-kpis .ds-kpi-grid > :nth-child(n + 4) { grid-column: span 3; }
+}
+.ibs-itens { grid-template-columns: max-content repeat(6, minmax(90px, max-content)); }
+.ibs-itens .r small { display: block; font-size: var(--fs-xs); color: var(--text-muted); }
+.ibs-difere { color: var(--accent-amber); font-weight: 600; }
+.ibs-regra { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
+.ibs-motivo { display: block; }
 .pcf-mes { display: grid; gap: 2px; font-size: var(--fs-sm); }
 .pcf-mes span { color: var(--text-muted); font-size: var(--fs-xs); }
 .pcf-mes select { min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }

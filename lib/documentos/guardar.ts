@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "../supabase/admin";
+import { lerDocumento as lerIbsCbs } from "../fiscal/ibs-cbs/servidor";
 import { lerEGravar } from "../leitura/servidor";
 import { caminhoDocumento } from "./setores";
 
@@ -65,7 +66,10 @@ export async function guardarOriginal(supabase: SupabaseClient, e: GuardarEntrad
   }
   const r = data as Guardado;
   if (r.existente) await admin.storage.from(BUCKET).remove([caminho]);
-  else await lerEGravar(admin, { id: r.id, organization_id: String(org) }, e.arquivo.dados); // nunca derruba o envio
+  else {
+    await lerEGravar(admin, { id: r.id, organization_id: String(org) }, e.arquivo.dados); // nunca derruba o envio
+    await lerIbsCbs(admin, String(org), { id: r.id, nome: e.arquivo.nome, tipo: e.arquivo.tipo }, e.arquivo.dados); // NF-e: IBS/CBS lido na hora
+  }
   return r;
 }
 
@@ -98,7 +102,10 @@ export async function guardarOriginalSistema(
   }
   const r = data as Guardado;
   if (r.existente) await admin.storage.from(BUCKET).remove([caminho]);
-  else await lerEGravar(admin, { id: r.id, organization_id: org }, e.arquivo.dados); // leitura, ligações e CNPJ, como num envio
+  else {
+    await lerEGravar(admin, { id: r.id, organization_id: org }, e.arquivo.dados); // leitura, ligações e CNPJ, como num envio
+    await lerIbsCbs(admin, org, { id: r.id, nome: e.arquivo.nome, tipo: e.arquivo.tipo }, e.arquivo.dados);
+  }
   return r;
 }
 
