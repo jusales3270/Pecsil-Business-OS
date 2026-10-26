@@ -97,64 +97,6 @@ async function documentos(sb: SupabaseClient, refs: string[]): Promise<Doc[] | {
   return lista;
 }
 
-/**
- * Manda pelo WhatsApp o texto e os arquivos (PDF ou voz) ao destino e registra cada mensagem; o documento enviado a
- * uma pessoa da empresa também entra no histórico de envios dele (canal whatsapp). Devolve a frase do que saiu.
- */
-async function entregar(sb: SupabaseClient, d: Destino, docs: Doc[], texto: string): Promise<string> {
-  const admin = createSupabaseAdminClient();
-  const registrar = async (waId: string | null, tipo: "texto" | "audio" | "documento") => {
-    await admin.from("whatsapp_mensagens").insert({ organization_id: d.organizacao, canal_id: d.canal, contato_id: d.contato, profile_id: d.perfil, direcao: "saida", wa_id: waId,
-      numero_final: d.numero.slice(-4), tipo, situacao: "enviada" }).then(({ error }) => { if (error) console.error("[whatsapp] registro do envio", error.message); });
-  };
-  const feitos: string[] = [];
-  if (texto) { await registrar((await enviarTexto(d.instancia, d.numero, texto.slice(0, 3500))).id, "texto"); feitos.push("o texto"); }
-  for (const doc of docs) {
-    const { data: arq, error } = await admin.storage.from(BUCKET_DOCUMENTOS).download(doc.caminho!);
-    if (error || !arq) throw new Error(`Não consegui ler o arquivo de ${doc.numero}.`);
-    const base64 = Buffer.from(await arq.arrayBuffer()).toString("base64");
-    if (ehVoz(doc)) { await registrar((await enviarAudio(d.instancia, d.numero, base64)).id, "audio"); feitos.push(`a mensagem de voz ${doc.numero}`); }
-    else {
-      const nome = `${doc.numero} - ${doc.titulo}`.replace(/[\\/:*?"<>|]/g, " ").slice(0, 120);
-      await registrar((await enviarDocumento(d.instancia, d.numero, base64, `${nome}.pdf`, doc.titulo)).id, "documento");
-      feitos.push(`o documento ${doc.numero}`);
-    }
-  }
-  if (d.lista === "interna" && d.perfil) {
-    const pdfs = docs.filter((x) => !ehVoz(x));
-    if (pdfs.length) {
-      const { data: eu } = await sb.rpc("current_profile_id");
-      const { data: quem } = eu ? await admin.from("profiles").select("full_name").eq("id", eu).maybeSingle() : { data: null };
-      const { error } = await admin.from("sara_documento_envios").upsert(pdfs.map((x) => ({ organization_id: d.organizacao, documento_id: x.id, para_profile_id: d.perfil, para_nome: d.nome,
-        canal: "whatsapp", enviado_por: eu ?? null, enviado_por_nome: quem?.full_name ?? null })), { onConflict: "documento_id,para_profile_id,canal", ignoreDuplicates: true });
-      if (error) console.error("[whatsapp] histórico do envio", error.message);
-    }
-  }
-  return `Enviado pelo WhatsApp «${d.canalNome}» para ${d.nome}: ${feitos.join(", ")}.`;
-}
-
-/** Quem pode receber, para a tela escolher (o número aparece só pelo final). */
-export async function destinosDaTela(): Promise<{ contato: string; nome: string; final: string; lista: "interna" | "externa"; canal: string }[]> {
-  const lista = await destinos();
-  return lista.filter((d, i) => lista.findIndex((x) => x.nome === d.nome && x.numero === d.numero) === i)
-    .map((d) => ({ contato: d.contato, nome: d.nome, final: d.numero.slice(-4), lista: d.lista, canal: d.canalNome }))
-    .sort((a, b) => a.lista.localeCompare(b.lista) || a.nome.localeCompare(b.nome, "pt-BR"));
-}
-
-/**
- * Envio pedido na tela (Documentos e Crescimento): o clique de quem envia é a confirmação. Só quem usa a SARA
- * central, para um contato das listas, com documentos que a pessoa pode ver.
- */
-export async function enviarDaTela(sb: SupabaseClient, contato: string, refs: string[]): Promise<{ feito: string } | { erro: string }> {
-  if (!(await podeUsarACentral(sb))) return { erro: SEM_CENTRAL };
-  const d = (await destinos()).find((x) => x.contato === contato);
-  if (!d) return { erro: "Este contato não está mais nas listas do WhatsApp." };
-  const docs = await documentos(sb, refs);
-  if ("erro" in docs) return docs;
-  if (!docs.length) return { erro: "Diga qual documento enviar." };
-  return { feito: await entregar(sb, d, docs, "") };
-}
-
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NUMERO = /^DOC-\d{4}-\d{4,}$/i;
 const lerIds = (v: unknown) => (Array.isArray(v) ? v : v ? [v] : []).map((x) => String(x).trim()).filter(Boolean).slice(0, 5);
@@ -191,6 +133,25 @@ export const ENVIAR_WHATSAPP: Ferramenta = {
     if ("erro" in d) throw new Error(d.erro);
     const docs = await documentos(sb, lerIds(e.documentos));
     if ("erro" in docs) throw new Error(docs.erro);
-    return { dados: { feito: await entregar(sb, d, docs, String(e.texto ?? "").trim()) }, fontes: [] };
+    const admin = createSupabaseAdminClient();
+    const registrar = async (waId: string | null, tipo: "texto" | "audio" | "documento") => {
+      await admin.from("whatsapp_mensagens").insert({ organization_id: d.organizacao, canal_id: d.canal, contato_id: d.contato, profile_id: d.perfil, direcao: "saida", wa_id: waId,
+        numero_final: d.numero.slice(-4), tipo, situacao: "enviada" }).then(({ error }) => { if (error) console.error("[whatsapp] registro do envio", error.message); });
+    };
+    const feitos: string[] = [];
+    const texto = String(e.texto ?? "").trim();
+    if (texto) { await registrar((await enviarTexto(d.instancia, d.numero, texto.slice(0, 3500))).id, "texto"); feitos.push("o texto"); }
+    for (const doc of docs) {
+      const { data: arq, error } = await admin.storage.from(BUCKET_DOCUMENTOS).download(doc.caminho!);
+      if (error || !arq) throw new Error(`Não consegui ler o arquivo de ${doc.numero}.`);
+      const base64 = Buffer.from(await arq.arrayBuffer()).toString("base64");
+      if (ehVoz(doc)) { await registrar((await enviarAudio(d.instancia, d.numero, base64)).id, "audio"); feitos.push(`a mensagem de voz ${doc.numero}`); }
+      else {
+        const nome = `${doc.numero} - ${doc.titulo}`.replace(/[\\/:*?"<>|]/g, " ").slice(0, 120);
+        await registrar((await enviarDocumento(d.instancia, d.numero, base64, `${nome}.pdf`, doc.titulo)).id, "documento");
+        feitos.push(`o documento ${doc.numero}`);
+      }
+    }
+    return { dados: { feito: `Enviado pelo WhatsApp «${d.canalNome}» para ${d.nome}: ${feitos.join(", ")}.` }, fontes: [] };
   },
 };
