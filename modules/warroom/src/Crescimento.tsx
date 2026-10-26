@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AcoesDocumento } from "./AcoesDocumento";
 
 /**
  * War Room › Conselho › Crescimento (J4): o relatório semanal da SARA central. Tudo aqui é opinião da IA,
@@ -17,7 +18,7 @@ type Conteudo = {
     avaliacao: { paybackMeses: number | null; vpl: number; tirAnual: number | null; pessimista: { paybackMeses: number | null; vpl: number } } }[];
   premissas: string[]; descartados: string[];
 };
-type Rel = { id: string; semana: string; disparo: string; situacao: string; conteudo: Conteudo | null; buscas: number; erro: string | null; created_at: string };
+type Rel = { id: string; semana: string; disparo: string; situacao: string; conteudo: Conteudo | null; buscas: number; erro: string | null; created_at: string; pdf: { id: string; numero: string } | null };
 
 const CONF = { alta: "alta", media: "média", baixa: "baixa" };
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -34,12 +35,16 @@ export function Crescimento() {
   const [erro, setErro] = useState<string | null>(null);
   const [gerando, setGerando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  // O PDF de cada relatório (gerado por quem pede; pedir de novo devolve o mesmo).
+  const [pdfs, setPdfs] = useState<Record<string, { id: string; numero: string }>>({});
+  const [gerandoPdf, setGerandoPdf] = useState(false);
 
   const carregar = useCallback(async () => {
     const r = await fetch("/api/sara/central/crescimento").catch(() => null);
     const j = r ? await r.json().catch(() => null) : null;
     if (!r?.ok || !j) { setErro("Não foi possível carregar os relatórios."); return; }
     setErro(null); setLista(j.relatorios as Rel[]);
+    setPdfs((x) => ({ ...Object.fromEntries((j.relatorios as Rel[]).filter((r) => r.pdf).map((r) => [r.id, r.pdf!])), ...x }));
   }, []);
   useEffect(() => { const t = setTimeout(() => void carregar(), 0); return () => clearTimeout(t); }, [carregar]);
 
@@ -50,6 +55,15 @@ export function Crescimento() {
     setGerando(false);
     if (!r?.ok) { setAviso(j?.error ?? "O relatório não saiu agora."); return; }
     setAtual(j.id); void carregar();
+  };
+
+  const gerarPdf = async (relId: string) => {
+    setGerandoPdf(true); setAviso(null);
+    const r = await fetch(`/api/sara/central/crescimento/${relId}/pdf`, { method: "POST" }).catch(() => null);
+    const j = r ? await r.json().catch(() => null) : null;
+    setGerandoPdf(false);
+    if (!r?.ok || !j?.id) { setAviso(j?.error ?? "O PDF não saiu agora."); return; }
+    setPdfs((x) => ({ ...x, [relId]: { id: j.id, numero: j.numero } }));
   };
 
   const feitos = (lista ?? []).filter((r) => r.situacao === "feito" && r.conteudo);
@@ -75,6 +89,11 @@ export function Crescimento() {
       {rel && c && (
         <div className="cresc-corpo">
           <p className="vigia-ultima">Semana de {rel.semana.split("-").reverse().join("/")} · gerado {quando(rel.created_at)} · {rel.buscas} buscas na internet</p>
+          <div className="cresc-pdf">
+            {pdfs[rel.id]
+              ? <><span>PDF {pdfs[rel.id].numero}, com o timbre da empresa:</span><AcoesDocumento id={pdfs[rel.id].id} numero={pdfs[rel.id].numero} titulo={`Relatório de crescimento · semana de ${rel.semana.split("-").reverse().join("/")}`} podeEnviar /></>
+              : <button type="button" className="vigia-rodar" onClick={() => void gerarPdf(rel.id)} disabled={gerandoPdf}>{gerandoPdf ? "Montando o PDF…" : "Gerar o PDF (imprimir ou enviar)"}</button>}
+          </div>
           {c.resumo && <p className="cresc-resumo"><span className="vigia-ia">Análise da SARA (IA):</span> {c.resumo}</p>}
 
           <h4>Ideias que saem dos dados</h4>

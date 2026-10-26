@@ -7488,6 +7488,8 @@ button.holiday-row:hover {
 .sh-holo.mini .sh-console { padding: 4px 6px 4px 10px; border-radius: 999px; background: rgba(4,8,18,.86); box-shadow: 0 8px 30px rgba(0,0,0,.35); }
 .sh-holo.mini .sh-console .cline { border-bottom: 0; padding: 6px 2px; }
 .sh-ativa .sara-botao { display: none !important; }
+/* Com uma janela aberta, a bolinha da SARA não cobre os botões dela (no celular ficava sobre o Enviar). */
+body:has(.ds-modal-layer) :is(.sara-botao, .sh-summon) { visibility: hidden; }
 .sh-holo.mini .sh-caption .who, .sh-holo.mini .sh-caption .uline, .sh-holo.mini .sh-ver { display: none; }
 .sh-painel { position: absolute; top: 84px; right: max(24px, env(safe-area-inset-right, 0px)); bottom: calc(5vh + 64px); width: min(440px, 40vw); display: flex; flex-direction: column; min-height: 0;
   border-radius: 18px; border: 1px solid rgba(77,155,255,.25); background: rgba(6,11,22,.82); backdrop-filter: blur(10px); pointer-events: auto; }
@@ -7686,6 +7688,22 @@ a.doc-abrir { text-decoration: none; }
 .cresc-conta > div { padding: 8px 10px; border-radius: 10px; background: var(--bg-hover); }
 .cresc-conta dt { font-size: var(--fs-micro); font-weight: 600; letter-spacing: .03em; color: var(--text-muted); }
 .cresc-conta dd { margin: 2px 0 0; font-size: var(--fs-sm); font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+/* Documento em PDF: abrir, imprimir e enviar (Crescimento e Documentos). */
+.cresc-pdf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.doc-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.doc-acoes a.ds-button { text-decoration: none; }
+.doc-envio-canal { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.doc-envio-canal legend { margin: 0 0 6px; padding: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.doc-envio-canal label { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 40px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-surface); font-size: var(--fs-sm); color: var(--text-primary); cursor: pointer; }
+.doc-envio-canal label:has(input:checked) { border-color: var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 8%, var(--bg-surface)); }
+.doc-envio-canal small { flex-basis: 100%; padding-left: 24px; font-size: var(--fs-micro); color: var(--text-muted); }
+/* O estilo geral dos campos do formulário (largura total, altura) não vale para o botão de escolha. */
+.almox-form.doc-envio .doc-envio-canal input[type="radio"] { width: 16px; height: 16px; min-height: 0; margin: 0; padding: 0; flex: none; accent-color: var(--accent-blue); }
+.doc-envio-select { display: block; }
+.doc-envio-fora { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent-amber) 55%, transparent); background: color-mix(in srgb, var(--accent-amber) 8%, var(--bg-surface)); font-size: var(--fs-sm); color: var(--text-primary); }
+.doc-envio-fora input { margin-top: 3px; flex: none; }
+.almox-form .doc-envio-fora > span { display: inline; margin: 0; font-size: var(--fs-sm); font-weight: 400; color: var(--text-primary); }
+.doc-envio-feito { margin: 0; padding: 8px 12px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--accent-green) 12%, transparent); color: var(--text-primary); font-size: var(--fs-sm); }
 /* Decisões para você (menu da conta). */
 .account-contador { margin-left: auto; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--accent-red); color: #fff; font-style: normal; font-size: var(--fs-micro); font-weight: 700; text-align: center; }
 .decisoes-grupo { margin: 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }

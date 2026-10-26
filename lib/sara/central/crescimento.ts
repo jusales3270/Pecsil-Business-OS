@@ -1,6 +1,7 @@
 import { semPensar } from "../base.ts";
 import { ASSUNTO_DA_EMPRESA, QUEM_DECIDE } from "./sara.ts";
 import { conferirNumeros } from "./verificador.ts";
+import type { Documento } from "../documentos/documento.ts";
 
 /**
  * Crescimento (E7, J4 — docs/PLANO-MINDMASTER.md): toda segunda-feira, a SARA central PENSA na empresa e
@@ -254,4 +255,40 @@ ${a.pesquisa.map((p, i) => `${i + 1}. [${p.tema}] ${p.titulo}: ${p.resumo} (font
     if (!r) return null;
     return r.entrada ? { bruto: r.entrada, uso: r.uso } : { erro: `a síntese parou sem o relatório (${r.parada})`, uso: r.uso };
   } catch (e) { return { erro: `a síntese falhou: ${e instanceof Error ? e.message.slice(0, 150) : "erro"}`, uso: { tokensEntrada: 0, tokensSaida: 0, buscas: 0 } }; }
+}
+
+const CONF_PDF = { alta: "alta", media: "média", baixa: "baixa" } as const;
+const reais = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const retorno = (m: number | null) => (m == null ? "não se paga" : `${m.toLocaleString("pt-BR")} ${m === 1 ? "mês" : "meses"}`);
+
+/**
+ * O relatório de crescimento em PDF (Documentos e Crescimento › "Gerar o PDF"): é o MESMO conteúdo da tela, sem
+ * pedir nada ao modelo de novo. As ideias vão como insights (com a confiança, marcadas como análise da IA), o que
+ * fazer vira recomendação, e o investimento leva a conta da plataforma numa tabela.
+ */
+export function documentoDoCrescimento(r: Relatorio, semana: string): Documento {
+  const data = semana.split("-").reverse().join("/");
+  const ia = (c: Confianca) => `(opinião da IA, confiança ${CONF_PDF[c]})`;
+  const secoes: Documento["secoes"] = [];
+  if (r.recursos.length) secoes.push({ titulo: "Novos recursos", tabela: null, grafico: null,
+    texto: r.recursos.map((x) => `- ${x.titulo}: ${x.para_que} Fonte: ${x.fonte_url} ${ia(x.confianca)}`).join("\n") });
+  if (r.concorrencia.length) secoes.push({ titulo: "Concorrência e mercado", tabela: null, grafico: null,
+    texto: r.concorrencia.map((x) => `- ${x.titulo}: ${x.o_que} Para a empresa: ${x.implicacao} Fonte: ${x.fonte_url} ${ia(x.confianca)}`).join("\n") });
+  if (r.investimentos.length) secoes.push({ titulo: "Investimentos pontuais", grafico: null,
+    texto: r.investimentos.map((x) => `- ${x.titulo} (quem decide: ${x.area}): ${[...x.premissas, x.risco ? `Risco: ${x.risco}` : ""].filter(Boolean).join(" ")} ${ia(x.confianca)}`).join("\n"),
+    tabela: { titulo: "A conta de cada investimento (feita pela plataforma)", colunas: ["Investimento", "Custo", "Ganho/mês", "Retorno", "VPL", "TIR", "Pessimista"],
+      linhas: r.investimentos.map((x) => [x.titulo, reais(x.custo), reais(x.ganhoMensal), retorno(x.avaliacao.paybackMeses), reais(x.avaliacao.vpl),
+        x.avaliacao.tirAnual == null ? "—" : `${(x.avaliacao.tirAnual * 100).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% a.a.`,
+        `${retorno(x.avaliacao.pessimista.paybackMeses)} · VPL ${reais(x.avaliacao.pessimista.vpl)}`]) } });
+  secoes.push({ titulo: "Premissas", tabela: null, grafico: null,
+    texto: `${r.premissas.join(" ")} Custo e ganho são estimativas da IA; a conta é da plataforma. A pesquisa na internet levou só o assunto (setor e região), nunca dado da empresa.`.trim() });
+  return {
+    tipo: "relatorio", titulo: "Relatório de crescimento", subtitulo: `Semana de ${data} · SARA central`, destinatario: null, assunto: "", assinatura: null,
+    resumo: r.resumo ? `Análise da SARA (IA): ${r.resumo}` : "",
+    secoes,
+    insights: r.ideias.map((x) => ({ texto: `${x.titulo}: ${x.por_que}`, confianca: x.confianca })),
+    recomendacoes: r.ideias.map((x) => `${x.acao} (quem decide: ${x.area})`),
+    quemDecide: "Cada recomendação diz a área que decide. Tudo aqui é opinião da IA e não substitui a decisão da área.",
+    areas: [],
+  };
 }

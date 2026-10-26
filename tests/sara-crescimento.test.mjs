@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  CRESCIMENTO, avaliarInvestimento, pedidoDaPesquisa, pesquisar, semanaDe, sintetizar, urlsDaBusca, validarPesquisa, validarRelatorio,
+  CRESCIMENTO, avaliarInvestimento, documentoDoCrescimento, pedidoDaPesquisa, pesquisar, semanaDe, sintetizar, urlsDaBusca, validarPesquisa, validarRelatorio,
 } from "../lib/sara/central/crescimento.ts";
 import { ASSUNTO_DA_EMPRESA } from "../lib/sara/central/sara.ts";
+import { gerarPdf } from "../lib/sara/documentos/pdf.ts";
 
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 
@@ -131,4 +132,42 @@ test("crescimento: migração, tarefa agendada e telas", () => {
   assert.match(ler("lib/sara/central/crescimento-executar.ts"), /RETRATO[\s\S]*fiscal_notas_emitidas/);
   assert.doesNotMatch(ler("lib/sara/central/crescimento-executar.ts"), /"rh_/, "sem dado de colaborador no retrato");
   assert.match(ler("lib/sara/central/crescimento-executar.ts"), /profiles!user_feature_grants_profile_id_fkey!inner/, "o aviso chega a quem tem a SARA central (embutido sem ambiguidade)");
+});
+
+test("crescimento em PDF: o mesmo conteúdo da tela, ideias como análise da IA e a conta do investimento numa tabela", async () => {
+  const rel = {
+    resumo: "Caixa apertado até dezembro.", premissas: ["Taxa de 15% ao ano, 60 meses."], descartados: [],
+    ideias: [{ titulo: "Cobrar a Cristal Rosario", por_que: "R$ 130.725,02 vencem em 30/10.", acao: "Confirmar o pagamento", area: "Financeiro", confianca: "alta" }],
+    recursos: [{ titulo: "Linha do BNDES", para_que: "Capital de giro", fonte_url: "https://www.bndes.gov.br/x", confianca: "media" }],
+    concorrencia: [{ titulo: "Concorrente abriu filial", o_que: "Nova unidade em SP", implicacao: "Pressão de preço", fonte_url: "https://exemplo.com.br/y", confianca: "baixa" }],
+    investimentos: [{ titulo: "Forno novo", area: "Fundição", premissas: ["Economia de gás"], custo: 120000, ganhoMensal: 5000, risco: "Prazo de entrega", confianca: "media",
+      avaliacao: avaliarInvestimento(120000, 5000) }],
+  };
+  const d = documentoDoCrescimento(rel, "2026-10-26");
+  assert.equal(d.tipo, "relatorio");
+  assert.equal(d.subtitulo, "Semana de 26/10/2026 · SARA central");
+  assert.match(d.resumo, /^Análise da SARA \(IA\): /);
+  assert.deepEqual(d.insights, [{ texto: "Cobrar a Cristal Rosario: R$ 130.725,02 vencem em 30/10.", confianca: "alta" }]);
+  assert.deepEqual(d.recomendacoes, ["Confirmar o pagamento (quem decide: Financeiro)"]);
+  const inv = d.secoes.find((x) => x.titulo === "Investimentos pontuais");
+  assert.deepEqual(inv.tabela.colunas, ["Investimento", "Custo", "Ganho/mês", "Retorno", "VPL", "TIR", "Pessimista"]);
+  assert.match(inv.tabela.linhas[0][1], /^R\$\s120\.000$/);
+  assert.match(d.secoes.find((x) => x.titulo === "Novos recursos").texto, /^- Linha do BNDES: .*https:\/\/www\.bndes\.gov\.br\/x \(opinião da IA, confiança média\)$/);
+  const empresa = { razao_social: "Empresa Teste Ltda", nome_fantasia: "Teste", cnpj: null, logradouro: null, numero: null, bairro: null, municipio: null, uf: null, cep: null, telefone: null, email: null, site: null };
+  const pdf = await gerarPdf(d, { numero: "DOC-2026-0099", empresa, logo: null, quando: new Date("2026-10-26T12:00:00-03:00") });
+  assert.ok(pdf.bytes.length > 5_000 && pdf.paginas >= 1);
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const doc = await pdfjs.getDocument({ data: pdf.bytes, verbosity: 0 }).promise;
+  let texto = "";
+  for (let i = 1; i <= doc.numPages; i++) texto += (await (await doc.getPage(i)).getTextContent()).items.map((x) => x.str).join(" ");
+  for (const t of ["Relatório de crescimento", "DOC-2026-0099", "Análise da SARA (IA)", "Forno novo", "VPL", "Quem decide"]) assert.ok(texto.includes(t), t);
+});
+
+test("crescimento em PDF: rotas de gerar (sem gastar outro número) e de enviar (só quem criou, plataforma ou WhatsApp)", () => {
+  const gerar = ler("app/api/sara/central/crescimento/[id]/pdf/route.ts"), enviar = ler("app/api/sara/documentos/[id]/enviar/route.ts");
+  assert.match(gerar, /conteudo->>origem/, "pedir de novo devolve o PDF que já existe");
+  assert.match(gerar, /can\("warroom\.sara", "ver"\)/);
+  assert.match(enviar, /doc\.criado_por !== eu/, "só quem criou envia");
+  assert.match(enviar, /sara_documento_enviar/);
+  assert.match(enviar, /enviarDaTela/);
 });

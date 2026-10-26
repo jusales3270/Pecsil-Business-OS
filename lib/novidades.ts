@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-26-crescimento-pdf",
+    data: "2026-10-26",
+    area: "War Room",
+    modulos: ["warroom"],
+    funcionalidades: ["warroom.sara"],
+    titulo: "Relatório de crescimento em PDF, para imprimir e enviar",
+    itens: [
+      "Em War Room › Conselho › Crescimento, o botão \"Gerar o PDF\" monta o relatório da semana com o timbre da empresa. As ideias vêm marcadas como análise da IA, com a confiança, e os investimentos trazem a conta numa tabela.",
+      "Cada documento tem Abrir, Imprimir e Enviar. O envio vai a uma pessoa da empresa pela plataforma (aviso no sino) ou pelo WhatsApp, a qualquer contato das listas. Para quem é de fora da empresa, a tela pede uma confirmação a mais.",
+      "Em Documentos, cada item mostra para quem foi enviado e por onde.",
+    ],
+  },
+  {
     id: "2026-10-26-contabilidade-motor",
     data: "2026-10-26",
     area: "Fiscal",

@@ -27,7 +27,13 @@ export async function GET() {
   if ("erro" in a) return a.erro;
   const { data } = await a.sb.from("sara_relatorios").select("id, semana, disparo, situacao, conteudo, pesquisa, modelo, buscas, erro, created_at, terminada_em")
     .order("created_at", { ascending: false }).limit(8);
-  return NextResponse.json({ relatorios: data ?? [] });
+  // O PDF que a pessoa já gerou de cada relatório (a tela mostra Abrir, Imprimir e Enviar direto).
+  const eu = (await a.sb.rpc("current_profile_id")).data as string | null;
+  const origens = (data ?? []).map((r) => `crescimento:${r.id}`);
+  const { data: docs } = eu && origens.length ? await a.sb.from("sara_documentos").select("id, numero, conteudo->>origem").eq("criado_por", eu).in("conteudo->>origem", origens).not("caminho", "is", null)
+    .order("created_at", { ascending: false }) : { data: [] };
+  const pdf = new Map(((docs ?? []) as unknown as { id: string; numero: string; origem: string }[]).reverse().map((d) => [d.origem, { id: d.id, numero: d.numero }]));
+  return NextResponse.json({ relatorios: (data ?? []).map((r) => ({ ...r, pdf: pdf.get(`crescimento:${r.id}`) ?? null })) });
 }
 
 export async function POST() {

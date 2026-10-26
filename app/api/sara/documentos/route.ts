@@ -19,9 +19,11 @@ export async function GET(request: Request) {
   }
   const access = await readSessionAccess(session.supabase).catch(() => null);
   if (!access?.can("warroom.sara", "ver")) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  const { data, error } = await session.supabase.from("sara_documentos")
-    .select("id, numero, tipo, titulo, paginas, criado_por_nome, created_at, sara_documento_envios(para_nome, canal, enviado_em, aberto_em)")
-    .order("created_at", { ascending: false }).limit(60);
+  const [{ data, error }, { data: eu }] = await Promise.all([session.supabase.from("sara_documentos")
+    .select("id, numero, tipo, titulo, paginas, criado_por, criado_por_nome, created_at, sara_documento_envios(para_nome, canal, enviado_em, aberto_em)")
+    .in("tipo", ["relatorio", "carta"]).not("caminho", "is", null)
+    .order("created_at", { ascending: false }).limit(60), session.supabase.rpc("current_profile_id")]);
   if (error) return NextResponse.json({ error: "Não foi possível carregar os documentos." }, { status: 500 });
-  return NextResponse.json({ documentos: data ?? [] });
+  // "meu": só quem criou envia (as funções do banco conferem de novo).
+  return NextResponse.json({ documentos: (data ?? []).map(({ criado_por, ...d }) => ({ ...d, meu: Boolean(eu) && criado_por === eu })) });
 }

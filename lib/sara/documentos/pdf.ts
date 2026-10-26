@@ -65,7 +65,9 @@ function blocos(texto: string, k: string): ReactElement[] {
     const linhas = par.split("\n").map((l) => l.trim()).filter(Boolean);
     // Lista de tópicos: um bloco com respiro embaixo, para o parágrafo seguinte não vir colado.
     if (linhas.length && linhas.every((l) => /^[-•]\s/.test(l)))
-      return [h(View, { key: `${k}-${i}`, style: { marginBottom: 6 } }, ...linhas.map((l, j) => h(View, { key: j, style: s.item }, h(Text, { style: s.ponto }, "•"), h(Text, { style: s.itemTexto }, l.replace(/^[-•]\s/, "")))))];
+      // O tópico não se parte na virada da página (o "•" ficava sozinho no fim de uma e o texto na outra); só o
+      // tópico muito longo, maior que meia página, quebra.
+      return [h(View, { key: `${k}-${i}`, style: { marginBottom: 6 } }, ...linhas.map((l, j) => h(View, { key: j, style: s.item, wrap: l.length > 1500 }, h(Text, { style: s.ponto }, "•"), h(Text, { style: s.itemTexto }, l.replace(/^[-•]\s/, "")))))];
     return [h(Text, { key: `${k}-${i}`, style: s.p }, linhas.join(" "))];
   });
 }
