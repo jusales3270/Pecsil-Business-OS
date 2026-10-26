@@ -361,6 +361,7 @@ Canal: "Decisões para você".
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 26/10/2026 | N-04 passo 1: motor de escrituração (migrações 0001 e 0002 de 26/10, tela Fiscal › Contabilidade, leitor da ECD); D1 pedida à Ana pelo sino e pelo WhatsApp; passos 2 (plano oficial e abertura, com a Ana e o escritório) e 3 (de-para das contas gerenciais) dependem dela | Proprietário / Claude |
 | 25/10/2026 | N-03, devolução no formato de 03/11/2026 (DFeReferenciado por item, sem refNFe, regras do grupo VC, itens trazidos da nota original); QA 19/19 | Proprietário / Claude |
 | 25/10/2026 | N-03, 2ª parte: conferência de cada nota pela alíquota legal da data e pela base refeita; leitura do XML na hora do envio e pela tarefa agendada; Simples Nacional tratado à parte em 2026; mesma chave conta uma vez (migração 0010); QA 83/83 | Proprietário / Claude |
 | 25/10/2026 | N-03, 1ª parte: apuração informativa de 2026 (migração 0009, tela Fiscal › IBS e CBS) e correção da base do IBS/CBS na emissão (frete, seguro e outras entram; IPI fora); QA 45/45. Envio das propostas da Sentinela ao Jefferson ligado | Proprietário / Claude |

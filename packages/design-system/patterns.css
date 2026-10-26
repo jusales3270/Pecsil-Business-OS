@@ -9326,6 +9326,35 @@ a.doc-abrir { text-decoration: none; }
 .ibs-difere { color: var(--accent-amber); font-weight: 600; }
 .ibs-regra { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
 .ibs-motivo { display: block; }
+/* Fiscal › Contabilidade (N-04) */
+.ctb-plano-barra { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-3); }
+.ctb-plano-barra .pcf-mes select { min-width: 260px; }
+.ctb-selos, .ctb-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.ctb-acoes { margin-left: auto; }
+.ctb-titulo { margin: var(--sp-4) 0 var(--sp-2); font-size: var(--fs-md, 1rem); }
+.ctb-contas { grid-template-columns: max-content minmax(260px, 1fr) repeat(2, max-content) max-content; }
+.ctb-vinc { grid-template-columns: minmax(240px, 1fr) minmax(260px, 1.2fr) max-content; }
+.ctb-lanc { grid-template-columns: max-content minmax(240px, 1fr) minmax(240px, 1.2fr) max-content max-content; }
+.ctb-pend { grid-template-columns: max-content minmax(220px, 1fr) minmax(160px, max-content) max-content; }
+.ctb-bal { grid-template-columns: max-content minmax(240px, 1fr) repeat(4, minmax(110px, max-content)); }
+.ctb-razao { grid-template-columns: max-content minmax(260px, 1fr) repeat(3, minmax(110px, max-content)); }
+:is(.ctb-bal, .ctb-razao, .ctb-pend) > .cabeca > .r { text-align: right; }
+.ctb-codigo { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--fs-xs); }
+.ctb-sintetica { font-weight: 600; background: var(--bg-subtle, transparent); }
+.ctb-partidas { display: flex; flex-direction: column; gap: 2px; white-space: normal !important; }
+.ctb-partidas small { font-size: var(--fs-xs); color: var(--text-muted); }
+.ctb-seletor { width: 100%; min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }
+.ctb-periodo { align-items: flex-end; gap: var(--sp-3); }
+.ctb-periodo input[type="date"] { min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }
+.ctb-conta-razao { min-width: 320px; }
+.ctb-seletor:disabled { border-style: dashed; color: var(--text-muted); background: transparent; cursor: default; opacity: 1; }
+.ctb-linha { display: block; }
+.ctb-alerta { color: var(--accent-amber); }
+.ctb-detalhes summary { cursor: pointer; margin: var(--sp-2) 0; color: var(--text-muted); }
+.ctb-manual-linha { display: grid; grid-template-columns: 110px minmax(0, 1fr) 140px; gap: var(--sp-2); }
+.ctb-manual-linha select, .ctb-manual-linha input { min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }
+.ctb-fecha { margin: 0; color: var(--accent-green, inherit); font-weight: 600; }
+.ctb-nao-fecha { margin: 0; color: var(--accent-amber); font-weight: 600; }
 .pcf-mes { display: grid; gap: 2px; font-size: var(--fs-sm); }
 .pcf-mes span { color: var(--text-muted); font-size: var(--fs-xs); }
 .pcf-mes select { min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }

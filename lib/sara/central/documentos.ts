@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { hasModuleAccess, normalizeGrants } from "../../../modules/access-catalog";
 import { createSupabaseAdminClient } from "../../supabase/admin";
 import type { Ferramenta } from "../base";
-import { acharPessoa, nomeDoArquivo, textoParaConferir, validarDocumento } from "../documentos/documento";
+import { acharPessoa, nomeDoArquivo, textoParaConferir, validarDocumento, type Documento } from "../documentos/documento";
 import { gerarPdf, type Empresa } from "../documentos/pdf";
 import { SARAS } from "../modulos";
 import type { Visual } from "../visual";
@@ -92,23 +92,35 @@ export function ferramentaCriarDocumento(ctx: ContextoDocumentos): Ferramenta {
       // Número só com fonte: o que o modelo escreveu tem de estar no que as áreas (ou a calculadora) devolveram.
       const c = conferirNumeros(textoParaConferir(e), ctx.fontes);
       if (c.semFonte.length) return { dados: { erro: `Estes números não estão no que as áreas devolveram nesta conversa: ${c.semFonte.join(", ")}. Confirme com perguntar_a_sara (ou faça a conta com calcular) e monte de novo; não estime.` }, fontes: [] };
-      const { data: reg, error } = await sb.rpc("sara_documento_registrar", { p_tipo: v.documento.tipo, p_titulo: v.documento.titulo, p_conteudo: v.documento, p_areas: v.documento.areas, p_conversa: ctx.conversa });
-      if (error || !reg) return { dados: { erro: `Não registrou o documento: ${error?.message ?? "sem resposta"}` }, fontes: [] };
-      const { id, numero } = reg as { id: string; numero: string };
-      const [empresa, imagem] = await Promise.all([empresaDe(sb), logoDaEmpresa()]);
-      const pdf = await gerarPdf(v.documento, { numero, empresa, logo: imagem });
-      const { data: org } = await sb.rpc("current_organization_id");
-      const caminho = `${org}/${id}/${nomeDoArquivo(numero, v.documento.titulo).replace(/[^\w.\- ]+/g, "")}`;
-      const admin = createSupabaseAdminClient();
-      const { error: eUp } = await admin.storage.from(BUCKET_DOCUMENTOS).upload(caminho, pdf.bytes, { contentType: "application/pdf", upsert: false });
-      if (eUp) return { dados: { erro: `Não guardou o PDF: ${eUp.message}` }, fontes: [] };
-      const { error: eArq } = await sb.rpc("sara_documento_arquivo", { p_documento: id, p_caminho: caminho, p_paginas: pdf.paginas, p_bytes: pdf.bytes.length });
-      if (eArq) return { dados: { erro: `Não ligou o PDF: ${eArq.message}` }, fontes: [] };
-      ctx.criados.push({ id, numero, titulo: v.documento.titulo, tipo: v.documento.tipo, paginas: pdf.paginas });
-      return { dados: { criado: true, id, numero, titulo: v.documento.titulo, paginas: pdf.paginas, observacao: "A prévia aparece na tela da pessoa, com o botão para abrir o PDF. Para enviar, use enviar_documento com este id e o nome de quem recebe (ela vai permitir antes)." },
+      const g = await guardarDocumento(sb, v.documento, ctx.conversa);
+      if ("erro" in g) return { dados: { erro: g.erro }, fontes: [] };
+      const { id, numero, paginas } = g;
+      ctx.criados.push({ id, numero, titulo: v.documento.titulo, tipo: v.documento.tipo, paginas });
+      return { dados: { criado: true, id, numero, titulo: v.documento.titulo, paginas, observacao: "A prévia aparece na tela da pessoa, com o botão para abrir o PDF. Para enviar, use enviar_documento com este id e o nome de quem recebe (ela vai permitir antes)." },
         fontes: [{ rotulo: `Documento ${numero}`, link: `/api/sara/documentos/${id}/pdf` }] };
     },
   };
+}
+
+/**
+ * Registra o documento (reserva o DOC-AAAA-NNNN), gera o PDF com o timbre e guarda no bucket privado. Usado pela
+ * ferramenta criar_documento e pelo "Gerar o PDF" do relatório de crescimento. `extra` vai junto no conteúdo
+ * (ex.: a origem, para não gerar o mesmo PDF duas vezes).
+ */
+export async function guardarDocumento(sb: SupabaseClient, documento: Documento, conversa: string | null, extra: Record<string, unknown> = {}): Promise<{ id: string; numero: string; paginas: number } | { erro: string }> {
+  const { data: reg, error } = await sb.rpc("sara_documento_registrar", { p_tipo: documento.tipo, p_titulo: documento.titulo, p_conteudo: { ...documento, ...extra }, p_areas: documento.areas, p_conversa: conversa });
+  if (error || !reg) return { erro: `Não registrou o documento: ${error?.message ?? "sem resposta"}` };
+  const { id, numero } = reg as { id: string; numero: string };
+  const [empresa, imagem] = await Promise.all([empresaDe(sb), logoDaEmpresa()]);
+  const pdf = await gerarPdf(documento, { numero, empresa, logo: imagem });
+  const { data: org } = await sb.rpc("current_organization_id");
+  const caminho = `${org}/${id}/${nomeDoArquivo(numero, documento.titulo).replace(/[^\w.\- ]+/g, "")}`;
+  const admin = createSupabaseAdminClient();
+  const { error: eUp } = await admin.storage.from(BUCKET_DOCUMENTOS).upload(caminho, pdf.bytes, { contentType: "application/pdf", upsert: false });
+  if (eUp) return { erro: `Não guardou o PDF: ${eUp.message}` };
+  const { error: eArq } = await sb.rpc("sara_documento_arquivo", { p_documento: id, p_caminho: caminho, p_paginas: pdf.paginas, p_bytes: pdf.bytes.length });
+  if (eArq) return { erro: `Não ligou o PDF: ${eArq.message}` };
+  return { id, numero, paginas: pdf.paginas };
 }
 
 type Pessoa = { id: string; nome: string; isOwner: boolean };
@@ -116,7 +128,7 @@ type Pessoa = { id: string; nome: string; isOwner: boolean };
  * Quem pode receber: as pessoas ativas da empresa de quem pede. Lido pelo servidor porque quem pede pode não
  * enxergar os perfis dos outros (só o proprietário enxerga); a empresa é a da sessão.
  */
-async function pessoasAtivas(sb: SupabaseClient): Promise<Pessoa[]> {
+export async function pessoasAtivas(sb: SupabaseClient): Promise<Pessoa[]> {
   const { data: org } = await sb.rpc("current_organization_id");
   if (!org) return [];
   const { data } = await createSupabaseAdminClient().from("profiles").select("id, full_name, is_owner, access_expires_at").eq("organization_id", org).eq("status", "active").limit(1000);

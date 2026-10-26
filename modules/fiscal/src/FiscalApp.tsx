@@ -19,6 +19,7 @@ import { ConfiguracaoFiscal } from "./ConfiguracaoFiscal";
 import { MascarasImpostos } from "./MascarasImpostos";
 import { Parametros } from "./Parametros";
 import { IbsCbs } from "./IbsCbs";
+import { Contabilidade } from "./Contabilidade";
 import { PortalEscritorio } from "./PortalEscritorio";
 
 /**
@@ -54,6 +55,7 @@ const SECOES = [
   { id: "Máscaras de impostos", icon: "report" },
   { id: "Parâmetros legais", icon: "database" },
   { id: "IBS e CBS", icon: "report" },
+  { id: "Contabilidade", icon: "database" },
   { id: "Escritório contábil", icon: "briefcase" },
   { id: "Portal do contador", icon: "briefcase" },
   { id: "Configuração", icon: "settings" },
@@ -77,6 +79,7 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
         : id === "Notas emitidas" || id === "A faturar" ? pode("fiscal.nfe")
         : id === "Máscaras de impostos" ? pode("fiscal.nfe") || pode("fiscal.config")
         : id === "Parâmetros legais" ? pode("fiscal.parametros") || pode("fiscal.config") || empresa || pode("fiscal.portal")
+        : id === "Contabilidade" ? pode("fiscal.contabilidade")
         : id === "IBS e CBS" ? pode("fiscal.icms") || pode("fiscal.config") || pode("fiscal.parametros") || pode("fiscal.nfe") || empresa || pode("fiscal.portal")
         : id === "Escritório contábil" ? empresa
           : id === "Portal do contador" ? !empresa && pode("fiscal.portal")
@@ -102,6 +105,7 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
   if (secao === "Máscaras de impostos") return <MascarasImpostos notify={notify} />;
   if (secao === "Parâmetros legais") return <Parametros notify={notify} />;
   if (secao === "IBS e CBS") return <IbsCbs notify={notify} />;
+  if (secao === "Contabilidade") return <Contabilidade notify={notify} />;
   if (secao === "Configuração") return <ConfiguracaoFiscal notify={notify} />;
   if (secao === "Escritório contábil" || secao === "Portal do contador") return <PortalEscritorio notify={notify} />;
   if (secao === "Painel do ICMS") return <PainelIcms notify={notify} />;

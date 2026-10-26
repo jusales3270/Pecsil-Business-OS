@@ -10,7 +10,7 @@ const OBJETOS: Record<string, string> = {
   rh_absences: "afastamento", rh_absence_clinical: "dado clínico de afastamento", rh_ppe_deliveries: "entrega de EPI",
   rh_sst_records: "registro de SST", rh_holidays: "férias", rh_benefit_enrollments: "benefício", rh_benefit_requests: "pedido de benefício",
   products: "produto", product_groups: "grupo de produto", sales_quotes: "orçamento", production_entries: "entrada de produção", customers: "cliente",
-  profiles: "usuário", user_roles: "papel de usuário", contabil_perfil_empresa: "perfil fiscal da empresa", contabil_sentinela_config: "configuração da Sentinela",
+  profiles: "usuário", user_roles: "papel de usuário", contabil_perfil_empresa: "perfil fiscal da empresa", contabil_sentinela_config: "configuração da Sentinela", contabil_planos: "plano de contas contábil", contabil_lancamentos: "lançamento contábil", contabil_periodos: "competência contábil",
 };
 const VERBOS: Record<string, string> = { insert: "Criou", update: "Alterou", delete: "Excluiu" };
 
@@ -31,6 +31,14 @@ const FIXOS: Record<string, string> = {
   "fiscal_nfe.autorizada_treino": "Aprovou e transmitiu nota fiscal (treino)",
   "fiscal_nfe.cancelada": "Cancelou nota fiscal",
   "contabil_parametros.conferido": "Conferiu parâmetro legal",
+  "contabil_planos.importado": "Importou plano de contas contábil",
+  "contabil_planos.definido": "Definiu o plano de contas oficial ou a abertura",
+  "contabil_planos.apagado": "Apagou plano de contas contábil",
+  "contabil_lancamentos.escriturado": "Escriturou lançamentos automáticos",
+  "contabil_lancamentos.manual": "Fez lançamento contábil manual",
+  "contabil_lancamentos.estornado": "Estornou lançamento contábil",
+  "contabil_periodos.fechado": "Fechou a competência contábil",
+  "contabil_periodos.reaberto": "Reabriu a competência contábil",
   "contabil_parametros.proposto": "Propôs nova vigência de parâmetro legal",
   "contabil_parametros.descartado": "Descartou rascunho de parâmetro legal",
   "contabil_teses.tese_conferida": "Conferiu tese de tribunal",

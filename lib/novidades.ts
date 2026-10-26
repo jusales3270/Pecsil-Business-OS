@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-26-contabilidade-motor",
+    data: "2026-10-26",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.contabilidade"],
+    titulo: "Contabilidade: o motor de escrituração",
+    itens: [
+      "Nova tela Fiscal › Contabilidade: os títulos e as baixas do Financeiro viram lançamentos contábeis por regra, com débito igual a crédito conferido em cada um.",
+      "O plano de contas vem do escritório: importe o arquivo da ECD (traz também os saldos de abertura) ou uma planilha. Um plano de exemplo serve só para testar.",
+      "Cada conta gerencial, conta bancária e papel (contas a pagar, juros…) ganha a sua conta contábil em Vínculos. O que não tem vínculo não vai para conta adivinhada: fica como pendência, com o motivo.",
+      "Também: lançamento manual com histórico, estorno que mantém o original, balancete íntegro com as sintéticas somadas, razão por conta com saldo corrente e fechamento do mês.",
+    ],
+  },
+  {
     id: "2026-10-26-documento-pelo-whatsapp",
     data: "2026-10-26",
     area: "SARA",
