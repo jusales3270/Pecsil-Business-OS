@@ -7,7 +7,8 @@ import { responder } from "../sara/responder";
 import { prepararCom } from "../sara/sessao";
 import { transcrever } from "../sara/voz";
 import { createSupabaseAdminClient } from "../supabase/admin";
-import { avaliarEnquete, mandarEnquete, receberVoto } from "./confirmar";
+import { avaliarEnquete, executarAcao, mandarEnquete, receberVoto } from "./confirmar";
+import { destinoDoEnvio } from "./enviar";
 import { apagarMensagem, baixarMidia, enviarAudio, enviarInterativo, enviarTexto, marcarLida, presenca } from "./evolution";
 import { complementoEscrito, dividir, lerMensagem, paraWhatsApp, type Recebida } from "./mensagem";
 import { SARA_OPCOES } from "./saras";
@@ -23,6 +24,8 @@ import { SARA_OPCOES } from "./saras";
  *   O que não dá para ouvir (link do Permitir, gráfico) vai junto, por escrito.
  * - Ação que grava fica pendente, com o link para o Permitir da plataforma; se a área dona da ação liberou, vai junto
  *   uma enquete "Sim / Não" e só o primeiro voto vale (lib/whatsapp/confirmar.ts).
+ * - Envio pelo WhatsApp (documento, voz, texto) para a própria pessoa: sai direto, logo depois da resposta, como se ela
+ *   tivesse permitido (a mesma trilha do Permitir). Para outra pessoa da empresa, enquete; contato externo, o link.
  * As chamadas à Evolution e à voz são trocáveis (`Deps`), para testar o caminho inteiro sem o chip.
  */
 
@@ -152,7 +155,9 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
         return { situacao: "falhou", respostas: n };
       }
       const linkSara = `${base()}/?module=${sara}&sara=1`;
-      const pendentes = (corpo.acoes ?? []).filter((a) => a.situacao === "pendente");
+      const preparadas = (corpo.acoes ?? []).filter((a) => a.situacao === "pendente");
+      const diretas = await paraQuemPede(admin, s.sb, perfil.id, preparadas.map((a) => a.id));
+      const pendentes = preparadas.filter((a) => !diretas.includes(a.id));
       // Uma ação que a área liberou para o WhatsApp: vai a enquete depois da resposta.
       const enquete = await avaliarEnquete(admin, perfil.id, contato.id, pendentes.map((a) => a.id)).catch(() => null);
       const extra = complementoEscrito({ acoesPendentes: pendentes.length, visuais: (corpo.visuais ?? []).length, linkSara, enquete: Boolean(enquete) });
@@ -172,6 +177,11 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
       } else {
         n += await responderTexto(`${paraWhatsApp(semExpressoes(semTags(corpo.texto)), base())}${extra ? `\n\n${extra}` : ""}`);
       }
+      // O que é para a própria pessoa (o PDF que ela pediu) chega logo depois da resposta, sem confirmar.
+      for (const id of diretas) {
+        const r = await executarAcao(s.sb, p, id, true);
+        if (r.situacao !== "executada") n += await responderTexto(`Não consegui mandar agora. ${r.texto}`);
+      }
       if (enquete && await mandarEnquete(admin, d, canal, contato.id, perfil.id, m.numero, enquete)) n++;
       await marcar({ situacao: "respondida", conversa_id: corpo.conversa ?? conversa });
       return { situacao: "respondida", conversa: corpo.conversa ?? conversa, respostas: n };
@@ -183,6 +193,18 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
     await d.enviarTexto(canal.instancia, m.numero, "Não consegui responder agora. Tente de novo em instantes.").catch(() => null);
     return { situacao: "falhou", motivo: msg.slice(0, 120) };
   }
+}
+
+/** Das ações preparadas, os envios pelo WhatsApp cujo destino é a própria pessoa da conversa (lista interna). */
+async function paraQuemPede(admin: SupabaseClient, sb: SupabaseClient, perfil: string, ids: string[]): Promise<string[]> {
+  if (!ids.length) return [];
+  const { data } = await admin.from("sara_acoes").select("id, ferramenta, entrada, profile_id").in("id", ids).eq("ferramenta", "enviar_pelo_whatsapp").eq("profile_id", perfil);
+  const diretas: string[] = [];
+  for (const a of (data ?? []) as { id: string; entrada: Record<string, unknown> | null }[]) {
+    const destino = await destinoDoEnvio(sb, a.entrada ?? {});
+    if (destino?.lista === "interna" && destino.perfil === perfil) diretas.push(a.id);
+  }
+  return diretas;
 }
 
 async function registrarSaida(admin: SupabaseClient, canal: Canal, contato: string, perfil: string, waId: string | null, tipo: "texto" | "audio") {

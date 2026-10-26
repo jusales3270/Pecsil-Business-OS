@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { sessaoComo } from "../sara/guias-executar";
 import { prepararCom } from "../sara/sessao";
 import { apagarMensagem, enviarInterativo, enviarTexto } from "./evolution";
-import { inicioDoDia, OPCOES_ENQUETE, PODE_PELO_WHATSAPP, perguntaDaEnquete, podeVirarEnquete, VALIDADE_ENQUETE_MS, type AcaoPendente } from "./confirmar-regras";
+import { inicioDoDia, LIBERADAS_PELO_PROPRIETARIO, OPCOES_ENQUETE, PODE_PELO_WHATSAPP, perguntaDaEnquete, podeVirarEnquete, VALIDADE_ENQUETE_MS, type AcaoPendente } from "./confirmar-regras";
 import type { Escolha } from "./mensagem";
 
 /**
@@ -23,7 +23,7 @@ type DepsEnquete = { enviarInterativo: typeof enviarInterativo; enviarTexto: typ
 export async function avaliarEnquete(admin: SupabaseClient, perfil: string, contato: string, ids: string[]): Promise<AcaoPendente | null> {
   if (ids.length !== 1) return null;
   const { data: a } = await admin.from("sara_acoes").select("id, organization_id, modulo, ferramenta, resumo, risco, situacao, expira_em, profile_id").eq("id", ids[0]).maybeSingle<AcaoPendente>();
-  if (!a || !PODE_PELO_WHATSAPP[a.ferramenta]) return null;
+  if (!a || !(PODE_PELO_WHATSAPP[a.ferramenta] || LIBERADAS_PELO_PROPRIETARIO[a.ferramenta])) return null;
   const [{ data: liberada }, { count }, { count: abertas }] = await Promise.all([
     admin.from("sara_whatsapp_confirmar").select("ate_por_dia").eq("organization_id", a.organization_id).eq("ferramenta", a.ferramenta).maybeSingle<{ ate_por_dia: number }>(),
     admin.from("whatsapp_enquetes").select("id", { count: "exact", head: true }).eq("profile_id", perfil).eq("ferramenta", a.ferramenta).eq("situacao", "respondida").eq("resposta", "Sim").gte("respondida_em", inicioDoDia()),
@@ -97,23 +97,35 @@ export async function receberVoto(admin: SupabaseClient, d: DepsEnquete, canal: 
     const titulo = `${sim ? "✅" : "✖️"} ${acao?.resumo ?? "Ação"} (${e.texto})`;
     const p = acao ? await prepararCom(s.sb, acao.modulo) : null;
     if (!p || "erro" in p) return { situacao: "respondida", motivo: "sem_permissao", respostas: await responder(`${titulo}\nNão foi feito: você não tem mais acesso a essa SARA.`) };
-    const { data, error } = await s.sb.rpc("sara_acao_decidir", { p_id: ganhou.acao_id, p_permitir: sim });
-    if (error) return { situacao: "respondida", motivo: "ja_decidida", respostas: await responder(`${titulo}\nNada mudou: ${error.message}`) };
-    const dd = data as { situacao: string; ferramenta?: string; entrada?: Record<string, unknown> };
-    if (dd.situacao === "expirada") return { situacao: "respondida", motivo: "acao_expirada", respostas: await responder(`${titulo}\nEsta proposta venceu e nada foi feito. Peça de novo à SARA.`) };
-    if (dd.situacao === "recusada") return { situacao: "respondida", motivo: "recusada", respostas: await responder(`${titulo}\nTudo bem: nada foi feito.`) };
-    // Permitida: executa com a sessão da pessoa, como o Permitir da tela. Sem a ferramenta (a permissão mudou), não executa.
-    const f = p.ferramentas.find((x) => x.nome === dd.ferramenta && x.acao);
-    let ok = false, resultado: Record<string, unknown> | null = null, erro: string | null = null;
-    if (!f) erro = "Você não tem mais permissão para esta ação.";
-    else {
-      try { const r = await f.rodar(s.sb, dd.entrada ?? {}); ok = true; resultado = (r.dados ?? null) as Record<string, unknown> | null; }
-      catch (err) { erro = err instanceof Error ? err.message.slice(0, 300) : "Falhou."; }
-    }
-    const { error: e2 } = await s.sb.rpc("sara_acao_concluir", { p_id: ganhou.acao_id, p_ok: ok, p_resultado: resultado, p_erro: erro });
-    if (e2) console.error("[whatsapp] não registrou o resultado da ação", e2.message);
-    return ok
-      ? { situacao: "respondida", motivo: "executada", respostas: await responder(`${titulo}\n${String(resultado?.feito ?? "Feito.")}`) }
-      : { situacao: "respondida", motivo: "falhou", respostas: await responder(`${titulo}\nNão foi feito: ${erro}`) };
+    const r = await executarAcao(s.sb, p, ganhou.acao_id, sim);
+    const motivo = { executada: "executada", falhou: "falhou", expirada: "acao_expirada", recusada: "recusada", ja_decidida: "ja_decidida" }[r.situacao];
+    return { situacao: "respondida", motivo, respostas: await responder(`${titulo}\n${r.texto}`) };
   } finally { await s.sair(); }
+}
+
+type Preparada = Exclude<Awaited<ReturnType<typeof prepararCom>>, { erro: unknown }>;
+export type Execucao = { situacao: "executada" | "falhou" | "expirada" | "recusada" | "ja_decidida"; texto: string };
+
+/**
+ * Decide uma ação preparada, como o Permitir da tela (app/api/sara/[modulo]/acoes/[id]): sara_acao_decidir confere de
+ * novo a permissão, a ferramenta roda com a sessão da pessoa e o resultado fica no histórico. Usada pelo voto da
+ * enquete e pela entrega direta do que é para a própria pessoa.
+ */
+export async function executarAcao(sb: SupabaseClient, p: Preparada, acaoId: string, permitir: boolean): Promise<Execucao> {
+  const { data, error } = await sb.rpc("sara_acao_decidir", { p_id: acaoId, p_permitir: permitir });
+  if (error) return { situacao: "ja_decidida", texto: `Nada mudou: ${error.message}` };
+  const dd = data as { situacao: string; ferramenta?: string; entrada?: Record<string, unknown> };
+  if (dd.situacao === "expirada") return { situacao: "expirada", texto: "Esta proposta venceu e nada foi feito. Peça de novo à SARA." };
+  if (dd.situacao === "recusada") return { situacao: "recusada", texto: "Tudo bem: nada foi feito." };
+  // Permitida: executa com a sessão da pessoa. Sem a ferramenta (a permissão mudou), não executa.
+  const f = p.ferramentas.find((x) => x.nome === dd.ferramenta && x.acao);
+  let ok = false, resultado: Record<string, unknown> | null = null, erro: string | null = null;
+  if (!f) erro = "Você não tem mais permissão para esta ação.";
+  else {
+    try { const r = await f.rodar(sb, dd.entrada ?? {}); ok = true; resultado = (r.dados ?? null) as Record<string, unknown> | null; }
+    catch (err) { erro = err instanceof Error ? err.message.slice(0, 300) : "Falhou."; }
+  }
+  const { error: e2 } = await sb.rpc("sara_acao_concluir", { p_id: acaoId, p_ok: ok, p_resultado: resultado, p_erro: erro });
+  if (e2) console.error("[whatsapp] não registrou o resultado da ação", e2.message);
+  return ok ? { situacao: "executada", texto: String(resultado?.feito ?? "Feito.") } : { situacao: "falhou", texto: `Não foi feito: ${erro}` };
 }

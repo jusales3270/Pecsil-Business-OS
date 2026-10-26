@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-26-documento-pelo-whatsapp",
+    data: "2026-10-26",
+    area: "SARA",
+    modulos: ["warroom"],
+    funcionalidades: ["warroom.sara"],
+    titulo: "Documentos da SARA central direto no seu WhatsApp",
+    itens: [
+      "Quem usa a SARA central pode pedir pelo WhatsApp um relatório ou outro documento e receber o PDF na mesma conversa, sem abrir a plataforma.",
+      "Para mandar a outra pessoa da empresa, a SARA pergunta numa enquete Sim/Não antes de enviar. Para fornecedor ou cliente, a confirmação continua no Permitir da plataforma.",
+      "Na plataforma, o pedido de envio pelo WhatsApp agora mostra o cartão Permitir para quem usa a SARA central, e não só para o proprietário.",
+    ],
+  },
+  {
     id: "2026-10-25-nfe-devolucao-item",
     data: "2026-10-25",
     area: "Fiscal",

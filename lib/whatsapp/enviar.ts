@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { readSessionAccess } from "../auth/session-access";
 import { createSupabaseAdminClient } from "../supabase/admin";
 import type { Ferramenta } from "../sara/base";
 import { BUCKET_DOCUMENTOS } from "../sara/central/documentos";
@@ -10,7 +11,9 @@ import { enviarAudio, enviarDocumento, enviarTexto, numeroLegivel } from "./evol
 /**
  * W4 (PLANO-WHATSAPP): a SARA central envia pelo WhatsApp — documentos em PDF, mensagens de voz e texto — a quem
  * está nas listas de um número da plataforma (interna: pessoas da Pecsil; externa: fornecedores, clientes e
- * outros). Sempre com o Permitir de quem pediu, e por enquanto só o proprietário (como a própria central).
+ * outros). Pode quem usa a SARA central (o proprietário e quem ele liberou: módulo warroom + warroom.sara).
+ * Confirmação: na tela, o Permitir; pelo WhatsApp, o que é para a própria pessoa sai direto na conversa, para outra
+ * pessoa da empresa vai uma enquete, e para contato externo segue o Permitir (lib/whatsapp/atender.ts).
  * Sai pelo número em cuja lista o destinatário está (o da SARA central primeiro). Tudo fica registrado.
  */
 
@@ -42,6 +45,14 @@ async function destinos(): Promise<Destino[]> {
       nome: (c.lista === "interna" ? perfil.get(c.profile_id ?? "")?.full_name : c.nome) ?? "sem nome", lista: c.lista, organizacao: c.organization_id, perfil: c.profile_id }));
 }
 
+const SEM_CENTRAL = "O envio pelo WhatsApp é de quem usa a SARA central.";
+
+/** Quem pode enviar: quem usa a SARA central (os mesmos critérios de prepararCom para a central). */
+async function podeUsarACentral(sb: SupabaseClient): Promise<boolean> {
+  const access = await readSessionAccess(sb).catch(() => null);
+  return Boolean(access && access.canModule("warroom") && access.can("warroom.sara", "ver"));
+}
+
 /** "para mim", "me manda", "eu": quem pediu é o destinatário. */
 export const ehQuemPede = (nome: string) => /^(para |pra )?(mim|eu|me|o proprio|a propria|o senhor|a senhora|voce)$/i.test(nome.normalize("NFD").replace(/[̀-ͯ]/g, "").trim());
 
@@ -60,6 +71,12 @@ async function acharDestino(nome: string, sb: SupabaseClient): Promise<Destino |
   const achou = acharPessoa(nome, unicos.map((d) => ({ id: d.contato, nome: d.nome })));
   if ("erro" in achou) return { erro: `${achou.erro} Pelo WhatsApp, só recebe quem está nas listas de um número da plataforma (Fundação › WhatsApp).` };
   return unicos.find((d) => d.contato === achou.pessoa.id)!;
+}
+
+/** O destino de um envio já preparado (o atendimento do WhatsApp entrega direto quando é para quem pediu). */
+export async function destinoDoEnvio(sb: SupabaseClient, entrada: Record<string, unknown>): Promise<{ perfil: string | null; lista: "interna" | "externa" } | null> {
+  const d = await acharDestino(String(entrada.para ?? ""), sb).catch(() => null);
+  return d && !("erro" in d) ? { perfil: d.perfil, lista: d.lista } : null;
 }
 
 /** Os documentos pedidos, pelo id interno ou pelo número (DOC-2026-0008), na ordem pedida. */
@@ -87,7 +104,7 @@ const ehVoz = (d: Doc) => d.tipo === "mensagem_voz";
 
 export const ENVIAR_WHATSAPP: Ferramenta = {
   nome: "enviar_pelo_whatsapp", rotulo: "preparou um envio pelo WhatsApp", exige: [],
-  descricao: "PREPARA o envio pelo WhatsApp, por um número da plataforma, de documentos já criados (criar_documento: chega como PDF), mensagens de voz já gravadas (criar_mensagem_de_voz: chega como áudio gravado) e/ou um texto, para quem está nas listas de um número da plataforma (pessoas da Pecsil e contatos externos: fornecedores, clientes e outros). A pessoa que pediu permite antes. Diga quem recebe como foi falado (\"para mim\" quando é para quem pediu) e o número (DOC-…) de cada documento. Reaproveite os documentos e mensagens de voz já criados nesta conversa: não crie de novo para enviar.",
+  descricao: "PREPARA o envio pelo WhatsApp, por um número da plataforma, de documentos já criados (criar_documento: chega como PDF), mensagens de voz já gravadas (criar_mensagem_de_voz: chega como áudio gravado) e/ou um texto, para quem está nas listas de um número da plataforma (pessoas da Pecsil e contatos externos: fornecedores, clientes e outros). Na tela, a pessoa que pediu permite antes. Pelo WhatsApp, o que é para a própria pessoa (\"para mim\") sai direto nesta conversa; para outra pessoa da empresa vai uma enquete para confirmar; para contato externo, o Permitir na plataforma. Diga quem recebe como foi falado (\"para mim\" quando é para quem pediu) e o número (DOC-…) de cada documento. Reaproveite os documentos e mensagens de voz já criados nesta conversa: não crie de novo para enviar.",
   esquema: { type: "object", properties: {
     para: { type: "string", description: "Nome de quem recebe (ex.: \"Júnior\", \"White Martins\")." },
     documentos: { type: "array", items: { type: "string" }, description: "O número de cada documento ou mensagem de voz (ex.: DOC-2026-0008) ou o id que criar_documento/criar_mensagem_de_voz devolveu (até 5)." },
@@ -96,8 +113,7 @@ export const ENVIAR_WHATSAPP: Ferramenta = {
   acao: {
     nivel: "operar", modulos: ["warroom"],
     preparar: async (sb, e) => {
-      const { data: dono } = await sb.rpc("is_owner");
-      if (!dono) return { erro: "O envio pelo WhatsApp é do proprietário, por enquanto." };
+      if (!(await podeUsarACentral(sb))) return { erro: SEM_CENTRAL };
       const d = await acharDestino(String(e.para ?? ""), sb);
       if ("erro" in d) return d;
       const docs = await documentos(sb, lerIds(e.documentos));
@@ -112,8 +128,7 @@ export const ENVIAR_WHATSAPP: Ferramenta = {
     },
   },
   rodar: async (sb, e) => {
-    const { data: dono } = await sb.rpc("is_owner");
-    if (!dono) throw new Error("O envio pelo WhatsApp é do proprietário, por enquanto.");
+    if (!(await podeUsarACentral(sb))) throw new Error(SEM_CENTRAL);
     const d = await acharDestino(String(e.para ?? ""), sb);
     if ("erro" in d) throw new Error(d.erro);
     const docs = await documentos(sb, lerIds(e.documentos));

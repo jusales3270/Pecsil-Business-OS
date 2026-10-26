@@ -128,6 +128,14 @@ A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está 
     (`whatsapp_enquetes`) e aceita o voto uma vez só. Depois a enquete é **apagada para todos** e fica a mensagem
     com o resultado. Voto trocado, retirado ou repetido é ignorado em silêncio.
   - **O voto só vale do número que recebeu a enquete:** a conversa é um a um.
+- **Envio de documento, voz e texto pela SARA central** (decisão do proprietário em 26/10/2026): pode quem usa a
+  SARA central (módulo `warroom` + `warroom.sara`; hoje o proprietário e os diretores Domingo e Ricardo), não só o
+  proprietário. Pelo WhatsApp:
+  - **Para a própria pessoa** ("me manda o PDF"): sai direto na mesma conversa, logo depois da resposta, sem
+    confirmar. Passa pela mesma trilha do Permitir (`sara_acao_decidir` + `sara_acao_concluir`), então fica registrado.
+  - **Para outra pessoa da empresa:** enquete Sim/Não, sem o quadro das áreas (é regra da estrutura), até 20 por
+    pessoa por dia (`LIBERADAS_PELO_PROPRIETARIO`).
+  - **Para contato externo:** risco alto, segue o Permitir na plataforma.
 - **Todo o resto vai para o Permitir na plataforma:** a SARA manda o link do cartão; quem confirma entra com a
   senha ou a digital. Ação de risco alto, dinheiro, pedido de material, convite a fornecedor e qualquer envio para
   fora ficam sempre aqui.
@@ -141,7 +149,7 @@ A SARA prepara a ação como hoje (ela nunca grava sozinha). A diferença está 
 | W2 | Números e allowlist | Vários números (cada um uma instância da Evolution), cada um com departamento, descrição, **comportamento (prompt) e modelo**; **allowlist por número**: usuário da plataforma + SARA de cada pessoa + número (+ apelido) | **No ar** (25/10; migrações 202610240002, 202610250002/0003) |
 | W2 | Alertas da plataforma e da Forja pelo WhatsApp (P-06) | Horário silencioso pronto (20h–7h e domingo); **quais avisos vão: a decidir pelo proprietário** | Esperando decisão |
 | W3 | SARA pelo WhatsApp | Webhook, a SARA de cada pessoa com a sessão dela, texto com texto e áudio com áudio (§4), comportamento e modelo do número, defesa contra injeção | **No ar** (24–25/10) |
-| W4 | Envios da central e confirmar | Envio de PDF, voz e texto com o Permitir (`enviar_pelo_whatsapp`), com prévia também de documento já existente; **confirmar por enquete** do que a área liberar (migração 202610250001); **envios agendados** (migração 202610250005) | **No ar**; enquete esperando as áreas liberarem ações |
+| W4 | Envios da central e confirmar | Envio de PDF, voz e texto (`enviar_pelo_whatsapp`) por quem usa a SARA central: para si pelo WhatsApp sai direto, para colega por enquete, para fora com o Permitir (26/10), com prévia também de documento já existente; **confirmar por enquete** do que a área liberar (migração 202610250001); **envios agendados** (migração 202610250005) | **No ar**; enquete esperando as áreas liberarem ações |
 | W5 | Contatos de fora (fornecedores e clientes) | **Sem API oficial (decisão de 24/10): tudo pela Evolution, de preferência num número separado do Chip interno** (risco de bloqueio). Allowlist externa e o que a SARA pode responder a quem é de fora | Para depois (decisão do proprietário, 25/10) |
 
 Também no ar, fora das etapas: o **Bom dia** da SARA às 7h30 também pelo WhatsApp, em texto, para quem está na allowlist (a partir de 27/10); o **apelido** da allowlist em toda fala da SARA; o **vigia da conexão** (chip caído → aviso no sino do proprietário, uma vez, e "voltou" depois).
@@ -157,6 +165,7 @@ Também no ar, fora das etapas: o **Bom dia** da SARA às 7h30 também pelo What
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 26/10/2026 | O envio pelo WhatsApp deixa de ser só do proprietário: quem usa a SARA central (os diretores) pede o documento pelo WhatsApp e recebe na mesma conversa, sem a plataforma; para colega, enquete; para fora, Permitir. Motivo: o Domingo pediu o PDF pelo WhatsApp e pela plataforma e não recebeu (a trava barrava sem cartão) | Proprietário |
 | 25/10/2026 | Envios agendados; Bom dia às 7h30 também pelo WhatsApp (a partir de 27/10); apelido sempre; vigia da conexão; prévia de documento já existente no cartão da central; o verificador da central deixa de marcar telefone, DOC e código como "sem fonte". Etapas e pendências revistas (canal do vigia T-03 e avisos ao WhatsApp: decisões adiadas; W5 para depois) | Proprietário |
 | 25/10/2026 | **Allowlist por número** no lugar das listas interna e externa (externa fica para depois); cada pessoa com a sua SARA; cada número com prompt de sistema (complementa a SARA; segurança por cima) e modelo. A SARA do número passou para cada pessoa; a coluna antiga sai depois do Deploy | Proprietário |
 | 25/10/2026 | **Confirmar por enquete** no lugar do "SIM + código". Teste real no celular do proprietário: botões aceitos pela Evolution mas não exibidos (vêm como "visualização única"); lista quebra na Evolution 2.3.7; enquete entregue com o voto legível. O quadro passa a ser por ação, com a área dona da ação decidindo (o quadro das Guias vale para uma guia, e a ação do WhatsApp não vem de guia). Bug achado pelo proprietário: cada voto trocado era processado de novo; agora só o primeiro vale e a enquete é apagada | Proprietário |

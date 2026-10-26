@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { inicioDoDia, PODE_PELO_WHATSAPP, perguntaDaEnquete, podeVirarEnquete } from "../lib/whatsapp/confirmar-regras.ts";
+import { inicioDoDia, LIBERADAS_PELO_PROPRIETARIO, PODE_PELO_WHATSAPP, perguntaDaEnquete, podeVirarEnquete } from "../lib/whatsapp/confirmar-regras.ts";
 import { complementoEscrito, lerMensagem } from "../lib/whatsapp/mensagem.ts";
 
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
@@ -19,6 +19,23 @@ test("confirmar pelo WhatsApp: só ação liberada pela área, normal, pendente,
   assert.deepEqual(podeVirarEnquete(acao({ profile_id: "p2" }), base), { ok: false, motivo: "outra_pessoa" });
   assert.deepEqual(podeVirarEnquete(acao(), { ...base, usadasHoje: 3 }), { ok: false, motivo: "limite_do_dia" });
   assert.deepEqual(podeVirarEnquete(acao(), { ...base, temAberta: true }), { ok: false, motivo: "ja_tem_enquete" });
+});
+
+test("envio pelo WhatsApp (SARA central): enquete sem o quadro das áreas, só para dentro da empresa e até 20 por dia", () => {
+  const envio = acao({ modulo: "warroom", ferramenta: "enviar_pelo_whatsapp", resumo: "Enviar pelo WhatsApp para Ana" });
+  assert.deepEqual(podeVirarEnquete(envio, { ...base, liberada: null }), { ok: true }, "liberada pelo proprietário, não pela área");
+  assert.deepEqual(podeVirarEnquete({ ...envio, risco: "alto" }, { ...base, liberada: null }), { ok: false, motivo: "risco_alto" }, "contato externo segue o Permitir");
+  assert.deepEqual(podeVirarEnquete(envio, { ...base, liberada: null, usadasHoje: 19 }), { ok: true });
+  assert.deepEqual(podeVirarEnquete(envio, { ...base, liberada: null, usadasHoje: 20 }), { ok: false, motivo: "limite_do_dia" });
+  assert.equal(LIBERADAS_PELO_PROPRIETARIO.enviar_pelo_whatsapp.ate_por_dia, 20);
+});
+
+test("envio pelo WhatsApp: quem usa a SARA central (não só o proprietário) e, para a própria pessoa, entrega direta", () => {
+  const enviar = ler("lib/whatsapp/enviar.ts"), atender = ler("lib/whatsapp/atender.ts");
+  assert.doesNotMatch(enviar, /is_owner/, "a trava é a SARA central, não o proprietário");
+  assert.match(enviar, /canModule\("warroom"\) && access\.can\("warroom\.sara", "ver"\)/);
+  assert.match(atender, /destino\?\.lista === "interna" && destino\.perfil === perfil/, "direto só para a própria pessoa, na lista interna");
+  assert.match(atender, /executarAcao\(s\.sb, p, id, true\)/, "a mesma trilha do Permitir");
 });
 
 test("confirmar pelo WhatsApp: a lista do código é a mesma do banco, e dinheiro, material, convite e envio para fora nunca entram", () => {

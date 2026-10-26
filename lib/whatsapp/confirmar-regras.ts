@@ -14,6 +14,15 @@ export const PODE_PELO_WHATSAPP: Record<string, { modulo: string; rotulo: string
   entrada_de_producao: { modulo: "producao", rotulo: "Dar entrada de produção" },
 };
 
+/**
+ * Liberadas pelo proprietário (regra da estrutura, não do quadro das áreas; decisão de 26/10/2026): quem usa a SARA
+ * central envia pelo WhatsApp a outra pessoa da empresa confirmando na enquete. Contato externo é risco alto e segue
+ * o Permitir; para a própria pessoa sai direto, sem enquete (lib/whatsapp/atender.ts).
+ */
+export const LIBERADAS_PELO_PROPRIETARIO: Record<string, { ate_por_dia: number }> = {
+  enviar_pelo_whatsapp: { ate_por_dia: 20 },
+};
+
 export const VALIDADE_ENQUETE_MS = 15 * 60_000;
 export const OPCOES_ENQUETE = [{ id: "sim", texto: "Sim" }, { id: "nao", texto: "Não" }];
 
@@ -33,11 +42,12 @@ export type MotivoSemEnquete = "nao_liberada" | "risco_alto" | "nao_pendente" | 
 
 /** Regra pura: a ação pode virar enquete agora? */
 export function podeVirarEnquete(a: AcaoPendente, o: { perfil: string; liberada: { ate_por_dia: number } | null; usadasHoje: number; temAberta: boolean; agora?: number }): { ok: true } | { ok: false; motivo: MotivoSemEnquete } {
-  if (!PODE_PELO_WHATSAPP[a.ferramenta] || !o.liberada) return { ok: false, motivo: "nao_liberada" };
+  const liberada = LIBERADAS_PELO_PROPRIETARIO[a.ferramenta] ?? (PODE_PELO_WHATSAPP[a.ferramenta] ? o.liberada : null);
+  if (!liberada) return { ok: false, motivo: "nao_liberada" };
   if (a.risco === "alto") return { ok: false, motivo: "risco_alto" };
   if (a.situacao !== "pendente" || Date.parse(a.expira_em) <= (o.agora ?? Date.now())) return { ok: false, motivo: "nao_pendente" };
   if (a.profile_id !== o.perfil) return { ok: false, motivo: "outra_pessoa" };
-  if (o.usadasHoje >= o.liberada.ate_por_dia) return { ok: false, motivo: "limite_do_dia" };
+  if (o.usadasHoje >= liberada.ate_por_dia) return { ok: false, motivo: "limite_do_dia" };
   if (o.temAberta) return { ok: false, motivo: "ja_tem_enquete" };
   return { ok: true };
 }
