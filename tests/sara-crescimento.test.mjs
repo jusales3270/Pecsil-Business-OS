@@ -130,4 +130,5 @@ test("crescimento: migração, tarefa agendada e telas", () => {
   assert.match(tela, /Opinião da SARA \(IA\) · confiança/);
   assert.match(ler("lib/sara/central/crescimento-executar.ts"), /RETRATO[\s\S]*fiscal_notas_emitidas/);
   assert.doesNotMatch(ler("lib/sara/central/crescimento-executar.ts"), /"rh_/, "sem dado de colaborador no retrato");
+  assert.match(ler("lib/sara/central/crescimento-executar.ts"), /profiles!user_feature_grants_profile_id_fkey!inner/, "o aviso chega a quem tem a SARA central (embutido sem ambiguidade)");
 });

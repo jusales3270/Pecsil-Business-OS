@@ -100,10 +100,12 @@ export async function rodarCrescimento(admin: SupabaseClient, o: OpcoesCrescimen
     // 4. Aviso: o proprietário e quem tem a SARA central.
     let para = o.destinatarios;
     if (!para) {
-      const [{ data: donos }, { data: grants }] = await Promise.all([
+      // user_feature_grants liga duas vezes a profiles (a pessoa e quem concedeu): o embutido tem de dizer qual.
+      const [{ data: donos }, { data: grants, error: eG }] = await Promise.all([
         admin.from("profiles").select("id").eq("organization_id", dono.organization_id).eq("is_owner", true).eq("status", "active"),
-        admin.from("user_feature_grants").select("profile_id, profiles!inner(status)").eq("feature_code", "warroom.sara").eq("profiles.status", "active"),
+        admin.from("user_feature_grants").select("profile_id, profiles!user_feature_grants_profile_id_fkey!inner(status)").eq("feature_code", "warroom.sara").eq("profiles.status", "active"),
       ]);
+      if (eG) console.error("[crescimento] quem tem a SARA central", eG.message);
       para = [...new Set([...((donos ?? []) as { id: string }[]).map((x) => x.id), ...((grants ?? []) as { profile_id: string }[]).map((x) => x.profile_id)])];
     }
     const total = relatorio.ideias.length + relatorio.recursos.length + relatorio.concorrencia.length + relatorio.investimentos.length;
