@@ -22,6 +22,7 @@ import { IbsCbs } from "./IbsCbs";
 import { Contabilidade } from "./Contabilidade";
 import { Calendario } from "./Calendario";
 import { Entradas } from "./Entradas";
+import { SimuladorReforma } from "./SimuladorReforma";
 import { PortalEscritorio } from "./PortalEscritorio";
 
 /**
@@ -58,6 +59,7 @@ const SECOES = [
   { id: "Máscaras de impostos", icon: "report" },
   { id: "Parâmetros legais", icon: "database" },
   { id: "IBS e CBS", icon: "report" },
+  { id: "Simulador da reforma", icon: "report" },
   { id: "Contabilidade", icon: "database" },
   { id: "Calendário fiscal", icon: "calendar" },
   { id: "Escritório contábil", icon: "briefcase" },
@@ -85,6 +87,7 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
         : id === "Máscaras de impostos" ? pode("fiscal.nfe") || pode("fiscal.config")
         : id === "Parâmetros legais" ? pode("fiscal.parametros") || pode("fiscal.config") || empresa || pode("fiscal.portal")
         : id === "Contabilidade" ? pode("fiscal.contabilidade")
+        : id === "Simulador da reforma" ? pode("fiscal.icms") || pode("fiscal.config") || pode("fiscal.parametros") || pode("fiscal.nfe") || empresa || pode("fiscal.portal") || pode("fiscal.contabilidade")
         : id === "Calendário fiscal" ? pode("fiscal.icms") || pode("fiscal.config") || pode("fiscal.parametros") || pode("fiscal.nfe") || empresa || pode("fiscal.portal") || pode("fiscal.contabilidade")
         : id === "IBS e CBS" ? pode("fiscal.icms") || pode("fiscal.config") || pode("fiscal.parametros") || pode("fiscal.nfe") || empresa || pode("fiscal.portal")
         : id === "Escritório contábil" ? empresa
@@ -114,6 +117,7 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
   if (secao === "Contabilidade") return <Contabilidade notify={notify} />;
   if (secao === "Calendário fiscal") return <Calendario notify={notify} />;
   if (secao === "Conferência de entradas") return <Entradas notify={notify} />;
+  if (secao === "Simulador da reforma") return <SimuladorReforma />;
   if (secao === "Configuração") return <ConfiguracaoFiscal notify={notify} />;
   if (secao === "Escritório contábil" || secao === "Portal do contador") return <PortalEscritorio notify={notify} />;
   if (secao === "Painel do ICMS") return <PainelIcms notify={notify} />;

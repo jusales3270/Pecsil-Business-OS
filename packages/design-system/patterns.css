@@ -9389,6 +9389,20 @@ a.doc-abrir { text-decoration: none; }
 .ent-cfop { width: 72px; min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-variant-numeric: tabular-nums; }
 .ent-detalhe .ent-itens input.ent-cfop { width: 72px; min-width: 0; }
 .ent-detalhe .ent-itens input.ent-cfop:disabled { border-style: dashed; color: var(--text-muted); background: transparent; }
+/* Fiscal › Simulador da reforma (N-11) */
+.rf-entradas { display: flex; flex-direction: column; gap: var(--sp-3); }
+.rf-linha { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-3); }
+.rf-largo { min-width: 280px; flex: 1 1 280px; }
+.rf-largo select { width: 100%; }
+.rf-num { width: 140px; min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-variant-numeric: tabular-nums; }
+.rf-tabela { grid-template-columns: minmax(140px, 1fr) repeat(9, max-content); }
+.rf-tabela > .cabeca > .r { text-align: right; }
+.rf-destaque { background: var(--bg-subtle); font-weight: 600; }
+.rf-informativo { color: var(--text-muted); text-decoration: line-through dotted; }
+.rf-caixa { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--sp-3); }
+.rf-caixa > div { display: flex; flex-direction: column; gap: 4px; padding: var(--sp-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-md, 8px); font-size: var(--fs-sm); }
+.rf-alerta { color: var(--accent-amber); font-weight: 600; }
+.rf-saldo { margin: 0; font-size: var(--fs-sm); max-width: 640px; }
 .pcf-mes { display: grid; gap: 2px; font-size: var(--fs-sm); }
 .pcf-mes span { color: var(--text-muted); font-size: var(--fs-xs); }
 .pcf-mes select { min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }

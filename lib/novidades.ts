@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-26-simulador-reforma",
+    data: "2026-10-26",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.icms", "fiscal.config", "fiscal.parametros", "fiscal.nfe", "fiscal.escritorio", "fiscal.portal", "fiscal.contabilidade"],
+    titulo: "Simulador da reforma tributária",
+    itens: [
+      "Nova tela Fiscal › Simulador da reforma: escolha um orçamento (ou um valor e a máscara de impostos) e veja a venda de 2026 a 2033, com IPI zero e PIS/COFINS extintos em 2027, a CBS que o Senado fixar e a troca do ICMS pelo IBS de 2029 a 2033.",
+      "Dá para manter a receita líquida (o preço que a empresa precisa cobrar) ou manter o preço dos produtos (quanto a receita muda), e trocar as alíquotas de referência.",
+      "Mostra também o caixa da venda com o split payment e quanto um saldo credor de ICMS vira por mês a partir de 2033. É estimativa: as premissas estão nos Parâmetros legais.",
+    ],
+  },
+  {
     id: "2026-10-26-conferencia-entradas",
     data: "2026-10-26",
     area: "Fiscal",
