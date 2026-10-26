@@ -5,7 +5,7 @@ import "./ts-resolver.mjs";
 
 const { calcularItens, calcularTotais } = await import("../lib/fiscal/emissao/calculo.ts");
 const { dvChave, chaveDeAcesso, gerarXmlNfe, nfeProcDeTreino, dataHoraBrasilia } = await import("../lib/fiscal/emissao/xml.ts");
-const { validarNota, cnpjValido, cpfValido, problemasDoEmitente } = await import("../lib/fiscal/emissao/regras.ts");
+const { validarNota, cnpjValido, cpfValido, problemasDoEmitente, avisosIbsCbs } = await import("../lib/fiscal/emissao/regras.ts");
 const { normalizarNota, notaVazia, itemPadrao } = await import("../lib/fiscal/emissao/normalizar.ts");
 
 const ler = (caminho) => readFileSync(new URL(caminho, import.meta.url), "utf8");
@@ -221,4 +221,33 @@ test("migração dos clientes: campos fiscais com checagem e gravação só pelo
   assert.match(sqlClientes, /grant execute on function public\.customer_dados_fiscais_gravar\(uuid, uuid, jsonb, text\) to service_role/);
   assert.match(sqlClientes, /if doc is null or nome is null then return null; end if;/, "sem documento não cria cliente");
   assert.match(ler("../app/api/fiscal/consulta/route.ts"), /requireFeature\("fiscal\.nfe", "operar"\)/);
+});
+
+test("IBS/CBS: base com frete, seguro e outras, sem o IPI (LC 214 art. 12)", () => {
+  const ibs = { ibsCbsCst: "000", cClassTrib: "000001", ibsAliquota: 0.1, cbsAliquota: 0.9, ipiCst: "50", ipiAliquota: 10, pisCst: "01", pisAliquota: 1.65, cofinsCst: "01", cofinsAliquota: 7.6 };
+  const [c] = calcularItens(nota({ itens: [item(ibs)], frete: { ...notaVazia().frete, valor: 80 }, seguro: 15, outrasDespesas: 5 }));
+  assert.equal(c.vFrete + c.vSeg + c.vOutro, 100);
+  assert.ok(c.vIPI > 0);
+  assert.equal(c.vBCIBSCBS, Math.round((c.vProd - c.vDesc + 100 - c.vICMS - c.vPIS - c.vCOFINS) * 100) / 100);
+  assert.equal(c.vCBS, Math.round(c.vBCIBSCBS * 0.9) / 100);
+});
+
+test("IBS/CBS: CST aceito, cClassTrib do mesmo CST e alíquota conferida com a lei", () => {
+  const erros = (extra) => validarNota(nota({ itens: [item({ ibsCbsCst: "000", cClassTrib: "000001", ibsAliquota: 0.1, cbsAliquota: 0.9, ...extra })] }), EMITENTE).erros.map((e) => e.campo);
+  assert.deepEqual(erros({}).filter((c) => /ibs|cbs|cClass/i.test(c)), []);
+  assert.ok(erros({ cClassTrib: "410999" }).includes("itens.0.cClassTrib"));
+  assert.ok(erros({ cClassTrib: "0001" }).includes("itens.0.cClassTrib"));
+  assert.ok(erros({ ibsCbsCst: "200", cClassTrib: "200001" }).includes("itens.0.ibsCbsCst"));
+  assert.ok(erros({ cbsAliquota: 0 }).includes("itens.0.cbsAliquota"));
+  assert.deepEqual(erros({ ibsCbsCst: "410", cClassTrib: "410999", ibsAliquota: undefined, cbsAliquota: undefined }).filter((c) => /ibs|cbs|cClass/i.test(c)), []);
+
+  const legal = { cbs: 0.009, ibs: 0.001, norma: "LC 214/2025", aConferir: false };
+  const certa = nota({ itens: [item({ ibsCbsCst: "000", cClassTrib: "000001", ibsAliquota: 0.1, cbsAliquota: 0.9 })] });
+  assert.deepEqual(avisosIbsCbs(certa, 3, legal), []);
+  const errada = nota({ itens: [item({ ibsCbsCst: "000", cClassTrib: "000001", ibsAliquota: 0.1, cbsAliquota: 0.8 })] });
+  assert.match(avisosIbsCbs(errada, 3, legal)[0].mensagem, /CBS 0,80%.*CBS 0,90%/);
+  assert.match(avisosIbsCbs(nota(), 3, legal)[0].mensagem, /grupo IBS\/CBS/);
+  assert.deepEqual(avisosIbsCbs(nota(), 1, legal), []);
+  assert.match(avisosIbsCbs(certa, 3, null)[0].mensagem, /Não há parâmetro legal/);
+  assert.equal(avisosIbsCbs(certa, 3, { ...legal, aConferir: true }).length, 1);
 });

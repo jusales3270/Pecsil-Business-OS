@@ -1,0 +1,118 @@
+/**
+ * IBS e CBS da reforma (N-03): leitura do grupo IBSCBS (por item) e do IBSCBSTot (total) de um XML de NF-e,
+ * para a apuração informativa de 2026 (débitos das saídas − créditos das entradas). Puro: recebe o texto do
+ * XML e o CNPJ da empresa. Estrutura conferida no esquema oficial (DFeTiposBasicos, NT 2025.002) e em notas
+ * reais de fornecedores (out/2026).
+ */
+
+export type ItemIbsCbs = { nItem: number; cst: string; cClassTrib: string; vBC: number; pIBSUF: number; vIBSUF: number; pIBSMun: number; vIBSMun: number; pCBS: number; vCBS: number };
+export type NotaIbsCbs = {
+  chave: string | null;
+  modelo: string | null;
+  numero: string | null;
+  emissao: string | null;
+  competencia: string | null;
+  emitenteCnpj: string | null;
+  emitenteNome: string | null;
+  destinatarioCnpj: string | null;
+  lado: "entrada" | "saida" | "outra";
+  /** Nota de devolução, cancelamento etc. (finNFe 4 = devolução). */
+  finalidade: string | null;
+  temGrupo: boolean;
+  itens: ItemIbsCbs[];
+  vBC: number;
+  vIBSUF: number;
+  vIBSMun: number;
+  vIBS: number;
+  vCBS: number;
+  vNF: number;
+  vNFTot: number | null;
+};
+
+const num = (v: string | null | undefined) => (v ? Number(v) || 0 : 0);
+const tag = (xml: string, nome: string) => xml.match(new RegExp(`<${nome}>([^<]*)</${nome}>`))?.[1] ?? null;
+const ENTIDADES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+/** Texto do XML legível: desfaz as entidades (duas vezes, porque há emissor que escapa o & em dobro: "&amp;amp;"). */
+const textoXml = (t: string | null) => {
+  if (t === null) return null;
+  let v = t;
+  for (let k = 0; k < 2; k++) v = v.replace(/&(amp|lt|gt|quot|apos|#\d+|#x[0-9a-f]+);/gi, (_, e: string) => e[0] === "#" ? String.fromCodePoint(e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : Number(e.slice(1))) : ENTIDADES[e.toLowerCase()]);
+  return v.trim();
+};
+const bloco = (xml: string, nome: string) => xml.match(new RegExp(`<${nome}(?:\\s[^>]*)?>([\\s\\S]*?)</${nome}>`))?.[1] ?? null;
+const so = (v: string | null) => (v ? v.replace(/\D/g, "") : null);
+const r2 = (v: number) => Math.round(Number((v * 100).toFixed(6))) / 100;
+
+export function lerIbsCbs(xml: string, cnpjEmpresa: string): NotaIbsCbs | null {
+  const inf = bloco(xml, "infNFe");
+  if (!inf) return null;
+  const ide = bloco(inf, "ide") ?? "";
+  const emit = bloco(inf, "emit") ?? "";
+  const dest = bloco(inf, "dest") ?? "";
+  const empresa = so(cnpjEmpresa) ?? "";
+  const emitente = so(tag(emit, "CNPJ"));
+  const destinatario = so(tag(dest, "CNPJ"));
+  const emissao = tag(ide, "dhEmi") ?? tag(ide, "dEmi");
+  const itens: ItemIbsCbs[] = [];
+  for (const m of inf.matchAll(/<det nItem="(\d+)">([\s\S]*?)<\/det>/g)) {
+    const g = bloco(m[2], "IBSCBS");
+    if (!g) continue;
+    const valores = bloco(g, "gIBSCBS") ?? "";
+    const uf = bloco(valores, "gIBSUF") ?? "";
+    const mun = bloco(valores, "gIBSMun") ?? "";
+    const cbs = bloco(valores, "gCBS") ?? "";
+    itens.push({
+      nItem: Number(m[1]), cst: tag(g, "CST") ?? "", cClassTrib: tag(g, "cClassTrib") ?? "",
+      vBC: num(tag(valores, "vBC")), pIBSUF: num(tag(uf, "pIBSUF")), vIBSUF: num(tag(uf, "vIBSUF")),
+      pIBSMun: num(tag(mun, "pIBSMun")), vIBSMun: num(tag(mun, "vIBSMun")), pCBS: num(tag(cbs, "pCBS")), vCBS: num(tag(cbs, "vCBS")),
+    });
+  }
+  const total = bloco(inf, "total") ?? "";
+  const tot = bloco(total, "IBSCBSTot");
+  const soma = (k: keyof ItemIbsCbs) => r2(itens.reduce((a, i) => a + Number(i[k]), 0));
+  // O total do XML vale; sem ele, a soma dos itens.
+  const gIBS = tot ? bloco(tot, "gIBS") ?? "" : "";
+  const vIBSUF = tot ? num(tag(bloco(gIBS, "gIBSUF") ?? "", "vIBSUF")) : soma("vIBSUF");
+  const vIBSMun = tot ? num(tag(bloco(gIBS, "gIBSMun") ?? "", "vIBSMun")) : soma("vIBSMun");
+  const vCBS = tot ? num(tag(bloco(tot, "gCBS") ?? "", "vCBS")) : soma("vCBS");
+  const vNFTotTxt = tag(total, "vNFTot");
+  return {
+    chave: inf.length ? (xml.match(/<infNFe[^>]*Id="NFe(\d{44})"/)?.[1] ?? null) : null,
+    modelo: tag(ide, "mod"), numero: tag(ide, "nNF"),
+    emissao, competencia: emissao ? emissao.slice(0, 7) : null,
+    emitenteCnpj: emitente, emitenteNome: textoXml(tag(emit, "xNome")), destinatarioCnpj: destinatario,
+    lado: emitente === empresa ? "saida" : destinatario === empresa ? "entrada" : "outra",
+    finalidade: tag(ide, "finNFe"),
+    temGrupo: itens.length > 0,
+    itens,
+    vBC: tot ? num(tag(tot, "vBCIBSCBS")) : soma("vBC"),
+    vIBSUF, vIBSMun, vIBS: r2(vIBSUF + vIBSMun), vCBS,
+    vNF: num(tag(bloco(total, "ICMSTot") ?? "", "vNF")),
+    vNFTot: vNFTotTxt === null ? null : num(vNFTotTxt),
+  };
+}
+
+export type LinhaApuracao = { competencia: string; debitoIBS: number; debitoCBS: number; creditoIBS: number; creditoCBS: number; saldoIBS: number; saldoCBS: number; notasSaida: number; notasEntrada: number; semGrupo: number };
+
+/**
+ * Apuração informativa por competência (2026: o recolhimento é dispensado para quem cumpre as obrigações
+ * acessórias, LC 214 art. 348). Saída gera débito; entrada gera crédito (não-cumulatividade ampla, art. 47).
+ * Devolução (finNFe 4) inverte o lado. Nota sem o grupo conta à parte, para cobrar do fornecedor.
+ */
+export function apurar(notas: NotaIbsCbs[]): LinhaApuracao[] {
+  const porMes = new Map<string, LinhaApuracao>();
+  for (const n of notas) {
+    if (!n.competencia || n.lado === "outra") continue;
+    const l = porMes.get(n.competencia) ?? { competencia: n.competencia, debitoIBS: 0, debitoCBS: 0, creditoIBS: 0, creditoCBS: 0, saldoIBS: 0, saldoCBS: 0, notasSaida: 0, notasEntrada: 0, semGrupo: 0 };
+    if (!n.temGrupo) { l.semGrupo++; porMes.set(n.competencia, l); continue; }
+    const devolucao = n.finalidade === "4";
+    const debito = (n.lado === "saida") !== devolucao;
+    if (debito) { l.debitoIBS = r2(l.debitoIBS + n.vIBS); l.debitoCBS = r2(l.debitoCBS + n.vCBS); }
+    else { l.creditoIBS = r2(l.creditoIBS + n.vIBS); l.creditoCBS = r2(l.creditoCBS + n.vCBS); }
+    if (n.lado === "saida") l.notasSaida++; else l.notasEntrada++;
+    l.saldoIBS = r2(l.debitoIBS - l.creditoIBS);
+    l.saldoCBS = r2(l.debitoCBS - l.creditoCBS);
+    porMes.set(n.competencia, l);
+  }
+  return [...porMes.values()].sort((a, b) => b.competencia.localeCompare(a.competencia));
+}

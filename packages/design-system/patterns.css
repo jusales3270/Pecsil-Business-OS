@@ -9309,3 +9309,8 @@ a.doc-abrir { text-decoration: none; }
 .pcf-sentinela-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2); margin: var(--sp-3) 0; }
 .pcf-comparar { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-3); }
 .pcf-config { margin-top: var(--sp-4); display: grid; gap: var(--sp-2); }
+/* Fiscal › IBS e CBS (N-03): Emissão · Emitente · Lado · Base · IBS · CBS · Grupo. */
+.ibs-tabela { grid-template-columns: max-content minmax(240px, 1fr) max-content repeat(3, minmax(90px, max-content)) max-content; }
+.pcf-mes { display: grid; gap: 2px; font-size: var(--fs-sm); }
+.pcf-mes span { color: var(--text-muted); font-size: var(--fs-xs); }
+.pcf-mes select { min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }

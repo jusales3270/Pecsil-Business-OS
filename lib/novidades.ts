@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-25-ibs-cbs",
+    data: "2026-10-25",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.icms", "fiscal.config", "fiscal.parametros", "fiscal.nfe", "fiscal.escritorio", "fiscal.portal"],
+    titulo: "IBS e CBS: a apuração informativa de 2026",
+    itens: [
+      "Nova tela Fiscal › IBS e CBS: cada nota guardada na plataforma (enviada pelo Fiscal, recebida pelo Almoxarifado ou emitida em produção) é lida uma vez, e o mês mostra o débito das saídas, o crédito das entradas e o saldo da CBS e do IBS.",
+      "Em 2026 o valor só é destacado na nota: o recolhimento é dispensado para quem cumpre as obrigações. A tela aponta as notas que vieram sem o grupo do IBS/CBS e exporta a lista em planilha.",
+      "Na emissão de NF-e, a base do IBS/CBS passa a somar frete, seguro e outras despesas, como manda a lei. A validação agora confere a classificação tributária com o CST e avisa quando a alíquota da máscara difere da lei em vigor.",
+    ],
+  },
+  {
     id: "2026-10-25-sentinela",
     data: "2026-10-25",
     area: "Fiscal",

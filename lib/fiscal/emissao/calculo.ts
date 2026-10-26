@@ -8,8 +8,9 @@
  *   consumidor final), reduzida pelo % de redução da base.
  * - IPI: base = vProd − desconto + frete + seguro + outras.
  * - PIS/COFINS: base = vProd − desconto (− ICMS quando a máscara manda excluir).
- * - IBS/CBS (2026, como o GRV emite): base = vProd − desconto − ICMS − PIS − COFINS, só nos CST que
- *   tributam (000…); IBS da UF e CBS pelas alíquotas da máscara. Não somam no vNF em 2026.
+ * - IBS/CBS (LC 214 art. 12; NT 2025.002): base = vProd − desconto + frete + seguro + outras
+ *   − ICMS − PIS − COFINS (o IPI fica fora, art. 12 §2º II), só nos CST que tributam (000…); IBS da
+ *   UF e CBS pelas alíquotas da máscara. Não somam no vNF em 2026.
  * - vNF = vProd − vDesc + vFrete + vSeg + vOutro + vIPI (sem ST nesta etapa).
  */
 import type { ItemNfe, NotaNfe, Totais, TotaisItem } from "./tipos";
@@ -48,7 +49,7 @@ export function calcularItens(nota: Pick<NotaNfe, "itens" | "frete" | "seguro" |
     const vPIS = PIS_COFINS_ALIQ.has(i.pisCst) ? r2((basePisCofins * (i.pisAliquota || 0)) / 100) : 0;
     const vCOFINS = PIS_COFINS_ALIQ.has(i.cofinsCst) ? r2((basePisCofins * (i.cofinsAliquota || 0)) / 100) : 0;
     const ibsCbs = ibsCbsTributa(i.ibsCbsCst);
-    const vBCIBSCBS = ibsCbs ? r2(vProd - vDesc - vICMS - vPIS - vCOFINS) : 0;
+    const vBCIBSCBS = ibsCbs ? r2(vProd - vDesc + acessorias - vICMS - vPIS - vCOFINS) : 0;
     const vIBS = ibsCbs ? r2((vBCIBSCBS * (i.ibsAliquota || 0)) / 100) : 0;
     const vCBS = ibsCbs ? r2((vBCIBSCBS * (i.cbsAliquota || 0)) / 100) : 0;
     return { vProd, vDesc, vBC, vICMS, vIPI, vBCIPI, vBCPisCofins: basePisCofins, vPIS, vCOFINS, vBCIBSCBS, vIBS, vCBS, vFrete: fretes[k], vSeg: seguros[k], vOutro: outros[k] };

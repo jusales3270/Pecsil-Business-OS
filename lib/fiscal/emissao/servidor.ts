@@ -4,7 +4,7 @@ import { randomInt } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { obterTransmissor, transmissorConfigurado } from "../transmissor";
 import { calcularItens, calcularTotais } from "./calculo";
-import { cnpjValido, cpfValido, validarNota, type Problema } from "./regras";
+import { avisosIbsCbs, cnpjValido, cpfValido, validarNota, type IbsCbsLegal, type Problema } from "./regras";
 import type { AmbienteNfe, Destinatario, Emitente, NotaNfe } from "./tipos";
 import { assinaturaDeTreino, gerarXmlNfe, nfeProcDeTreino } from "./xml";
 
@@ -103,6 +103,19 @@ export function resumoDaNota(nota: NotaNfe) {
   };
 }
 
+const hojeEmBrasilia = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+
+/** CBS e IBS da fase de teste vigentes na data (Fiscal › Parâmetros legais); sem parâmetro, null. */
+async function ibsCbsLegal(admin: SupabaseClient, data: string): Promise<IbsCbsLegal | null> {
+  const { data: p } = await admin.from("contabil_parametros").select("valor, fonte, situacao")
+    .eq("chave", "reforma_2026_fase_teste").eq("escopo", "legal").neq("situacao", "descartado")
+    .lte("vigente_de", data).or(`vigente_ate.is.null,vigente_ate.gte.${data}`)
+    .order("situacao").order("vigente_de", { ascending: false }).limit(1).maybeSingle();
+  const v = p?.valor as { cbs?: unknown; ibs?: unknown } | undefined;
+  if (!p || typeof v?.cbs !== "number" || typeof v?.ibs !== "number") return null;
+  return { cbs: v.cbs, ibs: v.ibs, norma: String((p.fonte as { norma?: string } | null)?.norma ?? "parâmetro legal").split(";")[0], aConferir: p.situacao !== "conferido" };
+}
+
 export type ResultadoValidacao = { ok: boolean; erros: Problema[]; avisos: Problema[]; esquema: { conferido: boolean; erros: string[] } };
 
 /**
@@ -112,6 +125,7 @@ export type ResultadoValidacao = { ok: boolean; erros: Problema[]; avisos: Probl
 export async function validarEGravar(admin: SupabaseClient, org: string, registro: { id: string; ambiente: AmbienteNfe; serie: number | null; numero: number | null; codigo_numerico: string | null; nota: NotaNfe }): Promise<ResultadoValidacao> {
   const emitente = await emitenteDaOrganizacao(admin, org);
   const { erros, avisos } = validarNota(registro.nota, emitente);
+  avisos.push(...avisosIbsCbs(registro.nota, emitente?.crt ?? 3, await ibsCbsLegal(admin, hojeEmBrasilia())));
   let esquema: ResultadoValidacao["esquema"] = { conferido: false, erros: [] };
   const atualizar: Record<string, unknown> = { updated_at: new Date().toISOString() };
 

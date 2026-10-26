@@ -3,7 +3,7 @@
  * coerente com o destino, documentos com dígito verificador, CST compatível com o regime, totais e
  * duplicatas fechando centavo a centavo. Puro e testável. Mensagens para quem está treinando.
  */
-import { calcularItens, calcularTotais, icmsDestaca, r2 } from "./calculo";
+import { calcularItens, calcularTotais, ibsCbsTributa, icmsDestaca, r2 } from "./calculo";
 import { idDestino } from "./xml";
 import type { Emitente, ItemNfe, NotaNfe } from "./tipos";
 
@@ -78,7 +78,48 @@ function problemasDoItem(i: ItemNfe, k: number, crt: number, tipo: 0 | 1, destin
   for (const [campo, rotulo] of [["pisCst", "PIS"], ["cofinsCst", "COFINS"]] as const) {
     if (!CST_PIS_COFINS.includes(i[campo])) add(campo, `CST do ${rotulo} inválido.`);
   }
+  if (i.ibsCbsCst) {
+    const cst = so(i.ibsCbsCst);
+    if (!CST_IBS_CBS.includes(cst)) add("ibsCbsCst", `CST ${i.ibsCbsCst} do IBS/CBS ainda não é emitido pela plataforma (aceitos: ${CST_IBS_CBS.join(", ")}); os outros pedem grupos de redução ou diferimento.`);
+    const cClass = so(i.cClassTrib);
+    if (!/^\d{6}$/.test(cClass)) add("cClassTrib", "a classificação tributária (cClassTrib) tem 6 dígitos.");
+    else if (!cClass.startsWith(cst)) add("cClassTrib", `a classificação ${cClass} não é do CST ${cst}: os 3 primeiros dígitos têm de ser o CST.`);
+    if (ibsCbsTributa(cst) && !((i.cbsAliquota ?? 0) > 0)) add("cbsAliquota", "o CST do IBS/CBS tributa e falta a alíquota da CBS.");
+  }
   return p;
+}
+
+/** CST de IBS/CBS que a plataforma emite hoje: tributação integral (000) e não incidência/imunidade (410). */
+export const CST_IBS_CBS = ["000", "410"];
+
+/** Alíquotas legais do IBS/CBS em vigor na data da emissão (parâmetro legal, em fração: 0,009 = 0,9%). */
+export type IbsCbsLegal = { cbs: number; ibs: number; norma: string; aConferir: boolean };
+
+const pct = (v: number) => `${v.toFixed(2).replace(".", ",")}%`;
+
+/**
+ * IBS/CBS conferido contra a lei em vigor: alíquota da máscara × parâmetro legal, e nota de saída
+ * do regime normal sem o grupo. Só avisa: em 2026 a SEFAZ ainda não rejeita.
+ */
+export function avisosIbsCbs(nota: NotaNfe, crt: number, legal: IbsCbsLegal | null): Problema[] {
+  const avisos: Problema[] = [];
+  const normal = crt === 3;
+  if (normal && nota.tipo === 1 && nota.itens.length && !nota.itens.some((i) => i.ibsCbsCst)) {
+    avisos.push({ campo: "itens", mensagem: "Nenhum item leva o grupo IBS/CBS: no regime normal ele é obrigatório desde 03/08/2026 (a SEFAZ ainda não rejeita). Confira a máscara de impostos." });
+  }
+  if (!legal) {
+    if (nota.itens.some((i) => ibsCbsTributa(i.ibsCbsCst))) avisos.push({ campo: "itens", mensagem: "Não há parâmetro legal de IBS/CBS em vigor nesta data: as alíquotas da máscara não foram conferidas." });
+    return avisos;
+  }
+  const cbs = r2(legal.cbs * 100), ibs = r2(legal.ibs * 100);
+  nota.itens.forEach((i, k) => {
+    if (!ibsCbsTributa(i.ibsCbsCst)) return;
+    if (r2(i.cbsAliquota ?? 0) !== cbs || r2(i.ibsAliquota ?? 0) !== ibs) {
+      avisos.push({ campo: `itens.${k}.cbsAliquota`, mensagem: `Item ${k + 1}: a máscara usa CBS ${pct(i.cbsAliquota ?? 0)} e IBS ${pct(i.ibsAliquota ?? 0)}; a lei em vigor (${legal.norma}) manda CBS ${pct(cbs)} e IBS ${pct(ibs)}.` });
+    }
+  });
+  if (legal.aConferir) avisos.push({ campo: "itens", mensagem: "As alíquotas legais do IBS/CBS ainda estão a conferir em Fiscal › Parâmetros legais." });
+  return avisos;
 }
 
 export function validarNota(nota: NotaNfe, emitente: Partial<Emitente> | null): { erros: Problema[]; avisos: Problema[] } {

@@ -10,7 +10,7 @@ const OBJETOS: Record<string, string> = {
   rh_absences: "afastamento", rh_absence_clinical: "dado clínico de afastamento", rh_ppe_deliveries: "entrega de EPI",
   rh_sst_records: "registro de SST", rh_holidays: "férias", rh_benefit_enrollments: "benefício", rh_benefit_requests: "pedido de benefício",
   products: "produto", product_groups: "grupo de produto", sales_quotes: "orçamento", production_entries: "entrada de produção", customers: "cliente",
-  profiles: "usuário", user_roles: "papel de usuário", contabil_perfil_empresa: "perfil fiscal da empresa",
+  profiles: "usuário", user_roles: "papel de usuário", contabil_perfil_empresa: "perfil fiscal da empresa", contabil_sentinela_config: "configuração da Sentinela",
 };
 const VERBOS: Record<string, string> = { insert: "Criou", update: "Alterou", delete: "Excluiu" };
 
