@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-26-conferencia-entradas",
+    data: "2026-10-26",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.icms", "fiscal.config", "fiscal.parametros", "fiscal.nfe", "fiscal.escritorio", "fiscal.portal"],
+    titulo: "Conferência das notas de entrada",
+    itens: [
+      "Nova tela Fiscal › Conferência de entradas: cada nota recebida é checada (CFOP × origem, CST × regime do emitente, alíquota interestadual, NCM, grupo do IBS/CBS, devolução sem a nota de origem e totais).",
+      "Cada item ganha uma classificação proposta (matéria-prima, uso e consumo, ativo, remessa, devolução…), com o CFOP de entrada e o crédito de ICMS que cabe, e o porquê da proposta.",
+      "Quem opera o ICMS confirma item por item; a confirmação fica registrada com quem e quando. A SARA do Fiscal avisa as notas do mês com erro e as que faltam conferir.",
+    ],
+  },
+  {
     id: "2026-10-26-calendario-fiscal",
     data: "2026-10-26",
     area: "Fiscal",

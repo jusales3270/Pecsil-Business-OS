@@ -31,6 +31,7 @@ const FIXOS: Record<string, string> = {
   "fiscal_nfe.autorizada_treino": "Aprovou e transmitiu nota fiscal (treino)",
   "fiscal_nfe.cancelada": "Cancelou nota fiscal",
   "contabil_parametros.conferido": "Conferiu parâmetro legal",
+  "fiscal_entradas.conferida": "Conferiu a classificação de nota de entrada",
   "contabil_planos.importado": "Importou plano de contas contábil",
   "contabil_planos.definido": "Definiu o plano de contas oficial ou a abertura",
   "contabil_planos.apagado": "Apagou plano de contas contábil",

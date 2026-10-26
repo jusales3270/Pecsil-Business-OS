@@ -9378,6 +9378,17 @@ a.doc-abrir { text-decoration: none; }
 .cal-mes::first-letter { text-transform: uppercase; }
 .cal-passado { opacity: 0.6; }
 .cal-definir { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); color: var(--text-secondary, var(--text-primary)); }
+/* Fiscal › Conferência de entradas (N-09) */
+.ent-tabela { grid-template-columns: max-content minmax(260px, 1fr) max-content minmax(140px, max-content) max-content max-content; }
+.ent-tabela > button[role="row"] { width: 100%; border: 0; border-top: 1px solid var(--border-subtle); background: none; font: inherit; text-align: left; color: var(--text-primary); cursor: pointer; }
+.ent-tabela > button[role="row"]:hover { background: var(--bg-hover); }
+:is(.ent-tabela, .ent-itens) > .cabeca > .r { text-align: right; }
+.ent-detalhe { gap: var(--sp-3); }
+.ent-itens { grid-template-columns: minmax(200px, 1fr) minmax(150px, max-content) max-content minmax(200px, 1fr) max-content; }
+.ent-itens .nome small { white-space: normal; }
+.ent-cfop { width: 72px; min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-variant-numeric: tabular-nums; }
+.ent-detalhe .ent-itens input.ent-cfop { width: 72px; min-width: 0; }
+.ent-detalhe .ent-itens input.ent-cfop:disabled { border-style: dashed; color: var(--text-muted); background: transparent; }
 .pcf-mes { display: grid; gap: 2px; font-size: var(--fs-sm); }
 .pcf-mes span { color: var(--text-muted); font-size: var(--fs-xs); }
 .pcf-mes select { min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }

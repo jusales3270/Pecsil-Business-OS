@@ -21,6 +21,7 @@ import { Parametros } from "./Parametros";
 import { IbsCbs } from "./IbsCbs";
 import { Contabilidade } from "./Contabilidade";
 import { Calendario } from "./Calendario";
+import { Entradas } from "./Entradas";
 import { PortalEscritorio } from "./PortalEscritorio";
 
 /**
@@ -51,6 +52,7 @@ const campo = (v: number) => (v ? v.toLocaleString("pt-BR", { minimumFractionDig
 const SECOES = [
   { id: "Painel do ICMS", icon: "file" },
   { id: "Notas recebidas", icon: "inbox" },
+  { id: "Conferência de entradas", icon: "inbox" },
   { id: "A faturar", icon: "receivable" },
   { id: "Notas emitidas", icon: "edit" },
   { id: "Máscaras de impostos", icon: "report" },
@@ -78,6 +80,7 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
   const visiveis = SECOES.filter(({ id }) =>
     id === "Painel do ICMS" ? pode("fiscal.icms")
       : id === "Notas recebidas" ? pode("fiscal.icms") || pode("fiscal.nfe")
+      : id === "Conferência de entradas" ? pode("fiscal.icms") || pode("fiscal.config") || pode("fiscal.parametros") || pode("fiscal.nfe") || empresa || pode("fiscal.portal")
         : id === "Notas emitidas" || id === "A faturar" ? pode("fiscal.nfe")
         : id === "Máscaras de impostos" ? pode("fiscal.nfe") || pode("fiscal.config")
         : id === "Parâmetros legais" ? pode("fiscal.parametros") || pode("fiscal.config") || empresa || pode("fiscal.portal")
@@ -110,6 +113,7 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
   if (secao === "IBS e CBS") return <IbsCbs notify={notify} />;
   if (secao === "Contabilidade") return <Contabilidade notify={notify} />;
   if (secao === "Calendário fiscal") return <Calendario notify={notify} />;
+  if (secao === "Conferência de entradas") return <Entradas notify={notify} />;
   if (secao === "Configuração") return <ConfiguracaoFiscal notify={notify} />;
   if (secao === "Escritório contábil" || secao === "Portal do contador") return <PortalEscritorio notify={notify} />;
   if (secao === "Painel do ICMS") return <PainelIcms notify={notify} />;

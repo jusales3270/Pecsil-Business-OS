@@ -126,6 +126,7 @@ const telas: Tela[] = [
   { id: "fiscal_mascaras", modulo: M, secao: "Máscaras de impostos", rotulo: "Fiscal › Máscaras de impostos", exige: ["fiscal.nfe", "fiscal.config"], serve: "regras de impostos por tipo de operação" },
   { id: "fiscal_escritorio", modulo: M, secao: "Escritório contábil", rotulo: "Fiscal › Escritório contábil", exige: ["fiscal.escritorio"], serve: "fechamento do mês e guias" },
   { id: "fiscal_portal", modulo: M, secao: "Portal do contador", rotulo: "Fiscal › Portal do contador", exige: ["fiscal.portal"], serve: "o lado do escritório no fechamento" },
+  { id: "fiscal_entradas", modulo: M, secao: "Conferência de entradas", rotulo: "Fiscal › Conferência de entradas", exige: ["fiscal.icms", "fiscal.config", "fiscal.parametros", "fiscal.nfe", "fiscal.escritorio"], serve: "checagem e classificação das notas recebidas" },
   { id: "fiscal_calendario", modulo: M, secao: "Calendário fiscal", rotulo: "Fiscal › Calendário fiscal", exige: ["fiscal.icms", "fiscal.config", "fiscal.parametros", "fiscal.nfe", "fiscal.escritorio", "fiscal.contabilidade"], serve: "vencimentos de declarações e guias" },
   { id: "fiscal_ibscbs", modulo: M, secao: "IBS e CBS", rotulo: "Fiscal › IBS e CBS", exige: ["fiscal.icms", "fiscal.config", "fiscal.parametros", "fiscal.nfe", "fiscal.escritorio"], serve: "apuração informativa do IBS e da CBS, nota a nota" },
   { id: "fiscal_contabilidade", modulo: M, secao: "Contabilidade", rotulo: "Fiscal › Contabilidade", exige: ["fiscal.contabilidade"], serve: "plano de contas, lançamentos, balancete e razão" },
@@ -137,6 +138,20 @@ const regras: Agente["regras"] = [
     // Calendário fiscal (N-06): o que vence nos próximos 7 dias, declarações e guias.
     exige: ["fiscal.icms", "fiscal.config", "fiscal.parametros", "fiscal.nfe", "fiscal.escritorio", "fiscal.contabilidade"],
     gerar: (sb, c) => avisosDoCalendario(sb, c.hoje, { somenteGuias: false, abrir: tela("Calendário fiscal"), prefixo: "fiscal" }),
+  },
+  {
+    // Conferência de entradas (N-09): notas do mês com erro e notas ainda sem a classificação confirmada.
+    exige: ["fiscal.icms"],
+    gerar: async (sb, c) => {
+      const { data } = await sb.from("fiscal_entradas").select("situacao, conferida").eq("competencia", c.hoje.slice(0, 7)).neq("situacao", "fora").limit(3000);
+      const notas = (data ?? []) as { situacao: string; conferida: boolean }[];
+      const erro = notas.filter((n) => n.situacao === "erro").length;
+      const aConferir = notas.filter((n) => !n.conferida).length;
+      const saida: Alerta[] = [];
+      if (erro) saida.push({ chave: `fiscal.entradas_erro:${c.hoje.slice(0, 7)}:${erro}`, nivel: "urgente", titulo: `${plural(erro, "nota de entrada com erro", "notas de entrada com erro")} no mês`, detalhe: "CFOP, CST, NCM, devolução ou totais que não conferem: tratar com o fornecedor.", abrir: tela("Conferência de entradas") });
+      if (aConferir) saida.push({ chave: `fiscal.entradas_conferir:${c.hoje.slice(0, 7)}:${aConferir}`, nivel: "aviso", titulo: `${plural(aConferir, "nota de entrada", "notas de entrada")} do mês sem a classificação conferida`, detalhe: "A plataforma já propôs o tipo de cada item e o CFOP de entrada; falta confirmar.", abrir: tela("Conferência de entradas") });
+      return saida;
+    },
   },
   {
     exige: ["fiscal.config", "fiscal.certificado"],
