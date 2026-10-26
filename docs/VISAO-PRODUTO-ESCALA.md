@@ -291,3 +291,82 @@ cliente obriga a disponibilizar o código **dele**, não o da plataforma, que fa
 **Quando.** Continua valendo a decisão de 17/10: primeiro a Pecsil pronta e validada, com o GRV desligado
 (Marco 1). Quando a raia Z voltar, ela nasce neste formato.
 
+
+## 8. Proteção contra cópia na instalação do cliente (pedido do proprietário, 26/10/2026)
+
+**A pergunta.** Com a plataforma no servidor do cliente, dá para pôr uma senha que impeça clonar o código?
+
+**A resposta honesta.** Não existe senha que impeça: quem administra o servidor (ou tem a máquina na mão)
+lê tudo o que roda nele. A proteção é tornar a cópia **difícil, inútil e arriscada**, em quatro camadas.
+Nenhuma sozinha resolve; juntas, copiar deixa de compensar.
+
+### 8.1 Camada 1: contrato e registro (a principal)
+
+- **Contrato de licença de uso:** o cliente recebe o direito de usar, não o código. Cláusulas de proibição
+  de cópia, de engenharia reversa e de repasse a terceiros, de confidencialidade e com multa; o acesso de
+  manutenção ao servidor; e o que acontece no fim do contrato (os dados são sempre do cliente e saem num
+  formato aberto).
+- **Registro no INPI:** o programa (Lei do Software, 9.609/98) e a marca ECOS. A proteção do programa vale
+  mesmo sem registro, mas o registro é a prova de autoria e de data numa disputa.
+- Quem faz: o proprietário, com advogado. Da construção, só a lista do que o contrato precisa cobrir.
+
+### 8.2 Camada 2: entregar o programa pronto, nunca o código
+
+**O ponto mais importante.** Hoje o Coolify da Pecsil baixa o código do GitHub e monta a plataforma dentro
+do servidor: o código inteiro, o histórico do git e a chave de acesso ao repositório ficam lá. No cliente,
+isso entregaria o projeto inteiro.
+
+- A plataforma é montada no **nosso** ambiente e vai ao cliente como **imagem pronta** (Docker): sem os
+  arquivos de código, sem o git, sem comentários, sem a chave do repositório.
+- As imagens ficam num **repositório privado nosso**, com um acesso por cliente, que se corta quando o
+  contrato termina.
+- O código do servidor pode passar por **ofuscação** (embaralhamento). Não impede a cópia, mas encarece
+  muito entender e alterar.
+- Serve também para a Pecsil hoje: tira o código e a chave do GitHub do servidor da fábrica e alivia o
+  servidor no Deploy (recomendação já registrada em INFRA).
+
+### 8.3 Camada 3: licença assinada
+
+Detalha a "licença assinada" da seção 7:
+
+- Um arquivo assinado por nós, com o CNPJ, os módulos contratados, o número de usuários e a validade.
+- A plataforma confere a assinatura **sem internet**. A validade é curta (por exemplo, 60 dias) e é
+  renovada sozinha pelo canal de atualização enquanto a manutenção estiver em dia.
+- Licença vencida ou de outro CNPJ: a plataforma entra em **modo leitura**. Os dados continuam acessíveis,
+  mas nada novo é lançado. Nunca trava os dados do cliente.
+- **Marca escondida por cliente:** cada instalação leva uma impressão digital própria. Se uma cópia
+  aparecer em outro lugar, sabemos de qual cliente saiu.
+
+### 8.4 Camada 4: o que mais vale fica com a gente
+
+A maioria dos clientes que exige servidor interno quer os **dados** dentro de casa, não o programa.
+
+- **No cliente:** banco, telas, regras do dia a dia, transmissor de NF-e e tarefas agendadas.
+- **Na nossa nuvem:** a SARA (as instruções, a montagem das respostas, o aprendizado e a chave da IA), a
+  licença e as atualizações. A pergunta à SARA sai do cliente com a credencial da pessoa e volta com a
+  resposta, e o dado continua morando no cliente.
+- Copiar a parte instalada dá uma plataforma sem a SARA e sem atualização (a fiscal muda todo ano). O
+  diferencial do ECOS não fica no servidor do cliente.
+- Pede o ZDR da IA resolvido (já pendente na SARA central) e um servidor nosso na nuvem.
+
+### 8.5 Licenças de terceiros (conferir com o advogado antes do primeiro cliente)
+
+- **Transmissor de NF-e** (`services/transmissor-nfe`): GPL-3.0. Ao instalar no cliente, oferecer o código
+  **dele**. A plataforma fala com ele só por HTTP e continua fechada.
+- **Fleetbase** (frota e entregas): AGPL-3.0. Mesma regra: oferecer o código **dele**, mantido como serviço
+  separado e sem copiar código dele para a plataforma.
+
+### 8.6 Ordem e custo
+
+Itens Z-07 a Z-11 do ROADMAP, adiados com a raia Z (decisão de 17/10):
+
+| Ordem | Item | Esforço de construção | Fora da construção |
+|---|---|---|---|
+| 1 | Z-11 Contrato e registro | — | Advogado; taxas do INPI |
+| 2 | Z-07 Imagem pronta e repositório privado | cerca de 1 semana | Repositório de imagens privado |
+| 3 | Z-08 Licença assinada e modo leitura | cerca de 1,5 semana | — |
+| 4 | Z-09 Marca por cliente e ofuscação | cerca de 1 semana | — |
+| 5 | Z-10 SARA servida da nossa nuvem | cerca de 4 semanas | Servidor na nuvem; ZDR da IA |
+
+A Z-07 pode ser antecipada para a Pecsil quando o proprietário quiser, porque melhora o Deploy de hoje e
+não abre a frente de outros clientes.

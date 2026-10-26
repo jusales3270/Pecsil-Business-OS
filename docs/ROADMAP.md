@@ -346,6 +346,11 @@ Escopo e debate: [PLANO-TI.md](PLANO-TI.md). Ordem do §9 do plano; decisão de 
 | Z-04 | Blueprint atualizado (stack real, os 10 domínios) | 2 | 2 | 2 | 0,5 | 1 | 12,0 | adiado (white label) | — | BP D3, D4 |
 | Z-05 | Cadastro, cobrança e suporte da nova empresa | 2 | — | — | — | — | — | adiado (white label) | Pedido do proprietário | VIS 6.2 |
 | Z-06 | Reações entre módulos (cadeias confirmadas) | + | 4 | 2 | 3 | 3 | 2,7 | adiado (white label) | Cadeias 2 e 3 | VIS P2.3 |
+| Z-07 | Programa entregue como imagem pronta (montada fora do cliente), repositório privado com acesso por cliente, sem código-fonte, git nem chave do repositório no servidor | 2 | 3 | 3 | 1 | 2 | 9,0 | adiado (white label); pode ser antecipado para a Pecsil | — | VIS 8.2; INFRA |
+| Z-08 | Licença assinada (CNPJ, módulos, usuários, validade curta renovada pela atualização), conferida sem internet; vencida = modo leitura | 2 | 3 | 4 | 1,5 | 1 | 7,3 | adiado (white label) | Z-07 | VIS 7, 8.3 |
+| Z-09 | Marca escondida por cliente (impressão digital da instalação) e ofuscação do código do servidor | 2 | 2 | 2 | 1 | 1 | 6,0 | adiado (white label) | Z-07 | VIS 8.2, 8.3 |
+| Z-10 | SARA servida da nossa nuvem: instruções, montagem das respostas, aprendizado e chave da IA fora do cliente; os dados continuam no cliente | 2 | 4 | 4 | 4 | 3 | 3,0 | adiado (white label) | ZDR; servidor na nuvem | VIS 8.4 |
+| Z-11 | Contrato de licença de uso (cópia, engenharia reversa, confidencialidade, multa, fim do contrato) e registro no INPI do programa e da marca ECOS | 2 | 4 | 5 | 0,5 | 3 | 28,0 | adiado (white label) | Advogado (proprietário) | VIS 8.1, 8.5 |
 
 ---
 
@@ -521,6 +526,7 @@ ordem abaixo é proposta; a construção entra quando uma frente fechar.
 | 26/10/2026 | Deploy de `c0f7d1f` (N-06, calendário fiscal). Perguntas ao Jefferson pelo sino e pelo WhatsApp: regime tributário (com a receita de 2025) e CPR/vencimento do ICMS-SP | Proprietário / Claude |
 | 26/10/2026 | N-09 construída (conferência de entradas): migração 202610260004 aplicada com OK (`fiscal_entradas`, só leitura; `fiscal_entrada_confirmar` para quem opera o ICMS, com auditoria); `lib/fiscal/entradas/checagem.ts` (CFOP × origem, CST × regime, alíquota interestadual 12%/4%, NCM, CST × valor, grupo IBS/CBS, devolução sem origem, totais; proposta do tipo do item do SPED e do CFOP de entrada pelo CFOP do emitente, cadastro de materiais e Painel do ICMS); leitura no envio, na tarefa de 10 em 10 minutos e na tela; aviso na SARA do Fiscal. As 43 notas reais de outubro: nenhuma inconsistência; proposta de 107 itens de uso e consumo e 3 de matéria-prima (pelo Painel do ICMS). Ligação código do fornecedor → material ainda vazia. QA de navegador 17/17 (nota de teste apagada). Falta Deploy | Claude |
 | 26/10/2026 | N-11 construída (simulador da reforma): `lib/contabil/reforma.ts` (venda de 2026 a 2033 com IPI zero e PIS/COFINS extintos em 2027, CBS de referência −0,1 p.p. em 2027–2028, IBS subindo na proporção da queda do ICMS em 2029–2032, base do IBS/CBS = receita líquida; manter a receita ou o preço; caixa com split payment; saldo de ICMS em 240 parcelas), premissas dos parâmetros legais (editáveis na tela, nada gravado); tela Fiscal › Simulador da reforma por orçamento ou valor livre, com alíquotas à mão para quem não vê as máscaras. Sem migração. QA de navegador 18/18. Falta Deploy | Claude |
+| 26/10/2026 | Proteção contra cópia na instalação do cliente (pergunta do proprietário): VISAO-PRODUTO-ESCALA §8 com quatro camadas (contrato e INPI, imagem pronta, licença assinada com modo leitura, SARA na nossa nuvem) e as licenças GPL/AGPL de terceiros. Entram Z-07 a Z-11, adiados com a raia Z; Z-07 pode ser antecipado para a Pecsil | Claude |
 
 ## 9. Painel
 
