@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-25-nfe-devolucao-item",
+    data: "2026-10-25",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.nfe"],
+    titulo: "Nota de devolução no formato exigido a partir de 03/11/2026",
+    itens: [
+      "Na devolução, cada item agora aponta a nota e o número do item devolvidos, como a SEFAZ passa a exigir em 03/11/2026. A chave só no cabeçalho deixa de valer.",
+      "Com a chave da nota devolvida, o botão \"Trazer os itens da nota devolvida\" preenche os itens (descrição, NCM, quantidade e valor) e o número de cada um, quando o XML dela está na plataforma. Depois é só remover o que não volta, ajustar as quantidades e aplicar a máscara de impostos.",
+      "A validação confere a chave, o número do item, item repetido e se todas as notas devolvidas são do mesmo emitente, que tem de ser o destinatário da devolução.",
+    ],
+  },
+  {
     id: "2026-10-25-ibs-cbs-conferencia",
     data: "2026-10-25",
     area: "Fiscal",

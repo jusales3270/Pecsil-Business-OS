@@ -73,7 +73,8 @@ export function gerarXmlNfe(g: GerarXml): { xml: string; chave: string; totais: 
     tag("cDV", chave.slice(-1)), tag("tpAmb", String(g.tpAmb)), tag("finNFe", String(nota.finalidade)), tag("indFinal", nota.consumidorFinal ? "1" : "0"),
     tag("indPres", String(nota.presenca)), [2, 3, 4, 9].includes(nota.presenca) ? tag("indIntermed", "0") : "",
     tag("procEmi", "0"), tag("verProc", "BusinessOS 1.0"),
-    nota.referencia && /^\d{44}$/.test(nota.referencia) ? `<NFref>${tag("refNFe", nota.referencia)}</NFref>` : "",
+    // Devolução referencia por item (DFeReferenciado, abaixo): o refNFe junto é rejeitado (RV VC02-05).
+    nota.finalidade !== 4 && nota.referencia && /^\d{44}$/.test(nota.referencia) ? `<NFref>${tag("refNFe", nota.referencia)}</NFref>` : "",
   ].join("");
 
   const ender = (x: { logradouro: string; numero: string; complemento?: string | null; bairro: string; codigoMunicipio: string; municipio: string; uf: string; cep: string; fone?: string | null }) => [
@@ -146,7 +147,11 @@ export function gerarXmlNfe(g: GerarXml): { xml: string; chave: string; totais: 
         ? `<gIBSCBS>${tag("vBC", d2(c.vBCIBSCBS))}<gIBSUF>${tag("pIBSUF", d4(i.ibsAliquota ?? 0))}${tag("vIBSUF", d2(c.vIBS))}</gIBSUF><gIBSMun>${tag("pIBSMun", "0.0000")}${tag("vIBSMun", "0.00")}</gIBSMun>${tag("vIBS", d2(c.vIBS))}<gCBS>${tag("pCBS", d4(i.cbsAliquota ?? 0))}${tag("vCBS", d2(c.vCBS))}</gCBS></gIBSCBS>`
         : ""}</IBSCBS>`
       : "";
-    return `<det nItem="${k + 1}"><prod>${prod}</prod><imposto><ICMS>${icms}</ICMS>${ipi}<PIS>${pis}</PIS><COFINS>${cofins}</COFINS>${ibsCbs}</imposto>${infAdProd}</det>`;
+    const chaveDevolvida = i.dfeReferenciado?.chave ?? nota.referencia;
+    const dfeRef = nota.finalidade === 4 && i.dfeReferenciado && chaveDevolvida && /^\d{44}$/.test(chaveDevolvida)
+      ? `<DFeReferenciado>${tag("chaveAcesso", chaveDevolvida)}${tag("nItem", String(i.dfeReferenciado.nItem))}</DFeReferenciado>`
+      : "";
+    return `<det nItem="${k + 1}"><prod>${prod}</prod><imposto><ICMS>${icms}</ICMS>${ipi}<PIS>${pis}</PIS><COFINS>${cofins}</COFINS>${ibsCbs}</imposto>${infAdProd}${dfeRef}</det>`;
   }).join("");
 
   const t = totais;

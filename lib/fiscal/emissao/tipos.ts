@@ -61,6 +61,11 @@ export type ItemNfe = {
   /** Pedido de compra do cliente e o nº do item nele (xPed/nItemPed; o GRV leva os dois). */
   pedidoCompra?: string;
   itemPedido?: string;
+  /**
+   * Devolução (finalidade 4): a nota e o item devolvidos (grupo DFeReferenciado; a SEFAZ exige por item e proíbe o
+   * refNFe na devolução desde 03/11/2026, NT 2025.002 v1.52, RV VC02-14). Sem chave no item, vale a chave da nota.
+   */
+  dfeReferenciado?: { chave?: string; nItem: number };
 };
 
 export type Duplicata = { numero: string; vencimento: string; valor: number };

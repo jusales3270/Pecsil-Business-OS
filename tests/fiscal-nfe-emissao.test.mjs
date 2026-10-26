@@ -93,7 +93,7 @@ test("regras: duplicatas têm de fechar com a nota; não contribuinte exige cons
   const cst = validarNota(nota({ itens: [item({ icmsCst: "102" })] }), EMITENTE);
   assert.ok(cst.erros.some((p) => p.campo === "itens.0.icmsCst"), "CSOSN não vale no regime normal");
   const dev = validarNota(nota({ finalidade: 4 }), EMITENTE);
-  assert.ok(dev.erros.some((p) => p.campo === "referencia"));
+  assert.ok(dev.erros.some((p) => p.campo === "itens.0.dfeReferenciado"), "devolução sem a nota e o item devolvidos");
 });
 
 test("regras: emitente incompleto vira lista do que falta na Configuração fiscal", () => {
@@ -250,4 +250,47 @@ test("IBS/CBS: CST aceito, cClassTrib do mesmo CST e alíquota conferida com a l
   assert.deepEqual(avisosIbsCbs(nota(), 1, legal), []);
   assert.match(avisosIbsCbs(certa, 3, null)[0].mensagem, /Não há parâmetro legal/);
   assert.equal(avisosIbsCbs(certa, 3, { ...legal, aConferir: true }).length, 1);
+});
+
+const { lerNotaDevolvivel } = await import("../lib/fiscal/emissao/devolucao.ts");
+// Chave fictícia com DV certo: nota de venda do fornecedor (o destinatário da devolução) para a empresa.
+const CHAVE_DEV = chaveDeAcesso({ uf: "SP", emissao: new Date("2026-10-10T13:00:00Z"), cnpj: DEST.documento, serie: 1, numero: 7847, codigoNumerico: "23456789" });
+const devolucao = (itens) => nota({ finalidade: 4, tipo: 1, natureza: "DEVOLUCAO DE COMPRA PARA INDUSTRIALIZACAO", referencia: CHAVE_DEV, itens });
+
+test("devolução: cada item leva a nota e o item devolvidos (DFeReferenciado) e o refNFe sai (NT 2025.002 v1.52)", () => {
+  const n = devolucao([item({ cfop: "5201", dfeReferenciado: { nItem: 2 } }), item({ cfop: "5201", dfeReferenciado: { nItem: 1 } })]);
+  assert.deepEqual(validarNota(n, EMITENTE).erros.filter((p) => /dfeReferenciado|referencia/.test(p.campo)), []);
+  const { xml } = gerarXmlNfe({ nota: n, emitente: EMITENTE, serie: 1, numero: 10, emissao: new Date("2026-11-05T12:00:00Z"), codigoNumerico: "12345678", tpAmb: 2 });
+  assert.ok(!xml.includes("<NFref>"), "refNFe proibido na devolução (RV VC02-05/VC02-14)");
+  const dets = xml.match(/<det nItem="\d+">.*?<\/det>/g);
+  assert.match(dets[0], new RegExp(`</imposto>(<infAdProd>.*</infAdProd>)?<DFeReferenciado><chaveAcesso>${CHAVE_DEV}</chaveAcesso><nItem>2</nItem></DFeReferenciado></det>$`));
+  assert.match(dets[1], /<nItem>1<\/nItem><\/DFeReferenciado><\/det>$/);
+  // Complementar continua com o refNFe no cabeçalho.
+  const comp = gerarXmlNfe({ nota: nota({ finalidade: 2, referencia: CHAVE_DEV }), emitente: EMITENTE, serie: 1, numero: 11, emissao: new Date(), codigoNumerico: "12345678", tpAmb: 2 }).xml;
+  assert.ok(comp.includes(`<NFref><refNFe>${CHAVE_DEV}</refNFe></NFref>`) && !comp.includes("DFeReferenciado"));
+});
+
+test("devolução: regras do grupo VC (nº do item, chave válida, sem repetir, mesmo emitente, emitente = destinatário)", () => {
+  const erros = (itens, extra = {}) => validarNota({ ...devolucao(itens), ...extra }, EMITENTE).erros.filter((p) => /dfeReferenciado|referencia/.test(p.campo)).map((p) => p.mensagem).join(" | ");
+  assert.match(erros([item({ cfop: "5201" })]), /número do item na nota devolvida/);
+  assert.match(erros([item({ cfop: "5201", dfeReferenciado: { nItem: 1, chave: CHAVE_DEV.slice(0, 43) + ((Number(CHAVE_DEV[43]) + 1) % 10) } })]), /dígito verificador/);
+  assert.match(erros([item({ cfop: "5201", dfeReferenciado: { nItem: 1, chave: "123" } })]), /44 dígitos/);
+  assert.match(erros([item({ cfop: "5201", dfeReferenciado: { nItem: 1 } }), item({ cfop: "5201", dfeReferenciado: { nItem: 1 } })]), /já foi referenciado/);
+  const propria = chaveDeAcesso({ uf: "SP", emissao: new Date("2026-10-10T13:00:00Z"), cnpj: EMITENTE.cnpj, serie: 1, numero: 5, codigoNumerico: "34567890" });
+  const terceiro = chaveDeAcesso({ uf: "SP", emissao: new Date("2026-10-10T13:00:00Z"), cnpj: "06990590000123", serie: 1, numero: 5, codigoNumerico: "34567890" });
+  assert.match(erros([item({ cfop: "5201", dfeReferenciado: { nItem: 1 } }), item({ cfop: "5201", dfeReferenciado: { nItem: 1, chave: terceiro } })]), /mesmo emitente/);
+  assert.match(erros([item({ cfop: "5201", dfeReferenciado: { nItem: 1 } })], { referencia: terceiro }), /destinatário desta nota/);
+  // Nota de entrada emitida pela própria empresa também pode ser devolvida.
+  assert.equal(erros([item({ cfop: "5201", dfeReferenciado: { nItem: 1 } })], { referencia: propria }), "");
+});
+
+test("devolução: os itens vêm da nota original com o nº do item", () => {
+  const original = `<nfeProc><NFe><infNFe versao="4.00" Id="NFe${CHAVE_DEV}"><ide><nNF>7847</nNF><tpNF>1</tpNF><dhEmi>2026-10-10T10:00:00-03:00</dhEmi></ide><emit><CNPJ>${DEST.documento}</CNPJ><xNome>FORNECEDOR &amp;amp; FILHOS</xNome></emit>
+<det nItem="1"><prod><cProd>A1</cProd><xProd>AREIA BASE</xProd><NCM>25051000</NCM><CFOP>5101</CFOP><uCom>kg</uCom><qCom>1500.0000</qCom><vUnCom>1.2300</vUnCom><vProd>1845.00</vProd><vDesc>5.00</vDesc></prod><imposto><ICMS><ICMS00><orig>0</orig></ICMS00></ICMS></imposto></det>
+<det nItem="2"><prod><cProd>B2</cProd><xProd>RESINA</xProd><NCM>39094099</NCM><CFOP>5101</CFOP><uCom>UN</uCom><qCom>3</qCom><vUnCom>200</vUnCom><vProd>600.00</vProd></prod><imposto><ICMS><ICMS00><orig>1</orig></ICMS00></ICMS></imposto></det></infNFe></NFe></nfeProc>`;
+  const n = lerNotaDevolvivel(original);
+  assert.equal(n.chave, CHAVE_DEV);
+  assert.equal(n.emitente.nome, "FORNECEDOR & FILHOS");
+  assert.deepEqual(n.itens.map((i) => [i.nItem, i.codigo, i.unidade, i.quantidade, i.valorUnitario, i.desconto, i.origem]), [[1, "A1", "KG", 1500, 1.23, 5, 0], [2, "B2", "UN", 3, 200, 0, 1]]);
+  assert.equal(lerNotaDevolvivel("<xml/>"), null);
 });

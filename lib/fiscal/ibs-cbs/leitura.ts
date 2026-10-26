@@ -34,16 +34,16 @@ export type NotaIbsCbs = {
 };
 
 const num = (v: string | null | undefined) => (v ? Number(v) || 0 : 0);
-const tag = (xml: string, nome: string) => xml.match(new RegExp(`<${nome}>([^<]*)</${nome}>`))?.[1] ?? null;
+export const tag = (xml: string, nome: string) => xml.match(new RegExp(`<${nome}>([^<]*)</${nome}>`))?.[1] ?? null;
 const ENTIDADES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 /** Texto do XML legível: desfaz as entidades (duas vezes, porque há emissor que escapa o & em dobro: "&amp;amp;"). */
-const textoXml = (t: string | null) => {
+export const textoXml = (t: string | null) => {
   if (t === null) return null;
   let v = t;
   for (let k = 0; k < 2; k++) v = v.replace(/&(amp|lt|gt|quot|apos|#\d+|#x[0-9a-f]+);/gi, (_, e: string) => e[0] === "#" ? String.fromCodePoint(e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : Number(e.slice(1))) : ENTIDADES[e.toLowerCase()]);
   return v.trim();
 };
-const bloco = (xml: string, nome: string) => xml.match(new RegExp(`<${nome}(?:\\s[^>]*)?>([\\s\\S]*?)</${nome}>`))?.[1] ?? null;
+export const bloco = (xml: string, nome: string) => xml.match(new RegExp(`<${nome}(?:\\s[^>]*)?>([\\s\\S]*?)</${nome}>`))?.[1] ?? null;
 const so = (v: string | null) => (v ? v.replace(/\D/g, "") : null);
 const r2 = (v: number) => Math.round(Number((v * 100).toFixed(6))) / 100;
 

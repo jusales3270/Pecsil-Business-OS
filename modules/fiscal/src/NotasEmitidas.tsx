@@ -5,6 +5,7 @@ import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../.
 import { calcularItens, calcularTotais, icmsDestaca, ipiTributado, pisCofinsComAliquota, r2 } from "../../../lib/fiscal/emissao/calculo";
 import { itemPadrao, notaVazia } from "../../../lib/fiscal/emissao/normalizar";
 import { CSOSN_SIMPLES, CST_ICMS_NORMAL, CST_IPI_ENTRADA, CST_IPI_SAIDA, CST_PIS_COFINS, FORMAS_PAGAMENTO, MODELOS_OPERACAO, type Problema } from "../../../lib/fiscal/emissao/regras";
+import type { NotaDevolvivel } from "../../../lib/fiscal/emissao/devolucao";
 import type { Destinatario, ItemNfe, NotaNfe, SituacaoNfe, Totais } from "../../../lib/fiscal/emissao/tipos";
 import { lerNumeroBr } from "../../../lib/numero-br";
 import { api, cnpjFormatado, curto, dataHora, hoje, money } from "./comum";
@@ -312,6 +313,21 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
     });
     notify(`${x.situacao && x.situacao !== "ATIVA" ? `Atenção: CNPJ com situação ${x.situacao} na Receita. ` : ""}Dados da Receita preenchidos. A inscrição estadual não vem na consulta: confira e digite.`);
   };
+  // Devolução: os itens vêm da nota devolvida (quando o XML dela está na plataforma), já com o nº do item original.
+  const [trazendo, setTrazendo] = useState(false);
+  const trazerItensDevolvidos = async () => {
+    setTrazendo(true);
+    const r = await api<{ nota: NotaDevolvivel }>(`/api/fiscal/nfe/devolucao?chave=${nota.referencia ?? ""}`);
+    setTrazendo(false);
+    if (!r.ok) { notify(r.error); return; }
+    const o = r.data.nota;
+    mudar((n) => ({
+      ...n,
+      itens: o.itens.map((x) => ({ ...itemPadrao(n.itens[0]?.cfop || "5201", crt), codigo: x.codigo, descricao: x.descricao, ncm: x.ncm, unidade: x.unidade, quantidade: x.quantidade, valorUnitario: x.valorUnitario, desconto: x.desconto, origem: x.origem, dfeReferenciado: { nItem: x.nItem } })),
+      destinatario: n.destinatario.documento ? n.destinatario : { ...n.destinatario, documento: o.emitente.documento ?? "" },
+    }));
+    notify(`${o.itens.length} item(ns) da NF ${o.numero ?? ""} de ${o.emitente.nome ?? "emitente"} trazidos. Remova o que não volta, ajuste as quantidades e aplique a máscara de impostos da devolução.`);
+  };
   const buscarCep = async (cep: string) => {
     setConsultando("cep");
     const r = await api<{ dados: DadosCep }>(`/api/fiscal/consulta?cep=${cep}`);
@@ -435,7 +451,11 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
               {(nota.finalidade === 2 || nota.finalidade === 4) && (
                 <label className="nfe-cheio"><span>Chave da NF-e referenciada<small> · a nota {nota.finalidade === 4 ? "devolvida" : "complementada"} (44 dígitos)</small></span><input inputMode="numeric" value={nota.referencia ?? ""} onChange={(e) => mudar((n) => ({ ...n, referencia: so(e.target.value).slice(0, 44) }))} /></label>
               )}
+              {nota.finalidade === 4 && editavel && (
+                <div className="nfe-buscar"><Button type="button" variant="secondary" compact onClick={() => void trazerItensDevolvidos()} disabled={(nota.referencia ?? "").length !== 44 || trazendo}>{trazendo ? "Trazendo…" : "Trazer os itens da nota devolvida"}</Button></div>
+              )}
             </div>
+            {nota.finalidade === 4 && <p className="fiscal-nota-ajuda">Desde 03/11/2026 a SEFAZ exige, em cada item da devolução, a nota e o número do item devolvidos (e não aceita mais a chave só no cabeçalho). Item de outra nota: informe a chave no próprio item. Todas as notas devolvidas têm de ser do mesmo emitente.</p>}
             <Problemas lista={[...errosDo("natureza"), ...errosDo("referencia"), ...errosDo("consumidorFinal")]} />
           </section>
 
@@ -509,6 +529,12 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
                     <label><span>Alíquota PIS %</span><Numero valor={i.pisAliquota} onChange={(v) => setItem(k, "pisAliquota", v)} /></label>
                     <label className="nfe-largo"><span>COFINS · CST</span><select value={i.cofinsCst} onChange={(e) => setItem(k, "cofinsCst", e.target.value)}>{CST_PIS_COFINS.map((x) => <option key={x} value={x}>{CST_PC[x] ?? x}</option>)}</select></label>
                     <label><span>Alíquota COFINS %</span><Numero valor={i.cofinsAliquota} onChange={(v) => setItem(k, "cofinsAliquota", v)} /></label>
+                    {nota.finalidade === 4 && (
+                      <>
+                        <label><span>Item na nota devolvida<small> · nº</small></span><input inputMode="numeric" value={i.dfeReferenciado?.nItem ?? ""} onChange={(e) => { const v = Number(so(e.target.value).slice(0, 3)); setItem(k, "dfeReferenciado", v ? { ...i.dfeReferenciado, nItem: v } : undefined); }} /></label>
+                        <label className="nfe-largo"><span>Chave, se for de outra nota<small> · vazio = a do cabeçalho</small></span><input inputMode="numeric" value={i.dfeReferenciado?.chave ?? ""} disabled={!i.dfeReferenciado?.nItem} onChange={(e) => { const c = so(e.target.value).slice(0, 44); setItem(k, "dfeReferenciado", i.dfeReferenciado ? { nItem: i.dfeReferenciado.nItem, ...(c ? { chave: c } : {}) } : undefined); }} /></label>
+                      </>
+                    )}
                   </div>
                   {c && (
                     <p className="nfe-item-calculo">

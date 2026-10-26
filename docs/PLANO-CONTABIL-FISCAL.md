@@ -361,6 +361,7 @@ Canal: "Decisões para você".
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 25/10/2026 | N-03, devolução no formato de 03/11/2026 (DFeReferenciado por item, sem refNFe, regras do grupo VC, itens trazidos da nota original); QA 19/19 | Proprietário / Claude |
 | 25/10/2026 | N-03, 2ª parte: conferência de cada nota pela alíquota legal da data e pela base refeita; leitura do XML na hora do envio e pela tarefa agendada; Simples Nacional tratado à parte em 2026; mesma chave conta uma vez (migração 0010); QA 83/83 | Proprietário / Claude |
 | 25/10/2026 | N-03, 1ª parte: apuração informativa de 2026 (migração 0009, tela Fiscal › IBS e CBS) e correção da base do IBS/CBS na emissão (frete, seguro e outras entram; IPI fora); QA 45/45. Envio das propostas da Sentinela ao Jefferson ligado | Proprietário / Claude |
 | 25/10/2026 | N-02 construída e aplicada (Sentinela; migrações 0007 e 0008); primeira coleta real sem erro; QA 30/30 | Proprietário / Claude |

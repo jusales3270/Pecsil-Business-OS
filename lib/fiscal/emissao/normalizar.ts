@@ -65,6 +65,7 @@ export function normalizarNota(v: unknown): NotaNfe {
         ...(typeof i.itemOrcamento === "string" && /^[0-9a-f-]{36}$/i.test(i.itemOrcamento) ? { itemOrcamento: i.itemOrcamento } : {}),
         ...(txt(i.pedidoCompra, 60).trim() ? { pedidoCompra: txt(i.pedidoCompra, 60).trim() } : {}),
         ...(txt(i.itemPedido, 20).trim() ? { itemPedido: txt(i.itemPedido, 20).trim() } : {}),
+        ...referenciaDoItem(i.dfeReferenciado),
       };
     }),
     frete: {
@@ -83,4 +84,14 @@ export function normalizarNota(v: unknown): NotaNfe {
     infoComplementar: txt(n.infoComplementar, 2000),
     referencia: txt(n.referencia, 60).replace(/\D/g, "") || undefined,
   };
+}
+
+/** Nota e item devolvidos (DFeReferenciado): nItem de 1 a 990; a chave incompleta fica, para a validação apontar. */
+function referenciaDoItem(v: unknown): Pick<ItemNfe, "dfeReferenciado"> {
+  if (!v || typeof v !== "object") return {};
+  const r = v as Record<string, unknown>;
+  const nItem = Math.trunc(Number(r.nItem));
+  if (!(nItem >= 1 && nItem <= 990)) return {};
+  const chave = String(r.chave ?? "").replace(/\D/g, "");
+  return { dfeReferenciado: { nItem, ...(chave ? { chave: chave.slice(0, 44) } : {}) } };
 }

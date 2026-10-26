@@ -4,7 +4,7 @@
  * duplicatas fechando centavo a centavo. Puro e testável. Mensagens para quem está treinando.
  */
 import { calcularItens, calcularTotais, ibsCbsTributa, icmsDestaca, r2 } from "./calculo";
-import { idDestino } from "./xml";
+import { dvChave, idDestino } from "./xml";
 import type { Emitente, ItemNfe, NotaNfe } from "./tipos";
 
 export type Problema = { campo: string; mensagem: string };
@@ -89,6 +89,39 @@ function problemasDoItem(i: ItemNfe, k: number, crt: number, tipo: 0 | 1, destin
   return p;
 }
 
+/**
+ * Devolução (finalidade 4), NT 2025.002 v1.52, grupo VC: cada item aponta a nota e o item devolvidos
+ * (DFeReferenciado; obrigatório e sem refNFe desde 03/11/2026, RV VC02-14 e VC03-20); a mesma nota e item não se
+ * repetem (VC02-20); todas as notas referenciadas são do mesmo emitente (VC02-40), que é o destinatário desta ou a
+ * própria empresa (nota de entrada que ela emitiu; VC02-50). A chave tem dígito verificador.
+ */
+export function problemasDaDevolucao(nota: NotaNfe, emitente: Partial<Emitente> | null): Problema[] {
+  const p: Problema[] = [];
+  const vistos = new Set<string>();
+  const emitentes = new Set<string>();
+  nota.itens.forEach((i, k) => {
+    const campo = `itens.${k}.dfeReferenciado`;
+    const chave = so(i.dfeReferenciado?.chave ?? nota.referencia);
+    if (!/^\d{44}$/.test(chave)) { p.push({ campo, mensagem: `Item ${k + 1}: informe a chave da NF-e devolvida (44 dígitos).` }); return; }
+    if (!chaveValida(chave)) { p.push({ campo, mensagem: `Item ${k + 1}: a chave da NF-e devolvida não confere (dígito verificador).` }); return; }
+    if (!i.dfeReferenciado?.nItem) { p.push({ campo, mensagem: `Item ${k + 1}: informe o número do item na nota devolvida.` }); return; }
+    const par = `${chave}#${i.dfeReferenciado.nItem}`;
+    if (vistos.has(par)) p.push({ campo, mensagem: `Item ${k + 1}: o item ${i.dfeReferenciado.nItem} da nota devolvida já foi referenciado em outro item.` });
+    vistos.add(par);
+    emitentes.add(chave.slice(6, 20));
+  });
+  if (emitentes.size > 1) p.push({ campo: "referencia", mensagem: "Devolução: todas as notas devolvidas têm de ser do mesmo emitente." });
+  const [doc] = [...emitentes];
+  const proprio = so(emitente?.cnpj), destinatario = so(nota.destinatario.documento);
+  if (emitentes.size === 1 && doc !== proprio && doc !== destinatario.padStart(14, "0")) {
+    p.push({ campo: "referencia", mensagem: "Devolução: a nota devolvida tem de ser do destinatário desta nota (ou uma nota de entrada da própria empresa)." });
+  }
+  return p;
+}
+
+/** Chave de acesso com o dígito verificador certo (módulo 11). */
+export const chaveValida = (chave: string) => /^\d{44}$/.test(so(chave)) && dvChave(so(chave).slice(0, 43)) === Number(so(chave)[43]);
+
 /** CST de IBS/CBS que a plataforma emite hoje: tributação integral (000) e não incidência/imunidade (410). */
 export const CST_IBS_CBS = ["000", "410"];
 
@@ -138,7 +171,8 @@ export function validarNota(nota: NotaNfe, emitente: Partial<Emitente> | null): 
   if (d.indIE === 9 && !nota.consumidorFinal) erros.push({ campo: "consumidorFinal", mensagem: "Destinatário não contribuinte do ICMS: a operação tem de ser marcada como consumidor final." });
   if (doc.length === 11 && d.indIE === 1) erros.push({ campo: "destinatario.indIE", mensagem: "Pessoa física (CPF) em geral não é contribuinte do ICMS: confira o indicador da IE." });
   if (d.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email)) erros.push({ campo: "destinatario.email", mensagem: "Destinatário: e-mail inválido." });
-  if (nota.finalidade === 4 && !/^\d{44}$/.test(so(nota.referencia))) erros.push({ campo: "referencia", mensagem: "Nota de devolução: informe a chave da NF-e devolvida." });
+  if (nota.finalidade === 2 && !/^\d{44}$/.test(so(nota.referencia))) erros.push({ campo: "referencia", mensagem: "Nota complementar: informe a chave da NF-e complementada." });
+  if (nota.finalidade === 4) erros.push(...problemasDaDevolucao(nota, emitente));
 
   if (!nota.itens.length) erros.push({ campo: "itens", mensagem: "Inclua ao menos um item." });
   const destino = idDestino(emitente?.uf ?? "", d.uf, d.pais);
