@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-27-plano-oficial",
+    data: "2026-10-27",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.contabilidade"],
+    titulo: "Plano de contas oficial na Contabilidade",
+    itens: [
+      "O plano de contas oficial de 2026, enviado pela contadora da Pecsil, está em Fiscal › Contabilidade: 2.174 contas (2.054 recebem lançamento), do ativo ao resultado do exercício.",
+      "Nos Vínculos, a conta contábil agora se escolhe digitando o código ou o nome, com a lista filtrando enquanto você digita.",
+    ],
+  },
+  {
     id: "2026-10-26-simulador-reforma",
     data: "2026-10-26",
     area: "Fiscal",

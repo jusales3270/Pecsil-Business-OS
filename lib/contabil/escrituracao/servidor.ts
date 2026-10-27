@@ -13,7 +13,7 @@ import { aplicarRegra, regraNaData, type Evento, type Pendencia, type Regra, typ
 const PAGINA = 1000; // limite de linhas do Supabase por consulta
 const LOTE = 200;
 
-async function todas<T>(consulta: (de: number, ate: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
+export async function todas<T>(consulta: (de: number, ate: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
   const saida: T[] = [];
   for (let de = 0; ; de += PAGINA) {
     const { data, error } = await consulta(de, de + PAGINA - 1);

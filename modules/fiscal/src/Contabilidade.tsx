@@ -115,6 +115,7 @@ export function Contabilidade({ notify }: { notify: (m: string) => void }) {
               <div className="almox-filtros">
                 <Segmented<Aba> options={[{ value: "plano", label: "Plano de contas" }, { value: "vinculos", label: "Vínculos" }, { value: "escrituracao", label: "Escrituração" }, { value: "balancete", label: "Balancete" }, { value: "razao", label: "Razão" }]} value={aba} onChange={setAba} ariaLabel="Contabilidade" compact />
               </div>
+              <datalist id={LISTA_ANALITICAS}>{analiticas.map((c) => <option key={c.id} value={rotuloConta(c)} />)}</datalist>
               {aba === "plano" && <PlanoDeContas contas={contas} />}
               {aba === "vinculos" && <Vinculos dados={dados} analiticas={analiticas} vinculo={vinculo} notify={notify} onMudou={() => void carregar(plano.id)} />}
               {aba === "escrituracao" && <Escrituracao dados={dados} plano={plano} analiticas={analiticas} notify={notify} irParaVinculos={() => setAba("vinculos")} onMudou={() => void carregar(plano.id)} />}
@@ -152,12 +153,29 @@ function PlanoDeContas({ contas }: { contas: Conta[] }) {
   );
 }
 
+/**
+ * Campo com busca sobre UMA lista de contas da página (datalist): o plano oficial tem mais de 2 mil analíticas e
+ * um <select> por linha punha centenas de milhares de opções na tela. Vale a conta digitada que bate exatamente;
+ * campo vazio ao sair remove o vínculo; texto que não é conta volta ao que estava.
+ */
+const LISTA_ANALITICAS = "ctb-contas-analiticas";
+const rotuloConta = (c: Pick<Conta, "codigo" | "nome">) => `${c.codigo} · ${c.nome}`;
+
 function SeletorConta({ analiticas, valor, onEscolher, desabilitado, rotulo }: { analiticas: Conta[]; valor: string | null; onEscolher: (id: string | null) => void; desabilitado?: boolean; rotulo: string }) {
+  const atual = useMemo(() => (valor ? analiticas.find((c) => c.id === valor) ?? null : null), [analiticas, valor]);
+  const [texto, setTexto] = useState(atual ? rotuloConta(atual) : "");
+  useEffect(() => setTexto(atual ? rotuloConta(atual) : ""), [atual]);
   return (
-    <select className="ctb-seletor" aria-label={rotulo} value={valor ?? ""} disabled={desabilitado} onChange={(e) => onEscolher(e.target.value || null)}>
-      <option value="">— sem vínculo —</option>
-      {analiticas.map((c) => <option key={c.id} value={c.id}>{c.codigo} · {c.nome}</option>)}
-    </select>
+    <input className="ctb-seletor" type="search" list={LISTA_ANALITICAS} aria-label={rotulo} placeholder="— sem vínculo — digite código ou nome" value={texto} disabled={desabilitado}
+      onChange={(e) => {
+        setTexto(e.target.value);
+        const c = analiticas.find((x) => rotuloConta(x) === e.target.value);
+        if (c && c.id !== valor) onEscolher(c.id);
+      }}
+      onBlur={() => {
+        if (!texto.trim()) { if (valor) onEscolher(null); return; }
+        if (!analiticas.some((x) => rotuloConta(x) === texto)) setTexto(atual ? rotuloConta(atual) : "");
+      }} />
   );
 }
 

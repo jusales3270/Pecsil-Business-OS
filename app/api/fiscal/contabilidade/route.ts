@@ -1,10 +1,11 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { dbError, requireFeature } from "../../../../lib/auth/feature-guard";
 import { montarBalancete, type ContaPlano, type Movimento } from "../../../../lib/contabil/escrituracao/balancete";
 import { lerEcd, lerPlanoCsv, partidasDeAbertura } from "../../../../lib/contabil/escrituracao/ecd";
 import { planoDeExemplo } from "../../../../lib/contabil/escrituracao/exemplo";
 import { PAPEIS } from "../../../../lib/contabil/escrituracao/regras";
-import { escriturar } from "../../../../lib/contabil/escrituracao/servidor";
+import { escriturar, todas } from "../../../../lib/contabil/escrituracao/servidor";
 import { autorDaSessao } from "../../../../lib/fiscal/emissao/servidor";
 import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 
@@ -18,6 +19,9 @@ export const maxDuration = 300;
  * permissão. A escrituração automática lê o Financeiro com a chave de serviço, depois de conferir fiscal.contabilidade operar.
  */
 const COLUNAS_CONTA = "id, codigo, nome, natureza, tipo, nivel, superior_codigo, referencial, ativa";
+/** Todas as contas do plano, em páginas: o Supabase para em 1.000 linhas e o plano oficial tem mais de 2 mil. */
+const contasDoPlano = <T,>(sb: SupabaseClient, plano: string, colunas: string) =>
+  todas<T>((de, ate) => sb.from("contabil_contas").select(colunas).eq("plano_id", plano).order("codigo").range(de, ate) as unknown as PromiseLike<{ data: T[] | null; error: { message: string } | null }>);
 const dataOk = (v: unknown) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const erro = (mensagem: string, status = 400) => NextResponse.json({ error: mensagem }, { status });
 
@@ -35,12 +39,12 @@ export async function GET(request: Request) {
 
   if (visao === "balancete") {
     if (!dataOk(de) || !dataOk(ate) || de > ate) return erro("Período inválido.");
-    const [{ data: contas }, { data: mov, error: e }] = await Promise.all([
-      sb.from("contabil_contas").select(COLUNAS_CONTA).eq("plano_id", plano.id).limit(5000),
+    const [contas, { data: mov, error: e }] = await Promise.all([
+      contasDoPlano<ContaPlano>(sb, plano.id, COLUNAS_CONTA),
       sb.rpc("contabil_balancete", { p_plano: plano.id, p_de: de, p_ate: ate }),
     ]);
     if (e) return dbError(e);
-    return NextResponse.json({ plano, balancete: montarBalancete((contas ?? []) as ContaPlano[], (mov ?? []) as Movimento[]) });
+    return NextResponse.json({ plano, balancete: montarBalancete(contas, (mov ?? []) as Movimento[]) });
   }
   if (visao === "razao") {
     const conta = q.get("conta");
@@ -69,8 +73,8 @@ export async function GET(request: Request) {
 
   const admin = createSupabaseAdminClient();
   const autor = await autorDaSessao(sb);
-  const [{ data: contas }, { data: vinculos }, { data: periodos }, { count: lancamentos }, { data: gerenciais }, { data: bancos }] = await Promise.all([
-    sb.from("contabil_contas").select(COLUNAS_CONTA).eq("plano_id", plano.id).order("codigo").limit(5000),
+  const [contas, { data: vinculos }, { data: periodos }, { count: lancamentos }, { data: gerenciais }, { data: bancos }] = await Promise.all([
+    contasDoPlano<Record<string, unknown>>(sb, plano.id, COLUNAS_CONTA),
     sb.from("contabil_vinculos").select("origem, chave, conta_id, situacao, atualizado_por_nome").eq("plano_id", plano.id),
     sb.from("contabil_periodos").select("competencia, situacao, motivo, atualizado_por_nome, updated_at").eq("plano_id", plano.id).order("competencia", { ascending: false }),
     sb.from("contabil_lancamentos").select("id", { count: "exact", head: true }).eq("plano_id", plano.id),
@@ -79,7 +83,7 @@ export async function GET(request: Request) {
     admin.from("finance_bank_accounts").select("id, bank_name, branch, account_number").eq("organization_id", autor?.org ?? "").eq("active", true),
   ]);
   return NextResponse.json({
-    planos, plano, contas: contas ?? [], vinculos: vinculos ?? [], periodos: periodos ?? [], lancamentos: lancamentos ?? 0,
+    planos, plano, contas, vinculos: vinculos ?? [], periodos: periodos ?? [], lancamentos: lancamentos ?? 0,
     papeis: PAPEIS, gerenciais: gerenciais ?? [], bancos: bancos ?? [], podeOperar: guard.access.can("fiscal.contabilidade", "operar"),
   }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -114,8 +118,8 @@ export async function POST(request: Request) {
         const id = String(await rpc("contabil_plano_importar", { p_nome: nome.slice(0, 120), p_origem: formato, p_contas: lido.contas, p_vinculos: [] }));
         let abertura: { data: string; fecha: boolean; debitos: number; creditos: number; faltam: string[] } | null = null;
         if (lido.saldos.length && lido.saldosEm) {
-          const { data: contas } = await sb.from("contabil_contas").select("id, codigo, natureza, tipo").eq("plano_id", id).limit(5000);
-          const a = partidasDeAbertura(contas ?? [], lido.saldos);
+          const contas = await contasDoPlano<Parameters<typeof partidasDeAbertura>[0][number]>(sb, id, "id, codigo, natureza, tipo");
+          const a = partidasDeAbertura(contas, lido.saldos);
           const dia = new Date(`${lido.saldosEm}T12:00:00Z`); dia.setUTCDate(dia.getUTCDate() + 1);
           const data = dia.toISOString().slice(0, 10);
           abertura = { data, fecha: a.fecha, debitos: a.debitos, creditos: a.creditos, faltam: a.faltam };

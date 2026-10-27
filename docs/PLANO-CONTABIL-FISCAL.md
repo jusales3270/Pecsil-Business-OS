@@ -361,6 +361,7 @@ Canal: "Decisões para você".
 
 | Data | O que mudou | Quem |
 |---|---|---|
+| 27/10/2026 | N-04 passo 2 (plano): o plano de contas oficial de 2026 enviado pela contadora Sandra (planilha "PLANO DE CONTAS 2026.xlsx", 2.174 contas, 2.054 analíticas, máscara 9.9.99.99.9999) foi importado pela função da tela e marcado como oficial. Sem saldos de abertura (a planilha não traz) e sem referencial da RFB (a coluna "Plano Ref." do arquivo tem números internos do sistema do escritório). Código reduzido, letra da DRE e natureza D/C ficaram fora: o núcleo ainda não tem onde guardá-los. A tela passou a ler o plano em páginas (o Supabase parava em 1.000 contas) e o vínculo virou campo com busca; QA 24/24 com usuário não proprietário, claro e escuro (os únicos erros no console vêm de fora da tela: /api/me antes do login e a SARA do Fiscal sem permissão). Falta o passo 3 (de-para das contas gerenciais) | Proprietário / Claude |
 | 26/10/2026 | N-11: simulador da reforma por orçamento (preço e caixa 2027 com IPI zero e a CBS do Senado; 2029–2033; split payment; saldo de ICMS); QA 18/18 | Proprietário / Claude |
 | 26/10/2026 | N-09: conferência de entradas (checagem por regra, classificação proposta com o porquê, confirmação do Fiscal item a item); QA 17/17 | Proprietário / Claude |
 | 26/10/2026 | N-06: calendário fiscal (obrigações como parâmetro em rascunho, datas ajustadas por feriado, avisos D-7/D-3/D-1 na SARA e no Bom dia, agenda .ics); QA 23/23 | Proprietário / Claude |
