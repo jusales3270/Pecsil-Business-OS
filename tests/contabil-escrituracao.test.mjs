@@ -219,3 +219,30 @@ test("ECD inteira: abertura pelo saldo inicial, lançamentos com encerramento ma
   const torta = lerEscrituracaoEcd(ecd.replace("|I250|2101010001||300,00|C|||CONFORME", "|I250|2101010001||299,00|C|||CONFORME"));
   assert.match(torta.avisos[0], /sem partida dobrada \(ex\.: nº 1\)/);
 });
+
+test("DRE e balanço: grupos como a ECD, prejuízo no fim e resultado não encerrado no PL para fechar", async () => {
+  const { montarDre, montarBalanco } = await import("../lib/contabil/escrituracao/demonstracoes.ts");
+  const conta = (id, codigo, nome, natureza, nivel, superior, tipo = "sintetica") => ({ id, codigo, nome, natureza, tipo, nivel, superior_codigo: superior });
+  const contas = [
+    conta("a", "1", "ATIVO", "ativo", 1, null), conta("a1", "1.1", "Bancos", "ativo", 2, "1"), conta("itau", "1.1.01", "Itaú", "ativo", 3, "1.1", "analitica"),
+    conta("p", "2", "PASSIVO", "passivo", 1, null), conta("p1", "2.1", "Fornecedores", "passivo", 2, "2"), conta("forn", "2.1.01", "Fornecedor X", "passivo", 3, "2.1", "analitica"),
+    conta("pl", "2.3", "Capital", "pl", 2, "2"), conta("cap", "2.3.01", "Capital social", "pl", 3, "2.3", "analitica"),
+    conta("r", "3", "RECEITA", "resultado", 1, null), conta("rv", "3.1", "Vendas", "resultado", 2, "3"), conta("venda", "3.1.01", "Venda de peças", "resultado", 3, "3.1", "analitica"),
+    conta("d", "5", "DESPESAS", "resultado", 1, null), conta("da", "5.1", "Administrativas", "resultado", 2, "5"), conta("luz", "5.1.01", "Energia", "resultado", 3, "5.1", "analitica"),
+    conta("x", "5.1.02", "Aluguel", "resultado", 3, "5.1", "analitica"),
+  ];
+  const dre = montarDre(contas, [{ conta_id: "venda", debitos: 0, creditos: 1000 }, { conta_id: "luz", debitos: 1300.5, creditos: 0 }]);
+  assert.deepEqual(dre.linhas.map((l) => [l.codigo, l.tipo, l.valor]), [["3", "grupo", 1000], ["3.1", "grupo", 1000], ["3.1.01", "conta", 1000], ["5", "grupo", -1300.5], ["5.1", "grupo", -1300.5], ["5.1.01", "conta", -1300.5], ["", "total", -300.5]]);
+  assert.equal(dre.linhas.at(-1).nome, "= Prejuízo");
+  assert.equal(dre.resultado, -300.5);
+  // Banco 5.000 D; fornecedor 2.000 C; capital 3.300,50 C; resultado do período (prejuízo de 300,50) ainda nas contas.
+  const bal = montarBalanco(contas, [
+    { conta_id: "itau", anterior: 5000, debitos: 0, creditos: 0 }, { conta_id: "forn", anterior: -2000, debitos: 0, creditos: 0 },
+    { conta_id: "cap", anterior: -3300.5, debitos: 0, creditos: 0 }, { conta_id: "venda", anterior: 0, debitos: 0, creditos: 1000 }, { conta_id: "luz", anterior: 0, debitos: 1300.5, creditos: 0 },
+  ]);
+  assert.equal(bal.ativo, 5000);
+  assert.equal(bal.resultadoNaoEncerrado, -300.5);
+  assert.equal(bal.passivoPl, 5000);
+  assert.equal(bal.fecha, true);
+  assert.deepEqual(bal.linhas.map((l) => [l.codigo, l.valor]), [["1", 5000], ["1.1", 5000], ["1.1.01", 5000], ["2", -5300.5], ["2.1", -2000], ["2.1.01", -2000], ["2.3", -3300.5], ["2.3.01", -3300.5]]);
+});

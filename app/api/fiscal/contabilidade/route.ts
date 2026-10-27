@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { dbError, requireFeature } from "../../../../lib/auth/feature-guard";
 import { montarBalancete, type ContaPlano, type Movimento } from "../../../../lib/contabil/escrituracao/balancete";
+import { montarBalanco, montarDre, type Movimento as MovimentoDre, type Saldo } from "../../../../lib/contabil/escrituracao/demonstracoes";
 import { lerEcd, lerPlanoCsv, partidasDeAbertura } from "../../../../lib/contabil/escrituracao/ecd";
 import { planoDeExemplo } from "../../../../lib/contabil/escrituracao/exemplo";
 import { importarEcd } from "../../../../lib/contabil/escrituracao/historico";
@@ -16,7 +17,7 @@ export const maxDuration = 300;
 
 /**
  * Fiscal › Contabilidade (N-04): plano de contas, vínculos, escrituração automática, lançamento manual, estorno,
- * balancete, razão e trava do mês. Leitura pela sessão (RLS); escrita pelas funções do banco, que conferem a
+ * balancete, razão, DRE e balanço (N-05 adiantado) e trava do mês. Leitura pela sessão (RLS); escrita pelas funções do banco, que conferem a
  * permissão. A escrituração automática lê o Financeiro com a chave de serviço, depois de conferir fiscal.contabilidade operar.
  */
 const COLUNAS_CONTA = "id, codigo, nome, natureza, tipo, nivel, superior_codigo, referencial, reduzido, dre_grupo, saldo_normal, ativa";
@@ -46,6 +47,32 @@ export async function GET(request: Request) {
     ]);
     if (e) return dbError(e);
     return NextResponse.json({ plano, balancete: montarBalancete(contas, (mov ?? []) as Movimento[]) });
+  }
+  if (visao === "demonstracoes") {
+    if (!dataOk(de) || !dataOk(ate) || de > ate) return erro("Período inválido.");
+    // Comparativo: o mesmo período do ano anterior (29/02 vira 28/02).
+    const anoAntes = (d: string) => `${Number(d.slice(0, 4)) - 1}${d.slice(4) === "-02-29" ? "-02-28" : d.slice(4)}`;
+    const [contas, { data: mov, error: e1 }, { data: movAntes, error: e2 }, { data: saldos, error: e3 }, { data: abertura, error: e4 }] = await Promise.all([
+      contasDoPlano<ContaPlano>(sb, plano.id, COLUNAS_CONTA),
+      sb.rpc("contabil_movimento", { p_plano: plano.id, p_de: de, p_ate: ate }),
+      sb.rpc("contabil_movimento", { p_plano: plano.id, p_de: anoAntes(de), p_ate: anoAntes(ate) }),
+      sb.rpc("contabil_balancete", { p_plano: plano.id, p_de: de, p_ate: ate }),
+      sb.from("contabil_partidas").select("conta_id, lado, valor, lancamento:contabil_lancamentos!inner(plano_id, data, origem_tipo)")
+        .eq("lancamento.plano_id", plano.id).eq("lancamento.origem_tipo", "abertura").eq("lancamento.data", de).limit(5000),
+    ]);
+    const e = e1 ?? e2 ?? e3 ?? e4;
+    if (e) return dbError(e);
+    const s = (saldos ?? []) as Saldo[];
+    // Início do período, como o saldo inicial da ECD: o saldo anterior mais a abertura lançada no primeiro dia.
+    const daAbertura = new Map<string, number>();
+    for (const p of (abertura ?? []) as { conta_id: string; lado: "D" | "C"; valor: number }[]) daAbertura.set(p.conta_id, (daAbertura.get(p.conta_id) ?? 0) + (p.lado === "D" ? 1 : -1) * Number(p.valor));
+    return NextResponse.json({
+      plano,
+      dre: montarDre(contas, (mov ?? []) as MovimentoDre[]),
+      dreAnterior: montarDre(contas, (movAntes ?? []) as MovimentoDre[]),
+      balanco: montarBalanco(contas, s),
+      balancoInicial: montarBalanco(contas, s.map((x) => ({ ...x, anterior: Number(x.anterior) + (daAbertura.get(x.conta_id) ?? 0), debitos: 0, creditos: 0 }))),
+    });
   }
   if (visao === "razao") {
     const conta = q.get("conta");

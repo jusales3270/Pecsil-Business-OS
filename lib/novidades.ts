@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-27-dre-balanco",
+    data: "2026-10-27",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.contabilidade"],
+    titulo: "DRE e balanço patrimonial em Fiscal › Contabilidade",
+    itens: [
+      "Nova aba \"DRE e Balanço\": a DRE por trimestre, no ano ou em qualquer período, com o mesmo período do ano anterior ao lado; o balanço no início e no fim do período, com a conferência de que o ativo fecha com o passivo + PL.",
+      "Saem do plano de contas e dos lançamentos, no formato do escritório. Os trimestres e o ano de 2025 conferem, linha a linha, com a DRE e o balanço da ECD que o escritório entregou.",
+      "As letras da DRE do plano de contas aparecem com os grupos onde estão as contas de cada uma; a legenda oficial é do escritório.",
+    ],
+  },
+  {
     id: "2026-10-27-ecd-historico",
     data: "2026-10-27",
     area: "Fiscal",

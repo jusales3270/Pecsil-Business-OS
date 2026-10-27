@@ -21,7 +21,7 @@ type Dados = {
   gerenciais: { id: string; code: string | null; name: string; account_type: string; management_type: string }[];
   bancos: { id: string; bank_name: string | null; branch: string | null; account_number: string | null }[]; podeOperar: boolean;
 };
-type Aba = "plano" | "vinculos" | "escrituracao" | "balancete" | "razao";
+type Aba = "plano" | "vinculos" | "escrituracao" | "balancete" | "demonstracoes" | "razao";
 
 const NATUREZA: Record<Natureza, string> = { ativo: "Ativo", passivo: "Passivo", pl: "Patrimônio líquido", resultado: "Resultado", compensacao: "Compensação", outras: "Outras" };
 const ORIGEM: Record<Plano["origem"], string> = { exemplo: "Exemplo (teste)", ecd: "ECD do escritório", planilha: "Planilha" };
@@ -124,13 +124,14 @@ export function Contabilidade({ notify }: { notify: (m: string) => void }) {
                 <Kpi label="Meses fechados" value={String(dados.periodos.filter((p) => p.situacao === "fechado").length)} caption="Mês fechado não recebe nem perde lançamento" tone="neutral" onOpen={() => setAba("balancete")} />
               </KpiGrid>
               <div className="almox-filtros">
-                <Segmented<Aba> options={[{ value: "plano", label: "Plano de contas" }, { value: "vinculos", label: "Vínculos" }, { value: "escrituracao", label: "Escrituração" }, { value: "balancete", label: "Balancete" }, { value: "razao", label: "Razão" }]} value={aba} onChange={setAba} ariaLabel="Contabilidade" compact />
+                <Segmented<Aba> options={[{ value: "plano", label: "Plano de contas" }, { value: "vinculos", label: "Vínculos" }, { value: "escrituracao", label: "Escrituração" }, { value: "balancete", label: "Balancete" }, { value: "demonstracoes", label: "DRE e Balanço" }, { value: "razao", label: "Razão" }]} value={aba} onChange={setAba} ariaLabel="Contabilidade" compact />
               </div>
               <datalist id={LISTA_ANALITICAS}>{analiticas.map((c) => <option key={c.id} value={rotuloConta(c)} />)}</datalist>
               {aba === "plano" && <PlanoDeContas contas={contas} />}
               {aba === "vinculos" && <Vinculos dados={dados} analiticas={analiticas} vinculo={vinculo} notify={notify} onMudou={() => void carregar(plano.id)} />}
               {aba === "escrituracao" && <Escrituracao dados={dados} plano={plano} analiticas={analiticas} notify={notify} irParaVinculos={() => setAba("vinculos")} onMudou={() => void carregar(plano.id)} />}
               {aba === "balancete" && <Balancete dados={dados} plano={plano} notify={notify} onMudou={() => void carregar(plano.id)} />}
+              {aba === "demonstracoes" && <Demonstracoes dados={dados} plano={plano} contas={contas} notify={notify} />}
               {aba === "razao" && <Razao plano={plano} analiticas={analiticas} />}
             </>
           )}
@@ -452,6 +453,129 @@ function Balancete({ dados, plano, notify, onMudou }: { dados: Dados; plano: Pla
           ))}
         </div>
       ) : <div className="finance-empty"><b>Sem movimento no período</b><small>Escriture o período na aba Escrituração.</small></div>}
+    </section>
+  );
+}
+
+type LinhaDemo = { codigo: string; nome: string; nivel: number; tipo: "grupo" | "conta" | "total"; valor: number };
+type Dre = { linhas: LinhaDemo[]; resultado: number };
+type BalancoPat = { linhas: LinhaDemo[]; ativo: number; passivoPl: number; resultadoNaoEncerrado: number; fecha: boolean };
+type Recorte = "t1" | "t2" | "t3" | "t4" | "ano" | "outro";
+const RECORTES: Record<Exclude<Recorte, "outro">, [string, string]> = { t1: ["01-01", "03-31"], t2: ["04-01", "06-30"], t3: ["07-01", "09-30"], t4: ["10-01", "12-31"], ano: ["01-01", "12-31"] };
+/** DRE com sinal: receita positiva, custo e despesa entre parênteses. */
+const valorDre = (v: number) => (Math.round(v * 100) === 0 ? "—" : v < 0 ? `(${money(-v)})` : money(v));
+
+/**
+ * DRE e Balanço (N-05 adiantado), no formato do escritório: a DRE sem os lançamentos de encerramento, com o mesmo
+ * período do ano anterior; o balanço no início (com a abertura do 1º dia, como a ECD) e no fim do período, com o
+ * resultado ainda não encerrado no PL.
+ */
+function Demonstracoes({ dados, plano, contas, notify }: { dados: Dados; plano: Plano; contas: Conta[]; notify: (m: string) => void }) {
+  // Ano inicial: o mais recente com mês fechado (o exercício que o escritório já entregou); sem nenhum, o atual.
+  const fechados = dados.periodos.filter((p) => p.situacao === "fechado").map((p) => p.competencia.slice(0, 4));
+  const anos = [...new Set([hoje().slice(0, 4), ...dados.periodos.map((p) => p.competencia.slice(0, 4)), ...(plano.abertura ? [plano.abertura.slice(0, 4)] : [])])].sort().reverse();
+  const [ano, setAno] = useState(fechados.sort().at(-1) ?? hoje().slice(0, 4));
+  const [recorte, setRecorte] = useState<Recorte>("ano");
+  const [livre, setLivre] = useState({ de: inicioDoAno(), ate: hoje() });
+  const [qual, setQual] = useState<"dre" | "balanco">("dre");
+  const [resposta, setResposta] = useState<{ de: string; ate: string; dre: Dre; dreAnterior: Dre; balanco: BalancoPat; balancoInicial: BalancoPat } | null>(null);
+  const de = recorte === "outro" ? livre.de : `${ano}-${RECORTES[recorte][0]}`;
+  const ate = recorte === "outro" ? livre.ate : `${ano}-${RECORTES[recorte][1]}`;
+  useEffect(() => {
+    if (!de || !ate || de > ate) return;
+    const t = setTimeout(async () => {
+      const x = await api<Omit<NonNullable<typeof resposta>, "de" | "ate">>(`/api/fiscal/contabilidade?plano=${plano.id}&visao=demonstracoes&de=${de}&ate=${ate}`);
+      if (x.ok) setResposta({ ...x.data, de, ate }); else notify(x.error);
+    }, 0);
+    return () => clearTimeout(t);
+  }, [plano.id, de, ate, notify]);
+  // Só vale a resposta do período escolhido: a de um período anterior pode chegar depois (o ano demora mais que o trimestre).
+  const r = resposta && resposta.de === de && resposta.ate === ate ? resposta : null;
+
+  const anterior = new Map((r?.dreAnterior.linhas ?? []).map((l) => [l.codigo || l.tipo, l.valor]));
+  const temAnterior = (r?.dreAnterior.linhas ?? []).some((l) => Math.round(l.valor * 100) !== 0);
+  // Balanço: as linhas do início e do fim juntas, na ordem do plano.
+  const inicio = new Map((r?.balancoInicial.linhas ?? []).map((l) => [l.codigo, l]));
+  const fim = new Map((r?.balanco.linhas ?? []).map((l) => [l.codigo, l]));
+  const linhasBal = [...new Set([...inicio.keys(), ...fim.keys()])].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true })).map((c) => ({ ...(fim.get(c) ?? inicio.get(c)!), inicio: inicio.get(c)?.valor ?? 0, fim: fim.get(c)?.valor ?? 0 }));
+  // Letras da DRE (coluna do plano do escritório): em que grupos as contas de cada letra estão. É só uma leitura do plano.
+  const porCodigo = new Map(contas.map((c) => [c.codigo, c]));
+  const letras = [...contas.reduce((m, c) => {
+    if (!c.dre_grupo) return m;
+    const g = m.get(c.dre_grupo) ?? { contas: 0, grupos: new Set<string>() };
+    g.contas++; g.grupos.add(porCodigo.get(c.superior_codigo ?? "")?.nome ?? "—");
+    return m.set(c.dre_grupo, g);
+  }, new Map<string, { contas: number; grupos: Set<string> }>())].sort(([a], [b]) => a.localeCompare(b));
+
+  const exportar = () => {
+    const linhas = qual === "dre"
+      ? [["codigo", "conta", "periodo", "ano_anterior"], ...(r?.dre.linhas ?? []).map((l) => [l.codigo, l.nome, l.valor, anterior.get(l.codigo || l.tipo) ?? 0])]
+      : [["codigo", "conta", `saldo_inicio_${de}`, `saldo_${ate}`], ...linhasBal.map((l) => [l.codigo, l.nome, l.inicio, l.fim])];
+    const csv = linhas.map((x) => x.map((c) => (typeof c === "number" ? c.toFixed(2).replace(".", ",") : String(c).replace(/;/g, ","))).join(";")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `${qual === "dre" ? "dre" : "balanco"}-${de}-a-${ate}.csv`; a.click(); URL.revokeObjectURL(a.href);
+  };
+  const bal = r?.balanco;
+  return (
+    <section className="almox-bloco">
+      <div className="almox-filtros ctb-periodo">
+        <Segmented<"dre" | "balanco"> options={[{ value: "dre", label: "DRE" }, { value: "balanco", label: "Balanço patrimonial" }]} value={qual} onChange={setQual} ariaLabel="Demonstração" compact />
+        {recorte !== "outro" && <label className="pcf-mes"><span>Ano</span><select value={ano} onChange={(e) => setAno(e.target.value)}>{anos.map((a) => <option key={a} value={a}>{a}</option>)}</select></label>}
+        <Segmented<Recorte> options={[{ value: "t1", label: "1º tri" }, { value: "t2", label: "2º tri" }, { value: "t3", label: "3º tri" }, { value: "t4", label: "4º tri" }, { value: "ano", label: "Ano" }, { value: "outro", label: "Outro período" }]} value={recorte} onChange={setRecorte} ariaLabel="Período" compact />
+        {recorte === "outro" && <>
+          <label className="pcf-mes"><span>De</span><input type="date" value={livre.de} onChange={(e) => setLivre({ ...livre, de: e.target.value })} /></label>
+          <label className="pcf-mes"><span>Até</span><input type="date" value={livre.ate} onChange={(e) => setLivre({ ...livre, ate: e.target.value })} /></label>
+        </>}
+        <Button variant="secondary" compact onClick={exportar} disabled={!r}>Baixar planilha (CSV)</Button>
+      </div>
+
+      {r && qual === "dre" && (r.dre.linhas.length > 1 ? <>
+        <p className="ctb-titulo">DRE de {date(de)} a {date(ate)} · sem os lançamentos de encerramento do resultado</p>
+        <div className="vnd-tabela ctb-demo" role="table" aria-label="DRE">
+          <div className="cabeca" role="row"><span>Código</span><span>Conta</span><span className="r">Período</span>{temAnterior && <span className="r">Mesmo período de {Number(de.slice(0, 4)) - 1}</span>}</div>
+          {r.dre.linhas.map((l) => (
+            <div role="row" key={l.codigo || l.tipo} className={l.tipo !== "conta" ? "ctb-sintetica" : undefined}>
+              <span className="ctb-codigo">{l.codigo}</span>
+              <span className="nome" style={{ paddingLeft: `${Math.min(Math.max(l.nivel - 1, 0), 6) * 12}px` }}>{l.nome}</span>
+              <span className="r">{valorDre(l.valor)}</span>
+              {temAnterior && <span className="r">{valorDre(anterior.get(l.codigo || l.tipo) ?? 0)}</span>}
+            </div>
+          ))}
+        </div>
+        {letras.length > 0 && (
+          <details className="ctb-detalhes">
+            <summary>Letras da DRE no plano de contas ({letras.length})</summary>
+            <p className="ctb-legenda">Leitura do próprio plano: em que grupos estão as contas de cada letra. A legenda oficial é do escritório contábil.</p>
+            <div className="vnd-tabela ctb-letras" role="table" aria-label="Letras da DRE">
+              <div className="cabeca" role="row"><span>Letra</span><span>Grupos das contas</span><span className="r">Contas</span></div>
+              {letras.map(([letra, g]) => (
+                <div role="row" key={letra}><span className="ctb-codigo">{letra}</span><span className="nome">{[...g.grupos].join(" · ")}</span><span className="r">{g.contas}</span></div>
+              ))}
+            </div>
+          </details>
+        )}
+      </> : <div className="finance-empty"><b>Sem movimento de resultado no período</b><small>Escriture o período na aba Escrituração ou traga a ECD do ano.</small></div>)}
+
+      {r && bal && qual === "balanco" && (linhasBal.length ? <>
+        {bal.fecha
+          ? <Callout variant="success" title={`Fecha: ativo ${money(bal.ativo)} = passivo + PL ${money(bal.passivoPl)}`}>{Math.round(bal.resultadoNaoEncerrado * 100) !== 0 ? `Inclui no PL o resultado ainda não encerrado: ${valorDre(bal.resultadoNaoEncerrado)}.` : "O resultado do período já está encerrado no PL."}</Callout>
+          : <Callout variant="warning" title="O balanço não fecha">Ativo {money(bal.ativo)} e passivo + PL {money(bal.passivoPl)}. Avise quem cuida da plataforma.</Callout>}
+        <div className="vnd-tabela ctb-demo" role="table" aria-label="Balanço patrimonial">
+          <div className="cabeca" role="row"><span>Código</span><span>Conta</span><span className="r">Início ({date(de)})</span><span className="r">Em {date(ate)}</span></div>
+          {linhasBal.map((l) => (
+            <div role="row" key={l.codigo} className={l.tipo === "grupo" ? "ctb-sintetica" : undefined}>
+              <span className="ctb-codigo">{l.codigo}</span>
+              <span className="nome" style={{ paddingLeft: `${Math.min(l.nivel - 1, 6) * 12}px` }}>{l.nome}</span>
+              <span className="r">{saldo(l.inicio)}</span>
+              <span className="r">{saldo(l.fim)}</span>
+            </div>
+          ))}
+          {Math.round(bal.resultadoNaoEncerrado * 100) !== 0 && (
+            <div role="row" className="ctb-sintetica"><span className="ctb-codigo" /><span className="nome">Resultado do período ainda não encerrado (no PL)</span><span className="r">{valorDre(r.balancoInicial.resultadoNaoEncerrado)}</span><span className="r">{valorDre(bal.resultadoNaoEncerrado)}</span></div>
+          )}
+        </div>
+      </> : <div className="finance-empty"><b>Sem saldo nas contas patrimoniais</b><small>Lance a abertura ou traga a ECD do ano.</small></div>)}
     </section>
   );
 }
