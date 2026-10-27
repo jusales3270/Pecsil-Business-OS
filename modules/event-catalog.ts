@@ -106,6 +106,7 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "fiscal.dfe.cancelada", module: "fiscal", label: "Nota recebida cancelada", description: "O emitente cancelou na SEFAZ uma nota emitida contra a empresa (avisa se ela já estava no Painel do ICMS)." },
   { type: "fiscal.entrada.conferida", module: "fiscal", label: "Nota de entrada conferida", description: "O Fiscal confirmou a classificação dos itens de uma nota recebida (tipo do item e CFOP de entrada)." },
   { type: "fiscal.plano_contabil.importado", module: "fiscal", label: "Plano de contas importado", description: "Um plano de contas contábil entrou (ECD do escritório, planilha ou o de exemplo para teste)." },
+  { type: "fiscal.plano_contabil.complementado", module: "fiscal", label: "Plano de contas completado", description: "Contas de um plano ganharam o código reduzido, o grupo da DRE ou o saldo normal (D/C) do escritório." },
   { type: "fiscal.plano_contabil.definido", module: "fiscal", label: "Plano de contas definido", description: "Um plano virou (ou deixou de ser) o oficial, ou mudou a data de abertura." },
   { type: "fiscal.plano_contabil.apagado", module: "fiscal", label: "Plano de contas apagado", description: "Um plano não oficial foi apagado (o de exemplo, com os lançamentos de teste)." },
   { type: "fiscal.escrituracao.lote", module: "fiscal", label: "Escrituração automática", description: "Títulos e baixas do Financeiro viraram lançamentos contábeis por regra." },

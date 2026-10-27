@@ -98,7 +98,7 @@ const ECD = [
 test("ECD: plano (I050), referencial (I051) e saldos do último período (I155), e a abertura fecha", () => {
   const r = lerEcd(ECD);
   assert.equal(r.contas.length, 7);
-  assert.deepEqual(r.contas[1], { codigo: "1.01", nome: "BANCOS", natureza: "ativo", tipo: "analitica", nivel: 2, superior_codigo: "1", referencial: "1.01.01.02.00" });
+  assert.deepEqual(r.contas[1], { codigo: "1.01", nome: "BANCOS", natureza: "ativo", tipo: "analitica", nivel: 2, superior_codigo: "1", referencial: "1.01.01.02.00", reduzido: null, dre_grupo: null, saldo_normal: null });
   assert.equal(r.contas[6].natureza, "resultado");
   assert.equal(r.saldosEm, "2025-12-31");
   assert.deepEqual(r.saldos, [{ codigo: "1.01", valor: 1000, lado: "D" }, { codigo: "1.02", valor: 500.5, lado: "D" }, { codigo: "2.01", valor: 700.5, lado: "C" }, { codigo: "3.01", valor: 800, lado: "C" }]);
@@ -116,6 +116,41 @@ test("planilha: nível, superior e tipo saem do código quando faltam", () => {
   assert.deepEqual(r.contas.map((c) => [c.codigo, c.nivel, c.superior_codigo, c.tipo, c.natureza]), [["1", 1, null, "sintetica", "ativo"], ["1.1", 2, "1", "sintetica", "ativo"], ["1.1.01", 3, "1.1", "analitica", "ativo"], ["4", 1, null, "sintetica", "resultado"], ["4.1", 2, "4", "analitica", "resultado"]]);
   assert.match(r.avisos[0], /Linha 7/);
   assert.match(lerPlanoCsv("a;b\n1;2").avisos[0], /codigo, nome e natureza/);
+});
+
+test("planilha do escritório: máscara fixa, reduzido, grupo da DRE e saldo normal", () => {
+  const csv = [
+    "Conta;Descrição;Reduzida;D.R.E.;Plano Ref.;NATUREZADC;NATUREZA",
+    "1.0.00.00.0000;Ativo;;;;D;1",
+    "1.2.03.02.0000;(-) Depreciação Acumulada;;;;C;1",
+    "1.2.03.02.0001;(-) Depreciação Acumulada Modelos;1100;;8;C;1",
+    "2.3.03.00.0000;Ajuste de Avaliação Patrimonial;;;;C;3",
+    "3.1.01.01.0001;Vendas de Mercadorias;29;A;671;C;4",
+    "6.1.01.01.0001;Resultado do Exercício;75;R;;C;9",
+  ].join("\n");
+  const r = lerPlanoCsv(csv);
+  assert.deepEqual(r.avisos, []);
+  assert.deepEqual(r.contas.map((c) => [c.codigo, c.nivel, c.superior_codigo, c.tipo, c.natureza, c.reduzido, c.dre_grupo, c.saldo_normal, c.referencial]), [
+    ["1.0.00.00.0000", 1, null, "sintetica", "ativo", null, null, "D", null],
+    ["1.2.03.02.0000", 4, "1.2.03.00.0000", "sintetica", "ativo", null, null, "C", null],
+    ["1.2.03.02.0001", 5, "1.2.03.02.0000", "analitica", "ativo", "1100", null, "C", null],
+    ["2.3.03.00.0000", 3, "2.3.00.00.0000", "sintetica", "pl", null, null, "C", null],
+    ["3.1.01.01.0001", 5, "3.1.01.01.0000", "analitica", "resultado", "29", "A", "C", null],
+    ["6.1.01.01.0001", 5, "6.1.01.01.0000", "analitica", "outras", "75", "R", "C", null],
+  ], "a natureza vem da coluna NATUREZA (não da NATUREZADC) e o \"Plano Ref.\" do escritório não vira referencial da Receita");
+});
+
+test("balancete: redutora com saldo do lado do seu saldo normal não alerta", () => {
+  const contas = [
+    { id: "dep", codigo: "1.2.03.02.0001", nome: "(-) Depreciação", natureza: "ativo", tipo: "analitica", nivel: 5, superior_codigo: null, saldo_normal: "C" },
+    { id: "maq", codigo: "1.2.03.01.0004", nome: "Máquinas", natureza: "ativo", tipo: "analitica", nivel: 5, superior_codigo: null, saldo_normal: "D" },
+    { id: "for", codigo: "2.1.01.01.0682", nome: "Fornecedor", natureza: "passivo", tipo: "analitica", nivel: 5, superior_codigo: null },
+  ];
+  const b = montarBalancete(contas, [{ conta_id: "dep", anterior: 0, debitos: 0, creditos: 300 }, { conta_id: "maq", anterior: 0, debitos: 0, creditos: 100 }, { conta_id: "for", anterior: 0, debitos: 400, creditos: 0 }]);
+  const alerta = Object.fromEntries(b.linhas.map((l) => [l.id, l.alerta]));
+  assert.equal(alerta.dep, null);
+  assert.equal(alerta.maq, "Saldo credor numa conta de saldo devedor.");
+  assert.equal(alerta.for, "Saldo devedor numa conta de passivo.", "sem saldo normal, vale o grupo");
 });
 
 test("balancete: sintética soma as filhas, débito = crédito e alerta de natureza", () => {

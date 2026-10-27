@@ -52,6 +52,7 @@ export const NOVIDADES: Novidade[] = [
     titulo: "Plano de contas oficial na Contabilidade",
     itens: [
       "O plano de contas oficial de 2026, enviado pela contadora da Pecsil, está em Fiscal › Contabilidade: 2.174 contas (2.054 recebem lançamento), do ativo ao resultado do exercício.",
+      "Cada conta mostra o código reduzido do escritório, o saldo normal (devedor ou credor) e o grupo da DRE. A busca também acha pelo reduzido, e o CSV do balancete leva o reduzido e o grupo da DRE.",
       "Nos Vínculos, a conta contábil agora se escolhe digitando o código ou o nome, com a lista filtrando enquanto você digita.",
     ],
   },

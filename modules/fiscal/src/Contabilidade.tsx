@@ -12,7 +12,7 @@ import { api, date, hoje, money } from "./comum";
  */
 
 type Natureza = "ativo" | "passivo" | "pl" | "resultado" | "compensacao" | "outras";
-type Conta = { id: string; codigo: string; nome: string; natureza: Natureza; tipo: "sintetica" | "analitica"; nivel: number; superior_codigo: string | null; referencial: string | null; ativa: boolean };
+type Conta = { id: string; codigo: string; nome: string; natureza: Natureza; tipo: "sintetica" | "analitica"; nivel: number; superior_codigo: string | null; referencial: string | null; reduzido: string | null; dre_grupo: string | null; saldo_normal: "D" | "C" | null; ativa: boolean };
 type Plano = { id: string; nome: string; origem: "exemplo" | "ecd" | "planilha"; oficial: boolean; abertura: string | null; criado_por_nome: string | null; created_at: string };
 type Vinculo = { origem: "conta_gerencial" | "conta_bancaria" | "papel"; chave: string; conta_id: string; situacao: "proposto" | "confirmado"; atualizado_por_nome: string | null };
 type Dados = {
@@ -133,18 +133,21 @@ export function Contabilidade({ notify }: { notify: (m: string) => void }) {
 function PlanoDeContas({ contas }: { contas: Conta[] }) {
   const [busca, setBusca] = useState("");
   const termo = busca.trim().toLowerCase();
-  const visiveis = termo ? contas.filter((c) => c.codigo.includes(termo) || c.nome.toLowerCase().includes(termo)) : contas;
+  const visiveis = termo ? contas.filter((c) => c.codigo.includes(termo) || c.reduzido === termo || c.nome.toLowerCase().includes(termo)) : contas;
   return (
     <section className="almox-bloco">
-      <div className="almox-filtros"><input className="msk-input pcf-busca" type="search" placeholder="Buscar por código ou nome" aria-label="Buscar conta" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
+      <div className="almox-filtros"><input className="msk-input pcf-busca" type="search" placeholder="Buscar por código, reduzido ou nome" aria-label="Buscar conta" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
       <div className="vnd-tabela ctb-contas" role="table" aria-label="Plano de contas">
-        <div className="cabeca" role="row"><span>Código</span><span>Conta</span><span>Natureza</span><span>Tipo</span><span>Referencial</span></div>
+        <div className="cabeca" role="row"><span>Código</span><span className="r">Reduzido</span><span>Conta</span><span>Natureza</span><span>Tipo</span><span title="Lado em que a conta costuma ter saldo">Saldo</span><span title="Grupo da DRE no plano do escritório">DRE</span><span>Referencial</span></div>
         {visiveis.map((c) => (
           <div role="row" key={c.id} className={c.tipo === "sintetica" ? "ctb-sintetica" : undefined}>
             <span className="ctb-codigo">{c.codigo}</span>
+            <span className="ctb-codigo r">{c.reduzido ?? "—"}</span>
             <span className="nome" style={{ paddingLeft: `${Math.min(c.nivel - 1, 6) * 12}px` }}>{c.nome}</span>
             <span>{NATUREZA[c.natureza]}</span>
             <span>{c.tipo === "sintetica" ? "Sintética" : "Analítica"}</span>
+            <span>{c.saldo_normal === "D" ? "Devedor" : c.saldo_normal === "C" ? "Credor" : "—"}</span>
+            <span className="ctb-codigo">{c.dre_grupo ?? "—"}</span>
             <span className="ctb-codigo">{c.referencial ?? "—"}</span>
           </div>
         ))}
@@ -396,7 +399,7 @@ function Balancete({ dados, plano, notify, onMudou }: { dados: Dados; plano: Pla
   };
   const linhas = (bal?.linhas ?? []).filter((l) => !soMovimento || l.anterior || l.debitos || l.creditos);
   const exportar = () => {
-    const csv = [["codigo", "conta", "natureza", "tipo", "saldo_anterior", "debitos", "creditos", "saldo_final"], ...linhas.map((l) => [l.codigo, l.nome.replace(/;/g, ","), l.natureza, l.tipo, l.anterior, l.debitos, l.creditos, l.final])]
+    const csv = [["codigo", "reduzido", "conta", "natureza", "tipo", "dre", "saldo_anterior", "debitos", "creditos", "saldo_final"], ...linhas.map((l) => [l.codigo, l.reduzido ?? "", l.nome.replace(/;/g, ","), l.natureza, l.tipo, l.dre_grupo ?? "", l.anterior, l.debitos, l.creditos, l.final])]
       .map((r) => r.map((c) => (typeof c === "number" ? c.toFixed(2).replace(".", ",") : String(c))).join(";")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));

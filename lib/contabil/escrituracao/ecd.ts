@@ -2,13 +2,18 @@
  * Plano de contas e saldos de abertura (N-04), de dois formatos:
  * - ECD (SPED Contábil, .txt com linhas |REG|campo|…|): I050 (contas), I051 (conta referencial da Receita),
  *   I150/I155 (saldos por período; vale o último período do arquivo, depois do encerramento);
- * - planilha CSV (; ou ,) com codigo, nome, natureza, tipo e, se houver, nivel, superior e referencial.
+ * - planilha CSV (; ou ,) com codigo, nome, natureza, tipo e, se houver, nivel, superior, referencial, reduzido,
+ *   grupo da DRE e saldo normal (D/C). Lê também o plano exportado pelo sistema do escritório (Conta, Descrição,
+ *   Reduzida, D.R.E., NATUREZADC, NATUREZA 1–4/9), de máscara fixa como 1.1.01.02.0000.
  * Puro. A abertura só leva as contas patrimoniais (ativo, passivo, PL): resultado começa zerado.
  */
 import type { Lado } from "./regras";
 
 export type Natureza = "ativo" | "passivo" | "pl" | "resultado" | "compensacao" | "outras";
-export type ContaImportada = { codigo: string; nome: string; natureza: Natureza; tipo: "sintetica" | "analitica"; nivel: number; superior_codigo: string | null; referencial: string | null };
+export type ContaImportada = {
+  codigo: string; nome: string; natureza: Natureza; tipo: "sintetica" | "analitica"; nivel: number; superior_codigo: string | null; referencial: string | null;
+  reduzido: string | null; dre_grupo: string | null; saldo_normal: Lado | null;
+};
 export type Saldo = { codigo: string; valor: number; lado: Lado };
 export type Importado = { contas: ContaImportada[]; saldos: Saldo[]; saldosEm: string | null; empresa: { nome: string | null; cnpj: string | null }; avisos: string[] };
 
@@ -32,7 +37,7 @@ export function lerEcd(texto: string): Importado {
       case "I050": {
         const natureza = NATUREZA_ECD[f[2]];
         if (!natureza) { avisos.push(`Conta ${f[5]}: natureza ${f[2]} desconhecida.`); ultima = null; break; }
-        ultima = { codigo: f[5], nome: f[7], natureza, tipo: f[3] === "S" ? "sintetica" : "analitica", nivel: Number(f[4]) || 1, superior_codigo: f[6] || null, referencial: null };
+        ultima = { codigo: f[5], nome: f[7], natureza, tipo: f[3] === "S" ? "sintetica" : "analitica", nivel: Number(f[4]) || 1, superior_codigo: f[6] || null, referencial: null, reduzido: null, dre_grupo: null, saldo_normal: null };
         contas.push(ultima);
         break;
       }
@@ -55,15 +60,23 @@ export function lerEcd(texto: string): Importado {
 
 const NATUREZA_TEXTO: [RegExp, Natureza][] = [[/^(0?1|ativo)/i, "ativo"], [/^(0?2|passivo)/i, "passivo"], [/^(0?3|pl|patrim)/i, "pl"], [/^(0?4|resultado|receita|despesa|custo)/i, "resultado"], [/^(0?5|compensa)/i, "compensacao"], [/^(0?9|outra)/i, "outras"]];
 const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+/** Cabeçalho sem acento, ponto, espaço ou sublinhado: "D.R.E." → "dre", "Conta superior" → "contasuperior". */
+const chave = (s: string) => semAcento(s).replace(/[.\s_]/g, "");
 
-/** Planilha CSV com cabeçalho. Nível e superior saem do código (1.1.01 → nível 3, superior 1.1) quando faltam. */
+/**
+ * Planilha CSV com cabeçalho. Nível e superior saem do código quando faltam: 1.1.01 → nível 3, superior 1.1; na
+ * máscara fixa (todos os códigos com as mesmas partes) os zeros do fim marcam o nível: 1.1.01.00.0000 → nível 3,
+ * superior 1.1.00.00.0000, e só a última parte preenchida é analítica.
+ */
 export function lerPlanoCsv(texto: string): Importado {
   const linhas = texto.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim());
   const sep = (linhas[0]?.match(/;/g)?.length ?? 0) >= (linhas[0]?.match(/,/g)?.length ?? 0) ? ";" : ",";
-  const cab = (linhas[0] ?? "").split(sep).map(semAcento);
-  const col = (...nomes: string[]) => cab.findIndex((c) => nomes.some((n) => c.startsWith(n)));
+  const cab = (linhas[0] ?? "").split(sep).map(chave);
+  // O nome exato vale mais que o começo: "natureza" não pode cair em "naturezadc".
+  const col = (...nomes: string[]) => { const exata = cab.findIndex((c) => nomes.includes(c)); return exata >= 0 ? exata : cab.findIndex((c) => nomes.some((n) => c.startsWith(n))); };
   const ic = col("codigo", "cod", "conta"), inome = col("nome", "descricao", "titulo"), inat = col("natureza", "grupo"), itipo = col("tipo", "sintetica", "analitica");
-  const inivel = col("nivel"), isup = col("superior", "conta superior", "pai"), iref = col("referencial", "conta referencial");
+  const inivel = col("nivel"), isup = col("superior", "contasuperior", "pai"), iref = col("referencial", "contareferencial");
+  const ired = col("reduzido", "reduzida", "codreduzido"), idre = col("dre", "grupodre"), idc = col("naturezadc", "saldonormal", "dc", "d/c");
   const avisos: string[] = [];
   if (ic < 0 || inome < 0 || inat < 0) return { contas: [], saldos: [], saldosEm: null, empresa: { nome: null, cnpj: null }, avisos: ["A planilha precisa das colunas codigo, nome e natureza (e, se tiver, tipo, nivel, superior e referencial)."] };
   const contas: ContaImportada[] = [];
@@ -81,10 +94,26 @@ export function lerPlanoCsv(texto: string): Importado {
       nivel: Number(inivel >= 0 ? f[inivel] : NaN) || partes.length,
       superior_codigo: (isup >= 0 ? f[isup] : "") || (partes.length > 1 ? codigo.slice(0, codigo.lastIndexOf(partes[partes.length - 1])).replace(/[.\-]$/, "") : null),
       referencial: (iref >= 0 ? f[iref] : "") || null,
+      reduzido: (ired >= 0 ? f[ired] : "") || null,
+      dre_grupo: /^[A-Za-z]{1,3}$/.test(idre >= 0 ? f[idre] ?? "" : "") ? f[idre].toUpperCase() : null,
+      saldo_normal: /^[DC]$/i.test(idc >= 0 ? f[idc] ?? "" : "") ? (f[idc].toUpperCase() as Lado) : null,
     });
   }
+  // Máscara fixa: o nível e o superior saem dos zeros do fim, não do último pedaço do código.
+  const partesDe = (codigo: string) => codigo.split(".");
+  const n = contas.length ? partesDe(contas[0].codigo).length : 0;
+  const mascaraFixa = n > 1 && contas.every((c) => partesDe(c.codigo).length === n && partesDe(c.codigo).every((p) => /^\d+$/.test(p)));
+  if (mascaraFixa) {
+    for (const c of contas) {
+      const partes = partesDe(c.codigo);
+      const ultima = partes.reduce((u, p, i) => (Number(p) !== 0 ? i : u), 0);
+      if (inivel < 0) c.nivel = ultima + 1;
+      if (isup < 0) c.superior_codigo = ultima === 0 ? null : partes.map((p, i) => (i >= ultima ? "0".repeat(p.length) : p)).join(".");
+      if (itipo < 0) c.tipo = ultima < n - 1 ? "sintetica" : "analitica";
+    }
+  }
   // Sem a coluna tipo: quem é superior de alguém é sintética.
-  if (itipo < 0) {
+  if (itipo < 0 && !mascaraFixa) {
     const superiores = new Set(contas.map((c) => c.superior_codigo).filter(Boolean));
     for (const c of contas) c.tipo = superiores.has(c.codigo) ? "sintetica" : "analitica";
   }

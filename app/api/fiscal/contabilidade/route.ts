@@ -18,7 +18,7 @@ export const maxDuration = 300;
  * balancete, razão e trava do mês. Leitura pela sessão (RLS); escrita pelas funções do banco, que conferem a
  * permissão. A escrituração automática lê o Financeiro com a chave de serviço, depois de conferir fiscal.contabilidade operar.
  */
-const COLUNAS_CONTA = "id, codigo, nome, natureza, tipo, nivel, superior_codigo, referencial, ativa";
+const COLUNAS_CONTA = "id, codigo, nome, natureza, tipo, nivel, superior_codigo, referencial, reduzido, dre_grupo, saldo_normal, ativa";
 /** Todas as contas do plano, em páginas: o Supabase para em 1.000 linhas e o plano oficial tem mais de 2 mil. */
 const contasDoPlano = <T,>(sb: SupabaseClient, plano: string, colunas: string) =>
   todas<T>((de, ate) => sb.from("contabil_contas").select(colunas).eq("plano_id", plano).order("codigo").range(de, ate) as unknown as PromiseLike<{ data: T[] | null; error: { message: string } | null }>);
