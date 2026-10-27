@@ -29,11 +29,12 @@ const saldo = (v: number) => (Math.round(v * 100) === 0 ? "—" : `${money(Math.
 const inicioDoAno = () => `${hoje().slice(0, 4)}-01-01`;
 
 /** Lê o arquivo da ECD (UTF-8 ou Latin-1) e manda só os registros que importam: empresa, contas e saldos. */
-async function textoDaEcd(arquivo: File) {
+async function textoDaEcd(arquivo: File, comLancamentos = false) {
   const bytes = await arquivo.arrayBuffer();
   let texto: string;
   try { texto = new TextDecoder("utf-8", { fatal: true }).decode(bytes); } catch { texto = new TextDecoder("iso-8859-1").decode(bytes); }
-  return texto.split(/\r?\n/).filter((l) => /^\|(0000|I050|I051|I150|I155)\|/.test(l)).join("\n");
+  const registros = comLancamentos ? /^\|(0000|I050|I051|I150|I155|I200|I250)\|/ : /^\|(0000|I050|I051|I150|I155)\|/;
+  return texto.split(/\r?\n/).filter((l) => registros.test(l)).join("\n");
 }
 
 export function Contabilidade({ notify }: { notify: (m: string) => void }) {
@@ -66,6 +67,15 @@ export function Contabilidade({ notify }: { notify: (m: string) => void }) {
     notify(`${r.contas} contas importadas.${a ? (a.fecha ? ` Saldos de abertura lançados em ${date(a.data)}.` : ` Os saldos não fecham (débitos ${money(a.debitos)} × créditos ${money(a.creditos)}): abertura não lançada.`) : ""}${r.avisos?.length ? ` ${r.avisos.length} aviso(s).` : ""}`);
     void carregar(r.plano);
   };
+  // A escrituração de um ano fechado (ECD do escritório) vira histórico do plano: abertura, lançamentos e referencial.
+  const importarHistorico = async (arquivo: File) => {
+    if (!plano) return;
+    const texto = await textoDaEcd(arquivo, true);
+    const r = (await enviar({ acao: "importar_ecd", plano: plano.id, texto }, "historico")) as unknown as { ano: string; lancamentos: number; jaExistiam: number; referencial: number; abertura2026: string } | null;
+    if (!r) return;
+    notify(`ECD de ${r.ano}: ${r.lancamentos.toLocaleString("pt-BR")} lançamentos${r.jaExistiam ? ` (${r.jaExistiam} já estavam)` : ""}, referencial em ${r.referencial} contas. Os meses de ${r.ano} ficaram fechados; o Financeiro entra a partir de ${date(r.abertura2026)}.`);
+    void carregar(plano.id);
+  };
 
   const contas = useMemo(() => dados?.contas ?? [], [dados]);
   const analiticas = useMemo(() => contas.filter((c) => c.tipo === "analitica" && c.ativa), [contas]);
@@ -96,6 +106,7 @@ export function Contabilidade({ notify }: { notify: (m: string) => void }) {
                   <EscolherArquivo rotulo="Importar ECD (.txt)" aceita=".txt,text/plain" compacto ocupado={ocupado === "ecd"} textoOcupado="Importando…" onEscolher={(a) => a[0] && void importar(a[0], "ecd")} />
                   <EscolherArquivo rotulo="Importar planilha (.csv)" aceita=".csv,text/csv" compacto ocupado={ocupado === "planilha"} textoOcupado="Importando…" onEscolher={(a) => a[0] && void importar(a[0], "planilha")} />
                   {!dados.planos.some((p) => p.origem === "exemplo") && <Button variant="secondary" compact disabled={ocupado !== null} onClick={async () => { const r = await enviar({ acao: "criar_exemplo" }, "exemplo"); if (r) { notify(r.mensagem ?? "Plano de exemplo criado."); void carregar(r.plano); } }}>{ocupado === "exemplo" ? "Criando…" : "Criar plano de exemplo"}</Button>}
+                  {plano && plano.origem !== "exemplo" && <EscolherArquivo rotulo="Trazer a ECD do ano (histórico)" aceita=".txt,text/plain" compacto ocupado={ocupado === "historico"} textoOcupado="Importando os lançamentos…" onEscolher={(a) => a[0] && void importarHistorico(a[0])} />}
                   {plano && <Button variant="secondary" compact onClick={() => setDefinindo(true)}>Oficial e abertura</Button>}
                 </span>
               )}
@@ -167,7 +178,9 @@ const rotuloConta = (c: Pick<Conta, "codigo" | "nome">) => `${c.codigo} · ${c.n
 function SeletorConta({ analiticas, valor, onEscolher, desabilitado, rotulo }: { analiticas: Conta[]; valor: string | null; onEscolher: (id: string | null) => void; desabilitado?: boolean; rotulo: string }) {
   const atual = useMemo(() => (valor ? analiticas.find((c) => c.id === valor) ?? null : null), [analiticas, valor]);
   const [texto, setTexto] = useState(atual ? rotuloConta(atual) : "");
-  useEffect(() => setTexto(atual ? rotuloConta(atual) : ""), [atual]);
+  // Vínculo trocado de fora (recarga da lista): o texto acompanha, sem efeito (ajuste durante a renderização).
+  const [visto, setVisto] = useState(atual);
+  if (visto !== atual) { setVisto(atual); setTexto(atual ? rotuloConta(atual) : ""); }
   return (
     <input className="ctb-seletor" type="search" list={LISTA_ANALITICAS} aria-label={rotulo} placeholder="— sem vínculo — digite código ou nome" value={texto} disabled={desabilitado}
       onChange={(e) => {
@@ -235,7 +248,7 @@ function Vinculos({ dados, analiticas, vinculo, notify, onMudou }: { dados: Dado
 type Resultado = { lancados: number; jaLancados: number; eventos: number; de: string; ate: string; porMotivo: Record<string, number>; semVinculo: { chave: string; contas: number; valor: number }[]; amostra: { motivo: string; detalhe: string; data: string; historico: string; valor: number }[] };
 type Lancamento = { id: string; data: string; historico: string; origem_tipo: string; estorno_de: string | null; criado_por_nome: string | null; partidas: { lado: "D" | "C"; valor: number; conta: { codigo: string; nome: string } }[] };
 const MOTIVO: Record<string, string> = { sem_vinculo_gerencial: "Conta gerencial sem vínculo", sem_vinculo_bancario: "Conta bancária sem vínculo", sem_vinculo_papel: "Papel sem vínculo", sem_banco: "Baixa sem banco (nem conciliada)", sem_rateio: "Título sem conta gerencial", desequilibrado: "Rateio ou baixa que não fecha", periodo_fechado: "Mês fechado", sem_regra: "Sem regra", valor_zero: "Valor zero" };
-const ORIGEM_LANC: Record<string, string> = { titulo: "Título", baixa: "Baixa", abertura: "Abertura", manual: "Manual", estorno: "Estorno" };
+const ORIGEM_LANC: Record<string, string> = { titulo: "Título", baixa: "Baixa", abertura: "Abertura", manual: "Manual", estorno: "Estorno", historico_ecd: "ECD do escritório" };
 
 function Escrituracao({ dados, plano, analiticas, notify, irParaVinculos, onMudou }: { dados: Dados; plano: Plano; analiticas: Conta[]; notify: (m: string) => void; irParaVinculos: () => void; onMudou: () => void }) {
   const [de, setDe] = useState(plano.abertura ?? inicioDoAno());
@@ -299,7 +312,7 @@ function Escrituracao({ dados, plano, analiticas, notify, irParaVinculos, onMudo
                 <span className="nome">{l.historico}<small>{l.criado_por_nome ?? ""}</small></span>
                 <span className="ctb-partidas">{[...l.partidas].sort((a, b) => a.lado.localeCompare(b.lado) * -1).map((p, k) => <small key={k}>{p.lado} {p.conta.codigo} {p.conta.nome} · {money(Number(p.valor))}</small>)}</span>
                 <span>{estornado ? <Status tone="neutral">Estornado</Status> : <Status tone={l.origem_tipo === "estorno" ? "attention" : l.origem_tipo === "manual" ? "info" : "neutral"}>{ORIGEM_LANC[l.origem_tipo] ?? l.origem_tipo}</Status>}</span>
-                <span>{dados.podeOperar && !estornado && l.origem_tipo !== "estorno" && <button type="button" className="almox-link" onClick={() => setEstornando(l)}>Estornar</button>}</span>
+                <span>{dados.podeOperar && !estornado && !["estorno", "historico_ecd", "abertura"].includes(l.origem_tipo) && <button type="button" className="almox-link" onClick={() => setEstornando(l)}>Estornar</button>}</span>
               </div>
             );
           })}

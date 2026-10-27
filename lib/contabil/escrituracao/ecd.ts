@@ -134,3 +134,67 @@ export function partidasDeAbertura(contas: readonly { id: string; codigo: string
   const soma = (l: Lado) => partidas.filter((p) => p.lado === l).reduce((t, p) => t + Math.round(p.valor * 100), 0);
   return { partidas, faltam, fecha: soma("D") === soma("C"), debitos: soma("D") / 100, creditos: soma("C") / 100 };
 }
+
+/** Código sem pontos nem traços: a ECD grava 1101030005 e o plano do escritório 1.1.01.03.0005. */
+export const codigoChave = (codigo: string) => codigo.replace(/\D/g, "");
+
+export type LancamentoEcd = { numero: string; data: string; encerramento: boolean; historico: string; partidas: { codigo: string; lado: Lado; valor: number }[] };
+export type EscrituracaoEcd = {
+  inicio: string | null; fim: string | null; empresa: { nome: string | null; cnpj: string | null };
+  /** Saldos de abertura do exercício: o saldo inicial do primeiro período (I155 do primeiro I150). */
+  saldosIniciais: Saldo[]; abertura: string | null;
+  /** Saldo final de cada período (I150/I155), por data final: para conferir o que a plataforma calcular. */
+  saldosFinais: Map<string, Map<string, number>>;
+  referencial: Map<string, string>;
+  lancamentos: LancamentoEcd[];
+  avisos: string[];
+};
+
+/**
+ * Escrituração inteira de uma ECD: saldos de abertura, lançamentos (I200/I250, com os de encerramento marcados:
+ * IND_LCTO = E), referencial da Receita (I051) e saldos finais de cada período. Os códigos ficam como na ECD;
+ * quem grava casa pelo `codigoChave`. Puro. Os signatários (J930, com CPF) não são lidos.
+ */
+export function lerEscrituracaoEcd(texto: string): EscrituracaoEcd {
+  const r: EscrituracaoEcd = { inicio: null, fim: null, empresa: { nome: null, cnpj: null }, saldosIniciais: [], abertura: null, saldosFinais: new Map(), referencial: new Map(), lancamentos: [], avisos: [] };
+  let conta: string | null = null;
+  let periodo: string | null = null;
+  let primeiro: string | null = null;
+  const iniciais = new Map<string, number>();
+  let atual: LancamentoEcd | null = null;
+  for (const linha of texto.split(/\r?\n/)) {
+    if (!linha.startsWith("|")) continue;
+    const f = linha.split("|").slice(1, -1);
+    switch (f[0]) {
+      case "0000": r.inicio = dataEcd(f[2]); r.fim = dataEcd(f[3]); r.empresa = { nome: f[4] ?? null, cnpj: f[5] ?? null }; break;
+      case "I050": conta = f[5]; break;
+      case "I051": if (conta && f[f.length - 1]) r.referencial.set(conta, f[f.length - 1]); break;
+      case "I150": periodo = dataEcd(f[2]); if (periodo) { r.saldosFinais.set(periodo, new Map()); if (!primeiro) { primeiro = periodo; r.abertura = dataEcd(f[1]); } } break;
+      case "I155": {
+        if (!periodo) break;
+        const fim = r.saldosFinais.get(periodo)!;
+        fim.set(f[1], (fim.get(f[1]) ?? 0) + num(f[7]) * (f[8] === "C" ? -1 : 1));
+        if (periodo === primeiro) iniciais.set(f[1], (iniciais.get(f[1]) ?? 0) + num(f[3]) * (f[4] === "C" ? -1 : 1));
+        break;
+      }
+      case "I200": {
+        const data = dataEcd(f[2]);
+        atual = data ? { numero: f[1], data, encerramento: f[4] === "E", historico: "", partidas: [] } : null;
+        if (atual) r.lancamentos.push(atual); else r.avisos.push(`Lançamento ${f[1]} sem data válida.`);
+        break;
+      }
+      case "I250": {
+        if (!atual) break;
+        const valor = Math.round(num(f[3]) * 100) / 100;
+        if (valor > 0) atual.partidas.push({ codigo: f[1], lado: f[4] === "C" ? "C" : "D", valor });
+        if (!atual.historico && f[7]) atual.historico = f[7].trim().slice(0, 500);
+        break;
+      }
+    }
+  }
+  r.saldosIniciais = [...iniciais].filter(([, v]) => Math.round(v * 100) !== 0).map(([codigo, v]) => ({ codigo, valor: Math.round(Math.abs(v) * 100) / 100, lado: (v > 0 ? "D" : "C") as Lado }));
+  const tortos = r.lancamentos.filter((l) => { const d = l.partidas.filter((p) => p.lado === "D").reduce((s, p) => s + Math.round(p.valor * 100), 0); const c = l.partidas.filter((p) => p.lado === "C").reduce((s, p) => s + Math.round(p.valor * 100), 0); return d !== c || l.partidas.length < 2; });
+  if (tortos.length) r.avisos.push(`${tortos.length} lançamento(s) da ECD sem partida dobrada (ex.: nº ${tortos.slice(0, 3).map((l) => l.numero).join(", ")}).`);
+  for (const l of r.lancamentos) if (!l.historico) l.historico = `Lançamento ${l.numero} da ECD`;
+  return r;
+}

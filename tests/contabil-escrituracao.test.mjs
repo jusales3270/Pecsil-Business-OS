@@ -181,3 +181,41 @@ test("plano de exemplo: códigos únicos, papéis em contas analíticas e só ex
   assert.ok(vinculos.every((v) => analiticas.has(v.codigo)));
   assert.ok(contas.every((c) => !c.superior_codigo || contas.some((x) => x.codigo === c.superior_codigo && x.tipo === "sintetica")));
 });
+
+test("ECD inteira: abertura pelo saldo inicial, lançamentos com encerramento marcado e saldos que fecham mês a mês", async () => {
+  const { lerEscrituracaoEcd, codigoChave } = await import("../lib/contabil/escrituracao/ecd.ts");
+  const ecd = [
+    "|0000|LECD|01012025|31122025|EMPRESA EXEMPLO LTDA|11222333000181|SP||3523909|||0|1|0||0|0||N|N|0|0|2|",
+    "|I050|01012025|01|A|5|1101020001|110102|BANCO|", "|I051||1.01.01.02.00|",
+    "|I050|01012025|02|A|5|2101010001|210101|FORNECEDOR A|", "|I051||2.01.01.01.00|",
+    "|I050|01012025|03|A|5|2401010001|240101|CAPITAL|",
+    "|I050|01012025|04|A|5|5101010001|510101|CUSTO|",
+    "|I150|01012025|31012025|",
+    "|I155|1101020001||1000,00|D|0,00|300,00|700,00|D|", "|I155|2101010001||0,00|C|300,00|300,00|0,00|C|",
+    "|I155|2401010001||1000,00|C|0,00|0,00|1000,00|C|", "|I155|5101010001||0,00|D|300,00|0,00|300,00|D|",
+    "|I150|01022025|28022025|",
+    "|I155|1101020001||700,00|D|0,00|0,00|700,00|D|", "|I155|2401010001||1000,00|C|300,00|0,00|700,00|C|", "|I155|5101010001||300,00|D|0,00|300,00|0,00|D|",
+    "|I200|1|10012025|300,00|N||", "|I250|5101010001||300,00|D|||CONFORME NF: 10 FORNECEDOR A||", "|I250|2101010001||300,00|C|||CONFORME NF: 10 FORNECEDOR A||",
+    "|I200|2|20012025|300,00|N||", "|I250|2101010001||300,00|D|||PAGTO REF. NF N.10 FORNECEDOR A||", "|I250|1101020001||300,00|C|||PAGTO REF. NF N.10 FORNECEDOR A||",
+    "|I200|3|28022025|300,00|E||", "|I250|2401010001||300,00|D|||ENCERRAMENTO||", "|I250|5101010001||300,00|C|||ENCERRAMENTO||",
+    "|J930|Fulano|12345678901|Contabilista|900|1SP000000|||||||",
+  ].join("\r\n");
+  const e = lerEscrituracaoEcd(ecd);
+  assert.deepEqual([e.inicio, e.fim, e.abertura, e.empresa.cnpj], ["2025-01-01", "2025-12-31", "2025-01-01", "11222333000181"]);
+  assert.deepEqual(e.saldosIniciais, [{ codigo: "1101020001", valor: 1000, lado: "D" }, { codigo: "2401010001", valor: 1000, lado: "C" }]);
+  assert.equal(e.referencial.get("2101010001"), "2.01.01.01.00");
+  assert.equal(e.lancamentos.length, 3);
+  assert.deepEqual(e.lancamentos.map((l) => l.encerramento), [false, false, true]);
+  assert.equal(e.lancamentos[0].historico, "CONFORME NF: 10 FORNECEDOR A");
+  assert.deepEqual(e.avisos, []);
+  assert.ok(!JSON.stringify(e).includes("12345678901"), "o CPF do signatário (J930) não é lido");
+  // Saldo inicial + lançamentos = saldo final do I155, mês a mês.
+  const saldo = new Map(e.saldosIniciais.map((s) => [s.codigo, s.lado === "D" ? s.valor : -s.valor]));
+  for (const mes of ["2025-01-31", "2025-02-28"]) {
+    for (const l of e.lancamentos.filter((x) => x.data <= mes && x.data > (mes === "2025-01-31" ? "0" : "2025-01-31"))) for (const p of l.partidas) saldo.set(p.codigo, (saldo.get(p.codigo) ?? 0) + (p.lado === "D" ? p.valor : -p.valor));
+    for (const [c, v] of e.saldosFinais.get(mes)) assert.equal(Math.round((saldo.get(c) ?? 0) * 100), Math.round(v * 100), `${c} em ${mes}`);
+  }
+  assert.equal(codigoChave("1.1.01.02.0001"), codigoChave("1101020001"));
+  const torta = lerEscrituracaoEcd(ecd.replace("|I250|2101010001||300,00|C|||CONFORME", "|I250|2101010001||299,00|C|||CONFORME"));
+  assert.match(torta.avisos[0], /sem partida dobrada \(ex\.: nº 1\)/);
+});

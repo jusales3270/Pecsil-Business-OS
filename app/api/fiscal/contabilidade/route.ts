@@ -4,6 +4,7 @@ import { dbError, requireFeature } from "../../../../lib/auth/feature-guard";
 import { montarBalancete, type ContaPlano, type Movimento } from "../../../../lib/contabil/escrituracao/balancete";
 import { lerEcd, lerPlanoCsv, partidasDeAbertura } from "../../../../lib/contabil/escrituracao/ecd";
 import { planoDeExemplo } from "../../../../lib/contabil/escrituracao/exemplo";
+import { importarEcd } from "../../../../lib/contabil/escrituracao/historico";
 import { PAPEIS } from "../../../../lib/contabil/escrituracao/regras";
 import { escriturar, todas } from "../../../../lib/contabil/escrituracao/servidor";
 import { autorDaSessao } from "../../../../lib/fiscal/emissao/servidor";
@@ -168,6 +169,19 @@ export async function POST(request: Request) {
       case "estornar": {
         const id = await rpc("contabil_estornar", { p_lancamento: corpo.lancamento, p_data: dataOk(corpo.data) ? corpo.data : null, p_motivo: String(corpo.motivo ?? "") });
         return NextResponse.json({ ok: true, id });
+      }
+      case "importar_ecd": {
+        // A escrituração de um exercício fechado (ECD do escritório) entra como histórico deste plano; depois o
+        // motor lança a partir do dia seguinte e os meses do exercício ficam fechados.
+        const { data: p } = await sb.from("contabil_planos").select("id, oficial").eq("id", String(corpo.plano ?? "")).maybeSingle();
+        if (!p) return erro("Plano não encontrado.", 404);
+        const texto = String(corpo.texto ?? "");
+        if (texto.length < 100) return erro("O arquivo veio vazio.");
+        const r = await importarEcd(createSupabaseAdminClient(), autor.org, p.id, texto, { id: autor.profileId, nome: autor.nome });
+        const dia = new Date(`${r.fim}T12:00:00Z`); dia.setUTCDate(dia.getUTCDate() + 1);
+        await rpc("contabil_plano_definir", { p_plano: p.id, p_oficial: p.oficial, p_abertura: dia.toISOString().slice(0, 10) });
+        for (let m = 1; m <= 12; m++) await rpc("contabil_periodo_definir", { p_plano: p.id, p_competencia: `${r.ano}-${String(m).padStart(2, "0")}`, p_fechar: true, p_motivo: "" });
+        return NextResponse.json({ ok: true, ...r, abertura2026: dia.toISOString().slice(0, 10) });
       }
       case "periodo":
         if (!/^\d{4}-\d{2}$/.test(String(corpo.competencia))) return erro("Competência inválida.");

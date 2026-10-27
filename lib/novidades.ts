@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-27-ecd-historico",
+    data: "2026-10-27",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.contabilidade"],
+    titulo: "A contabilidade de 2025 do escritório está na plataforma",
+    itens: [
+      "A ECD de 2025 (o SPED Contábil que o escritório entregou) entrou no plano de contas oficial: os saldos de abertura, os 18.375 lançamentos do ano e o referencial da Receita em cada conta.",
+      "Razão e balancete de 2025 batem, conta a conta e mês a mês, com o que o escritório escriturou. Os meses de 2025 ficaram fechados; o Financeiro entra na contabilidade a partir de 01/01/2026.",
+      "Novo botão \"Trazer a ECD do ano (histórico)\" em Fiscal › Contabilidade: a mesma ECD enviada de novo não duplica nada.",
+    ],
+  },
+  {
     id: "2026-10-27-plano-oficial",
     data: "2026-10-27",
     area: "Fiscal",
