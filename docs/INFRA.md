@@ -171,6 +171,12 @@ de aspas dá erro 500: por isso cada tarefa é um script.
      Traefik rodando, a 443 publicada e nenhum reinício pendente no Coolify: a suspeita passa a ser
      o roteador ou a operadora. Pela internet, o Coolify responde em `http://181.224.8.145:8001`
      (sem HTTPS; usar o token por ali só em emergência e trocá-lo depois).
+     Em 27/10/2026 (noite) de novo: 443 **e 8443** recusando conexão (ECONNREFUSED, de dentro e de fora
+     do Brasil), enquanto 80, 8000, 8001 e 5432 respondiam e o Traefik redirecionava a 80 para HTTPS. A
+     8443 é o Kong do Supabase, que não passa pelo Traefik: duas portas de serviços independentes caindo
+     juntas apontam para o roteador (redirecionamento das portas 443/8443) ou para a operadora, não
+     para o Coolify. Conferir o redirecionamento no roteador e, se estiver certo, reiniciar o roteador
+     antes de mexer no servidor.
    - **443 responde "no available server" (503):** o Traefik está de pé, mas o aplicativo caiu. Ver
      no painel do Coolify se o app está "running" e o log do último Deploy.
 2. **Não** usar "Restart proxy" no Coolify sem necessidade: em 11–12/10/2026 isso deixou o painel em
