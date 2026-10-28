@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-28-rh-relatorio-epi",
+    data: "2026-10-28",
+    area: "RH",
+    modulos: ["rh"],
+    funcionalidades: ["rh.sst"],
+    titulo: "Relatório de EPIs em PDF",
+    itens: [
+      "Em RH › Relatórios, o novo Relatório de EPIs: escolha o período, o setor, o colaborador (ou todos), o EPI (ou todos) e a situação.",
+      "O documento mostra, para cada colaborador, os EPIs exigidos para a função com a última entrega, o vencimento da troca e a situação (em dia, vencido ou nunca entregue), mais as entregas do período com a assinatura de recebimento, e linhas para assinatura.",
+      "Sai em PDF (Baixar PDF) e pode ir direto para a impressora (Imprimir). Com um colaborador só, o documento é a ficha dele.",
+      "Para o relatório dizer \"em dia\", a função precisa ter os EPIs exigidos cadastrados em Saúde e segurança › Exigências por função (há sugestões pelo histórico de entregas).",
+    ],
+  },
+  {
     id: "2026-10-28-rh-filtros-ausencias",
     data: "2026-10-28",
     area: "RH",

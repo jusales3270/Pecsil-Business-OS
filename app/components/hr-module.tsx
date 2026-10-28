@@ -1709,6 +1709,7 @@ function ultimosMeses(): { value: string; label: string }[] {
 
 function ReportsSection({ access }: { notify: (message: string) => void; access: ModuleAccessContext }) {
   const podeTerceiros = canUseFeature(access, "rh.terceiros");
+  const podeEpi = canUseFeature(access, "rh.sst");
   const [meses] = useState(ultimosMeses);
   // Fechamento: por padrão, o mês anterior.
   const [mes, setMes] = useState(() => meses[1]?.value ?? meses[0].value);
@@ -1728,9 +1729,63 @@ function ReportsSection({ access }: { notify: (message: string) => void; access:
         <Button onClick={() => window.open(`/relatorios/terceiros?mes=${mes}`, "_blank", "noopener")}><HrIcon name="file"/> Gerar relatório</Button>
       </div>
     </section>}
-    {!podeTerceiros && <HrEmpty icon="chart" title="Nenhum indicador disponível" description="Os relatórios serão gerados a partir do ponto, dos benefícios e da SST, quando essas rotinas tiverem registros reais."/>}
+    {podeEpi && <EpiReportCard/>}
+    {!podeTerceiros && !podeEpi && <HrEmpty icon="chart" title="Nenhum indicador disponível" description="Os relatórios serão gerados a partir do ponto, dos benefícios e da SST, quando essas rotinas tiverem registros reais."/>}
   </>;
 }
+/**
+ * Relatório de EPIs (28/10/2026): filtros por período, colaborador, EPI, setor e situação; abre o documento
+ * (PDF e impressão) em outra aba. Mostra se cada colaborador está em dia com os EPIs exigidos para a função.
+ */
+function EpiReportCard() {
+  const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const [de, setDe] = useState(`${hoje.slice(0, 4)}-01-01`);
+  const [ate, setAte] = useState(hoje);
+  const [colaborador, setColaborador] = useState("");
+  const [item, setItem] = useState("");
+  const [setor, setSetor] = useState("");
+  const [situacao, setSituacao] = useState("");
+  const [opcoes, setOpcoes] = useState<{ colaboradores: { id: string; nome: string; setor: string | null; ativo: boolean }[]; itens: { id: string; nome: string; ca: string | null }[]; setores: string[] } | null>(null);
+  const [erro, setErro] = useState("");
+  useEffect(() => {
+    let ativo = true;
+    fetch("/api/rh/epi/relatorio?opcoes=1", { cache: "no-store" })
+      .then(async r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(d => { if (ativo) setOpcoes(d); })
+      .catch(() => { if (ativo) setErro("Não foi possível carregar os colaboradores e os EPIs."); });
+    return () => { ativo = false; };
+  }, []);
+  const periodoOk = Boolean(de && ate && de <= ate);
+  const nomeItem = (i: { nome: string; ca: string | null }) => i.ca && !i.nome.includes(i.ca) ? `${i.nome} · CA ${i.ca}` : i.nome;
+  const gerar = () => {
+    const q = new URLSearchParams({ de, ate, ...(colaborador ? { colaborador } : {}), ...(item ? { item } : {}), ...(setor ? { setor } : {}), ...(situacao ? { situacao } : {}) });
+    window.open(`/relatorios/epi?${q}`, "_blank", "noopener");
+  };
+  const colaboradores = (opcoes?.colaboradores ?? []).filter(c => !setor || c.setor === setor);
+  return <section className="report-launch-card epi-report-card">
+    <div className="report-launch">
+      <span className="report-launch-icon"><HrIcon name="shield"/></span>
+      <div>
+        <p className="eyebrow">SAÚDE E SEGURANÇA</p>
+        <h2>Relatório de EPIs</h2>
+        <p>Comprova se cada colaborador está em dia com os EPIs exigidos para a função, com as entregas do período e a assinatura de recebimento. Sai em PDF, pronto para imprimir.</p>
+      </div>
+    </div>
+    <div className="epi-report-filters">
+      <label><span>De</span><input type="date" value={de} max={ate || undefined} onChange={event => setDe(event.target.value)}/></label>
+      <label><span>Até</span><input type="date" value={ate} min={de || undefined} onChange={event => setAte(event.target.value)}/></label>
+      <label><span>Setor</span><select value={setor} onChange={event => { setSetor(event.target.value); setColaborador(""); }}><option value="">Todos os setores</option>{(opcoes?.setores ?? []).map(nome => <option key={nome} value={nome}>{nome}</option>)}</select></label>
+      <label><span>Colaborador</span><select value={colaborador} onChange={event => setColaborador(event.target.value)}><option value="">Todos os colaboradores</option>{colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}{c.ativo ? "" : " (desligado)"}</option>)}</select></label>
+      <label><span>EPI</span><select value={item} onChange={event => setItem(event.target.value)}><option value="">Todos os EPIs</option>{(opcoes?.itens ?? []).map(i => <option key={i.id} value={i.id}>{nomeItem(i)}</option>)}</select></label>
+      <label><span>Situação</span><select value={situacao} onChange={event => setSituacao(event.target.value)}><option value="">Todas</option><option value="pendente">Com pendência</option><option value="em_dia">Em dia</option><option value="sem_exigencias">Sem EPIs exigidos cadastrados</option></select></label>
+    </div>
+    <div className="report-launch-actions">
+      {erro ? <small className="field-hint">{erro}</small> : !periodoOk ? <small className="field-hint">A data inicial precisa ser anterior à final.</small> : null}
+      <Button disabled={!periodoOk || !opcoes} onClick={gerar}><HrIcon name="file"/> Gerar relatório</Button>
+    </div>
+  </section>;
+}
+
 type HomologacaoRegistro = { id: string; resultado: "aprovado" | "com_ressalvas" | "reprovado"; observacao: string | null; profile_id: string | null; profile_name: string | null; created_at: string };
 const RESULTADO_PT: Record<HomologacaoRegistro["resultado"], string> = { aprovado: "Aprovado", com_ressalvas: "Aprovado com ressalvas", reprovado: "Reprovado" };
 

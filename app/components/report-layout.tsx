@@ -13,7 +13,7 @@ import { Button } from "../../packages/design-system";
  * navegador, sem nada instalado no servidor.
  */
 
-export function ReportDocument({ fileTitle, children, ready, sheetClassName = "", tip = "relatório" }: {
+export function ReportDocument({ fileTitle, children, ready, sheetClassName = "", tip = "relatório", printButton = false }: {
   fileTitle: string;
   children: ReactNode;
   ready: boolean;
@@ -21,6 +21,8 @@ export function ReportDocument({ fileTitle, children, ready, sheetClassName = ""
   sheetClassName?: string;
   /** Como o documento é chamado na barra ("relatório", "ordem de compra"). */
   tip?: string;
+  /** Mostra também "Imprimir" (a mesma janela do navegador, escolhendo a impressora). */
+  printButton?: boolean;
 }) {
   useEffect(() => {
     const root = document.documentElement;
@@ -49,9 +51,10 @@ export function ReportDocument({ fileTitle, children, ready, sheetClassName = ""
   return (
     <div className="report-doc">
       <div className="report-toolbar">
-        <p>Confira {tip === "relatório" ? "o" : "a"} {tip} e use <b>Baixar PDF</b>. Na janela que abrir, escolha &ldquo;Salvar como PDF&rdquo;.</p>
+        <p>Confira {tip === "relatório" ? "o" : "a"} {tip} e use <b>Baixar PDF</b>. Na janela que abrir, escolha &ldquo;Salvar como PDF&rdquo;{printButton ? <>; para o papel, use <b>Imprimir</b> e escolha a impressora</> : null}.</p>
         <div>
           <Button variant="secondary" compact onClick={() => window.close()}>Fechar</Button>
+          {printButton && <Button variant="secondary" compact disabled={!ready} onClick={() => window.print()}>Imprimir</Button>}
           <Button compact disabled={!ready} onClick={() => window.print()}>Baixar PDF</Button>
         </div>
       </div>

@@ -409,3 +409,56 @@
 }
 /* A-07: economia da compra na Ordem de Compra */
 .oc-saving { margin-top: 1.5mm; padding: 1.2mm 2mm; border: 0.3mm solid #b7dfc4; border-radius: 1mm; background: #eef8f1; color: #14532d; font-size: 7.5pt; }
+
+/* ---------------------------------------------------------------------------
+   Relatório de EPIs (RH): resumo na 1ª folha e uma folha por colaborador.
+   --------------------------------------------------------------------------- */
+.epi-ficha { break-before: page; }
+@media screen { .epi-ficha { margin-top: 14mm; padding-top: 10mm; border-top: 1px dashed var(--report-line); } }
+/* Um colaborador só: a ficha é o documento inteiro (sem folha de resumo antes). */
+.report-sheet > .epi-ficha:first-child { break-before: auto; margin-top: 0; padding-top: 0; border-top: 0; }
+.epi-identificacao {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 1.4fr 1.3fr;
+  margin-bottom: 5mm;
+  border: 1px solid var(--report-line);
+  border-left: 3px solid var(--report-head);
+}
+.epi-identificacao > div { padding: 2.2mm 3mm; }
+.epi-identificacao > div + div { border-left: 1px solid var(--report-line); }
+.epi-identificacao small { display: block; font-size: 7.5pt; color: var(--report-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.epi-identificacao b { font-size: 10pt; font-weight: 600; }
+.epi-identificacao.epi-id-em_dia { border-left-color: #1f8a4c; }
+.epi-identificacao.epi-id-pendente { border-left-color: #c2410c; }
+.epi-identificacao.epi-id-sem_exigencias { border-left-color: #8a93a3; }
+.epi-sit { font-weight: 600; }
+.epi-sit-em_dia, .epi-ex-em_dia, .epi-ex-a_vencer { color: #1f7a45; }
+.epi-sit-pendente, .epi-ex-vencido, .epi-ex-nunca_entregue { color: #b4430e; }
+.epi-sit-sem_exigencias { color: #5f6b7c; }
+.epi-identificacao.epi-id-em_dia > div:last-child b { color: #1f7a45; }
+.epi-identificacao.epi-id-pendente > div:last-child b { color: #b4430e; }
+.epi-identificacao.epi-id-sem_exigencias > div:last-child b { color: #5f6b7c; }
+.epi-ficha .report-table + .report-table { margin-top: 5mm; }
+.epi-aviso {
+  margin-bottom: 5mm;
+  padding: 2.5mm 3mm;
+  border: 1px solid #e3c98a;
+  background: #fdf8ea;
+  font-size: 8.5pt;
+  color: #5c4a14;
+}
+.report-table tbody tr.epi-sem-assinatura td { color: #b4430e; font-weight: 600; }
+.epi-assinaturas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14mm;
+  margin-top: 16mm;
+  break-inside: avoid;
+}
+.epi-assinaturas p {
+  padding-top: 1.5mm;
+  border-top: 1px solid #555;
+  font-size: 8.5pt;
+  color: #444;
+  text-align: center;
+}

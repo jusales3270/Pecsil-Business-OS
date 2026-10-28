@@ -9546,3 +9546,37 @@ a.doc-abrir { text-decoration: none; }
 /* A situação escolhida cabe inteira: a lista pode avançar sobre o espaço da seta. */
 .absence-head-filters > .absence-head-select:nth-of-type(2) { width: max-content; min-width: 100%; justify-self: start; }
 .absence-search-note { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-muted); }
+
+/* RH › Relatórios › Relatório de EPIs: filtros em grade, botão à direita. */
+.epi-report-card { align-items: stretch; }
+.epi-report-card > .report-launch { flex-basis: 100%; }
+.epi-report-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--sp-3);
+  flex: 1 1 100%;
+}
+.epi-report-filters label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: normal;
+  min-width: 0;
+}
+.epi-report-filters :is(select, input) {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+.epi-report-filters select { padding-right: 34px; text-overflow: ellipsis; }
+.epi-report-card > .report-launch-actions { flex: 1 1 100%; justify-content: flex-end; align-items: center; }
