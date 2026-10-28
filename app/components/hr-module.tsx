@@ -12,6 +12,7 @@ import { deleteRhDocument, formatCpf, getRhDocumentUrl, getRhEmployeePersonalDat
 import { HolidaysSection } from "./hr-holidays";
 import { JANELA_ALERTA_DIAS, diasAte, hojeBrasilia, situacaoSst } from "../../lib/rh/sst-situacao";
 import { PERIODOS_EXPERIENCIA, fimDaExperiencia } from "../../lib/rh/experiencia";
+import { SEM_CARGO } from "../../lib/rh/cargo";
 import { PpeSection, usePpeData } from "./hr-epi";
 import { TerceirosSection } from "./hr-terceiros";
 import { ExigenciasFuncao } from "./rh-exigencias";
@@ -284,7 +285,7 @@ export function HrModule({
         <>
           {section === "Painel" && <HrDashboard people={employees} summary={summary} rh={rh} setSection={setSection} notify={track} access={access} canCreate={canCreate} requestCreate={() => setCreateRequested(value => value + 1)}/>}
           {section === "Colaboradores" && canSeeClt && canSeeTerceiros && <PeopleKindTabs value={kind} onChange={setPeopleKind}/>}
-          {section === "Colaboradores" && kind === "CLT" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} canViewDocs={canUseFeature(access, "rh.documentos")} persists={rh.source === "supabase"} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
+          {section === "Colaboradores" && kind === "CLT" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} canViewDocs={canUseFeature(access, "rh.documentos")} persists={rh.source === "supabase" || employees.some(person => person.id)} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
           {section === "Colaboradores" && kind === "Terceiros" && <TerceirosSection podeEditar={canUseFeature(access, "rh.terceiros", "operar")} notify={track}/>}
           {section === "Ponto e jornada" && <JourneySection notify={track} access={access}/>}
           {section === "Férias e ausências" && <AbsenceSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
@@ -726,7 +727,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
     <Card className="hr-table-card"><div className="hr-tools"><label><HrIcon name="search"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, matrícula, cargo ou departamento..."/></label><select value={unit} onChange={event => setUnit(event.target.value)} aria-label="Filtrar unidade"><option>Todas as unidades</option>{Array.from(new Set(allPeople.map(person => person.unit))).sort().map(name => <option key={name}>{name}</option>)}</select><button onClick={() => { setQuery(""); setUnit("Todas as unidades"); }}><HrIcon name="filter"/> Limpar filtros</button></div><div className="hr-people-table"><div className="hr-table-header"><span>Colaborador</span><span>Cargo</span><span>Departamento</span><span>Status</span><span/></div>{visiblePeople.map(person => <button key={personKey(person)} onClick={() => setSelected(person)}><span className="hr-person"><i>{person.initials}</i><span><b>{person.name}</b><small>Matrícula {person.registration}{person.email ? ` · ${person.email}` : ""}</small></span></span><span><b>{person.role}</b><small>{person.unit}</small></span><span>{person.department}</span><Status tone={person.status === "Ativo" ? "success" : person.status === "Pendente" ? "info" : "neutral"}>{person.status}</Status><HrIcon name="arrow"/></button>)}{!visiblePeople.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhum colaborador encontrado</b><small>Ajuste a busca ou a unidade selecionada.</small></div>}</div></Card>
     {selected && <EmployeeDrawer employee={selected} canEdit={canCreate} canViewDocs={canViewDocs} notify={notify} onClose={() => setSelected(null)} onEdit={(withPersonal) => { setEditing(withPersonal); setSelected(null); }} onDelete={persists && selected.id ? () => { setDeleting(selected); setSelected(null); } : undefined}/>}
     {deleting && <EmployeeDeleteDialog employee={deleting} onClose={() => setDeleting(null)} onDeleted={() => removeEmployee(deleting)}/>} 
-    {(creating || editing) && <EmployeeForm employee={editing} nextRegistration={String(allPeople.length + 1).padStart(4,"0")} units={Array.from(new Set(allPeople.map(person => person.unit).filter(Boolean))).sort()} departments={Array.from(new Set(allPeople.map(person => person.department).filter(Boolean))).sort()} onClose={() => { setCreating(false); setEditing(null); onCreateHandled(); }} onSave={saveEmployee}/>} 
+    {(creating || editing) && <EmployeeForm employee={editing} nextRegistration={String(allPeople.length + 1).padStart(4,"0")} units={Array.from(new Set(allPeople.map(person => person.unit).filter(Boolean))).sort()} roles={Array.from(new Set(allPeople.map(person => person.role).filter(role => role && role !== SEM_CARGO))).sort((a, b) => a.localeCompare(b, "pt-BR"))} departments={Array.from(new Set(allPeople.map(person => person.department).filter(Boolean))).sort()} onClose={() => { setCreating(false); setEditing(null); onCreateHandled(); }} onSave={saveEmployee}/>} 
   </>;
 }
 
@@ -852,12 +853,12 @@ function DetailGroup({ title, rows }: { title: string; rows: string[][] }) {
   return <section className="employee-detail-group"><h3>{title}</h3><dl>{rows.map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>;
 }
 
-function EmployeeForm({ employee, nextRegistration, units, departments, onClose, onSave }: { employee: EmployeeRecord | null; nextRegistration: string; units: string[]; departments: string[]; onClose: () => void; onSave: (employee: EmployeeRecord, isNew: boolean) => void }) {
+function EmployeeForm({ employee, nextRegistration, units, roles, departments, onClose, onSave }: { employee: EmployeeRecord | null; nextRegistration: string; units: string[]; roles: string[]; departments: string[]; onClose: () => void; onSave: (employee: EmployeeRecord, isNew: boolean) => void }) {
   const isNew = !employee;
   const [step, setStep] = useState(1);
   // Uma unidade só: o campo não aparece e o cadastro fica nela.
   const singleUnit = units.length <= 1;
-  const [form, setForm] = useState<EmployeeRecord>(() => employee ? { ...employee, contractType: employee.contractType === "Experiência" ? "Experiência" : "CLT" } : {
+  const [form, setForm] = useState<EmployeeRecord>(() => employee ? { ...employee, contractType: employee.contractType === "Experiência" ? "Experiência" : "CLT", role: employee.role === SEM_CARGO ? "" : employee.role } : {
     initials: "",
     name: "",
     email: "",
@@ -911,7 +912,7 @@ function EmployeeForm({ employee, nextRegistration, units, departments, onClose,
             : <label><span>Data de admissão *</span><input type="date" value={form.admissionDate} onChange={event => update("admissionDate",event.target.value)}/><small className="field-hint">Data em que o colaborador efetivou na empresa.</small></label>}
           <label><span>Departamento *</span><select value={form.department} onChange={event => update("department",event.target.value)}><option value="">Selecione</option>{departments.map(name => <option key={name}>{name}</option>)}</select></label>
           {!singleUnit && <label><span>Unidade *</span><select value={form.unit} onChange={event => update("unit",event.target.value)}><option value="">Selecione</option>{units.map(name => <option key={name}>{name}</option>)}</select></label>}
-          <label className="field-wide"><span>Cargo *</span><input value={form.role} onChange={event => update("role",event.target.value)} placeholder="Ex.: Analista de Recursos Humanos"/></label>
+          <label className="field-wide"><span>Cargo *</span><input list="employee-form-cargos" value={form.role} onChange={event => update("role",event.target.value)} placeholder="Ex.: Analista de Recursos Humanos"/><datalist id="employee-form-cargos">{roles.map(name => <option key={name} value={name}/>)}</datalist><small className="field-hint">Escolha um cargo da lista ou digite um novo: o cargo novo entra no cadastro de cargos.</small></label>
           <label><span>Jornada</span><select value={form.schedule} onChange={event => update("schedule",event.target.value)}><option>Administrativo</option><option>Turno A</option><option>Turno B</option><option>Turno C</option><option>Executiva</option></select></label>
           {!isNew && <label><span>Data de demissão</span><input type="date" min={form.admissionDate || undefined} value={form.terminationDate ?? ""} onChange={event => update("terminationDate",event.target.value)}/><small className="field-hint">Preencha quando o colaborador for desligado. O cadastro e o histórico ficam guardados.</small></label>}
         </>}

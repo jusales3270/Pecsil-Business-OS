@@ -3,6 +3,7 @@ import "server-only";
 import { createSupabaseAdminClient } from "../supabase/admin";
 import { createSupabaseServerClient } from "../supabase/server";
 import { periodoValido } from "../rh/experiencia";
+import { SEM_CARGO, codigoDoCargo, nomeDoCargo } from "../rh/cargo";
 
 // Mutações de decisão do RH, executadas com a sessão do usuário. Toda a
 // autorização é do banco: as policies de escrita (rh_absences_decide,
@@ -422,7 +423,7 @@ export async function createRhEmployee(draft: RhEmployeeDraft): Promise<{ id: st
   const [departmentId, unitId, positionId] = await Promise.all([
     lookupId("departments", draft.departmentName),
     lookupId("units", draft.unitName),
-    lookupId("positions", draft.positionName),
+    ensurePosition(supabase, organizationId, draft.positionName),
   ]);
 
   const { data, error } = await supabase
@@ -462,6 +463,28 @@ async function lookupByName(supabase: ServerClient, organizationId: string, tabl
   return data ? String(data.id) : null;
 }
 
+/**
+ * Cargo do colaborador pelo nome digitado. Acha pelo código (mesma grafia do cadastro de cargos, sem
+ * acento nem diferença de maiúsculas); não existindo, cria. O cadastro de cargos é da Fundação
+ * (core.organization), então a criação vai pelo servidor, e só para quem opera RH › Colaboradores,
+ * conferido na sessão da pessoa. Antes, cargo novo era gravado vazio.
+ */
+async function ensurePosition(supabase: ServerClient, organizationId: string, name: string | null): Promise<string | null> {
+  const nome = nomeDoCargo(name);
+  const code = codigoDoCargo(nome);
+  if (!code || nome === SEM_CARGO) return null;
+  const { data: found } = await supabase.from("positions").select("id").eq("organization_id", organizationId).eq("code", code).limit(1).maybeSingle();
+  if (found) return String(found.id);
+  const { data: allowed } = await supabase.rpc("has_feature", { requested_feature: "rh.colaboradores", min_level: "operar" });
+  if (!allowed) return null;
+  const admin = createSupabaseAdminClient();
+  const { data: created, error } = await admin.from("positions").insert({ organization_id: organizationId, name: nome, code, active: true }).select("id").single();
+  if (!error) return String(created.id);
+  // Outro cadastro criou o mesmo cargo ao mesmo tempo (unique organization_id+code).
+  const { data: again } = await admin.from("positions").select("id").eq("organization_id", organizationId).eq("code", code).limit(1).maybeSingle();
+  return again ? String(again.id) : null;
+}
+
 // Edita o cadastro. A RLS (employees_manage: rh.colaboradores em "operar")
 // decide. Com demissão até hoje, o vínculo fica inativo; sem demissão (ou
 // com data futura, ex.: aviso prévio), segue ativo.
@@ -479,7 +502,7 @@ async function updateRhEmployee(supabase: ServerClient, id: string, c: RhEmploye
   const [departmentId, unitId, positionId] = await Promise.all([
     lookupByName(supabase, organizationId, "departments", c.departmentName),
     lookupByName(supabase, organizationId, "units", c.unitName),
-    lookupByName(supabase, organizationId, "positions", c.positionName),
+    ensurePosition(supabase, organizationId, c.positionName),
   ]);
 
   const changes: Record<string, unknown> = {
