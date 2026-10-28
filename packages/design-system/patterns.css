@@ -9352,7 +9352,9 @@ a.doc-abrir { text-decoration: none; }
 .ctb-titulo { margin: var(--sp-4) 0 var(--sp-2); font-size: var(--fs-md, 1rem); }
 .ctb-contas { grid-template-columns: max-content max-content minmax(260px, 1fr) repeat(5, max-content); }
 .ctb-contas > [role="row"] > .r { text-align: right; }
-.ctb-vinc { grid-template-columns: minmax(240px, 1fr) minmax(260px, 1.2fr) max-content; }
+.ctb-vinc { grid-template-columns: minmax(240px, 1fr) minmax(260px, 1.2fr) minmax(220px, 1fr); }
+.ctb-situacao { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); white-space: normal; }
+.ctb-evidencia { flex-basis: 100%; font-size: var(--fs-xs); color: var(--text-muted); white-space: normal; }
 .ctb-lanc { grid-template-columns: max-content minmax(240px, 1fr) minmax(240px, 1.2fr) max-content max-content; }
 .ctb-pend { grid-template-columns: max-content minmax(220px, 1fr) minmax(160px, max-content) max-content; }
 .ctb-bal { grid-template-columns: max-content minmax(240px, 1fr) repeat(4, minmax(110px, max-content)); }

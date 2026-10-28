@@ -35,6 +35,8 @@ const FIXOS: Record<string, string> = {
   "contabil_planos.importado": "Importou plano de contas contábil",
   "contabil_planos.complementado": "Completou o plano de contas (reduzido, DRE, D/C ou referencial)",
   "contabil_lancamentos.importado": "Importou lançamentos da ECD do escritório",
+  "contabil_vinculos.proposto": "Propôs vínculos do plano de contas (a conferir)",
+  "contabil_vinculos.confirmado": "Confirmou vínculos propostos do plano de contas",
   "contabil_planos.definido": "Definiu o plano de contas oficial ou a abertura",
   "contabil_planos.apagado": "Apagou plano de contas contábil",
   "contabil_lancamentos.escriturado": "Escriturou lançamentos automáticos",

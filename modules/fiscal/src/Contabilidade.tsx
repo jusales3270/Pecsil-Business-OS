@@ -14,7 +14,7 @@ import { api, date, hoje, money } from "./comum";
 type Natureza = "ativo" | "passivo" | "pl" | "resultado" | "compensacao" | "outras";
 type Conta = { id: string; codigo: string; nome: string; natureza: Natureza; tipo: "sintetica" | "analitica"; nivel: number; superior_codigo: string | null; referencial: string | null; reduzido: string | null; dre_grupo: string | null; saldo_normal: "D" | "C" | null; ativa: boolean };
 type Plano = { id: string; nome: string; origem: "exemplo" | "ecd" | "planilha"; oficial: boolean; abertura: string | null; criado_por_nome: string | null; created_at: string };
-type Vinculo = { origem: "conta_gerencial" | "conta_bancaria" | "papel"; chave: string; conta_id: string; situacao: "proposto" | "confirmado"; atualizado_por_nome: string | null };
+type Vinculo = { origem: "conta_gerencial" | "conta_bancaria" | "papel" | "fornecedor" | "cliente"; chave: string; conta_id: string; situacao: "proposto" | "confirmado"; evidencia: string | null; atualizado_por_nome: string | null };
 type Dados = {
   planos: Plano[]; plano: Plano | null; contas: Conta[]; vinculos: Vinculo[]; periodos: { competencia: string; situacao: "aberto" | "fechado"; motivo: string | null; atualizado_por_nome: string | null }[];
   lancamentos: number; papeis: { papel: string; rotulo: string; natureza: string }[];
@@ -79,8 +79,10 @@ export function Contabilidade({ notify }: { notify: (m: string) => void }) {
 
   const contas = useMemo(() => dados?.contas ?? [], [dados]);
   const analiticas = useMemo(() => contas.filter((c) => c.tipo === "analitica" && c.ativa), [contas]);
-  const vinculo = useCallback((origem: Vinculo["origem"], chave: string) => dados?.vinculos.find((v) => v.origem === origem && v.chave === chave) ?? null, [dados]);
-  const semVinculo = (dados?.gerenciais ?? []).filter((g) => !vinculo("conta_gerencial", g.id)).length;
+  const porChave = useMemo(() => new Map((dados?.vinculos ?? []).map((v) => [`${v.origem}:${v.chave}`, v])), [dados]);
+  const vinculo = useCallback((origem: Vinculo["origem"], chave: string) => porChave.get(`${origem}:${chave}`) ?? null, [porChave]);
+  const semVinculo = (dados?.gerenciais ?? []).filter((g) => vinculo("conta_gerencial", g.id)?.situacao !== "confirmado").length;
+  const aConferir = (dados?.vinculos ?? []).filter((v) => v.situacao === "proposto").length;
   const plano = dados?.plano ?? null;
 
   return (
@@ -119,7 +121,7 @@ export function Contabilidade({ notify }: { notify: (m: string) => void }) {
             <>
               <KpiGrid>
                 <Kpi label="Contas" value={String(contas.length)} caption={`${analiticas.length} analíticas recebem lançamento`} tone="neutral" onOpen={() => setAba("plano")} />
-                <Kpi label="Contas gerenciais sem vínculo" value={String(semVinculo)} caption={`de ${dados.gerenciais.length}: o que cair nelas fica pendente`} tone={semVinculo ? "amber" : "green"} onOpen={() => setAba("vinculos")} />
+                <Kpi label="Contas gerenciais sem vínculo confirmado" value={String(semVinculo)} caption={`de ${dados.gerenciais.length}: o que cair nelas fica pendente${aConferir ? ` · ${aConferir} vínculo(s) propostos a conferir` : ""}`} tone={semVinculo ? "amber" : "green"} onOpen={() => setAba("vinculos")} />
                 <Kpi label="Lançamentos" value={dados.lancamentos.toLocaleString("pt-BR")} caption="Automáticos, manuais, estornos e abertura" tone="neutral" onOpen={() => setAba("escrituracao")} />
                 <Kpi label="Meses fechados" value={String(dados.periodos.filter((p) => p.situacao === "fechado").length)} caption="Mês fechado não recebe nem perde lançamento" tone="neutral" onOpen={() => setAba("balancete")} />
               </KpiGrid>
@@ -196,59 +198,130 @@ function SeletorConta({ analiticas, valor, onEscolher, desabilitado, rotulo }: {
   );
 }
 
+type Linha = { origem: Vinculo["origem"]; chave: string; nome: string; sub?: string };
+type Filtro = "conferir" | "sem" | "confirmados" | "todas";
+
 function Vinculos({ dados, analiticas, vinculo, notify, onMudou }: { dados: Dados; analiticas: Conta[]; vinculo: (o: Vinculo["origem"], k: string) => Vinculo | null; notify: (m: string) => void; onMudou: () => void }) {
   const [busca, setBusca] = useState("");
-  const [so, setSo] = useState<"todas" | "sem">("sem");
+  const [secao, setSecao] = useState<"gerenciais" | "fornecedores" | "bancos">("gerenciais");
+  const [so, setSo] = useState<Filtro>(() => (dados.vinculos.some((v) => v.situacao === "proposto") ? "conferir" : "sem"));
+  const [propondo, setPropondo] = useState(false);
+  const [emLote, setEmLote] = useState(false);
+  const [fornecedores, setFornecedores] = useState<{ id: string; nome: string; titulos: number; valor: number }[] | null>(null);
   const plano = dados.plano!;
+  useEffect(() => {
+    if (secao !== "fornecedores" || fornecedores) return;
+    const t = setTimeout(async () => {
+      const r = await api<{ fornecedores: NonNullable<typeof fornecedores> }>(`/api/fiscal/contabilidade?plano=${plano.id}&visao=fornecedores`);
+      if (r.ok) setFornecedores(r.data.fornecedores); else notify(r.error);
+    }, 0);
+    return () => clearTimeout(t);
+  }, [secao, fornecedores, plano.id, notify]);
+  const post = (corpo: Record<string, unknown>) => api<Record<string, unknown>>("/api/fiscal/contabilidade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ plano: plano.id, ...corpo }) });
   const vincular = async (origem: Vinculo["origem"], chave: string, conta: string | null, nome: string) => {
-    const r = await api("/api/fiscal/contabilidade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ acao: "vincular", plano: plano.id, origem, chave, conta }) });
+    const r = await post({ acao: "vincular", origem, chave, conta });
     if (!r.ok) { notify(r.error); return; }
     notify(conta ? `${nome}: vínculo gravado.` : `${nome}: vínculo removido.`);
     onMudou();
   };
+  const confirmar = async (origem: Vinculo["origem"], chaves: string[]) => {
+    const r = await post({ acao: "confirmar_vinculos", origem, chaves });
+    setEmLote(false);
+    if (!r.ok) { notify(r.error); return; }
+    notify(`${Number(r.data.confirmados)} vínculo(s) confirmado(s).`);
+    onMudou();
+  };
+  const propor = async () => {
+    setPropondo(true);
+    const r = await post({ acao: "propor_vinculos" });
+    setPropondo(false);
+    if (!r.ok) { notify(r.error); return; }
+    const x = r.data as { gravados: number; fornecedores: { comTitulo: number; propostos: number; ambiguos: number }; bancos: { propostos: number }; gerenciais: { propostos: number } };
+    notify(`${x.gravados} proposta(s) nova(s) ou atualizada(s): ${x.fornecedores.propostos} de ${x.fornecedores.comTitulo} fornecedores (${x.fornecedores.ambiguos} com mais de uma conta possível), ${x.bancos.propostos} conta(s) bancária(s), ${x.gerenciais.propostos} conta(s) gerencial(is). Nada vale antes de confirmar.`);
+    onMudou();
+  };
+
   const termo = busca.trim().toLowerCase();
-  const gerenciais = dados.gerenciais.filter((g) => (so === "todas" || !vinculo("conta_gerencial", g.id)) && (!termo || `${g.code ?? ""} ${g.name}`.toLowerCase().includes(termo)));
-  const situacao = (v: Vinculo | null) => (v ? <Status tone={v.situacao === "confirmado" ? "success" : "attention"}>{v.situacao === "confirmado" ? "Confirmado" : "Proposto"}</Status> : <Status tone="danger">Sem vínculo</Status>);
+  const passa = (l: Linha) => {
+    const v = vinculo(l.origem, l.chave);
+    const filtro = so === "todas" || (so === "conferir" ? v?.situacao === "proposto" : so === "sem" ? !v : v?.situacao === "confirmado");
+    return filtro && (!termo || `${l.nome} ${l.sub ?? ""}`.toLowerCase().includes(termo));
+  };
+  const linhasGerenciais: Linha[] = dados.gerenciais.map((g) => ({ origem: "conta_gerencial", chave: g.id, nome: `${g.code ? `${g.code} · ` : ""}${g.name}`, sub: g.management_type.replace(/_/g, " ") }));
+  const linhasFornecedores: Linha[] = (fornecedores ?? []).map((f) => ({ origem: "fornecedor", chave: f.id, nome: f.nome, sub: `${f.titulos} título(s) · ${money(f.valor)}` }));
+  const visiveis = (secao === "gerenciais" ? linhasGerenciais : linhasFornecedores).filter(passa);
+  const propostasVisiveis = visiveis.filter((l) => vinculo(l.origem, l.chave)?.situacao === "proposto");
+  const conta = (l: Linha) => vinculo(l.origem, l.chave);
+  const situacao = (l: Linha) => {
+    const v = conta(l);
+    return (
+      <span className="ctb-situacao">
+        {v ? <Status tone={v.situacao === "confirmado" ? "success" : "attention"}>{v.situacao === "confirmado" ? "Confirmado" : "Proposto"}</Status> : <Status tone="danger">Sem vínculo</Status>}
+        {v?.situacao === "proposto" && dados.podeOperar && <Button variant="secondary" compact onClick={() => void confirmar(l.origem, [l.chave])}>Confirmar</Button>}
+        {v?.evidencia && <small className="ctb-evidencia">{v.evidencia}</small>}
+      </span>
+    );
+  };
+  const linha = (l: Linha) => (
+    <div role="row" key={`${l.origem}:${l.chave}`}>
+      <span className="nome">{l.nome}{l.sub && <small>{l.sub}</small>}</span>
+      <span><SeletorConta rotulo={l.nome} analiticas={analiticas} valor={conta(l)?.conta_id ?? null} desabilitado={!dados.podeOperar} onEscolher={(c) => void vincular(l.origem, l.chave, c, l.nome)} /></span>
+      <span>{situacao(l)}</span>
+    </div>
+  );
+  const nPropostos = (o: Vinculo["origem"]) => dados.vinculos.filter((v) => v.origem === o && v.situacao === "proposto").length;
   return (
     <section className="almox-bloco">
-      {!dados.podeOperar && <Callout variant="info" title="Somente leitura">Quem liga as contas é quem opera a Contabilidade.</Callout>}
-      <p className="fiscal-nota-ajuda">Cada lançamento automático tira a conta daqui: a conta gerencial do rateio do título, a conta bancária da baixa e os papéis (contas a pagar, juros…). Sem vínculo, o evento fica como pendência na escrituração.</p>
-      <h3 className="ctb-titulo">Papéis</h3>
-      <div className="vnd-tabela ctb-vinc" role="table" aria-label="Papéis">
-        <div className="cabeca" role="row"><span>Papel</span><span>Conta contábil</span><span>Situação</span></div>
-        {dados.papeis.map((p) => (
-          <div role="row" key={p.papel}><span className="nome">{p.rotulo}</span><span><SeletorConta rotulo={p.rotulo} analiticas={analiticas} valor={vinculo("papel", p.papel)?.conta_id ?? null} desabilitado={!dados.podeOperar} onEscolher={(c) => void vincular("papel", p.papel, c, p.rotulo)} /></span><span>{situacao(vinculo("papel", p.papel))}</span></div>
-        ))}
-      </div>
-      <h3 className="ctb-titulo">Contas bancárias</h3>
-      <div className="vnd-tabela ctb-vinc" role="table" aria-label="Contas bancárias">
-        <div className="cabeca" role="row"><span>Conta bancária</span><span>Conta contábil</span><span>Situação</span></div>
-        {dados.bancos.map((b) => {
-          const nome = `${b.bank_name ?? "Banco"} · ag. ${b.branch ?? "—"} · cc ${b.account_number ?? "—"}`;
-          return <div role="row" key={b.id}><span className="nome">{nome}</span><span><SeletorConta rotulo={nome} analiticas={analiticas} valor={vinculo("conta_bancaria", b.id)?.conta_id ?? null} desabilitado={!dados.podeOperar} onEscolher={(c) => void vincular("conta_bancaria", b.id, c, nome)} /></span><span>{situacao(vinculo("conta_bancaria", b.id))}</span></div>;
-        })}
-      </div>
-      <h3 className="ctb-titulo">Contas gerenciais do Financeiro</h3>
-      <div className="almox-filtros">
-        <Segmented<"todas" | "sem"> options={[{ value: "sem", label: "Sem vínculo" }, { value: "todas", label: "Todas" }]} value={so} onChange={setSo} ariaLabel="Mostrar" compact />
-        <input className="msk-input pcf-busca" type="search" placeholder="Buscar conta gerencial" aria-label="Buscar conta gerencial" value={busca} onChange={(e) => setBusca(e.target.value)} />
-      </div>
-      {gerenciais.length ? (
-        <div className="vnd-tabela ctb-vinc" role="table" aria-label="Contas gerenciais">
-          <div className="cabeca" role="row"><span>Conta gerencial</span><span>Conta contábil</span><span>Situação</span></div>
-          {gerenciais.map((g) => {
-            const nome = `${g.code ? `${g.code} · ` : ""}${g.name}`;
-            return <div role="row" key={g.id}><span className="nome">{nome}<small>{g.management_type.replace(/_/g, " ")}</small></span><span><SeletorConta rotulo={nome} analiticas={analiticas} valor={vinculo("conta_gerencial", g.id)?.conta_id ?? null} desabilitado={!dados.podeOperar} onEscolher={(c) => void vincular("conta_gerencial", g.id, c, g.name)} /></span><span>{situacao(vinculo("conta_gerencial", g.id))}</span></div>;
-          })}
+      {!dados.podeOperar && <Callout variant="info" title="Somente leitura">Quem liga e confirma as contas é quem opera a Contabilidade.</Callout>}
+      <p className="fiscal-nota-ajuda">Cada lançamento automático tira a conta daqui: a conta gerencial do rateio do título, o fornecedor (contas a pagar vai para a conta dele), a conta bancária da baixa e os papéis. Só vale o vínculo <b>confirmado</b>; o proposto mostra de onde veio e espera a conferência. Sem vínculo, o evento fica como pendência na escrituração.</p>
+      {dados.podeOperar && (
+        <div className="almox-filtros">
+          <Button variant="secondary" compact disabled={propondo} onClick={() => void propor()}>{propondo ? "Lendo o plano e o histórico…" : "Propor pelo plano e pelo histórico"}</Button>
+          <small className="ctb-legenda">Fornecedor pelo nome da conta no plano, banco pelo número da conta, conta gerencial pelo que o escritório lançou no histórico. Não passa por cima do que já foi confirmado.</small>
         </div>
-      ) : <div className="finance-empty"><b>Nada a mostrar</b><small>{so === "sem" ? "Todas as contas gerenciais têm vínculo." : "Troque a busca."}</small></div>}
+      )}
+      <div className="almox-filtros">
+        <Segmented<typeof secao> options={[
+          { value: "gerenciais", label: `Contas gerenciais${nPropostos("conta_gerencial") ? ` (${nPropostos("conta_gerencial")} a conferir)` : ""}` },
+          { value: "fornecedores", label: `Fornecedores${nPropostos("fornecedor") ? ` (${nPropostos("fornecedor")} a conferir)` : ""}` },
+          { value: "bancos", label: `Bancos e papéis${nPropostos("conta_bancaria") ? ` (${nPropostos("conta_bancaria")} a conferir)` : ""}` },
+        ]} value={secao} onChange={(v) => { setSecao(v); setEmLote(false); }} ariaLabel="Vínculos de" compact />
+      </div>
+      {secao === "bancos" ? <>
+        <h3 className="ctb-titulo">Contas bancárias</h3>
+        <div className="vnd-tabela ctb-vinc" role="table" aria-label="Contas bancárias">
+          <div className="cabeca" role="row"><span>Conta bancária</span><span>Conta contábil</span><span>Situação</span></div>
+          {dados.bancos.map((b) => linha({ origem: "conta_bancaria", chave: b.id, nome: `${b.bank_name ?? "Banco"} · ag. ${b.branch ?? "—"} · cc ${b.account_number ?? "—"}` }))}
+        </div>
+        <h3 className="ctb-titulo">Papéis</h3>
+        <p className="fiscal-nota-ajuda">Contas a pagar e a receber só valem para quem não tem conta própria (fornecedor ou cliente sem vínculo). Sem a conta do papel, esses títulos ficam pendentes.</p>
+        <div className="vnd-tabela ctb-vinc" role="table" aria-label="Papéis">
+          <div className="cabeca" role="row"><span>Papel</span><span>Conta contábil</span><span>Situação</span></div>
+          {dados.papeis.map((p) => linha({ origem: "papel", chave: p.papel, nome: p.rotulo }))}
+        </div>
+      </> : <>
+        <div className="almox-filtros">
+          <Segmented<Filtro> options={[{ value: "conferir", label: "A conferir" }, { value: "sem", label: "Sem vínculo" }, { value: "confirmados", label: "Confirmados" }, { value: "todas", label: "Todos" }]} value={so} onChange={(v) => { setSo(v); setEmLote(false); }} ariaLabel="Mostrar" compact />
+          <input className="msk-input pcf-busca" type="search" placeholder={secao === "gerenciais" ? "Buscar conta gerencial" : "Buscar fornecedor"} aria-label={secao === "gerenciais" ? "Buscar conta gerencial" : "Buscar fornecedor"} value={busca} onChange={(e) => setBusca(e.target.value)} />
+          {dados.podeOperar && propostasVisiveis.length > 1 && (emLote
+            ? <Button compact onClick={() => void confirmar(propostasVisiveis[0].origem, propostasVisiveis.map((l) => l.chave))}>{`Sim, confirmar os ${propostasVisiveis.length}`}</Button>
+            : <Button variant="secondary" compact onClick={() => setEmLote(true)}>{`Confirmar os ${propostasVisiveis.length} propostos da lista`}</Button>)}
+        </div>
+        {secao === "fornecedores" && !fornecedores ? <div className="finance-empty"><small>Carregando os fornecedores dos títulos…</small></div>
+          : visiveis.length ? (
+            <div className="vnd-tabela ctb-vinc" role="table" aria-label={secao === "gerenciais" ? "Contas gerenciais" : "Fornecedores"}>
+              <div className="cabeca" role="row"><span>{secao === "gerenciais" ? "Conta gerencial" : "Fornecedor"}</span><span>Conta contábil</span><span>Situação</span></div>
+              {visiveis.map(linha)}
+            </div>
+          ) : <div className="finance-empty"><b>Nada a mostrar</b><small>{so === "conferir" ? "Nenhuma proposta esperando conferência." : so === "sem" ? "Todos têm vínculo." : "Troque o filtro ou a busca."}</small></div>}
+      </>}
     </section>
   );
 }
 
 type Resultado = { lancados: number; jaLancados: number; eventos: number; de: string; ate: string; porMotivo: Record<string, number>; semVinculo: { chave: string; contas: number; valor: number }[]; amostra: { motivo: string; detalhe: string; data: string; historico: string; valor: number }[] };
 type Lancamento = { id: string; data: string; historico: string; origem_tipo: string; estorno_de: string | null; criado_por_nome: string | null; partidas: { lado: "D" | "C"; valor: number; conta: { codigo: string; nome: string } }[] };
-const MOTIVO: Record<string, string> = { sem_vinculo_gerencial: "Conta gerencial sem vínculo", sem_vinculo_bancario: "Conta bancária sem vínculo", sem_vinculo_papel: "Papel sem vínculo", sem_banco: "Baixa sem banco (nem conciliada)", sem_rateio: "Título sem conta gerencial", desequilibrado: "Rateio ou baixa que não fecha", periodo_fechado: "Mês fechado", sem_regra: "Sem regra", valor_zero: "Valor zero" };
+const MOTIVO: Record<string, string> = { sem_vinculo_gerencial: "Conta gerencial sem vínculo", sem_vinculo_contraparte: "Fornecedor ou cliente sem conta", sem_vinculo_bancario: "Conta bancária sem vínculo", sem_vinculo_papel: "Papel sem vínculo", sem_banco: "Baixa sem banco (nem conciliada)", sem_rateio: "Título sem conta gerencial", desequilibrado: "Rateio ou baixa que não fecha", periodo_fechado: "Mês fechado", sem_regra: "Sem regra", valor_zero: "Valor zero" };
 const ORIGEM_LANC: Record<string, string> = { titulo: "Título", baixa: "Baixa", abertura: "Abertura", manual: "Manual", estorno: "Estorno", historico_ecd: "ECD do escritório" };
 
 function Escrituracao({ dados, plano, analiticas, notify, irParaVinculos, onMudou }: { dados: Dados; plano: Plano; analiticas: Conta[]; notify: (m: string) => void; irParaVinculos: () => void; onMudou: () => void }) {

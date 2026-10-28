@@ -246,3 +246,63 @@ test("DRE e balanço: grupos como a ECD, prejuízo no fim e resultado não encer
   assert.equal(bal.fecha, true);
   assert.deepEqual(bal.linhas.map((l) => [l.codigo, l.valor]), [["1", 5000], ["1.1", 5000], ["1.1.01", 5000], ["2", -5300.5], ["2.1", -2000], ["2.1.01", -2000], ["2.3", -3300.5], ["2.3.01", -3300.5]]);
 });
+
+test("de-para: fornecedor pelo nome (igual, cortado ou abreviado), banco pelo número; empate não vira proposta", async () => {
+  const { proporFornecedores, proporBancos } = await import("../lib/contabil/escrituracao/depara.ts");
+  const contas = [
+    { id: "c1", codigo: "2.1.01.01.0001", nome: "Febratec Ind E Com Ltda" },
+    { id: "c2", codigo: "2.1.01.01.0002", nome: "Tecnoar Tecnica E Comercio De Compressor" },
+    { id: "c3", codigo: "2.1.01.01.0003", nome: "Maxfer Metais Ltda" },
+    { id: "c4", codigo: "2.1.01.01.0004", nome: "Comercial Alucel" }, { id: "c5", codigo: "2.1.01.01.0005", nome: "Comercial Alucel Ltda" },
+  ];
+  const { propostas, ambiguos } = proporFornecedores([
+    { id: "f1", name: "FEBRATEC", legal_name: "FEBRATEC INDUSTRIA E COMERCIO LTDA" },
+    { id: "f2", name: "TECNOAR", legal_name: "TECNOAR TÉCNICA E COMÉRCIO DE COMPRESSORES LTDA" },
+    { id: "f3", name: "MAXFER METAIS LTDA." },
+    { id: "f4", name: "COMERCIAL ALUCEL" },
+    { id: "f5", name: "OUTRO QUALQUER" },
+  ], contas);
+  const de = new Map(propostas.map((p) => [p.chave, p]));
+  assert.equal(de.get("f3").conta_id, "c3"); assert.match(de.get("f3").evidencia, /^Nome igual/);
+  assert.equal(de.get("f2").conta_id, "c2"); assert.match(de.get("f2").evidencia, /começo da razão social/);
+  assert.equal(de.get("f1").conta_id, "c1"); assert.match(de.get("f1").evidencia, /^Nome parecido, confira/);
+  assert.equal(de.has("f4"), false); assert.deepEqual(ambiguos.map((a) => a.chave), ["f4"]);
+  assert.equal(de.has("f5"), false);
+  const bancos = proporBancos([{ id: "b1", bank_name: "Itaú", account_number: "04024", account_digit: "3" }, { id: "b2", bank_name: "Caixa", account_number: "999", account_digit: null }], [
+    { id: "k1", codigo: "1.1.01.02.0004", nome: "Banco Itaú S/A 4024-3" }, { id: "k2", codigo: "2.1.02.01.0003", nome: "(-) Cheque Especial Banco Itaú 4024-3" }, { id: "k3", codigo: "1.1.01.02.0005", nome: "Banco Itaú S/A 14299-9" },
+  ]);
+  assert.deepEqual(bancos.map((b) => [b.chave, b.conta_id]), [["b1", "k1"]]);
+});
+
+test("de-para: conta gerencial pelo voto do histórico, só com maioria clara", async () => {
+  const { proporGerenciais } = await import("../lib/contabil/escrituracao/depara.ts");
+  const contas = [{ id: "mp", codigo: "1.1.02.02.0002", nome: "Matéria-Prima" }, { id: "icms", codigo: "1.1.04.01.0001", nome: "ICMS a Recuperar" }, { id: "gerais", codigo: "5.1.01.01.0020", nome: "Despesas Gerais" }];
+  // Compras do fornecedor A: 900 em matéria-prima + 100 de ICMS; do fornecedor B: despesas gerais. Pagamento (D fornecedor, C banco) não vota.
+  // MISTA fica meio a meio (sem maioria); POUCO tem só 1 título.
+  const partidas = [
+    { lancamento_id: "l1", conta_id: "mp", lado: "D", valor: 900 }, { lancamento_id: "l1", conta_id: "icms", lado: "D", valor: 100 }, { lancamento_id: "l1", conta_id: "fa", lado: "C", valor: 1000 },
+    { lancamento_id: "l2", conta_id: "gerais", lado: "D", valor: 50 }, { lancamento_id: "l2", conta_id: "fb", lado: "C", valor: 50 },
+    { lancamento_id: "l3", conta_id: "fa", lado: "D", valor: 1000 }, { lancamento_id: "l3", conta_id: "banco", lado: "C", valor: 1000 },
+  ];
+  const forn = new Map([["A", "fa"], ["B", "fb"]]);
+  const titulos = [...Array(3)].map(() => ({ conta_gerencial: "SUCATA", fornecedor: "A", valor: 100 }))
+    .concat([{ conta_gerencial: "MISTA", fornecedor: "A", valor: 100 }, { conta_gerencial: "MISTA", fornecedor: "A", valor: 100 }, { conta_gerencial: "MISTA", fornecedor: "B", valor: 100 }, { conta_gerencial: "MISTA", fornecedor: "B", valor: 100 }])
+    .concat([{ conta_gerencial: "POUCO", fornecedor: "B", valor: 100 }]);
+  const r = proporGerenciais(partidas, titulos, forn, contas);
+  assert.deepEqual(r.map((p) => [p.chave, p.conta_id]), [["SUCATA", "mp"]]);
+  assert.match(r[0].evidencia, /90% do valor \(3 título\(s\), 1 fornecedor\(es\)\)/);
+});
+
+test("motor: contas a pagar vai para a conta do fornecedor; sem ela, para o papel; sem os dois, pendência com o nome", () => {
+  const e = { ...eventoDoTitulo(titulo({ supplier_id: "s1" }), []) };
+  assert.equal(e.contraparte.tipo, "fornecedor");
+  const regra = regraNaData(REGRAS, e.tipo, e.data);
+  const comConta = aplicarRegra(e, regra, { ...V, fornecedor: new Map([["s1", "c-forn-x"]]) });
+  assert.deepEqual(comConta.partidas.map((p) => [p.conta_id, p.lado]), [["c-cif", "D"], ["c-forn-x", "C"]]);
+  assert.deepEqual(aplicarRegra(e, regra, V).partidas.map((p) => p.conta_id), ["c-cif", "c-fornec"]);
+  const semPapel = aplicarRegra(e, regra, { ...V, papel: new Map(), fornecedor: new Map() });
+  assert.deepEqual(semPapel.pendencia, { motivo: "sem_vinculo_contraparte", detalhe: "FORNECEDOR X" });
+  const b = eventoDaBaixa(baixa({}, { supplier_id: "s1" }), null);
+  const pago = aplicarRegra(b, regraNaData(REGRAS, b.tipo, b.data), { ...V, fornecedor: new Map([["s1", "c-forn-x"]]) });
+  assert.deepEqual(pago.partidas.map((p) => [p.conta_id, p.lado]), [["c-forn-x", "D"], ["c-banco", "C"]]);
+});

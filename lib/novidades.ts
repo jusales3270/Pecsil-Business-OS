@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-27-depara",
+    data: "2026-10-27",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.contabilidade"],
+    titulo: "Vínculos propostos pelo plano e pelo histórico do escritório",
+    itens: [
+      "Em Fiscal › Contabilidade › Vínculos, a plataforma propõe a conta de cada fornecedor (o escritório tem uma por fornecedor), de cada conta bancária e de cada conta gerencial, com o motivo ao lado: nome igual, mesma conta bancária ou o que o escritório lançou no histórico.",
+      "Tudo chega como \"Proposto\": só vale para a escrituração depois de alguém da Contabilidade confirmar, um por um ou a lista inteira. Nada passa por cima do que já foi confirmado.",
+      "Contas a pagar passa a ir para a conta do próprio fornecedor; quem ainda não tem conta fica como pendência, com o nome dele.",
+    ],
+  },
+  {
     id: "2026-10-27-dre-balanco",
     data: "2026-10-27",
     area: "Fiscal",

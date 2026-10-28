@@ -25,12 +25,14 @@ export type Evento = {
   /** Conta bancária da baixa (ou achada pela conciliação); nula quando ninguém informou. */
   contaBancaria: string | null;
   centroCusto: string | null;
+  /** Fornecedor (a pagar) ou cliente (a receber) do título: o escritório pode ter uma conta para cada um. */
+  contraparte?: { tipo: "fornecedor" | "cliente"; id: string; nome: string } | null;
 };
 
-/** De-para: conta gerencial, conta bancária e papel → id da conta contábil analítica. */
-export type Vinculos = { gerencial: Map<string, string>; bancaria: Map<string, string>; papel: Map<string, string> };
+/** De-para: conta gerencial, conta bancária, papel, fornecedor e cliente → id da conta contábil analítica. */
+export type Vinculos = { gerencial: Map<string, string>; bancaria: Map<string, string>; papel: Map<string, string>; fornecedor?: Map<string, string>; cliente?: Map<string, string> };
 export type Partida = { conta_id: string; lado: Lado; valor: number; centro_custo_id: string | null };
-export type Pendencia = { motivo: "sem_regra" | "sem_vinculo_gerencial" | "sem_vinculo_bancario" | "sem_banco" | "sem_vinculo_papel" | "sem_rateio" | "desequilibrado" | "valor_zero" | "periodo_fechado"; detalhe: string };
+export type Pendencia = { motivo: "sem_regra" | "sem_vinculo_gerencial" | "sem_vinculo_bancario" | "sem_banco" | "sem_vinculo_papel" | "sem_vinculo_contraparte" | "sem_rateio" | "desequilibrado" | "valor_zero" | "periodo_fechado"; detalhe: string };
 
 export const r2 = (v: number) => Math.round(Number((v * 100).toFixed(6))) / 100;
 const centavos = (v: number) => Math.round(v * 100);
@@ -44,7 +46,9 @@ export function regraNaData(regras: readonly Regra[], evento: EventoTipo, data: 
 
 /**
  * Aplica a regra. Partida de valor zero sai (juros, multa e desconto quase sempre são zero). Toda conta tem de
- * ter vínculo: nada vai para conta adivinhada. No fim, débitos = créditos ao centavo, senão é pendência.
+ * ter vínculo: nada vai para conta adivinhada. Contas a pagar e a receber vão para a conta do fornecedor ou do
+ * cliente quando ele tem vínculo; sem ele, para a conta do papel, se a área escolheu uma. No fim, débitos =
+ * créditos ao centavo, senão é pendência.
  */
 export function aplicarRegra(evento: Evento, regra: Regra, v: Vinculos): { partidas: Partida[] } | { pendencia: Pendencia } {
   const partidas: Partida[] = [];
@@ -68,8 +72,10 @@ export function aplicarRegra(evento: Evento, regra: Regra, v: Vinculos): { parti
       if (!conta) return { pendencia: { motivo: "sem_vinculo_bancario", detalhe: evento.contaBancaria } };
     } else {
       const papel = m.conta.slice("papel:".length);
-      conta = v.papel.get(papel);
-      if (!conta) return { pendencia: { motivo: "sem_vinculo_papel", detalhe: papel } };
+      const tipo = papel === "contas_a_pagar" ? "fornecedor" : papel === "contas_a_receber" ? "cliente" : null;
+      const quem = tipo && evento.contraparte?.tipo === tipo ? evento.contraparte : null;
+      conta = (quem ? v[quem.tipo]?.get(quem.id) : undefined) ?? v.papel.get(papel);
+      if (!conta) return { pendencia: quem ? { motivo: "sem_vinculo_contraparte", detalhe: quem.nome } : { motivo: "sem_vinculo_papel", detalhe: papel } };
     }
     partidas.push({ conta_id: conta, lado: m.lado, valor, centro_custo_id: m.conta.startsWith("papel:contas_a_") ? null : evento.centroCusto });
   }

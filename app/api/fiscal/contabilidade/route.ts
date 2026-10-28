@@ -5,6 +5,7 @@ import { montarBalancete, type ContaPlano, type Movimento } from "../../../../li
 import { montarBalanco, montarDre, type Movimento as MovimentoDre, type Saldo } from "../../../../lib/contabil/escrituracao/demonstracoes";
 import { lerEcd, lerPlanoCsv, partidasDeAbertura } from "../../../../lib/contabil/escrituracao/ecd";
 import { planoDeExemplo } from "../../../../lib/contabil/escrituracao/exemplo";
+import { proporVinculos } from "../../../../lib/contabil/escrituracao/depara-servidor";
 import { importarEcd } from "../../../../lib/contabil/escrituracao/historico";
 import { PAPEIS } from "../../../../lib/contabil/escrituracao/regras";
 import { escriturar, todas } from "../../../../lib/contabil/escrituracao/servidor";
@@ -17,13 +18,14 @@ export const maxDuration = 300;
 
 /**
  * Fiscal › Contabilidade (N-04): plano de contas, vínculos, escrituração automática, lançamento manual, estorno,
- * balancete, razão, DRE e balanço (N-05 adiantado) e trava do mês. Leitura pela sessão (RLS); escrita pelas funções do banco, que conferem a
+ * balancete, razão, DRE e balanço (N-05 adiantado), de-para proposto pelo plano e pelo histórico (passo 5) e trava do mês. Leitura pela sessão (RLS); escrita pelas funções do banco, que conferem a
  * permissão. A escrituração automática lê o Financeiro com a chave de serviço, depois de conferir fiscal.contabilidade operar.
  */
 const COLUNAS_CONTA = "id, codigo, nome, natureza, tipo, nivel, superior_codigo, referencial, reduzido, dre_grupo, saldo_normal, ativa";
 /** Todas as contas do plano, em páginas: o Supabase para em 1.000 linhas e o plano oficial tem mais de 2 mil. */
 const contasDoPlano = <T,>(sb: SupabaseClient, plano: string, colunas: string) =>
   todas<T>((de, ate) => sb.from("contabil_contas").select(colunas).eq("plano_id", plano).order("codigo").range(de, ate) as unknown as PromiseLike<{ data: T[] | null; error: { message: string } | null }>);
+const ORIGENS = ["conta_gerencial", "conta_bancaria", "papel", "fornecedor", "cliente"];
 const dataOk = (v: unknown) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const erro = (mensagem: string, status = 400) => NextResponse.json({ error: mensagem }, { status });
 
@@ -74,6 +76,22 @@ export async function GET(request: Request) {
       balancoInicial: montarBalanco(contas, s.map((x) => ({ ...x, anterior: Number(x.anterior) + (daAbertura.get(x.conta_id) ?? 0), debitos: 0, creditos: 0 }))),
     });
   }
+  if (visao === "fornecedores") {
+    // Quem aparece nos títulos a pagar do Financeiro (lido com a chave de serviço: só nome, quantidade e valor).
+    const admin = createSupabaseAdminClient();
+    const autor = await autorDaSessao(sb);
+    type T = { supplier_id: string | null; counterparty_name: string | null; original_amount: number | string; is_forecast: boolean | null; archived_at: string | null; cancelled_at: string | null };
+    const titulos = await todas<T>((a, b) => admin.from("finance_titles").select("supplier_id, counterparty_name, original_amount, is_forecast, archived_at, cancelled_at")
+      .eq("organization_id", autor?.org ?? "").eq("direction", "payable").not("supplier_id", "is", null).order("id").range(a, b));
+    const porFornecedor = new Map<string, { id: string; nome: string; titulos: number; valor: number }>();
+    for (const t of titulos) {
+      if (t.is_forecast || t.archived_at || t.cancelled_at) continue;
+      const f = porFornecedor.get(t.supplier_id!) ?? { id: t.supplier_id!, nome: t.counterparty_name ?? "—", titulos: 0, valor: 0 };
+      f.titulos++; f.valor += Number(t.original_amount) || 0;
+      porFornecedor.set(t.supplier_id!, f);
+    }
+    return NextResponse.json({ plano, fornecedores: [...porFornecedor.values()].sort((a, b) => b.valor - a.valor) });
+  }
   if (visao === "razao") {
     const conta = q.get("conta");
     if (!conta || !dataOk(de) || !dataOk(ate)) return erro("Escolha a conta e o período.");
@@ -103,7 +121,7 @@ export async function GET(request: Request) {
   const autor = await autorDaSessao(sb);
   const [contas, { data: vinculos }, { data: periodos }, { count: lancamentos }, { data: gerenciais }, { data: bancos }] = await Promise.all([
     contasDoPlano<Record<string, unknown>>(sb, plano.id, COLUNAS_CONTA),
-    sb.from("contabil_vinculos").select("origem, chave, conta_id, situacao, atualizado_por_nome").eq("plano_id", plano.id),
+    todas<Record<string, unknown>>((a, b) => sb.from("contabil_vinculos").select("origem, chave, conta_id, situacao, evidencia, atualizado_por_nome").eq("plano_id", plano.id).order("id").range(a, b)).then((data) => ({ data })),
     sb.from("contabil_periodos").select("competencia, situacao, motivo, atualizado_por_nome, updated_at").eq("plano_id", plano.id).order("competencia", { ascending: false }),
     sb.from("contabil_lancamentos").select("id", { count: "exact", head: true }).eq("plano_id", plano.id),
     // As contas gerenciais e bancárias são do Financeiro: lidas com a chave de serviço, só nome e código.
@@ -168,9 +186,21 @@ export async function POST(request: Request) {
         await rpc("contabil_plano_apagar", { p_plano: corpo.plano });
         return NextResponse.json({ ok: true });
       case "vincular":
-        if (!["conta_gerencial", "conta_bancaria", "papel"].includes(String(corpo.origem))) return erro("Origem inválida.");
+        if (!ORIGENS.includes(String(corpo.origem))) return erro("Origem inválida.");
         await rpc("contabil_vincular", { p_plano: corpo.plano, p_origem: corpo.origem, p_chave: String(corpo.chave ?? ""), p_conta: corpo.conta || null });
         return NextResponse.json({ ok: true });
+      case "confirmar_vinculos": {
+        if (!ORIGENS.includes(String(corpo.origem))) return erro("Origem inválida.");
+        const chaves = Array.isArray(corpo.chaves) ? corpo.chaves.map(String).slice(0, 3000) : [];
+        const n = await rpc("contabil_vinculos_confirmar", { p_plano: corpo.plano, p_origem: corpo.origem, p_chaves: chaves });
+        return NextResponse.json({ ok: true, confirmados: Number(n ?? 0) });
+      }
+      case "propor_vinculos": {
+        const { data: p } = await sb.from("contabil_planos").select("id, origem").eq("id", String(corpo.plano ?? "")).maybeSingle();
+        if (!p) return erro("Plano não encontrado.", 404);
+        const r = await proporVinculos(createSupabaseAdminClient(), autor.org, p.id, { nome: autor.nome });
+        return NextResponse.json({ ok: true, ...r });
+      }
       case "escriturar": {
         if (!dataOk(corpo.de) || !dataOk(corpo.ate) || String(corpo.de) > String(corpo.ate)) return erro("Período inválido.");
         const { data: p } = await sb.from("contabil_planos").select("id").eq("id", String(corpo.plano ?? "")).maybeSingle();
