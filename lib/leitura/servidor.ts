@@ -5,6 +5,7 @@ import { linhasDoPdf, textoDoPdf } from "../arquivos/pdf-texto";
 import { lerXls } from "../arquivos/xls";
 import { tipoDoArquivo } from "../arquivos/detectar";
 import { lerNfe } from "../almoxarifado/nfe-xml";
+import { mascararTexto } from "../decisao/guard";
 import { ligarPendentes, ligarSemFalhar } from "../ligacoes/servidor";
 import { indexarPendentes } from "../significado/servidor";
 import { imagensDoPdf, ocr } from "./ocr";
@@ -36,10 +37,15 @@ async function gravar(admin: SupabaseClient, doc: Doc, campos: Record<string, un
 
 const comoLido = (l: Extract<Leitura, { status: "lido" }>) => ({ status: "lido", method: l.metodo, content: l.texto, pages: l.paginas, chars: l.texto.length, error: null });
 
-/** Lê o texto (sem OCR) e grava. Sem texto e passível de OCR → "pendente_ocr". Nunca lança. */
-export async function lerEGravar(admin: SupabaseClient, doc: Doc, dados: Uint8Array, tentativas = 0): Promise<Leitura | null> {
+/**
+ * Lê o texto (sem OCR) e grava. Sem texto e passível de OCR → "pendente_ocr". Nunca lança.
+ * `mascarar`: documento que traz dado de pessoa (recibo e assinaturas da ECD): CPF, PIS, e-mail e telefone saem do
+ * texto gravado; o arquivo original fica como veio.
+ */
+export async function lerEGravar(admin: SupabaseClient, doc: Doc, dados: Uint8Array, tentativas = 0, opcoes: { mascarar?: boolean } = {}): Promise<Leitura | null> {
   try {
-    const l = await lerTexto(dados, extratoresServidor);
+    const lida = await lerTexto(dados, extratoresServidor);
+    const l = opcoes.mascarar && lida.status === "lido" ? { ...lida, texto: mascararTexto(lida.texto) } : lida;
     if (l.status === "lido") await gravar(admin, doc, { ...comoLido(l), attempts: tentativas });
     else await gravar(admin, doc, { status: l.ocr ? "pendente_ocr" : "sem_texto", method: null, content: null, pages: null, chars: 0, error: l.motivo.slice(0, 300), attempts: tentativas });
     // Sem texto ainda liga pela origem (a nota ou o recebimento de onde o documento veio).

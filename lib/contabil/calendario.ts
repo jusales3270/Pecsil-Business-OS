@@ -31,7 +31,11 @@ export type Ocorrencia = {
   codigo: string; nome: string; tipo: Obrigacao["tipo"]; quem: Obrigacao["quem"]; competencia: string;
   vencimento: string | null; original: string | null; ajuste: string | null;
   dependeRegime: boolean; aDefinir: boolean; ajusteAConferir: boolean; parametro: string; observacao: string | null;
+  /** Período de referência (anual = AAAA-12, mensal = AAAA-MM): casa com a entrega registrada. */
+  periodo?: string;
+  entrega?: Entrega | null;
 };
+export type Entrega = { obrigacao: string; periodo: string; entregue_em: string; recibo: string | null; document_id: string | null; observacao: string | null };
 
 const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const DIA_SEMANA = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
@@ -80,7 +84,7 @@ export function ocorrencias(obrigacoes: readonly Obrigacao[], ctx: { feriados: I
   for (const o of obrigacoes) {
     if (o.regimes && ctx.regime !== "a_definir" && !o.regimes.includes(ctx.regime)) continue;
     const base = { codigo: o.codigo, nome: o.nome, tipo: o.tipo, quem: o.quem, dependeRegime: Boolean(o.regimes) && ctx.regime === "a_definir", ajusteAConferir: o.ajuste === "a_conferir", parametro: o.parametro, observacao: o.observacao ?? null };
-    if (o.dia === "definir") { saida.push({ ...base, competencia: "", vencimento: null, original: null, ajuste: null, aDefinir: true }); continue; }
+    if (o.dia === "definir") { saida.push({ ...base, competencia: "", periodo: "", vencimento: null, original: null, ajuste: null, aDefinir: true }); continue; }
     const competencias: string[] = [];
     if (o.periodicidade === "anual") for (let a = ai - 2; a <= af; a++) competencias.push(`${a}-12`);
     else for (let t = ai * 12 + mi - 1 - 4; t <= af * 12 + mf - 1; t++) {
@@ -89,7 +93,7 @@ export function ocorrencias(obrigacoes: readonly Obrigacao[], ctx: { feriados: I
     }
     for (const c of competencias) {
       const v = vencimento(o, c, cal);
-      if (v.vencimento && v.vencimento >= ctx.de && v.vencimento <= ctx.ate) saida.push({ ...base, competencia: rotuloCompetencia(o, c), ...v, aDefinir: false });
+      if (v.vencimento && v.vencimento >= ctx.de && v.vencimento <= ctx.ate) saida.push({ ...base, competencia: rotuloCompetencia(o, c), periodo: c, ...v, aDefinir: false });
     }
   }
   return saida.sort((a, b) => (a.vencimento ?? "9999").localeCompare(b.vencimento ?? "9999") || a.nome.localeCompare(b.nome, "pt-BR"));
@@ -103,6 +107,7 @@ export type DadosCalendario = {
   uf: string | null; codigo_municipio: string | null; perfil: { modo: string; regime: string } | null;
   obrigacoes: { escopo: "legal" | "uf" | "municipio"; uf: string | null; valor: { obrigacoes?: Obrigacao[] }; situacao: string; vigente_de: string; vigente_ate: string | null; fonte: { norma?: string } | null }[];
   feriados: { data: string; nome: string }[];
+  entregas?: Entrega[];
 };
 
 /**
@@ -122,8 +127,16 @@ export function montarCalendario(d: DadosCalendario, periodo: { de: string; ate:
     for (const o of r.valor.obrigacoes ?? []) porCodigo.set(o.codigo, o);
   }
   const regime = d.perfil?.regime === "presumido" || d.perfil?.regime === "real" ? d.perfil.regime : "a_definir";
+  const entregue = new Map((d.entregas ?? []).map((e) => [`${e.obrigacao}:${e.periodo}`, e]));
+  const nomes = new Map([...porCodigo.values()].map((o) => [o.codigo, o]));
   return {
-    ocorrencias: ocorrencias([...porCodigo.values()], { feriados: d.feriados, regime, de: periodo.de, ate: periodo.ate }),
+    ocorrencias: ocorrencias([...porCodigo.values()], { feriados: d.feriados, regime, de: periodo.de, ate: periodo.ate })
+      .map((o) => ({ ...o, entrega: entregue.get(`${o.codigo}:${o.periodo}`) ?? null })),
+    // As entregas registradas, com o nome e a competência da obrigação (a do ano passado sai da janela do calendário).
+    entregas: (d.entregas ?? []).map((e) => {
+      const o = nomes.get(e.obrigacao);
+      return { ...e, nome: o?.nome ?? e.obrigacao, competencia: o ? rotuloCompetencia(o, e.periodo) : e.periodo };
+    }),
     regime, modo: d.perfil?.modo ?? null, uf: d.uf,
     aConferir: [...camadas.values()].some((c) => c.situacao !== "conferido"),
     normas: [...camadas.values()].map((c) => c.norma).filter(Boolean) as string[],

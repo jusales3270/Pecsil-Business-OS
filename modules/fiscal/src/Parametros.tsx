@@ -19,7 +19,7 @@ export type Tese = {
   situacao: "firmada" | "firmada_modulacao_pendente" | "pendente" | "superada"; impacto: string | null; observacao: string | null;
   parametros_afetados: string[]; fontes: string[]; confianca: "alta" | "media" | "baixa"; conferida_por_nome: string | null; conferida_em: string | null;
 };
-type Perfil = { modo: "interna" | "escritorio"; regime: "presumido" | "real" | "a_definir"; cnaes_secundarios: string[]; rat: number | null; fap: number | null; beneficio_estadual: string | null; observacao: string | null; updated_at: string | null; updated_by_name: string | null };
+type Perfil = { modo: "interna" | "escritorio"; regime: "presumido" | "real" | "a_definir"; cnaes_secundarios: string[]; rat: number | null; fap: number | null; beneficio_estadual: string | null; observacao: string | null; responsavel_tecnico_nome?: string | null; responsavel_tecnico_crc?: string | null; updated_at: string | null; updated_by_name: string | null };
 type Empresa = { cnpj: string | null; cnae: string | null; crt: number | null; uf: string | null; municipio: string | null; codigo_municipio: string | null } | null;
 type Dados = { parametros: Linha[]; teses: Tese[]; perfil: Perfil; empresa: Empresa; podeCurar: boolean; podeEditarPerfil: boolean };
 type Aba = "parametros" | "teses" | "sentinela" | "perfil";
@@ -316,12 +316,14 @@ function PerfilEmpresa({ perfil, empresa, podeEditar, onFeito }: { perfil: Perfi
   const [fap, setFap] = useState(perfil.fap === null ? "" : String(Number(perfil.fap)).replace(".", ","));
   const [beneficio, setBeneficio] = useState(perfil.beneficio_estadual ?? "");
   const [obs, setObs] = useState(perfil.observacao ?? "");
+  const [rtNome, setRtNome] = useState(perfil.responsavel_tecnico_nome ?? "");
+  const [rtCrc, setRtCrc] = useState(perfil.responsavel_tecnico_crc ?? "");
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
     setOcupado(true); setErro("");
-    const r = await api("/api/fiscal/parametros", { method: "POST", body: JSON.stringify({ acao: "perfil", perfil: { modo, regime, cnaes_secundarios: cnaes.split(/[,;\s]+/).filter(Boolean), rat, fap, beneficio_estadual: beneficio, observacao: obs } }) });
+    const r = await api("/api/fiscal/parametros", { method: "POST", body: JSON.stringify({ acao: "perfil", perfil: { modo, regime, cnaes_secundarios: cnaes.split(/[,;\s]+/).filter(Boolean), rat, fap, beneficio_estadual: beneficio, observacao: obs, responsavel_tecnico_nome: rtNome, responsavel_tecnico_crc: rtCrc } }) });
     setOcupado(false);
     if (!r.ok) { setErro(r.error); return; }
     onFeito("Perfil fiscal da empresa salvo.");
@@ -352,6 +354,8 @@ function PerfilEmpresa({ perfil, empresa, podeEditar, onFeito }: { perfil: Perfi
             <label><span>FAP <small>· 0,5 a 2,0</small></span><input inputMode="decimal" value={fap} onChange={(e) => setFap(e.target.value)} placeholder="ex.: 1,0000" /></label>
             <label className="nfe-largo"><span>CNAEs secundários <small>· separados por vírgula</small></span><input value={cnaes} onChange={(e) => setCnaes(e.target.value)} placeholder="ex.: 2539-0/01, 3314-7/10" /></label>
             <label className="nfe-cheio"><span>Benefício fiscal estadual <small>· crédito outorgado, regime especial etc.</small></span><input value={beneficio} maxLength={500} onChange={(e) => setBeneficio(e.target.value)} /></label>
+            <label className="nfe-largo"><span>Responsável técnico (contabilista) <small>· assina a ECD e a ECF</small></span><input value={rtNome} maxLength={120} onChange={(e) => setRtNome(e.target.value)} /></label>
+            <label><span>CRC <small>· UF-número</small></span><input value={rtCrc} maxLength={20} onChange={(e) => setRtCrc(e.target.value.toUpperCase())} placeholder="ex.: SP-233810" /></label>
             <label className="nfe-cheio"><span>Observação</span><input value={obs} maxLength={2000} onChange={(e) => setObs(e.target.value)} /></label>
           </div>
         </fieldset>

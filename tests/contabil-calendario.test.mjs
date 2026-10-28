@@ -78,3 +78,17 @@ test("montar: a obrigação da UF substitui a legal de mesmo código e o rascunh
   assert.equal(so.aConferir, false);
   assert.equal(so.regime, "presumido");
 });
+
+test("entrega registrada: a ocorrência sai como entregue e a lista traz nome e competência, mesmo fora da janela", async () => {
+  const { montarCalendario } = await import("../lib/contabil/calendario.ts");
+  const linha = { escopo: "legal", uf: null, valor: { obrigacoes: semente.legal.obrigacoes }, situacao: "conferido", vigente_de: "2026-01-01", vigente_ate: null, fonte: null };
+  const entregas = [{ obrigacao: "ecd", periodo: "2025-12", entregue_em: "2026-06-11T13:44:27Z", recibo: "01.FB-9", document_id: "d1", observacao: null }];
+  const junho = montarCalendario({ uf: "SP", codigo_municipio: null, perfil: null, feriados: FERIADOS, obrigacoes: [linha], entregas }, { de: "2026-06-01", ate: "2026-06-30", hoje: "2026-06-15" });
+  const ecd = junho.ocorrencias.find((o) => o.codigo === "ecd");
+  assert.equal(ecd.periodo, "2025-12");
+  assert.equal(ecd.entrega.recibo, "01.FB-9");
+  assert.equal(junho.ocorrencias.find((o) => o.codigo === "dctfweb").entrega, null);
+  const outubro = montarCalendario({ uf: "SP", codigo_municipio: null, perfil: null, feriados: FERIADOS, obrigacoes: [linha], entregas }, { de: "2026-10-12", ate: "2027-02-24", hoje: "2026-10-27" });
+  assert.equal(outubro.ocorrencias.some((o) => o.codigo === "ecd"), false);
+  assert.deepEqual(outubro.entregas.map((e) => [e.nome, e.competencia]), [["ECD (SPED Contábil)", "ano 2025"]]);
+});

@@ -251,7 +251,7 @@ export type AccessGrants = Record<string, AccessLevel>;
  */
 export const FEATURES_DOCUMENTOS_SETOR = new Set([
   "financeiro.pagar", "financeiro.bancos", "financeiro.receber",
-  "fiscal.icms",
+  "fiscal.icms", "fiscal.contabilidade",
   "compras.cotacoes", "compras.realizadas", "compras.fornecedores",
   "almoxarifado.recebimento", "almoxarifado.solicitacoes",
   "comercial.clientes", "comercial.orcamentos",

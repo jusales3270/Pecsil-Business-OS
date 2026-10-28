@@ -21,7 +21,8 @@ export async function avisosDoCalendario(sb: SupabaseClient, hoje: string, o: { 
   if (error || !data) return [];
   const ate = new Date(Date.parse(`${hoje}T12:00:00Z`) + 7 * 86400_000).toISOString().slice(0, 10);
   const cal = montarCalendario(data as DadosCalendario, { de: hoje, ate, hoje });
-  const proximos = cal.ocorrencias.filter((x) => x.vencimento && (!o.somenteGuias || x.tipo === "guia"));
+  // Já entregue (recibo registrado) não é mais aviso.
+  const proximos = cal.ocorrencias.filter((x) => x.vencimento && !x.entrega && (!o.somenteGuias || x.tipo === "guia"));
   if (!proximos.length) return [];
   const urgente = proximos.some((x) => diasAte(hoje, x.vencimento!) <= 1);
   const lista = proximos.map((x) => `${x.nome} (${x.competencia}): ${quando(hoje, x.vencimento!)}${x.quem === "escritorio" ? " · escritório" : ""}`);

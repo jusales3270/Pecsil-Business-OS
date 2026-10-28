@@ -13,14 +13,17 @@ import { api, date, nomeMes } from "./comum";
 type Ocorrencia = {
   codigo: string; nome: string; tipo: "guia" | "declaracao"; quem: "empresa" | "escritorio"; competencia: string;
   vencimento: string | null; original: string | null; ajuste: string | null; dependeRegime: boolean; aDefinir: boolean; ajusteAConferir: boolean; observacao: string | null;
+  entrega: Entrega | null;
 };
-type Dados = { hoje: string; de: string; ate: string; ocorrencias: Ocorrencia[]; regime: string; modo: string | null; uf: string | null; aConferir: boolean; normas: string[] };
+type Entrega = { obrigacao: string; periodo: string; entregue_em: string; recibo: string | null; document_id: string | null; observacao: string | null; nome?: string; competencia?: string };
+type Dados = { hoje: string; de: string; ate: string; ocorrencias: Ocorrencia[]; entregas: Entrega[]; regime: string; modo: string | null; uf: string | null; aConferir: boolean; normas: string[] };
 type Filtro = "todos" | "guia" | "declaracao";
 
 const DIA_SEMANA = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 const semana = (d: string) => DIA_SEMANA[new Date(`${d}T12:00:00Z`).getUTCDay()];
 const dias = (de: string, ate: string) => Math.round((Date.parse(`${ate}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 86400_000);
 const prazo = (hoje: string, d: string) => { const n = dias(hoje, d); return n < 0 ? `passou há ${-n} dia(s)` : n === 0 ? "vence hoje" : n === 1 ? "vence amanhã" : `em ${n} dias`; };
+const quando = (t: string) => new Date(t).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 const ics = (t: string) => t.replace(/[\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
 
 export function Calendario({ notify }: { notify: (m: string) => void }) {
@@ -45,7 +48,7 @@ export function Calendario({ notify }: { notify: (m: string) => void }) {
   const baixarAgenda = () => {
     if (!dados) return;
     const agora = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
-    const eventos = comData.filter((o) => o.vencimento! >= dados.hoje).map((o) => {
+    const eventos = comData.filter((o) => o.vencimento! >= dados.hoje && !o.entrega).map((o) => {
       const d = o.vencimento!.replace(/-/g, "");
       const fim = new Date(Date.parse(`${o.vencimento}T12:00:00Z`) + 86400_000).toISOString().slice(0, 10).replace(/-/g, "");
       return ["BEGIN:VEVENT", `UID:${o.codigo}-${o.vencimento}@ecos`, `DTSTAMP:${agora}`, `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${fim}`,
@@ -94,13 +97,29 @@ export function Calendario({ notify }: { notify: (m: string) => void }) {
                       <span>{o.competencia}</span>
                       <span>{o.tipo === "guia" ? "Guia" : "Declaração"}</span>
                       <span>{o.quem === "escritorio" ? "Escritório" : "Empresa"}</span>
-                      <span>{n < 0 ? <Status tone="neutral">{prazo(dados.hoje, o.vencimento!)}</Status> : n <= 1 ? <Status tone="danger">{prazo(dados.hoje, o.vencimento!)}</Status> : n <= 7 ? <Status tone="attention">{prazo(dados.hoje, o.vencimento!)}</Status> : <Status tone="info">{prazo(dados.hoje, o.vencimento!)}</Status>}</span>
+                      <span>{o.entrega ? <Status tone="success">{`Entregue em ${date(o.entrega.entregue_em.slice(0, 10))}`}</Status> : n < 0 ? <Status tone="neutral">{prazo(dados.hoje, o.vencimento!)}</Status> : n <= 1 ? <Status tone="danger">{prazo(dados.hoje, o.vencimento!)}</Status> : n <= 7 ? <Status tone="attention">{prazo(dados.hoje, o.vencimento!)}</Status> : <Status tone="info">{prazo(dados.hoje, o.vencimento!)}</Status>}</span>
                     </div>
                   );
                 })}
               </div>
             </section>
           )) : <div className="finance-empty"><b>Nada no período</b></div>}
+          {dados.entregas.length > 0 && (
+            <section className="almox-bloco">
+              <h3 className="ctb-titulo">Entregas registradas</h3>
+              <div className="vnd-tabela cal-entregas" role="table" aria-label="Entregas registradas">
+                <div className="cabeca" role="row"><span>Obrigação</span><span>Competência</span><span>Entregue em</span><span>Recibo</span></div>
+                {dados.entregas.map((e) => (
+                  <div role="row" key={`${e.obrigacao}-${e.periodo}`}>
+                    <span className="nome">{e.nome ?? e.obrigacao}{e.observacao && <small>{e.observacao}</small>}</span>
+                    <span>{e.competencia ?? e.periodo}</span>
+                    <span>{quando(e.entregue_em)}</span>
+                    <span className="nome"><span className="cal-recibo">{e.recibo ?? "—"}</span>{e.document_id && <small><a className="almox-link" href={`/api/documentos/${e.document_id}/baixar`} target="_blank" rel="noreferrer">Abrir o recibo</a></small>}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
           <p className="fiscal-nota-ajuda">Período: {date(dados.de)} a {date(dados.ate)}. Dia útil = segunda a sexta, fora dos feriados dos Parâmetros legais{dados.uf ? ` (nacionais e de ${dados.uf}, quando houver)` : ""}.</p>
         </>
       )}

@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-27-documentos-escritorio",
+    data: "2026-10-27",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.contabilidade", "fiscal.icms", "fiscal.config"],
+    titulo: "ECD 2025 entregue no calendário e os documentos do escritório guardados",
+    itens: [
+      "O calendário fiscal ganhou \"Entregas registradas\": a ECD de 2025 aparece entregue em 11/06/2026, com o número do recibo da Receita e o recibo para abrir (para quem vê os documentos da Contabilidade). Obrigação entregue sai dos avisos de vencimento.",
+      "Os balanços e as DREs de 2025, o recibo e as assinaturas da ECD e o balancete de jan–jun/2026 do escritório estão em Documentos › Fiscal. O texto lido desses documentos não guarda CPF.",
+      "Parâmetros legais › Perfil da empresa tem o responsável técnico (contabilista) e o CRC.",
+    ],
+  },
+  {
     id: "2026-10-27-depara",
     data: "2026-10-27",
     area: "Fiscal",

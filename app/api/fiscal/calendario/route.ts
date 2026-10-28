@@ -24,5 +24,15 @@ export async function GET(request: Request) {
   if (de > ate || mais(de, 800) < ate) return NextResponse.json({ error: "Período inválido (até dois anos)." }, { status: 400 });
   const { data, error } = await guard.supabase.rpc("fiscal_calendario_dados");
   if (error) return dbError(error);
-  return NextResponse.json({ hoje, de, ate, ...montarCalendario(data as DadosCalendario, { de, ate, hoje }) }, { headers: { "Cache-Control": "no-store" } });
+  const cal = montarCalendario(data as DadosCalendario, { de, ate, hoje });
+  // O link do recibo só vai para quem vê o documento (a RLS de Documentos decide pela funcionalidade dele).
+  const docs = [...new Set(cal.entregas.map((e) => e.document_id).filter((x): x is string => Boolean(x)))];
+  const { data: visiveis } = docs.length ? await guard.supabase.from("company_documents").select("id").in("id", docs) : { data: [] };
+  const pode = new Set((visiveis ?? []).map((d) => d.id as string));
+  const semLink = <T extends { entrega?: { document_id: string | null } | null }>(o: T) => (o.entrega?.document_id && !pode.has(o.entrega.document_id) ? { ...o, entrega: { ...o.entrega, document_id: null } } : o);
+  return NextResponse.json({
+    hoje, de, ate, ...cal,
+    ocorrencias: cal.ocorrencias.map(semLink),
+    entregas: cal.entregas.map((e) => (e.document_id && !pode.has(e.document_id) ? { ...e, document_id: null } : e)),
+  }, { headers: { "Cache-Control": "no-store" } });
 }

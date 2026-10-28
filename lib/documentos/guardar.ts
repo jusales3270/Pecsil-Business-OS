@@ -77,13 +77,13 @@ export async function guardarOriginal(supabase: SupabaseClient, e: GuardarEntrad
 
 /**
  * Guarda um original trazido pelo SISTEMA (rodada agendada, sem sessão de pessoa): o XML que a
- * SEFAZ distribuiu, a nota que a própria empresa emitiu. Só com a chave de serviço; a organização
+ * SEFAZ distribuiu, a nota que a própria empresa emitiu, o que o escritório contábil entregou. Só com a chave de serviço; a organização
  * vem no parâmetro. Mesmo arquivo já guardado no setor não duplica.
  */
 export async function guardarOriginalSistema(
   admin: SupabaseClient,
   org: string,
-  e: { modulo: string; feature: string; arquivo: { nome: string; tipo?: string | null; dados: Uint8Array }; origem: "sefaz" | "emissao"; titulo?: string | null; autor: string; entidade?: { tipo: string; id: string } | null },
+  e: { modulo: string; feature: string; arquivo: { nome: string; tipo?: string | null; dados: Uint8Array }; origem: "sefaz" | "emissao" | "escritorio"; titulo?: string | null; autor: string; entidade?: { tipo: string; id: string } | null; mascararDadoPessoal?: boolean },
 ): Promise<Guardado> {
   const hash = sha256(e.arquivo.dados);
   const { data: igual } = await admin.from("company_documents").select("id")
@@ -105,7 +105,7 @@ export async function guardarOriginalSistema(
   const r = data as Guardado;
   if (r.existente) await admin.storage.from(BUCKET).remove([caminho]);
   else {
-    await lerEGravar(admin, { id: r.id, organization_id: org }, e.arquivo.dados); // leitura, ligações e CNPJ, como num envio
+    await lerEGravar(admin, { id: r.id, organization_id: org }, e.arquivo.dados, 0, { mascarar: e.mascararDadoPessoal }); // leitura, ligações e CNPJ, como num envio
     await lerIbsCbs(admin, org, { id: r.id, nome: e.arquivo.nome, tipo: e.arquivo.tipo }, e.arquivo.dados);
     await lerEntrada(admin, org, { id: r.id, nome: e.arquivo.nome, tipo: e.arquivo.tipo }, e.arquivo.dados);
   }

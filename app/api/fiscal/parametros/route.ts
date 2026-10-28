@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * curadoria (o banco confere). O perfil: Configuração fiscal (operar).
  */
 const LEITURA = ["fiscal.parametros", "fiscal.config", "fiscal.escritorio", "fiscal.portal"] as const;
-const PERFIL_PADRAO = { modo: "escritorio", regime: "a_definir", cnaes_secundarios: [] as string[], rat: null, fap: null, beneficio_estadual: null, observacao: null, updated_at: null, updated_by_name: null };
+const PERFIL_PADRAO = { modo: "escritorio", regime: "a_definir", cnaes_secundarios: [] as string[], rat: null, fap: null, beneficio_estadual: null, observacao: null, responsavel_tecnico_nome: null, responsavel_tecnico_crc: null, updated_at: null, updated_by_name: null };
 
 export async function GET() {
   const guard = await requireAnyFeature(LEITURA);
@@ -19,7 +19,7 @@ export async function GET() {
   const [parametros, teses, perfil, curar, config] = await Promise.all([
     guard.supabase.from("contabil_parametros").select("id, chave, titulo, escopo, uf, codigo_municipio, valor, vigente_de, vigente_ate, fonte, confianca, observacao, situacao, origem, motivo_descarte, conferido_por_nome, conferido_em, criado_por_nome, created_at").order("chave").order("vigente_de", { ascending: false }),
     guard.supabase.from("contabil_teses").select("*").order("tribunal").order("tema"),
-    guard.supabase.from("contabil_perfil_empresa").select("modo, regime, cnaes_secundarios, rat, fap, beneficio_estadual, observacao, updated_at, updated_by_name").maybeSingle(),
+    guard.supabase.from("contabil_perfil_empresa").select("modo, regime, cnaes_secundarios, rat, fap, beneficio_estadual, observacao, responsavel_tecnico_nome, responsavel_tecnico_crc, updated_at, updated_by_name").maybeSingle(),
     guard.supabase.rpc("contabil_pode_curar"),
     guard.supabase.from("fiscal_config").select("cnpj, cnae, crt, uf, municipio, codigo_municipio").maybeSingle(),
   ]);
@@ -51,6 +51,8 @@ export async function POST(request: Request) {
     if (fap !== null && !(fap >= 0.5 && fap <= 2)) return NextResponse.json({ error: "O FAP vai de 0,5 a 2,0." }, { status: 400 });
     const rat = p.rat === "" || p.rat === null || p.rat === undefined ? null : Number(p.rat);
     if (rat !== null && ![1, 2, 3].includes(rat)) return NextResponse.json({ error: "O RAT é 1, 2 ou 3%." }, { status: 400 });
+    const crc = String(p.responsavel_tecnico_crc ?? "").trim().toUpperCase();
+    if (crc && !/^[A-Z]{2}-\d{3,8}(\/[A-Z]-?\d)?$/.test(crc)) return NextResponse.json({ error: "CRC no formato UF-número (ex.: SP-233810)." }, { status: 400 });
     const { error } = await guard.supabase.rpc("contabil_perfil_salvar", { p: { ...p, fap, rat } });
     if (error) return dbError(error);
     return NextResponse.json({ ok: true });
