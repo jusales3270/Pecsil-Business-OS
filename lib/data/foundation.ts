@@ -22,6 +22,9 @@ export type Person = {
   experienciaInicio?: string | null;
   /** Último dia do período de experiência (calculado no banco). */
   experienciaFim?: string | null;
+  /** Jornada de trabalho (horário do Secullum). */
+  jornadaId?: string | null;
+  jornada?: string | null;
 };
 
 export type OrganizationEntity = {

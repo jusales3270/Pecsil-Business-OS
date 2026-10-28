@@ -130,15 +130,15 @@ const ferramentas: Ferramenta[] = [
   },
   {
     nome: "rh_dados_do_colaborador", rotulo: "dados do colaborador", exige: ["rh.colaboradores"],
-    descricao: "Dados de um colaborador pelo nome (ou parte): matrícula, setor, função, tipo de contrato (CLT ou experiência, com o período e o vencimento), admissão, desligamento, e-mail corporativo e os dados pessoais (CPF, PIS, CTPS, telefone). Os dados pessoais vêm para quem tem RH › Colaboradores em \"operar\"; vazio = sem cadastro ou sem essa permissão.",
+    descricao: "Dados de um colaborador pelo nome (ou parte): matrícula, setor, função, tipo de contrato (CLT ou experiência, com o período e o vencimento), jornada (horário do Secullum), admissão, desligamento, e-mail corporativo e os dados pessoais (CPF, PIS, CTPS, telefone). Os dados pessoais vêm para quem tem RH › Colaboradores em \"operar\"; vazio = sem cadastro ou sem essa permissão.",
     esquema: { type: "object", properties: { nome: { type: "string", description: "Nome ou parte do nome do colaborador." } }, required: ["nome"] },
     rodar: async (sb, e) => {
       const nome = busca(e.nome);
       if (nome.length < 2) throw new Error("Informe o nome do colaborador.");
-      const { data, error } = await sb.from("employees").select("id, full_name, employee_number, admission_date, termination_date, active, corporate_email, contract_type, experiencia_dias, experiencia_inicio, experiencia_fim, departments(name), positions(name)")
+      const { data, error } = await sb.from("employees").select("id, full_name, employee_number, admission_date, termination_date, active, corporate_email, contract_type, experiencia_dias, experiencia_inicio, experiencia_fim, rh_jornadas(numero, nome), departments(name), positions(name)")
         .ilike("full_name", `%${nome}%`).order("full_name").limit(10);
       if (error) throw new Error(error.message);
-      type E = { id: string; full_name: string; employee_number: string | null; admission_date: string | null; termination_date: string | null; active: boolean; corporate_email: string | null; contract_type: string | null; experiencia_dias: number | null; experiencia_inicio: string | null; experiencia_fim: string | null; departments: { name: string } | null; positions: { name: string } | null };
+      type E = { id: string; full_name: string; employee_number: string | null; admission_date: string | null; termination_date: string | null; active: boolean; corporate_email: string | null; contract_type: string | null; experiencia_dias: number | null; experiencia_inicio: string | null; experiencia_fim: string | null; rh_jornadas: { numero: number; nome: string } | null; departments: { name: string } | null; positions: { name: string } | null };
       const l = (data ?? []) as unknown as E[];
       // A credencial dos dados pessoais (RH › Colaboradores em "operar"), conferida no banco: sem ela, a SARA diz "sem permissão".
       const { data: podePessoais } = await sb.rpc("has_feature", { requested_feature: "rh.colaboradores", min_level: "operar" });
@@ -147,6 +147,7 @@ const ferramentas: Ferramenta[] = [
       return { dados: { encontrados: l.length, colaboradores: l.map((x) => {
         const d = p.get(x.id);
         return { nome: x.full_name, matricula: x.employee_number, setor: x.departments?.name ?? null, funcao: x.positions?.name ?? null, contrato: x.contract_type === "experiencia" ? "experiência" : x.contract_type === "clt" ? "CLT" : "não informado",
+          jornada: x.rh_jornadas ? `Nº ${x.rh_jornadas.numero} · ${x.rh_jornadas.nome}` : null,
           experiencia: x.experiencia_dias ? { periodo_dias: x.experiencia_dias, inicio: x.experiencia_inicio, vence: x.experiencia_fim } : null, admissao: x.admission_date, desligamento: x.termination_date, ativo: x.active,
           email_corporativo: x.corporate_email, cpf: d?.cpf ?? null, pis: d?.pis ?? null, ctps: d?.ctps_number ? [d.ctps_number, d.ctps_series, d.ctps_uf].filter(Boolean).join(" / ") : null, telefone: d?.phone ?? null };
       }), dados_pessoais: podePessoais ? "liberados" : "SEM PERMISSÃO: CPF, PIS, CTPS e telefone exigem RH › Colaboradores em \"operar\" (diga que a pessoa não tem permissão)",

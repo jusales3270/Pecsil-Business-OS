@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-28-rh-jornadas",
+    data: "2026-10-28",
+    area: "RH",
+    modulos: ["rh"],
+    funcionalidades: ["rh.colaboradores"],
+    titulo: "Jornadas de trabalho padronizadas pelo Secullum",
+    itens: [
+      "A Jornada do colaborador agora é um dos 13 horários do relógio de ponto (Secullum), com o número do horário: por exemplo, \"Nº 25 · 07:00 - 12:00 - 13:00 - 17:00\". A lista antiga (Administrativo, Turno A…) saiu.",
+      "Os 63 colaboradores da Distribuição de Horários de 28/10/2026 já estão com a jornada no cadastro; ela aparece na ficha, em Vínculo.",
+      "No cadastro de um novo colaborador, a jornada é escolhida na lista e é obrigatória.",
+    ],
+  },
+  {
     id: "2026-10-28-rh-relatorio-epi",
     data: "2026-10-28",
     area: "RH",

@@ -74,7 +74,7 @@ function toEmployee(person: Person): EmployeeRecord {
       contractType: person.contractType === "experiencia" ? "Experiência" : person.contractType === "clt" ? "CLT" : "Não informado",
       manager: "Não informado",
       team: person.team ?? "Sem equipe",
-      schedule: "Não informado",
+      schedule: person.jornada ?? "Não informada",
       documentStatus: "Pendente",
     };
   }
@@ -87,7 +87,7 @@ function toEmployee(person: Person): EmployeeRecord {
     contractType: "CLT",
     manager: "Não definido",
     team: "Não definida",
-    schedule: "Administrativo",
+    schedule: "Não informada",
     documentStatus: "Pendente",
   };
 }
@@ -707,6 +707,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
             cpf: employee.cpf || undefined,
             phone: employee.phone || undefined,
             ...contractPayload(employee),
+            ...(employee.jornadaId ? { jornadaId: employee.jornadaId } : {}),
           },
         });
         notify(employee.terminationDate
@@ -738,6 +739,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
             cpf: employee.cpf || null,
             phone: employee.phone || null,
             ...contractPayload(employee),
+            jornadaId: employee.jornadaId ?? null,
           }),
         });
         if (response.status === 401) throw new Error("UNAUTHENTICATED");
@@ -930,10 +932,19 @@ function EmployeeForm({ employee, nextRegistration, units, roles, departments, o
     contractType: "CLT",
     manager: "",
     team: "",
-    schedule: "Administrativo",
+    schedule: "",
+    jornadaId: null,
     documentStatus: "Pendente",
   });
   const update = (field: keyof EmployeeRecord, value: string) => setForm(current => ({ ...current, [field]: value }));
+  // Jornadas padronizadas (horários do Secullum), do banco.
+  const [jornadas, setJornadas] = useState<{ id: string; rotulo: string }[] | null>(null);
+  useEffect(() => {
+    let ativo = true;
+    fetch("/api/rh/jornadas", { cache: "no-store" }).then(r => r.ok ? r.json() : { jornadas: [] }).then(d => { if (ativo) setJornadas((d as { jornadas: { id: string; rotulo: string }[] }).jornadas); }).catch(() => { if (ativo) setJornadas([]); });
+    return () => { ativo = false; };
+  }, []);
+  const jornadaOk = Boolean(form.jornadaId) || (jornadas !== null && jornadas.length === 0);
   const experience = form.contractType === "Experiência";
   const hojeForm = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   // Quem já estava em experiência segue com o início gravado; quem entra agora começa hoje.
@@ -942,7 +953,7 @@ function EmployeeForm({ employee, nextRegistration, units, roles, departments, o
   const terminationValid = !form.terminationDate || !form.admissionDate || form.terminationDate >= form.admissionDate;
   const cpfDigits = form.cpf.replace(/\D/g, "");
   const cpfOk = cpfDigits.length === 11 || (!isNew && !cpfDigits);
-  const canAdvance = step === 1 ? Boolean(form.name && cpfOk && (form.phone || !isNew)) : step === 2 ? Boolean(form.registration && (experience ? form.experienciaDias : form.admissionDate) && (form.unit || singleUnit) && form.department && form.role && terminationValid) : Boolean(form.email);
+  const canAdvance = step === 1 ? Boolean(form.name && cpfOk && (form.phone || !isNew)) : step === 2 ? Boolean(form.registration && (experience ? form.experienciaDias : form.admissionDate) && (form.unit || singleUnit) && form.department && form.role && jornadaOk && terminationValid) : Boolean(form.email);
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (step < 3) { if (canAdvance) setStep(value => value + 1); return; }
@@ -969,7 +980,7 @@ function EmployeeForm({ employee, nextRegistration, units, roles, departments, o
           <label><span>Departamento *</span><select value={form.department} onChange={event => update("department",event.target.value)}><option value="">Selecione</option>{departments.map(name => <option key={name}>{name}</option>)}</select></label>
           {!singleUnit && <label><span>Unidade *</span><select value={form.unit} onChange={event => update("unit",event.target.value)}><option value="">Selecione</option>{units.map(name => <option key={name}>{name}</option>)}</select></label>}
           <label className="field-wide"><span>Cargo *</span><input list="employee-form-cargos" value={form.role} onChange={event => update("role",event.target.value)} placeholder="Ex.: Analista de Recursos Humanos"/><datalist id="employee-form-cargos">{roles.map(name => <option key={name} value={name}/>)}</datalist><small className="field-hint">Escolha um cargo da lista ou digite um novo: o cargo novo entra no cadastro de cargos.</small></label>
-          <label><span>Jornada</span><select value={form.schedule} onChange={event => update("schedule",event.target.value)}><option>Administrativo</option><option>Turno A</option><option>Turno B</option><option>Turno C</option><option>Executiva</option></select></label>
+          <label className="field-wide"><span>Jornada *</span><select value={form.jornadaId ?? ""} disabled={jornadas === null} onChange={event => { const escolhida = jornadas?.find(j => j.id === event.target.value); setForm(current => ({ ...current, jornadaId: escolhida?.id ?? null, schedule: escolhida?.rotulo ?? "" })); }}><option value="">{jornadas === null ? "Carregando…" : "Selecione"}</option>{(jornadas ?? []).map(j => <option key={j.id} value={j.id}>{j.rotulo}</option>)}</select><small className="field-hint">Horário do relógio de ponto (Secullum).</small></label>
           {!isNew && <label><span>Data de demissão</span><input type="date" min={form.admissionDate || undefined} value={form.terminationDate ?? ""} onChange={event => update("terminationDate",event.target.value)}/><small className="field-hint">Preencha quando o colaborador for desligado. O cadastro e o histórico ficam guardados.</small></label>}
         </>}
         {step === 3 && <><label className="field-wide"><span>E-mail *</span><input type="email" value={form.email} onChange={event => update("email",event.target.value)} placeholder="nome@exemplo.com"/></label><label><span>Equipe</span><input value={form.team} onChange={event => update("team",event.target.value)} placeholder="Equipe de trabalho"/></label><label><span>Gestor responsável</span><input value={form.manager} onChange={event => update("manager",event.target.value)} placeholder="Nome do gestor"/></label><label><span>Situação inicial</span><select value={form.status} onChange={event => update("status",event.target.value)}><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select></label><label><span>Documentação</span><select value={form.documentStatus} onChange={event => update("documentStatus",event.target.value)}><option>Pendente</option><option>Completo</option></select></label><div className="employee-form-note field-wide"><HrIcon name="lock"/><span><b>Acesso separado do vínculo</b><small>O perfil de usuário será concedido pela área de Pessoas e Acessos, respeitando as credenciais da plataforma.</small></span></div></>}

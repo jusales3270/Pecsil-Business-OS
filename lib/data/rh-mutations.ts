@@ -45,6 +45,8 @@ export type RhEmployeeEdit = {
   /** Tipo de contrato. Ausente = não mexe. Experiência pede o período (60 ou 90 dias). */
   contractType?: RhContractType;
   experienciaDias?: number | null;
+  /** Jornada (rh_jornadas). Ausente = não mexe. */
+  jornadaId?: string | null;
 };
 
 export type RhContractType = "clt" | "experiencia";
@@ -378,7 +380,16 @@ export type RhEmployeeDraft = {
   phone?: string | null;
   contractType?: RhContractType;
   experienciaDias?: number | null;
+  jornadaId?: string | null;
 };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Jornada: id do cadastro de jornadas; ausente não mexe, vazio limpa. */
+function jornadaColumn(id: string | null | undefined): Record<string, unknown> {
+  if (id === undefined) return {};
+  if (id && !UUID.test(id)) throw new Error("RH_INVALID");
+  return { jornada_id: id || null };
+}
 
 /**
  * Colunas do tipo de contrato. Experiência: ainda não é efetivo, então fica sem admissão; o período (60 ou
@@ -439,6 +450,7 @@ export async function createRhEmployee(draft: RhEmployeeDraft): Promise<{ id: st
       position_id: positionId,
       active: true,
       ...contractColumns(draft.contractType, draft.experienciaDias, null),
+      ...jornadaColumn(draft.jornadaId),
     })
     .select("id")
     .single();
@@ -514,6 +526,7 @@ async function updateRhEmployee(supabase: ServerClient, id: string, c: RhEmploye
     active: !termination || termination > hojeSaoPaulo(),
     // Quem segue em experiência mantém o início gravado; quem entra agora em experiência começa hoje.
     ...contractColumns(c.contractType, c.experienciaDias, current.contract_type === "experiencia" ? (current.experiencia_inicio as string | null) : null),
+    ...jornadaColumn(c.jornadaId),
   };
   // Nome que não existe no cadastro da estrutura não apaga o vínculo atual.
   if (departmentId) changes.department_id = departmentId;
