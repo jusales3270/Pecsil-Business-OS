@@ -5,6 +5,8 @@ import { requireAnyFeature } from "../../../../../lib/auth/feature-guard";
 import { sha256 } from "../../../../../lib/documentos/guardar";
 import { caminhoDocumento } from "../../../../../lib/documentos/setores";
 import { lerGuia, TIPOS_GUIA, valorDigitado, type TipoGuia } from "../../../../../lib/fiscal/guia-parser";
+import { tributoDoCodigo } from "../../../../../lib/contabil/apuracao/guia";
+import { vigente, type Parametro } from "../../../../../lib/contabil/parametros";
 import { lerEGravar } from "../../../../../lib/leitura/servidor";
 import { createSupabaseAdminClient } from "../../../../../lib/supabase/admin";
 
@@ -38,9 +40,14 @@ export async function POST(request: Request) {
   if (arquivo.size > LIMITE) return NextResponse.json({ error: "Arquivo acima de 15 MB." }, { status: 413 });
   const dados = new Uint8Array(await arquivo.arrayBuffer());
 
+  // Códigos de receita do DARF vigentes hoje (parâmetro legal): o leitor só reconhece estes.
+  const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const { data: params } = await createSupabaseAdminClient().from("contabil_parametros").select("id, chave, titulo, escopo, uf, codigo_municipio, valor, vigente_de, vigente_ate, fonte, confianca, observacao, situacao").eq("chave", "codigos_darf").neq("situacao", "descartado");
+  const codigos = vigente<Record<string, string>>((params ?? []) as Parametro[], "codigos_darf", hoje)?.valor ?? {};
+
   if (acao === "ler") {
     try {
-      return NextResponse.json({ ok: true, guia: lerGuia(await textoDaGuia(dados)) });
+      return NextResponse.json({ ok: true, guia: lerGuia(await textoDaGuia(dados), Object.keys(codigos)), codigos });
     } catch (e) {
       if (e instanceof PdfInvalido) return NextResponse.json({ ok: true, guia: { ...lerGuia(""), avisos: [`${e.message} Preencha os campos à mão.`] } });
       throw e;
@@ -54,6 +61,10 @@ export async function POST(request: Request) {
   const vencimento = String(form?.get("vencimento") ?? "");
   const linha = String(form?.get("linha") ?? "").replace(/\D/g, "");
   const observacao = String(form?.get("observacao") ?? "").trim().slice(0, 500);
+  const codigo = String(form?.get("codigo") ?? "").replace(/\D/g, "");
+  const periodo = String(form?.get("periodo") ?? "");
+  if (codigo && !/^\d{4}$/.test(codigo)) return NextResponse.json({ error: "O código da receita tem 4 dígitos." }, { status: 400 });
+  if (periodo && !DIA.test(periodo)) return NextResponse.json({ error: "Período de apuração inválido." }, { status: 400 });
   if (!UUID.test(competencia)) return NextResponse.json({ error: "Abra a competência antes de enviar a guia." }, { status: 400 });
   if (!TIPOS_GUIA.includes(tipo)) return NextResponse.json({ error: "Escolha o tipo da guia." }, { status: 400 });
   if (!Number.isFinite(valor) || valor <= 0) return NextResponse.json({ error: "Informe o valor da guia." }, { status: 400 });
@@ -76,6 +87,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Não foi possível enviar a guia." }, { status: error.code === "42501" ? 403 : 400 });
   }
   const r = data as { guia: string; titulo: string; documento: string };
+  // Tributo, código e período: para conferir a guia contra a apuração (Fiscal › Apurações). Não derruba o envio.
+  if (codigo || periodo) {
+    const { error: eClass } = await guard.supabase.rpc("fiscal_guia_classificar", { p_guia: r.guia, p_tributo: tributoDoCodigo(codigos, codigo || null), p_codigo: codigo || null, p_periodo: periodo || null });
+    if (eClass) console.error("Guia enviada sem classificação", r.guia, eClass.message);
+  }
   await lerEGravar(admin, { id: r.documento, organization_id: String(org) }, dados); // leitura e ligações, sem derrubar o envio
   return NextResponse.json({ ok: true, guia: r.guia });
 }

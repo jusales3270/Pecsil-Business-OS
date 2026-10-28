@@ -19,6 +19,7 @@ import { ConfiguracaoFiscal } from "./ConfiguracaoFiscal";
 import { MascarasImpostos } from "./MascarasImpostos";
 import { Parametros } from "./Parametros";
 import { IbsCbs } from "./IbsCbs";
+import { Apuracoes } from "./Apuracoes";
 import { Contabilidade } from "./Contabilidade";
 import { Calendario } from "./Calendario";
 import { Entradas } from "./Entradas";
@@ -60,6 +61,7 @@ const SECOES = [
   { id: "Parâmetros legais", icon: "database" },
   { id: "IBS e CBS", icon: "report" },
   { id: "Simulador da reforma", icon: "report" },
+  { id: "Apurações", icon: "report" },
   { id: "Contabilidade", icon: "database" },
   { id: "Calendário fiscal", icon: "calendar" },
   { id: "Escritório contábil", icon: "briefcase" },
@@ -87,6 +89,7 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
         : id === "Máscaras de impostos" ? pode("fiscal.nfe") || pode("fiscal.config")
         : id === "Parâmetros legais" ? pode("fiscal.parametros") || pode("fiscal.config") || empresa || pode("fiscal.portal")
         : id === "Contabilidade" ? pode("fiscal.contabilidade")
+        : id === "Apurações" ? pode("fiscal.contabilidade") || pode("fiscal.icms") || pode("fiscal.config") || pode("fiscal.parametros") || empresa || pode("fiscal.portal")
         : id === "Simulador da reforma" ? pode("fiscal.icms") || pode("fiscal.config") || pode("fiscal.parametros") || pode("fiscal.nfe") || empresa || pode("fiscal.portal") || pode("fiscal.contabilidade")
         : id === "Calendário fiscal" ? pode("fiscal.icms") || pode("fiscal.config") || pode("fiscal.parametros") || pode("fiscal.nfe") || empresa || pode("fiscal.portal") || pode("fiscal.contabilidade")
         : id === "IBS e CBS" ? pode("fiscal.icms") || pode("fiscal.config") || pode("fiscal.parametros") || pode("fiscal.nfe") || empresa || pode("fiscal.portal")
@@ -115,6 +118,7 @@ export default function FiscalApp({ notify, access, initialSection }: ModuleRunt
   if (secao === "Parâmetros legais") return <Parametros notify={notify} />;
   if (secao === "IBS e CBS") return <IbsCbs notify={notify} />;
   if (secao === "Contabilidade") return <Contabilidade notify={notify} />;
+  if (secao === "Apurações") return <Apuracoes notify={notify} />;
   if (secao === "Calendário fiscal") return <Calendario notify={notify} />;
   if (secao === "Conferência de entradas") return <Entradas notify={notify} />;
   if (secao === "Simulador da reforma") return <SimuladorReforma />;

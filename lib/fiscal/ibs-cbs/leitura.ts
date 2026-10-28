@@ -24,6 +24,8 @@ export type NotaIbsCbs = {
   finalidade: string | null;
   temGrupo: boolean;
   itens: ItemIbsCbs[];
+  /** Receita da nota com TODOS os itens (os de cima são só os que têm o grupo IBS/CBS): base do Lucro Presumido. */
+  receita: ResumoReceita;
   vBC: number;
   vIBSUF: number;
   vIBSMun: number;
@@ -32,6 +34,12 @@ export type NotaIbsCbs = {
   vNF: number;
   vNFTot: number | null;
 };
+
+/**
+ * Valores da nota por item, sem depender do grupo IBS/CBS. `exportacao` = itens com CFOP 7xxx (fora do PIS/COFINS);
+ * `porCfop` = valor dos produtos menos o desconto, por CFOP.
+ */
+export type ResumoReceita = { vProd: number; vDesc: number; vFrete: number; vSeg: number; vOutro: number; vIPI: number; vICMSST: number; exportacao: number; porCfop: Record<string, number> };
 
 const num = (v: string | null | undefined) => (v ? Number(v) || 0 : 0);
 export const tag = (xml: string, nome: string) => xml.match(new RegExp(`<${nome}>([^<]*)</${nome}>`))?.[1] ?? null;
@@ -58,7 +66,15 @@ export function lerIbsCbs(xml: string, cnpjEmpresa: string): NotaIbsCbs | null {
   const destinatario = so(tag(dest, "CNPJ"));
   const emissao = tag(ide, "dhEmi") ?? tag(ide, "dEmi");
   const itens: ItemIbsCbs[] = [];
+  const receita: ResumoReceita = { vProd: 0, vDesc: 0, vFrete: 0, vSeg: 0, vOutro: 0, vIPI: 0, vICMSST: 0, exportacao: 0, porCfop: {} };
   for (const m of inf.matchAll(/<det nItem="(\d+)">([\s\S]*?)<\/det>/g)) {
+    const p = bloco(m[2], "prod") ?? "";
+    const cfop = tag(p, "CFOP") ?? "";
+    const liquido = num(tag(p, "vProd")) - num(tag(p, "vDesc"));
+    receita.vProd += num(tag(p, "vProd")); receita.vDesc += num(tag(p, "vDesc")); receita.vFrete += num(tag(p, "vFrete")); receita.vSeg += num(tag(p, "vSeg")); receita.vOutro += num(tag(p, "vOutro"));
+    receita.vIPI += num(tag(bloco(m[2], "IPI") ?? "", "vIPI")); receita.vICMSST += num(tag(bloco(m[2], "ICMS") ?? "", "vICMSST"));
+    if (cfop.startsWith("7")) receita.exportacao += liquido;
+    if (cfop) receita.porCfop[cfop] = r2((receita.porCfop[cfop] ?? 0) + liquido);
     const g = bloco(m[2], "IBSCBS");
     if (!g) continue;
     const valores = bloco(g, "gIBSCBS") ?? "";
@@ -96,6 +112,7 @@ export function lerIbsCbs(xml: string, cnpjEmpresa: string): NotaIbsCbs | null {
     finalidade: tag(ide, "finNFe"),
     temGrupo: itens.length > 0,
     itens,
+    receita: { ...receita, vProd: r2(receita.vProd), vDesc: r2(receita.vDesc), vFrete: r2(receita.vFrete), vSeg: r2(receita.vSeg), vOutro: r2(receita.vOutro), vIPI: r2(receita.vIPI), vICMSST: r2(receita.vICMSST), exportacao: r2(receita.exportacao) },
     vBC: tot ? num(tag(tot, "vBCIBSCBS")) : soma("vBC"),
     vIBSUF, vIBSMun, vIBS: r2(vIBSUF + vIBSMun), vCBS,
     vNF: num(tag(bloco(total, "ICMSTot") ?? "", "vNF")),

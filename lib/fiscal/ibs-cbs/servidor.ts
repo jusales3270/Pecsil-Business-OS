@@ -7,7 +7,8 @@ import { lerIbsCbs, type NotaIbsCbs } from "./leitura";
  * Leitura do IBS/CBS das NF-e guardadas (N-03), com a chave de serviço. Três portas, o mesmo caminho:
  * o envio do arquivo (lerDocumento, na hora), a tarefa de 10 em 10 minutos (sincronizarTodas) e a abertura da
  * tela (sincronizar). Cada XML é lido uma vez; XML que não é NF-e fica marcado (lado "outra", sem competência)
- * para não ser baixado de novo. Nota lida antes de a conferência existir (sem o regime do emitente) é relida.
+ * para não ser baixado de novo. Nota lida antes de a conferência existir (sem o regime do emitente) ou antes do resumo de
+ * receita do Presumido é relida.
  */
 const BUCKET = "empresa-documentos";
 const LOTE = 150;
@@ -26,7 +27,7 @@ function linha(org: string, origem: { document_id: string } | { nfe_id: string }
   return {
     organization_id: org, ...origem, chave: n.chave, numero: n.numero, lado: n.lado, finalidade: n.finalidade, emissao: n.emissao, competencia: n.competencia,
     emitente_cnpj: n.emitenteCnpj, emitente_nome: n.emitenteNome, emitente_crt: n.emitenteCrt, destinatario_cnpj: n.destinatarioCnpj, tem_grupo: n.temGrupo,
-    v_bc: n.vBC, v_ibs_uf: n.vIBSUF, v_ibs_mun: n.vIBSMun, v_ibs: n.vIBS, v_cbs: n.vCBS, v_nf: n.vNF, itens: n.itens,
+    v_bc: n.vBC, v_ibs_uf: n.vIBSUF, v_ibs_mun: n.vIBSMun, v_ibs: n.vIBS, v_cbs: n.vCBS, v_nf: n.vNF, itens: n.itens, receita: n.receita,
   };
 }
 
@@ -56,6 +57,8 @@ export async function sincronizar(admin: SupabaseClient, org: string): Promise<{
   if (!cnpj) return { lidas: 0, aviso: "Configure o CNPJ da empresa em Fiscal › Configuração para separar entradas e saídas.", pendentes: 0 };
   // Lidas antes da conferência (sem o regime do emitente e a composição da base): saem para serem relidas.
   await admin.from("fiscal_ibscbs_notas").delete().eq("organization_id", org).not("competencia", "is", null).is("emitente_crt", null);
+  // Lidas antes do resumo de receita (base do Lucro Presumido, N-07): saem para serem relidas.
+  await admin.from("fiscal_ibscbs_notas").delete().eq("organization_id", org).not("competencia", "is", null).is("receita", null);
 
   const { data: lidos } = await admin.from("fiscal_ibscbs_notas").select("document_id").eq("organization_id", org).not("document_id", "is", null);
   const ja = new Set((lidos ?? []).map((l) => l.document_id as string));

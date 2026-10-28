@@ -342,7 +342,7 @@ const PAGAMENTO: Record<Guia["pagamento"], [string, "success" | "attention" | "n
   paga_em_parte: ["Paga em parte", "attention"], cancelada: ["Cancelada", "neutral"],
 };
 const linhaFormatada = (l: string | null) => (l && l.length === 48 ? l.match(/.{12}/g)!.map((b) => `${b.slice(0, 11)}-${b[11]}`).join(" ") : l ?? "");
-type Rascunho = { arquivo: File; tipo: TipoGuia | ""; valor: string; vencimento: string; linha: string; observacao: string; lida: GuiaLida; erro?: string };
+type Rascunho = { arquivo: File; tipo: TipoGuia | ""; valor: string; vencimento: string; linha: string; observacao: string; codigo: string; periodo: string; codigos: Record<string, string>; lida: GuiaLida; erro?: string };
 
 /**
  * Guias de imposto (F-09). Quem envia escolhe o PDF, a plataforma lê por regra e mostra os campos para
@@ -366,11 +366,12 @@ function Guias({ competencia, mes, guias, lado, pode, ocupado, agir, notify, onM
     const corpo = new FormData();
     corpo.append("acao", "ler");
     corpo.append("arquivo", arquivo);
-    const r = await api<{ guia: GuiaLida }>("/api/fiscal/portal/guia", { method: "POST", body: corpo });
+    const r = await api<{ guia: GuiaLida; codigos?: Record<string, string> }>("/api/fiscal/portal/guia", { method: "POST", body: corpo });
     setLendo(false);
     if (!r.ok) { notify(r.error); return; }
     const g = r.data.guia;
-    setRascunho({ arquivo, tipo: g.tipo ?? "", valor: g.valor === null ? "" : g.valor.toFixed(2).replace(".", ","), vencimento: g.vencimento ?? "", linha: g.linhaDigitavel ?? "", observacao: "", lida: g });
+    setRascunho({ arquivo, tipo: g.tipo ?? "", valor: g.valor === null ? "" : g.valor.toFixed(2).replace(".", ","), vencimento: g.vencimento ?? "", linha: g.linhaDigitavel ?? "", observacao: "",
+      codigo: g.codigosReceita?.[0] ?? "", periodo: g.periodoApuracao ?? "", codigos: r.data.codigos ?? {}, lida: g });
   };
   const enviar = async () => {
     if (!rascunho) return;
@@ -384,6 +385,7 @@ function Guias({ competencia, mes, guias, lado, pode, ocupado, agir, notify, onM
     corpo.append("vencimento", rascunho.vencimento);
     corpo.append("linha", rascunho.linha);
     corpo.append("observacao", rascunho.observacao);
+    if (rascunho.tipo === "DARF") { corpo.append("codigo", rascunho.codigo); corpo.append("periodo", rascunho.periodo); }
     const r = await api<{ guia: string }>("/api/fiscal/portal/guia", { method: "POST", body: corpo });
     setEnviando(false);
     // O erro fica no formulário (o aviso some em segundos): guia repetida, competência, arquivo.
@@ -467,6 +469,13 @@ function Guias({ competencia, mes, guias, lado, pode, ocupado, agir, notify, onM
             </label>
             <label><span>Valor (R$)</span><input inputMode="decimal" placeholder="0,00" value={rascunho.valor} onChange={(e) => setRascunho({ ...rascunho, valor: e.target.value })} /></label>
             <label><span>Vencimento</span><input type="date" value={rascunho.vencimento} onChange={(e) => setRascunho({ ...rascunho, vencimento: e.target.value })} /></label>
+            {rascunho.tipo === "DARF" && <>
+              <label><span>Código da receita <small>{rascunho.codigos[rascunho.codigo] ? `· ${rascunho.codigos[rascunho.codigo]}` : rascunho.codigo ? "· código não reconhecido" : "· para conferir com a apuração"}</small></span>
+                <input inputMode="numeric" maxLength={4} placeholder="ex.: 2089" value={rascunho.codigo} onChange={(e) => setRascunho({ ...rascunho, codigo: e.target.value.replace(/\D/g, "") })} />
+              </label>
+              <label><span>Período de apuração</span><input type="date" value={rascunho.periodo} onChange={(e) => setRascunho({ ...rascunho, periodo: e.target.value })} /></label>
+              {(rascunho.lida.codigosReceita?.length ?? 0) > 1 && <p className="fiscal-nota-ajuda fiscal-inteiro">O PDF tem mais de um código ({rascunho.lida.codigosReceita.join(", ")}): a conferência usa o escolhido acima.</p>}
+            </>}
             <label className="fiscal-inteiro"><span>Linha digitável <small>(48 dígitos; pode ficar em branco se a guia não tiver)</small></span><input inputMode="numeric" value={rascunho.linha} onChange={(e) => setRascunho({ ...rascunho, linha: e.target.value })} /></label>
             <label className="fiscal-inteiro"><span>Observação para o Financeiro <small>(opcional)</small></span><input maxLength={500} value={rascunho.observacao} onChange={(e) => setRascunho({ ...rascunho, observacao: e.target.value })} /></label>
           </div>

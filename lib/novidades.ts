@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-28-apuracoes-presumido",
+    data: "2026-10-28",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.contabilidade", "fiscal.icms", "fiscal.escritorio", "fiscal.portal"],
+    titulo: "Apurações do Lucro Presumido e guias conferidas",
+    itens: [
+      "Nova tela Fiscal › Apurações: IRPJ e CSLL por trimestre (com o acréscimo da LC 224 acima de R$ 1,25 mi no trimestre, como manda a IN RFB 2.306/2026) e PIS/COFINS por mês, com a memória de cálculo.",
+      "A base vem das notas de saída guardadas na plataforma (vendas pelo CFOP, exportação fora do PIS/COFINS). Até os XMLs do GRV chegarem e o escritório confirmar o método, a tela mostra o que falta em vez de calcular pela metade.",
+      "No Portal do contador, o DARF lido já traz o código da receita e o período de apuração; a guia enviada passa a ser conferida contra a apuração, com o motivo de qualquer diferença.",
+    ],
+  },
+  {
     id: "2026-10-27-documentos-escritorio",
     data: "2026-10-27",
     area: "Fiscal",

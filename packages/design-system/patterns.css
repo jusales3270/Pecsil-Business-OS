@@ -9359,6 +9359,11 @@ a.doc-abrir { text-decoration: none; }
 .ctb-pend { grid-template-columns: max-content minmax(220px, 1fr) minmax(160px, max-content) max-content; }
 .ctb-bal { grid-template-columns: max-content minmax(240px, 1fr) repeat(4, minmax(110px, max-content)); }
 .ctb-razao { grid-template-columns: max-content minmax(260px, 1fr) repeat(3, minmax(110px, max-content)); }
+.apu-tri { grid-template-columns: minmax(150px, 1fr) repeat(4, minmax(110px, max-content)) max-content max-content; }
+.apu-mes { grid-template-columns: minmax(120px, 1fr) max-content repeat(5, minmax(100px, max-content)); }
+.apu-guias { grid-template-columns: minmax(180px, 1fr) max-content repeat(2, minmax(110px, max-content)) minmax(220px, 1.2fr); }
+.apu-memoria { grid-template-columns: minmax(260px, 1fr) max-content; }
+:is(.apu-tri, .apu-mes, .apu-guias) > .cabeca > .r { text-align: right; }
 .cal-entregas { grid-template-columns: minmax(220px, 1fr) max-content max-content minmax(240px, 1fr); }
 .cal-entregas .cal-recibo { display: block; white-space: normal; overflow-wrap: anywhere; font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--fs-xs); }
 .ctb-demo { grid-template-columns: max-content minmax(260px, 1fr) repeat(2, minmax(130px, max-content)); }

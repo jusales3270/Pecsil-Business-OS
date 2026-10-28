@@ -19,7 +19,11 @@ export const CREDOR_GUIA: Record<TipoGuia, string> = {
   Outra: "Guia de recolhimento",
 };
 
-export type GuiaLida = { tipo: TipoGuia | null; valor: number | null; vencimento: string | null; competencia: string | null; linhaDigitavel: string | null; valorDoCodigo: number | null; avisos: string[] };
+export type GuiaLida = {
+  tipo: TipoGuia | null; valor: number | null; vencimento: string | null; competencia: string | null; linhaDigitavel: string | null; valorDoCodigo: number | null; avisos: string[];
+  /** Códigos de receita do DARF reconhecidos (só os que estão nos parâmetros) e o período de apuração (AAAA-MM-DD). */
+  codigosReceita: string[]; periodoApuracao: string | null;
+};
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 const dataIso = (d: string) => { const [dd, mm, aa] = d.split("/"); return `${aa}-${mm}-${dd}`; };
@@ -71,7 +75,17 @@ const ROTULO_VALOR = /(?:valor\s+total(?:\s+do\s+documento)?|total\s+a\s+(?:reco
 const ROTULO_VENCIMENTO = /(?:data\s+de\s+vencimento|vencimento|pagar\s+(?:este\s+documento\s+)?ate|data\s+limite(?:\s+para\s+pagamento)?|validade\s+para\s+pagamento)\D{0,30}?(\d{2}\/\d{2}\/\d{4})/i;
 const ROTULO_COMPETENCIA = /(?:periodo\s+de\s+apuracao|competencia|mes\s+de\s+referencia|referencia)\D{0,20}?(?:(\d{2}\/\d{2}\/\d{4})|(\d{2}\/\d{4}))/i;
 
-export function lerGuia(texto: string): GuiaLida {
+/**
+ * Códigos de receita presentes no texto do DARF. Só os `conhecidos` (dos parâmetros legais) contam: um número de 4
+ * dígitos qualquer (ano, agência) não vira código. A ordem é a do documento.
+ */
+export function codigosDoDarf(texto: string, conhecidos: readonly string[]): string[] {
+  const achados: string[] = [];
+  for (const m of texto.matchAll(/(?<!\d)(\d{4})(?!\d)/g)) if (conhecidos.includes(m[1]) && !achados.includes(m[1])) achados.push(m[1]);
+  return achados;
+}
+
+export function lerGuia(texto: string, codigosConhecidos: readonly string[] = []): GuiaLida {
   const t = semAcento(texto);
   const avisos: string[] = [];
   const linha = linhaDigitavelDe(texto);
@@ -85,5 +99,9 @@ export function lerGuia(texto: string): GuiaLida {
   const competencia = comp ? (comp[1] ? dataIso(comp[1]).slice(0, 7) : `${comp[2]!.slice(3)}-${comp[2]!.slice(0, 2)}`) : null;
   if (!linha) avisos.push("Não encontrei a linha digitável: digite ou confira no PDF.");
   if (!venc) avisos.push("Não encontrei o vencimento: digite a data.");
-  return { tipo: tipoDaGuia(texto), valor, vencimento: venc ? dataIso(venc) : null, competencia, linhaDigitavel: linha, valorDoCodigo: doCodigo, avisos };
+  const periodo = t.match(/periodo\s+de\s+apuracao\D{0,20}?(\d{2}\/\d{2}\/\d{4})/i)?.[1];
+  const tipo = tipoDaGuia(texto);
+  const codigosReceita = tipo === "DARF" ? codigosDoDarf(texto, codigosConhecidos) : [];
+  if (tipo === "DARF" && codigosConhecidos.length && !codigosReceita.length) avisos.push("Não reconheci o código da receita do DARF: escolha o tributo.");
+  return { tipo, valor, vencimento: venc ? dataIso(venc) : null, competencia, linhaDigitavel: linha, valorDoCodigo: doCodigo, avisos, codigosReceita, periodoApuracao: periodo ? dataIso(periodo) : null };
 }

@@ -80,3 +80,53 @@ test("PIS e COFINS cumulativos: 0,65% e 3% sobre a receita do mês menos as excl
   assert.equal(apurarPisCofinsCumulativo(PARAMS, "2026-05", 100).darf.pis, "8109");
   assert.throws(() => apurarPisCofinsCumulativo(PARAMS, "2027-01", 100), /Sem alíquotas/);
 });
+
+test("receita pelas notas: venda e industrialização (x1yy), serviço (x933), exportação à parte, devolução de venda desconta, remessa não conta", async () => {
+  const { receitaPorMes, classificarCfop } = await import("../lib/contabil/apuracao/receita.ts");
+  assert.equal(classificarCfop("5101"), "industria"); assert.equal(classificarCfop("6124"), "industria"); assert.equal(classificarCfop("7101"), "industria");
+  assert.equal(classificarCfop("5933"), "servicos"); assert.equal(classificarCfop("5915"), null); assert.equal(classificarCfop("5201"), null); assert.equal(classificarCfop("1101"), null);
+  const [m] = receitaPorMes([
+    { lado: "saida", competencia: "2026-03", receita: { porCfop: { 5101: 1000, 5915: 300 } } },
+    { lado: "saida", competencia: "2026-03", receita: { porCfop: { 7101: 500 } } },
+    { lado: "saida", competencia: "2026-03", receita: { porCfop: { 5933: 200 } } },
+    { lado: "saida", competencia: "2026-03", receita: { porCfop: { 5915: 999 } } },
+    { lado: "entrada", competencia: "2026-03", receita: { porCfop: { 1201: 150, 1101: 80 } } },
+    { lado: "saida", competencia: "2026-03", receita: null },
+  ]);
+  assert.deepEqual(m, { competencia: "2026-03", industria: 1500, servicos: 200, exportacao: 500, devolucoes: 150, notas: 3 });
+});
+
+test("guia: confere ao centavo; diverge com a explicação; sem código; código de outro regime; sem base", async () => {
+  const { conferirGuia, tributoDoCodigo } = await import("../lib/contabil/apuracao/guia.ts");
+  const COD = { 2089: "IRPJ lucro presumido", 2372: "CSLL lucro presumido", "0220": "IRPJ lucro real trimestral", 8109: "PIS faturamento (cumulativo)" };
+  assert.equal(tributoDoCodigo(COD, "2089"), "IRPJ"); assert.equal(tributoDoCodigo(COD, "8109"), "PIS"); assert.equal(tributoDoCodigo(COD, "9999"), null);
+  const g = (valor, codigo = "2089", vencimento = "2026-04-30") => ({ valor, codigo, periodo: "2026-03-31", vencimento });
+  const esperado = { valor: 154500, vencimento: "2026-04-30", alternativas: [{ rotulo: "sem o acréscimo da LC 224", valor: 150000 }] };
+  assert.equal(conferirGuia(g(154500), COD, "presumido", esperado).situacao, "confere");
+  const d = conferirGuia(g(150000, "2089", "2026-05-29"), COD, "presumido", esperado);
+  assert.equal(d.situacao, "diverge"); assert.equal(d.diferenca, -4500);
+  assert.match(d.motivos.join(" "), /sem o acréscimo da LC 224/); assert.match(d.motivos.join(" "), /calendário diz 30\/04\/2026/);
+  assert.equal(conferirGuia(g(10, null), COD, "presumido", esperado).situacao, "sem_codigo");
+  const real = conferirGuia(g(10, "0220"), COD, "presumido", null);
+  assert.equal(real.situacao, "diverge"); assert.match(real.motivos[0], /outro regime/);
+  assert.equal(conferirGuia(g(10), COD, "presumido", null).situacao, "sem_base");
+});
+
+test("leitura do XML: o resumo de receita conta todos os itens (com e sem o grupo IBS/CBS), o CFOP, a exportação e o IPI", async () => {
+  const { lerIbsCbs } = await import("../lib/fiscal/ibs-cbs/leitura.ts");
+  const item = (n, cfop, vProd, vDesc, ipi, ibs = "") => `<det nItem="${n}"><prod><CFOP>${cfop}</CFOP><vProd>${vProd}</vProd><vDesc>${vDesc}</vDesc></prod><imposto><IPI><IPITrib><vIPI>${ipi}</vIPI></IPITrib></IPI>${ibs}</imposto></det>`;
+  const grupo = "<IBSCBS><CST>000</CST><cClassTrib>000001</cClassTrib><gIBSCBS><vBC>100</vBC></gIBSCBS></IBSCBS>";
+  const xml = `<NFe><infNFe Id="NFe${"1".repeat(44)}"><ide><mod>55</mod><nNF>9</nNF><dhEmi>2026-03-10T10:00:00-03:00</dhEmi><finNFe>1</finNFe></ide><emit><CNPJ>46839106000184</CNPJ><CRT>3</CRT></emit><dest><CNPJ>11111111000111</CNPJ></dest>${item(1, "5101", "1000.00", "100.00", "50.00", grupo)}${item(2, "7101", "500.00", "0", "0")}${item(3, "5101", "200.00", "0", "10.00")}<total><ICMSTot><vNF>1660.00</vNF></ICMSTot></total></infNFe></NFe>`;
+  const n = lerIbsCbs(xml, "46839106000184");
+  assert.equal(n.lado, "saida"); assert.equal(n.itens.length, 1, "o IBS/CBS segue só com o item que tem o grupo");
+  assert.deepEqual(n.receita.porCfop, { 5101: 1100, 7101: 500 });
+  assert.equal(n.receita.exportacao, 500); assert.equal(n.receita.vIPI, 60); assert.equal(n.receita.vDesc, 100);
+});
+
+test("DARF: só os códigos conhecidos dos parâmetros contam, e o período de apuração vem com a data", async () => {
+  const { lerGuia } = await import("../lib/fiscal/guia-parser.ts");
+  const texto = "DOCUMENTO DE ARRECADAÇÃO DE RECEITAS FEDERAIS DARF Período de Apuração 31/03/2026 Data de Vencimento 30/04/2026 Composição 2089 IRPJ 2026 Agência 3456 Valor Total do Documento 154.500,00";
+  const g = lerGuia(texto, ["2089", "2372"]);
+  assert.equal(g.tipo, "DARF"); assert.deepEqual(g.codigosReceita, ["2089"]); assert.equal(g.periodoApuracao, "2026-03-31");
+  assert.match(lerGuia("DARF Valor Total do Documento 10,00", ["2089"]).avisos.join(" "), /código da receita/);
+});
