@@ -11,6 +11,7 @@ import type { RhAbsence, RhBenefitPlan, RhBenefitRequest, RhDocument, RhEmployee
 import { deleteRhDocument, formatCpf, getRhDocumentUrl, getRhEmployeePersonalData, listRhEmployeeDocuments, uploadRhDocument, type RhEmployeeDocument, type RhPersonalData } from "../../lib/data/rh-documents-client";
 import { HolidaysSection } from "./hr-holidays";
 import { JANELA_ALERTA_DIAS, diasAte, hojeBrasilia, situacaoSst } from "../../lib/rh/sst-situacao";
+import { PERIODOS_EXPERIENCIA, fimDaExperiencia } from "../../lib/rh/experiencia";
 import { PpeSection, usePpeData } from "./hr-epi";
 import { TerceirosSection } from "./hr-terceiros";
 import { ExigenciasFuncao } from "./rh-exigencias";
@@ -44,12 +45,13 @@ const SECTION_FEATURE: Partial<Record<HrSection, string>> = {
   "Homologação": "rh.homologacao",
 };
 
-type EmployeeRecord = Person & {
+type ContractLabel = "CLT" | "Experiência" | "Não informado";
+type EmployeeRecord = Omit<Person, "contractType"> & {
   registration: string;
   cpf: string;
   phone: string;
   admissionDate: string;
-  contractType: string;
+  contractType: ContractLabel;
   manager: string;
   team: string;
   schedule: string;
@@ -68,7 +70,7 @@ function toEmployee(person: Person): EmployeeRecord {
       cpf: "",
       phone: "",
       admissionDate: person.admissionDate ?? "",
-      contractType: "Não informado",
+      contractType: person.contractType === "experiencia" ? "Experiência" : person.contractType === "clt" ? "CLT" : "Não informado",
       manager: "Não informado",
       team: person.team ?? "Sem equipe",
       schedule: "Não informado",
@@ -87,6 +89,12 @@ function toEmployee(person: Person): EmployeeRecord {
     schedule: "Administrativo",
     documentStatus: "Pendente",
   };
+}
+
+/** Tipo de contrato como a API grava; "Não informado" (cadastro antigo) não mexe no que está no banco. */
+function contractPayload(employee: EmployeeRecord) {
+  if (employee.contractType === "Experiência") return { contractType: "experiencia" as const, experienciaDias: employee.experienciaDias ?? null };
+  return employee.contractType === "CLT" ? { contractType: "clt" as const } : {};
 }
 
 /** Identidade estável de uma pessoa: id do banco, ou o e-mail para quem ainda não tem ficha no RH. */
@@ -556,7 +564,7 @@ function toBenefitUiPlan(plan: RhBenefitPlan, index: number): BenefitPlan {
   };
 }
 
-function HrDashboard({ people, summary, rh, setSection, notify, access, canCreate, requestCreate }: { people: Person[]; summary: FoundationSummary; rh: RhSnapshot; setSection: (section: HrSection) => void; notify: (message: string) => void; access: ModuleAccessContext; canCreate: boolean; requestCreate: () => void }) {
+function HrDashboard({ people, summary, rh, setSection, notify, access, canCreate, requestCreate }: { people: Omit<Person, "contractType">[]; summary: FoundationSummary; rh: RhSnapshot; setSection: (section: HrSection) => void; notify: (message: string) => void; access: ModuleAccessContext; canCreate: boolean; requestCreate: () => void }) {
   // Pendências reais: ausências aguardando decisão + SST vencido/a vencer.
   const pending = buildPendingItems(rh);
   const [detail, setDetail] = useState<KpiDetail | null>(null);
@@ -641,6 +649,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
             // Vazio = não mexe no que já está gravado.
             cpf: employee.cpf || undefined,
             phone: employee.phone || undefined,
+            ...contractPayload(employee),
           },
         });
         notify(employee.terminationDate
@@ -671,6 +680,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
             positionName: employee.role || null,
             cpf: employee.cpf || null,
             phone: employee.phone || null,
+            ...contractPayload(employee),
           }),
         });
         if (response.status === 401) throw new Error("UNAUTHENTICATED");
@@ -735,17 +745,21 @@ function EmployeeDrawer({ employee, canEdit, canViewDocs, notify, onClose, onEdi
   const phoneShown = !employee.id ? (employee.phone || "Não informado") : !canEdit ? "Restrito ao RH" : !pd ? "Carregando…" : pd.phone || "Não informado";
   const editWithPersonal = () => onEdit(employee.id ? { ...employee, cpf: pd?.cpf ? formatCpf(pd.cpf) : "", phone: pd?.phone ?? "" } : employee);
   const admission = employee.admissionDate ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${employee.admissionDate}T12:00:00Z`)) : "Não informada";
+  const inExperience = employee.contractType === "Experiência";
+  // O período de experiência: o atual, ou o que a pessoa cumpriu antes de efetivar (histórico).
+  const experiencePeriod = employee.experienciaDias && employee.experienciaInicio && employee.experienciaFim
+    ? `${employee.experienciaDias} dias · ${formatDate(employee.experienciaInicio)} a ${formatDate(employee.experienciaFim)}` : null;
   const termination = employee.terminationDate ? formatDate(employee.terminationDate) : null;
   return <div className="employee-layer">
     <aside className="employee-drawer" onMouseDown={event => event.stopPropagation()} aria-label={`Ficha de ${employee.name}`}>
       <header><button onClick={onClose} aria-label="Fechar ficha"><HrIcon name="close"/></button><span className="employee-avatar">{employee.initials}</span><div><p className="eyebrow">FICHA DO COLABORADOR</p><h2>{employee.name}</h2><p>{employee.role} · {employee.department}</p></div><Status tone={employee.status === "Ativo" ? "success" : employee.status === "Pendente" ? "info" : "neutral"}>{employee.status}</Status></header>
       <nav className="employee-tabs" aria-label="Seções da ficha">{(["Resumo","Vínculo","Documentos","Histórico"] as const).map(item => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</nav>
       <div className="employee-detail-content">
-        {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div><div><small>Admissão</small><strong>{admission}</strong></div>{termination && <div><small>Demissão</small><strong>{termination}</strong></div>}</section><DetailGroup title="Contato" rows={[["E-mail",employee.email || "Não informado"],["Telefone",phoneShown],["CPF",cpfShown]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/></>}
-        {tab === "Vínculo" && <><DetailGroup title="Dados contratuais" rows={[["Tipo de contrato",employee.contractType],["Cargo",employee.role],["Gestor responsável",employee.manager],["Jornada",employee.schedule]]}/><div className="employee-callout"><HrIcon name="shield"/><span><b>Escopo protegido</b><small>Alterações do cadastro ficam registradas em Fundação › Auditoria.</small></span></div></>}
+        {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div>{inExperience ? <div><small>Experiência até</small><strong>{employee.experienciaFim ? formatDate(employee.experienciaFim) : "Não informada"}</strong></div> : <div><small>Admissão</small><strong>{admission}</strong></div>}{termination && <div><small>Demissão</small><strong>{termination}</strong></div>}</section><DetailGroup title="Contato" rows={[["E-mail",employee.email || "Não informado"],["Telefone",phoneShown],["CPF",cpfShown]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/></>}
+        {tab === "Vínculo" && <><DetailGroup title="Dados contratuais" rows={[["Tipo de contrato",employee.contractType],...(experiencePeriod ? [[inExperience ? "Período de experiência" : "Experiência cumprida", experiencePeriod] as [string, string]] : []),...(inExperience ? [] : [["Admissão", admission] as [string, string]]),["Cargo",employee.role],["Gestor responsável",employee.manager],["Jornada",employee.schedule]]}/><div className="employee-callout"><HrIcon name="shield"/><span><b>Escopo protegido</b><small>Alterações do cadastro ficam registradas em Fundação › Auditoria.</small></span></div></>}
         {tab === "Documentos" && employee.id && <EmployeeDocuments employeeId={employee.id} canView={canViewDocs} notify={notify}/>}
         {tab === "Documentos" && !employee.id && <div className="employee-callout"><HrIcon name="alert"/><span><b>Sem ficha no RH</b><small>Esta pessoa tem acesso à plataforma, mas ainda não tem cadastro de colaborador. Os documentos aparecem depois que o RH cadastrar.</small></span></div>}
-        {tab === "Histórico" && employee.id && <div className="employee-history"><div><i>1</i><span><b>Admissão</b><small>{admission}</small></span></div><div><i>2</i><span><b>Cadastro importado da folha</b><small>Matrícula {employee.registration}</small></span></div>{termination && <div><i>3</i><span><b>Demissão</b><small>{termination}</small></span></div>}</div>}
+        {tab === "Histórico" && employee.id && <div className="employee-history">{inExperience ? <div><i>1</i><span><b>Início da experiência</b><small>{experiencePeriod ?? "Não informado"}</small></span></div> : <div><i>1</i><span><b>Admissão</b><small>{admission}</small></span></div>}<div><i>2</i><span><b>Cadastro importado da folha</b><small>Matrícula {employee.registration}</small></span></div>{termination && <div><i>3</i><span><b>Demissão</b><small>{termination}</small></span></div>}</div>}
         {tab === "Histórico" && !employee.id && <div className="employee-callout"><HrIcon name="alert"/><span><b>Sem ficha no RH</b><small>O histórico começa quando o RH cadastrar esta pessoa como colaborador.</small></span></div>}
       </div>
       {canEdit && <footer>{onDelete ? <button type="button" className="absence-reject drawer-delete" onClick={onDelete}><HrIcon name="close"/> Excluir cadastro</button> : null}<Button variant="secondary" onClick={editWithPersonal}><HrIcon name="edit"/> Editar cadastro</Button></footer>}
@@ -841,13 +855,15 @@ function DetailGroup({ title, rows }: { title: string; rows: string[][] }) {
 function EmployeeForm({ employee, nextRegistration, units, departments, onClose, onSave }: { employee: EmployeeRecord | null; nextRegistration: string; units: string[]; departments: string[]; onClose: () => void; onSave: (employee: EmployeeRecord, isNew: boolean) => void }) {
   const isNew = !employee;
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState<EmployeeRecord>(() => employee ?? {
+  // Uma unidade só: o campo não aparece e o cadastro fica nela.
+  const singleUnit = units.length <= 1;
+  const [form, setForm] = useState<EmployeeRecord>(() => employee ? { ...employee, contractType: employee.contractType === "Experiência" ? "Experiência" : "CLT" } : {
     initials: "",
     name: "",
     email: "",
     role: "",
     department: "",
-    unit: "",
+    unit: units.length === 1 ? units[0] : "",
     profile: "Colaborador",
     status: "Pendente",
     registration: nextRegistration,
@@ -861,17 +877,25 @@ function EmployeeForm({ employee, nextRegistration, units, departments, onClose,
     documentStatus: "Pendente",
   });
   const update = (field: keyof EmployeeRecord, value: string) => setForm(current => ({ ...current, [field]: value }));
+  const experience = form.contractType === "Experiência";
+  const hojeForm = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  // Quem já estava em experiência segue com o início gravado; quem entra agora começa hoje.
+  const experienceStart = (employee?.contractType === "Experiência" && employee.experienciaInicio) || hojeForm;
+  const experienceEnd = form.experienciaDias ? fimDaExperiencia(experienceStart, form.experienciaDias) : null;
   const terminationValid = !form.terminationDate || !form.admissionDate || form.terminationDate >= form.admissionDate;
   const cpfDigits = form.cpf.replace(/\D/g, "");
   const cpfOk = cpfDigits.length === 11 || (!isNew && !cpfDigits);
-  const canAdvance = step === 1 ? Boolean(form.name && cpfOk && (form.phone || !isNew)) : step === 2 ? Boolean(form.registration && form.admissionDate && form.unit && form.department && form.role && terminationValid) : Boolean(form.email);
+  const canAdvance = step === 1 ? Boolean(form.name && cpfOk && (form.phone || !isNew)) : step === 2 ? Boolean(form.registration && (experience ? form.experienciaDias : form.admissionDate) && (form.unit || singleUnit) && form.department && form.role && terminationValid) : Boolean(form.email);
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (step < 3) { if (canAdvance) setStep(value => value + 1); return; }
     const initials = form.name.split(/\s+/).filter(Boolean).slice(0,2).map(part => part[0]).join("").toUpperCase();
     const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
     const status = form.terminationDate && form.terminationDate <= hoje ? "Desligado" : form.status === "Desligado" ? "Ativo" : form.status;
-    onSave({ ...form, initials, status, terminationDate: form.terminationDate || null }, isNew);
+    const contract = experience
+      ? { admissionDate: "", experienciaInicio: experienceStart, experienciaFim: experienceEnd }
+      : { experienciaDias: form.experienciaDias ?? null };
+    onSave({ ...form, ...contract, initials, status, terminationDate: form.terminationDate || null }, isNew);
   };
   return <div className="employee-layer form-layer">
     <form className="employee-form" onSubmit={submit} onMouseDown={event => event.stopPropagation()}>
@@ -879,7 +903,18 @@ function EmployeeForm({ employee, nextRegistration, units, departments, onClose,
       <div className="employee-stepper">{([[1,"Dados pessoais"],[2,"Vínculo"],[3,"Contato e acesso"]] as [number, string][]).map(([number,label]) => <span className={step >= number ? "active" : ""} key={label}><i>{step > number ? "✓" : number}</i><b>{label}</b></span>)}</div>
       <div className="employee-fields">
         {step === 1 && <><label className="field-wide"><span>Nome completo *</span><input autoFocus value={form.name} onChange={event => update("name",event.target.value)} placeholder="Nome civil do colaborador"/></label><label><span>{isNew ? "CPF *" : "CPF"}</span><input value={form.cpf} onChange={event => update("cpf",event.target.value)} placeholder="000.000.000-00" inputMode="numeric"/>{form.cpf && !cpfOk && <small className="field-hint">O CPF precisa ter 11 dígitos.</small>}</label><label><span>{isNew ? "Telefone *" : "Telefone"}</span><input value={form.phone} onChange={event => update("phone",event.target.value)} placeholder="(00) 00000-0000"/></label></>}
-        {step === 2 && <><label><span>Matrícula *</span><input value={form.registration} onChange={event => update("registration",event.target.value)}/></label><label><span>Data de admissão *</span><input type="date" value={form.admissionDate} onChange={event => update("admissionDate",event.target.value)}/></label>{!isNew && <label><span>Data de demissão</span><input type="date" min={form.admissionDate || undefined} value={form.terminationDate ?? ""} onChange={event => update("terminationDate",event.target.value)}/><small className="field-hint">Preencha quando o colaborador for desligado. O cadastro e o histórico ficam guardados.</small></label>}<label><span>Unidade *</span><select value={form.unit} onChange={event => update("unit",event.target.value)}>{units.map(name => <option key={name}>{name}</option>)}</select></label><label><span>Departamento *</span><select value={form.department} onChange={event => update("department",event.target.value)}>{departments.map(name => <option key={name}>{name}</option>)}</select></label><label className="field-wide"><span>Cargo *</span><input value={form.role} onChange={event => update("role",event.target.value)} placeholder="Ex.: Analista de Recursos Humanos"/></label><label><span>Tipo de contrato</span><select value={form.contractType} onChange={event => update("contractType",event.target.value)}><option>CLT</option><option>Temporário</option><option>Estágio</option><option>Aprendiz</option><option>Terceirizado</option><option>Sócio-administrador</option></select></label><label><span>Jornada</span><select value={form.schedule} onChange={event => update("schedule",event.target.value)}><option>Administrativo</option><option>Turno A</option><option>Turno B</option><option>Turno C</option><option>Executiva</option></select></label></>}
+        {step === 2 && <>
+          <label><span>Matrícula *</span><input value={form.registration} onChange={event => update("registration",event.target.value)}/></label>
+          <label><span>Tipo de contrato *</span><select value={form.contractType} onChange={event => update("contractType",event.target.value)}><option>CLT</option><option>Experiência</option></select></label>
+          {experience
+            ? <label><span>Período de experiência *</span><select value={form.experienciaDias ?? ""} onChange={event => setForm(current => ({ ...current, experienciaDias: event.target.value ? Number(event.target.value) : null }))}><option value="">Selecione</option>{PERIODOS_EXPERIENCIA.map(dias => <option key={dias} value={dias}>{dias} dias</option>)}</select><small className="field-hint">{experienceEnd ? `De ${formatDate(experienceStart)} a ${formatDate(experienceEnd)}. Ainda não é efetivo: o RH é avisado 2 dias antes do vencimento.` : `Começa em ${formatDate(experienceStart)}. Ainda não é efetivo da empresa.`}</small></label>
+            : <label><span>Data de admissão *</span><input type="date" value={form.admissionDate} onChange={event => update("admissionDate",event.target.value)}/><small className="field-hint">Data em que o colaborador efetivou na empresa.</small></label>}
+          <label><span>Departamento *</span><select value={form.department} onChange={event => update("department",event.target.value)}><option value="">Selecione</option>{departments.map(name => <option key={name}>{name}</option>)}</select></label>
+          {!singleUnit && <label><span>Unidade *</span><select value={form.unit} onChange={event => update("unit",event.target.value)}><option value="">Selecione</option>{units.map(name => <option key={name}>{name}</option>)}</select></label>}
+          <label className="field-wide"><span>Cargo *</span><input value={form.role} onChange={event => update("role",event.target.value)} placeholder="Ex.: Analista de Recursos Humanos"/></label>
+          <label><span>Jornada</span><select value={form.schedule} onChange={event => update("schedule",event.target.value)}><option>Administrativo</option><option>Turno A</option><option>Turno B</option><option>Turno C</option><option>Executiva</option></select></label>
+          {!isNew && <label><span>Data de demissão</span><input type="date" min={form.admissionDate || undefined} value={form.terminationDate ?? ""} onChange={event => update("terminationDate",event.target.value)}/><small className="field-hint">Preencha quando o colaborador for desligado. O cadastro e o histórico ficam guardados.</small></label>}
+        </>}
         {step === 3 && <><label className="field-wide"><span>E-mail *</span><input type="email" value={form.email} onChange={event => update("email",event.target.value)} placeholder="nome@exemplo.com"/></label><label><span>Equipe</span><input value={form.team} onChange={event => update("team",event.target.value)} placeholder="Equipe de trabalho"/></label><label><span>Gestor responsável</span><input value={form.manager} onChange={event => update("manager",event.target.value)} placeholder="Nome do gestor"/></label><label><span>Situação inicial</span><select value={form.status} onChange={event => update("status",event.target.value)}><option>Ativo</option><option>Pendente</option><option>Bloqueado</option></select></label><label><span>Documentação</span><select value={form.documentStatus} onChange={event => update("documentStatus",event.target.value)}><option>Pendente</option><option>Completo</option></select></label><div className="employee-form-note field-wide"><HrIcon name="lock"/><span><b>Acesso separado do vínculo</b><small>O perfil de usuário será concedido pela área de Pessoas e Acessos, respeitando as credenciais da plataforma.</small></span></div></>}
       </div>
       <footer><button type="button" className="employee-cancel" onClick={step === 1 ? onClose : () => setStep(value => value - 1)}>{step === 1 ? "Cancelar" : "Voltar"}</button><Button type="submit" disabled={!canAdvance}>{step < 3 ? "Continuar" : isNew ? "Concluir cadastro" : "Salvar alterações"} <HrIcon name={step < 3 ? "arrow" : "check"}/></Button></footer>

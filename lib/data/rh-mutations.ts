@@ -2,6 +2,7 @@ import "server-only";
 
 import { createSupabaseAdminClient } from "../supabase/admin";
 import { createSupabaseServerClient } from "../supabase/server";
+import { periodoValido } from "../rh/experiencia";
 
 // Mutações de decisão do RH, executadas com a sessão do usuário. Toda a
 // autorização é do banco: as policies de escrita (rh_absences_decide,
@@ -40,7 +41,12 @@ export type RhEmployeeEdit = {
   /** Dados pessoais (tabela protegida). Ausente = não mexe; CPF só com 11 dígitos. */
   cpf?: string | null;
   phone?: string | null;
+  /** Tipo de contrato. Ausente = não mexe. Experiência pede o período (60 ou 90 dias). */
+  contractType?: RhContractType;
+  experienciaDias?: number | null;
 };
+
+export type RhContractType = "clt" | "experiencia";
 
 export type RhMutation =
   | { entity: "absence"; id: string; decision: "approved" | "rejected" }
@@ -369,7 +375,21 @@ export type RhEmployeeDraft = {
   positionName: string | null;
   cpf?: string | null;
   phone?: string | null;
+  contractType?: RhContractType;
+  experienciaDias?: number | null;
 };
+
+/**
+ * Colunas do tipo de contrato. Experiência: ainda não é efetivo, então fica sem admissão; o período (60 ou
+ * 90 dias) começa no dia do cadastro, ou segue o início já gravado. CLT: a admissão é a data em que
+ * efetivou; o período de experiência que a pessoa cumpriu fica guardado como histórico.
+ */
+function contractColumns(type: RhContractType | undefined, dias: number | null | undefined, inicioAtual: string | null): Record<string, unknown> {
+  if (type === undefined) return {};
+  if (type === "clt") return { contract_type: "clt" };
+  if (type !== "experiencia" || !periodoValido(dias)) throw new Error("RH_INVALID");
+  return { contract_type: "experiencia", experiencia_dias: dias, experiencia_inicio: inicioAtual ?? hojeSaoPaulo(), admission_date: null };
+}
 
 // Cadastra um colaborador na Fundação (tabela employees). A RLS
 // (employees_manage) exige core.people edit. Resolve unidade/departamento/cargo
@@ -417,6 +437,7 @@ export async function createRhEmployee(draft: RhEmployeeDraft): Promise<{ id: st
       unit_id: unitId,
       position_id: positionId,
       active: true,
+      ...contractColumns(draft.contractType, draft.experienciaDias, null),
     })
     .select("id")
     .single();
@@ -451,7 +472,7 @@ async function updateRhEmployee(supabase: ServerClient, id: string, c: RhEmploye
   if (!c.fullName.trim() || !c.employeeNumber.trim()) throw new Error("RH_INVALID");
   if (admission && termination && termination < admission) throw new Error("RH_INVALID");
 
-  const { data: current, error: readError } = await supabase.from("employees").select("organization_id").eq("id", id).maybeSingle();
+  const { data: current, error: readError } = await supabase.from("employees").select("organization_id, contract_type, experiencia_inicio").eq("id", id).maybeSingle();
   if (readError) throw readError;
   if (!current) throw new Error("RH_MUTATION_DENIED");
   const organizationId = String(current.organization_id);
@@ -468,6 +489,8 @@ async function updateRhEmployee(supabase: ServerClient, id: string, c: RhEmploye
     admission_date: admission,
     termination_date: termination,
     active: !termination || termination > hojeSaoPaulo(),
+    // Quem segue em experiência mantém o início gravado; quem entra agora em experiência começa hoje.
+    ...contractColumns(c.contractType, c.experienciaDias, current.contract_type === "experiencia" ? (current.experiencia_inicio as string | null) : null),
   };
   // Nome que não existe no cadastro da estrutura não apaga o vínculo atual.
   if (departmentId) changes.department_id = departmentId;

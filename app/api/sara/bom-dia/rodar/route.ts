@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "../../../../../lib/supabase/admin";
 import { rodarBomDia } from "../../../../../lib/sara/central/bom-dia-executar";
+import { avisarFimDeExperiencia } from "../../../../../lib/rh/experiencia-avisos";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,6 +12,7 @@ export const runtime = "nodejs";
  * minutos), com o segredo FORJA_SYNC_SECRET. Fora da janela (7h às 11h, segunda a sábado), não faz nada.
  * Fora de produção, o teste pode passar a hora (`agora`) e limitar quem recebe (`somente`, ids de perfil),
  * para nunca mandar Bom dia de teste a quem trabalha. A resposta traz só contagens e situações.
+ * Na mesma tarefa sai o aviso do fim da experiência (RH) no sino, todos os dias a partir das 7h30.
  */
 function segredoConfere(recebido: string | null): boolean {
   const esperado = process.env.FORJA_SYNC_SECRET?.trim();
@@ -32,6 +34,9 @@ export async function POST(request: Request) {
     const agora = corpo?.agora ? new Date(corpo.agora) : null;
     opcoes = { ...(agora && !Number.isNaN(agora.getTime()) ? { agora } : {}), ...(Array.isArray(corpo?.somente) ? { somente: corpo.somente.filter((x) => UUID.test(String(x))) } : {}) };
   }
+  // O aviso da experiência vai antes (e só a quem decide no RH); falhar nele não segura o Bom dia.
+  const experiencia = process.env.NODE_ENV !== "production" && opcoes.somente ? { avisados: 0 } : await avisarFimDeExperiencia(admin, opcoes.agora).catch((e) => ({ avisados: 0, erro: String(e) }));
+  if ("erro" in experiencia && experiencia.erro) console.error("[rh] aviso de experiência falhou", experiencia.erro);
   const r = await rodarBomDia(admin, opcoes);
-  return NextResponse.json({ enfileirados: r.enfileirados, rodados: r.rodados, erro: r.erro ?? null }, { status: r.erro ? 500 : 200 });
+  return NextResponse.json({ enfileirados: r.enfileirados, rodados: r.rodados, experiencia: experiencia.avisados, erro: r.erro ?? null }, { status: r.erro ? 500 : 200 });
 }

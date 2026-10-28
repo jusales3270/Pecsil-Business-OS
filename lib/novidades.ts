@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-28-rh-experiencia",
+    data: "2026-10-28",
+    area: "RH",
+    modulos: ["rh"],
+    funcionalidades: ["rh.colaboradores"],
+    titulo: "Contrato de experiência no cadastro do colaborador",
+    itens: [
+      "No cadastro, o tipo de contrato vem logo depois da matrícula: CLT ou Experiência. CLT pede a data de admissão (o dia em que a pessoa efetivou); Experiência pede o período, 60 ou 90 dias, contado do dia do cadastro.",
+      "Quem está em experiência ainda não é efetivo: a ficha mostra até quando vai o período. Para efetivar, edite o cadastro e troque para CLT com a data de admissão; o período cumprido fica no histórico.",
+      "Dois dias antes do vencimento, o RH recebe o aviso no sino e no Bom dia (também no WhatsApp).",
+      "O campo Unidade saiu do cadastro: a empresa tem uma unidade só, e o colaborador já fica nela.",
+    ],
+  },
+  {
     id: "2026-10-28-apuracoes-presumido",
     data: "2026-10-28",
     area: "Fiscal",

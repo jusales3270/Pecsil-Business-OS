@@ -46,7 +46,7 @@ export async function getSupabaseFoundationSnapshot(): Promise<FoundationSnapsho
     positionsResult,
   ] = await Promise.all([
     supabase.from("organizations").select("id,display_name").eq("id", organizationId).single(),
-    supabase.from("employees").select("id,profile_id,full_name,corporate_email,active,employee_number,admission_date,termination_date,profiles!employees_profile_id_fkey(email,status),positions(name),departments(name),teams(name),units(name)").eq("organization_id", organizationId).order("full_name").limit(500),
+    supabase.from("employees").select("id,profile_id,full_name,corporate_email,active,employee_number,admission_date,termination_date,contract_type,experiencia_dias,experiencia_inicio,experiencia_fim,profiles!employees_profile_id_fkey(email,status),positions(name),departments(name),teams(name),units(name)").eq("organization_id", organizationId).order("full_name").limit(500),
     supabase.from("employees").select("id", { count:"exact", head:true }).eq("organization_id", organizationId),
     supabase.from("employees").select("id", { count:"exact", head:true }).eq("organization_id", organizationId).eq("active", true),
     supabase.from("profiles").select("id", { count:"exact", head:true }).eq("organization_id", organizationId),
@@ -108,6 +108,10 @@ function toPerson(row: Row): Person {
     admissionDate: row.admission_date ? String(row.admission_date) : null,
     terminationDate: row.termination_date ? String(row.termination_date) : null,
     team: relation(row.teams).name ? String(relation(row.teams).name) : null,
+    contractType: row.contract_type === "clt" || row.contract_type === "experiencia" ? row.contract_type : null,
+    experienciaDias: row.experiencia_dias ? Number(row.experiencia_dias) : null,
+    experienciaInicio: row.experiencia_inicio ? String(row.experiencia_inicio) : null,
+    experienciaFim: row.experiencia_fim ? String(row.experiencia_fim) : null,
   };
 }
 

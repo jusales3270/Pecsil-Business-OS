@@ -16,6 +16,12 @@ export type Person = {
   /** Demissão registrada no cadastro (vínculo encerrado a partir desta data). */
   terminationDate?: string | null;
   team?: string | null;
+  /** Tipo de contrato: CLT (efetivo) ou experiência (60/90 dias, ainda não efetivo). Nulo = não informado. */
+  contractType?: "clt" | "experiencia" | null;
+  experienciaDias?: number | null;
+  experienciaInicio?: string | null;
+  /** Último dia do período de experiência (calculado no banco). */
+  experienciaFim?: string | null;
 };
 
 export type OrganizationEntity = {
