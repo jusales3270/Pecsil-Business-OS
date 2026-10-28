@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-28-rh-filtros-ausencias",
+    data: "2026-10-28",
+    area: "RH",
+    modulos: ["rh"],
+    funcionalidades: ["rh.ferias"],
+    titulo: "Filtros no cabeçalho de Férias e ausências",
+    itens: [
+      "Os filtros ficam no próprio cabeçalho da tabela: Colaborador (digite o nome; a partir da 3ª letra aparecem os nomes para escolher), Tipo e período e Situação (listas). O filtro de Status do canto saiu.",
+      "Com filtro, a busca vai ao histórico inteiro, não só às solicitações recentes da tela.",
+      "Escolhido um tipo, a coluna Duração mostra o total desse tipo em todas as solicitações que batem com os filtros (ex.: total de dias de férias).",
+    ],
+  },
+  {
     id: "2026-10-28-rh-experiencia",
     data: "2026-10-28",
     area: "RH",

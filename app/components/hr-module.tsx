@@ -202,6 +202,8 @@ type AbsenceRecord = {
   reason: string;
   balance: number;
   conflict: string | null;
+  /** Achada pela busca no histórico (filtros): só aparece com filtro e não entra nos indicadores. */
+  fromSearch?: boolean;
 };
 
 const initialAbsences: AbsenceRecord[] = [];
@@ -326,6 +328,59 @@ function durationLabel(record: { days: number; hours: number | null; dayPart: "m
   if (record.dayPart) return record.dayPart === "manha" ? "Manhã" : "Tarde";
   return `${record.days} ${record.days === 1 ? "dia" : "dias"}`;
 }
+/** Tipos em ordem alfabética, para o filtro do cabeçalho. */
+const ABSENCE_TYPE_OPTIONS = (Object.values(absenceTypeLabel) as AbsenceLabel[]).sort((a, b) => a.localeCompare(b, "pt-BR"));
+/** Situações na ordem do fluxo de aprovação. */
+const ABSENCE_STATUS_OPTIONS: AbsenceStatus[] = ["Pendente", "Em análise", "Aprovada", "Registrado", "Reprovada"];
+const semAcento = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+type DurationTotals = { days: number; hours: number; halfDays: number };
+/** Soma da duração: dias inteiros, horas e meios períodos, cada um na sua unidade. */
+function sumDurations(records: { days: number; hours: number | null; dayPart: "manha" | "tarde" | null }[]): DurationTotals {
+  return {
+    days: records.filter(record => record.hours == null && !record.dayPart).reduce((sum, record) => sum + record.days, 0),
+    hours: records.reduce((sum, record) => sum + (record.hours ?? 0), 0),
+    halfDays: records.filter(record => record.hours == null && record.dayPart).length,
+  };
+}
+function totalDurationLabel({ days, hours, halfDays: halves }: DurationTotals) {
+  const parts = [
+    days ? `${days.toLocaleString("pt-BR")} ${days === 1 ? "dia" : "dias"}` : "",
+    hours ? durationLabel({ days: 0, hours, dayPart: null }) : "",
+    halves ? `${halves} ${halves === 1 ? "meio período" : "meios períodos"}` : "",
+  ].filter(Boolean);
+  return parts.length ? `Total: ${parts.join(" + ")}` : "";
+}
+
+/**
+ * Filtro por nome no cabeçalho "Colaborador": digita e, a partir da 3ª letra, abre os nomes que batem
+ * (sem diferença de acento ou maiúsculas). Escolher um nome filtra por ele; o texto digitado já filtra.
+ */
+function AbsenceNameFilter({ names, value, onChange }: { names: string[]; value: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const query = semAcento(value.trim());
+  const options = query.length >= 3 ? names.filter(name => semAcento(name).includes(query) && semAcento(name) !== query).slice(0, 8) : [];
+  const showList = open && options.length > 0;
+  const choose = (name: string) => { onChange(name); setOpen(false); };
+  return <div className={`absence-name-filter${value.trim() ? " is-active" : ""}`}>
+    <HrIcon name="search"/>
+    <input value={value} placeholder="Colaborador" aria-label="Filtrar por colaborador (digite 3 letras)" role="combobox" aria-expanded={showList} aria-controls="absence-name-options" aria-autocomplete="list"
+      onChange={event => { onChange(event.target.value); setOpen(true); setActive(0); }}
+      onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}
+      onKeyDown={event => {
+        if (event.key === "Escape") { setOpen(false); return; }
+        if (!showList) return;
+        if (event.key === "ArrowDown") { event.preventDefault(); setActive(index => (index + 1) % options.length); }
+        if (event.key === "ArrowUp") { event.preventDefault(); setActive(index => (index - 1 + options.length) % options.length); }
+        if (event.key === "Enter") { event.preventDefault(); choose(options[Math.min(active, options.length - 1)]); }
+      }}/>
+    {value && <button type="button" aria-label="Limpar o nome" onMouseDown={event => event.preventDefault()} onClick={() => onChange("")}><HrIcon name="close"/></button>}
+    {showList && <ul id="absence-name-options" role="listbox">{options.map((name, index) => <li key={name} role="option" aria-selected={index === active} className={index === active ? "active" : ""}
+      onMouseDown={event => { event.preventDefault(); choose(name); }} onMouseEnter={() => setActive(index)}>{name}</li>)}</ul>}
+  </div>;
+}
+
 const sstCategoryLabel: Record<RhSstRecord["category"], string> = {
   exam: "Exame", training: "Treinamento", ppe: "EPI", incident: "Ocorrência",
 };
@@ -409,6 +464,7 @@ const absenceTypeEnum = Object.fromEntries(
 const absenceStatusPt: Record<RhAbsence["status"], AbsenceStatus> = {
   pending: "Pendente", under_review: "Em análise", approved: "Aprovada", rejected: "Reprovada", registered: "Registrado",
 };
+const absenceStatusEnum = Object.fromEntries(Object.entries(absenceStatusPt).map(([code, label]) => [label, code])) as Record<AbsenceStatus, RhAbsence["status"]>;
 
 function toAbsenceRecord(absence: RhAbsence, index: number): AbsenceRecord {
   return {
@@ -945,12 +1001,57 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
   const [editingAbsence, setEditingAbsence] = useState<AbsenceRecord | null>(null);
   const [deletingAbsence, setDeletingAbsence] = useState<AbsenceRecord | null>(null);
   const [tab, setTab] = useState<"Solicitações" | "Mapa por setor" | "Políticas">("Solicitações");
-  const [status, setStatus] = useState("Todos os status");
+  // Filtros no próprio cabeçalho da tabela (Rosana, 28/10/2026): nome digitado, tipo e situação.
+  const [nameFilter, setNameFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState<AbsenceLabel | "">("");
+  const [status, setStatus] = useState<AbsenceStatus | "">("");
   const canCreate = canUseFeature(access, "rh.ferias", "operar");
   const canApprove = canUseFeature(access, "rh.ferias", "aprovar");
-  const pending = records.filter(record => record.status === "Pendente" || record.status === "Em análise").length;
-  const conflicts = records.filter(record => record.conflict && ["Pendente","Em análise","Aprovada"].includes(record.status)).length;
-  const filtered = status === "Todos os status" ? records : records.filter(record => record.status === status);
+  // Indicadores e lista sem filtro: só o que a tela carregou (as achadas pelo filtro ficam de fora).
+  const loaded = records.filter(record => !record.fromSearch);
+  const pending = loaded.filter(record => record.status === "Pendente" || record.status === "Em análise").length;
+  const conflicts = loaded.filter(record => record.conflict && ["Pendente","Em análise","Aprovada"].includes(record.status)).length;
+  const nameQuery = nameFilter.trim();
+  const anyFilter = Boolean(nameQuery || typeFilter || status);
+  const filtered = (anyFilter ? records : loaded).filter(record => (!nameQuery || semAcento(record.employee).includes(semAcento(nameQuery)))
+    && (!typeFilter || record.type === typeFilter) && (!status || record.status === status));
+  // Com filtro, a ordem é a do período (mais recentes primeiro): as achadas no histórico entram no meio.
+  if (anyFilter) filtered.sort((a, b) => b.start.localeCompare(a.start));
+  const clearFilters = () => { setNameFilter(""); setTypeFilter(""); setStatus(""); };
+  // A tela carrega só as 20 mais recentes e as pendentes: com filtro, busca no histórico inteiro e junta
+  // o que achou às já carregadas (aprovar, editar e excluir seguem iguais). Nome a partir da 3ª letra.
+  const serverKey = rh.source === "supabase" && (nameQuery.length >= 3 || typeFilter || status)
+    ? new URLSearchParams({ ...(nameQuery.length >= 3 ? { nome: nameQuery } : {}), ...(typeFilter ? { tipo: absenceTypeEnum[typeFilter] } : {}), ...(status ? { situacao: absenceStatusEnum[status] } : {}) }).toString()
+    : "";
+  const [search, setSearch] = useState<{ key: string; total: number; shown: number; totals: DurationTotals } | null>(null);
+  const [searching, setSearching] = useState(false);
+  useEffect(() => {
+    if (!serverKey) return;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const response = await fetch(`/api/rh/ausencias?${serverKey}`, { cache: "no-store", signal: controller.signal });
+        if (!response.ok) throw new Error(String(response.status));
+        const data = (await response.json()) as { absences: RhAbsence[]; total: number; totals: DurationTotals };
+        setRecords(current => {
+          const known = new Set(current.map(record => record.sourceId));
+          let nextId = Math.max(0, ...current.map(record => record.id));
+          const found = data.absences.filter(absence => !known.has(absence.id)).map(absence => ({ ...toAbsenceRecord(absence, 0), id: ++nextId, fromSearch: true }));
+          return found.length ? [...current, ...found] : current;
+        });
+        setSearch({ key: serverKey, total: data.total, shown: data.absences.length, totals: data.totals });
+      } catch {
+        if (!controller.signal.aborted) notify("Não foi possível buscar no histórico de ausências; o filtro vale só para as que estão na tela.");
+      } finally {
+        if (!controller.signal.aborted) setSearching(false);
+      }
+    }, 300);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [serverKey, notify]);
+  // O total do banco vale quando ele cobre todos os filtros da tela (nome com menos de 3 letras não vai ao banco).
+  const searchDone = search && search.key === serverKey && (!nameQuery || nameQuery.length >= 3) ? search : null;
+  const durationTotal = searchDone ? searchDone.totals : sumDurations(filtered);
   const [detail, setDetail] = useState<KpiDetail | null>(null);
   const openScheduled = () => setDetail({
     eyebrow: "RH · FÉRIAS", title: "Férias programadas",
@@ -960,7 +1061,7 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
   });
   const openPending = () => setDetail({
     eyebrow: "RH · AUSÊNCIAS", title: "Em aprovação", subtitle: "Solicitações aguardando decisão",
-    rows: records.filter(r => r.status === "Pendente" || r.status === "Em análise").map(r => ({
+    rows: loaded.filter(r => r.status === "Pendente" || r.status === "Em análise").map(r => ({
       key: String(r.id), title: r.employee, subtitle: `${r.type} · ${formatPeriod(r.start, r.end)}`,
       status: { tone: "attention", label: r.status }, meta: durationLabel(r),
     })),
@@ -980,7 +1081,7 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
   });
   const openConflicts = () => setDetail({
     eyebrow: "RH · AUSÊNCIAS", title: "Conflitos de equipe", subtitle: "Movimentações que coincidem com outras ausências da mesma equipe",
-    rows: records.filter(r => r.conflict && ["Pendente","Em análise","Aprovada"].includes(r.status)).map(r => ({
+    rows: loaded.filter(r => r.conflict && ["Pendente","Em análise","Aprovada"].includes(r.status)).map(r => ({
       key: String(r.id), title: r.employee, subtitle: `${r.type} · ${formatPeriod(r.start, r.end)} · ${r.department}`, status: { tone: "attention", label: r.status },
     })),
     empty: "Nenhum conflito de planejamento.",
@@ -1080,7 +1181,13 @@ function AbsenceSection({ notify, access, rh }: { notify: (message: string) => v
     {detail && <KpiDetailModal detail={detail} onClose={() => setDetail(null)}/>}
     <KpiGrid><HrStat value={String(rh.summary.scheduledVacationDays)} label="Férias programadas" meta="Dias no período" icon="calendar" tone="blue" onOpen={openScheduled}/><HrStat value={String(pending)} label="Em aprovação" meta="Aguardando decisão" icon="clock" tone="orange" onOpen={openPending}/><HrStat value={String(rh.summary.vacationsOverdue + rh.summary.vacationsDueSoon)} label="Férias a vencer" meta={rh.summary.vacationsOverdue ? `${rh.summary.vacationsOverdue} com concessivo vencido` : "Concessivo em até 60 dias"} icon="alert" tone={rh.summary.vacationsOverdue ? "orange" : "purple"} onOpen={openExpiring}/><HrStat value={String(conflicts)} label="Conflitos de equipe" meta={conflicts ? "Exigem avaliação" : "Planejamento saudável"} icon={conflicts ? "alert" : "check"} tone={conflicts ? "orange" : "green"} onOpen={openConflicts}/></KpiGrid>
     <div className="absence-tabs" role="tablist">{(["Solicitações","Mapa por setor","Políticas"] as const).map(item => <button role="tab" aria-selected={tab === item} className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}{item === "Solicitações" && <i>{pending}</i>}</button>)}</div>
-    {tab === "Solicitações" && <Card className="absence-card"><div className="absence-toolbar"><div><p className="eyebrow">FLUXO DE APROVAÇÃO</p><h2>Solicitações recentes</h2></div><label><span>Status</span><select value={status} onChange={event => setStatus(event.target.value)} aria-label="Filtrar solicitações por status"><option>Todos os status</option><option>Pendente</option><option>Em análise</option><option>Aprovada</option><option>Registrado</option><option>Reprovada</option></select></label></div><div className="absence-table"><div className="absence-table-head"><span>Colaborador</span><span>Tipo e período</span><span>Duração</span><span>Situação</span><span/></div>{filtered.map(record => <button onClick={() => setSelected(record)} key={record.id}><span className="absence-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department} · {record.unit}</small></span></span><span><b>{record.type}</b><small>{formatPeriod(record.start,record.end)}</small></span><span><b>{durationLabel(record)}</b>{record.conflict ? <small className="conflict-label">⚠ Conflito identificado</small> : <small>Sem conflito</small>}</span><Status tone={absenceTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{!filtered.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhuma solicitação encontrada</b><small>Altere o filtro de situação.</small></div>}</div></Card>}
+    {tab === "Solicitações" && <Card className="absence-card"><div className="absence-toolbar"><div><p className="eyebrow">FLUXO DE APROVAÇÃO</p><h2>Solicitações recentes</h2></div>{anyFilter && <span className="absence-toolbar-actions"><button type="button" className="absence-clear-filters" onClick={clearFilters}><HrIcon name="close"/> Limpar filtros</button></span>}</div><div className="absence-table"><div className="absence-table-head absence-head-filters">
+      <AbsenceNameFilter names={Array.from(new Set([...records.map(record => record.employee), ...(rh.source === "supabase" ? rh.employees.map(employee => employee.name) : [])])).sort((a, b) => a.localeCompare(b, "pt-BR"))} value={nameFilter} onChange={setNameFilter}/>
+      <select className={`absence-head-select${typeFilter ? " is-active" : ""}`} aria-label="Filtrar por tipo" value={typeFilter} onChange={event => setTypeFilter(event.target.value as AbsenceLabel | "")}><option value="">Tipo e período</option>{ABSENCE_TYPE_OPTIONS.map(label => <option key={label} value={label}>{label}</option>)}</select>
+      <span className="absence-head-duration">Duração{typeFilter && filtered.length > 0 && <b title={`Soma de ${typeFilter.toLowerCase()} de todas as solicitações que batem com os filtros`}>{totalDurationLabel(durationTotal)}</b>}</span>
+      <select className={`absence-head-select${status ? " is-active" : ""}`} aria-label="Filtrar por situação" value={status} onChange={event => setStatus(event.target.value as AbsenceStatus | "")}><option value="">Situação</option>{ABSENCE_STATUS_OPTIONS.map(label => <option key={label} value={label}>{label}</option>)}</select>
+      <span/>
+    </div>{filtered.map(record => <button onClick={() => setSelected(record)} key={record.id}><span className="absence-person"><i>{record.initials}</i><span><b>{record.employee}</b><small>{record.department} · {record.unit}</small></span></span><span><b>{record.type}</b><small>{formatPeriod(record.start,record.end)}</small></span><span><b>{durationLabel(record)}</b>{record.conflict ? <small className="conflict-label">⚠ Conflito identificado</small> : <small>Sem conflito</small>}</span><Status tone={absenceTone(record.status)}>{record.status}</Status><HrIcon name="arrow"/></button>)}{searching && <div className="absence-search-note">Buscando no histórico…</div>}{!searching && searchDone && searchDone.total > searchDone.shown && <div className="absence-search-note">Mostrando as {searchDone.shown} mais recentes de {searchDone.total.toLocaleString("pt-BR")} solicitações. O total da Duração considera todas.</div>}{!filtered.length && !searching && <div className="hr-empty"><HrIcon name="search"/><b>Nenhuma solicitação encontrada</b><small>{anyFilter ? "Nenhuma solicitação com estes filtros." : "Ainda não há solicitações."}</small></div>}</div></Card>}
     {tab === "Mapa por setor" && <FeriasPorSetor/>} 
     {tab === "Políticas" && <AbsencePolicies/>}
     {selected && <AbsenceDrawer record={selected} canApprove={canApprove} canSeeClinical={canUseFeature(access, "rh.clinico")} onClose={() => setSelected(null)} onDecision={decide} onEdit={canApprove ? () => { setEditingAbsence(selected); setSelected(null); } : undefined} onDelete={canApprove ? () => { setDeletingAbsence(selected); setSelected(null); } : undefined}/>} 

@@ -13,6 +13,8 @@ import type {
 
 type Row = Record<string, unknown>;
 
+const ABSENCE_FIELDS = "id,absence_type,start_date,end_date,days,hours,day_part,status,has_conflict,reason,requested_at,employees(full_name),departments(name),units(name)";
+
 // Lê o RH real das tabelas rh_*, no escopo do usuário autenticado. Segue o
 // mesmo contrato do Financeiro: lança UNAUTHENTICATED sem sessão, e o RLS do
 // banco decide o que cada perfil enxerga — este código não filtra por papel.
@@ -29,7 +31,6 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
   if (profileResult.error) throw profileResult.error;
   const organizationId = profileResult.data.organization_id as string;
 
-  const ABSENCE_FIELDS = "id,absence_type,start_date,end_date,days,hours,day_part,status,has_conflict,reason,requested_at,employees(full_name),departments(name),units(name)";
   const [
     employeesResult,
     activeEmployeesResult,
@@ -342,4 +343,62 @@ function relationName(value: unknown): string | null {
 function number(value: unknown) {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** Filtros do cabeçalho de Férias e ausências: nome (parte, sem acento), tipo e situação. */
+export type RhAbsenceFilters = { name?: string; type?: RhAbsence["type"]; status?: RhAbsence["status"] };
+export type RhAbsenceSearch = {
+  absences: RhAbsence[];
+  /** Quantas batem no banco (pode ser mais do que as devolvidas). */
+  total: number;
+  /** Soma de todas as que batem: dias inteiros, horas e meios períodos. */
+  totals: { days: number; hours: number; halfDays: number };
+};
+
+export const ABSENCE_SEARCH_LIMIT = 500;
+const semAcento = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/**
+ * Busca no histórico inteiro de ausências (a tela carrega só as 20 mais recentes e as pendentes). O nome
+ * é casado aqui, sem acento nem diferença de maiúsculas, contra todos os colaboradores que a sessão
+ * enxerga; o RLS decide o resto. Devolve até 500 (as mais recentes) e o total de todas as que batem.
+ */
+export async function searchRhAbsences(filters: RhAbsenceFilters): Promise<RhAbsenceSearch> {
+  const supabase = await createSupabaseServerClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error("UNAUTHENTICATED");
+  const empty: RhAbsenceSearch = { absences: [], total: 0, totals: { days: 0, hours: 0, halfDays: 0 } };
+
+  let employeeIds: string[] | null = null;
+  const name = semAcento(filters.name?.trim() ?? "");
+  if (name) {
+    const { data, error } = await supabase.from("employees").select("id,full_name").order("full_name").limit(5000);
+    if (error) throw error;
+    employeeIds = ((data ?? []) as Row[]).filter(row => semAcento(String(row.full_name ?? "")).includes(name)).map(row => String(row.id));
+    if (!employeeIds.length) return empty;
+  }
+  // As mesmas condições para a lista e para a soma.
+  const filtered = (fields: string, withCount = false) => {
+    let query = supabase.from("rh_absences").select(fields, withCount ? { count: "exact" } : undefined);
+    if (employeeIds) query = query.in("employee_id", employeeIds);
+    if (filters.type) query = query.eq("absence_type", filters.type);
+    if (filters.status) query = query.eq("status", filters.status);
+    return query;
+  };
+
+  const { data, error, count } = await filtered(ABSENCE_FIELDS, true).order("start_date", { ascending: false }).limit(ABSENCE_SEARCH_LIMIT);
+  if (error) throw error;
+  const total = count ?? 0;
+  // O total da duração soma todas as que batem, em páginas de 1.000 (limite do servidor).
+  const totals = { days: 0, hours: 0, halfDays: 0 };
+  for (let from = 0; from < total; from += 1000) {
+    const { data: page, error: pageError } = await filtered("days,hours,day_part").order("id").range(from, from + 999);
+    if (pageError) throw pageError;
+    for (const row of (page ?? []) as unknown as Row[]) {
+      if (row.hours != null) totals.hours += number(row.hours);
+      else if (row.day_part) totals.halfDays += 1;
+      else totals.days += number(row.days);
+    }
+  }
+  return { absences: ((data ?? []) as unknown as Row[]).map(toAbsence), total, totals };
 }

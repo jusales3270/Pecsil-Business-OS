@@ -9419,3 +9419,130 @@ a.doc-abrir { text-decoration: none; }
 .pcf-mes { display: grid; gap: 2px; font-size: var(--fs-sm); }
 .pcf-mes span { color: var(--text-muted); font-size: var(--fs-xs); }
 .pcf-mes select { min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; }
+
+/* RH › Férias e ausências: os filtros ficam no próprio cabeçalho da tabela (28/10/2026).
+   Colaborador = busca com sugestões a partir da 3ª letra; Tipo e Situação = listas; Duração mostra o total. */
+.absence-table-head.absence-head-filters { overflow: visible; position: relative; z-index: 2; }
+.absence-head-filters :is(.absence-head-select, .absence-name-filter input) {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.absence-head-filters .absence-head-select {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0 26px 0 var(--sp-2);
+  margin-left: calc(-1 * var(--sp-2));
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+.absence-head-filters .absence-head-select:hover { border-color: var(--border); background-color: var(--bg-surface); }
+.absence-head-filters .absence-head-select:focus-visible { outline: none; border-color: var(--border-focus); background-color: var(--bg-surface); }
+.absence-head-filters .absence-head-select option { text-transform: none; color: var(--text-primary); background: var(--bg-surface-raised); }
+.absence-head-filters :is(.absence-head-select, .absence-name-filter).is-active,
+.absence-head-filters .absence-name-filter.is-active input { color: var(--accent-blue); }
+.absence-head-filters .absence-head-select.is-active { border-color: var(--edge-blue); background-color: var(--tint-blue); }
+
+.absence-name-filter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: 30px;
+  min-width: 0;
+  padding: 0 var(--sp-2);
+  margin-left: calc(-1 * var(--sp-2));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+.absence-name-filter:focus-within { border-color: var(--border-focus); }
+.absence-name-filter.is-active { border-color: var(--edge-blue); background: var(--tint-blue); }
+.absence-name-filter > svg { flex: 0 0 auto; width: 14px; height: 14px; }
+.absence-name-filter input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+}
+.absence-name-filter input:not(:placeholder-shown) { text-transform: none; letter-spacing: normal; font-size: var(--fs-sm); color: var(--text-primary); }
+.absence-name-filter input::placeholder { color: var(--text-muted); opacity: 1; }
+.absence-name-filter > button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 2px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.absence-name-filter > button:hover { color: var(--text-primary); background: var(--bg-hover); }
+.absence-name-filter > button svg { width: 12px; height: 12px; }
+.absence-name-filter > ul {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: -1px;
+  min-width: max(100%, 280px);
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--sp-1);
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-raised);
+  box-shadow: var(--shadow-md);
+  z-index: 30;
+}
+.absence-name-filter > ul > li {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text-primary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.absence-name-filter > ul > li.active { background: var(--bg-hover); }
+
+.absence-head-duration { display: flex; flex-direction: column; gap: 2px; }
+.absence-head-duration > b {
+  font-weight: var(--fw-semibold);
+  letter-spacing: normal;
+  text-transform: none;
+  font-size: var(--fs-xs, 12px);
+  color: var(--accent-blue);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dentro de um span: a regra geral de botão em cartão (que vira item de lista) não alcança. */
+.absence-toolbar-actions { display: inline-flex; flex: 0 0 auto; }
+.absence-clear-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.absence-clear-filters:hover { background: var(--bg-hover); color: var(--text-primary); }
+.absence-clear-filters svg { width: 12px; height: 12px; }
+/* A situação escolhida cabe inteira: a lista pode avançar sobre o espaço da seta. */
+.absence-head-filters > .absence-head-select:nth-of-type(2) { width: max-content; min-width: 100%; justify-self: start; }
+.absence-search-note { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-muted); }
