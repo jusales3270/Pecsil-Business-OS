@@ -34,7 +34,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { normalizarNome, parseHistorico } from "../lib/rh/historico-parser.ts";
+import { conferirPeriodos, normalizarNome, parseHistorico } from "../lib/rh/historico-parser.ts";
 
 const envPath = resolve(process.cwd(), ".env.local");
 const env = { ...process.env };
@@ -128,7 +128,7 @@ async function run() {
   const org = orgs[0];
 
   const cadastro = await must(
-    db.from("employees").select("id, full_name, unit_id, department_id").eq("organization_id", org.id),
+    db.from("employees").select("id, full_name, unit_id, department_id, admission_date").eq("organization_id", org.id),
     "colaboradores",
   );
   const porNome = new Map();
@@ -155,6 +155,27 @@ async function run() {
       .slice(0, 2)
       .map(c => c.nome);
   };
+
+  // --- Conferência dos períodos (29/10/2026) -----------------------------------
+  // Período corrigido à mão (source diferente desta importação ou quitado) não pode ser desfeito por uma
+  // reimportação: o colaborador inteiro fica de fora e aparece no relatório.
+  const protegidos = await todas(
+    () => db.from("rh_vacation_balances").select("employee_id, source, quitado_em").eq("organization_id", org.id).or(`source.neq.${SOURCE},quitado_em.not.is.null`),
+    "períodos corrigidos à mão",
+  );
+  const comCorrecao = new Set(protegidos.map(p => p.employee_id));
+  for (let i = casados.length - 1; i >= 0; i--) {
+    const { history, employee } = casados[i];
+    if (comCorrecao.has(employee.id)) {
+      parsed.problems.push({ employee: history.name, line: history.line, section: "colaborador", message: "tem períodos de férias corrigidos à mão na plataforma: não é reimportado (corrija na tela)" });
+      casados.splice(i, 1);
+      continue;
+    }
+    // Contra a admissão do cadastro e entre si: período desalinhado, antes da admissão ou sobreposto não entra.
+    const conferencia = conferirPeriodos(history.vacations, employee.admission_date ?? null);
+    for (const problema of conferencia.problems) parsed.problems.push({ ...problema, employee: history.name });
+    if (conferencia.recusados.size) history.vacations = history.vacations.filter(v => !conferencia.recusados.has(v.acquisitionStart));
+  }
 
   // --- Linhas a gravar -------------------------------------------------------
   const balances = [];

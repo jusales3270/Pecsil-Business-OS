@@ -69,7 +69,7 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     supabase.from("rh_absences").select("id", { count:"exact", head:true })
       .eq("organization_id", organizationId).in("status", ["pending", "under_review"]),
     supabase.from("rh_vacation_balances")
-      .select("entitled_days,taken_days,scheduled_days,pecuniary_days,acquisition_start,acquisition_end,expires_at,employees(full_name,departments(name))")
+      .select("entitled_days,taken_days,scheduled_days,pecuniary_days,acquisition_start,acquisition_end,expires_at,quitado_em,employees(full_name,departments(name))")
       .eq("organization_id", organizationId),
     supabase
       .from("rh_benefit_plans")
@@ -160,11 +160,12 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
   });
   const scheduledVacationDays = upcomingVacations.reduce((sum, row) => sum + row.days, 0);
   // Período com saldo = direito menos gozado, programado e abono. O concessivo
-  // (expires_at) é o prazo da empresa para conceder; passou, paga em dobro.
+  // (expires_at) é o prazo da empresa para conceder; passou, paga em dobro. Período quitado sem registro
+  // no histórico (quitado_em, 29/10/2026) não tem saldo.
   const today = new Date().toISOString().slice(0, 10);
   const in60 = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
   const withBalance = balances.filter(row =>
-    row.expires_at &&
+    row.expires_at && !row.quitado_em &&
     number(row.entitled_days) - number(row.taken_days) - number(row.scheduled_days) - number(row.pecuniary_days) > 0);
   const vacationAlerts = withBalance
     .filter(row => String(row.expires_at) <= in60)

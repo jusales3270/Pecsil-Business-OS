@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-29-rh-ferias-historico",
+    data: "2026-10-29",
+    area: "RH",
+    modulos: ["rh"],
+    funcionalidades: ["rh.ferias"],
+    titulo: "Férias a vencer sem os vencidos que vinham da planilha do histórico",
+    itens: [
+      "Sete períodos apareciam como \"Vencido\" sem estarem: a planilha do histórico tinha o mesmo período escrito de duas formas, um gozo lançado no período seguinte e períodos antigos sem o registro completo. Foram corrigidos e não aparecem mais.",
+      "Período antigo sem registro de gozo pode ficar como quitado, com o motivo e quem confirmou: não conta como saldo nem como vencido, e o dado original fica guardado.",
+      "A importação do histórico passou a conferir cada período contra a data de admissão do cadastro antes de gravar.",
+    ],
+  },
+  {
     id: "2026-10-28-rh-jornadas",
     data: "2026-10-28",
     area: "RH",

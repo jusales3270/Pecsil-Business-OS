@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   classificar,
+  conferirPeriodos,
   normalizarCid,
   normalizarNome,
   parseData,
@@ -158,4 +159,49 @@ test("período que passa de 30 dias ou com dias errados vai para o relatório in
   assert.equal(problems.length, 2);
   assert.match(problems[0].message, /somam 60 dias/);
   assert.match(problems[1].message, /não bate/);
+});
+
+// Conferência dos períodos contra a admissão (29/10/2026): os quatro casos da planilha real, com dados fictícios.
+const periodos = (linhas) => parseHistorico(arquivo(linhas, [])).employees[0].vacations;
+
+test("conferência: o mesmo período escrito com um dia de diferença é recusado (vira saldo falso)", () => {
+  const v = periodos(["| 17/09/2024 a 16/09/2025 | 19/01/2026 a 25/01/2026 | 7 |", "| 18/09/2024 a 17/09/2025 | 17/08/2026 a 08/09/2026 | 23 |"]);
+  assert.equal(v.length, 2, "o parser sozinho lê dois períodos");
+  const c = conferirPeriodos(v, "2024-09-18");
+  assert.deepEqual([...c.recusados], ["2024-09-17"]);
+  assert.match(c.problems[0].message, /começa antes da admissão/);
+});
+
+test("conferência: período fora do aniversário da admissão é recusado; sem admissão, não confere", () => {
+  const v = periodos(["| 01/07/2011 a 30/06/2012 | 02/05/2013 a 31/05/2013 | 30 |"]);
+  assert.match(conferirPeriodos(v, "2010-01-04").problems[0].message, /não começa no aniversário da admissão \(04\/01\)/);
+  assert.equal(conferirPeriodos(v, "2011-07-01").problems.length, 0);
+  assert.equal(conferirPeriodos(v, null).problems.length, 0);
+});
+
+test("conferência: período que se sobrepõe ao anterior é recusado", () => {
+  const v = periodos(["| 01/03/2020 a 28/02/2021 | 01/03/2021 a 30/03/2021 | 30 |", "| 01/03/2020 a 28/02/2021 | 01/04/2021 a 10/04/2021 | 10 |".replace("01/03/2020", "15/02/2021").replace("28/02/2021", "14/02/2022")]);
+  const c = conferirPeriodos(v, null);
+  assert.deepEqual([...c.recusados], ["2021-02-15"]);
+  assert.match(c.problems[0].message, /se sobrepõe/);
+});
+
+test("conferência: gozo no período seguinte com saldo no anterior vira aviso (entra, mas pede conferir)", () => {
+  const v = periodos(["| 29/06/2024 a 28/06/2025 | 18/05/2026 a 01/06/2026 | 15 |", "| 29/06/2025 a 28/06/2026 | 11/06/2026 a 25/06/2026 | 15 |"]);
+  const c = conferirPeriodos(v, "2020-06-29");
+  assert.equal(c.recusados.size, 0);
+  assert.equal(c.problems.length, 1);
+  assert.equal(c.problems[0].warning, true);
+  assert.match(c.problems[0].message, /conferir: período 29\/06\/2024 com 15 dias de saldo/);
+  // Em ordem (o anterior completo), nada a conferir.
+  const ok = periodos(["| 29/06/2024 a 28/06/2025 | 18/05/2026 a 16/06/2026 | 30 |", "| 29/06/2025 a 28/06/2026 |  |  |"]);
+  assert.equal(conferirPeriodos(ok, "2020-06-29").problems.length, 0);
+});
+
+test("quitado: a tela, o mapa de férias e a importação respeitam o período quitado", async () => {
+  const { readFileSync } = await import("node:fs");
+  const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
+  assert.match(ler("lib/data/rh-repository.ts"), /row\.expires_at && !row\.quitado_em/);
+  assert.match(ler("supabase/migrations/202610290001_rh_ferias_quitado.sql"), /and b\.quitado_em is null/);
+  assert.match(ler("scripts/import-rh-historico.mjs"), /corrigidos à mão na plataforma: não é reimportado/);
 });

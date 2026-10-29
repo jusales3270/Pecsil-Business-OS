@@ -379,6 +379,44 @@ function lerFerias(rows: Linha[], employee: string, problems: ParseResult["probl
   return { vacations, duplicates };
 }
 
+/**
+ * Confere os períodos de férias de uma pessoa contra a admissão do cadastro e entre si (29/10/2026).
+ * A planilha do histórico tinha o mesmo período escrito de duas formas (17/09 e 18/09), gozo lançado no
+ * período seguinte e período antes da admissão: tudo isso virou saldo "vencido" que não existia.
+ *   recusa (não grava o período):  não começa no aniversário da admissão · começa antes da admissão ·
+ *                                  se sobrepõe ao anterior;
+ *   aviso (grava e pede conferir):  período mais novo com gozo enquanto um anterior ainda tem saldo.
+ */
+export function conferirPeriodos(vacations: VacationPeriod[], admissao: string | null): { recusados: Set<string>; problems: Problem[] } {
+  const recusados = new Set<string>();
+  const problems: Problem[] = [];
+  const dataBR = (iso: string) => iso.split("-").reverse().join("/");
+  const ordenados = [...vacations].sort((a, b) => a.acquisitionStart.localeCompare(b.acquisitionStart));
+  const linha = (v: VacationPeriod) => v.gozos[0]?.line ?? 0;
+  const recusar = (v: VacationPeriod, message: string) => {
+    recusados.add(v.acquisitionStart);
+    problems.push({ line: linha(v), section: "ferias", message: `período ${dataBR(v.acquisitionStart)}: ${message}` });
+  };
+  const aniversario = admissao && admissao.slice(5) !== "02-29" ? admissao.slice(5) : null;
+  // A sobreposição é conferida contra o último período aceito (o recusado não conta).
+  let anterior: VacationPeriod | null = null;
+  for (const v of ordenados) {
+    if (admissao && v.acquisitionStart < admissao) recusar(v, `começa antes da admissão (${dataBR(admissao)})`);
+    else if (aniversario && v.acquisitionStart.slice(5) !== aniversario) recusar(v, `não começa no aniversário da admissão (${dataBR(admissao!).slice(0, 5)})`);
+    else if (anterior && v.acquisitionStart <= anterior.acquisitionEnd) recusar(v, `se sobrepõe ao período de ${dataBR(anterior.acquisitionStart)}`);
+    else anterior = v;
+  }
+  const saldo = (v: VacationPeriod) => v.entitledDays - v.pecuniaryDays - v.gozos.reduce((t, g) => t + g.days, 0);
+  const validos = ordenados.filter((v) => !recusados.has(v.acquisitionStart));
+  validos.forEach((v, i) => {
+    if (saldo(v) <= 0) return;
+    const depois = validos.slice(i + 1).find((w) => w.gozos.length > 0);
+    if (depois) problems.push({ line: linha(v), section: "ferias", warning: true,
+      message: `conferir: período ${dataBR(v.acquisitionStart)} com ${saldo(v)} dias de saldo, mas o período de ${dataBR(depois.acquisitionStart)} já tem gozo (gozo no período errado ou registro faltando)` });
+  });
+  return { recusados, problems };
+}
+
 // --- Afastamentos ------------------------------------------------------------
 
 function lerAfastamentos(rows: Linha[], employee: string, problems: ParseResult["problems"]) {
