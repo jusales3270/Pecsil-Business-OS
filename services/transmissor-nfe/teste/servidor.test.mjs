@@ -158,3 +158,12 @@ test("eventos vão para a biblioteca como lote (idLote + lista), com verEvento",
   for (const f of ["NFE_Cancelamento", "NFE_CartaDeCorrecao", "NFE_CienciaDaOperacao"]) assert.match(fonte, new RegExp(`w\\.${f}\\(lote\\(`), f);
   assert.match(fonte, /verEvento: "1\.00"/);
 });
+
+test("consulta: o código do primeiro nível vale (101 cancelada), o protocolo vem de dentro", () => {
+  const cancelada = { tpAmb: "2", cStat: "101", xMotivo: "Cancelamento de NF-e homologado", chNFe: "35261046839106000184550010000000011980540291",
+    protNFe: { infProt: { cStat: "100", xMotivo: "Autorizado o uso da NF-e", nProt: "135260009694610", dhRecbto: "2026-10-29T16:03:20-03:00" } } };
+  assert.deepEqual(m.respostaConsulta(cancelada), { cStat: "101", motivo: "Cancelamento de NF-e homologado", protocolo: "135260009694610", recebidoEm: "2026-10-29T16:03:20-03:00", bruto: null });
+  const naoConsta = { cStat: ["217"], xMotivo: ["Rejeicao: NF-e nao consta na base de dados da SEFAZ"] };
+  assert.equal(m.respostaConsulta(naoConsta).cStat, "217");
+  assert.equal(m.respostaConsulta(naoConsta).protocolo, null);
+});

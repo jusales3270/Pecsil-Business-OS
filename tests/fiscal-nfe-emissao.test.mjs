@@ -184,6 +184,7 @@ test("treino nunca fala com a SEFAZ, homologação fala com trava e consulta, pr
   assert.match(acao, /\.eq\("situacao", "validada"\)\.select\("id"\);\s*if \(!trava\?\.length\)/, "trava: um clique só vai à SEFAZ");
   assert.match(acao, /tipo === "rejeitada"[\s\S]*situacao: "rejeitada"/);
   assert.match(acao, /Consulte na SEFAZ antes de transmitir de novo/, "sem resposta: nunca reenviar às cegas");
+  assert.match(acao, /n\[aã\]o consta/, "217 como rejeição da biblioteca vira 'não consta'");
   for (const r of ["../app/api/fiscal/nfe/inutilizar/route.ts"]) assert.match(ler(r), /if \(naSefaz\(ambiente\)\)/);
   assert.match(acao, /validar: "operar", enviar: "operar", devolver: "aprovar", transmitir: "aprovar", consultar: "aprovar", cancelar: "aprovar", carta: "aprovar"/);
   assert.match(acao, /if \(!ambienteLiberado\(n\.ambiente\)\)/);

@@ -135,7 +135,11 @@ export async function POST(request: Request, context: Contexto) {
         if (!n.chave) return conflito("A nota ainda não tem chave de acesso.");
         if (!["transmitindo", "autorizada", "cancelada"].includes(n.situacao)) return conflito("Só nota que já foi à SEFAZ pode ser consultada.");
         const cred = await credenciaisDaEmissao(admin, autor.org, n.ambiente);
-        const res = await obterTransmissor().consultar(cred, n.chave);
+        // "Não consta" (217) pode voltar como rejeição da biblioteca: é a resposta, não uma falha.
+        const res = await obterTransmissor().consultar(cred, n.chave).catch((e) => {
+          if (tipoDoErro(e) === "rejeitada" && /n[aã]o consta/i.test(e instanceof Error ? e.message : "")) return { cStat: "217", motivo: motivoLimpo(e.message), protocolo: null, recebidoEm: null, bruto: null };
+          throw e;
+        });
         const situacao = situacaoDaConsulta(res.cStat);
         await auditar(admin, { ...autor, evento: "consultada", nfeId: id, dados: { numero: n.numero, cStat: res.cStat, situacao } });
         if (n.situacao === "transmitindo") {

@@ -185,6 +185,22 @@ export function resultadoAutorizacao(r, xmlAutorizado) {
   };
 }
 
+/**
+ * Consulta pela chave: o código é o do PRIMEIRO nível do retorno (100 autorizada, 101 cancelada, 217 não consta).
+ * O protocolo de dentro (protNFe) continua 100 numa nota cancelada: dele sai só o número e a hora da autorização.
+ * Provado em 29/10/2026: logo depois do cancelamento, ler o de dentro dizia "autorizada".
+ */
+export function respostaConsulta(r) {
+  const direto = (o, chave) => { const x = o && typeof o === "object" ? o[chave] : undefined; const y = Array.isArray(x) ? x[0] : x; return y == null || typeof y === "object" ? null : String(y); };
+  const topo = acharChave(r, "retConsSitNFe") ?? r;
+  const prot = acharChave(topo, "protNFe") ?? null;
+  const v = (o, chave) => { const x = acharChave(o, chave); return x == null ? null : String(x); };
+  return {
+    cStat: direto(topo, "cStat") ?? v(prot, "cStat"), motivo: direto(topo, "xMotivo") ?? v(prot, "xMotivo"),
+    protocolo: prot ? v(prot, "nProt") : null, recebidoEm: prot ? v(prot, "dhRecbto") : null, bruto: null,
+  };
+}
+
 /** Evento e inutilização: o código, o motivo e o protocolo do retorno do evento (não do lote). */
 export function respostaEvento(r) {
   const ret = acharChave(r, "retEvento") ?? acharChave(r, "infInut") ?? r;
@@ -259,12 +275,7 @@ export const OPERACOES = {
     return w.NFE_Autorizacao(p.xml ? String(p.xml) : p.nfe);
   }, (r, pasta) => resultadoAutorizacao(r, xmlAutorizadoDaPasta(pasta)), { autorizacao: true }),
 
-  consultar: (p) => comBiblioteca(p, (w) => w.NFE_ConsultaProtocolo(String(p.chave ?? "")), (r) => {
-    // 100 autorizada, 101 cancelada, 217 não consta: o código da nota, com o protocolo dela.
-    const prot = acharChave(r, "protNFe") ?? r;
-    const v = (o, chave) => { const x = acharChave(o, chave); return x == null ? null : String(x); };
-    return { cStat: v(prot, "cStat") ?? v(r, "cStat"), motivo: v(prot, "xMotivo") ?? v(r, "xMotivo"), protocolo: v(prot, "nProt"), recebidoEm: v(prot, "dhRecbto"), bruto: null };
-  }),
+  consultar: (p) => comBiblioteca(p, (w) => w.NFE_ConsultaProtocolo(String(p.chave ?? "")), respostaConsulta),
 
   evento: (p) => comBiblioteca(p, (w, c) => {
     // A biblioteca recebe um LOTE: { idLote, evento: [ ... ] } (o ambiente vem da configuração da chamada).

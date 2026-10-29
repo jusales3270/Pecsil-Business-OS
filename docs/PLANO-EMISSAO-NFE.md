@@ -33,7 +33,9 @@ que hoje só tem o treino.
   assinatura e protocolo, DANFE e consulta conferidos). No caminho, a SEFAZ rejeitou duas vezes e a plataforma
   tratou as duas: destinatário com CNPJ irregular e **"Grupo IBSCBS não informado"** (a homologação já exige o
   grupo IBS/CBS; na produção a rejeição está suspensa). Carta de correção e cancelamento quebravam no
-  transmissor antes de chegar à SEFAZ (formato do lote): corrigido, falta o Deploy do transmissor e repetir.
+  transmissor antes de chegar à SEFAZ (formato do lote): corrigido (`4cc7a9b`) e PROVADO depois do Deploy: carta de
+  correção (protocolo 135260009695061) e cancelamento (135260009695062) aceitos pela SEFAZ. A consulta lia o código
+  de dentro do protocolo (100) numa nota cancelada: corrigido para ler o do primeiro nível (101).
 - **F2 começada** (`scripts/completar-mascaras-jan-2026.mjs`, aplicado com OK): 5915, 5916 e 6916 completadas
   pelas notas de janeiro (CST do IPI 53, PIS/COFINS 49, texto legal), sem confirmação. As de venda (5101,
   6101 por região), exportação (7101) e remessa para industrialização (5901) já tinham sido completadas pelas
