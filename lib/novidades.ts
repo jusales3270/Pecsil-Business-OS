@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-29-rh-beneficios-valores",
+    data: "2026-10-29",
+    area: "RH",
+    modulos: ["rh"],
+    funcionalidades: ["rh.beneficios"],
+    titulo: "Benefícios com os valores digitados pelo RH",
+    itens: [
+      "A lista de benefícios da nova movimentação traz Refeição, Seguro de vida, Vale-transporte, Convênio médico e Convênio odontológico.",
+      "Em Ver gestão › Editar valores, o RH digita o custo mensal de cada benefício, o fornecedor, a contribuição do colaborador e quem tem direito. Cada alteração fica registrada na Auditoria.",
+      "A vigência de uma nova movimentação já vem no dia 1º do mês seguinte, e o texto da adesão nos cartões não fica mais por cima da barra.",
+    ],
+  },
+  {
     id: "2026-10-29-rh-ferias-historico",
     data: "2026-10-29",
     area: "RH",

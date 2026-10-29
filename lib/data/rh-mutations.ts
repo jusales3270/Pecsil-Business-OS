@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from "../supabase/admin";
 import { createSupabaseServerClient } from "../supabase/server";
 import { periodoValido } from "../rh/experiencia";
 import { SEM_CARGO, codigoDoCargo, nomeDoCargo } from "../rh/cargo";
+import { VALOR_MAXIMO } from "../rh/beneficio";
 
 // Mutações de decisão do RH, executadas com a sessão do usuário. Toda a
 // autorização é do banco: as policies de escrita (rh_absences_decide,
@@ -16,6 +17,15 @@ export type RhSstEdit = {
   dueDate?: string | null;
   risk?: "critical" | "attention" | "regular";
   note?: string | null;
+};
+
+/** Valores de um benefício do catálogo, digitados pelo RH. */
+export type RhBenefitPlanEdit = {
+  /** Custo mensal estimado, em reais. */
+  monthlyCost: number;
+  provider: string | null;
+  employeeContribution: string | null;
+  eligibilityRule: string | null;
 };
 
 /** Edição de uma ausência já lançada (quem aprova férias pode corrigir). */
@@ -58,6 +68,7 @@ export type RhMutation =
   | { entity: "employee"; id: string; action: "update"; changes: RhEmployeeEdit }
   | { entity: "employee"; id: string; action: "delete"; confirmName: string }
   | { entity: "benefit_request"; id: string; decision: "approved" | "rejected" }
+  | { entity: "benefit_plan"; id: string; action: "update"; changes: RhBenefitPlanEdit }
   | { entity: "sst"; id: string; action: "mark_compliant" }
   | { entity: "sst"; id: string; action: "update"; changes: RhSstEdit };
 
@@ -115,6 +126,32 @@ export async function applyRhMutation(mutation: RhMutation): Promise<{ ok: true 
       .select("id");
     if (error) throw error;
     // Zero linhas = a RLS filtrou (sem permissão), não sucesso.
+    if (!data?.length) throw new Error("RH_MUTATION_DENIED");
+    return { ok: true };
+  }
+
+  if (mutation.entity === "benefit_plan") {
+    // rh_benefit_plans_admin: rh.beneficios em "operar".
+    const c = mutation.changes;
+    const texto = (v: string | null, max: number) => {
+      const t = typeof v === "string" ? v.trim() : "";
+      if (t.length > max) throw new Error("RH_INVALID");
+      return t || null;
+    };
+    if (typeof c.monthlyCost !== "number" || !Number.isFinite(c.monthlyCost) || c.monthlyCost < 0 || c.monthlyCost > VALOR_MAXIMO) {
+      throw new Error("RH_INVALID");
+    }
+    const { data, error } = await supabase
+      .from("rh_benefit_plans")
+      .update({
+        monthly_cost: Math.round(c.monthlyCost * 100) / 100,
+        provider: texto(c.provider, 120),
+        employee_contribution: texto(c.employeeContribution, 200),
+        eligibility_rule: texto(c.eligibilityRule, 300),
+      })
+      .eq("id", mutation.id)
+      .select("id");
+    if (error) throw error;
     if (!data?.length) throw new Error("RH_MUTATION_DENIED");
     return { ok: true };
   }

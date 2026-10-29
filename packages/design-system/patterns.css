@@ -9580,3 +9580,23 @@ a.doc-abrir { text-decoration: none; }
 }
 .epi-report-filters select { padding-right: 34px; text-overflow: ellipsis; }
 .epi-report-card > .report-launch-actions { flex: 1 1 100%; justify-content: flex-end; align-items: center; }
+
+/* RH › Benefícios: barra de adesão do cartão com o texto embaixo (o texto
+   ficava dentro da barra de 6px e aparecia cortado por cima dela). */
+.benefit-adhesion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.benefit-adhesion > .benefit-progress { height: 8px; }
+.benefit-adhesion > small {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+/* Valores do benefício digitados pelo RH. */
+.benefit-values-fields small {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.benefit-values-fields small.benefit-values-error { color: var(--accent-red); }
+.benefit-values-fields textarea { min-height: 84px; padding: var(--sp-2) var(--sp-3); }
