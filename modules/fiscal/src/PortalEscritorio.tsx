@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Button, Callout, EscolherArquivo, Status } from "../../../packages/design-system";
+import { Button, Callout, EscolherArquivo, Modal, Status } from "../../../packages/design-system";
+import { useSoltarArquivo } from "../../../app/components/enviar-arquivo";
+import { VisualizarArquivo } from "../../../app/components/visualizar-arquivo";
 import { CREDOR_GUIA, TIPOS_GUIA, valorDigitado, type GuiaLida, type TipoGuia } from "../../../lib/fiscal/guia-parser";
 import { api, curto, dataHora, date, hoje, money, nomeMes } from "./comum";
 
@@ -175,7 +177,7 @@ export function PortalEscritorio({ notify }: { notify: (m: string) => void }) {
                 </div>
               ))}
             </div>
-            <Anexos titulo="Documentos do mês" anexos={anexosComp} pode={pode && c.situacao !== "fechada"} alvo={{ competencia: c.id }} notify={notify} onMudou={() => void carregar(mes)} />
+            <Anexos titulo="Documentos do mês" anexos={anexosComp} pode={pode && c.situacao !== "fechada"} lado={dados.lado} alvo={{ competencia: c.id }} notify={notify} onMudou={() => void carregar(mes)} />
           </section>
 
           <Malotes competencia={c} malotes={dados.malotes} lado={dados.lado} pode={pode} ocupado={ocupado} agir={agir} />
@@ -292,7 +294,7 @@ function PendenciaCartao({ p, mensagens, anexos, lado, pode, minhaVez, ocupado, 
               <p>{m.texto}</p>
             </div>
           ))}
-          <Anexos titulo="Anexos" anexos={anexos} pode={pode && !resolvida} alvo={{ pendencia: p.id }} notify={notify} onMudou={onMudou} />
+          <Anexos titulo="Anexos" anexos={anexos} pode={pode && !resolvida} lado={lado} alvo={{ pendencia: p.id }} notify={notify} onMudou={onMudou} />
           {pode && !resolvida && (
             <form className="portal-responder" onSubmit={async (e) => { e.preventDefault(); if (await agir(`r${p.id}`, { acao: "responder", pendencia: p.id, texto: resposta })) setResposta(""); }}>
               <textarea value={resposta} onChange={(e) => setResposta(e.target.value)} rows={2} maxLength={4000} placeholder="Responder…" aria-label="Resposta" />
@@ -309,30 +311,91 @@ function PendenciaCartao({ p, mensagens, anexos, lado, pode, minhaVez, ocupado, 
   );
 }
 
-function Anexos({ titulo, anexos, pode, alvo, notify, onMudou }: { titulo: string; anexos: Anexo[]; pode: boolean; alvo: { competencia?: string; pendencia?: string }; notify: (m: string) => void; onMudou: () => void }) {
-  const [enviando, setEnviando] = useState(false);
-  const enviar = async (arquivo: File | undefined) => {
-    if (!arquivo) return;
-    setEnviando(true);
-    const corpo = new FormData();
-    corpo.append("arquivo", arquivo);
-    if (alvo.competencia) corpo.append("competencia", alvo.competencia);
-    if (alvo.pendencia) corpo.append("pendencia", alvo.pendencia);
-    const r = await api("/api/fiscal/portal/anexo", { method: "POST", body: corpo });
-    setEnviando(false);
-    notify(r.ok ? `${arquivo.name} anexado.` : r.error);
+const MAX_ANEXOS = 100;
+
+function Anexos({ titulo, anexos, pode, lado, alvo, notify, onMudou }: { titulo: string; anexos: Anexo[]; pode: boolean; lado: Lado; alvo: { competencia?: string; pendencia?: string }; notify: (m: string) => void; onMudou: () => void }) {
+  const [progresso, setProgresso] = useState<{ feitos: number; total: number } | null>(null);
+  const [aberto, setAberto] = useState<Anexo | null>(null);
+  const [excluir, setExcluir] = useState<Anexo | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
+  // Resumo do último envio de vários arquivos: fica à vista (o aviso de canto some em segundos).
+  const [resultado, setResultado] = useState<{ anexados: number; total: number; recusados: string[] } | null>(null);
+  // Vários arquivos de uma vez, um de cada vez no servidor (cada um passa pela trava de repetido).
+  const enviar = async (lista: File[]) => {
+    const arquivos = lista.slice(0, MAX_ANEXOS);
+    if (!arquivos.length) return;
+    let anexados = 0;
+    const recusados: string[] = [];
+    setResultado(null);
+    setProgresso({ feitos: 0, total: arquivos.length });
+    for (const [i, arquivo] of arquivos.entries()) {
+      const corpo = new FormData();
+      corpo.append("arquivo", arquivo);
+      if (alvo.competencia) corpo.append("competencia", alvo.competencia);
+      if (alvo.pendencia) corpo.append("pendencia", alvo.pendencia);
+      const r = await api("/api/fiscal/portal/anexo", { method: "POST", body: corpo });
+      if (r.ok) anexados++; else recusados.push(`${arquivo.name}: ${r.error}`);
+      setProgresso({ feitos: i + 1, total: arquivos.length });
+    }
+    setProgresso(null);
+    if (lista.length > MAX_ANEXOS) recusados.push(`${lista.length - MAX_ANEXOS} arquivo(s) além dos ${MAX_ANEXOS} por vez: envie em outra vez.`);
+    if (arquivos.length === 1 && !recusados.length) notify(`${arquivos[0].name} anexado.`);
+    else {
+      notify(`${anexados} de ${arquivos.length} ${arquivos.length === 1 ? "arquivo anexado" : "arquivos anexados"}.`);
+      setResultado({ anexados, total: arquivos.length, recusados });
+    }
+    if (anexados) onMudou();
+  };
+  const { arrastando, soltar } = useSoltarArquivo((lista) => void enviar(lista), pode && !progresso);
+  const confirmarExclusao = async () => {
+    if (!excluir) return;
+    setExcluindo(true);
+    const r = await api(`/api/fiscal/portal/anexo?id=${excluir.id}`, { method: "DELETE" });
+    setExcluindo(false);
+    notify(r.ok ? `${excluir.nome} excluído.` : r.error);
+    setExcluir(null);
     if (r.ok) onMudou();
   };
   if (!anexos.length && !pode) return null;
   return (
-    <div className="portal-anexos">
+    <div className={`portal-anexos${pode ? " soltavel" : ""}${arrastando ? " on" : ""}`} {...(pode ? soltar : {})}>
       <span className="almox-rotulo">{titulo}</span>
       {anexos.map((a) => (
-        <a key={a.id} className="portal-anexo" href={`/api/fiscal/portal/anexo/${a.document_id}`} target="_blank" rel="noreferrer">
-          <b>{a.nome}</b><small>{tamanho(a.tamanho)} · {a.lado === "empresa" ? "empresa" : "escritório"}{a.enviado_por_nome ? ` · ${a.enviado_por_nome}` : ""} · {dataHora(a.created_at)}</small>
-        </a>
+        <div key={a.id} className="portal-anexo">
+          <button type="button" className="portal-anexo-abrir" onClick={() => setAberto(a)} title="Ver o arquivo">
+            <b>{a.nome}</b><small>{tamanho(a.tamanho)} · {a.lado === "empresa" ? "empresa" : "escritório"}{a.enviado_por_nome ? ` · ${a.enviado_por_nome}` : ""} · {dataHora(a.created_at)}</small>
+          </button>
+          {pode && a.lado === lado && <button type="button" className="portal-anexo-excluir" onClick={() => setExcluir(a)} aria-label={`Excluir ${a.nome}`} title="Excluir">×</button>}
+        </div>
       ))}
-      {pode && <EscolherArquivo rotulo="Anexar arquivo" compacto ocupado={enviando} textoOcupado="Enviando o arquivo…" onEscolher={(a) => void enviar(a[0])} />}
+      {resultado && (
+        <div className={`portal-resultado${resultado.recusados.length ? " com-recusa" : ""}`} role="status">
+          <div><b>{resultado.anexados} de {resultado.total} {resultado.total === 1 ? "arquivo anexado" : "arquivos anexados"}</b>
+            {resultado.recusados.length > 0 && <ul>{resultado.recusados.map((r) => <li key={r}>{r}</li>)}</ul>}</div>
+          <button type="button" className="almox-link" onClick={() => setResultado(null)}>Fechar</button>
+        </div>
+      )}
+      {pode && (
+        <div className="portal-anexar">
+          <EscolherArquivo rotulo="Anexar arquivos" multiplo compacto ocupado={Boolean(progresso)} textoOcupado={progresso ? `Enviando ${progresso.feitos + (progresso.feitos < progresso.total ? 1 : 0)} de ${progresso.total}…` : "Enviando…"} onEscolher={(a) => void enviar(a)} />
+          {!progresso && <small>ou arraste os arquivos para cá (vários de uma vez)</small>}
+        </div>
+      )}
+      {aberto && (
+        <VisualizarArquivo nome={aberto.nome} url={`/api/fiscal/portal/anexo/${aberto.document_id}?ver=1`} baixar={`/api/fiscal/portal/anexo/${aberto.document_id}`}
+          detalhe={`${tamanho(aberto.tamanho)} · enviado por ${aberto.enviado_por_nome ?? (aberto.lado === "empresa" ? "empresa" : "escritório")} em ${dataHora(aberto.created_at)}`} onFechar={() => setAberto(null)} />
+      )}
+      {excluir && (
+        <Modal eyebrow="Excluir anexo" title={excluir.nome} onClose={() => !excluindo && setExcluir(null)}>
+          <div className="almox-form">
+            <p>O arquivo sai do portal e, se foi guardado só por aqui, também de Documentos › Fiscal (uma NF-e enviada só por aqui sai junto das apurações). Quem excluiu fica registrado na Auditoria.</p>
+            <footer>
+              <Button variant="secondary" onClick={() => setExcluir(null)} disabled={excluindo}>Cancelar</Button>
+              <Button onClick={() => void confirmarExclusao()} disabled={excluindo}>{excluindo ? "Excluindo…" : "Excluir"}</Button>
+            </footer>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

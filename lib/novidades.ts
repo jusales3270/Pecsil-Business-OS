@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-29-fiscal-portal-anexos",
+    data: "2026-10-29",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.escritorio", "fiscal.portal"],
+    titulo: "Escritório contábil: vários arquivos de uma vez, sem repetir nota, excluir e ver na própria tela",
+    itens: [
+      "Em Documentos do mês (e nas pendências), escolha ou arraste vários arquivos de uma vez. O resumo mostra quantos entraram e o motivo dos que não entraram.",
+      "A mesma NF-e não é anexada duas vezes no mesmo lugar, nem em outro arquivo (outro download, com ou sem protocolo).",
+      "Clicar no arquivo abre uma janela na própria plataforma: a NF-e aparece resumida (número, emitente, destinatário, itens e valores), com o XML completo se quiser; PDF e imagem aparecem como são.",
+      "Quem enviou pode excluir o arquivo (o × ao lado), enquanto a competência não estiver fechada. Fica registrado na Auditoria.",
+    ],
+  },
+  {
     id: "2026-10-29-fiscal-notas-do-mes",
     data: "2026-10-29",
     area: "Fiscal",

@@ -8067,8 +8067,16 @@ a.doc-abrir { text-decoration: none; }
 .portal-msg p { margin: 2px 0 0; font-size: var(--fs-sm); color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
 .portal-responder { display: flex; flex-direction: column; gap: var(--sp-2); }
 .portal-anexos { display: flex; flex-direction: column; gap: 6px; }
-.portal-anexo { display: flex; flex-direction: column; gap: 1px; padding: 6px 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); text-decoration: none; }
-.portal-anexo:hover { border-color: var(--accent-blue); }
+.portal-anexo { display: flex; align-items: stretch; gap: 4px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); }
+.portal-anexo:hover, .portal-anexo:focus-within { border-color: var(--accent-blue); }
+.portal-anexo-abrir { display: flex; flex: 1; flex-direction: column; gap: 1px; min-width: 0; padding: 6px 10px; border: 0; background: transparent; text-align: left; cursor: pointer; font: inherit; }
+.portal-anexo-abrir:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
+.portal-anexo-excluir { flex: 0 0 36px; display: grid; place-items: center; border: 0; border-left: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted); font-size: 20px; line-height: 1; cursor: pointer; }
+.portal-anexo-excluir:hover, .portal-anexo-excluir:focus-visible { outline: none; background: var(--tint-red); color: var(--accent-red); }
+.portal-anexos.soltavel { padding: 6px; margin: -6px; border: 1px dashed transparent; border-radius: var(--radius-md); }
+.portal-anexos.soltavel.on { border-color: var(--accent-blue); background: var(--tint-blue); }
+.portal-anexar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--sp-3); }
+.portal-anexar > small { font-size: var(--fs-xs); color: var(--text-muted); }
 .portal-anexo b { font-size: var(--fs-sm); color: var(--accent-blue); overflow-wrap: anywhere; }
 .portal-anexo small { font-size: var(--fs-xs); color: var(--text-muted); }
 @media (max-width: 720px) {
@@ -9656,3 +9664,36 @@ a.doc-abrir { text-decoration: none; }
 .nfe-mes-topo h2 { margin: 0; font-size: var(--fs-md); color: var(--text-primary); }
 .nfe-mes-topo p { margin: 2px 0 0; font-size: var(--fs-sm); color: var(--text-secondary); }
 .nfe-mes .nfe-tabela { max-height: 420px; overflow-y: auto; }
+
+/* Visualizar arquivo (janela por cima da tela): PDF, imagem, resumo da NF-e e o XML. */
+.ds-modal:has(.arq-visualizar) { width: min(1000px, calc(100vw - 32px)); max-height: calc(100vh - 32px); }
+.arq-visualizar { display: flex; flex-direction: column; gap: var(--sp-3); min-height: 0; }
+.arq-visualizar > footer { display: flex; justify-content: flex-end; gap: var(--sp-2); padding-top: var(--sp-2); }
+.arq-visualizar > footer a.ds-button { text-decoration: none; }
+.arq-vis-carregando { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-6) 0; color: var(--text-secondary); font-size: var(--fs-sm); }
+.arq-vis-pdf { width: 100%; height: 70vh; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-subtle); }
+.arq-vis-imagem { max-width: 100%; max-height: 70vh; object-fit: contain; align-self: center; border-radius: var(--radius-sm); }
+.arq-vis-codigo { margin: 0; max-height: 55vh; overflow: auto; padding: var(--sp-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-subtle); color: var(--text-primary); font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre; }
+.arq-vis-resumo { display: flex; flex-direction: column; gap: var(--sp-3); }
+.arq-vis-cabeca { display: flex; flex-direction: column; gap: 2px; }
+.arq-vis-cabeca b { font-size: var(--fs-md); color: var(--text-primary); }
+.arq-vis-cabeca small, .arq-vis-chave { font-size: var(--fs-xs); color: var(--text-muted); overflow-wrap: anywhere; }
+.arq-vis-texto { margin: 0; padding: var(--sp-3); border-left: 3px solid var(--accent-blue); background: var(--tint-blue); border-radius: var(--radius-sm); color: var(--text-primary); font-size: var(--fs-sm); }
+.arq-vis-partes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); }
+.arq-vis-partes > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--bg-subtle); min-width: 0; }
+.arq-vis-partes small { font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+.arq-vis-partes b { color: var(--text-primary); overflow-wrap: anywhere; }
+.arq-vis-partes span { font-size: var(--fs-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.arq-vis-itens { display: grid; grid-template-columns: max-content minmax(220px, 1fr) max-content max-content max-content; column-gap: var(--sp-3); max-height: 32vh; overflow: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); }
+.arq-vis-itens > [role="row"] { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; padding: 6px 10px; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
+.arq-vis-itens > .cabeca { border-top: 0; font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; color: var(--text-muted); background: var(--bg-subtle); position: sticky; top: 0; }
+.arq-vis-itens .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.arq-vis-itens .desc { display: flex; flex-direction: column; min-width: 0; }
+.arq-vis-itens .desc small { font-size: var(--fs-xs); color: var(--text-muted); }
+.arq-vis-alternar { align-self: flex-start; }
+.arq-vis-aviso { margin: 0; padding: var(--sp-4); border-radius: var(--radius-sm); background: var(--bg-subtle); color: var(--text-secondary); font-size: var(--fs-sm); }
+@media (max-width: 720px) { .arq-vis-partes { grid-template-columns: 1fr; } }
+/* Portal: resumo do último envio de vários anexos (fica até o próximo envio). */
+.portal-resultado { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-3); padding: 8px 12px; border-radius: var(--radius-sm); background: var(--tint-green); font-size: var(--fs-sm); color: var(--text-primary); }
+.portal-resultado.com-recusa { background: var(--tint-amber); }
+.portal-resultado ul { margin: 4px 0 0; padding-left: 18px; font-size: var(--fs-xs); color: var(--text-secondary); }

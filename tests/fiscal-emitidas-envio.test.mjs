@@ -116,3 +116,23 @@ test("receita: 7501 (exportação de mercadoria recebida para exportar) é venda
   const [m] = receitaPorMes([{ lado: "saida", competencia: "2026-01", receita: { porCfop: { 7101: 100, 7501: 50 } } }]);
   assert.deepEqual([m.industria, m.exportacao], [150, 150]);
 });
+
+test("portal: vários anexos, sem repetir a nota, excluir pelo lado que enviou e ver na própria plataforma", () => {
+  const mig = ler("supabase/migrations/202610290006_fiscal_portal_anexo_excluir.sql");
+  assert.match(mig, /create or replace function public\.fiscal_portal_anexo_excluir\(p_anexo uuid\)/);
+  assert.match(mig, /if a\.lado <> lado then/, "só o lado que enviou");
+  assert.match(mig, /situacao = 'fechada'/, "competência fechada não exclui");
+  assert.match(mig, /fiscal_portal\.anexo_excluido/, "auditoria");
+  const rota = ler("app/api/fiscal/portal/anexo/route.ts");
+  assert.match(rota, /export async function DELETE/);
+  assert.match(rota, /já está anexada aqui/, "mesma NF-e em outro arquivo");
+  assert.match(rota, /lerIbsCbs\(admin/, "a nota anexada é lida na hora");
+  const ver = ler("app/api/fiscal/portal/anexo/[id]/route.ts");
+  assert.match(ver, /xml: "text\/plain; charset=utf-8"/, "XML vai como texto");
+  assert.match(ver, /content-security-policy": "sandbox/, "nada do arquivo executa");
+  const tela = ler("modules/fiscal/src/PortalEscritorio.tsx");
+  assert.match(tela, /rotulo="Anexar arquivos" multiplo/);
+  assert.match(tela, /useSoltarArquivo/);
+  assert.match(tela, /<VisualizarArquivo /);
+  assert.doesNotMatch(tela, /target="_blank"[^>]*>\s*<b>\{a\.nome\}/, "anexo não abre mais em outra aba");
+});
