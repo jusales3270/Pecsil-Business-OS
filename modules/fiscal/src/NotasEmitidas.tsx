@@ -35,19 +35,24 @@ type Inutilizacao = { id: string; serie: number; numero_inicio: number; numero_f
 type Lista = {
   notas: Linha[]; emitente: { razaoSocial: string; cnpj: string; uf: string; crt: number } | null; problemasEmitente: Problema[];
   destinatarios: Destinatario[]; clientes: Cliente[]; inutilizacoes: Inutilizacao[]; podeOperar: boolean; podeAprovar: boolean; transmissor: boolean;
+  ambiente: Ambiente; ambientes: Ambiente[];
 };
+/** Treino: nada vai à SEFAZ. Homologação: a SEFAZ de teste, com o certificado da empresa (sem valor fiscal). */
+type Ambiente = "treino" | "homologacao";
+const NO_AMBIENTE: Record<Ambiente, string> = { treino: "no treino", homologacao: "na homologação" };
 type Validacao = { ok: boolean; erros: Problema[]; avisos: Problema[]; esquema: { conferido: boolean; erros: string[] } };
 type Detalhe = Linha & { nota: NotaNfe; totais: Totais | null; customer_id: string | null; validacao: Validacao | null };
 type Evento = { id: string; tipo: "cancelamento" | "carta" | "inutilizacao"; sequencia: number | null; texto: string; protocolo: string | null; created_by_name: string | null; created_at: string };
 
 type Filtro = "todas" | "edicao" | "aguardando" | "autorizadas" | "canceladas";
 const NO_FILTRO: Record<Filtro, (s: SituacaoNfe) => boolean> = {
-  todas: () => true, edicao: (s) => s === "rascunho" || s === "validada" || s === "rejeitada", aguardando: (s) => s === "aguardando_aprovacao",
+  todas: () => true, edicao: (s) => s === "rascunho" || s === "validada" || s === "rejeitada", aguardando: (s) => s === "aguardando_aprovacao" || s === "transmitindo",
   autorizadas: (s) => s === "autorizada", canceladas: (s) => s === "cancelada",
 };
 const SITUACAO: Record<SituacaoNfe, [string, "success" | "danger" | "attention" | "info" | "neutral"]> = {
   rascunho: ["Rascunho", "neutral"], validada: ["Validada", "info"], aguardando_aprovacao: ["Aguardando aprovação", "attention"],
-  autorizada: ["Autorizada (treino)", "success"], rejeitada: ["Rejeitada", "danger"], cancelada: ["Cancelada", "danger"],
+  transmitindo: ["Na SEFAZ, sem resposta", "attention"],
+  autorizada: ["Autorizada", "success"], rejeitada: ["Rejeitada", "danger"], cancelada: ["Cancelada", "danger"],
 };
 
 const CST_ICMS: Record<string, string> = {
@@ -90,13 +95,17 @@ export function NotasEmitidas({ notify, abrir = null, onAberta }: { notify: (m: 
   useEffect(() => { if (abrir) onAberta?.(); }, [abrir, onAberta]);
   const [inutilizar, setInutilizar] = useState(false);
   const [limpando, setLimpando] = useState<"perguntar" | "apagando" | null>(null);
+  const [ambiente, setAmbiente] = useState<Ambiente>("treino");
+  // Os ambientes liberados ficam guardados: a escolha não some enquanto a lista do outro ambiente carrega.
+  const [ambientes, setAmbientes] = useState<Ambiente[]>([]);
 
   const carregar = useCallback(async () => {
-    const r = await api<Lista>("/api/fiscal/nfe?ambiente=treino");
+    const r = await api<Lista>(`/api/fiscal/nfe?ambiente=${ambiente}`);
     if (!r.ok) { setErro(r.error); return; }
     setErro("");
     setDados({ ...r.data, notas: r.data.notas.map((n) => ({ ...n, valor_total: Number(n.valor_total) })) });
-  }, []);
+    if (r.data.ambientes?.length) setAmbientes(r.data.ambientes);
+  }, [ambiente]);
   useEffect(() => { const t = setTimeout(() => { void carregar(); }, 0); return () => clearTimeout(t); }, [carregar]);
 
   const notas = useMemo(() => dados?.notas ?? [], [dados]);
@@ -124,6 +133,7 @@ export function NotasEmitidas({ notify, abrir = null, onAberta }: { notify: (m: 
       <div className="finance-page-head">
         <div><p className="eyebrow">FISCAL · NF-e</p><h1>Notas emitidas</h1><p>As notas emitidas no GRV, mês a mês, e o treino da emissão pela plataforma, que confere as regras e o esquema oficial da SEFAZ antes de qualquer transmissão.</p></div>
         <div className="icms-acoes">
+          {ambientes.length > 1 && <Segmented<Ambiente> options={[{ value: "treino", label: "Treino" }, { value: "homologacao", label: "Homologação" }]} value={ambiente} onChange={(a) => { setDados(null); setFiltro("todas"); setAmbiente(a); }} ariaLabel="Ambiente da emissão" compact />}
           {dados?.podeAprovar && <Button variant="secondary" onClick={() => setInutilizar(true)}>Inutilizar números</Button>}
           {dados?.podeOperar && <Button onClick={() => setAberta("nova")}>Nova nota</Button>}
         </div>
@@ -131,7 +141,7 @@ export function NotasEmitidas({ notify, abrir = null, onAberta }: { notify: (m: 
 
       <NotasDoMes notify={notify} podeOperar={Boolean(dados?.podeOperar)} />
 
-      <FaixaTreino />
+      <FaixaTreino ambiente={ambiente} />
 
       {dados && dados.problemasEmitente.length > 0 && (
         <Callout variant="warning" title="Falta completar a Configuração fiscal">
@@ -149,7 +159,7 @@ export function NotasEmitidas({ notify, abrir = null, onAberta }: { notify: (m: 
             <KpiGrid>
               <Kpi label="Em edição" value={String(conta("edicao"))} caption="Rascunhos e validadas" tone="neutral" onOpen={() => setFiltro("edicao")} />
               <Kpi label="Aguardando aprovação" value={String(conta("aguardando"))} caption="Esperando quem transmite" tone={conta("aguardando") ? "amber" : "neutral"} onOpen={() => setFiltro("aguardando")} />
-              <Kpi label="Autorizadas no treino" value={String(autorizadas.length)} caption={curto(autorizadas.reduce((a, n) => a + n.valor_total, 0))} tone="green" onOpen={() => setFiltro("autorizadas")} />
+              <Kpi label={`Autorizadas ${NO_AMBIENTE[ambiente]}`} value={String(autorizadas.length)} caption={curto(autorizadas.reduce((a, n) => a + n.valor_total, 0))} tone="green" onOpen={() => setFiltro("autorizadas")} />
               <Kpi label="Canceladas" value={String(conta("canceladas"))} caption="Dentro do prazo de 24 h" tone={conta("canceladas") ? "red" : "neutral"} onOpen={() => setFiltro("canceladas")} />
             </KpiGrid>
           )}
@@ -182,7 +192,7 @@ export function NotasEmitidas({ notify, abrir = null, onAberta }: { notify: (m: 
               </div>
             ) : (
               <div className="finance-empty">
-                <b>{filtro === "todas" ? "Nenhuma nota de treino ainda" : "Nenhuma nota neste filtro"}</b>
+                <b>{filtro === "todas" ? `Nenhuma nota ${NO_AMBIENTE[ambiente]} ainda` : "Nenhuma nota neste filtro"}</b>
                 <small>{filtro === "todas" ? (dados.podeOperar ? "Clique em Nova nota para montar a primeira." : "Quem opera as notas fiscais monta as notas aqui.") : "Troque o filtro para ver as demais."}</small>
               </div>
             )}
@@ -190,7 +200,7 @@ export function NotasEmitidas({ notify, abrir = null, onAberta }: { notify: (m: 
 
           {dados.inutilizacoes.length > 0 && (
             <section className="almox-bloco fiscal-config-bloco">
-              <header><h2>Números inutilizados no treino</h2></header>
+              <header><h2>Números inutilizados {NO_AMBIENTE[ambiente]}</h2></header>
               <ul className="nfe-eventos">
                 {dados.inutilizacoes.map((i) => (
                   <li key={i.id}><b>Série {i.serie} · {i.numero_inicio === i.numero_fim ? `nº ${i.numero_inicio}` : `nº ${i.numero_inicio} a ${i.numero_fim}`}</b><span>{i.texto}</span><small>{i.created_by_name ?? "—"} · {dataHora(i.created_at)}</small></li>
@@ -199,7 +209,7 @@ export function NotasEmitidas({ notify, abrir = null, onAberta }: { notify: (m: 
             </section>
           )}
 
-          {dados.podeAprovar && notas.length + dados.inutilizacoes.length > 0 && (
+          {ambiente === "treino" && dados.podeAprovar && notas.length + dados.inutilizacoes.length > 0 && (
             <section className="almox-bloco fiscal-config-bloco">
               <header><h2>Recomeçar o treino</h2></header>
               <p className="fiscal-nota-ajuda">Apaga todas as notas, eventos e números do treino (a numeração volta ao 1). Não mexe em nada real: o treino nunca saiu da plataforma.</p>
@@ -217,12 +227,20 @@ export function NotasEmitidas({ notify, abrir = null, onAberta }: { notify: (m: 
         </>
       )}
 
-      {inutilizar && <InutilizarModal onClose={() => setInutilizar(false)} onFeito={(m) => { setInutilizar(false); notify(m); void carregar(); }} />}
+      {inutilizar && <InutilizarModal ambiente={ambiente} onClose={() => setInutilizar(false)} onFeito={(m) => { setInutilizar(false); notify(m); void carregar(); }} />}
     </div>
   );
 }
 
-function FaixaTreino() {
+function FaixaTreino({ ambiente }: { ambiente: Ambiente }) {
+  if (ambiente === "homologacao") {
+    return (
+      <div className="nfe-faixa-treino homologacao" role="note">
+        <b>HOMOLOGAÇÃO — SEM VALOR FISCAL</b>
+        <span>A nota vai de verdade à SEFAZ de teste, assinada com o certificado da empresa, e volta autorizada ou rejeitada com o motivo. Não vale como nota e não gera imposto. Numeração própria, separada da produção.</span>
+      </div>
+    );
+  }
   return (
     <div className="nfe-faixa-treino" role="note">
       <b>TREINO — SEM VALOR FISCAL</b>
@@ -234,6 +252,8 @@ function FaixaTreino() {
 /* --- Editor ------------------------------------------------------------------------------- */
 
 function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | null; lista: Lista; notify: (m: string) => void; onFechar: () => void; onCriada: (id: string) => void }) {
+  // A nota é do ambiente da lista em que foi aberta (treino ou homologação).
+  const amb: Ambiente = lista.ambiente ?? "treino";
   const crt = lista.emitente?.crt ?? 3;
   const ufEmitente = lista.emitente?.uf ?? "";
   const [det, setDet] = useState<Detalhe | null>(null);
@@ -342,7 +362,7 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
   };
 
   const salvar = async (): Promise<string | null> => {
-    const corpo = JSON.stringify({ ambiente: "treino", nota, customer_id: clienteId });
+    const corpo = JSON.stringify({ ambiente: amb, nota, customer_id: clienteId });
     const r = id
       ? await api(`/api/fiscal/nfe/${id}`, { method: "PUT", body: corpo })
       : await api<{ id: string }>("/api/fiscal/nfe", { method: "POST", body: corpo });
@@ -380,6 +400,23 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
 
   const simples = (nome: string, ok: string) => rodar(nome, async () => { if (await acao(nome)) { notify(ok); void carregar(id!); } });
 
+  // Transmitir: autorizada, rejeitada (o motivo aparece na nota) ou sem resposta (fica para consultar).
+  const transmitir = () => rodar("transmitir", async () => {
+    if (!id) return;
+    const r = await api<{ ok?: boolean; pendente?: boolean; mensagem?: string; protocolo?: string | null }>(`/api/fiscal/nfe/${id}/acao`, { method: "POST", body: JSON.stringify({ acao: "transmitir" }) });
+    if (!r.ok) notify(r.error);
+    else if (r.data.pendente) notify(r.data.mensagem ?? "A SEFAZ ainda não confirmou: consulte na SEFAZ.");
+    else notify(amb === "homologacao" ? `Nota autorizada pela SEFAZ (homologação)${r.data.protocolo ? `, protocolo ${r.data.protocolo}` : ""}. DANFE e XML disponíveis.` : "Nota autorizada no treino. DANFE e XML disponíveis.");
+    void carregar(id);
+  });
+  const consultar = () => rodar("consultar", async () => {
+    if (!id) return;
+    const r = await api<{ cStat: string | null; motivo: string | null; situacao: string }>(`/api/fiscal/nfe/${id}/acao`, { method: "POST", body: JSON.stringify({ acao: "consultar" }) });
+    if (!r.ok) notify(r.error);
+    else notify({ autorizada: "A SEFAZ confirmou: nota autorizada.", cancelada: "A SEFAZ informa que a nota está cancelada.", nao_consta: "A SEFAZ não recebeu a nota: pode transmitir de novo." }[r.data.situacao] ?? `SEFAZ: ${r.data.cStat ?? ""} ${r.data.motivo ?? ""}. Consulte de novo em alguns minutos.`);
+    void carregar(id);
+  });
+
   const descartar = () => rodar("descartar", async () => {
     if (!id) { onFechar(); return; }
     const r = await api<{ numeroSemUso: { serie: number; numero: number } | null }>(`/api/fiscal/nfe/${id}`, { method: "DELETE" });
@@ -413,7 +450,7 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
     <div className="icms-modulo nfe-editor-pagina">
       <div className="finance-page-head">
         <div>
-          <p className="eyebrow">FISCAL · NF-e · TREINO</p>
+          <p className="eyebrow">FISCAL · NF-e · {amb === "homologacao" ? "HOMOLOGAÇÃO" : "TREINO"}</p>
           <h1>{det?.numero ? `NF-e nº ${numeroNota(det)}` : "Nova nota fiscal"}</h1>
           <p>{det ? <>Montada por {det.montada_por_nome ?? "—"}{det.aprovada_por_nome ? ` · aprovada por ${det.aprovada_por_nome}` : ""}</> : "Preencha, valide e envie para aprovação."}</p>
         </div>
@@ -423,14 +460,17 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
         </div>
       </div>
 
-      <FaixaTreino />
+      <FaixaTreino ambiente={amb} />
 
       {det?.motivo && situacao === "rascunho" && <Callout variant="danger" title="Volte e corrija">{det.motivo}</Callout>}
+      {det?.motivo && situacao === "rejeitada" && <Callout variant="danger" title="A SEFAZ rejeitou a nota">{det.motivo} Corrija, salve e valide de novo: o número continua o mesmo.</Callout>}
+      {situacao === "transmitindo" && <Callout variant="warning" title="A nota foi à SEFAZ e a resposta não voltou">{det?.motivo ?? "Sem resposta da SEFAZ. Consulte na SEFAZ antes de transmitir de novo."} A consulta diz se ela foi autorizada.</Callout>}
+      {det?.motivo && situacao === "aguardando_aprovacao" && <Callout variant="info" title="Antes de transmitir">{det.motivo}</Callout>}
       {det?.chave && (
         <dl className="fiscal-cert nfe-ids">
           <div><dt>Chave de acesso</dt><dd className="nfe-chave">{det.chave.replace(/(\d{4})(?=\d)/g, "$1 ")}</dd></div>
           <div><dt>Emissão</dt><dd>{dataHora(det.emissao)}</dd></div>
-          <div><dt>Protocolo (simulado)</dt><dd>{det.protocolo ?? "—"}</dd></div>
+          <div><dt>{amb === "treino" ? "Protocolo (simulado)" : "Protocolo da SEFAZ"}</dt><dd>{det.protocolo ?? "—"}</dd></div>
           <div><dt>Autorizada em</dt><dd>{dataHora(det.autorizada_em)}</dd></div>
         </dl>
       )}
@@ -612,7 +652,7 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
             <label className="nfe-texto">
               <textarea aria-label="Informações complementares" rows={3} maxLength={2000} value={nota.infoComplementar} onChange={(e) => mudar((n) => ({ ...n, infoComplementar: e.target.value }))} placeholder="Pedido do cliente, dados bancários, observações exigidas por lei…" />
             </label>
-            <p className="fiscal-nota-ajuda">No treino, a plataforma acrescenta “SIMULACAO DE TREINO NA PLATAFORMA - SEM VALOR FISCAL” no começo deste texto.</p>
+            <p className="fiscal-nota-ajuda">{amb === "homologacao" ? "Na homologação, a SEFAZ exige que o nome do destinatário saia como “NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL”: a plataforma troca só na nota (o cadastro do cliente não muda)." : "No treino, a plataforma acrescenta “SIMULACAO DE TREINO NA PLATAFORMA - SEM VALOR FISCAL” no começo deste texto."}</p>
           </section>
         </fieldset>
 
@@ -659,11 +699,12 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
             )}
             {situacao === "aguardando_aprovacao" && (lista.podeAprovar ? (
               <>
-                <p className="fiscal-nota-ajuda">Você aprova as notas: confira e transmita. No treino a “SEFAZ” é simulada e devolve um protocolo fictício.</p>
-                <Button onClick={() => void simples("transmitir", "Nota autorizada no treino. DANFE e XML disponíveis.")} disabled={ocupado !== null}>{ocupado === "transmitir" ? "Transmitindo…" : "Aprovar e transmitir (treino)"}</Button>
+                <p className="fiscal-nota-ajuda">{amb === "homologacao" ? "Você aprova as notas: confira e transmita. A nota vai à SEFAZ de teste e volta autorizada ou rejeitada com o motivo." : "Você aprova as notas: confira e transmita. No treino a “SEFAZ” é simulada e devolve um protocolo fictício."}</p>
+                <Button onClick={() => void transmitir()} disabled={ocupado !== null}>{ocupado === "transmitir" ? (amb === "homologacao" ? "Na SEFAZ…" : "Transmitindo…") : amb === "homologacao" ? "Aprovar e transmitir à SEFAZ (homologação)" : "Aprovar e transmitir (treino)"}</Button>
                 <Button variant="secondary" onClick={() => setPedir("devolver")} disabled={ocupado !== null}>Devolver para correção</Button>
               </>
             ) : <p className="fiscal-nota-ajuda">Aguardando quem aprova as notas transmitir.</p>)}
+            {situacao === "transmitindo" && lista.podeAprovar && <Button onClick={() => void consultar()} disabled={ocupado !== null}>{ocupado === "consultar" ? "Consultando…" : "Consultar na SEFAZ"}</Button>}
             {(situacao === "autorizada" || situacao === "cancelada") && (
               <>
                 <a className="ds-button primary" href={`/api/fiscal/nfe/${id}/danfe`} target="_blank" rel="noreferrer">Ver DANFE</a>
@@ -699,7 +740,7 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
         <PedirTexto tipo={pedir} onClose={() => setPedir(null)} onConfirmar={async (texto) => {
           const ok = await acao(pedir, texto);
           if (ok) {
-            notify({ devolver: "Nota devolvida para correção.", cancelar: "Nota cancelada no treino.", carta: "Carta de correção registrada no treino." }[pedir]);
+            notify({ devolver: "Nota devolvida para correção.", cancelar: `Nota cancelada ${amb === "homologacao" ? "na SEFAZ (homologação)" : "no treino"}.`, carta: `Carta de correção registrada ${amb === "homologacao" ? "na SEFAZ (homologação)" : "no treino"}.` }[pedir]);
             setPedir(null);
             void carregar(id);
           }
@@ -758,7 +799,7 @@ function PedirTexto({ tipo, onClose, onConfirmar }: { tipo: keyof typeof PEDIR; 
   );
 }
 
-function InutilizarModal({ onClose, onFeito }: { onClose: () => void; onFeito: (m: string) => void }) {
+function InutilizarModal({ ambiente, onClose, onFeito }: { ambiente: Ambiente; onClose: () => void; onFeito: (m: string) => void }) {
   const [serie, setSerie] = useState("1");
   const [inicio, setInicio] = useState("");
   const [fim, setFim] = useState("");
@@ -768,13 +809,13 @@ function InutilizarModal({ onClose, onFeito }: { onClose: () => void; onFeito: (
   const enviar = async (event: React.FormEvent) => {
     event.preventDefault();
     setEnviando(true); setErro("");
-    const r = await api<{ protocolo: string }>("/api/fiscal/nfe/inutilizar", { method: "POST", body: JSON.stringify({ ambiente: "treino", serie, inicio, fim: fim || inicio, texto }) });
+    const r = await api<{ protocolo: string }>("/api/fiscal/nfe/inutilizar", { method: "POST", body: JSON.stringify({ ambiente, serie, inicio, fim: fim || inicio, texto }) });
     setEnviando(false);
     if (!r.ok) { setErro(r.error); return; }
-    onFeito(`Numeração inutilizada no treino (protocolo simulado ${r.data.protocolo}).`);
+    onFeito(ambiente === "homologacao" ? `Numeração inutilizada na SEFAZ (homologação), protocolo ${r.data.protocolo}.` : `Numeração inutilizada no treino (protocolo simulado ${r.data.protocolo}).`);
   };
   return (
-    <Modal eyebrow="NF-e · TREINO" title="Inutilizar números" subtitle="Para números que pularam e não vão ser usados" onClose={onClose}>
+    <Modal eyebrow={`NF-e · ${ambiente === "homologacao" ? "HOMOLOGAÇÃO" : "TREINO"}`} title="Inutilizar números" subtitle="Para números que pularam e não vão ser usados" onClose={onClose}>
       <form className="almox-form" onSubmit={enviar}>
         <p className="fiscal-nota-ajuda">Na vida real, todo número pulado (nota descartada, falha no sistema) precisa ser inutilizado na SEFAZ até o dia 10 do mês seguinte. Número de nota autorizada não pode ser inutilizado.</p>
         <div className="fiscal-campos nfe-campos">

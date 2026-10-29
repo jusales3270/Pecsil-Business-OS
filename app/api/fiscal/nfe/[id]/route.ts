@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 type Contexto = { params: Promise<{ id: string }> };
-const EDITAVEL = new Set(["rascunho", "validada"]);
+// Rejeitada pela SEFAZ: corrige e transmite de novo (o número é mantido).
+const EDITAVEL = new Set(["rascunho", "validada", "rejeitada"]);
 
 /** A nota com os eventos (cancelamento, cartas de correção). O XML fica nas rotas de download. */
 export async function GET(_request: Request, context: Contexto) {

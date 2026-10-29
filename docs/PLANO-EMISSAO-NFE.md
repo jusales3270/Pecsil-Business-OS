@@ -17,6 +17,17 @@ que hoje só tem o treino.
 | Notas recebidas da SEFAZ | Rodando com o certificado desde 29/10, mas **em homologação**: a SEFAZ responde 137 (nenhum documento) e as notas reais dos fornecedores não chegam (ver F0). |
 | Numeração | O GRV emite na **série 1** (janeiro: 10580 a 10634; outubro: até 11170). |
 
+## Andamento (29/10/2026)
+
+- **F0 construída e aplicada** (`889dda6`, migração 202610290007): a busca vai à produção depois do Deploy.
+- **Nota cancelada fora da receita** (`889dda6`, migração 202610290008).
+- **F1 construída** (migração 202610290009 aplicada): homologação liberada; transmitir, consultar, cancelar,
+  carta e inutilizar vão à SEFAZ de teste; trava contra duplo envio; rejeição volta para correção; sem resposta
+  exige consulta. Testada na plataforma até a SEFAZ (QA 16/16) e no transmissor (13/13). **Falta a prova real
+  na SEFAZ de homologação, depois do Deploy da plataforma E do transmissor** (o certificado só existe no
+  servidor). Pendências conhecidas: XML autorizado em Documentos só na produção; quando a resposta se perde e
+  a consulta confirma a autorização, o XML autorizado não volta (fica o protocolo).
+
 ## F0 — Notas recebidas da SEFAZ em produção (não emite nada)
 
 A busca das notas que os fornecedores emitem contra a Pecsil (distribuição de DF-e) usa o mesmo ambiente da

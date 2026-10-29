@@ -121,3 +121,33 @@ test("servidor: /saude aberto, operações exigem o segredo", async () => {
     srv.close();
   }
 });
+
+test("autorização: XML autorizado lido da pasta, protocolo e código do protocolo da nota", async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { tmpdir } = await import("node:os");
+  const pasta = mkdtempSync(join(tmpdir(), "teste-aut-"));
+  try {
+    assert.equal(m.xmlAutorizadoDaPasta(pasta), null, "sem arquivo: nada");
+    mkdirSync(join(pasta, "autorizacao", "NFEAutorizacao"), { recursive: true });
+    const nfeProc = `<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe Id="NFe35261011222333000181550010000000011000000011"/></NFe><protNFe versao="4.00"><infProt><tpAmb>2</tpAmb><chNFe>35261011222333000181550010000000011000000011</chNFe><dhRecbto>2026-10-30T10:00:00-03:00</dhRecbto><nProt>135260000123456</nProt><cStat>100</cStat><xMotivo>Autorizado o uso da NF-e</xMotivo></infProt></protNFe></nfeProc>`;
+    writeFileSync(join(pasta, "autorizacao", "NFEAutorizacao", "35261011222333000181550010000000011.xml"), nfeProc);
+    const xml = m.xmlAutorizadoDaPasta(pasta);
+    assert.match(xml, /<nfeProc/);
+    const r = m.resultadoAutorizacao({ success: true, xMotivo: [{ cStat: "100" }] }, xml);
+    assert.deepEqual([r.cStat, r.protocolo, r.recebidoEm, r.chave], ["100", "135260000123456", "2026-10-30T10:00:00-03:00", "35261011222333000181550010000000011000000011"]);
+    assert.equal(r.xmlAutorizado, xml);
+    const semAut = m.resultadoAutorizacao({ xMotivo: [{ cStat: "105", xMotivo: "Lote em processamento" }] }, null);
+    assert.deepEqual([semAut.cStat, semAut.xmlAutorizado], ["105", null], "sem a autorização: sem XML");
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
+});
+
+test("eventos e inutilização: código e protocolo do retorno do evento, não do lote", () => {
+  // Formato do xml2js da biblioteca: listas em cada nível.
+  const cancelamento = { success: true, response: [{ retEnvEvento: [{ cStat: ["128"], xMotivo: ["Lote de evento processado"], retEvento: [{ infEvento: [{ cStat: ["135"], xMotivo: ["Evento registrado e vinculado a NF-e"], nProt: ["135260000999999"], dhRegEvento: ["2026-10-30T11:00:00-03:00"] }] }] }] }] };
+  assert.deepEqual(m.respostaEvento(cancelamento), { cStat: "135", motivo: "Evento registrado e vinculado a NF-e", protocolo: "135260000999999", recebidoEm: "2026-10-30T11:00:00-03:00", bruto: null });
+  const inutilizacao = { retInutNFe: [{ infInut: [{ cStat: ["102"], xMotivo: ["Inutilização de número homologado"], nProt: ["135260000777777"], dhRecbto: ["2026-10-30T12:00:00-03:00"] }] }] };
+  assert.deepEqual([m.respostaEvento(inutilizacao).cStat, m.respostaEvento(inutilizacao).protocolo], ["102", "135260000777777"]);
+});

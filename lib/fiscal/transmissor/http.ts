@@ -2,6 +2,7 @@ import {
   ErroTransmissor,
   type CodigoErroTransmissor,
   type DadosCertificado,
+  type ResultadoAutorizacao,
   type ResultadoDistribuicao,
   type ResultadoValidacao,
   type RespostaSefaz,
@@ -25,6 +26,7 @@ const OPERACOES_REPETIVEIS = new Set(["status", "certificado", "validar", "consu
 const CODIGOS_DO_SERVICO: Record<string, CodigoErroTransmissor> = {
   NAO_AUTORIZADO: "NAO_AUTORIZADO",
   CONSUMO_INDEVIDO: "CONSUMO_INDEVIDO",
+  REJEITADA: "REJEITADA",
   FALHA: "FALHA",
 };
 
@@ -54,7 +56,7 @@ export function criarTransmissorHttp({ url, segredo, prazoMs = 60_000, fetch: bu
       if (json?.ok) return json.resultado;
       const codigoServico = json && !json.ok ? json.erro?.codigo ?? "" : "";
       const mensagem = (json && !json.ok ? json.erro?.mensagem : undefined) ?? `O transmissor respondeu ${resposta.status}.`;
-      const codigo: CodigoErroTransmissor = resposta.status === 400 ? "PEDIDO_INVALIDO" : CODIGOS_DO_SERVICO[codigoServico] ?? "FALHA";
+      const codigo: CodigoErroTransmissor = CODIGOS_DO_SERVICO[codigoServico] ?? (resposta.status === 400 ? "PEDIDO_INVALIDO" : "FALHA");
       throw new ErroTransmissor(codigo, mensagem, codigoServico || undefined);
     }
   }
@@ -64,7 +66,7 @@ export function criarTransmissorHttp({ url, segredo, prazoMs = 60_000, fetch: bu
     status: (c) => chamar<RespostaSefaz>("status", { ...c }),
     certificado: (certificado) => chamar<DadosCertificado>("certificado", { certificado }),
     validar: (xml) => chamar<ResultadoValidacao>("validar", { xml }),
-    autorizar: (c, xml) => chamar<RespostaSefaz>("autorizar", { ...c, xml }),
+    autorizar: (c, xml) => chamar<ResultadoAutorizacao>("autorizar", { ...c, xml }),
     consultar: (c, chave) => chamar<RespostaSefaz>("consultar", { ...c, chave }),
     evento: (c, evento) => chamar<RespostaSefaz>("evento", { ...c, ...evento }),
     inutilizar: (c, faixa) => chamar<RespostaSefaz>("inutilizar", { ...c, ...faixa }),

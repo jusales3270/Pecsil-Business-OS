@@ -9,7 +9,7 @@
 
 export type AmbienteNfe = "treino" | "homologacao" | "producao";
 
-export type SituacaoNfe = "rascunho" | "validada" | "aguardando_aprovacao" | "autorizada" | "rejeitada" | "cancelada";
+export type SituacaoNfe = "rascunho" | "validada" | "aguardando_aprovacao" | "transmitindo" | "autorizada" | "rejeitada" | "cancelada";
 
 export type Destinatario = {
   documento: string; // CNPJ ou CPF, só dígitos

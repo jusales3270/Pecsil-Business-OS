@@ -160,7 +160,7 @@ test("migração: escrita só pelo servidor, leitura por fiscal.nfe, numeração
   assert.match(sql, /check \(length\(trim\(texto\)\) between 15 and 1000\)/);
 });
 
-test("treino nunca fala com a SEFAZ e o portão humano está nas rotas", () => {
+test("treino nunca fala com a SEFAZ, homologação fala com trava e consulta, produção bloqueada; portão humano nas rotas", () => {
   const raiz = new URL("../app/api/fiscal/nfe/", import.meta.url);
   const rotas = [];
   const andar = (dir) => {
@@ -170,13 +170,22 @@ test("treino nunca fala com a SEFAZ e o portão humano está nas rotas", () => {
     }
   };
   andar(raiz);
-  const tudo = rotas.join("\n") + ler("../lib/fiscal/emissao/servidor.ts");
-  for (const proibido of [".autorizar(", ".evento(", ".inutilizar(", "credenciaisDaOrganizacao"]) {
-    assert.ok(!tudo.includes(proibido), `o treino não pode chamar ${proibido}`);
-  }
-  assert.match(ler("../lib/fiscal/emissao/servidor.ts"), /AMBIENTES_LIBERADOS: AmbienteNfe\[\] = \["treino"\]/);
+  void rotas;
+  // Treino e homologação liberados; produção, só com o OK do proprietário (docs/PLANO-EMISSAO-NFE.md, F4).
+  assert.match(ler("../lib/fiscal/emissao/servidor.ts"), /AMBIENTES_LIBERADOS: AmbienteNfe\[\] = \["treino", "homologacao"\]/);
+  assert.doesNotMatch(ler("../lib/fiscal/emissao/servidor.ts"), /AMBIENTES_LIBERADOS[^\n]*"producao"/);
+  // Quem fala com a SEFAZ é só o que não é treino, e com a Configuração no MESMO ambiente da nota.
+  const sefaz = ler("../lib/fiscal/emissao/sefaz.ts");
+  assert.match(sefaz, /export const naSefaz = \(ambiente: AmbienteNfe\) => ambiente !== "treino";/);
+  assert.match(sefaz, /if \(cred\.ambiente !== ambiente\)/);
   const acao = ler("../app/api/fiscal/nfe/[id]/acao/route.ts");
-  assert.match(acao, /validar: "operar", enviar: "operar", devolver: "aprovar", transmitir: "aprovar", cancelar: "aprovar", carta: "aprovar"/);
+  assert.match(acao, /const cred = sefaz \? await credenciaisDaEmissao/, "credenciais só fora do treino");
+  assert.match(acao, /if \(!sefaz\) \{\s*const protocolo = protocoloDeTreino\(\);/, "treino segue simulado, antes de qualquer chamada");
+  assert.match(acao, /\.eq\("situacao", "validada"\)\.select\("id"\);\s*if \(!trava\?\.length\)/, "trava: um clique só vai à SEFAZ");
+  assert.match(acao, /tipo === "rejeitada"[\s\S]*situacao: "rejeitada"/);
+  assert.match(acao, /Consulte na SEFAZ antes de transmitir de novo/, "sem resposta: nunca reenviar às cegas");
+  for (const r of ["../app/api/fiscal/nfe/inutilizar/route.ts"]) assert.match(ler(r), /if \(naSefaz\(ambiente\)\)/);
+  assert.match(acao, /validar: "operar", enviar: "operar", devolver: "aprovar", transmitir: "aprovar", consultar: "aprovar", cancelar: "aprovar", carta: "aprovar"/);
   assert.match(acao, /if \(!ambienteLiberado\(n\.ambiente\)\)/);
   assert.match(ler("../app/api/fiscal/nfe/inutilizar/route.ts"), /requireFeature\("fiscal\.nfe", "aprovar"\)/);
   assert.match(ler("../app/api/fiscal/nfe/route.ts"), /export async function DELETE[\s\S]*requireFeature\("fiscal\.nfe", "aprovar"\)[\s\S]*!== "treino"/);

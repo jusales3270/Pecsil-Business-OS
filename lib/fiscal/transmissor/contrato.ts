@@ -27,7 +27,14 @@ export type DadosCertificado = { titular: string | null; cnpj: string | null; va
 export type Credenciais = { uf: string; cnpj: string; ambiente: AmbienteFiscal; certificado: CertificadoA1 };
 
 /** Resposta da SEFAZ com o código e o motivo à vista; `bruto` é o retorno completo, para guardar. */
-export type RespostaSefaz = { cStat: string | null; motivo: string | null; bruto: unknown };
+export type RespostaSefaz = {
+  cStat: string | null; motivo: string | null; bruto: unknown;
+  /** Protocolo da SEFAZ (autorização, evento, inutilização) e a hora do registro. */
+  protocolo?: string | null; recebidoEm?: string | null;
+};
+
+/** Autorização: além do código, a chave e o XML autorizado (nfeProc), só quando a SEFAZ autorizou (100 ou 150). */
+export type ResultadoAutorizacao = RespostaSefaz & { chave?: string | null; xmlAutorizado?: string | null };
 
 export type ResultadoValidacao = {
   success: boolean;
@@ -62,7 +69,7 @@ export interface Transmissor {
   certificado(certificado: CertificadoA1): Promise<DadosCertificado>;
   /** Esquema oficial (sem certificado). */
   validar(xml: string): Promise<ResultadoValidacao>;
-  autorizar(c: Credenciais, xml: string): Promise<RespostaSefaz>;
+  autorizar(c: Credenciais, xml: string): Promise<ResultadoAutorizacao>;
   consultar(c: Credenciais, chave: string): Promise<RespostaSefaz>;
   evento(c: Credenciais, evento: EventoNFe): Promise<RespostaSefaz>;
   inutilizar(c: Credenciais, faixa: FaixaInutilizar): Promise<RespostaSefaz>;
@@ -80,6 +87,7 @@ export type CodigoErroTransmissor =
   | "NAO_AUTORIZADO" // segredo errado
   | "CONSUMO_INDEVIDO" // SEFAZ bloqueou por excesso de consultas: recuar 1 hora
   | "PEDIDO_INVALIDO" // dado faltando ou errado no pedido
+  | "REJEITADA" // a SEFAZ rejeitou (o motivo vem na mensagem): corrigir e transmitir de novo
   | "FALHA"; // a SEFAZ ou a biblioteca recusou
 
 export class ErroTransmissor extends Error {

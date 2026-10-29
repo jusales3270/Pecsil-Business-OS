@@ -17,7 +17,7 @@
 import { createServer } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import { gunzipSync } from "node:zlib";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -58,7 +58,7 @@ export function segredoConfere(recebido, esperado = SEGREDO) {
 }
 
 /** Configuração da biblioteca para UMA chamada (nada é guardado entre chamadas). */
-export function configDaChamada(p, pastaTemporaria) {
+export function configDaChamada(p, pastaTemporaria, opcoes = {}) {
   const uf = String(p.uf ?? "").toUpperCase();
   if (!UF_IBGE[uf]) throw new ErroDoPedido("UF_INVALIDA", "UF do emitente inválida.");
   const cnpj = String(p.cnpj ?? "").replace(/\D/g, "");
@@ -76,7 +76,9 @@ export function configDaChamada(p, pastaTemporaria) {
         UF: uf,
         CPFCNPJ: cnpj,
         baixarXMLDistribuicao: false,
-        armazenarXMLAutorizacao: false,
+        // Só na autorização: a biblioteca devolve o XML autorizado (nfeProc) apenas gravando em arquivo.
+        armazenarXMLAutorizacao: Boolean(opcoes.autorizacao),
+        pathXMLAutorizacao: join(pastaTemporaria, "autorizacao"),
         armazenarXMLConsulta: false,
         armazenarXMLRetorno: false,
         armazenarRetornoEmJSON: false,
@@ -127,16 +129,67 @@ export function normalizarDistribuicao(r) {
   };
 }
 
-async function comBiblioteca(p, fn, formatar = respostaSefaz) {
+async function comBiblioteca(p, fn, formatar = respostaSefaz, opcoes = {}) {
   const pasta = mkdtempSync(join(tmpdir(), "transmissor-"));
   try {
-    const c = configDaChamada(p, pasta);
+    const c = configDaChamada(p, pasta, opcoes);
     const w = new NFeWizard();
     await w.NFE_LoadEnvironment({ config: c.config });
-    return formatar(await fn(w, c));
+    let r;
+    try {
+      r = await fn(w, c, pasta);
+    } catch (e) {
+      // A biblioteca transforma toda rejeição da SEFAZ em erro com o texto do motivo: vira erro do pedido
+      // (a nota volta para correção). O resto (rede, certificado, SEFAZ fora) segue como falha.
+      const mensagem = String(e?.message ?? e);
+      // O consumo indevido (656) tem tratamento próprio (recuar 1 hora): continua como está.
+      if (!(e instanceof ErroDoPedido) && !/consumo indevido/i.test(mensagem) && /rejei[cç][aã]o|duplicidade|denega/i.test(mensagem)) throw new ErroDoPedido("REJEITADA", erroLimpo(e, p));
+      throw e;
+    }
+    return formatar(r, pasta);
   } finally {
     rmSync(pasta, { recursive: true, force: true });
   }
+}
+
+/** O XML autorizado (nfeProc) que a biblioteca gravou na pasta da chamada. */
+export function xmlAutorizadoDaPasta(pasta) {
+  const procurar = (dir) => {
+    if (!existsSync(dir)) return null;
+    for (const nome of readdirSync(dir)) {
+      const caminho = join(dir, nome);
+      if (statSync(caminho).isDirectory()) { const achado = procurar(caminho); if (achado) return achado; continue; }
+      if (!nome.toLowerCase().endsWith(".xml")) continue;
+      const texto = readFileSync(caminho, "utf8");
+      if (/<nfeProc[\s>]/.test(texto)) return texto;
+    }
+    return null;
+  };
+  return procurar(join(pasta, "autorizacao"));
+}
+
+/**
+ * Resultado da autorização: o código e o motivo do protocolo da nota, o número do protocolo, a hora do
+ * recebimento e o XML autorizado (só quando a SEFAZ autorizou: 100, ou 150 fora de prazo).
+ */
+export function resultadoAutorizacao(r, xmlAutorizado) {
+  const prot = xmlAutorizado ? xmlAutorizado.match(/<infProt[^>]*>([\s\S]*?)<\/infProt>/)?.[1] ?? "" : "";
+  const tag = (nome) => prot.match(new RegExp(`<${nome}>([^<]*)</${nome}>`))?.[1] ?? null;
+  const cStat = tag("cStat") ?? (acharChave(r, "cStat") == null ? null : String(acharChave(r, "cStat")));
+  const autorizada = cStat === "100" || cStat === "150";
+  return {
+    cStat, motivo: tag("xMotivo") ?? (acharChave(r, "xMotivo") == null ? null : String(acharChave(r, "xMotivo"))),
+    protocolo: tag("nProt"), recebidoEm: tag("dhRecbto"), chave: tag("chNFe"),
+    xmlAutorizado: autorizada ? xmlAutorizado : null,
+    bruto: null,
+  };
+}
+
+/** Evento e inutilização: o código, o motivo e o protocolo do retorno do evento (não do lote). */
+export function respostaEvento(r) {
+  const ret = acharChave(r, "retEvento") ?? acharChave(r, "infInut") ?? r;
+  const valor = (chave) => { const v = acharChave(ret, chave); return v == null ? null : String(v); };
+  return { cStat: valor("cStat"), motivo: valor("xMotivo"), protocolo: valor("nProt"), recebidoEm: valor("dhRegEvento") ?? valor("dhRecbto"), bruto: null };
 }
 
 /**
@@ -204,9 +257,14 @@ export const OPERACOES = {
   autorizar: (p) => comBiblioteca(p, (w) => {
     if (!p.nfe && !p.xml) throw new ErroDoPedido("SEM_NOTA", "Nota não informada.");
     return w.NFE_Autorizacao(p.xml ? String(p.xml) : p.nfe);
-  }),
+  }, (r, pasta) => resultadoAutorizacao(r, xmlAutorizadoDaPasta(pasta)), { autorizacao: true }),
 
-  consultar: (p) => comBiblioteca(p, (w) => w.NFE_ConsultaProtocolo(String(p.chave ?? ""))),
+  consultar: (p) => comBiblioteca(p, (w) => w.NFE_ConsultaProtocolo(String(p.chave ?? "")), (r) => {
+    // 100 autorizada, 101 cancelada, 217 não consta: o código da nota, com o protocolo dela.
+    const prot = acharChave(r, "protNFe") ?? r;
+    const v = (o, chave) => { const x = acharChave(o, chave); return x == null ? null : String(x); };
+    return { cStat: v(prot, "cStat") ?? v(r, "cStat"), motivo: v(prot, "xMotivo") ?? v(r, "xMotivo"), protocolo: v(prot, "nProt"), recebidoEm: v(prot, "dhRecbto"), bruto: null };
+  }),
 
   evento: (p) => comBiblioteca(p, (w, c) => {
     const base = { idLote: Date.now() % 1_000_000_000, cOrgao: c.cUF, tpAmb: c.ambiente, CNPJ: c.cnpj, chNFe: String(p.chave ?? ""), dhEvento: p.dhEvento ?? agora(), nSeqEvento: Number(p.sequencia ?? 1) };
@@ -223,12 +281,12 @@ export const OPERACOES = {
       return w.NFE_CienciaDaOperacao({ ...base, cOrgao: 91, tpEvento: "210210", detEvento: { descEvento: "Ciencia da Operacao" } });
     }
     throw new ErroDoPedido("EVENTO_INVALIDO", "Tipo de evento inválido.");
-  }),
+  }, respostaEvento),
 
   inutilizar: (p) => comBiblioteca(p, (w, c) => {
     if (String(p.justificativa ?? "").trim().length < 15) throw new ErroDoPedido("JUSTIFICATIVA", "A justificativa precisa de ao menos 15 caracteres.");
     return w.NFE_Inutilizacao({ cUF: c.cUF, CNPJ: c.cnpj, ano: String(p.ano), mod: "55", serie: String(p.serie), nNFIni: String(p.inicio), nNFFin: String(p.fim), xJust: String(p.justificativa) });
-  }),
+  }, respostaEvento),
 
   distribuicao: (p) => comBiblioteca(p, (w, c) => (p.chave
     ? w.NFE_DistribuicaoDFePorChave({ cUFAutor: c.cUF, CNPJ: c.cnpj, consChNFe: { chNFe: String(p.chave) } })

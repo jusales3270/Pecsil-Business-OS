@@ -6,6 +6,7 @@ import { obterTransmissor, transmissorConfigurado } from "../transmissor";
 import { calcularItens, calcularTotais } from "./calculo";
 import { avisosIbsCbs, cnpjValido, cpfValido, validarNota, type IbsCbsLegal, type Problema } from "./regras";
 import type { AmbienteNfe, Destinatario, Emitente, NotaNfe } from "./tipos";
+import { DESTINATARIO_HOMOLOGACAO } from "./sefaz";
 import { assinaturaDeTreino, gerarXmlNfe, nfeProcDeTreino } from "./xml";
 
 /**
@@ -14,7 +15,8 @@ import { assinaturaDeTreino, gerarXmlNfe, nfeProcDeTreino } from "./xml";
  * para a auditoria.
  */
 
-export const AMBIENTES_LIBERADOS: AmbienteNfe[] = ["treino"];
+/** Treino (sem SEFAZ) e homologação (a SEFAZ de teste, sem valor fiscal). Produção só com o OK do proprietário (F4). */
+export const AMBIENTES_LIBERADOS: AmbienteNfe[] = ["treino", "homologacao"];
 
 export type Autor = { org: string; userId: string; profileId: string; nome: string };
 
@@ -141,9 +143,12 @@ export async function validarEGravar(admin: SupabaseClient, org: string, registr
     if (codigo === String(numero).padStart(8, "0")) codigo = String(randomInt(10_000_000, 99_999_999));
     const emissao = new Date();
     // Treino: a nota leva o aviso no texto, além da marca d'água do DANFE.
+    // Homologação: a SEFAZ exige este texto no nome do destinatário (o cadastro do cliente não muda).
     const nota: NotaNfe = registro.ambiente === "treino"
       ? { ...registro.nota, infoComplementar: `SIMULACAO DE TREINO NA PLATAFORMA - SEM VALOR FISCAL. ${registro.nota.infoComplementar}`.trim() }
-      : registro.nota;
+      : registro.ambiente === "homologacao"
+        ? { ...registro.nota, destinatario: { ...registro.nota.destinatario, nome: DESTINATARIO_HOMOLOGACAO } }
+        : registro.nota;
     const { xml, chave } = gerarXmlNfe({ nota, emitente: emitente as Emitente, serie, numero, emissao, codigoNumerico: codigo, tpAmb: registro.ambiente === "producao" ? 1 : 2 });
     if (transmissorConfigurado()) {
       const paraEsquema = xml.replace("</infNFe></NFe>", `</infNFe>${assinaturaDeTreino(chave)}</NFe>`);

@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-29-fiscal-homologacao",
+    data: "2026-10-29",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.nfe"],
+    titulo: "Notas emitidas: homologação na SEFAZ de teste",
+    itens: [
+      "Em Notas emitidas, além do Treino, há a Homologação: a nota vai de verdade à SEFAZ de teste, assinada com o certificado da empresa, e volta autorizada ou rejeitada com o motivo. Não vale como nota e não gera imposto.",
+      "Rejeitada pela SEFAZ, a nota volta para correção com o motivo e mantém o número. Se a resposta não voltar, a nota fica \"Na SEFAZ, sem resposta\" e o botão Consultar na SEFAZ diz se ela foi autorizada: a plataforma nunca reenvia às cegas.",
+      "Cancelamento, carta de correção e inutilização da homologação também vão à SEFAZ e voltam com o protocolo dela.",
+    ],
+  },
+  {
     id: "2026-10-29-fiscal-canceladas-e-notas-recebidas",
     data: "2026-10-29",
     area: "Fiscal",

@@ -138,7 +138,7 @@ A nota segue sempre o mesmo caminho; muda só o **ambiente** (`fiscal_nfe.ambien
 | Ambiente | O que faz | Liberado |
 |---|---|---|
 | `treino` | Só na plataforma: nada vai à SEFAZ; protocolo e DANFE simulados, sem valor fiscal. | **Sim** |
-| `homologacao` | Teste oficial da SEFAZ, com o certificado A1. | Não |
+| `homologacao` | Teste oficial da SEFAZ, com o certificado A1. | **Sim** (29/10/2026, F1 de `docs/PLANO-EMISSAO-NFE.md`) |
 | `producao` | Para valer. Só com o OK do proprietário. | Não |
 
 A liberação é a lista `AMBIENTES_LIBERADOS` em `lib/fiscal/emissao/servidor.ts`. As rotas recusam
