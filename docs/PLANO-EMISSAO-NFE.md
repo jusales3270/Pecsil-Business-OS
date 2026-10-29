@@ -28,6 +28,14 @@ que hoje só tem o treino.
   servidor). Pendências conhecidas: XML autorizado em Documentos só na produção; quando a resposta se perde e
   a consulta confirma a autorização, o XML autorizado não volta (fica o protocolo).
 
+- **F2 começada** (`scripts/completar-mascaras-jan-2026.mjs`, aplicado com OK): 5915, 5916 e 6916 completadas
+  pelas notas de janeiro (CST do IPI 53, PIS/COFINS 49, texto legal), sem confirmação. As de venda (5101,
+  6101 por região), exportação (7101) e remessa para industrialização (5901) já tinham sido completadas pelas
+  notas de outubro. **Para o Jefferson decidir:** máscaras que não existem e que janeiro usou: 7501
+  (exportação de mercadoria recebida para exportar), 3101 e 3551 (importação), 1604 (crédito do CIAP), 6949
+  (retorno de mercadoria recebida para teste, com ICMS de 12%); a 1101 da sucata (art. 392 do RICMS-SP) é
+  diferente da entrada comum; e o PIS/COFINS da 5915 saiu diferente em duas notas.
+
 ## F0 — Notas recebidas da SEFAZ em produção (não emite nada)
 
 A busca das notas que os fornecedores emitem contra a Pecsil (distribuição de DF-e) usa o mesmo ambiente da
