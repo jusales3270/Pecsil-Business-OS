@@ -20,6 +20,10 @@ que hoje só tem o treino.
 ## Andamento (29/10/2026)
 
 - **F0 construída e aplicada** (`889dda6`, migração 202610290007): a busca vai à produção depois do Deploy.
+  **Defeito achado na 1ª rodada em produção (29/10, 16h30):** o transmissor nunca leu a resposta da distribuição
+  (esperava um XML que a biblioteca não devolve) e assumia "137, nenhum documento" — desde 12/10 a busca nunca
+  trouxe nota. Corrigido: lê o XML puro que a biblioteca grava na pasta da chamada; sem ele, erro (não inventa 137).
+  O NSU continua no zero: nada se perdeu. Falta o Deploy do transmissor.
 - **Nota cancelada fora da receita** (`889dda6`, migração 202610290008).
 - **F1 construída** (migração 202610290009 aplicada): homologação liberada; transmitir, consultar, cancelar,
   carta e inutilizar vão à SEFAZ de teste; trava contra duplo envio; rejeição volta para correção; sem resposta

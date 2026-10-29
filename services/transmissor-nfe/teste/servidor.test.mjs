@@ -58,21 +58,31 @@ test("validação pelo esquema oficial roda sem certificado", async () => {
   assert.ok(r && typeof r === "object");
 });
 
-test("distribuição: cada documento sai com NSU, schema e o XML original (assinado)", () => {
+test("distribuição: cada documento sai com NSU, schema e o XML original (assinado), lido do retorno puro", async () => {
   const assinado = `<resNFe xmlns="http://www.portalfiscal.inf.br/nfe"><chNFe>35261000000000000191550010000000011000000010</chNFe><Signature>ass</Signature></resNFe>`;
   const z = (s) => gzipSync(Buffer.from(s)).toString("base64");
   const retorno = `<retDistDFeInt versao="1.01"><tpAmb>2</tpAmb><cStat>138</cStat><xMotivo>Documento localizado</xMotivo><ultNSU>000000000000002</ultNSU><maxNSU>000000000000005</maxNSU><loteDistDFeInt><docZip NSU="000000000000001" schema="resNFe_v1.01.xsd">${z(assinado)}</docZip><docZip NSU="000000000000002" schema="procNFe_v4.00.xsd">${z("<nfeProc/>")}</docZip></loteDistDFeInt></retDistDFeInt>`;
-  const r = m.normalizarDistribuicao({ data: { retDistDFeInt: {}, xml: retorno }, xMotivo: "Documento localizado" });
+  // A biblioteca devolve só o objeto convertido; o XML puro vem do arquivo que ela grava na pasta da chamada.
+  const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { tmpdir } = await import("node:os");
+  const pasta = mkdtempSync(join(tmpdir(), "teste-dist-"));
+  mkdirSync(join(pasta, "retorno", "NFEDistribuicaoDFe"), { recursive: true });
+  writeFileSync(join(pasta, "retorno", "NFEDistribuicaoDFe", "NFEDistribuicaoDFe-retorno.xml"), retorno);
+  const puro = m.retornoDistribuicaoDaPasta(pasta);
+  rmSync(pasta, { recursive: true, force: true });
+  const r = m.normalizarDistribuicao({ retDistDFeInt: { cStat: ["138"] } }, puro);
   assert.equal(r.cStat, "138");
   assert.equal(r.ultimoNsu, "000000000000002");
   assert.equal(r.maxNsu, "000000000000005");
   assert.equal(r.documentos.length, 2);
   assert.deepEqual(r.documentos[0], { nsu: "000000000000001", schema: "resNFe_v1.01.xsd", xml: assinado });
   assert.equal(r.documentos[1].schema, "procNFe_v4.00.xsd");
-  // 137 = nenhum documento novo (a biblioteca não devolve o XML nesse caso)
-  const vazio = m.normalizarDistribuicao({ data: {}, xMotivo: "Nenhum documento localizado", filesList: [] });
-  assert.equal(vazio.cStat, "137");
-  assert.equal(vazio.documentos.length, 0);
+  // 137 = nenhum documento novo: o código e o NSU vêm do XML puro da SEFAZ.
+  const vazio = m.normalizarDistribuicao({}, `<retDistDFeInt versao="1.01"><tpAmb>1</tpAmb><cStat>137</cStat><xMotivo>Nenhum documento localizado</xMotivo><ultNSU>000000000000000</ultNSU><maxNSU>000000000000000</maxNSU></retDistDFeInt>`);
+  assert.deepEqual([vazio.cStat, vazio.motivo, vazio.maxNsu, vazio.documentos.length], ["137", "Nenhum documento localizado", "000000000000000", 0]);
+  // Sem o XML da SEFAZ não se inventa resposta (antes saía um "137" falso e a busca nunca trazia nada).
+  assert.throws(() => m.normalizarDistribuicao({ data: {}, xMotivo: "Nenhum documento localizado", filesList: [] }), /sem o XML da SEFAZ/);
 });
 
 test("resposta da SEFAZ padronizada: código e motivo à vista", () => {

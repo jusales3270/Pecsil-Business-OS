@@ -80,7 +80,10 @@ export function configDaChamada(p, pastaTemporaria, opcoes = {}) {
         armazenarXMLAutorizacao: Boolean(opcoes.autorizacao),
         pathXMLAutorizacao: join(pastaTemporaria, "autorizacao"),
         armazenarXMLConsulta: false,
-        armazenarXMLRetorno: false,
+        // Só na distribuição: a biblioteca devolve o retorno já convertido em objeto (sem o XML de cada documento);
+        // o XML puro da SEFAZ só existe gravado em arquivo.
+        armazenarXMLRetorno: Boolean(opcoes.retorno),
+        pathXMLRetorno: join(pastaTemporaria, "retorno"),
         armazenarRetornoEmJSON: false,
         pathXMLDistribuicao: pastaTemporaria,
       },
@@ -112,8 +115,10 @@ export function respostaSefaz(r) {
  * Distribuição de documentos, lida do XML de retorno (a biblioteca descarta o NSU de cada
  * documento e tira a assinatura; aqui cada documento sai como veio da SEFAZ, assinado).
  */
-export function normalizarDistribuicao(r) {
-  const xml = typeof r?.data?.xml === "string" ? r.data.xml : "";
+export function normalizarDistribuicao(r, xmlPuro = null) {
+  // O XML puro da SEFAZ (gravado pela biblioteca). Sem ele não dá para saber a resposta: não inventa "137".
+  const xml = typeof xmlPuro === "string" && xmlPuro ? xmlPuro : typeof r?.data?.xml === "string" ? r.data.xml : "";
+  if (!xml) throw new Error("A resposta da distribuição veio sem o XML da SEFAZ: nada foi registrado; a próxima rodada tenta de novo.");
   const campo = (nome) => xml.match(new RegExp(`<${nome}>([^<]*)</${nome}>`))?.[1] ?? null;
   const documentos = [...xml.matchAll(/<docZip\b([^>]*)>([^<]+)<\/docZip>/g)].map(([, atributos, base64]) => ({
     nsu: atributos.match(/NSU="(\d+)"/)?.[1] ?? null,
@@ -121,7 +126,7 @@ export function normalizarDistribuicao(r) {
     xml: gunzipSync(Buffer.from(base64.trim(), "base64")).toString("utf8"),
   }));
   return {
-    cStat: campo("cStat") ?? (documentos.length ? "138" : "137"),
+    cStat: campo("cStat") ?? (documentos.length ? "138" : null),
     motivo: campo("xMotivo") ?? (typeof r?.xMotivo === "string" ? r.xMotivo : null),
     ultimoNsu: campo("ultNSU"),
     maxNsu: campo("maxNSU"),
@@ -152,21 +157,24 @@ async function comBiblioteca(p, fn, formatar = respostaSefaz, opcoes = {}) {
   }
 }
 
-/** O XML autorizado (nfeProc) que a biblioteca gravou na pasta da chamada. */
-export function xmlAutorizadoDaPasta(pasta) {
-  const procurar = (dir) => {
-    if (!existsSync(dir)) return null;
-    for (const nome of readdirSync(dir)) {
-      const caminho = join(dir, nome);
-      if (statSync(caminho).isDirectory()) { const achado = procurar(caminho); if (achado) return achado; continue; }
-      if (!nome.toLowerCase().endsWith(".xml")) continue;
-      const texto = readFileSync(caminho, "utf8");
-      if (/<nfeProc[\s>]/.test(texto)) return texto;
-    }
-    return null;
-  };
-  return procurar(join(pasta, "autorizacao"));
+/** O primeiro XML, numa subpasta da chamada, que tem a marca procurada. */
+function xmlDaPasta(dir, marca) {
+  if (!existsSync(dir)) return null;
+  for (const nome of readdirSync(dir)) {
+    const caminho = join(dir, nome);
+    if (statSync(caminho).isDirectory()) { const achado = xmlDaPasta(caminho, marca); if (achado) return achado; continue; }
+    if (!nome.toLowerCase().endsWith(".xml")) continue;
+    const texto = readFileSync(caminho, "utf8");
+    if (marca.test(texto)) return texto;
+  }
+  return null;
 }
+
+/** O XML autorizado (nfeProc) que a biblioteca gravou na pasta da chamada. */
+export const xmlAutorizadoDaPasta = (pasta) => xmlDaPasta(join(pasta, "autorizacao"), /<nfeProc[\s>]/);
+
+/** O retorno puro da distribuição (retDistDFeInt) que a biblioteca gravou na pasta da chamada. */
+export const retornoDistribuicaoDaPasta = (pasta) => xmlDaPasta(join(pasta, "retorno"), /<(\w+:)?retDistDFeInt[\s>]/);
 
 /**
  * Resultado da autorização: o código e o motivo do protocolo da nota, o número do protocolo, a hora do
@@ -304,7 +312,7 @@ export const OPERACOES = {
 
   distribuicao: (p) => comBiblioteca(p, (w, c) => (p.chave
     ? w.NFE_DistribuicaoDFePorChave({ cUFAutor: c.cUF, CNPJ: c.cnpj, consChNFe: { chNFe: String(p.chave) } })
-    : w.NFE_DistribuicaoDFePorUltNSU({ cUFAutor: c.cUF, CNPJ: c.cnpj, distNSU: { ultNSU: String(p.ultimoNsu ?? "0").padStart(15, "0") } })), normalizarDistribuicao),
+    : w.NFE_DistribuicaoDFePorUltNSU({ cUFAutor: c.cUF, CNPJ: c.cnpj, distNSU: { ultNSU: String(p.ultimoNsu ?? "0").padStart(15, "0") } })), (r, pasta) => normalizarDistribuicao(r, retornoDistribuicaoDaPasta(pasta)), { retorno: true }),
 
   cadastro: (p) => comBiblioteca(p, (w) => w.NFE_ConsultaCadastro({ uf: p.ufConsulta ? String(p.ufConsulta) : undefined, cnpj: String(p.cnpjConsulta ?? "").replace(/\D/g, "") })),
 
