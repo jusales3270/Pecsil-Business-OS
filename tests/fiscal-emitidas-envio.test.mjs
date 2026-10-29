@@ -136,3 +136,18 @@ test("portal: vários anexos, sem repetir a nota, excluir pelo lado que enviou e
   assert.match(tela, /<VisualizarArquivo /);
   assert.doesNotMatch(tela, /target="_blank"[^>]*>\s*<b>\{a\.nome\}/, "anexo não abre mais em outra aba");
 });
+
+test("portal: lixeira padrão da plataforma e NF-e aberta no DANFE", () => {
+  const ds = ler("packages/design-system/components.tsx");
+  assert.match(ds, /export function BotaoExcluir/, "botão de excluir no design system");
+  const tela = ler("modules/fiscal/src/PortalEscritorio.tsx");
+  assert.match(tela, /<BotaoExcluir rotulo=/);
+  assert.doesNotMatch(tela, />×</, "sem o × solto");
+  assert.match(tela, /danfe=\{\/\\\.xml\$\/i\.test\(aberto\.nome\)/);
+  const vis = ler("app/components/visualizar-arquivo.tsx");
+  assert.match(vis, /"danfe" \| "resumo" \| "xml"/);
+  assert.match(ler("app/api/fiscal/portal/anexo/[id]/route.ts"), /obterTransmissor\(\)\.danfe/);
+  const transmissor = ler("services/transmissor-nfe/servidor.mjs");
+  assert.match(transmissor, /generatePDF\(false\)/, "DANFE sem a marca NFeWizard-io");
+  assert.match(transmissor, /DANFE_INVALIDO/, "XML que não monta não derruba o serviço");
+});

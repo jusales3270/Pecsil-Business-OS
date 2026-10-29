@@ -8071,8 +8071,7 @@ a.doc-abrir { text-decoration: none; }
 .portal-anexo:hover, .portal-anexo:focus-within { border-color: var(--accent-blue); }
 .portal-anexo-abrir { display: flex; flex: 1; flex-direction: column; gap: 1px; min-width: 0; padding: 6px 10px; border: 0; background: transparent; text-align: left; cursor: pointer; font: inherit; }
 .portal-anexo-abrir:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
-.portal-anexo-excluir { flex: 0 0 36px; display: grid; place-items: center; border: 0; border-left: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted); font-size: 20px; line-height: 1; cursor: pointer; }
-.portal-anexo-excluir:hover, .portal-anexo-excluir:focus-visible { outline: none; background: var(--tint-red); color: var(--accent-red); }
+.portal-anexo > .ds-excluir { align-self: center; margin-right: 6px; }
 .portal-anexos.soltavel { padding: 6px; margin: -6px; border: 1px dashed transparent; border-radius: var(--radius-md); }
 .portal-anexos.soltavel.on { border-color: var(--accent-blue); background: var(--tint-blue); }
 .portal-anexar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--sp-3); }
@@ -9690,10 +9689,15 @@ a.doc-abrir { text-decoration: none; }
 .arq-vis-itens .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .arq-vis-itens .desc { display: flex; flex-direction: column; min-width: 0; }
 .arq-vis-itens .desc small { font-size: var(--fs-xs); color: var(--text-muted); }
-.arq-vis-alternar { align-self: flex-start; }
 .arq-vis-aviso { margin: 0; padding: var(--sp-4); border-radius: var(--radius-sm); background: var(--bg-subtle); color: var(--text-secondary); font-size: var(--fs-sm); }
 @media (max-width: 720px) { .arq-vis-partes { grid-template-columns: 1fr; } }
 /* Portal: resumo do último envio de vários anexos (fica até o próximo envio). */
 .portal-resultado { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-3); padding: 8px 12px; border-radius: var(--radius-sm); background: var(--tint-green); font-size: var(--fs-sm); color: var(--text-primary); }
 .portal-resultado.com-recusa { background: var(--tint-amber); }
 .portal-resultado ul { margin: 4px 0 0; padding-left: 18px; font-size: var(--fs-xs); color: var(--text-secondary); }
+
+/* Excluir (lixeira, só o ícone): o padrão da plataforma, o mesmo do Plano de contas. */
+.ds-excluir { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-secondary); cursor: pointer; }
+.ds-excluir:hover, .ds-excluir:focus-visible { outline: none; background: var(--tint-red); color: var(--accent-red); }
+.ds-excluir:focus-visible { box-shadow: var(--shadow-focus); }
+.ds-excluir:disabled { opacity: .4; cursor: not-allowed; background: transparent; color: var(--text-muted); }

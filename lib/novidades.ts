@@ -53,8 +53,8 @@ export const NOVIDADES: Novidade[] = [
     itens: [
       "Em Documentos do mês (e nas pendências), escolha ou arraste vários arquivos de uma vez. O resumo mostra quantos entraram e o motivo dos que não entraram.",
       "A mesma NF-e não é anexada duas vezes no mesmo lugar, nem em outro arquivo (outro download, com ou sem protocolo).",
-      "Clicar no arquivo abre uma janela na própria plataforma: a NF-e aparece resumida (número, emitente, destinatário, itens e valores), com o XML completo se quiser; PDF e imagem aparecem como são.",
-      "Quem enviou pode excluir o arquivo (o × ao lado), enquanto a competência não estiver fechada. Fica registrado na Auditoria.",
+      "Clicar no arquivo abre uma janela na própria plataforma: a NF-e aparece como DANFE, com as abas Resumo e XML; PDF e imagem aparecem como são.",
+      "Quem enviou pode excluir o arquivo pela lixeira ao lado, enquanto a competência não estiver fechada. Fica registrado na Auditoria.",
     ],
   },
   {

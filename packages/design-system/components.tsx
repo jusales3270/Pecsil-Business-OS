@@ -13,6 +13,20 @@ export type StatusTone = "success" | "attention" | "danger" | "info" | "purple" 
 
 /* --- Botão ---------------------------------------------------------------- */
 
+/**
+ * Excluir: a lixeira, só o ícone (o mesmo desenho do Plano de contas). Cinza em repouso, vermelha ao passar o
+ * mouse ou no foco. O nome do que sai vai no `rotulo` (leitor de tela e dica). A confirmação é de quem usa.
+ */
+export function BotaoExcluir({ rotulo, className = "", ...props }: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "title"> & { rotulo: string }) {
+  return (
+    <button type="button" className={`ds-excluir ${className}`} aria-label={rotulo} title={rotulo} {...props}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+      </svg>
+    </button>
+  );
+}
+
 export function Button({
   variant = "primary",
   compact = false,

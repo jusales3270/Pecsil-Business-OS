@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Button, Carregando, Modal } from "../../packages/design-system";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button, Carregando, Modal, Segmented } from "../../packages/design-system";
 
 /**
  * Ver um arquivo sem sair da plataforma (janela por cima da tela). `url` devolve o conteúdo pela própria
  * plataforma (a rota confere a permissão e registra o acesso); `baixar` é o link de download.
  *   PDF e imagem → o próprio arquivo;
- *   XML de NF-e → o resumo da nota (número, emitente, destinatário, itens, totais) e o XML formatado;
+ *   XML de NF-e → o DANFE (com `danfe`: o PDF gerado pela plataforma), o resumo da nota e o XML formatado;
  *   XML de evento da NF-e (carta de correção, cancelamento) → o que o evento diz;
  *   outro tipo → aviso e o botão de baixar.
  * O XML nunca é interpretado como página: é lido como texto e mostrado como texto.
@@ -104,10 +104,35 @@ function ResumoXml({ texto }: { texto: string }) {
   );
 }
 
-export function VisualizarArquivo({ nome, url, baixar, detalhe, onFechar }: { nome: string; url: string; baixar: string; detalhe?: string; onFechar: () => void }) {
+type Aba = "danfe" | "resumo" | "xml";
+
+/** DANFE em PDF, buscado só quando a aba abre. */
+function Danfe({ url, nome, onFalha }: { url: string; nome: string; onFalha: (m: string) => void }) {
+  const [pdf, setPdf] = useState<string | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    let objeto: string | null = null;
+    (async () => {
+      try {
+        const r = await fetch(url, { cache: "no-store" });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j?.error || "O DANFE não pôde ser gerado agora."); }
+        objeto = URL.createObjectURL(await r.blob());
+        if (vivo) setPdf(objeto);
+      } catch (e) {
+        if (vivo) onFalha(e instanceof Error ? e.message : "O DANFE não pôde ser gerado agora.");
+      }
+    })();
+    return () => { vivo = false; if (objeto) URL.revokeObjectURL(objeto); };
+  }, [url, onFalha]);
+  return pdf ? <iframe className="arq-vis-pdf" src={pdf} title={`DANFE de ${nome}`} /> : <div className="arq-vis-carregando"><Carregando /> Montando o DANFE…</div>;
+}
+
+export function VisualizarArquivo({ nome, url, baixar, danfe, detalhe, onFechar }: { nome: string; url: string; baixar: string; danfe?: string; detalhe?: string; onFechar: () => void }) {
   const [conteudo, setConteudo] = useState<Conteudo | null>(null);
   const [erro, setErro] = useState("");
-  const [verXml, setVerXml] = useState(false);
+  const [aba, setAba] = useState<Aba | null>(null);
+  const [falhaDanfe, setFalhaDanfe] = useState("");
+  const aoFalharDanfe = useCallback((m: string) => { setFalhaDanfe(m); setAba("resumo"); }, []);
 
   useEffect(() => {
     let vivo = true;
@@ -128,6 +153,11 @@ export function VisualizarArquivo({ nome, url, baixar, detalhe, onFechar }: { no
   }, [url, nome]);
 
   const resumo = conteudo?.tipo === "xml" ? <ResumoXml texto={conteudo.texto} /> : null;
+  // NF-e com o DANFE disponível abre no DANFE; evento e XML que não é nota abrem no resumo (ou no XML).
+  const ehNfe = conteudo?.tipo === "xml" && /<(\w+:)?infNFe[\s>]/.test(conteudo.texto);
+  const abas: Aba[] = conteudo?.tipo === "xml" ? [...(ehNfe && danfe ? ["danfe" as const] : []), ...(resumo ? ["resumo" as const] : []), "xml"] : [];
+  const atual: Aba = aba ?? abas[0] ?? "xml";
+  const ROTULO: Record<Aba, string> = { danfe: "DANFE", resumo: "Resumo", xml: "XML" };
   return (
     <Modal eyebrow="Visualizar arquivo" title={nome} subtitle={detalhe} onClose={onFechar}>
       <div className="arq-visualizar">
@@ -137,11 +167,11 @@ export function VisualizarArquivo({ nome, url, baixar, detalhe, onFechar }: { no
         {conteudo?.tipo === "imagem" && <img className="arq-vis-imagem" src={conteudo.url} alt={nome} />}
         {conteudo?.tipo === "xml" && (
           <>
-            {resumo}
-            {resumo ? (
-              <button type="button" className="almox-link arq-vis-alternar" onClick={() => setVerXml((v) => !v)} aria-expanded={verXml}>{verXml ? "Esconder o XML" : "Ver o XML completo"}</button>
-            ) : null}
-            {(!resumo || verXml) && <pre className="arq-vis-codigo">{xmlFormatado(conteudo.texto)}</pre>}
+            {abas.length > 1 && <Segmented<Aba> options={abas.map((a) => ({ value: a, label: ROTULO[a] }))} value={atual} onChange={setAba} ariaLabel="Como ver o arquivo" compact />}
+            {falhaDanfe && atual !== "danfe" && <p className="arq-vis-aviso">{falhaDanfe}</p>}
+            {atual === "danfe" && danfe && <Danfe url={danfe} nome={nome} onFalha={aoFalharDanfe} />}
+            {atual === "resumo" && resumo}
+            {atual === "xml" && <pre className="arq-vis-codigo">{xmlFormatado(conteudo.texto)}</pre>}
           </>
         )}
         {conteudo?.tipo === "texto" && <pre className="arq-vis-codigo">{conteudo.texto}</pre>}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Button, Callout, EscolherArquivo, Modal, Status } from "../../../packages/design-system";
+import { BotaoExcluir, Button, Callout, EscolherArquivo, Modal, Status } from "../../../packages/design-system";
 import { useSoltarArquivo } from "../../../app/components/enviar-arquivo";
 import { VisualizarArquivo } from "../../../app/components/visualizar-arquivo";
 import { CREDOR_GUIA, TIPOS_GUIA, valorDigitado, type GuiaLida, type TipoGuia } from "../../../lib/fiscal/guia-parser";
@@ -365,7 +365,7 @@ function Anexos({ titulo, anexos, pode, lado, alvo, notify, onMudou }: { titulo:
           <button type="button" className="portal-anexo-abrir" onClick={() => setAberto(a)} title="Ver o arquivo">
             <b>{a.nome}</b><small>{tamanho(a.tamanho)} · {a.lado === "empresa" ? "empresa" : "escritório"}{a.enviado_por_nome ? ` · ${a.enviado_por_nome}` : ""} · {dataHora(a.created_at)}</small>
           </button>
-          {pode && a.lado === lado && <button type="button" className="portal-anexo-excluir" onClick={() => setExcluir(a)} aria-label={`Excluir ${a.nome}`} title="Excluir">×</button>}
+          {pode && a.lado === lado && <BotaoExcluir rotulo={`Excluir ${a.nome}`} onClick={() => setExcluir(a)} />}
         </div>
       ))}
       {resultado && (
@@ -382,7 +382,7 @@ function Anexos({ titulo, anexos, pode, lado, alvo, notify, onMudou }: { titulo:
         </div>
       )}
       {aberto && (
-        <VisualizarArquivo nome={aberto.nome} url={`/api/fiscal/portal/anexo/${aberto.document_id}?ver=1`} baixar={`/api/fiscal/portal/anexo/${aberto.document_id}`}
+        <VisualizarArquivo nome={aberto.nome} url={`/api/fiscal/portal/anexo/${aberto.document_id}?ver=1`} baixar={`/api/fiscal/portal/anexo/${aberto.document_id}`} danfe={/\.xml$/i.test(aberto.nome) ? `/api/fiscal/portal/anexo/${aberto.document_id}?danfe=1` : undefined}
           detalhe={`${tamanho(aberto.tamanho)} · enviado por ${aberto.enviado_por_nome ?? (aberto.lado === "empresa" ? "empresa" : "escritório")} em ${dataHora(aberto.created_at)}`} onFechar={() => setAberto(null)} />
       )}
       {excluir && (
@@ -391,7 +391,7 @@ function Anexos({ titulo, anexos, pode, lado, alvo, notify, onMudou }: { titulo:
             <p>O arquivo sai do portal e, se foi guardado só por aqui, também de Documentos › Fiscal (uma NF-e enviada só por aqui sai junto das apurações). Quem excluiu fica registrado na Auditoria.</p>
             <footer>
               <Button variant="secondary" onClick={() => setExcluir(null)} disabled={excluindo}>Cancelar</Button>
-              <Button onClick={() => void confirmarExclusao()} disabled={excluindo}>{excluindo ? "Excluindo…" : "Excluir"}</Button>
+              <Button className="almox-perigo-cheio" onClick={() => void confirmarExclusao()} disabled={excluindo}>{excluindo ? "Excluindo…" : "Excluir"}</Button>
             </footer>
           </div>
         </Modal>

@@ -43,6 +43,16 @@ test("DANFE de um XML autorizado (sem certificado)", async () => {
   assert.ok(pdf.length > 5000);
 });
 
+test("DANFE de XML incompleto: erro do pedido, sem marca d'água e sem derrubar o serviço", async () => {
+  const incompleto = `<?xml version="1.0"?><nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe versao="4.00" Id="NFe35190111222333000181550010000000011000000011"><ide><nNF>1</nNF></ide></infNFe></NFe></nfeProc>`;
+  await assert.rejects(m.OPERACOES.danfe({ xml: incompleto }), (e) => e instanceof m.ErroDoPedido && e.codigo === "DANFE_INVALIDO");
+  // A biblioteca ainda mexe no arquivo depois de falhar: o processo precisa continuar de pé.
+  await new Promise((ok) => setTimeout(ok, 1500));
+  const r = await m.OPERACOES.danfe({ xml });
+  assert.equal(Buffer.from(r.pdf, "base64").subarray(0, 4).toString(), "%PDF");
+  assert.doesNotMatch(readFileSync(new URL("../servidor.mjs", import.meta.url), "utf8"), /NFE_GerarDanfe\(/, "a função pronta sempre põe a marca NFeWizard-io");
+});
+
 test("validação pelo esquema oficial roda sem certificado", async () => {
   const r = await m.OPERACOES.validar({ xml });
   assert.ok(r && typeof r === "object");

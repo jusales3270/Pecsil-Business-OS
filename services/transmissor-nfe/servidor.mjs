@@ -31,7 +31,8 @@ for (const nivel of ["error", "warn", "log", "info", "debug"]) {
 }
 const { default: NFeWizardMod, NFE_SchemaValidate } = await import("nfewizard-io");
 const NFeWizard = NFeWizardMod.default ?? NFeWizardMod;
-const { NFE_GerarDanfe } = await import("@nfewizard/danfe");
+const { NFeGerarDanfe } = await import("@nfewizard/danfe");
+const { XmlParser } = await import("@nfewizard/shared");
 const { default: forge } = await import("node-forge");
 
 const VERSAO = "0.1.0";
@@ -240,11 +241,18 @@ export const OPERACOES = {
     const pasta = mkdtempSync(join(tmpdir(), "danfe-"));
     try {
       const saida = join(pasta, "danfe.pdf");
-      await NFE_GerarDanfe({ data: String(p.xml), outputPath: saida });
+      // A função pronta (NFE_GerarDanfe) sempre imprime a marca "NFeWizard-io" no quadro de dados adicionais,
+      // por cima das informações complementares: aqui o mesmo DANFE, com a marca desligada.
+      const { data, chave } = new XmlParser().convertXmlNfeProcToJson(String(p.xml));
+      await new NFeGerarDanfe({ data, chave, outputPath: saida }).generatePDF(false);
       await arquivoPronto(saida); // a biblioteca devolve antes de terminar de gravar o PDF
       return { pdf: readFileSync(saida).toString("base64") };
+    } catch (e) {
+      // XML que a biblioteca não monta: ela ainda abre o arquivo de saída depois de falhar. Apagar a pasta na
+      // hora fazia esse erro escapar e derrubar o serviço inteiro (emissão junto). A pasta sai depois.
+      throw new ErroDoPedido("DANFE_INVALIDO", `Não foi possível montar o DANFE deste XML (${String(e?.message ?? e).slice(0, 160)}).`);
     } finally {
-      rmSync(pasta, { recursive: true, force: true });
+      setTimeout(() => rmSync(pasta, { recursive: true, force: true }), 10_000).unref();
     }
   },
 };
