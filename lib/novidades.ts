@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-29-fiscal-notas-do-mes",
+    data: "2026-10-29",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.nfe", "fiscal.escritorio", "fiscal.portal", "fiscal.icms"],
+    titulo: "Notas emitidas no GRV, mês a mês, e a mesma nota nunca entra duas vezes",
+    itens: [
+      "Em Notas emitidas, escolha o mês (pode ser retroativo) e arraste de uma vez os XML das notas emitidas no GRV, com o DANFE em PDF e as cartas de correção se quiser. Antes de guardar, a plataforma mostra cada arquivo: venda, exportação, remessa, nota de entrada da própria empresa, e o que não entra.",
+      "A lista do mês mostra a receita que vai para o Lucro Presumido e os números que faltam na sequência, para conferir se foram canceladas ou se falta enviar o XML.",
+      "A mesma NF-e não entra duas vezes: nem o mesmo arquivo, nem a mesma nota em outro arquivo, nem o mesmo anexo repetido no Portal do escritório. A nota 11170 de outubro, que estava em dobro, foi corrigida.",
+      "Na receita do Presumido, a exportação de mercadoria recebida com fim específico de exportação (CFOP 7501) passou a contar como venda, e a nota de entrada que a própria empresa emite (importação, compra de sucata, ajuste) conta como entrada.",
+    ],
+  },
+  {
     id: "2026-10-29-rh-beneficios-valores",
     data: "2026-10-29",
     area: "RH",

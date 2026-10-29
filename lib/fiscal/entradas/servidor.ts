@@ -22,7 +22,9 @@ async function empresa(admin: SupabaseClient, org: string) {
 function linha(org: string, documentId: string, xml: string, e: { cnpj: string; uf: string }): Record<string, unknown> {
   const n = lerNotaEntrada(xml);
   if (!n) return { organization_id: org, document_id: documentId, situacao: "fora" };
-  const paraEmpresa = (n.destinatarioCnpj ?? "").replace(/\D/g, "") === e.cnpj;
+  // Nota emitida pela própria empresa (inclusive a de entrada: importação, sucata, ajuste) não é conferência de fornecedor.
+  const daEmpresa = (n.emitente.cnpj ?? "").replace(/\D/g, "") === e.cnpj;
+  const paraEmpresa = !daEmpresa && (n.destinatarioCnpj ?? "").replace(/\D/g, "") === e.cnpj;
   const achados = paraEmpresa ? checar(n, e.uf) : [];
   return {
     organization_id: org, document_id: documentId, chave: n.chave, numero: n.numero, emissao: n.emissao, competencia: n.competencia, finalidade: n.finalidade,
@@ -31,10 +33,20 @@ function linha(org: string, documentId: string, xml: string, e: { cnpj: string; 
   };
 }
 
+/** Grava uma leitura; a mesma NF-e (chave) de outro documento fica como repetida (conta uma vez). True quando vale. */
 async function gravar(admin: SupabaseClient, registro: Record<string, unknown>) {
-  const { error } = await admin.from("fiscal_entradas").insert(registro);
-  if (error && error.code !== "23505") throw new Error(error.message);
-  return !error;
+  for (let tentativa = 0; tentativa < 2; tentativa++) {
+    let original: string | null = null;
+    if (registro.chave) {
+      const { data } = await admin.from("fiscal_entradas").select("id").eq("organization_id", String(registro.organization_id)).eq("chave", String(registro.chave)).is("repetida_de", null).limit(1).maybeSingle();
+      original = (data?.id as string | undefined) ?? null;
+    }
+    const { error } = await admin.from("fiscal_entradas").insert(original ? { ...registro, repetida_de: original } : registro);
+    if (!error) return !original;
+    if (error.code !== "23505") throw new Error(error.message);
+    if (!String(error.message).includes("chave_unica")) return false;
+  }
+  return false;
 }
 
 /** Documento recém-guardado: lê na hora, sem derrubar o envio. */

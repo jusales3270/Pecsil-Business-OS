@@ -16,7 +16,8 @@ const UUID = /^[0-9a-f-]{36}$/i;
  * Anexo do portal (competência ou pendência), dos dois lados. O arquivo sobe com a chave de serviço
  * (o bucket não tem política para usuários) e o registro é feito com a SESSÃO, que confere o lado e
  * o aceite do termo; se o registro falhar, o arquivo é apagado. Fica em Documentos › Fiscal com a
- * funcionalidade fiscal.portal — o escritório só enxerga esses.
+ * funcionalidade fiscal.portal — o escritório só enxerga esses. O mesmo arquivo já guardado no Fiscal não é
+ * guardado de novo (o anexo aponta para ele); anexado de novo no mesmo lugar é recusado (409).
  */
 export async function POST(request: Request) {
   const guard = await requireAnyFeature(["fiscal.escritorio", "fiscal.portal"]);
@@ -42,8 +43,13 @@ export async function POST(request: Request) {
   });
   if (error) {
     await admin.storage.from("empresa-documentos").remove([caminho]);
-    return NextResponse.json({ error: error.message || "Não foi possível anexar." }, { status: error.code === "42501" ? 403 : 400 });
+    // 23505: o mesmo arquivo já está anexado aqui (a mensagem diz quando e por quem).
+    return NextResponse.json({ error: error.message || "Não foi possível anexar." }, { status: error.code === "42501" ? 403 : error.code === "23505" ? 409 : 400 });
   }
-  await lerEGravar(admin, { id: String(doc), organization_id: String(org) }, dados); // leitura e ligações, sem derrubar o envio
-  return NextResponse.json({ ok: true, id: doc });
+  // O mesmo arquivo já guardado no Fiscal: o anexo aponta para ele, e a cópia que acabou de subir sai.
+  const { data: guardado } = await admin.from("company_documents").select("storage_path").eq("id", String(doc)).maybeSingle();
+  const reaproveitado = Boolean(guardado && guardado.storage_path !== caminho);
+  if (reaproveitado) await admin.storage.from("empresa-documentos").remove([caminho]);
+  else await lerEGravar(admin, { id: String(doc), organization_id: String(org) }, dados); // leitura e ligações, sem derrubar o envio
+  return NextResponse.json({ ok: true, id: doc, existente: reaproveitado });
 }

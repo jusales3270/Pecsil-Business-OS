@@ -2,9 +2,10 @@ import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { tipoDoArquivo } from "../arquivos/detectar";
 import { createSupabaseAdminClient } from "../supabase/admin";
 import { lerEntrada } from "../fiscal/entradas/servidor";
-import { lerDocumento as lerIbsCbs } from "../fiscal/ibs-cbs/servidor";
+import { lerDocumento as lerIbsCbs, notaJaLida } from "../fiscal/ibs-cbs/servidor";
 import { lerEGravar } from "../leitura/servidor";
 import { caminhoDocumento } from "./setores";
 
@@ -33,7 +34,19 @@ export type GuardarEntrada = {
   anterior?: string | null;
 };
 
-export type Guardado = { id: string; existente: boolean; versao?: number };
+export type Guardado = {
+  id: string;
+  existente: boolean;
+  versao?: number;
+  /** A NF-e (pela chave) já estava na plataforma, vinda de outro arquivo: nada foi guardado. */
+  notaJaNaPlataforma?: boolean;
+};
+
+/** Chave de acesso de um XML de NF-e (nota ou nota com protocolo); null quando não é NF-e. */
+export function chaveDaNfe(dados: Uint8Array): string | null {
+  if (tipoDoArquivo(dados) !== "nfe-xml") return null;
+  return new TextDecoder().decode(dados.subarray(0, 200_000)).match(/<infNFe[^>]*Id="NFe(\d{44})"/)?.[1] ?? null;
+}
 
 export const sha256 = (dados: Uint8Array) => createHash("sha256").update(dados).digest("hex");
 
@@ -52,8 +65,16 @@ export async function guardarOriginal(supabase: SupabaseClient, e: GuardarEntrad
     }
   }
 
-  const caminho = caminhoDocumento(String(org), e.modulo, randomUUID(), e.arquivo.nome);
   const admin = createSupabaseAdminClient();
+  // No Fiscal, a mesma NF-e vinda em outro arquivo (outro download, com ou sem protocolo) também não entra de novo.
+  // O Painel do ICMS (origem "nota") e os outros setores seguem guardando o seu anexo; a leitura conta a nota uma vez.
+  if (!e.anterior && e.modulo === "fiscal" && (e.origem === "envio" || e.origem === "coleta")) {
+    const chave = chaveDaNfe(e.arquivo.dados);
+    const ja = chave ? await notaJaLida(admin, String(org), chave) : null;
+    if (ja) return { id: ja.documentId ?? "", existente: true, notaJaNaPlataforma: true };
+  }
+
+  const caminho = caminhoDocumento(String(org), e.modulo, randomUUID(), e.arquivo.nome);
   const { error: eUp } = await admin.storage.from(BUCKET).upload(caminho, e.arquivo.dados, {
     contentType: e.arquivo.tipo || "application/octet-stream",
     upsert: false,

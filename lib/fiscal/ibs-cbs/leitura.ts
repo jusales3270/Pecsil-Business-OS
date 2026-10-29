@@ -55,6 +55,16 @@ export const bloco = (xml: string, nome: string) => xml.match(new RegExp(`<${nom
 const so = (v: string | null) => (v ? v.replace(/\D/g, "") : null);
 const r2 = (v: number) => Math.round(Number((v * 100).toFixed(6))) / 100;
 
+/**
+ * Lado da nota para a empresa. A empresa emitente é saída, exceto a nota de ENTRADA que ela mesma emite (tpNF 0:
+ * importação, compra de pessoa física ou sem nota, ajuste de crédito): essa é entrada. A devolução emitida pela
+ * empresa (finNFe 4) fica como saída: a apuração do IBS/CBS já inverte o lado da devolução.
+ */
+export function ladoDaNota(emitente: string | null, destinatario: string | null, empresa: string, tpNF: string | null, finNFe: string | null): NotaIbsCbs["lado"] {
+  if (emitente && emitente === empresa) return tpNF === "0" && finNFe !== "4" ? "entrada" : "saida";
+  return destinatario && destinatario === empresa ? "entrada" : "outra";
+}
+
 export function lerIbsCbs(xml: string, cnpjEmpresa: string): NotaIbsCbs | null {
   const inf = bloco(xml, "infNFe");
   if (!inf) return null;
@@ -108,7 +118,7 @@ export function lerIbsCbs(xml: string, cnpjEmpresa: string): NotaIbsCbs | null {
     modelo: tag(ide, "mod"), numero: tag(ide, "nNF"),
     emissao, competencia: emissao ? emissao.slice(0, 7) : null,
     emitenteCnpj: emitente, emitenteNome: textoXml(tag(emit, "xNome")), emitenteCrt: tag(emit, "CRT") ? Number(tag(emit, "CRT")) : null, destinatarioCnpj: destinatario,
-    lado: emitente === empresa ? "saida" : destinatario === empresa ? "entrada" : "outra",
+    lado: ladoDaNota(emitente, destinatario, empresa, tag(ide, "tpNF"), tag(ide, "finNFe")),
     finalidade: tag(ide, "finNFe"),
     temGrupo: itens.length > 0,
     itens,

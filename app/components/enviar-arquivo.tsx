@@ -43,10 +43,14 @@ export function useSoltarArquivo(aoSoltar: (arquivos: File[]) => void, ativo = t
  * responde JSON; erro vem em `{ error }`.
  */
 export function EnviarArquivo<T>({
-  rotulo, titulo, descricao, aceita, endpoint, renderPrevia, podeConfirmar, textoConfirmar = "Confirmar e gravar", onConcluido, multiplo = false, extras,
+  rotulo, titulo, descricao, aceita, endpoint, renderPrevia, podeConfirmar, textoConfirmar = "Confirmar e gravar", onConcluido, multiplo = false, maximo = 40, extras, destaque = false,
 }: {
   /** Aceita vários arquivos de uma vez (todos vão no campo `arquivo`). */
   multiplo?: boolean;
+  /** Quantos arquivos de uma vez, com `multiplo` (o servidor confere de novo). */
+  maximo?: number;
+  /** Botão principal (azul) em vez do secundário. */
+  destaque?: boolean;
   /** Campos a mais no envio (ex.: mês de competência). */
   extras?: Record<string, string>;
   rotulo: string;
@@ -83,7 +87,7 @@ export function EnviarArquivo<T>({
   };
 
   const escolher = async (lista: FileList | File[] | null | undefined) => {
-    const escolhidos = Array.from(lista ?? []).slice(0, multiplo ? 40 : 1);
+    const escolhidos = Array.from(lista ?? []).slice(0, multiplo ? maximo : 1);
     if (!escolhidos.length) return;
     setArquivos(escolhidos); setAnalise(null); setErro(""); setOcupado("analisar");
     const r = await enviar(escolhidos, "analisar");
@@ -106,7 +110,7 @@ export function EnviarArquivo<T>({
 
   return (
     <>
-      <Button variant="secondary" compact onClick={() => setAberto(true)}>{rotulo}</Button>
+      <Button variant={destaque ? undefined : "secondary"} compact onClick={() => setAberto(true)}>{rotulo}</Button>
       {aberto && (
         <Modal eyebrow="Enviar arquivo" title={titulo} subtitle={arquivos.length === 1 ? arquivos[0].name : arquivos.length ? `${arquivos.length} arquivos` : undefined} onClose={fechar}>
           <div className="almox-form arq-envio">

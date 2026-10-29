@@ -9,9 +9,11 @@ import type { NotaDevolvivel } from "../../../lib/fiscal/emissao/devolucao";
 import type { Destinatario, ItemNfe, NotaNfe, SituacaoNfe, Totais } from "../../../lib/fiscal/emissao/tipos";
 import { lerNumeroBr } from "../../../lib/numero-br";
 import { api, cnpjFormatado, curto, dataHora, hoje, money } from "./comum";
+import { NotasDoMes } from "./NotasDoMes";
 
 /**
- * Fiscal › Notas emitidas — por enquanto só o TREINO: o Jefferson monta a NF-e como faria de
+ * Fiscal › Notas emitidas — no topo, as notas emitidas no GRV mês a mês (NotasDoMes: a receita do Presumido).
+ * Abaixo, o TREINO da emissão pela plataforma: o Jefferson monta a NF-e como faria de
  * verdade, a plataforma confere (regras + esquema oficial da SEFAZ) e "autoriza" sem nada sair
  * para a SEFAZ. Sem valor fiscal e sem obrigação nenhuma. Quem opera monta, valida e envia;
  * quem aprova transmite, devolve, cancela, corrige e inutiliza — o mesmo portão da produção.
@@ -120,12 +122,14 @@ export function NotasEmitidas({ notify, abrir = null, onAberta }: { notify: (m: 
   return (
     <div className="icms-modulo">
       <div className="finance-page-head">
-        <div><p className="eyebrow">FISCAL · NF-e</p><h1>Notas emitidas</h1><p>Monte a nota como faria de verdade: a plataforma confere as regras e o esquema oficial da SEFAZ antes de qualquer transmissão.</p></div>
+        <div><p className="eyebrow">FISCAL · NF-e</p><h1>Notas emitidas</h1><p>As notas emitidas no GRV, mês a mês, e o treino da emissão pela plataforma, que confere as regras e o esquema oficial da SEFAZ antes de qualquer transmissão.</p></div>
         <div className="icms-acoes">
           {dados?.podeAprovar && <Button variant="secondary" onClick={() => setInutilizar(true)}>Inutilizar números</Button>}
           {dados?.podeOperar && <Button onClick={() => setAberta("nova")}>Nova nota</Button>}
         </div>
       </div>
+
+      <NotasDoMes notify={notify} podeOperar={Boolean(dados?.podeOperar)} />
 
       <FaixaTreino />
 

@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   if (emitida?.xml_autorizado) xml = String(emitida.xml_autorizado);
   if (!xml) {
     const [{ data: lida }, { data: dfe }] = await Promise.all([
-      admin.from("fiscal_ibscbs_notas").select("document_id").eq("organization_id", autor.org).eq("chave", chave).not("document_id", "is", null).limit(1).maybeSingle(),
+      admin.from("fiscal_ibscbs_notas").select("document_id").eq("organization_id", autor.org).eq("chave", chave).not("document_id", "is", null).is("repetida_de", null).limit(1).maybeSingle(),
       admin.from("fiscal_dfe").select("document_id").eq("organization_id", autor.org).eq("chave", chave).not("document_id", "is", null).limit(1).maybeSingle(),
     ]);
     const documento = lida?.document_id ?? dfe?.document_id;

@@ -9650,3 +9650,9 @@ a.doc-abrir { text-decoration: none; }
 .benefit-line-add { display: inline-flex; align-items: center; gap: var(--sp-2); }
 .benefit-line-add:disabled { opacity: .5; cursor: not-allowed; }
 .benefit-lines small.benefit-values-error { font-size: var(--fs-xs); color: var(--accent-red); }
+/* Fiscal › Notas emitidas: notas emitidas no GRV, mês a mês (envio do mês e a lista). */
+.nfe-mes { display: flex; flex-direction: column; gap: var(--sp-3); }
+.nfe-mes-topo { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--sp-3); }
+.nfe-mes-topo h2 { margin: 0; font-size: var(--fs-md); color: var(--text-primary); }
+.nfe-mes-topo p { margin: 2px 0 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+.nfe-mes .nfe-tabela { max-height: 420px; overflow-y: auto; }

@@ -31,11 +31,35 @@ function linha(org: string, origem: { document_id: string } | { nfe_id: string }
   };
 }
 
-/** Grava uma leitura; o mesmo documento lido por duas portas ao mesmo tempo esbarra no índice único e fica uma vez. */
+/**
+ * Grava uma leitura. O mesmo documento lido por duas portas ao mesmo tempo esbarra no índice do documento e fica
+ * uma vez. A mesma NF-e (chave) vinda de outro documento é gravada como repetida (`repetida_de`): o documento fica
+ * lido, mas a nota conta uma vez só (índice único da chave). Devolve true quando a leitura vale.
+ */
 async function gravar(admin: SupabaseClient, registro: Record<string, unknown>) {
-  const { error } = await admin.from("fiscal_ibscbs_notas").insert(registro);
-  if (error && error.code !== "23505") throw new Error(error.message);
-  return !error;
+  for (let tentativa = 0; tentativa < 2; tentativa++) {
+    const original = registro.chave ? await leituraQueVale(admin, String(registro.organization_id), String(registro.chave)) : null;
+    const { error } = await admin.from("fiscal_ibscbs_notas").insert(original ? { ...registro, repetida_de: original } : registro);
+    if (!error) return !original;
+    if (error.code !== "23505") throw new Error(error.message);
+    // 23505 no índice do documento: já lido. No da chave: outra porta leu a mesma nota agora; tenta de novo como repetida.
+    if (!String(error.message).includes("chave_unica")) return false;
+  }
+  return false;
+}
+
+/** A leitura que vale de uma NF-e (a primeira), pela chave. */
+async function leituraQueVale(admin: SupabaseClient, org: string, chave: string): Promise<string | null> {
+  const { data } = await admin.from("fiscal_ibscbs_notas").select("id").eq("organization_id", org).eq("chave", chave).is("repetida_de", null).limit(1).maybeSingle();
+  return (data?.id as string | undefined) ?? null;
+}
+
+/** A NF-e já está lida na plataforma (por um documento ou emitida por ela)? Devolve o documento que vale, se houver. */
+export async function notaJaLida(admin: SupabaseClient, org: string, chave: string): Promise<{ documentId: string | null; nfeId: string | null } | null> {
+  const { data } = await admin.from("fiscal_ibscbs_notas").select("document_id, nfe_id").eq("organization_id", org).eq("chave", chave).is("repetida_de", null).limit(1).maybeSingle();
+  if (data) return { documentId: (data.document_id as string | null) ?? null, nfeId: (data.nfe_id as string | null) ?? null };
+  const { data: nfe } = await admin.from("fiscal_nfe").select("id").eq("organization_id", org).eq("chave", chave).eq("ambiente", "producao").eq("situacao", "autorizada").limit(1).maybeSingle();
+  return nfe ? { documentId: null, nfeId: nfe.id as string } : null;
 }
 
 /** Documento recém-guardado: lê na hora, sem derrubar o envio. */

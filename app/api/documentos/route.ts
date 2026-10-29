@@ -104,7 +104,7 @@ export async function POST(request: Request) {
       categoria: String(form?.get("categoria") ?? "").trim() || null,
       entidade: entidadeTipo && entidadeId ? { tipo: entidadeTipo.slice(0, 40), id: entidadeId.slice(0, 80) } : null,
     });
-    return NextResponse.json({ ...r, mensagem: r.existente ? "Este arquivo já estava guardado neste setor." : "Documento guardado." }, { status: r.existente ? 200 : 201 });
+    return NextResponse.json({ ...r, mensagem: r.notaJaNaPlataforma ? "Esta NF-e já está na plataforma (enviada antes em outro arquivo). Nada foi guardado de novo." : r.existente ? "Este arquivo já estava guardado neste setor." : "Documento guardado." }, { status: r.existente ? 200 : 201 });
   } catch (e) {
     const err = e as { code?: string; message?: string };
     if (err.code === "42501") return NextResponse.json({ error: "Sem permissão para guardar documentos deste setor." }, { status: 403 });

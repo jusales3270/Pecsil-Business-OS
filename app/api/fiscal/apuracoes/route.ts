@@ -38,7 +38,7 @@ export async function GET(request: Request) {
 
   const COLUNAS_GUIA = "id, tipo, valor, vencimento, codigo_receita, tributo, periodo_apuracao, document_id, created_at";
   const [{ data: notas, error }, { data: params }, { data: perfil }, { data: guiasDoAno }, { data: semPeriodo }, { data: cal }] = await Promise.all([
-    admin.from("fiscal_ibscbs_notas").select("chave, lado, competencia, receita").eq("organization_id", autor.org).like("competencia", `${ano}-%`).limit(20000),
+    admin.from("fiscal_ibscbs_notas").select("chave, lado, competencia, receita").eq("organization_id", autor.org).is("repetida_de", null).like("competencia", `${ano}-%`).limit(20000),
     admin.from("contabil_parametros").select("id, chave, titulo, escopo, uf, codigo_municipio, valor, vigente_de, vigente_ate, fonte, confianca, observacao, situacao").in("chave", CHAVES).neq("situacao", "descartado"),
     admin.from("contabil_perfil_empresa").select("regime, modo").eq("organization_id", autor.org).maybeSingle(),
     admin.from("fiscal_guias").select(COLUNAS_GUIA).eq("organization_id", autor.org).neq("situacao", "cancelada")

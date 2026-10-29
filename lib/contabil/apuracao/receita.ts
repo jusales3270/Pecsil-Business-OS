@@ -2,9 +2,11 @@
  * Receita bruta do Lucro Presumido a partir das NF-e lidas (N-07), pelo regime de competência (data de emissão). Puro.
  * Pelo CFOP de cada item:
  * - venda e industrialização (x1yy: 5101, 6102, 7101, 5124…) → indústria e comércio; exportação = 7xxx (fora do
- *   PIS/COFINS, dentro do IRPJ/CSLL);
+ *   PIS/COFINS, dentro do IRPJ/CSLL). 7501 (exportação de mercadoria recebida com fim específico de exportação) também
+ *   é venda ao exterior; 5501/6501 (a remessa com esse fim) não são receita;
  * - prestação de serviço tributada pelo ISS (x933) → serviços;
- * - devolução de venda recebida (1201, 1202, 2201, 2202, 3201, 3202) → sai da receita do mês;
+ * - devolução de venda (1201, 1202, 2201, 2202, 3201, 3202) → sai da receita do mês, venha na nota do cliente ou na
+ *   nota de entrada que a própria empresa emite (devolução emitida por ela fica do lado da saída);
  * - remessas, retornos, transferências e o resto (x9yy, x5yy, x6yy…) não são receita.
  * Os valores são produto menos desconto: o IPI e o ICMS-ST não entram (são cobrados por fora, do cliente).
  * Se o escritório apura pelo regime de caixa, a base é outra (os recebimentos): a tela avisa até o método ser confirmado.
@@ -18,6 +20,7 @@ const DEVOLUCAO_VENDA = /^[123]20[12]$/;
 export function classificarCfop(cfop: string): "industria" | "servicos" | null {
   if (!/^[567]\d{3}$/.test(cfop)) return null;
   if (cfop.slice(1) === "933") return "servicos";
+  if (cfop === "7501") return "industria";
   return cfop[1] === "1" ? "industria" : null;
 }
 
@@ -30,6 +33,7 @@ export function receitaPorMes(notas: readonly NotaParaReceita[]): ReceitaMes[] {
     if (n.lado === "saida") {
       let conta = false;
       for (const [cfop, valor] of cfops) {
+        if (DEVOLUCAO_VENDA.test(cfop)) { mes(n.competencia).devolucoes += valor; continue; }
         const grupo = classificarCfop(cfop);
         if (!grupo) continue;
         const m = mes(n.competencia);
