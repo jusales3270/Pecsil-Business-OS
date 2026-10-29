@@ -132,13 +132,14 @@ const pct = (v: number) => `${v.toFixed(2).replace(".", ",")}%`;
 
 /**
  * IBS/CBS conferido contra a lei em vigor: alíquota da máscara × parâmetro legal, e nota de saída
- * do regime normal sem o grupo. Só avisa: em 2026 a SEFAZ ainda não rejeita.
+ * do regime normal sem o grupo. Só avisa: em 2026 a SEFAZ de produção ainda não rejeita (rejeição suspensa pelo Ato
+ * Técnico Conjunto RFB/CGIBS 1/2026). A de homologação JÁ rejeita: lá a falta do grupo é erro (servidor.ts).
  */
 export function avisosIbsCbs(nota: NotaNfe, crt: number, legal: IbsCbsLegal | null): Problema[] {
   const avisos: Problema[] = [];
   const normal = crt === 3;
   if (normal && nota.tipo === 1 && nota.itens.length && !nota.itens.some((i) => i.ibsCbsCst)) {
-    avisos.push({ campo: "itens", mensagem: "Nenhum item leva o grupo IBS/CBS: no regime normal ele é obrigatório desde 03/08/2026 (a SEFAZ ainda não rejeita). Confira a máscara de impostos." });
+    avisos.push({ campo: "itens", mensagem: "Nenhum item leva o grupo IBS/CBS: no regime normal ele é obrigatório desde 03/08/2026 (a SEFAZ de produção ainda não rejeita; a de homologação já rejeita). Confira a máscara de impostos." });
   }
   if (!legal) {
     if (nota.itens.some((i) => ibsCbsTributa(i.ibsCbsCst))) avisos.push({ campo: "itens", mensagem: "Não há parâmetro legal de IBS/CBS em vigor nesta data: as alíquotas da máscara não foram conferidas." });

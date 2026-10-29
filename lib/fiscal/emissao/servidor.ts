@@ -128,6 +128,11 @@ export async function validarEGravar(admin: SupabaseClient, org: string, registr
   const emitente = await emitenteDaOrganizacao(admin, org);
   const { erros, avisos } = validarNota(registro.nota, emitente);
   avisos.push(...avisosIbsCbs(registro.nota, emitente?.crt ?? 3, await ibsCbsLegal(admin, hojeEmBrasilia())));
+  // Homologação: a SEFAZ de teste já rejeita nota do regime normal sem o grupo IBS/CBS ("Grupo IBSCBS não informado",
+  // provado em 29/10/2026). Erro aqui, antes de gastar a transmissão.
+  if (registro.ambiente === "homologacao" && (emitente?.crt ?? 3) === 3 && registro.nota.itens.some((i) => !i.ibsCbsCst)) {
+    erros.push({ campo: "itens", mensagem: "Na homologação a SEFAZ rejeita item sem o grupo IBS/CBS: preencha o CST e a classificação do IBS/CBS de cada item (pela máscara de impostos)." });
+  }
   let esquema: ResultadoValidacao["esquema"] = { conferido: false, erros: [] };
   const atualizar: Record<string, unknown> = { updated_at: new Date().toISOString() };
 

@@ -267,18 +267,21 @@ export const OPERACOES = {
   }),
 
   evento: (p) => comBiblioteca(p, (w, c) => {
-    const base = { idLote: Date.now() % 1_000_000_000, cOrgao: c.cUF, tpAmb: c.ambiente, CNPJ: c.cnpj, chNFe: String(p.chave ?? ""), dhEvento: p.dhEvento ?? agora(), nSeqEvento: Number(p.sequencia ?? 1) };
+    // A biblioteca recebe um LOTE: { idLote, evento: [ ... ] } (o ambiente vem da configuração da chamada).
+    // Antes ia um objeto só, e ela quebrava antes de chegar à SEFAZ ("reading 'filter'"): provado em 29/10/2026.
+    const base = { cOrgao: c.cUF, CNPJ: c.cnpj, chNFe: String(p.chave ?? ""), dhEvento: p.dhEvento ?? agora(), nSeqEvento: Number(p.sequencia ?? 1), verEvento: "1.00" };
+    const lote = (evento) => ({ idLote: Date.now() % 1_000_000_000, evento: [evento] });
     if (p.tipo === "cancelamento") {
       if (String(p.justificativa ?? "").trim().length < 15) throw new ErroDoPedido("JUSTIFICATIVA", "A justificativa precisa de ao menos 15 caracteres.");
-      return w.NFE_Cancelamento({ ...base, tpEvento: "110111", detEvento: { descEvento: "Cancelamento", nProt: String(p.protocolo ?? ""), xJust: String(p.justificativa) } });
+      return w.NFE_Cancelamento(lote({ ...base, tpEvento: "110111", detEvento: { descEvento: "Cancelamento", nProt: String(p.protocolo ?? ""), xJust: String(p.justificativa) } }));
     }
     if (p.tipo === "carta") {
       if (String(p.correcao ?? "").trim().length < 15) throw new ErroDoPedido("CORRECAO", "A correção precisa de ao menos 15 caracteres.");
-      return w.NFE_CartaDeCorrecao({ ...base, tpEvento: "110110", detEvento: { descEvento: "Carta de Correcao", xCorrecao: String(p.correcao), xCondUso: "A Carta de Correcao e disciplinada pelo paragrafo 1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularizacao de erro ocorrido na emissao de documento fiscal, desde que o erro nao esteja relacionado com: I - as variaveis que determinam o valor do imposto tais como: base de calculo, aliquota, diferenca de preco, quantidade, valor da operacao ou da prestacao; II - a correcao de dados cadastrais que implique mudanca do remetente ou do destinatario; III - a data de emissao ou de saida." } });
+      return w.NFE_CartaDeCorrecao(lote({ ...base, tpEvento: "110110", detEvento: { descEvento: "Carta de Correcao", xCorrecao: String(p.correcao), xCondUso: "A Carta de Correcao e disciplinada pelo paragrafo 1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularizacao de erro ocorrido na emissao de documento fiscal, desde que o erro nao esteja relacionado com: I - as variaveis que determinam o valor do imposto tais como: base de calculo, aliquota, diferenca de preco, quantidade, valor da operacao ou da prestacao; II - a correcao de dados cadastrais que implique mudanca do remetente ou do destinatario; III - a data de emissao ou de saida." } }));
     }
     if (p.tipo === "ciencia") {
       // Manifestação do destinatário: o órgão é o Ambiente Nacional (91).
-      return w.NFE_CienciaDaOperacao({ ...base, cOrgao: 91, tpEvento: "210210", detEvento: { descEvento: "Ciencia da Operacao" } });
+      return w.NFE_CienciaDaOperacao(lote({ ...base, cOrgao: 91, tpEvento: "210210", detEvento: { descEvento: "Ciencia da Operacao" } }));
     }
     throw new ErroDoPedido("EVENTO_INVALIDO", "Tipo de evento inválido.");
   }, respostaEvento),

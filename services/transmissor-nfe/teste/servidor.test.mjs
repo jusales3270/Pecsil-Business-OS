@@ -151,3 +151,10 @@ test("eventos e inutilização: código e protocolo do retorno do evento, não d
   const inutilizacao = { retInutNFe: [{ infInut: [{ cStat: ["102"], xMotivo: ["Inutilização de número homologado"], nProt: ["135260000777777"], dhRecbto: ["2026-10-30T12:00:00-03:00"] }] }] };
   assert.deepEqual([m.respostaEvento(inutilizacao).cStat, m.respostaEvento(inutilizacao).protocolo], ["102", "135260000777777"]);
 });
+
+test("eventos vão para a biblioteca como lote (idLote + lista), com verEvento", () => {
+  const fonte = readFileSync(new URL("../servidor.mjs", import.meta.url), "utf8");
+  assert.match(fonte, /const lote = \(evento\) => \(\{ idLote: Date\.now\(\) % 1_000_000_000, evento: \[evento\] \}\)/);
+  for (const f of ["NFE_Cancelamento", "NFE_CartaDeCorrecao", "NFE_CienciaDaOperacao"]) assert.match(fonte, new RegExp(`w\\.${f}\\(lote\\(`), f);
+  assert.match(fonte, /verEvento: "1\.00"/);
+});

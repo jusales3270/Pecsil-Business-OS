@@ -28,6 +28,12 @@ que hoje só tem o treino.
   servidor). Pendências conhecidas: XML autorizado em Documentos só na produção; quando a resposta se perde e
   a consulta confirma a autorização, o XML autorizado não volta (fica o protocolo).
 
+- **Prova real na SEFAZ de homologação (29/10, depois dos dois Deploys):** a 1ª NF-e transmitida pela plataforma
+  foi AUTORIZADA (cStat 100, protocolo 135260009694610, nº 1 da série 1 de homologação, XML autorizado com
+  assinatura e protocolo, DANFE e consulta conferidos). No caminho, a SEFAZ rejeitou duas vezes e a plataforma
+  tratou as duas: destinatário com CNPJ irregular e **"Grupo IBSCBS não informado"** (a homologação já exige o
+  grupo IBS/CBS; na produção a rejeição está suspensa). Carta de correção e cancelamento quebravam no
+  transmissor antes de chegar à SEFAZ (formato do lote): corrigido, falta o Deploy do transmissor e repetir.
 - **F2 começada** (`scripts/completar-mascaras-jan-2026.mjs`, aplicado com OK): 5915, 5916 e 6916 completadas
   pelas notas de janeiro (CST do IPI 53, PIS/COFINS 49, texto legal), sem confirmação. As de venda (5101,
   6101 por região), exportação (7101) e remessa para industrialização (5901) já tinham sido completadas pelas

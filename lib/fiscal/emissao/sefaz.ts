@@ -52,8 +52,9 @@ export function tipoDoErro(e: unknown): "rejeitada" | "nao_enviou" | "incerto" {
   return "incerto";
 }
 
-/** Texto do motivo da SEFAZ, sem o prefixo "Rejeição:" repetido. */
-export const motivoLimpo = (m: string | null | undefined) => String(m ?? "").replace(/^\s*rejei[cç][aã]o\s*:\s*/i, "").trim().slice(0, 400);
+/** Texto do motivo da SEFAZ, sem o nome da operação da biblioteca ("NFE_Autorizacao:") nem o "Rejeição:" repetido. */
+export const motivoLimpo = (m: string | null | undefined) =>
+  String(m ?? "").replace(/^\s*NFE_\w+\s*:\s*/i, "").replace(/^\s*rejei[cç][aã]o\s*:\s*/i, "").trim().slice(0, 400);
 
 /** Regra da SEFAZ em homologação: o nome do destinatário é este texto (senão, rejeição 598). */
 export const DESTINATARIO_HOMOLOGACAO = "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL";
