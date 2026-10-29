@@ -81,7 +81,7 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
       .eq("organization_id", organizationId).eq("active", true),
     supabase
       .from("rh_benefit_requests")
-      .select("id,action,status,reason,effective_date,requested_at,employees(full_name,departments(name)),rh_benefit_plans(name)")
+      .select("id,action,status,reason,effective_date,monthly_value,requested_at,employees(full_name,departments(name)),rh_benefit_plans(name)")
       .eq("organization_id", organizationId)
       .order("requested_at", { ascending:false })
       .limit(20),
@@ -303,6 +303,7 @@ function toBenefitRequest(row: Row): RhBenefitRequest {
     reason: row.reason ? String(row.reason) : null,
     effectiveDate: row.effective_date ? String(row.effective_date) : null,
     requestedAt: formatDateTime(row.requested_at),
+    monthlyValue: row.monthly_value === null || row.monthly_value === undefined ? null : number(row.monthly_value),
   };
 }
 

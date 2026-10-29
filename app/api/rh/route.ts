@@ -5,6 +5,7 @@ import {
   applyRhMutation,
   createRhAbsence,
   createRhBenefitRequest,
+  createRhBenefitRequests,
   createRhDocument,
   createRhEmployee,
   createRhSstRecord,
@@ -90,6 +91,7 @@ type RhCreateBody =
   | ({ entity?: "absence" } & RhAbsenceDraft)
   | ({ entity: "sst" } & RhSstDraft)
   | ({ entity: "benefit_request" } & RhBenefitRequestDraft)
+  | { entity: "benefit_requests"; items: RhBenefitRequestDraft[] }
   | ({ entity: "employee" } & RhEmployeeDraft)
   | ({ entity: "document" } & RhDocumentDraft);
 
@@ -112,6 +114,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ error:"INVALID_BODY" }, { status:400 });
       }
       return NextResponse.json(await createRhSstRecord(body), { status:201 });
+    }
+    if (body.entity === "benefit_requests") {
+      const items = Array.isArray(body.items) ? body.items : [];
+      if (!items.length || items.some(item => !item?.employeeId || !item.planId || !item.action)) {
+        return NextResponse.json({ error:"INVALID_BODY" }, { status:400 });
+      }
+      return NextResponse.json(await createRhBenefitRequests(items), { status:201 });
     }
     if (body.entity === "benefit_request") {
       if (!body.employeeId || !body.planId || !body.action) {

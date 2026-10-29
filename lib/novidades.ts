@@ -52,6 +52,7 @@ export const NOVIDADES: Novidade[] = [
     titulo: "Benefícios com os valores digitados pelo RH",
     itens: [
       "A lista de benefícios da nova movimentação traz Refeição, Seguro de vida, Vale-transporte, Convênio médico e Convênio odontológico.",
+      "Na mesma movimentação dá para lançar vários benefícios do colaborador, cada um com o seu valor mensal: Incluir outro benefício abre uma nova linha, e o total do mês aparece embaixo. Cada benefício entra como uma solicitação no fluxo de aprovação.",
       "Em Ver gestão › Editar valores, o RH digita o custo mensal de cada benefício, o fornecedor, a contribuição do colaborador e quem tem direito. Cada alteração fica registrada na Auditoria.",
       "A vigência de uma nova movimentação já vem no dia 1º do mês seguinte, e o texto da adesão nos cartões não fica mais por cima da barra.",
     ],

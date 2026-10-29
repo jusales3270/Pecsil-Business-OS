@@ -64,6 +64,8 @@ export type RhBenefitRequest = {
   reason: string | null;
   effectiveDate: string | null;
   requestedAt: string;
+  /** Valor mensal do benefício para o colaborador (R$); nulo quando não informado. */
+  monthlyValue: number | null;
 };
 
 export type RhDocumentSignature = "signed" | "pending" | "not_required";

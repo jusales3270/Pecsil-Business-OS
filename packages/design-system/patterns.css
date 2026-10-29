@@ -9600,3 +9600,53 @@ a.doc-abrir { text-decoration: none; }
 }
 .benefit-values-fields small.benefit-values-error { color: var(--accent-red); }
 .benefit-values-fields textarea { min-height: 84px; padding: var(--sp-2) var(--sp-3); }
+/* Nova movimentação: um ou mais benefícios, cada um com o valor mensal. */
+.benefit-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.benefit-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 38px;
+  gap: var(--sp-3);
+  align-items: center;
+}
+.benefit-line.no-value { grid-template-columns: minmax(0, 1fr) 38px; }
+.benefit-line-head > span {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.benefit-line > select,
+.benefit-line > input {
+  height: 38px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  min-width: 0;
+}
+.benefit-line > select { padding-right: 34px; }
+.benefit-line > input { text-align: right; font-variant-numeric: tabular-nums; }
+.benefit-line-remove {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+}
+.benefit-line-remove:hover { background: var(--tint-red); color: var(--accent-red); }
+.benefit-lines-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-1);
+}
+.benefit-lines-foot > span {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.benefit-lines-foot > span > b { color: var(--text-primary); font-variant-numeric: tabular-nums; margin-left: var(--sp-2); }
+.benefit-line-add { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.benefit-line-add:disabled { opacity: .5; cursor: not-allowed; }
+.benefit-lines small.benefit-values-error { font-size: var(--fs-xs); color: var(--accent-red); }

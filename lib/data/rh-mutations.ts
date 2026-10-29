@@ -319,7 +319,16 @@ export type RhBenefitRequestDraft = {
   action: "enroll" | "change" | "cancel" | "add_dependent";
   effectiveDate: string | null;
   reason: string | null;
+  /** Valor mensal do benefício para o colaborador (R$); nulo no cancelamento. */
+  monthlyValue?: number | null;
 };
+
+/** Valor mensal válido (0 a VALOR_MAXIMO, duas casas) ou nulo; inválido = RH_INVALID. */
+function valorMensal(valor: number | null | undefined): number | null {
+  if (valor === null || valor === undefined) return null;
+  if (typeof valor !== "number" || !Number.isFinite(valor) || valor < 0 || valor > VALOR_MAXIMO) throw new Error("RH_INVALID");
+  return Math.round(valor * 100) / 100;
+}
 
 // Cria uma solicitação de benefício. A RLS (rh_benefit_requests_create) permite
 // ao gestor criar para a equipe e ao colaborador criar a própria; o banco decide.
@@ -347,12 +356,41 @@ export async function createRhBenefitRequest(draft: RhBenefitRequestDraft): Prom
       status: "pending",
       reason: draft.reason,
       effective_date: draft.effectiveDate,
+      monthly_value: valorMensal(draft.monthlyValue),
       requested_by_profile_id: profileId,
     })
     .select("id")
     .single();
   if (error) throw error;
   return { id: String(data.id) };
+}
+
+// Vários benefícios do mesmo colaborador numa movimentação só: um insert com
+// todas as linhas (grava todas ou nenhuma). Benefício repetido = RH_INVALID.
+export async function createRhBenefitRequests(drafts: RhBenefitRequestDraft[]): Promise<{ ids: string[] }> {
+  if (!drafts.length || drafts.length > 20) throw new Error("RH_INVALID");
+  if (new Set(drafts.map(d => d.planId)).size !== drafts.length) throw new Error("RH_INVALID");
+  const supabase = await createSupabaseServerClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error("UNAUTHENTICATED");
+  const profileResult = await supabase.from("profiles").select("id, organization_id").eq("user_id", authData.user.id).single();
+  if (profileResult.error) throw profileResult.error;
+  const rows = drafts.map(draft => ({
+    organization_id: profileResult.data.organization_id as string,
+    plan_id: draft.planId,
+    employee_id: draft.employeeId,
+    action: draft.action,
+    status: "pending",
+    reason: draft.reason,
+    effective_date: draft.effectiveDate,
+    monthly_value: valorMensal(draft.monthlyValue),
+    requested_by_profile_id: profileResult.data.id as string,
+  }));
+  const { data, error } = await supabase.from("rh_benefit_requests").insert(rows).select("id, plan_id");
+  if (error) throw error;
+  // Devolve na mesma ordem das linhas pedidas.
+  const idDoPlano = new Map((data ?? []).map(row => [String(row.plan_id), String(row.id)]));
+  return { ids: drafts.map(draft => idDoPlano.get(draft.planId) ?? "") };
 }
 
 export type RhDocumentDraft = {

@@ -178,6 +178,8 @@ type BenefitRequest = {
   effectiveDate: string;
   status: BenefitRequestStatus;
   reason: string;
+  /** Valor mensal do benefício para o colaborador (R$); null quando não se aplica. */
+  value: number | null;
 };
 
 const initialBenefitPlans: BenefitPlan[] = [];
@@ -605,6 +607,7 @@ function toBenefitUiRequest(request: RhBenefitRequest, index: number): BenefitRe
     effectiveDate: request.effectiveDate ?? "",
     status: benefitReqStatusPt[request.status],
     reason: request.reason ?? "—",
+    value: request.monthlyValue,
   };
 }
 
@@ -1360,24 +1363,29 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
   };
   const planIdByName = (name:string) => rh.source==="supabase" ? rh.benefitPlans.find(plan=>plan.name===name)?.id : undefined;
   const benefitActionEnum:Record<BenefitRequest["action"],RhBenefitRequest["action"]>={"Adesão":"enroll","Alteração":"change","Cancelamento":"cancel","Inclusão de dependente":"add_dependent"};
-  const createRequest=async(request:BenefitRequest,employeeId?:string)=>{
-    setRequests(current=>[request,...current]);setCreating(false);setSelectedRequest(request);setTab("Solicitações");
-    const planId=planIdByName(request.plan);
-    if(rh.source==="supabase"&&employeeId&&planId){
+  // Uma movimentação pode levar vários benefícios: cada um vira uma solicitação, gravadas juntas.
+  const createRequests=async(batch:BenefitRequest[],employeeId?:string)=>{
+    setRequests(current=>[...batch,...current]);setCreating(false);setSelectedRequest(batch.length===1?batch[0]:null);setTab("Solicitações");
+    const who=batch[0].employee;
+    const items=batch.map(request=>({request,planId:planIdByName(request.plan)}));
+    if(rh.source==="supabase"&&employeeId&&items.every(item=>item.planId)){
       try{
-        const response=await fetch("/api/rh",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entity:"benefit_request",employeeId,planId,action:benefitActionEnum[request.action],effectiveDate:request.effectiveDate||null,reason:request.reason||null})});
+        const response=await fetch("/api/rh",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entity:"benefit_requests",items:items.map(({request,planId})=>({employeeId,planId,action:benefitActionEnum[request.action],effectiveDate:request.effectiveDate||null,reason:request.reason||null,monthlyValue:request.value}))})});
         if(response.status===401) throw new Error("UNAUTHENTICATED");
         if(!response.ok)throw new Error("RH_CREATE_DENIED");
-        const{id}=(await response.json()) as {id:string};
-        setRequests(current=>current.map(r=>r.id===request.id?{...r,sourceId:id}:r));
-        notify(`${request.employee}: solicitação de benefício registrada no banco.`);
+        const{ids}=(await response.json()) as {ids:string[]};
+        const idOf=new Map(batch.map((request,index)=>[request.id,ids[index]]));
+        setRequests(current=>current.map(r=>idOf.has(r.id)?{...r,sourceId:idOf.get(r.id)||undefined}:r));
+        setSelectedRequest(current=>current&&idOf.has(current.id)?{...current,sourceId:idOf.get(current.id)||undefined}:current);
+        notify(batch.length===1?`${who}: solicitação de benefício registrada no banco.`:`${who}: ${batch.length} benefícios registrados no banco, cada um com a sua solicitação.`);
       }catch{
-        setRequests(current=>current.filter(r=>r.id!==request.id));setSelectedRequest(null);
-        notify(`${request.employee}: não foi possível registrar. Verifique suas permissões.`);
+        const added=new Set(batch.map(request=>request.id));
+        setRequests(current=>current.filter(r=>!added.has(r.id)));setSelectedRequest(null);
+        notify(`${who}: não foi possível registrar. Nada foi gravado; verifique suas permissões.`);
       }
       return;
     }
-    notify(`${request.employee}: não foi gravado (sem conexão com o banco).`);
+    notify(`${who}: não foi gravado (sem conexão com o banco).`);
   };
   return <>
     <div className="page-head hr-page-head"><div><p className="eyebrow">RH · BENEFÍCIOS</p><h1>Benefícios</h1><p>Planos, elegibilidade, adesões, custos estimados e solicitações em uma única visão.</p></div>{canManage&&<Button onClick={()=>setCreating(true)}><HrIcon name="plus"/> Nova movimentação</Button>}</div>
@@ -1385,11 +1393,11 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
     <div className="benefit-tabs" role="tablist">{(["Visão geral","Participantes","Solicitações","Políticas"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Solicitações"&&<i>{pending}</i>}</button>)}</div>
     {tab==="Visão geral"&&<div className="benefit-plan-grid">{plans.map(plan=><Card key={plan.id}><span className={`benefit-plan-icon category-${plan.id}`}><HrIcon name={plan.icon}/></span><Status tone={plan.status==="Ativo"?"success":"attention"}>{plan.status}</Status><p className="eyebrow">{plan.category.toUpperCase()}</p><h2>{plan.name}</h2><div className="benefit-coverage"><span><b>{plan.members}</b><small>participantes</small></span><span><b>{Math.round(plan.members/plan.eligible*100)}%</b><small>dos elegíveis</small></span></div><div className="benefit-adhesion"><div className="benefit-progress"><span><i style={{width:`${plan.members/plan.eligible*100}%`}}/></span></div><small>{Math.max(0,plan.eligible-plan.members)} elegíveis ainda não aderiram</small></div><footer><span><small>Custo mensal estimado</small><b>{formatCurrency(plan.monthlyCost)}</b></span><button onClick={()=>setSelectedPlan(plan)}>Ver gestão <HrIcon name="arrow"/></button></footer></Card>)}</div>}
     {tab==="Participantes"&&<BenefitParticipants plans={plans} notify={notify}/>} 
-    {tab==="Solicitações"&&<Card className="benefit-request-card"><div className="benefit-request-toolbar"><div><p className="eyebrow">FLUXO DE APROVAÇÃO</p><h2>Solicitações de benefícios</h2><p>Movimentações recentes do quadro ativo</p></div><label><span>Status</span><select value={requestStatus} onChange={event=>setRequestStatus(event.target.value)}><option>Todos os status</option><option>Pendente</option><option>Em análise</option><option>Aprovada</option><option>Reprovada</option></select></label></div><div className="benefit-request-table"><div className="benefit-request-head"><span>Colaborador</span><span>Movimentação</span><span>Vigência</span><span>Situação</span><span/></div>{filteredRequests.map(request=><button key={request.id} onClick={()=>setSelectedRequest(request)}><span className="benefit-request-person"><i>{request.initials}</i><span><b>{request.employee}</b><small>{request.department}</small></span></span><span><b>{request.action}</b><small>{request.plan}</small></span><span><b>{formatDate(request.effectiveDate)}</b><small>{request.requestedAt}</small></span><Status tone={benefitRequestTone(request.status)}>{request.status}</Status><HrIcon name="arrow"/></button>)}</div></Card>}
+    {tab==="Solicitações"&&<Card className="benefit-request-card"><div className="benefit-request-toolbar"><div><p className="eyebrow">FLUXO DE APROVAÇÃO</p><h2>Solicitações de benefícios</h2><p>Movimentações recentes do quadro ativo</p></div><label><span>Status</span><select value={requestStatus} onChange={event=>setRequestStatus(event.target.value)}><option>Todos os status</option><option>Pendente</option><option>Em análise</option><option>Aprovada</option><option>Reprovada</option></select></label></div><div className="benefit-request-table"><div className="benefit-request-head"><span>Colaborador</span><span>Movimentação</span><span>Vigência</span><span>Situação</span><span/></div>{filteredRequests.map(request=><button key={request.id} onClick={()=>setSelectedRequest(request)}><span className="benefit-request-person"><i>{request.initials}</i><span><b>{request.employee}</b><small>{request.department}</small></span></span><span><b>{request.action}</b><small>{request.plan}{request.value!==null?` · ${formatCurrency(request.value)}/mês`:""}</small></span><span><b>{formatDate(request.effectiveDate)}</b><small>{request.requestedAt}</small></span><Status tone={benefitRequestTone(request.status)}>{request.status}</Status><HrIcon name="arrow"/></button>)}</div></Card>}
     {tab==="Políticas"&&<BenefitPolicies/>}
     {selectedPlan&&<BenefitPlanDrawer plan={selectedPlan} canEdit={canManage&&Boolean(selectedPlan.sourceId)} onClose={()=>setSelectedPlan(null)} onParticipants={()=>{setSelectedPlan(null);setTab("Participantes")}} onSave={savePlan}/>}
     {selectedRequest&&<BenefitRequestDrawer request={selectedRequest} canApprove={canApprove} onClose={()=>setSelectedRequest(null)} onDecision={decide}/>} 
-    {creating&&<BenefitRequestForm nextId={Math.max(0,...requests.map(request=>request.id))+1} plans={plans} employees={rh.source==="supabase"?rh.employees:[]} onClose={()=>setCreating(false)} onSave={createRequest}/>}
+    {creating&&<BenefitRequestForm nextId={Math.max(0,...requests.map(request=>request.id))+1} plans={plans} employees={rh.source==="supabase"?rh.employees:[]} onClose={()=>setCreating(false)} onSave={createRequests}/>}
   </>;
 }
 
@@ -1421,20 +1429,42 @@ function BenefitPlanDrawer({plan,canEdit,onClose,onParticipants,onSave}:{plan:Be
     :<div className="benefit-drawer-content"><section className="benefit-drawer-stats"><span><small>Participantes</small><b>{plan.members}</b></span><span><small>Elegíveis</small><b>{plan.eligible}</b></span><span><small>Adesão</small><b>{Math.round(plan.members/plan.eligible*100)}%</b></span></section><section className="benefit-cost-card"><div><span><small>Custo mensal estimado</small><b>{formatCurrency(plan.monthlyCost)}</b></span><span><small>Média por participante</small><b>{average===null?"—":formatCurrency(average)}</b></span></div><i><em style={{width:`${plan.members/plan.eligible*100}%`}}/></i><p>Adesão sobre os elegíveis. A folha de pagamento fica com o escritório contábil.</p></section><DetailGroup title="Regras do benefício" rows={[["Elegibilidade",plan.rule],["Contribuição do colaborador",plan.employeeContribution],["Fornecedor ou operação",plan.provider]]}/><section className="benefit-security-note"><HrIcon name="shield"/><span><b>Dados protegidos por escopo</b><small>Informações sensíveis de saúde não são exibidas nesta visão gerencial.</small></span></section></div>}
     <footer>{editing?<><button type="button" className="employee-cancel" onClick={()=>setEditing(false)} disabled={saving}>Cancelar</button><Button type="submit" form="benefit-plan-values" disabled={parsedCost===null||saving}>{saving?"Gravando…":"Salvar valores"} <HrIcon name="check"/></Button></>:<><button className="employee-cancel" onClick={onClose}>Fechar</button>{canEdit&&<button type="button" className="employee-cancel" onClick={startEditing}><HrIcon name="edit"/> Editar valores</button>}<Button onClick={onParticipants}>Ver participantes <HrIcon name="arrow"/></Button></>}</footer></aside></div>}
 
-function BenefitRequestDrawer({request,canApprove,onClose,onDecision}:{request:BenefitRequest;canApprove:boolean;onClose:()=>void;onDecision:(status:"Aprovada"|"Reprovada")=>void}){const actionable=request.status==="Pendente"||request.status==="Em análise";return <div className="employee-layer"><aside className="benefit-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Solicitação de ${request.employee}`}><header><button onClick={onClose} aria-label="Fechar solicitação de benefício"><HrIcon name="close"/></button><span><HrIcon name="heart"/></span><div><p className="eyebrow">SOLICITAÇÃO #{String(request.id).padStart(4,"0")}</p><h2>{request.action}</h2><p>{request.employee} · {request.department}</p></div><Status tone={benefitRequestTone(request.status)}>{request.status}</Status></header><div className="benefit-drawer-content"><section className="benefit-request-highlight"><span><small>Benefício solicitado</small><b>{request.plan}</b></span><span><small>Vigência pretendida</small><b>{formatDate(request.effectiveDate)}</b></span></section><DetailGroup title="Informações da solicitação" rows={[["Colaborador",request.employee],["Movimentação",request.action],["Justificativa",request.reason],["Solicitado em",request.requestedAt]]}/><section className="absence-workflow"><h3>Histórico da solicitação</h3><div><i>✓</i><span><b>Solicitação registrada</b><small>{request.requestedAt}</small></span></div><div><i>{actionable?"2":"✓"}</i><span><b>{actionable?"Aguardando decisão":`Solicitação ${request.status.toLowerCase()}`}</b><small>{actionable?"RH responsável foi notificado":"Movimentação registrada no histórico"}</small></span></div></section><section className="benefit-security-note"><HrIcon name="shield"/><span><b>Auditoria preparada</b><small>A decisão será vinculada ao aprovador quando a persistência estiver conectada.</small></span></section></div>{canApprove&&actionable&&<footer><button className="absence-reject" onClick={()=>onDecision("Reprovada")}><HrIcon name="close"/> Reprovar</button><Button onClick={()=>onDecision("Aprovada")}><HrIcon name="check"/> Aprovar solicitação</Button></footer>}</aside></div>}
+function BenefitRequestDrawer({request,canApprove,onClose,onDecision}:{request:BenefitRequest;canApprove:boolean;onClose:()=>void;onDecision:(status:"Aprovada"|"Reprovada")=>void}){const actionable=request.status==="Pendente"||request.status==="Em análise";return <div className="employee-layer"><aside className="benefit-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Solicitação de ${request.employee}`}><header><button onClick={onClose} aria-label="Fechar solicitação de benefício"><HrIcon name="close"/></button><span><HrIcon name="heart"/></span><div><p className="eyebrow">SOLICITAÇÃO #{String(request.id).padStart(4,"0")}</p><h2>{request.action}</h2><p>{request.employee} · {request.department}</p></div><Status tone={benefitRequestTone(request.status)}>{request.status}</Status></header><div className="benefit-drawer-content"><section className="benefit-request-highlight"><span><small>Benefício solicitado</small><b>{request.plan}</b></span>{request.value!==null&&<span><small>Valor mensal</small><b>{formatCurrency(request.value)}</b></span>}<span><small>Vigência pretendida</small><b>{formatDate(request.effectiveDate)}</b></span></section><DetailGroup title="Informações da solicitação" rows={[["Colaborador",request.employee],["Movimentação",request.action],["Justificativa",request.reason],["Solicitado em",request.requestedAt]]}/><section className="absence-workflow"><h3>Histórico da solicitação</h3><div><i>✓</i><span><b>Solicitação registrada</b><small>{request.requestedAt}</small></span></div><div><i>{actionable?"2":"✓"}</i><span><b>{actionable?"Aguardando decisão":`Solicitação ${request.status.toLowerCase()}`}</b><small>{actionable?"RH responsável foi notificado":"Movimentação registrada no histórico"}</small></span></div></section><section className="benefit-security-note"><HrIcon name="shield"/><span><b>Auditoria preparada</b><small>A decisão será vinculada ao aprovador quando a persistência estiver conectada.</small></span></section></div>{canApprove&&actionable&&<footer><button className="absence-reject" onClick={()=>onDecision("Reprovada")}><HrIcon name="close"/> Reprovar</button><Button onClick={()=>onDecision("Aprovada")}><HrIcon name="check"/> Aprovar solicitação</Button></footer>}</aside></div>}
 
-function BenefitRequestForm({nextId,plans,employees,onClose,onSave}:{nextId:number;plans:BenefitPlan[];employees:RhEmployeeOption[];onClose:()=>void;onSave:(request:BenefitRequest,employeeId?:string)=>void}){
+function BenefitRequestForm({nextId,plans,employees,onClose,onSave}:{nextId:number;plans:BenefitPlan[];employees:RhEmployeeOption[];onClose:()=>void;onSave:(requests:BenefitRequest[],employeeId?:string)=>void}){
   const options=employees;
   const persists=employees.length>0;
   const[employeeId,setEmployeeId]=useState(options[0]?.id??"");
-  const[plan,setPlan]=useState(plans[0]?.name??"");
+  // Um ou mais benefícios na mesma movimentação, cada um com o seu valor mensal.
+  const[rows,setRows]=useState<{key:number;plan:string;value:string}[]>([{key:1,plan:plans[0]?.name??"",value:""}]);
   const[action,setAction]=useState<BenefitRequest["action"]>("Adesão");
   const[date,setDate]=useState(()=>vigenciaSugerida(hojeBrasilia()));
   const[reason,setReason]=useState("");
   const chosen=options.find(option=>option.id===employeeId)??options[0];
-  const valid=Boolean(chosen&&plan&&date&&reason);
-  const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid||!chosen)return;onSave({id:nextId,employee:chosen.name,initials:initialsOf(chosen.name),department:chosen.department??"—",plan,action,requestedAt:"Hoje · agora",effectiveDate:date,status:"Pendente",reason},persists?chosen.id:undefined)};
-  return <div className="employee-layer form-layer"><form className="benefit-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · BENEFÍCIOS</p><h2>Nova movimentação</h2><p>Registre uma adesão, alteração, inclusão ou cancelamento.</p></div><button type="button" onClick={onClose} aria-label="Fechar movimentação"><HrIcon name="close"/></button></header><div className="benefit-form-fields"><label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label><label><span>Benefício *</span><select value={plan} onChange={event=>setPlan(event.target.value)}>{plans.map(item=><option key={item.id}>{item.name}</option>)}</select></label><label><span>Movimentação *</span><select value={action} onChange={event=>setAction(event.target.value as BenefitRequest["action"])}><option>Adesão</option><option>Alteração</option><option>Cancelamento</option><option>Inclusão de dependente</option></select></label><label className="field-wide"><span>Vigência pretendida *</span><input type="date" value={date} onChange={event=>setDate(event.target.value)}/></label><label className="field-wide"><span>Justificativa *</span><textarea value={reason} onChange={event=>setReason(event.target.value)} placeholder="Descreva a necessidade da movimentação..."/></label><div className="benefit-form-note field-wide"><HrIcon name="shield"/><span><b>Sem alteração automática</b><small>{persists?"Entra no fluxo de aprovação e é gravada no banco.":"A movimentação entra no fluxo de aprovação antes de alterar a adesão."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>Enviar para aprovação <HrIcon name="arrow"/></Button></footer></form></div>}
+  const withValue=action!=="Cancelamento";
+  const parsed=rows.map(row=>lerValorEmReais(row.value));
+  const used=new Set(rows.map(row=>row.plan));
+  const free=plans.filter(item=>!used.has(item.name));
+  const total=parsed.reduce<number>((sum,value)=>sum+(value??0),0);
+  const valid=Boolean(chosen&&date&&reason&&rows.length&&rows.every((row,index)=>row.plan&&(!withValue||parsed[index]!==null)));
+  const setRow=(key:number,change:Partial<{plan:string;value:string}>)=>setRows(current=>current.map(row=>row.key===key?{...row,...change}:row));
+  const addRow=()=>{if(free[0])setRows(current=>[...current,{key:Math.max(...current.map(row=>row.key))+1,plan:free[0].name,value:""}])};
+  const submit=(event:React.FormEvent)=>{event.preventDefault();if(!valid||!chosen)return;onSave(rows.map((row,index)=>({id:nextId+index,employee:chosen.name,initials:initialsOf(chosen.name),department:chosen.department??"—",plan:row.plan,action,requestedAt:"Hoje · agora",effectiveDate:date,status:"Pendente",reason,value:withValue?parsed[index]:null})),persists?chosen.id:undefined)};
+  return <div className="employee-layer form-layer"><form className="benefit-form" onSubmit={submit} onMouseDown={event=>event.stopPropagation()}><header><div><p className="eyebrow">RH · BENEFÍCIOS</p><h2>Nova movimentação</h2><p>Registre uma adesão, alteração, inclusão ou cancelamento.</p></div><button type="button" onClick={onClose} aria-label="Fechar movimentação"><HrIcon name="close"/></button></header><div className="benefit-form-fields">
+    <label className="field-wide"><span>Colaborador *</span><select value={employeeId} onChange={event=>setEmployeeId(event.target.value)}>{options.map(option=><option key={option.id} value={option.id}>{option.name}{option.department?` · ${option.department}`:""}</option>)}</select></label>
+    <label><span>Movimentação *</span><select value={action} onChange={event=>setAction(event.target.value as BenefitRequest["action"])}><option>Adesão</option><option>Alteração</option><option>Cancelamento</option><option>Inclusão de dependente</option></select></label>
+    <label><span>Vigência pretendida *</span><input type="date" value={date} onChange={event=>setDate(event.target.value)}/></label>
+    <div className="benefit-lines field-wide" role="group" aria-label="Benefícios da movimentação">
+      <div className={`benefit-line benefit-line-head${withValue?"":" no-value"}`}><span>Benefício *</span>{withValue&&<span>Valor mensal (R$) *</span>}<span/></div>
+      {rows.map((row,index)=><div className={`benefit-line${withValue?"":" no-value"}`} key={row.key}>
+        <select aria-label={`Benefício ${index+1}`} value={row.plan} onChange={event=>setRow(row.key,{plan:event.target.value})}>{plans.filter(item=>item.name===row.plan||!used.has(item.name)).map(item=><option key={item.id}>{item.name}</option>)}</select>
+        {withValue&&<input aria-label={`Valor mensal do benefício ${index+1}`} inputMode="decimal" autoComplete="off" placeholder="0,00" value={row.value} aria-invalid={row.value!==""&&parsed[index]===null} onChange={event=>setRow(row.key,{value:event.target.value})}/>}
+        {rows.length>1?<button type="button" className="benefit-line-remove" onClick={()=>setRows(current=>current.filter(item=>item.key!==row.key))} aria-label={`Remover ${row.plan}`}><HrIcon name="close" size={16}/></button>:<span/>}
+      </div>)}
+      {withValue&&rows.some((row,index)=>row.value!==""&&parsed[index]===null)&&<small className="benefit-values-error">Digite o valor em reais, por exemplo 600,00.</small>}
+      <div className="benefit-lines-foot"><button type="button" className="employee-cancel benefit-line-add" onClick={addRow} disabled={!free.length}><HrIcon name="plus" size={16}/> Incluir outro benefício</button>{withValue&&rows.length>1&&<span>Total mensal <b>{formatCurrency(total)}</b></span>}</div>
+    </div>
+    <label className="field-wide"><span>Justificativa *</span><textarea value={reason} onChange={event=>setReason(event.target.value)} placeholder="Descreva a necessidade da movimentação..."/></label><div className="benefit-form-note field-wide"><HrIcon name="shield"/><span><b>Sem alteração automática</b><small>{persists?(rows.length>1?`Cada benefício entra como uma solicitação no fluxo de aprovação e é gravado no banco.`:"Entra no fluxo de aprovação e é gravada no banco."):"A movimentação entra no fluxo de aprovação antes de alterar a adesão."}</small></span></div></div><footer><button type="button" className="employee-cancel" onClick={onClose}>Cancelar</button><Button type="submit" disabled={!valid}>{rows.length>1?`Enviar ${rows.length} para aprovação`:"Enviar para aprovação"} <HrIcon name="arrow"/></Button></footer></form></div>}
 
 function formatCurrency(value:number){const cents=!Number.isInteger(Math.round(value*100)/100);return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:cents?2:0,maximumFractionDigits:cents?2:0}).format(value)}
 function benefitRequestTone(status:BenefitRequestStatus):"success"|"attention"|"info"|"neutral"{return status==="Aprovada"?"success":status==="Pendente"?"attention":status==="Em análise"?"info":"neutral"}

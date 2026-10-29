@@ -42,3 +42,14 @@ test("benefício: tela e servidor ligados (edição dos valores, sem data fixa, 
   const servidor = ler("lib/data/rh-mutations.ts");
   assert.ok(servidor.includes('mutation.entity === "benefit_plan"') && servidor.includes("monthly_cost:"));
 });
+
+test("benefício: a movimentação leva vários benefícios, cada um com o valor mensal", () => {
+  const tela = ler("app/components/hr-module.tsx");
+  assert.ok(tela.includes("Incluir outro benefício") && tela.includes("Valor mensal (R$) *"));
+  assert.ok(tela.includes('entity:"benefit_requests"') && tela.includes("monthlyValue:request.value"));
+  const servidor = ler("lib/data/rh-mutations.ts");
+  assert.ok(servidor.includes("export async function createRhBenefitRequests") && servidor.includes("monthly_value: valorMensal(draft.monthlyValue)"));
+  assert.ok(servidor.includes("new Set(drafts.map(d => d.planId)).size !== drafts.length"), "benefício repetido é recusado");
+  assert.ok(ler("lib/data/rh-repository.ts").includes("monthly_value,requested_at"));
+  assert.ok(ler("supabase/migrations/202610290004_rh_beneficio_valor_solicitacao.sql").includes("add column if not exists monthly_value numeric(18,2)"));
+});
