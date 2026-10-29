@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import "./ts-resolver.mjs";
 
-const { classificarEnvio, lacunasDaNumeracao, lerEventoNfe, lerNfeEmitida, mesDaChave, naturezaDaSaida, numeroDaChave } = await import("../lib/fiscal/emitidas-envio.ts");
+const { cancelamentoDoXml, classificarEnvio, lacunasDaNumeracao, lerEventoNfe, lerNfeEmitida, mesDaChave, naturezaDaSaida, numeroDaChave } = await import("../lib/fiscal/emitidas-envio.ts");
 const { ladoDaNota, lerIbsCbs } = await import("../lib/fiscal/ibs-cbs/leitura.ts");
 const { receitaPorMes } = await import("../lib/contabil/apuracao/receita.ts");
 
@@ -150,4 +150,26 @@ test("portal: lixeira padrão da plataforma e NF-e aberta no DANFE", () => {
   const transmissor = ler("services/transmissor-nfe/servidor.mjs");
   assert.match(transmissor, /generatePDF\(false\)/, "DANFE sem a marca NFeWizard-io");
   assert.match(transmissor, /DANFE_INVALIDO/, "XML que não monta não derruba o serviço");
+});
+
+test("cancelamento: o XML do evento 110111 aceito pela SEFAZ tira a nota das apurações", () => {
+  const ev = (tp, cStat) => `<?xml version="1.0"?><procEventoNFe versao="1.00"><evento><infEvento Id="ID${tp}${chave(10588)}01"><chNFe>${chave(10588)}</chNFe><dhEvento>2026-01-09T10:00:00-03:00</dhEvento><tpEvento>${tp}</tpEvento><nSeqEvento>1</nSeqEvento><detEvento><nProt>135260000000001</nProt><xJust>ERRO NO VALOR DO PEDIDO DO CLIENTE</xJust></detEvento></infEvento></evento><retEvento><infEvento><cStat>${cStat}</cStat><nProt>135260000000999</nProt></infEvento></retEvento></procEventoNFe>`;
+  assert.deepEqual(cancelamentoDoXml(ev("110111", "135")), { chave: chave(10588), data: "2026-01-09T10:00:00-03:00", protocolo: "135260000000999", justificativa: "ERRO NO VALOR DO PEDIDO DO CLIENTE" });
+  assert.ok(cancelamentoDoXml(ev("110112", "155")), "cancelamento por substituição fora de prazo também vale");
+  assert.equal(cancelamentoDoXml(ev("110111", "573")), null, "rejeitado pela SEFAZ não cancela");
+  assert.equal(cancelamentoDoXml(ev("110110", "135")), null, "carta de correção não cancela");
+  assert.equal(cancelamentoDoXml(nfe()), null);
+  const mig = ler("supabase/migrations/202610290008_fiscal_notas_canceladas.sql");
+  assert.match(mig, /create trigger fiscal_dfe_eventos_cancelamento/);
+  assert.match(mig, /create trigger fiscal_nfe_cancelada after update of situacao on public\.fiscal_nfe/);
+  assert.match(mig, /before insert on public\.fiscal_ibscbs_notas/, "leitura de nota já cancelada entra marcada");
+  for (const f of ["app/api/fiscal/apuracoes/route.ts", "app/api/fiscal/ibs-cbs/route.ts", "app/api/fiscal/entradas/route.ts", "lib/sara/agentes/fiscal.ts"]) assert.match(ler(f), /is\("cancelada_em", null\)/, f);
+  assert.match(ler("lib/fiscal/ibs-cbs/servidor.ts"), /registrarSeCancelamento/);
+});
+
+test("notas recebidas: a busca e a ciência usam o ambiente próprio (produção); a emissão segue o dela", () => {
+  const s = ler("lib/fiscal/servidor.ts");
+  assert.match(s, /uso === "dfe" \? \(c\.dfe_ambiente \?\? c\.ambiente\) : c\.ambiente/);
+  assert.equal((s.match(/credenciaisDaOrganizacao\(admin, org, (config|undefined), "dfe"\)/g) ?? []).length, 2, "rodada e ciência");
+  assert.match(ler("supabase/migrations/202610290007_fiscal_dfe_ambiente.sql"), /dfe_ambiente text not null default 'producao'/);
 });

@@ -11,7 +11,7 @@ import { api, cnpjFormatado, dataHora } from "./comum";
  */
 
 type Config = Record<string, string | number | boolean | null> & {
-  ambiente: "homologacao" | "producao"; dfe_ativo: boolean; ciencia_automatica: boolean;
+  ambiente: "homologacao" | "producao"; dfe_ambiente?: "homologacao" | "producao"; dfe_ativo: boolean; ciencia_automatica: boolean;
   cert_titular: string | null; cert_cnpj: string | null; cert_validade: string | null; cert_enviado_por_nome: string | null; cert_enviado_em: string | null;
 };
 type Dados = { config: Config | null; series: { serie: number; proximo_numero: number }[]; podeEditar: boolean; podeProducao: boolean; podeCertificado: boolean; transmissor: boolean; carregadoEm: number };
@@ -200,6 +200,7 @@ export function ConfiguracaoFiscal({ notify }: { notify: (m: string) => void }) 
 
       <section className="almox-bloco fiscal-config-bloco">
         <header><h2>Notas recebidas (SEFAZ)</h2>{c?.dfe_ativo ? <Status tone="success">Busca ligada</Status> : <Status tone="neutral">Busca desligada</Status>}</header>
+        <p className="fiscal-nota-ajuda">A busca vai à SEFAZ de {c?.dfe_ambiente === "homologacao" ? "homologação (teste: não há notas reais para buscar)" : "produção: traz as notas reais emitidas contra o CNPJ da empresa"}. Consultar não emite nota nem gera imposto, e independe do ambiente da emissão.</p>
         <label className="fiscal-chave">
           <input type="checkbox" checked={Boolean(c?.dfe_ativo)} disabled={!pode || !temCert || ocupado === "gravar"} onChange={(e) => void gravar({ dfe_ativo: e.target.checked }, e.target.checked ? "Busca automática ligada." : "Busca automática desligada.")} />
           <span><b>Buscar sozinho as notas emitidas contra o CNPJ da empresa</b><small>A cada rodada, respeitando a regra da SEFAZ (sem nota nova, só consulta de novo depois de 1 hora).{!temCert ? " Precisa do certificado." : ""}</small></span>

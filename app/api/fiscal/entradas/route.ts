@@ -28,7 +28,7 @@ export async function GET() {
   try { sinc = await sincronizarEntradas(admin, autor.org); } catch (e) { sinc = { lidas: 0, aviso: `Não foi possível ler as notas novas agora (${e instanceof Error ? e.message.slice(0, 120) : "erro"}).` }; }
   const [{ data, error }, { data: cfg }, { data: painel }] = await Promise.all([
     guard.supabase.from("fiscal_entradas").select("id, chave, numero, emissao, competencia, finalidade, emitente_cnpj, emitente_nome, emitente_uf, emitente_crt, v_nf, itens, achados, situacao, classificacao, conferida, conferida_por_nome, conferida_em")
-      .is("repetida_de", null).neq("situacao", "fora").not("competencia", "is", null).order("emissao", { ascending: true }).order("lido_em", { ascending: true }).limit(3000),
+      .is("repetida_de", null).is("cancelada_em", null).neq("situacao", "fora").not("competencia", "is", null).order("emissao", { ascending: true }).order("lido_em", { ascending: true }).limit(3000),
     admin.from("fiscal_config").select("uf").eq("organization_id", autor.org).maybeSingle(),
     // Dicas para a proposta: a classificação da nota no Painel do ICMS e o código do fornecedor ligado ao material.
     admin.from("fiscal_icms_entries").select("chave, tipo").eq("organization_id", autor.org).not("chave", "is", null),

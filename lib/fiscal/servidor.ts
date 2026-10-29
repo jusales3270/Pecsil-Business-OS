@@ -15,13 +15,17 @@ import { ErroTransmissor, obterTransmissor, type AmbienteFiscal, type Credenciai
 export class FiscalNaoPronto extends Error {}
 
 type ConfigFiscal = {
-  organization_id: string; cnpj: string | null; uf: string | null; ambiente: AmbienteFiscal;
+  organization_id: string; cnpj: string | null; uf: string | null; ambiente: AmbienteFiscal; dfe_ambiente?: AmbienteFiscal | null;
   dfe_ativo: boolean; ciencia_automatica: boolean; dfe_ultimo_nsu: string; dfe_proxima_consulta: string | null; cert_validade: string | null;
 };
 
-const COLUNAS = "organization_id, cnpj, uf, ambiente, dfe_ativo, ciencia_automatica, dfe_ultimo_nsu, dfe_proxima_consulta, cert_validade";
+const COLUNAS = "organization_id, cnpj, uf, ambiente, dfe_ambiente, dfe_ativo, ciencia_automatica, dfe_ultimo_nsu, dfe_proxima_consulta, cert_validade";
 
-export async function credenciaisDaOrganizacao(admin: SupabaseClient, org: string, config?: ConfigFiscal): Promise<Credenciais> {
+/**
+ * Credenciais para falar com a SEFAZ. `uso` escolhe o ambiente: "emissao" (o `ambiente` da Configuração) ou
+ * "dfe" — a busca das notas recebidas e a ciência da operação, que têm ambiente próprio (`dfe_ambiente`).
+ */
+export async function credenciaisDaOrganizacao(admin: SupabaseClient, org: string, config?: ConfigFiscal, uso: "emissao" | "dfe" = "emissao"): Promise<Credenciais> {
   const c = config ?? ((await admin.from("fiscal_config").select(COLUNAS).eq("organization_id", org).maybeSingle()).data as ConfigFiscal | null);
   if (!c?.cnpj || !c.uf) throw new FiscalNaoPronto("Configuração fiscal incompleta: falta o CNPJ ou a UF do emitente.");
   if (!c.cert_validade) throw new FiscalNaoPronto("Nenhum certificado digital enviado.");
@@ -29,7 +33,8 @@ export async function credenciaisDaOrganizacao(admin: SupabaseClient, org: strin
   const { data, error } = await admin.rpc("fiscal_certificado_ler", { p_org: org });
   const cert = (Array.isArray(data) ? data[0] : data) as { pfx: string; senha: string } | null;
   if (error || !cert?.pfx) throw new FiscalNaoPronto("O certificado não foi encontrado no cofre. Envie de novo em Configuração.");
-  return { uf: c.uf, cnpj: c.cnpj, ambiente: c.ambiente, certificado: { pfx: cert.pfx, senha: cert.senha } };
+  const ambiente = uso === "dfe" ? (c.dfe_ambiente ?? c.ambiente) : c.ambiente;
+  return { uf: c.uf, cnpj: c.cnpj, ambiente, certificado: { pfx: cert.pfx, senha: cert.senha } };
 }
 
 export type ResultadoRodada = {
@@ -64,7 +69,7 @@ export async function rodadaDistribuicao(
 
   const fim = Date.now() + (opcoes.prazoMs ?? 45_000);
   const transmissor = opcoes.transmissor ?? obterTransmissor();
-  const cred = await credenciaisDaOrganizacao(admin, org, config);
+  const cred = await credenciaisDaOrganizacao(admin, org, config, "dfe");
   let ultimoNsu = config.dfe_ultimo_nsu;
   let status = "";
   let proxima: Date = new Date(Date.now() + 61 * 60_000);
@@ -146,7 +151,7 @@ export async function darCiencia(
   if (!linha) throw new FiscalNaoPronto("Nota não encontrada.");
   if (linha.manifestacao !== "nenhuma") return { jaTinha: true };
   const transmissor = opcoes.transmissor ?? obterTransmissor();
-  const cred = opcoes.credenciais ?? (await credenciaisDaOrganizacao(admin, org));
+  const cred = opcoes.credenciais ?? (await credenciaisDaOrganizacao(admin, org, undefined, "dfe"));
   const agora = () => new Date().toISOString();
   const registrarCiencia = () => admin.from("fiscal_dfe").update({ manifestacao: "ciencia", manifestacao_em: agora(), manifestacao_erro: null, updated_at: agora() }).eq("id", linha.id);
   try {

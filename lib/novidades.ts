@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-29-fiscal-canceladas-e-notas-recebidas",
+    data: "2026-10-29",
+    area: "Fiscal",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.nfe", "fiscal.icms", "fiscal.config", "fiscal.contabilidade", "fiscal.escritorio"],
+    titulo: "Nota cancelada sai da receita, e as notas recebidas da SEFAZ começam a chegar",
+    itens: [
+      "Nota cancelada não conta mais na receita do Presumido, no IBS/CBS nem na conferência de entradas, venha o cancelamento no XML do evento, pela SEFAZ ou pela própria plataforma. Na lista do mês ela aparece marcada como cancelada.",
+      "A busca das notas que os fornecedores emitem contra o CNPJ da empresa passou a consultar a SEFAZ de produção (a emissão continua em homologação). Consultar não emite nota nem gera imposto.",
+    ],
+  },
+  {
     id: "2026-10-29-fiscal-portal-anexos",
     data: "2026-10-29",
     area: "Fiscal",

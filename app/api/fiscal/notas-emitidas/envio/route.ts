@@ -35,9 +35,9 @@ async function cnpjDaEmpresa(org: string) {
 /** Notas da empresa já lidas no mês (a que vale de cada chave). */
 async function notasDoMes(org: string, cnpj: string, mes: string) {
   const admin = createSupabaseAdminClient();
-  const { data } = await admin.from("fiscal_ibscbs_notas").select("chave, numero, lado, emissao, v_nf, receita, destinatario_cnpj, document_id, nfe_id")
+  const { data } = await admin.from("fiscal_ibscbs_notas").select("chave, numero, lado, emissao, v_nf, receita, destinatario_cnpj, document_id, nfe_id, cancelada_em")
     .eq("organization_id", org).eq("competencia", mes).eq("emitente_cnpj", cnpj).is("repetida_de", null).order("numero").limit(5000);
-  return (data ?? []) as { chave: string | null; numero: string | null; lado: "entrada" | "saida" | "outra"; emissao: string | null; v_nf: number; receita: { porCfop: Record<string, number> } | null; destinatario_cnpj: string | null; document_id: string | null; nfe_id: string | null }[];
+  return (data ?? []) as { chave: string | null; numero: string | null; lado: "entrada" | "saida" | "outra"; emissao: string | null; v_nf: number; receita: { porCfop: Record<string, number> } | null; destinatario_cnpj: string | null; document_id: string | null; nfe_id: string | null; cancelada_em: string | null }[];
 }
 
 export async function GET(request: Request) {
@@ -56,14 +56,15 @@ export async function GET(request: Request) {
     admin.from("customers").select("tax_id, name").eq("organization_id", autor.org).not("tax_id", "is", null).limit(5000),
   ]);
   const nomeDo = new Map((clientes ?? []).map((c) => [String(c.tax_id).replace(/\D/g, ""), String(c.name)]));
-  const receita = receitaPorMes(notas.map((n) => ({ lado: n.lado, competencia: mes, receita: n.receita })))[0] ?? null;
+  // Cancelada aparece na lista (marcada), mas não entra na receita.
+  const receita = receitaPorMes(notas.filter((n) => !n.cancelada_em).map((n) => ({ lado: n.lado, competencia: mes, receita: n.receita })))[0] ?? null;
   // Evento guardado sem o XML da nota (o título diz de que nota é): o número aparece como "só o evento".
   const soEvento = (docs ?? []).flatMap((d) => /^(?:Carta de correção|Evento) da NF (\d+)/.exec(String(d.title ?? ""))?.[1] ?? []);
   return NextResponse.json({
     mes,
     notas: notas.map((n) => ({
       numero: n.numero, chave: n.chave, emissao: n.emissao, valor: Number(n.v_nf),
-      tipo: n.lado === "entrada" ? "entrada_propria" : naturezaDaSaida(n.receita?.porCfop ?? {}),
+      tipo: n.cancelada_em ? "cancelada" : n.lado === "entrada" ? "entrada_propria" : naturezaDaSaida(n.receita?.porCfop ?? {}),
       destinatario: n.destinatario_cnpj ? nomeDo.get(n.destinatario_cnpj) ?? n.destinatario_cnpj : null,
       origem: n.nfe_id ? "plataforma" : "arquivo",
     })),

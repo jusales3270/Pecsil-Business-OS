@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cancelamentoDoXml } from "../emitidas-envio";
 import { lerIbsCbs, type NotaIbsCbs } from "./leitura";
 
 /**
@@ -62,14 +63,27 @@ export async function notaJaLida(admin: SupabaseClient, org: string, chave: stri
   return nfe ? { documentId: null, nfeId: nfe.id as string } : null;
 }
 
+/** XML de cancelamento aceito pela SEFAZ: a nota entra em fiscal_notas_canceladas (o banco tira as leituras dela das apurações). */
+async function registrarSeCancelamento(admin: SupabaseClient, org: string, documentId: string, xml: string) {
+  const c = cancelamentoDoXml(xml);
+  if (!c) return;
+  const { error } = await admin.from("fiscal_notas_canceladas").upsert(
+    { organization_id: org, chave: c.chave, cancelada_em: c.data ?? new Date().toISOString(), origem: "arquivo", protocolo: c.protocolo, justificativa: c.justificativa?.slice(0, 255) ?? null, document_id: documentId },
+    { onConflict: "organization_id,chave", ignoreDuplicates: true },
+  );
+  if (error) console.error("Cancelamento: falha ao registrar", c.chave, error.message);
+}
+
 /** Documento recém-guardado: lê na hora, sem derrubar o envio. */
 export async function lerDocumento(admin: SupabaseClient, org: string, doc: { id: string; nome?: string | null; tipo?: string | null }, dados: Uint8Array) {
   if (!pareceXml(doc.nome, doc.tipo)) return;
   try {
     const cnpj = await cnpjDaEmpresa(admin, org);
     if (!cnpj) return; // sem o CNPJ não há como separar entrada de saída: a tela avisa e lê depois
-    const n = lerIbsCbs(new TextDecoder().decode(dados), cnpj);
+    const xml = new TextDecoder().decode(dados);
+    const n = lerIbsCbs(xml, cnpj);
     await gravar(admin, linha(org, { document_id: doc.id }, n));
+    if (!n) await registrarSeCancelamento(admin, org, doc.id, xml);
   } catch (e) {
     console.error("IBS/CBS: falha ao ler o documento", doc.id, e);
   }
@@ -92,8 +106,10 @@ export async function sincronizar(admin: SupabaseClient, org: string): Promise<{
   for (const d of faltam.slice(0, LOTE)) {
     const { data: blob } = await admin.storage.from(BUCKET).download(d.storage_path);
     if (!blob) continue;
-    const n = lerIbsCbs(await blob.text(), cnpj);
+    const xml = await blob.text();
+    const n = lerIbsCbs(xml, cnpj);
     if ((await gravar(admin, linha(org, { document_id: d.id }, n))) && n) lidas++;
+    if (!n) await registrarSeCancelamento(admin, org, d.id, xml);
   }
   // NF-e emitida pela plataforma em produção (o treino não conta).
   const { data: emitidas } = await admin.from("fiscal_nfe").select("id, xml_autorizado").eq("organization_id", org).eq("ambiente", "producao").not("xml_autorizado", "is", null);

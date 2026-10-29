@@ -11,7 +11,7 @@ import { api, cnpjFormatado, date, money, nomeMes } from "./comum";
  * plataforma, repetida, de outro mês ou de outra empresa não entra (o servidor confere de novo no Confirmar).
  */
 
-type Tipo = "venda" | "exportacao" | "remessa" | "devolucao" | "entrada_propria";
+type Tipo = "venda" | "exportacao" | "remessa" | "devolucao" | "entrada_propria" | "cancelada";
 type Receita = { industria: number; exportacao: number; servicos: number; devolucoes: number } | null;
 type Lacuna = { numero: number; soEvento: boolean };
 type DoMes = {
@@ -26,9 +26,9 @@ type Previa = {
   resumo: { arquivos: number; entram: number; saidas: number; entradasProprias: number; eventos: number; danfes: number; jaNaPlataforma: number; repetidas: number; outroMes: number; outraEmpresa: number; naoReconhecidos: number; remessas: number; receita: Receita; jaNoMes: number };
 };
 
-const TIPO: Record<Tipo, [string, "success" | "info" | "neutral" | "attention"]> = {
+const TIPO: Record<Tipo, [string, "success" | "info" | "neutral" | "attention" | "danger"]> = {
   venda: ["Venda", "success"], exportacao: ["Exportação", "info"], remessa: ["Remessa ou retorno", "neutral"],
-  devolucao: ["Devolução", "attention"], entrada_propria: ["Entrada própria", "neutral"],
+  devolucao: ["Devolução", "attention"], entrada_propria: ["Entrada própria", "neutral"], cancelada: ["Cancelada", "danger"],
 };
 const SITUACAO: Record<Situacao, [string, "success" | "info" | "neutral" | "attention" | "danger"]> = {
   saida: ["Entra", "success"], entrada_propria: ["Entra", "success"], evento: ["Entra", "success"], danfe: ["Entra (PDF)", "info"],

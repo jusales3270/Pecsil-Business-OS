@@ -8,7 +8,7 @@ import { bloco, lerIbsCbs, tag, textoXml } from "./ibs-cbs/leitura";
 
 export type ArquivoLido =
   | { nome: string; tipo: "nfe"; chave: string | null; numero: string | null; serie: string | null; emissao: string | null; emitenteCnpj: string | null; destinatario: string | null; valor: number; tpNF: string | null; finNFe: string | null; porCfop: Record<string, number> }
-  | { nome: string; tipo: "evento"; chave: string; evento: string; sequencia: string | null; data: string | null; texto: string | null }
+  | { nome: string; tipo: "evento"; chave: string; evento: string; sequencia: string | null; data: string | null; texto: string | null; situacao?: string | null; protocolo?: string | null }
   | { nome: string; tipo: "danfe"; chave: string | null; numero: string | null; emissao: string | null; emitenteCnpj: string | null; destinatario: string | null; valor: number }
   | { nome: string; tipo: "erro"; erro: string };
 
@@ -89,7 +89,7 @@ export function classificarEnvio(
       if (vistas.has(id)) return { ...linha, situacao: "repetida_no_envio", entra: false, nota: "O mesmo evento está duas vezes neste envio: entra uma." };
       vistas.add(id);
       const cancel = l.evento !== "110110";
-      return { ...linha, situacao: "evento", entra: true, nota: cancel ? `${nome} da NF ${numero}: guardado. A nota cancelada não deve contar na receita: confira em Apurações.` : `${nome} da NF ${numero}: guardada junto da nota.${l.texto ? ` (${l.texto.slice(0, 120)})` : ""}` };
+      return { ...linha, situacao: "evento", entra: true, nota: cancel ? `${nome} da NF ${numero}: guardado, e a nota sai da receita e das apurações.` : `${nome} da NF ${numero}: guardada junto da nota.${l.texto ? ` (${l.texto.slice(0, 120)})` : ""}` };
     }
     const linha = { ...base, chave: l.chave, numero: l.numero, emissao: l.emissao, destinatario: l.destinatario, valor: l.valor };
     const mes = l.emissao ? l.emissao.slice(0, 7) : mesDaChave(l.chave);
@@ -154,5 +154,20 @@ export function lerEventoNfe(nome: string, xml: string): ArquivoLido | null {
   const evento = tag(ev, "tpEvento");
   if (!chave || !/^\d{44}$/.test(chave) || !evento) return null;
   const det = bloco(ev, "detEvento") ?? "";
-  return { nome, tipo: "evento", chave, evento, sequencia: tag(ev, "nSeqEvento"), data: (tag(ev, "dhEvento") ?? "").slice(0, 10) || null, texto: textoXml(tag(det, "xCorrecao") ?? tag(det, "xJust")) };
+  const ret = bloco(bloco(xml, "retEvento") ?? "", "infEvento") ?? "";
+  return { nome, tipo: "evento", chave, evento, sequencia: tag(ev, "nSeqEvento"), data: (tag(ev, "dhEvento") ?? "").slice(0, 10) || null, texto: textoXml(tag(det, "xCorrecao") ?? tag(det, "xJust")), situacao: tag(ret, "cStat"), protocolo: tag(ret, "nProt") };
+}
+
+/** Situações do evento aceitas pela SEFAZ (registrado e vinculado, registrado sem vincular, fora de prazo). */
+const EVENTO_ACEITO = new Set(["135", "136", "155"]);
+
+/**
+ * Cancelamento (110111 ou 110112, por substituição) aceito pela SEFAZ, lido do XML do evento: a nota sai das apurações.
+ * Null quando não é cancelamento, quando não traz o retorno da SEFAZ ou quando a SEFAZ não aceitou.
+ */
+export function cancelamentoDoXml(xml: string): { chave: string; data: string | null; protocolo: string | null; justificativa: string | null } | null {
+  const e = lerEventoNfe("", xml);
+  if (!e || e.tipo !== "evento" || (e.evento !== "110111" && e.evento !== "110112") || !EVENTO_ACEITO.has(e.situacao ?? "")) return null;
+  const inf = bloco(xml, "infEvento") ?? "";
+  return { chave: e.chave, data: tag(inf, "dhEvento"), protocolo: e.protocolo ?? null, justificativa: e.texto };
 }

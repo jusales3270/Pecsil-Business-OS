@@ -30,7 +30,7 @@ export async function GET() {
   try { sinc = await sincronizar(admin, autor.org); } catch (e) { sinc = { lidas: 0, pendentes: 0, aviso: `Não foi possível ler as notas novas agora (${e instanceof Error ? e.message.slice(0, 120) : "erro"}).` }; }
   const [{ data, error }, { data: params }] = await Promise.all([
     guard.supabase.from("fiscal_ibscbs_notas").select("id, chave, numero, lado, finalidade, emissao, competencia, emitente_cnpj, emitente_nome, emitente_crt, destinatario_cnpj, tem_grupo, v_bc, v_ibs_uf, v_ibs_mun, v_ibs, v_cbs, v_nf, itens, document_id")
-      .is("repetida_de", null).not("competencia", "is", null).order("emissao", { ascending: true }).order("lido_em", { ascending: true }).limit(5000),
+      .is("repetida_de", null).is("cancelada_em", null).not("competencia", "is", null).order("emissao", { ascending: true }).order("lido_em", { ascending: true }).limit(5000),
     // Parâmetro legal é público para quem vê o Fiscal; a RLS dele só abre para a curadoria e o escritório.
     admin.from("contabil_parametros").select("id, chave, titulo, escopo, uf, codigo_municipio, valor, vigente_de, vigente_ate, fonte, confianca, observacao, situacao").in("chave", [...CHAVES_ALIQUOTA]).neq("situacao", "descartado"),
   ]);

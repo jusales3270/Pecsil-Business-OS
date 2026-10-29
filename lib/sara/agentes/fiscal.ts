@@ -143,7 +143,7 @@ const regras: Agente["regras"] = [
     // Conferência de entradas (N-09): notas do mês com erro e notas ainda sem a classificação confirmada.
     exige: ["fiscal.icms"],
     gerar: async (sb, c) => {
-      const { data } = await sb.from("fiscal_entradas").select("situacao, conferida").eq("competencia", c.hoje.slice(0, 7)).neq("situacao", "fora").is("repetida_de", null).limit(3000);
+      const { data } = await sb.from("fiscal_entradas").select("situacao, conferida").eq("competencia", c.hoje.slice(0, 7)).neq("situacao", "fora").is("repetida_de", null).is("cancelada_em", null).limit(3000);
       const notas = (data ?? []) as { situacao: string; conferida: boolean }[];
       const erro = notas.filter((n) => n.situacao === "erro").length;
       const aConferir = notas.filter((n) => !n.conferida).length;
