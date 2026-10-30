@@ -384,6 +384,16 @@ ordem abaixo é proposta; a construção entra quando uma frente fechar.
 | N-13 | Levantamento de créditos de PIS/COFINS (Tema 779, EPI, energia, frete de insumo) para o contador, só se Lucro Real | + | 3 | 1 | 1,5 | 3 | 3,3 | não se aplica no Presumido (regime confirmado em 28/10); entra no plano de créditos 2027 (simular Presumido × Real sobre 2025 antes de jan/2027) | N-09 | PCF N-13 |
 | N-14 | Folha: capacidade do produto (tabelas já na camada 1; cálculo, holerite, eSocial S-1200/S-1210/S-1299), desligada na Pecsil | 2 | 3 | 1 | 6 | 3 | 0,8 | adiado (produto) | N-01, N-02; cliente que precise; na Pecsil, Rosana e Ana | PCF N-14 |
 
+### Q — Qualidade
+
+Origem: anúncio da 8QUALI trazido pelo proprietário (30/10/2026). A Forja já guarda a inspeção da OS (foto,
+resultado, cotas e os alertas de reprovação); falta o que acontece fora dela: material ruim do fornecedor,
+recebimento, expedição, reclamação do cliente, segurança. A reprovação da Forja continua nascendo na Forja.
+
+| Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Q-01 | Não conformidade pelo celular. Degraus: (1) qualquer pessoa registra pelo menu da conta, como o chamado de TI, com foto (câmera da I-14), gravidade e OS, peça, fornecedor ou cliente opcionais, e o responsável é avisado no sino e no WhatsApp; (2) tratamento: causa, ação, responsável, prazo, verificação de eficácia e painel de repetição por origem; (3) reprovação da Forja vira não conformidade pela integração, sem cadastro em dobro; (4) campos personalizados por tipo, como configuração; (5) fila offline, só se a área confirmar ponto sem Wi-Fi (hoje `public/sw.js` guarda só a casca do app). Alimenta a perda por refugo e retrabalho do K-05 e pode entrar no comparativo de cotações (A-07) | + | 4 | 1 | 1,5 | 2 | 4,0 | decisão | Área de Qualidade (tipos, campos, quem trata, prazos, pontos sem Wi-Fi) | Novo (30/10) |
+
 ---
 
 ## 4. Entregue (histórico)
@@ -542,6 +552,7 @@ ordem abaixo é proposta; a construção entra quando uma frente fechar.
 | 28/10/2026 | Regime da Pecsil = Lucro Presumido (proprietário; o Jefferson já tinha respondido em 27/10): perfil atualizado, N-13 fora (plano de créditos 2027), N-07 em construção. Motor `lib/contabil/apuracao/presumido.ts` (IRPJ/CSLL trimestral com a LC 224 pelo art. 15 da IN 2.305 na redação da IN 2.306/2026: limite de R$ 1,25 mi por trimestre, sobra acumulada, ajuste do 4º trimestre, rateio por atividade; PIS/COFINS cumulativo) + 6 testes. Migração 202610280001 aplicada com OK (percentuais até 2025 e o limite da LC 224 em número, em rascunho). Gabarito 2025: a conta do motor bate com o IRPJ/CSLL do escritório quando a base é a mesma, mas a base do escritório não é nem o faturado nem o recebido da ECD → pedidas à Sandra a EFD-Contribuições e a ECF de 2025 e o método (Decisões). Avisos enviados (sino + WhatsApp 09h10): Rosana (FAP 2027, contestação 1–30/11) e Jefferson (XMLs de saída do GRV desde jan/2026, pela Coleta ou Documentos). Próximo: base 2026 pelos XMLs (CFOP e IPI na leitura), guia conferida e tela Fiscal › Apurações | Claude |
 | 28/10/2026 | N-07 parte 2: migração 202610280002 aplicada com OK (resumo de receita nas notas lidas, com todos os itens, CFOP, exportação e IPI; tributo, código da receita e período nas guias; `fiscal_guia_classificar`). `lib/contabil/apuracao/receita.ts` (receita do mês pelo CFOP) e `guia.ts` (`conferirGuia`: confere ao centavo, explica a diferença, inclusive "sem o acréscimo da LC 224", código de outro regime e vencimento pelo calendário); leitor do DARF com os códigos dos parâmetros e o período; tela Fiscal › Apurações; Portal com código e período no DARF. As 44 notas lidas ganharam o resumo. QA 14/14 (ler o DARF não grava guia). Base 2026 espera os XMLs de saída (Jefferson) e o método (Sandra, pedido também por WhatsApp às 09h50). Falta Deploy | Claude |
 | 30/10/2026 | Triagem do vídeo "Sua secretária de IA ainda tá no básico" (pedido do proprietário), conferida contra o código. Já tínhamos teto com aviso aos 80%, áudio com áudio, "digitando", link para a plataforma, PDF com timbre e guias por evento. Entram I-20 (provedor reserva), I-21 (memória da pessoa), I-22 (conferência da resposta e passagem para a área), I-23 (acompanhante de conversas, travado), I-24 (ajustes) e C-18 (funil por evento). No C-06, o modelo só escolhe itens e quantidades e a plataforma calcula preço, impostos e total. A cobrança na conversa fica com o F-10 e o C-16 (decisões da Ana). Nada passa à frente do B-12 | Proprietário / Claude |
+| 30/10/2026 | Análise do anúncio de não conformidades da 8QUALI (pedido do proprietário), conferida contra a plataforma e a Forja. Raia nova Q com o Q-01 (marco +, nota 4,0), só registrado; depende da área de Qualidade e não passa à frente do B-12 | Proprietário / Claude |
 
 ## 9. Painel
 
