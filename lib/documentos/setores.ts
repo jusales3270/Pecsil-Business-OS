@@ -23,6 +23,7 @@ export const SETORES_DOCUMENTO: readonly Setor[] = [
   { modulo: "comercial", rotulo: "Comercial", feature: "comercial.clientes", outras: ["comercial.orcamentos"] },
   { modulo: "fundicao", rotulo: "Fundição", feature: "fundicao.pedidos" },
   { modulo: "producao", rotulo: "Produção", feature: "producao.os" },
+  { modulo: "qualidade", rotulo: "Qualidade", feature: "qualidade.nao_conformidades" },
 ];
 
 export const setorPorModulo = (modulo: string) => SETORES_DOCUMENTO.find((s) => s.modulo === modulo) ?? null;

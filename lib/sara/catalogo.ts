@@ -257,6 +257,13 @@ export const CATALOGO: TabelaCatalogo[] = [
     fonte: f("ti", "TI", "Chamados"),
   },
   {
+    tabela: "qualidade_nao_conformidades", modulo: "qualidade", rotulo: "não conformidades", descricao: "Não conformidades registradas: número, tipo, setor, local, máquina, OS, gravidade, situação, descrição, leitura da SARA, quem registrou.",
+    exige: ["qualidade.nao_conformidades"], data: "created_at",
+    colunas: { numero: "numero", tipo: "texto", setor: "texto", local: "texto", maquina: "texto", os_codigo: "texto", gravidade: "texto", situacao: "texto", descricao: "texto", analise_sara: "texto", confianca: "texto", autor_nome: "texto", encerrada_em: "data", created_at: "data" },
+    opcoes: { situacao: { aberta: "Aberta", encerrada: "Encerrada", cancelada: "Cancelada" }, confianca: { alta: "Alta", media: "Média", baixa: "Baixa" } },
+    fonte: f("qualidade", "Qualidade", "Não conformidades"),
+  },
+  {
     tabela: "ti_ativos", modulo: "ti", rotulo: "inventário de TI", descricao: "Equipamentos e sistemas da TI: número, nome, tipo, local, responsável, fabricante, modelo, IP, sistema operacional, crítico, situação.",
     exige: ["ti.ativos", "ti.saude", "ti.chamados"],
     colunas: { numero: "numero", nome: "texto", tipo: "texto", local: "texto", responsavel: "texto", fabricante: "texto", modelo: "texto", ip: "texto", sistema_operacional: "texto", critico: "logico", situacao: "texto" },

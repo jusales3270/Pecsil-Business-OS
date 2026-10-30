@@ -8,7 +8,7 @@
 import { hasFeature, type AccessGrants } from "../../modules/access-catalog.ts";
 
 /** Setores com coleta (os mesmos da guarda de documentos; o RH tem a guarda própria). */
-export const SETORES_COLETA = ["financeiro", "fiscal", "compras", "almoxarifado", "comercial", "fundicao", "producao"] as const;
+export const SETORES_COLETA = ["financeiro", "fiscal", "compras", "almoxarifado", "comercial", "fundicao", "producao", "qualidade"] as const;
 export type SetorColeta = (typeof SETORES_COLETA)[number];
 
 export const ehSetorColeta = (s: string): s is SetorColeta => (SETORES_COLETA as readonly string[]).includes(s);

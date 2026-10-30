@@ -7,6 +7,7 @@ import { fundicao } from "./fundicao.ts";
 import { portaria } from "./portaria.ts";
 import { producao } from "./producao.ts";
 import { rh } from "./rh.ts";
+import { qualidade } from "./qualidade.ts";
 import { ti } from "./ti.ts";
 
 /**
@@ -14,4 +15,4 @@ import { ti } from "./ti.ts";
  * modulos.ts e alertas.ts). Cada agente: a SARA do módulo, as consultas e as regras dos avisos.
  * Todas com os mesmos guardrails (escopo, dado pessoal, permissões de quem conversa).
  */
-export const AGENTES: Agente[] = [compras, almoxarifado, fundicao, comercial, fiscal, rh, portaria, producao, ti];
+export const AGENTES: Agente[] = [compras, almoxarifado, fundicao, comercial, fiscal, rh, portaria, producao, ti, qualidade];

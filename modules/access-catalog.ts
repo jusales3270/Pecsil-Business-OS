@@ -198,6 +198,15 @@ export const ACCESS_CATALOG: readonly AccessModule[] = [
     ],
   },
   {
+    code: "qualidade",
+    label: "Qualidade",
+    features: [
+      { code: "qualidade.nao_conformidades", label: "Não conformidades", description: "Vê as não conformidades e as fotos; operar registra pela SARA, corrige, encerra e cancela; aprovar muda os tipos e a gravidade.", levels: TODOS },
+      coleta("qualidade"),
+      sara("qualidade"),
+    ],
+  },
+  {
     code: "fiscal",
     label: "Fiscal",
     features: [
@@ -257,6 +266,7 @@ export const FEATURES_DOCUMENTOS_SETOR = new Set([
   "comercial.clientes", "comercial.orcamentos",
   "fundicao.pedidos",
   "producao.os",
+  "qualidade.nao_conformidades",
 ]);
 
 const FEATURE_INDEX = new Map(

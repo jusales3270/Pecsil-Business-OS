@@ -391,7 +391,7 @@ test("Equipe: uma SARA por módulo, cada uma liberada por pessoa e com consultas
   const { ACCESS_CATALOG } = await import("../modules/access-catalog.ts");
   const { REGRAS } = await import("../lib/sara/alertas.ts");
   const modulos = AGENTES.map((a) => a.sara.modulo).sort();
-  assert.deepEqual(modulos, ["almoxarifado", "comercial", "compras", "fiscal", "fundicao", "portaria", "producao", "rh", "ti"]);
+  assert.deepEqual(modulos, ["almoxarifado", "comercial", "compras", "fiscal", "fundicao", "portaria", "producao", "qualidade", "rh", "ti"]);
   const nomes = FERRAMENTAS.map((f) => f.nome);
   assert.equal(new Set(nomes).size, nomes.length, "nomes de consulta únicos na equipe");
   const catalogo = new Set(ACCESS_CATALOG.flatMap((m) => m.features.map((f) => f.code)));
@@ -740,11 +740,11 @@ test("SARA calcular: conta exata pela plataforma (precedência, potência, vírg
   assert.ok(r.dados.resultados[1].erro);
 });
 
-test("SARA de TI: só ela usa o modelo mais capaz (Sonnet), com linguagem técnica e mais pesquisa; os guardrails são os mesmos", async () => {
+test("SARA de TI: ela e a da Qualidade usam o modelo mais capaz (Sonnet); a de TI tem linguagem técnica e mais pesquisa; os guardrails são os mesmos", async () => {
   const { SARAS, REGRAS_SARA, regrasDaSara } = await import("../lib/sara/modulos.ts");
   const { TEMAS } = await import("../lib/sara/temas.ts");
   const comModelo = Object.values(SARAS).filter((s) => !s.central && s.modelo && s.modelo !== "claude-haiku-5-5").map((s) => s.modulo);
-  assert.deepEqual(comModelo, ["ti"], "decisão do proprietário: entre as SARAs dos módulos, só a TI");
+  assert.deepEqual(comModelo, ["ti", "qualidade"], "decisão do proprietário: entre as SARAs dos módulos, só a TI e, pelo plano aprovado em 30/10/2026, a Qualidade");
   // A SARA central (E7) usa o Sonnet: decisão do proprietário no plano aprovado em 23/10/2026.
   assert.equal(SARAS.warroom.modelo, "claude-sonnet-5-5");
   assert.equal(SARAS.ti.modelo, "claude-sonnet-5-5");

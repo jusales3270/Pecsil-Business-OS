@@ -8,8 +8,8 @@ const A = Object.fromEntries(ACOES.map((f) => [f.nome, f]));
 const fonte = readFileSync(new URL("../lib/sara/acoes-areas.ts", import.meta.url), "utf8");
 const pode = (g) => (f, n) => (g[f] === "aprovar") || (g[f] === "operar" && n === "operar");
 
-test("as 8 ações das áreas entram na lista da SARA, todas como 'operar' e de baixo risco", () => {
-  assert.equal(ACOES_AREAS.length, 8);
+test("as 9 ações das áreas entram na lista da SARA, todas como 'operar' e de baixo risco", () => {
+  assert.equal(ACOES_AREAS.length, 9);
   for (const f of ACOES_AREAS) {
     assert.ok(A[f.nome], f.nome);
     assert.equal(f.acao?.nivel, "operar", f.nome);
@@ -20,7 +20,7 @@ test("as 8 ações das áreas entram na lista da SARA, todas como 'operar' e de 
 });
 
 test("cada ação chama a MESMA função do banco que a tela usa", () => {
-  for (const fn of ["compras_ramo_criar", "compras_convite_criar", "fiscal_portal_pendencia_abrir", "rh_terceiro_incluir", "ti_salvar_ativo", "ti_salvar_incidente", "ti_chamado_acao", "producao_entrada_registrar"]) {
+  for (const fn of ["qualidade_nc_registrar", "compras_ramo_criar", "compras_convite_criar", "fiscal_portal_pendencia_abrir", "rh_terceiro_incluir", "ti_salvar_ativo", "ti_salvar_incidente", "ti_chamado_acao", "producao_entrada_registrar"]) {
     assert.match(fonte, new RegExp(`sb\\.rpc\\("${fn}"`), fn);
   }
   // As de risco maior ficam de fora até o "sim" da área.

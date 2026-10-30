@@ -13,13 +13,13 @@ import {
 import { pruneDashboard } from "../lib/forja/forja-session.ts";
 
 // O catálogo é semeado pela migração de acesso e ampliado pelas seguintes.
-const migration = ["202609190001_user_access.sql", "202609210001_module_events.sql", "202609220001_comercial_clientes.sql", "202609250001_rh_historico.sql", "202609270001_rh_terceiros_leitura.sql", "202609290002_compras_fornecedores.sql", "202609300001_financeiro_plano_de_contas.sql", "202610010002_almoxarifado_solicitacoes.sql", "202610010003_fiscal_icms.sql", "202610090002_fundicao_pedidos.sql", "202610100001_decisao_base.sql", "202610100003_coleta_arquivos.sql", "202610100004_coleta_por_modulo.sql", "202610120002_fiscal_nfe_base.sql", "202610120003_fiscal_certificado_permissao.sql", "202610120004_fiscal_portal_escritorio.sql", "202610130005_comercial_orcamentos.sql", "202610140003_terceiros_quadro.sql", "202610160001_almoxarifado_materiais.sql", "202610180001_sara_permissao.sql", "202610180005_sara_equipe.sql", "202610190001_ti_base.sql", "202610190002_cerebro_grafo.sql", "202610200001_logistica_entregas.sql", "202610200003_logistica_frota.sql", "202610210001_fundicao_biblioteca.sql", "202610220002_sara_guias.sql", "202610230002_sara_central.sql", "202610250006_contabil_parametros.sql", "202610260001_contabil_nucleo.sql"]
+const migration = ["202610300001_qualidade_base.sql", "202609190001_user_access.sql", "202609210001_module_events.sql", "202609220001_comercial_clientes.sql", "202609250001_rh_historico.sql", "202609270001_rh_terceiros_leitura.sql", "202609290002_compras_fornecedores.sql", "202609300001_financeiro_plano_de_contas.sql", "202610010002_almoxarifado_solicitacoes.sql", "202610010003_fiscal_icms.sql", "202610090002_fundicao_pedidos.sql", "202610100001_decisao_base.sql", "202610100003_coleta_arquivos.sql", "202610100004_coleta_por_modulo.sql", "202610120002_fiscal_nfe_base.sql", "202610120003_fiscal_certificado_permissao.sql", "202610120004_fiscal_portal_escritorio.sql", "202610130005_comercial_orcamentos.sql", "202610140003_terceiros_quadro.sql", "202610160001_almoxarifado_materiais.sql", "202610180001_sara_permissao.sql", "202610180005_sara_equipe.sql", "202610190001_ti_base.sql", "202610190002_cerebro_grafo.sql", "202610200001_logistica_entregas.sql", "202610200003_logistica_frota.sql", "202610210001_fundicao_biblioteca.sql", "202610220002_sara_guias.sql", "202610230002_sara_central.sql", "202610250006_contabil_parametros.sql", "202610260001_contabil_nucleo.sql"]
   .map((name) => readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), "utf8"))
   .join("\n");
 
 test("catálogo em código é o mesmo semeado no banco", () => {
   const seeded = new Map(
-    [...migration.matchAll(/\('([a-z]+\.[a-z]+)',\s*'([a-z]+)',\s*'[^']+',\s*'\{([a-z,]+)\}'/g)]
+    [...migration.matchAll(/\('([a-z]+\.[a-z_]+)',\s*'([a-z]+)',\s*'[^']+',\s*'\{([a-z,]+)\}'/g)]
       .map(([, code, module, levels]) => [code, { module, levels }]),
   );
   // Funcionalidades retiradas por uma migração seguinte (ex.: fundacao.coleta, que foi para cada módulo).

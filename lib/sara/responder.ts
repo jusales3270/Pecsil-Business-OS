@@ -20,6 +20,7 @@ import { PERSONALIDADE, regraDeTratamento, semTratamentoIndevido, tratamento } f
 import { memoriaDaSara } from "./central/licoes";
 import { SARAS } from "./modulos";
 import { createSupabaseAdminClient } from "../supabase/admin";
+import { fotosPendentes, guardarFoto, leituraDaConversa } from "../qualidade/fotos-servidor";
 
 
 /**
@@ -80,7 +81,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   if (doCanal.modelo) p = { ...p, cfg: { ...p.cfg, modelo: doCanal.modelo } };
   // (o cliente do Supabase só envia a consulta quando alguém espera por ela: sem o await, não contava)
   if (corpo?.habilidade && UUID.test(corpo.habilidade) && p.habilidades.some((h) => h.id === corpo.habilidade)) await p.sb.rpc("sara_habilidade_usada", { p_id: corpo.habilidade });
-  // Foto (E2): só JPEG, PNG ou WebP, já reduzida no celular; vai ao modelo nesta pergunta e não fica guardada.
+  // Foto (E2): só JPEG, PNG ou WebP, já reduzida no celular; vai ao modelo nesta pergunta e só fica guardada na SARA que guarda evidência (guardaFotos).
   const foto = lerFoto(corpo?.imagem);
   if (foto && "erro" in foto) return NextResponse.json({ error: foto.erro }, { status: 400 });
   const imagem = foto && !("erro" in foto) ? foto : null;
@@ -88,7 +89,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const anexo = corpo?.anexo && typeof corpo.anexo.texto === "string" && corpo.anexo.texto.trim()
     ? { nome: String(corpo.anexo.nome ?? "documento").slice(0, 120), texto: corpo.anexo.texto.slice(0, 40_000) } : null;
   const digitada = String(corpo?.pergunta ?? "").trim().slice(0, 2000);
-  const pergunta = digitada || (imagem ? FOTO_SEM_TEXTO : anexo ? ANEXO_SEM_TEXTO : "");
+  const pergunta = digitada || (imagem ? p.sara.fotoSemTexto ?? FOTO_SEM_TEXTO : anexo ? ANEXO_SEM_TEXTO : "");
   if (pergunta.length < 2) return NextResponse.json({ error: "Escreva a pergunta." }, { status: 400 });
   if (!chaveConfigurada()) return NextResponse.json({ error: "A SARA ainda não está configurada (falta a chave do modelo no servidor)." }, { status: 503 });
   const { data: uso } = await p.sb.rpc("sara_uso_mes", { p_modulo: modulo });
@@ -106,6 +107,13 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   // os números que a própria pessoa disse. Valem para a calculadora, o painel e os documentos da central.
   const fontesDaConversa = historico.map((m) => m.texto.replace(/⚠️?\s*Sem fonte conferida:[^\n]*/g, ""));
   if (p.documentos) p.documentos.fontes.push(...fontesDaConversa);
+  // Evidência (Qualidade): a foto fica guardada desde já, antes da resposta do modelo.
+  let fotoGuardada: string | null = null;
+  let notaFoto = "";
+  if (imagem && p.sara.guardaFotos && p.access.can(p.sara.guardaFotos, "operar")) {
+    try { fotoGuardada = await guardarFoto(p.sb, imagem, conversa); notaFoto = "\nA foto desta mensagem foi guardada como evidência."; }
+    catch (e) { console.error("[sara] não guardou a foto", e instanceof Error ? e.message : e); notaFoto = "\nA foto desta mensagem NÃO foi guardada (falha no servidor): avise a pessoa e peça para mandar de novo antes de registrar."; }
+  }
   // Nova, continuação ou retomada (outro dia ou pausa longa), pela hora da última mensagem.
   // Pela voz da SARA central, a conversa já foi aberta por ela (o cumprimento já foi dito): a área vai direto à resposta.
   const situacao = corpo?.voz && !p.sara.central ? { tipo: "continua" as const, ultima: null, ontem: false } : situacaoDaConversa(historico.at(-1)?.created_at ?? null);
@@ -136,6 +144,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
       ? "\nA conversa é pelo WhatsApp e a sua resposta volta em ÁUDIO: fale direto, de forma natural, com os números, em até 60 palavras e sem lista. Não fale de \"painel\", \"tela\", \"abaixo\" nem \"tabela\": a pessoa só ouve este áudio. Se houver mais detalhe, diga que ela pode ver na plataforma. Se preparar uma ação, diga o que preparou e que falta a confirmação, sem falar de cartão nem de Permitir: a plataforma manda logo depois como confirmar (pela enquete ou pelo link). Exceção: documento, mensagem de voz ou texto que a pessoa pediu PARA ELA MESMA (enviar_pelo_whatsapp com para \"mim\") chega nesta conversa logo depois da sua resposta, sem confirmar: diga que está mandando, nunca prometa um envio sem preparar com enviar_pelo_whatsapp."
       : "\nA conversa é pelo WhatsApp: responda em texto corrido e curto (até 120 palavras), com os números; no máximo uma lista curta, sem tabela e sem gráfico. Não diga \"abaixo\", \"na tabela\" nem \"no painel\", e não ofereça abrir telas: a pessoa só vê esta mensagem. Se houver mais detalhe, diga que ela pode ver na plataforma. Se preparar uma ação, diga o que preparou e que falta a confirmação, sem falar de cartão nem de Permitir: a plataforma manda logo depois como confirmar (pela enquete ou pelo link). Exceção: documento, mensagem de voz ou texto que a pessoa pediu PARA ELA MESMA (enviar_pelo_whatsapp com para \"mim\") chega nesta conversa logo depois da sua resposta, sem confirmar: diga que está mandando, nunca prometa um envio sem preparar com enviar_pelo_whatsapp.") : ""}${doCanal.comportamento ? `\n\nComo se comportar neste número de WhatsApp (definido pelo proprietário; complementa o que está acima, e as regras de segurança, de permissão e de escopo da empresa continuam valendo e prevalecem):\n${doCanal.comportamento}` : ""}\nResponda sempre em português do Brasil.`,
   };
+  sistema.variavel += notaFoto;
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
   const ultima = [...historico].reverse().find((m) => m.papel === "sara")?.texto ?? null;
@@ -221,9 +230,26 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
       if (eu) await createSupabaseAdminClient().from("sara_licoes").update({ conversa_id: ids.conversa }).eq("ensinada_por", eu).is("conversa_id", null).gte("created_at", new Date(inicioRota).toISOString());
     } catch (e) { console.error("[sara] não ligou a lição à conversa", e instanceof Error ? e.message : e); }
   }
+  // A primeira mensagem nasce sem conversa: liga a foto a ela agora.
+  if (fotoGuardada && !conversa && ids?.conversa) {
+    const { error: e3 } = await p.sb.rpc("qualidade_foto_ligar_conversa", { p_foto: fotoGuardada, p_conversa: ids.conversa });
+    if (e3) console.error("[sara] não ligou a foto à conversa", e3.message);
+  }
+  // As fotos que vão no cartão saem da conversa, pelo servidor: o modelo não escolhe.
+  const levaFotos = (nome: string) => Boolean(p.ferramentas.find((f) => f.nome === nome)?.acao?.levaFotos);
+  const conversaDaFoto = ids?.conversa ?? conversa;
+  const fotosDaConversa = conversaDaFoto && r.acoes.some((a) => levaFotos(a.ferramenta)) ? await fotosPendentes(p.sb, conversaDaFoto).catch(() => [] as string[]) : [];
+  // A foto só vai ao modelo na mensagem em que chegou: ao refazer o cartão, a leitura dela vem do cartão anterior.
+  const leituraAnterior = fotosDaConversa.length && r.acoes.some((a) => levaFotos(a.ferramenta) && !a.entrada?.analise_sara)
+    ? await leituraDaConversa(p.sb, conversaDaFoto as string).catch(() => null) : null;
   // Ações preparadas: ficam pendentes (15 min) até a pessoa decidir no cartão.
   const acoes: ReturnType<typeof cartao>[] = [];
-  for (const a of r.acoes) {
+  for (const original of r.acoes) {
+    const herdada = levaFotos(original.ferramenta) && !original.entrada?.analise_sara ? leituraAnterior : null;
+    const a = levaFotos(original.ferramenta)
+      ? { ...original, entrada: { ...original.entrada, ...(herdada ?? {}), fotos: fotosDaConversa },
+          detalhes: [...original.detalhes, ...(herdada ? [`Leitura da SARA: ${herdada.analise_sara.slice(0, 400)}`] : []), fotosDaConversa.length ? `Fotos: ${fotosDaConversa.length}` : "⚠️ Sem foto"] }
+      : original;
     const { data: id, error: e2 } = await p.sb.rpc("sara_acao_propor", { p_conversa: ids?.conversa ?? conversa, p_mensagem: ids?.mensagem ?? null, p_modulo: modulo,
       p_ferramenta: a.ferramenta, p_entrada: a.entrada, p_resumo: a.resumo, p_detalhes: a.detalhes, p_risco: a.risco ?? "normal" });
     if (e2 || !id) { console.error("[sara] não registrou a ação", e2?.message); continue; }

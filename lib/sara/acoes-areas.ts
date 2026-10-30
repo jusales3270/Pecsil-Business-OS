@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { dataBR, link, termo, type Ferramenta, type Proposta } from "./base.ts";
+import { opcoesDaNc } from "./agentes/qualidade.ts";
 
 /**
  * Mais ações da SARA por módulo (22/10/2026, OK do proprietário: as de baixo risco). Mesmo padrão das
@@ -373,10 +374,62 @@ const ENTRADA_DE_PRODUCAO: Ferramenta = {
   },
 };
 
-export const ACOES_AREAS: Ferramenta[] = [ENCAMINHAR_PARA_COTAR, CONVIDAR_FORNECEDOR, PENDENCIA_ESCRITORIO, INCLUIR_TERCEIRO, CADASTRAR_EQUIPAMENTO, REGISTRAR_INCIDENTE, ATENDER_CHAMADO, ENTRADA_DE_PRODUCAO];
+// --- Qualidade: não conformidade -------------------------------------------------------------------------
+const CONFIANCA: Record<string, string> = { alta: "alta", media: "média", baixa: "baixa" };
+
+const REGISTRAR_NC: Ferramenta = {
+  nome: "registrar_nao_conformidade", rotulo: "preparou o registro de uma não conformidade", exige: ["qualidade.nao_conformidades"],
+  descricao: "PREPARA o registro de uma não conformidade, depois de saber o que aconteceu, o setor e o local e de consultar os tipos; as fotos da conversa entram sozinhas; a pessoa confirma no cartão.",
+  esquema: {
+    type: "object",
+    properties: {
+      tipo: { type: "string", description: "Um dos tipos de qualidade_opcoes_nc, escolhido pela descrição da pessoa." },
+      setor: { type: "string", description: "Um dos setores de qualidade_opcoes_nc." },
+      local: { type: "string", description: "Onde exatamente, como a pessoa disse." },
+      descricao: { type: "string", description: "O que aconteceu, com as palavras da pessoa, organizado e sem acrescentar." },
+      maquina: { type: "string", description: "Máquina ou equipamento, se a pessoa disse." },
+      os: { type: "string", description: "Código da OS, se a pessoa disse." },
+      analise_sara: { type: "string", description: "O que você leu na foto, em poucas linhas, sem concluir a causa." },
+      confianca: { type: "string", enum: Object.keys(CONFIANCA), description: "Sua confiança na leitura da foto." },
+      gravidade: { type: "string", description: "Só se a gravidade estiver em uso; uma das opções da lista." },
+    },
+    required: ["tipo", "setor", "local", "descricao"],
+  },
+  acao: {
+    nivel: "operar", modulos: ["qualidade"], soComPessoa: true, levaFotos: true,
+    preparar: async (sb, e) => {
+      const o = await opcoesDaNc(sb);
+      const tipo = o.tipos.find((t) => t === String(e.tipo ?? "").trim());
+      if (!tipo) return { erro: `Tipo inválido. Use um destes: ${o.tipos.join(", ")}.` };
+      const setor = o.setores.find((s) => s.toLowerCase() === String(e.setor ?? "").trim().toLowerCase());
+      if (!setor) return { erro: `Setor inválido. Pergunte à pessoa qual destes: ${o.setores.join(", ")}.` };
+      const local = String(e.local ?? "").trim(), descricao = String(e.descricao ?? "").trim();
+      if (!local) return { erro: "Falta onde foi. Pergunte à pessoa." };
+      if (descricao.length < 3) return { erro: "Falta o que aconteceu. Pergunte à pessoa." };
+      const gravidade = String(e.gravidade ?? "").trim();
+      if (o.usa_gravidade && !o.gravidades.includes(gravidade)) return { erro: `Falta a gravidade. Pergunte à pessoa qual destas: ${o.gravidades.join(", ")}.` };
+      const maquina = String(e.maquina ?? "").trim(), os = String(e.os ?? "").trim(), analise = String(e.analise_sara ?? "").trim();
+      // O espelho só tem OS abertas e nem todos o enxergam: OS não achada não impede o registro.
+      const achada = os ? (await sb.from("production_orders").select("customer_name").eq("code", os).maybeSingle()).data : null;
+      const conf = CONFIANCA[String(e.confianca ?? "")];
+      return { resumo: `Registrar não conformidade: ${tipo}, ${setor}.`, detalhes: [`Local: ${local.slice(0, 160)}`, ...(maquina ? [`Máquina: ${maquina.slice(0, 160)}`] : []),
+        ...(os ? [`OS: ${os.slice(0, 40)}${achada ? ` (${achada.customer_name ?? "sem cliente"})` : " (não achada nas OS abertas)"}`] : []),
+        ...(o.usa_gravidade ? [`Gravidade: ${gravidade}`] : []), `Descrição: ${descricao.slice(0, 600)}`, ...(analise ? [`Leitura da SARA${conf ? ` (confiança ${conf})` : ""}: ${analise.slice(0, 400)}`] : [])] };
+    },
+  },
+  rodar: async (sb, e) => {
+    const { data, error } = await sb.rpc("qualidade_nc_registrar", { p: { tipo: e.tipo, setor: e.setor, local: e.local, maquina: e.maquina, os: e.os, descricao: e.descricao, analise_sara: e.analise_sara, confianca: e.confianca, gravidade: e.gravidade, fotos: Array.isArray(e.fotos) ? e.fotos : [] } });
+    if (error) throw new Error(error.message);
+    const r = data as { numero: number; fotos: number };
+    return { dados: { feito: `Não conformidade NC-${r.numero} registrada${r.fotos ? `, com ${r.fotos === 1 ? "1 foto" : `${r.fotos} fotos`}` : ", sem foto"}.` }, fontes: [{ rotulo: "Qualidade › Não conformidades", link: link("qualidade", "Não conformidades") }],
+      abrir: { modulo: "qualidade", secao: "Não conformidades", rotulo: "Qualidade › Não conformidades" } };
+  },
+};
+
+export const ACOES_AREAS: Ferramenta[] = [ENCAMINHAR_PARA_COTAR, CONVIDAR_FORNECEDOR, PENDENCIA_ESCRITORIO, INCLUIR_TERCEIRO, CADASTRAR_EQUIPAMENTO, REGISTRAR_INCIDENTE, ATENDER_CHAMADO, ENTRADA_DE_PRODUCAO, REGISTRAR_NC];
 
 /** Nome de cada ação para quem lê (quadro de limites das guias). */
 export const ROTULO_DAS_ACOES: Record<string, string> = {
   encaminhar_para_cotar: "Encaminhar itens para cotar", convidar_fornecedor: "Convidar fornecedor a cotar pelo link", pendencia_para_o_escritorio: "Abrir pendência para o escritório", incluir_terceiro: "Incluir terceiro no quadro",
-  cadastrar_equipamento: "Cadastrar equipamento", registrar_incidente: "Registrar incidente de TI", atender_chamado_ti: "Atender chamado de TI", entrada_de_producao: "Dar entrada de produção",
+  cadastrar_equipamento: "Cadastrar equipamento", registrar_incidente: "Registrar incidente de TI", atender_chamado_ti: "Atender chamado de TI", entrada_de_producao: "Dar entrada de produção", registrar_nao_conformidade: "Registrar não conformidade",
 };

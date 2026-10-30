@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-30-qualidade-nao-conformidades",
+    data: "2026-10-30",
+    area: "Qualidade",
+    modulos: ["qualidade"],
+    funcionalidades: ["qualidade.nao_conformidades"],
+    titulo: "Novo módulo Qualidade: não conformidades",
+    itens: [
+      "Viu um problema? Abra a SARA da Qualidade, tire ou anexe a foto e explique por voz ou por escrito. A SARA olha a foto, pergunta o que falta e prepara o registro. Só grava quando você tocar em Permitir.",
+      "Em Não conformidades ficam todos os registros com foto, descrição e histórico. Dá para filtrar, corrigir, comentar, encerrar e cancelar. Nada se apaga.",
+      "O que a SARA leu na foto aparece separado, marcado como leitura dela e com a confiança.",
+    ],
+  },
+  {
     id: "2026-10-29-fiscal-homologacao",
     data: "2026-10-29",
     area: "Fiscal",

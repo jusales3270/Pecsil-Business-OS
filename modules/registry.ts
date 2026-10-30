@@ -11,6 +11,7 @@ import type { ModuleManifest } from "./types";
 // module-generator:imports
 import { FundicaoModuleManifest } from "./fundicao/manifest";
 import { TiModuleManifest } from "./ti/manifest";
+import { QualidadeModuleManifest } from "./qualidade/manifest";
 import { WarRoomModuleManifest } from "./warroom/manifest";
 import { LogisticaModuleManifest } from "./logistica/manifest";
 
@@ -49,6 +50,7 @@ export const moduleRegistry = createRegistry([
   // module-generator:entries
   FundicaoModuleManifest,
   TiModuleManifest,
+  QualidadeModuleManifest,
   WarRoomModuleManifest,
   LogisticaModuleManifest,
   ...plannedModuleManifests,

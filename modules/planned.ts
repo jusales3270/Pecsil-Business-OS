@@ -1,22 +1,4 @@
-import { defineModule, type ModuleManifest } from "./types";
+import type { ModuleManifest } from "./types";
 
-const planned = (manifest: Pick<ModuleManifest, "id" | "code" | "name" | "short" | "description" | "route" | "icon" | "color" | "status">) => defineModule({
-  ...manifest,
-  desc: manifest.description,
-  version: "0.0.0",
-  tone: "neutral",
-  progress: 0,
-  enabled: false,
-  menu: { enabled: false, order: 100 },
-  access: {
-    entryPermission: `${manifest.code}.view`,
-    permissions: [`${manifest.code}.view`, `${manifest.code}.create`, `${manifest.code}.edit`, `${manifest.code}.approve`, `${manifest.code}.export`, `${manifest.code}.admin`],
-    scopes: ["company", "unit", "department", "team"],
-  },
-  sharedServices: ["identity", "organization", "documents", "notifications", "audit", "search"],
-  auditEvents: [`${manifest.code}.record.view`, `${manifest.code}.record.update`, `${manifest.code}.report.export`],
-});
-
-export const plannedModuleManifests = [
-  planned({ id:"qualidade", code:"qualidade", name:"Qualidade", short:"QL", description:"Inspeções, não conformidades, planos de ação e indicadores.", route:"/modules/qualidade", icon:"check", color:"green", status:"Planejado" }),
-] as const;
+/** Módulos anunciados e ainda sem tela. Hoje, nenhum: o último (Qualidade) entrou em 30/10/2026. */
+export const plannedModuleManifests: readonly ModuleManifest[] = [];

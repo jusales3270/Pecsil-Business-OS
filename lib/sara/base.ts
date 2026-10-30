@@ -53,6 +53,8 @@ export type Acao = {
   preparar: (sb: SupabaseClient, entrada: Record<string, unknown>) => Promise<Proposta | { erro: string }>;
   /** Só com a pessoa presente: a guia nunca faz sozinha (o resultado, como um link mostrado uma vez, se perderia). */
   soComPessoa?: boolean;
+  /** As fotos pendentes da conversa entram na entrada (quem escolhe é o servidor, nunca o modelo) e no cartão. */
+  levaFotos?: boolean;
 };
 
 /** Tela que a SARA pode abrir para a pessoa (só se ela tiver a funcionalidade). */
@@ -81,6 +83,13 @@ export type SaraModulo = {
   tecnico?: boolean;
   /** A SARA central (E7): não consulta direto; pergunta às SARAs dos módulos e o verificador confere os números. */
   central?: boolean;
+  /**
+   * Esta SARA guarda a foto da conversa como evidência, para quem tem esta funcionalidade em "operar"
+   * (Qualidade, 30/10/2026). Nas outras, a foto vai ao modelo e não fica guardada.
+   */
+  guardaFotos?: string;
+  /** O que a SARA recebe quando a pessoa manda a foto sem escrever nada. */
+  fotoSemTexto?: string;
 };
 
 export type Nivel = "urgente" | "aviso";

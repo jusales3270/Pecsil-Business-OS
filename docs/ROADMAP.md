@@ -18,6 +18,7 @@
 | B-12 | Conector universal (prioridade máxima do proprietário, 22/10) | C1 e C2 construídas em 25/10 (área de chegada, serviço conector com drivers testados em PostgreSQL, Firebird e MySQL, descoberta, de-para por regra, Fundação › Conectores); C3 (GRV) espera o Cesar dizer o banco e o IP |
 | N-03 | IBS/CBS completo (frente do Contábil-Fiscal, depois da N-02) | 1ª parte no ar (Deploy 25/10, `ae26677`): tela Fiscal › IBS e CBS com a apuração informativa de 2026; base do IBS/CBS na emissão com frete, seguro e outras. 2ª parte construída em 25/10: cada nota conferida pela alíquota legal da data dela (base refeita item a item; coluna Conferência, cartão Valor divergente, detalhe por item); XML lido na hora do envio e pela tarefa de 10 em 10 minutos; nova alíquota aprovada reconfere as notas já lidas; Simples Nacional sem o grupo deixa de ser falta (obrigatório só em 2027); mesma chave conta uma vez. Migração 202610250010 aplicada; QA 83/83. Devolução no formato de 03/11/2026 construída: cada item com DFeReferenciado (chave + nº do item), refNFe fora, regras do grupo VC, botão que traz os itens da nota devolvida; XML validado no XSD PL_010f e no do transmissor; QA 19/19. No ar (Deploy 25/10 de `fa4868d` e `be013b0`; a tarefa do servidor leu um XML de teste às 23h10 com o código novo). Depois: NFS-e, homologação (C-09), APIs da apuração assistida e DeRE, CBS 2027 |
 | I-01 | Unificação de fornecedores e clientes pelo Clef (Jev, Etapa 1) | Calibração; fila "para unificar" a partir de 17/10 |
+| Q-01 | Módulo Qualidade: não conformidades pela SARA (decisão do proprietário, 30/10) | Construído; falta teste com fotos reais, Deploy e permissão do Ricardo |
 
 **Próximos**, pela ordem combinada com o proprietário em 22/10 (a fila de 17/10 foi toda feita, descartada ou travada: B-09 feito, B-11 e F-07 no ar, B-07 não fazer, A-08 travado no portão do Jev):
 
@@ -74,6 +75,7 @@ abaixo, em vez de perguntar por fora.
 | Duas OS por item (fundição e usinagem)? | Rafael | C-13, P-08 | PLANO-ORCAMENTO, O1 |
 | A3 contagem · A5 saída no balcão · A9 reposição · A10 locais | Henrique | A-02, A-03, A-05, A-06 | PLANO-ALMOXARIFADO |
 | A4 custo do estoque (médio ponderado) | Ana | A-02 | PLANO-ALMOXARIFADO |
+| Tipos, gravidade, tratamento e pontos sem Wi-Fi da não conformidade | Área de Qualidade (Ricardo) | Q-01, Q-02, Q-04 | PLANO-QUALIDADE |
 | A8 EPI do RH = material do almoxarifado | Rosana e Henrique | A-04 | PLANO-ALMOXARIFADO |
 | Respostas das máscaras (UFs, B2, operações, quem edita) e Tema 69 | Jefferson, com o contador | C-11 | Máscaras de impostos |
 | Lista de "pequenos bugs" do Financeiro | Ana | F-01, F-13 | Financeiro |
@@ -386,13 +388,17 @@ ordem abaixo é proposta; a construção entra quando uma frente fechar.
 
 ### Q — Qualidade
 
-Origem: anúncio da 8QUALI trazido pelo proprietário (30/10/2026). A Forja já guarda a inspeção da OS (foto,
-resultado, cotas e os alertas de reprovação); falta o que acontece fora dela: material ruim do fornecedor,
-recebimento, expedição, reclamação do cliente, segurança. A reprovação da Forja continua nascendo na Forja.
+Origem: decisão do proprietário em 30/10/2026, a partir do anúncio da 8QUALI. Detalhe em
+[PLANO-QUALIDADE.md](PLANO-QUALIDADE.md). O módulo terá várias seções; a primeira é Não conformidades, e a
+SARA da Qualidade cresce com elas. A inspeção da Forja continua nascendo na Forja.
 
 | Item | O quê | Marco | V | D | E | R | Nota | Situação | Depende de | Detalhe |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Q-01 | Não conformidade pelo celular. Degraus: (1) qualquer pessoa registra pelo menu da conta, como o chamado de TI, com foto (câmera da I-14), gravidade e OS, peça, fornecedor ou cliente opcionais, e o responsável é avisado no sino e no WhatsApp; (2) tratamento: causa, ação, responsável, prazo, verificação de eficácia e painel de repetição por origem; (3) reprovação da Forja vira não conformidade pela integração, sem cadastro em dobro; (4) campos personalizados por tipo, como configuração; (5) fila offline, só se a área confirmar ponto sem Wi-Fi (hoje `public/sw.js` guarda só a casca do app). Alimenta a perda por refugo e retrabalho do K-05 e pode entrar no comparativo de cotações (A-07) | + | 4 | 1 | 1,5 | 2 | 4,0 | decisão | Área de Qualidade (tipos, campos, quem trata, prazos, pontos sem Wi-Fi) | Novo (30/10) |
+| Q-01 | Não conformidades pela SARA da Qualidade: foto + voz ou texto, a SARA pergunta e classifica, o "Permitir" grava com as fotos; tela com lista, histórico, correção e encerramento; Regras (tipos e gravidade) | + | 4 | 1 | 1,5 | 2 | 4,0 | em construção | Testes com fotos reais; Deploy; permissão do Ricardo | PLANO-QUALIDADE |
+| Q-02 | Tratamento da não conformidade: causa, ação, responsável, prazo, eficácia e repetição por origem (alimenta o K-05 e pode entrar no A-07) | + | 4 | 1 | 1,5 | 3 | 4,0 | decisão | Entrevista com a Qualidade | PLANO-QUALIDADE |
+| Q-03 | Reprovação da Forja vira não conformidade, sem cadastro em dobro | + | 3 | 1 | 1 | 2 | 5,0 | na fila | Q-01 | PLANO-QUALIDADE |
+| Q-04 | Fila sem rede para registrar sem Wi-Fi | + | 3 | 1 | 2 | 3 | 2,5 | decisão | Área confirmar ponto sem Wi-Fi | PLANO-QUALIDADE |
+| Q-05 | Registro pelo WhatsApp (mesmo caminho da SARA) | + | 3 | 1 | 0,5 | 2 | 10,0 | na fila | Q-01 em uso; área liberar a ação na enquete | PLANO-QUALIDADE |
 
 ---
 
@@ -553,6 +559,7 @@ recebimento, expedição, reclamação do cliente, segurança. A reprovação da
 | 28/10/2026 | N-07 parte 2: migração 202610280002 aplicada com OK (resumo de receita nas notas lidas, com todos os itens, CFOP, exportação e IPI; tributo, código da receita e período nas guias; `fiscal_guia_classificar`). `lib/contabil/apuracao/receita.ts` (receita do mês pelo CFOP) e `guia.ts` (`conferirGuia`: confere ao centavo, explica a diferença, inclusive "sem o acréscimo da LC 224", código de outro regime e vencimento pelo calendário); leitor do DARF com os códigos dos parâmetros e o período; tela Fiscal › Apurações; Portal com código e período no DARF. As 44 notas lidas ganharam o resumo. QA 14/14 (ler o DARF não grava guia). Base 2026 espera os XMLs de saída (Jefferson) e o método (Sandra, pedido também por WhatsApp às 09h50). Falta Deploy | Claude |
 | 30/10/2026 | Triagem do vídeo "Sua secretária de IA ainda tá no básico" (pedido do proprietário), conferida contra o código. Já tínhamos teto com aviso aos 80%, áudio com áudio, "digitando", link para a plataforma, PDF com timbre e guias por evento. Entram I-20 (provedor reserva), I-21 (memória da pessoa), I-22 (conferência da resposta e passagem para a área), I-23 (acompanhante de conversas, travado), I-24 (ajustes) e C-18 (funil por evento). No C-06, o modelo só escolhe itens e quantidades e a plataforma calcula preço, impostos e total. A cobrança na conversa fica com o F-10 e o C-16 (decisões da Ana). Nada passa à frente do B-12 | Proprietário / Claude |
 | 30/10/2026 | Análise do anúncio de não conformidades da 8QUALI (pedido do proprietário), conferida contra a plataforma e a Forja. Raia nova Q com o Q-01 (marco +, nota 4,0), só registrado; depende da área de Qualidade e não passa à frente do B-12 | Proprietário / Claude |
+| 30/10/2026 | Proprietário decide criar o módulo Qualidade agora: Q-01 passa a "em construção" à frente da fila (item +, por decisão dele; o B-12 segue esperando o Cesar). O registro é pela SARA da Qualidade, tela dentro do ECOS, só quem for liberado registra. Migração 202610300001 aplicada com OK no plano. Q-02 a Q-05 anotados. Modelo Sonnet nesta SARA. Teste de navegador 33/33 (microfone e foto juntos, Não permitir, foto abandonada, quem só vê, Regras), celular conferido, testes do projeto no verde. Falta teste com fotos reais no Android, Deploy e a permissão do Ricardo | Proprietário / Claude |
 
 ## 9. Painel
 

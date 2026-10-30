@@ -12,6 +12,7 @@ import type { ModuleAccessContext } from "./access";
 // module-generator:imports
 import FundicaoApp from "./fundicao/src/FundicaoApp";
 import TiApp from "./ti/src/TiApp";
+import QualidadeApp from "./qualidade/src/QualidadeApp";
 import WarRoomApp from "./warroom/src/WarRoomApp";
 import LogisticaApp from "./logistica/src/LogisticaApp";
 
@@ -40,6 +41,7 @@ const moduleComponents: Record<string, ComponentType<ModuleRuntimeProps>> = {
   // module-generator:entries
   fundicao: FundicaoApp,
   ti: TiApp,
+  qualidade: QualidadeApp,
   warroom: WarRoomApp,
   logistica: LogisticaApp,
 };

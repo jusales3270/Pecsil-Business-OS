@@ -60,6 +60,11 @@ export const TEMAS: Record<string, Tema> = {
     exemplos: "para que serve o inoculante; o que causa porosidade numa peça fundida; diferença entre ferro fundido cinzento e nodular; o que é escorificante; como se controla a umidade da areia",
     dominios: [...GOV, "abifa.org.br", "sebrae.com.br"],
   },
+  qualidade: {
+    assunto: "gestão da qualidade na indústria: não conformidade e ação corretiva, ISO 9001, inspeção e amostragem, metrologia e calibração, defeitos de fundição e usinagem, 5 porquês, Ishikawa, 8D, PDCA, auditoria interna, reclamação de cliente",
+    exemplos: "o que é uma não conformidade; como fazer um 8D; diferença entre correção e ação corretiva; o que a ISO 9001 pede para registrar; o que causa porosidade numa peça; como funciona o plano de amostragem",
+    dominios: [...GOV, "abnt.org.br", "abifa.org.br", "sebrae.com.br"],
+  },
   ti: {
     assunto: "infraestrutura e manutenção de TI da indústria: servidores (Linux e Windows), contêineres (Docker, Coolify), banco de dados (Postgres, Supabase), rede (switch, roteador, Wi-Fi, VLAN, firewall, VPN, DNS), internet e link reserva, nobreak e energia, backup e restauração, segurança da informação e LGPD na TI, acesso remoto, computadores, impressoras e coletores das CNCs, monitoramento, diagnóstico de falhas e comandos de administração",
     exemplos: "o que é a regra 3-2-1 de backup; como ligar o religamento automático na BIOS; diferença entre nobreak online e interativo; como calcular a autonomia de um nobreak; o que é VLAN; como funciona o failover de link; o que a LGPD pede de segurança; por que um contêiner do Docker reinicia sozinho; como ver o disco cheio no Linux; como configurar o NUT com o nobreak; impressora de rede some da rede; como testar a restauração de um backup do Postgres",

@@ -112,7 +112,7 @@ const IconeCamera = () => <Ico><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="
 const IconeClipe = () => <Ico><path d="M20 11.5 12.2 19.3a5 5 0 0 1-7.1-7.1l8-8a3.3 3.3 0 0 1 4.7 4.7l-8 8a1.7 1.7 0 0 1-2.4-2.4l7.3-7.3" /></Ico>;
 const IconeCodigo = () => <Ico><path d="M4 6v12M7 6v12M10 6v12M14 6v12M16 6v12M20 6v12" /></Ico>;
 
-/** Foto pronta para enviar: reduzida no celular (lado maior 1568 px, JPEG), sem guardar no aparelho nem na plataforma. */
+/** Foto pronta para enviar: reduzida no celular (lado maior 1568 px, JPEG). Não fica no aparelho; na plataforma, só na SARA que guarda evidência (Qualidade). */
 type Foto = { tipo: "image/jpeg"; dados: string; previa: string };
 async function reduzirFoto(arquivo: File): Promise<Foto> {
   const img = await createImageBitmap(arquivo);
@@ -487,6 +487,13 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
     return () => clearTimeout(t);
   }, [abrirAoCarregar, abrirGuias, estado]);
 
+  // Botão de uma tela do módulo ("Registrar com a SARA", na Qualidade).
+  useEffect(() => {
+    const abrir = () => setAberto(true);
+    window.addEventListener("sara:abrir", abrir);
+    return () => window.removeEventListener("sara:abrir", abrir);
+  }, []);
+
   // Avisos: ao entrar no módulo e, depois, quando a pessoa volta à aba (no máximo a cada 10 minutos).
   const carregarAvisos = useCallback(async () => {
     const r = await fetch(`/api/sara/${modulo}/alertas`, { cache: "no-store" }).catch(() => null);
@@ -647,6 +654,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
     setDecidindo(null);
     if (!r.ok) { mudarCartao(c.id, { erro: r.body?.error ?? "Sem conexão com o servidor." }); return; }
     mudarCartao(c.id, { situacao: r.body.situacao, feito: r.body.feito ?? null, erro: r.body.erro ?? null, umaVez: r.body.umaVez ?? null });
+    if (r.body.situacao === "executada") window.dispatchEvent(new Event("sara:acao-feita"));
     if (r.body.abrir) abrir(r.body.abrir);
   };
   const avaliar = async (i: number, nota: number) => {
@@ -743,7 +751,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
               {m.quando && (i === 0 || !msgs[i - 1].quando || diaSP(msgs[i - 1].quando!) !== diaSP(m.quando)) && <div className="sara-dia" role="separator"><span>{rotuloDoDia(m.quando)}</span></div>}
               <div className={`sara-msg ${m.papel}${m.erro ? " erro" : ""}${m.fora ? " fora" : ""}`}>
                 {m.papel === "sara" && !m.erro && <span className="sara-selo">{m.fora ? "SARA (IA) · fora do escopo" : "SARA (IA)"}{m.quando ? <i className="sara-selo-hora"> · {horaSP(m.quando)}</i> : null}</span>}
-                {/* eslint-disable-next-line @next/next/no-img-element -- prévia local da foto enviada (dado em memória, não fica guardada) */}
+                {/* eslint-disable-next-line @next/next/no-img-element -- prévia local da foto enviada (dado em memória) */}
                 {m.foto && <img className="sara-foto" src={m.foto} alt="Foto enviada à SARA" />}
                 {m.anexo && <span className="sara-anexo-msg"><IconeClipe /> {m.anexo}</span>}
                 <div className="sara-texto">{m.papel === "sara" ? <Texto texto={m.texto} /> : <p>{m.texto}</p>}</div>

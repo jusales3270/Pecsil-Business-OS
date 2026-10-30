@@ -9704,3 +9704,38 @@ a.doc-abrir { text-decoration: none; }
 /* Notas emitidas: faixa da homologação (a SEFAZ de teste), azul para não confundir com o treino. */
 .nfe-faixa-treino.homologacao { border-color: var(--edge-blue); background: var(--tint-blue); }
 .nfe-faixa-treino.homologacao b { color: var(--accent-blue); }
+
+/* ============================================================================
+   Qualidade: não conformidades.
+   ============================================================================ */
+/* Foto · Nº · O que aconteceu · Setor e local · Tipo · Situação · Registrou */
+.vnd-tabela.qualidade-nc { grid-template-columns: max-content max-content minmax(260px, 1fr) minmax(150px, max-content) repeat(2, max-content) minmax(110px, max-content); }
+.qualidade-nc > button[role="row"] { width: 100%; border: 0; border-top: 1px solid var(--border-subtle); background: none; font: inherit; text-align: left; color: var(--text-primary); cursor: pointer; }
+.qualidade-nc > button[role="row"]:hover { background: var(--bg-hover); }
+.qualidade-miniatura { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; overflow: hidden; border-radius: var(--radius-sm); background: var(--bg-subtle); }
+.qualidade-miniatura img { width: 100%; height: 100%; object-fit: cover; }
+.qualidade-miniatura small { font-size: 10px; color: var(--text-muted); }
+.vnd-tabela .qualidade-desc { white-space: normal; }
+.qualidade-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-3); }
+.qualidade-filtros :is(select, input) { width: auto; min-width: 160px; }
+.qualidade-filtros input { height: 38px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface, transparent); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.qualidade-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--sp-2); }
+.qualidade-fotos button { padding: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-subtle); cursor: zoom-in; aspect-ratio: 4 / 3; }
+.qualidade-fotos img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.qualidade-texto { margin: 0; white-space: pre-wrap; }
+.qualidade-sara { display: flex; flex-direction: column; gap: 4px; padding: var(--sp-3); border-left: 3px solid var(--accent-blue); border-radius: var(--radius-sm); background: var(--tint-blue); }
+.qualidade-sara p { margin: 0; }
+.qualidade-sara small { font-size: var(--fs-xs); color: var(--text-muted); }
+.qualidade-gravidade { display: flex; flex-direction: column; gap: var(--sp-3); }
+.qualidade-marcar { display: flex; flex-direction: row; align-items: center; gap: var(--sp-2); }
+.qualidade-marcar input { width: auto; }
+.qualidade-so-celular { display: none; }
+.qualidade-filtros .ds-segmented { max-width: 100%; overflow-x: auto; }
+/* Celular: foto e o que aconteceu; número, setor e situação vão na linha de baixo. */
+@media (max-width: 720px) {
+  .vnd-tabela.qualidade-nc { grid-template-columns: max-content minmax(0, 1fr); }
+  .qualidade-nc > .cabeca { display: none; }
+  .qualidade-nc > [role="row"] > :nth-child(n + 4), .qualidade-nc > [role="row"] > :nth-child(2) { display: none; }
+  .qualidade-so-celular { display: block; }
+  .qualidade-filtros :is(select, input) { width: 100%; }
+}
