@@ -24,6 +24,12 @@ que hoje só tem o treino.
   (esperava um XML que a biblioteca não devolve) e assumia "137, nenhum documento" — desde 12/10 a busca nunca
   trouxe nota. Corrigido: lê o XML puro que a biblioteca grava na pasta da chamada; sem ele, erro (não inventa 137).
   O NSU continua no zero: nada se perdeu. Falta o Deploy do transmissor.
+  **Provada depois do Deploy do transmissor (29/10, 17h–23h59):** 564 notas recebidas (29/07 a 29/10, 147
+  fornecedores), 555 com XML completo, 709 eventos, 13 ciências aceitas; NSU 71816. Sem XML: 8 canceladas pelo
+  fornecedor e a MCW Rebarbação (R$ 84.071,20, 20/08; ciência fora do prazo de 10 dias).
+  **Desligada em 30/10** (`dfe_ativo = false`, pedido do proprietário): a partir das 10h a SEFAZ passou a responder
+  656 ("deve ser utilizado o ultNSU") porque o escritório contábil busca as notas com o mesmo certificado. Retomar
+  só depois do alinhamento com o escritório (quem busca; o outro desliga). Ao religar, parte do NSU 71816.
 - **Nota cancelada fora da receita** (`889dda6`, migração 202610290008).
 - **F1 construída** (migração 202610290009 aplicada): homologação liberada; transmitir, consultar, cancelar,
   carta e inutilizar vão à SEFAZ de teste; trava contra duplo envio; rejeição volta para correção; sem resposta
