@@ -143,7 +143,7 @@ O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor d
 - Ainda não usa os achados da vigia (J3) nem os Parados: entram quando a J3 existir.
 
 **Como a J3 funciona no código:**
-- **Quando:** a tarefa de 10 em 10 minutos chama `/api/sara/vigia/rodar` antes do Bom dia. Na janela (6h30 às 10h, de segunda a sábado), roda uma vez por dia; o índice único de `sara_vigia_rodadas` garante isso. O proprietário também roda pelo botão em War Room › Conselho, no máximo uma vez a cada 20 minutos.
+- **Quando:** a tarefa de 10 em 10 minutos chama `/api/sara/vigia/rodar` antes do Bom dia. Na janela (6h30 às 10h, de segunda a sexta; sábado saiu em 31/10/2026), roda uma vez por dia; o índice único de `sara_vigia_rodadas` garante isso. O proprietário também roda pelo botão em War Room › Conselho, no máximo uma vez a cada 20 minutos.
 - **Sinais**, com a sessão da visão (o proprietário, W1):
   - os avisos de cada módulo (`alertasDo`, sem as novidades);
   - os Parados (`parados_listar`), agrupados por tipo; parado há 7 dias ou mais é urgente.

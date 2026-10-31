@@ -12,7 +12,7 @@ import { conferirNumeros } from "./verificador.ts";
  */
 
 export const VIGIA = {
-  dias: [1, 2, 3, 4, 5, 6], hora: "06:30", ate: "10:00",
+  dias: [1, 2, 3, 4, 5], hora: "06:30", ate: "10:00",
   /** Achados novos por rodada e por pessoa por dia (sem ruído). */
   maxAchados: 8, maxPorPessoaDia: 3,
   /** Sem resposta há N dias, ela lembra (no máximo M vezes). */

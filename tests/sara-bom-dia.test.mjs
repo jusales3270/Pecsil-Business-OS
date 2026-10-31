@@ -104,3 +104,7 @@ test("bom dia: a Sandra fica fora só do Bom dia; os demais seguem", () => {
   assert.match(ler("lib/sara/central/bom-dia-executar.ts"), /comSara\.has\(p\.id\)\) && recebeBomDia\(p\.email\)/, "o filtro vale também para o proprietário e para quem tem a SARA");
 });
 
+test("vigia: também sem sábado, na janela dela", async () => {
+  assert.match(ler("lib/sara/central/vigia.ts"), /dias: \[1, 2, 3, 4, 5\], hora: "06:30"/);
+});
+
