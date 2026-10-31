@@ -330,10 +330,10 @@ WhatsApp e subagente ficam fora; texto vindo da tela é dado, não instrução.
 
 | Etapa | Entrega | Situação |
 |---|---|---|
-| T1 | `mostrar_grafo`: foca o Segundo Cérebro (vizinhança, dependências, caminho) | construída 31/10, falta o Deploy |
-| T2 | Contexto da tela: "isso" e "esse" se referem ao que a pessoa vê; lista fechada, rótulo resolvido no servidor | construída 31/10, falta o Deploy; o registro aberto vale para título e NC |
-| T3 | `abrir_registro` e modo destacar: OS, card do Comercial, não conformidade, compra | construída 31/10, falta o Deploy |
-| T4 | Visuais ligados: tocar na fatia ou barra filtra a tabela da mesma consulta; destacar pela voz; tabela guarda até 100 linhas e mostra 30 sem filtro | construída 31/10, falta o Deploy |
+| T1 | `mostrar_grafo`: foca o Segundo Cérebro (vizinhança, dependências, caminho) | no ar (Deploy 31/10) |
+| T2 | Contexto da tela: "isso" e "esse" se referem ao que a pessoa vê; lista fechada, rótulo resolvido no servidor | no ar (Deploy 31/10); o registro aberto vale para título e NC |
+| T3 | `abrir_registro` e modo destacar: OS, card do Comercial, não conformidade, compra | no ar (Deploy 31/10) |
+| T4 | Visuais ligados: tocar na fatia ou barra filtra a tabela da mesma consulta; destacar pela voz; tabela guarda até 100 linhas e mostra 30 sem filtro | no ar (Deploy 31/10) |
 
 Decisões de 31/10: ordem T1 → T4; `mostrar_grafo` só na central; tabela ligada com 100 linhas; ordem das telas acima.
 Na T4, o que difere do PRD: a ligação é por consulta e coluna, sem exigir o mesmo caminho, porque o caso natural é rosca do resumo e tabela do detalhe. Na T3, o que difere do PRD: título segue em `abrir_lancamento`, porque os dois nomes juntos não trazem ganho; OS, card e compra não têm detalhe na tela, então abrir e destacar dão no mesmo; a chave da OS é o código e a da compra é número. Na T1, `mostrar_grafo` ficou fora de `SO_ACAO`: ele devolve dados, então o texto antes dele é rascunho e, na lista, vazava
