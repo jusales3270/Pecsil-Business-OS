@@ -52,6 +52,7 @@ export const NOVIDADES: Novidade[] = [
     itens: [
       "Peça \"mostra onde está a OS 1234\" ou \"abre a NC-1\": a SARA vai até a tela e acende a linha por alguns segundos, ou abre o detalhe. Vale para OS, cards do funil, não conformidades e compras.",
       "Com a tela aberta, pode perguntar \"esse aqui está atrasado?\" sem dizer o nome: ela sabe o que você está vendo.",
+      "Nos painéis da SARA, tocar numa fatia ou barra filtra a tabela logo abaixo. Tocar de novo limpa o filtro.",
     ],
   },
   {

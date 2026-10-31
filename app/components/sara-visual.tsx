@@ -1,7 +1,9 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { Donut, seriesColor } from "../../packages/design-system";
 import type { Celula, Formato, Visual } from "../../lib/sara/visual";
+import { LINHAS_SEM_FILTRO, campoDaSelecao, ehOutros, filtrarTabela, tabelaLigada, type Selecao } from "../../lib/sara/visual-ligado";
 
 /**
  * Visual de uma resposta da SARA (indicadores, tabela, barras, linha, rosca, lista de datas). Os números
@@ -52,34 +54,72 @@ function Linha({ pontos, formato }: { pontos: { rotulo: string; valor: number }[
   );
 }
 
-export function SaraVisual({ v }: { v: Visual }) {
+/** O que liga os visuais de um painel: a seleção vale para todos da mesma consulta. */
+export type Ligados = { selecionado: string | null; aoTocar?: (rotulo: string) => void; filtro?: { campo: string; rotulo: string }; limpar?: () => void };
+
+/** Quem desenha o painel guarda a seleção. Trocou o conjunto de visuais, ela deixa de valer. */
+export function useVisuaisLigados(visuais: Visual[]) {
+  const [estado, setEstado] = useState<{ de: Visual[]; selecao: Selecao } | null>(null);
+  const selecao = estado?.de === visuais ? estado.selecao : null;
+  const selecionar = useCallback((s: Selecao | null) => setEstado(s ? { de: visuais, selecao: s } : null), [visuais]);
+  const ligados = (v: Visual): Ligados => {
+    const limpar = () => selecionar(null);
+    if (v.componente === "tabela") {
+      const campo = campoDaSelecao(v, selecao, visuais);
+      return campo && selecao ? { selecionado: null, filtro: { campo, rotulo: selecao.rotulo }, limpar } : { selecionado: null };
+    }
+    const doGrafico = selecao && v.ligacao?.consulta === selecao.consulta ? selecao.rotulo : null;
+    const ligacao = v.ligacao;
+    if (!ligacao || !tabelaLigada(v, visuais)) return { selecionado: doGrafico };
+    return { selecionado: doGrafico, aoTocar: (rotulo) => { if (!ehOutros(rotulo)) selecionar(doGrafico === rotulo ? null : { consulta: ligacao.consulta, rotulo }); } };
+  };
+  return { ligados, selecionar };
+}
+
+export function SaraVisual({ v, ligados }: { v: Visual; ligados?: Ligados }) {
+  const toque = (rotulo: string) => (ligados?.aoTocar && !ehOutros(rotulo) ? () => ligados.aoTocar?.(rotulo) : undefined);
+  const aceso = (rotulo: string) => (ligados?.selecionado === rotulo ? " sv-aceso" : "");
   let corpo: React.ReactNode = null;
   if (v.componente === "indicadores") {
     corpo = <div className="sv-kpis">{v.itens.map((i, k) => <div key={k}><small>{i.rotulo}</small><b>{fmt(i.valor, i.formato)}</b></div>)}</div>;
   } else if (v.componente === "tabela") {
+    const filtro = ligados?.filtro;
+    const linhas = filtro ? filtrarTabela(v, filtro.campo, filtro.rotulo) : v.linhas.slice(0, LINHAS_SEM_FILTRO);
     corpo = (
-      <div className="sara-tabela"><table>
-        <thead><tr>{v.colunas.map((c, k) => <th key={k}>{c.rotulo}</th>)}</tr></thead>
-        <tbody>{v.linhas.map((l, i) => <tr key={i}>{l.map((c, k) => <td key={k}>{fmtTabela(c, v.colunas[k].formato)}</td>)}</tr>)}</tbody>
-      </table></div>
+      <>
+        {filtro && <p className="sv-filtro">Filtrado por <b>{filtro.rotulo}</b> · {linhas.length} {linhas.length === 1 ? "linha" : "linhas"}{v.total > v.linhas.length ? ` entre as ${v.linhas.length} carregadas` : ""} · <button type="button" onClick={ligados?.limpar}>limpar</button></p>}
+        <div className="sara-tabela"><table>
+          <thead><tr>{v.colunas.map((c, k) => <th key={k}>{c.rotulo}</th>)}</tr></thead>
+          <tbody>{linhas.map((l, i) => <tr key={i}>{l.map((c, k) => <td key={k}>{fmtTabela(c, v.colunas[k].formato)}</td>)}</tr>)}</tbody>
+        </table></div>
+      </>
     );
   } else if (v.componente === "barras") {
     const max = Math.max(...v.pontos.map((p) => Math.abs(p.valor)), 1);
-    corpo = <div className="sv-barras">{v.pontos.map((p, k) => <div key={k} className="sv-bar"><span title={p.rotulo}>{p.rotulo}</span><i style={{ width: `${(Math.abs(p.valor) / max) * 100}%` }} /><b>{fmt(p.valor, v.formato)}</b></div>)}</div>;
+    corpo = <div className="sv-barras">{v.pontos.map((p, k) => {
+      const conteudo = <><span title={p.rotulo}>{p.rotulo}</span><i style={{ width: `${(Math.abs(p.valor) / max) * 100}%` }} /><b>{fmt(p.valor, v.formato)}</b></>;
+      const tocar = toque(p.rotulo);
+      return tocar ? <button key={k} type="button" className={`sv-bar sv-tocavel${aceso(p.rotulo)}`} aria-pressed={ligados?.selecionado === p.rotulo} onClick={tocar}>{conteudo}</button>
+        : <div key={k} className={`sv-bar${aceso(p.rotulo)}`}>{conteudo}</div>;
+    })}</div>;
   } else if (v.componente === "linha") {
     corpo = <Linha pontos={v.pontos} formato={v.formato} />;
   } else if (v.componente === "rosca") {
     const total = v.pontos.reduce((s, p) => s + p.valor, 0);
     corpo = (
       <div className="sv-rosca">
-        <Donut slices={v.pontos.map((p) => ({ label: p.rotulo, value: p.valor }))} total={total} centro={v.formato === "moeda" ? moeda(total) : undefined} caption="total" size={136} thickness={18} />
-        <ul>{v.pontos.map((p, k) => <li key={k}><i style={{ background: seriesColor(k) }} />{p.rotulo}<b>{fmt(p.valor, v.formato)} <small>({total ? Math.round((p.valor / total) * 100) : 0}%)</small></b></li>)}</ul>
+        <Donut slices={v.pontos.map((p) => ({ label: p.rotulo, value: p.valor }))} total={total} centro={v.formato === "moeda" ? moeda(total) : undefined} caption="total" size={136} thickness={18} aoTocar={ligados?.aoTocar} />
+        <ul>{v.pontos.map((p, k) => {
+          const conteudo = <><i style={{ background: seriesColor(k) }} />{p.rotulo}<b>{fmt(p.valor, v.formato)} <small>({total ? Math.round((p.valor / total) * 100) : 0}%)</small></b></>;
+          const tocar = toque(p.rotulo);
+          return <li key={k} className={aceso(p.rotulo).trim() || undefined}>{tocar ? <button type="button" aria-pressed={ligados?.selecionado === p.rotulo} onClick={tocar}>{conteudo}</button> : conteudo}</li>;
+        })}</ul>
       </div>
     );
   } else if (v.componente === "lista_de_datas") {
     corpo = <ol className="sv-datas">{v.itens.map((i, k) => <li key={k}><time>{dataBR(i.data)}</time><span>{i.rotulo}</span>{i.valor != null && <b>{fmt(i.valor, v.formato)}</b>}</li>)}</ol>;
   }
-  const mais = "total" in v && typeof v.total === "number" && (v.componente === "tabela" ? v.linhas.length : v.componente === "lista_de_datas" ? v.itens.length : v.pontos.length) < v.total;
+  const mais = "total" in v && typeof v.total === "number" && (v.componente === "tabela" ? Math.min(v.linhas.length, LINHAS_SEM_FILTRO) : v.componente === "lista_de_datas" ? v.itens.length : v.pontos.length) < v.total;
   return (
     <figure className="sara-visual">
       <figcaption>{v.titulo}</figcaption>

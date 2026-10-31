@@ -576,7 +576,7 @@ test("SARA visual: limita linhas e colunas, e a rosca junta o resto em Outros se
   const lista = Array.from({ length: 50 }, (_, i) => ({ nome: `S${i}`, qtd: i + 1, a: 1, b: 2, c: 3, e: 4 }));
   const r = [{ nome: "q", rotulo: "quadro", dados: { lista }, fontes: [] }];
   const t = resolverVisual({ componente: "tabela", titulo: "t", consulta: "q", caminho: "lista", campos: ["nome", "qtd", "a", "b", "c"].map((campo) => ({ campo })) }, r);
-  assert.equal(t.visual.linhas.length, 30);
+  assert.equal(t.visual.linhas.length, 50, "guarda até 100; a tela mostra 30 sem filtro");
   assert.equal(t.visual.colunas.length, 4);
   assert.equal(t.visual.total, 50);
   const ro = resolverVisual({ componente: "rosca", titulo: "t", consulta: "q", caminho: "lista", rotulo: "nome", valor: "qtd" }, r);

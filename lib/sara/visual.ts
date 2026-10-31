@@ -21,19 +21,22 @@ export type Pedido = {
 };
 export type ResultadoConsulta = { nome: string; rotulo: string; dados: unknown; fontes: Fonte[] };
 export type Celula = string | number | null;
+/** De que consulta o visual veio: dois visuais da mesma origem podem se filtrar (T4). */
+export type Ligacao = { consulta: string; caminho: string };
+type Comum = { titulo: string; origem: string; fonte: Fonte | null; ligacao?: Ligacao };
 export type Visual =
-  | { componente: "indicadores"; titulo: string; origem: string; fonte: Fonte | null; itens: { rotulo: string; valor: Celula; formato: Formato }[] }
-  | { componente: "tabela"; titulo: string; origem: string; fonte: Fonte | null; colunas: { rotulo: string; formato: Formato }[]; linhas: Celula[][]; total: number }
-  | { componente: "barras" | "linha" | "rosca"; titulo: string; origem: string; fonte: Fonte | null; formato: Formato; pontos: { rotulo: string; valor: number }[]; total: number }
-  | { componente: "lista_de_datas"; titulo: string; origem: string; fonte: Fonte | null; formato: Formato; itens: { data: string; rotulo: string; valor: number | null }[]; total: number };
+  | (Comum & { componente: "indicadores"; itens: { rotulo: string; valor: Celula; formato: Formato }[] })
+  | (Comum & { componente: "tabela"; colunas: { rotulo: string; formato: Formato }[]; linhas: Celula[][]; total: number; campos?: string[] })
+  | (Comum & { componente: "barras" | "linha" | "rosca"; formato: Formato; pontos: { rotulo: string; valor: number }[]; total: number; campoRotulo?: string })
+  | (Comum & { componente: "lista_de_datas"; formato: Formato; itens: { data: string; rotulo: string; valor: number | null }[]; total: number });
 
-const LIMITE: Record<Componente, number> = { indicadores: 4, tabela: 30, barras: 15, linha: 60, rosca: 6, lista_de_datas: 15 };
+const LIMITE: Record<Componente, number> = { indicadores: 4, tabela: 100, barras: 15, linha: 60, rosca: 6, lista_de_datas: 15 };
 const FORMATOS: Formato[] = ["moeda", "numero", "dias", "data", "texto"];
 const DINHEIRO = /valor|total|saldo|aberto|entra|sai|pago|pagar|receber|custo|pre[cç]o|icms|faturad|amount/i;
 
 export const MOSTRAR: Ferramenta = {
   nome: "mostrar", rotulo: "montou um visual", exige: [],
-  descricao: "Mostra o resultado de uma consulta JÁ FEITA nesta resposta como visual: indicadores (1 a 4 números do resultado), tabela (até 4 colunas), barras (ranking), linha (série no tempo), rosca (composição) ou lista_de_datas (vencimentos e prazos). Você só aponta a consulta, onde está a lista no resultado (caminho) e os nomes dos campos: os números são preenchidos pela plataforma. Use quando houver lista, ranking, série ou composição.",
+  descricao: "Rosca ou barras e tabela da MESMA consulta, com o campo do nome como coluna da tabela, ficam ligadas: tocar no gráfico filtra a tabela. Mostra o resultado de uma consulta JÁ FEITA nesta resposta como visual: indicadores (1 a 4 números do resultado), tabela (até 4 colunas), barras (ranking), linha (série no tempo), rosca (composição) ou lista_de_datas (vencimentos e prazos). Você só aponta a consulta, onde está a lista no resultado (caminho) e os nomes dos campos: os números são preenchidos pela plataforma. Use quando houver lista, ranking, série ou composição.",
   esquema: {
     type: "object",
     properties: {
@@ -97,7 +100,7 @@ export function resolverVisual(entrada: unknown, resultados: ResultadoConsulta[]
   const r = doNome[doNome.length - 1];
   const base = caminhar(r.dados, p.caminho);
   const titulo = String(p.titulo ?? "").trim().slice(0, 80) || humano(p.consulta ?? "");
-  const comum = { titulo, origem: r.rotulo, fonte: r.fontes[0] ?? null };
+  const comum = { titulo, origem: r.rotulo, fonte: r.fontes[0] ?? null, ligacao: { consulta: String(p.consulta), caminho: p.caminho ?? "" } };
   // Sem formato dito, o nome do campo decide (valor, total, saldo, em_aberto… são reais).
   const fmt = (f?: string, campo?: string): Formato => (FORMATOS.includes(f as Formato) ? (f as Formato) : campo && DINHEIRO.test(campo) ? "moeda" : campo && /dias|atraso/i.test(campo) ? "dias" : "numero");
 
@@ -133,7 +136,7 @@ export function resolverVisual(entrada: unknown, resultados: ResultadoConsulta[]
     const cols = (p.campos ?? []).filter((c) => c?.campo && existentes.includes(c.campo)).slice(0, 4);
     if (!cols.length) return { erro: `Nenhuma coluna válida. Campos disponíveis: ${existentes.join(", ")}.` };
     return { visual: { componente: "tabela", ...comum, colunas: cols.map((c) => ({ rotulo: (c.rotulo || humano(c.campo)).slice(0, 30), formato: c.formato ? fmt(c.formato) : typeof lista[0]?.[c.campo] === "number" ? fmt(undefined, c.campo) : "texto" })),
-      linhas: lista.slice(0, LIMITE.tabela).map((x) => cols.map((c) => celula(x[c.campo]))), total: lista.length } };
+      linhas: lista.slice(0, LIMITE.tabela).map((x) => cols.map((c) => celula(x[c.campo]))), total: lista.length, campos: cols.map((c) => c.campo) } };
   }
   const campoRotulo = p.rotulo && existentes.includes(p.rotulo) ? p.rotulo : null;
   const campoValor = p.valor && existentes.includes(p.valor) ? p.valor : null;
@@ -148,10 +151,10 @@ export function resolverVisual(entrada: unknown, resultados: ResultadoConsulta[]
   if (!campoRotulo || !campoValor) return { erro: `Para ${comp}, diga os campos "rotulo" e "valor". Campos disponíveis: ${existentes.join(", ")}.` };
   const pontos = lista.map((x) => ({ rotulo: String(x[campoRotulo] ?? "—").slice(0, 40), valor: numero(x[campoValor]) })).filter((x): x is { rotulo: string; valor: number } => x.valor !== null);
   if (!pontos.length) return { erro: `O campo "${campoValor}" não é numérico.` };
-  return montar(comp as "barras" | "linha" | "rosca", comum, fmt(p.formato, campoValor), pontos, p.maximo, nomes.length > 0);
+  return montar(comp as "barras" | "linha" | "rosca", comum, fmt(p.formato, campoValor), pontos, p.maximo, nomes.length > 0, comp === "linha" ? undefined : campoRotulo);
 }
 
-function montar(comp: "barras" | "linha" | "rosca", comum: { titulo: string; origem: string; fonte: Fonte | null }, formato: Formato, entrada: { rotulo: string; valor: number }[], maximo?: number, ordemPedida = false): { visual: Visual } {
+function montar(comp: "barras" | "linha" | "rosca", comum: Comum, formato: Formato, entrada: { rotulo: string; valor: number }[], maximo?: number, ordemPedida = false, campoRotulo?: string): { visual: Visual } {
   // Barras e rosca são por categoria: linhas com o mesmo nome (várias parcelas do mesmo fornecedor) viram
   // uma barra só, com a soma, e o ranking sai do maior para o menor. Linha (série no tempo) fica como veio.
   let pontos = entrada;
@@ -170,5 +173,5 @@ function montar(comp: "barras" | "linha" | "rosca", comum: { titulo: string; ori
     const ord = [...pontos].sort((a, b) => b.valor - a.valor);
     lim = [...ord.slice(0, teto - 1), { rotulo: `Outros (${ord.length - teto + 1})`, valor: ord.slice(teto - 1).reduce((s, x) => s + x.valor, 0) }];
   }
-  return { visual: { componente: comp, ...comum, formato, pontos: lim, total: comp === "rosca" ? lim.length : pontos.length } };
+  return { visual: { componente: comp, ...comum, formato, pontos: lim, total: comp === "rosca" ? lim.length : pontos.length, ...(campoRotulo ? { campoRotulo } : {}) } };
 }

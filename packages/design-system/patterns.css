@@ -9704,6 +9704,14 @@ a.doc-abrir { text-decoration: none; }
 .ds-excluir:hover, .ds-excluir:focus-visible { outline: none; background: var(--tint-red); color: var(--accent-red); }
 .ds-excluir:focus-visible { box-shadow: var(--shadow-focus); }
 
+/* Gráfico ligado à tabela da mesma consulta. */
+.sv-bar.sv-tocavel { width: 100%; padding: 2px 4px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 6px; }
+.sv-bar.sv-tocavel:hover, .sv-bar.sv-tocavel:focus-visible { background: var(--bg-subtle); outline: none; }
+.sv-bar.sv-aceso, .sv-rosca li.sv-aceso { background: var(--tint-blue, var(--bg-subtle)); border-radius: 6px; }
+.sv-rosca li button { all: unset; display: contents; cursor: pointer; }
+.sv-filtro { margin: 0 0 6px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.sv-filtro button { border: 0; padding: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+
 /* O registro que a SARA mostrou na tela acende por 4 s. */
 .sara-destaque { outline: 2px solid var(--accent, #2563eb); outline-offset: 2px; border-radius: var(--radius-sm, 6px); animation: sara-destaque 1.2s ease-in-out 3; }
 @keyframes sara-destaque { 50% { outline-color: transparent; } }

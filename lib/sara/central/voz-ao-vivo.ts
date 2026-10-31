@@ -54,6 +54,7 @@ export const FERRAMENTAS_DE_VOZ = [
   { type: "function", name: "tela_cheia", description: "Volta para a tela cheia (a conversa).", parameters: { type: "object", properties: {} } },
   { type: "function", name: "proximo_visual", description: "Na apresentação, passa para o próximo gráfico ou tabela.", parameters: { type: "object", properties: {} } },
   { type: "function", name: "visual_anterior", description: "Na apresentação, volta para o gráfico ou tabela anterior.", parameters: { type: "object", properties: {} } },
+  { type: "function", name: "destacar_no_visual", description: "Acende um item do gráfico que está na tela e filtra a tabela ligada a ele. Use o nome como aparece no gráfico.", parameters: { type: "object", properties: { rotulo: { type: "string", description: "O nome do item, como está no gráfico." } }, required: ["rotulo"] } },
   { type: "function", name: "limpar_foco_grafo", description: "No Segundo Cérebro, volta para o cérebro inteiro (tira o foco).", parameters: { type: "object", properties: {} } },
   { type: "function", name: "fechar_apresentacao", description: "Fecha a apresentação (os gráficos na tela).", parameters: { type: "object", properties: {} } },
 ] as const;
@@ -79,7 +80,7 @@ Personalidade: a assistente britânica impecável. Formal e educada sem ser serv
 
 Regras (obrigatórias):
 ${roteamento}
-- Para mostrar algo na tela, use as funções: minimizar, tela_cheia, proximo_visual, visual_anterior, limpar_foco_grafo, fechar_apresentacao. A central abre sozinha a tela de onde veio o dado.
+- Para mostrar algo na tela, use as funções: minimizar, tela_cheia, proximo_visual, visual_anterior, destacar_no_visual, limpar_foco_grafo, fechar_apresentacao. A central abre sozinha a tela de onde veio o dado.
 - Pedido para VER como as coisas se ligam (o que depende de quê, o caminho entre dois, tudo que liga a alguém): chame sempre responder, nunca responder_pela_area. A central abre o Segundo Cérebro focado.
 - Painel na tela (dashboard, gráficos, tabelas, comparativo para VER): chame responder (ou responder_pela_area, se for de uma área só) com "monte o painel na tela com…". O painel aparece na tela; não é PDF.
 - Documentos em PDF, mensagens de voz e envios (pela plataforma ou pelo WhatsApp): chame responder com o pedido como a pessoa disse (ex.: "monte o convite e me mande pelo WhatsApp"). A prévia aparece na tela e o envio fica preparado; para enviar, a pessoa toca em Permitir na tela (por voz não se envia).

@@ -6,7 +6,7 @@ import { pedirRegistro, type PedidoRegistro } from "../../lib/abrir-registro";
 import type { Visual } from "../../lib/sara/visual";
 import { duracao, juntarPasso, passoAtual, perguntarComPassos, type PassoSara } from "../../lib/sara/progresso-cliente";
 import { lerTelaAtual } from "../../lib/tela-atual";
-import { SaraVisual } from "./sara-visual";
+import { SaraVisual, useVisuaisLigados } from "./sara-visual";
 import { SaraGuias } from "./sara-guias";
 
 /**
@@ -391,6 +391,12 @@ function useArrastar(chave: string, ativo: boolean) {
   return { prender: setEl, estilo, iniciar, arrastou, redimensionar, tamanhoPadrao };
 }
 
+/** Os visuais de uma resposta, ligados entre si (tocar no gráfico filtra a tabela da mesma consulta). */
+function VisuaisDaResposta({ visuais }: { visuais: Visual[] }) {
+  const { ligados } = useVisuaisLigados(visuais);
+  return <>{visuais.map((v, k) => <SaraVisual key={k} v={v} ligados={ligados(v)} />)}</>;
+}
+
 export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = false }: { modulo: string; navegar: (modulo: string, secao?: string) => void; abrirAoCarregar?: number; abrirGuias?: boolean }) {
   const [aberto, setAberto] = useState(false);
   // Guias (E3): a janela mostra as guias no lugar da conversa (o aviso do sino abre direto nelas).
@@ -756,7 +762,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
                 {m.foto && <img className="sara-foto" src={m.foto} alt="Foto enviada à SARA" />}
                 {m.anexo && <span className="sara-anexo-msg"><IconeClipe /> {m.anexo}</span>}
                 <div className="sara-texto">{m.papel === "sara" ? <Texto texto={m.texto} /> : <p>{m.texto}</p>}</div>
-                {m.visuais?.map((v, k) => <SaraVisual key={k} v={v} />)}
+                {m.visuais?.length ? <VisuaisDaResposta visuais={m.visuais} /> : null}
                 {m.acoes?.map((c) => <CartaoAcao key={c.id} c={c} decidindo={decidindo} confirmar={confirmar} decidir={(x, permitir) => void decidir(x, permitir)} />)}
                 {m.consultas && m.consultas.length > 0 && <small className="sara-consultas">Consultou: {[...new Set(m.consultas)].map(rotulo).join(", ")}</small>}
                 {m.passos && m.passos.length > 0 && <ComoChegou passos={m.passos} ms={m.duracaoMs} />}

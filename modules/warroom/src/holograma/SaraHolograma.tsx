@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Texto } from "../../../../app/components/sara-painel";
-import { SaraVisual } from "../../../../app/components/sara-visual";
+import { SaraVisual, useVisuaisLigados } from "../../../../app/components/sara-visual";
+import { acharNoVisual, type Selecao } from "../../../../lib/sara/visual-ligado";
 import { pedirRegistro, type PedidoRegistro } from "../../../../lib/abrir-registro";
 import { pedirFocoGrafo } from "../../../../lib/foco-grafo";
 import { lerTelaAtual } from "../../../../lib/tela-atual";
@@ -78,6 +79,10 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const [aviso, setAviso] = useState("");
   // Palco: os gráficos que ela apresenta na tela principal (um de cada vez, como slides).
   const [palco, setPalco] = useState<Visual[]>([]);
+  const { ligados, selecionar } = useVisuaisLigados(palco);
+  // A voz age sobre o que está no palco agora, não sobre o de quando a sessão abriu.
+  const noPalco = useRef<{ visuais: Visual[]; selecionar: (s: Selecao | null) => void }>({ visuais: [], selecionar: () => undefined });
+  useEffect(() => { noPalco.current = { visuais: palco, selecionar }; }, [palco, selecionar]);
   // Documentos que a central montou nesta resposta e os envios esperando o Permitir.
   const [docs, setDocs] = useState<{ documentos: DocCriado[]; acoes: CartaoAcao[]; modulo: string } | null>(null);
   const [decidindo, setDecidindo] = useState<string | null>(null);
@@ -275,6 +280,12 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     if (nome === "tela_cheia") { setModo("cheio"); return { saida: { ok: true } }; }
     if (nome === "proximo_visual") { setEmPainel(false); setSlide((n) => n + 1); return { saida: { ok: true } }; }
     if (nome === "visual_anterior") { setEmPainel(false); setSlide((n) => Math.max(0, n - 1)); return { saida: { ok: true } }; }
+    if (nome === "destacar_no_visual") {
+      const { selecao, existem } = acharNoVisual(noPalco.current.visuais, String(args.rotulo ?? ""));
+      if (!selecao) return { saida: { erro: "Esse nome não está no gráfico da tela.", existem: existem.slice(0, 15) } };
+      noPalco.current.selecionar(selecao);
+      return { saida: { ok: true, destacado: selecao.rotulo } };
+    }
     if (nome === "limpar_foco_grafo") { pedirFocoGrafo(null); return { saida: { ok: true } }; }
     if (nome === "fechar_apresentacao") { setPalco([]); return { saida: { ok: true } }; }
     return { saida: { erro: `Função desconhecida: ${nome}` } };
@@ -405,8 +416,8 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
             </span>
           </header>
           {emPainel && palco.length > 1
-            ? <div className="sh-palco-grade">{palco.map((v, i) => <div key={i} className={`sh-palco-cartao c-${v.componente}`}><SaraVisual v={v} /></div>)}</div>
-            : <div className="sh-palco-corpo"><SaraVisual v={visual} /></div>}
+            ? <div className="sh-palco-grade">{palco.map((v, i) => <div key={i} className={`sh-palco-cartao c-${v.componente}`}><SaraVisual v={v} ligados={ligados(v)} /></div>)}</div>
+            : <div className="sh-palco-corpo"><SaraVisual v={visual} ligados={ligados(visual)} /></div>}
         </section>
       )}
       {docs && (docs.documentos.length > 0 || docs.acoes.length > 0) && (

@@ -165,7 +165,7 @@ test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números d
   assert.equal(s.voice, "luna");
   assert.equal(s.audio.input.transcription.language_hint, "pt-BR");
   assert.deepEqual(s.audio.input.format, { type: "audio/pcm", rate: 24000 });
-  assert.deepEqual(s.tools.map((t) => t.name), ["responder", "minimizar", "tela_cheia", "proximo_visual", "visual_anterior", "limpar_foco_grafo", "fechar_apresentacao"]);
+  assert.deepEqual(s.tools.map((t) => t.name), ["responder", "minimizar", "tela_cheia", "proximo_visual", "visual_anterior", "destacar_no_visual", "limpar_foco_grafo", "fechar_apresentacao"]);
   assert.ok(s.tools.every((t) => t.type === "function"), "sem busca na internet nem outras ferramentas do Grok");
   const ins = v.instrucoesDeVoz({ empresa: "Empresa X", nome: "Júnior", quemDecide: "Financeiro: Ana" });
   assert.match(ins, /português do Brasil/);

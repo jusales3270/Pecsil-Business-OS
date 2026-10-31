@@ -9,6 +9,8 @@ const { FORA_DA_SUBAGENTE } = await import("../lib/sara/central/subagente.ts");
 const { FERRAMENTAS_DE_VOZ } = await import("../lib/sara/central/voz-ao-vivo.ts");
 const { pedirFocoGrafo, tomarFocoGrafo } = await import("../lib/foco-grafo.ts");
 const { linhaDaTela, rotuloDaTela } = await import("../lib/sara/tela.ts");
+const { resolverVisual } = await import("../lib/sara/visual.ts");
+const { acharNoVisual, campoDaSelecao, ehOutros, filtrarTabela, tabelaLigada } = await import("../lib/sara/visual-ligado.ts");
 const { ABRIR_REGISTRO, resolverRegistro, rotuloDoRegistro } = await import("../lib/sara/registros.ts");
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 
@@ -203,4 +205,52 @@ test("T3: abrir_lancamento segue; abrir_registro fora do WhatsApp e da subagente
   assert.match(ler("lib/sara/agentes/qualidade.ts"), /lista: l\.slice\(0, 40\)\.map\(\(n\) => \(\{ id: n\.id,/);
   assert.match(ler("lib/sara/agentes/compras.ts"), /select\("id, fornecedor, produto, quantidade/);
   for (const m of ["producao", "comercial", "compras", "qualidade"]) assert.match(ler(`lib/sara/agentes/${m}.ts`), /"abrir_registro"\]/, m);
+});
+
+const LINHAS = [{ fornecedor: "ROMI", produto: "Eixo", total: 100 }, { fornecedor: "COMIL", produto: "Bucha", total: 30 }, { fornecedor: "ROMI", produto: "Mancal", total: 50 }];
+const consultas = [{ nome: "contas", rotulo: "contas", dados: { lista: LINHAS, outra: LINHAS }, fontes: [] }];
+const rosca = (caminho = "lista") => resolverVisual({ componente: "rosca", titulo: "t", consulta: "contas", caminho, rotulo: "fornecedor", valor: "total" }, consultas).visual;
+const tabela = (caminho = "lista", campos = [{ campo: "fornecedor" }, { campo: "total" }]) => resolverVisual({ componente: "tabela", titulo: "t", consulta: "contas", caminho, campos }, consultas).visual;
+
+test("T4: o visual diz de que consulta veio e qual é o campo do nome, sem número novo", () => {
+  assert.deepEqual(rosca().ligacao, { consulta: "contas", caminho: "lista" });
+  assert.equal(rosca().campoRotulo, "fornecedor");
+  assert.deepEqual(tabela().campos, ["fornecedor", "total"]);
+  assert.deepEqual(rosca().pontos, [{ rotulo: "ROMI", valor: 150 }, { rotulo: "COMIL", valor: 30 }]);
+});
+
+test("T4: filtra pelo nome, com e sem coincidência, e os valores seguem os da consulta", () => {
+  const t = tabela();
+  assert.deepEqual(filtrarTabela(t, "fornecedor", "ROMI"), [["ROMI", 100], ["ROMI", 50]]);
+  assert.deepEqual(filtrarTabela(t, "fornecedor", "NINGUEM"), []);
+  assert.deepEqual(filtrarTabela(t, "campo_que_nao_existe", "ROMI"), []);
+});
+
+test("T4: só liga visuais da mesma consulta e com a coluna do gráfico", () => {
+  const g = rosca();
+  assert.ok(tabelaLigada(g, [g, tabela()]));
+  assert.ok(tabelaLigada(g, [g, tabela("outra")]), "o resumo filtra o detalhe da mesma consulta");
+  assert.equal(tabelaLigada(g, [g, { ...tabela(), ligacao: { consulta: "outra_consulta", caminho: "lista" } }]), null, "consulta diferente não filtra");
+  assert.equal(tabelaLigada(g, [g, tabela("lista", [{ campo: "produto" }])]), null, "sem a coluna do gráfico não há o que filtrar");
+  const s = { consulta: "contas", rotulo: "ROMI" };
+  assert.equal(campoDaSelecao(tabela(), s, [g]), "fornecedor");
+  assert.equal(campoDaSelecao({ ...tabela(), ligacao: { consulta: "outra_consulta", caminho: "" } }, s, [g]), null);
+  assert.equal(campoDaSelecao(tabela(), null, [g]), null);
+});
+
+test("T4: Outros não filtra e a tabela guarda até 100 linhas", () => {
+  assert.ok(ehOutros("Outros (12)"));
+  assert.equal(ehOutros("Outros Serviços"), false);
+  const muitas = [{ nome: "c", rotulo: "c", dados: { l: Array.from({ length: 140 }, (_, i) => ({ a: String(i), b: i })) }, fontes: [] }];
+  const t = resolverVisual({ componente: "tabela", titulo: "t", consulta: "c", caminho: "l", campos: [{ campo: "a" }] }, muitas).visual;
+  assert.deepEqual([t.linhas.length, t.total], [100, 140]);
+});
+
+test("T4: a voz só acende o que existe no gráfico", () => {
+  const g = rosca();
+  assert.deepEqual(acharNoVisual([g], "romi").selecao, { consulta: "contas", rotulo: "ROMI" });
+  const r = acharNoVisual([g], "Fornecedor X");
+  assert.equal(r.selecao, null);
+  assert.deepEqual(r.existem, ["ROMI", "COMIL"]);
+  assert.equal(acharNoVisual([tabela()], "ROMI").selecao, null);
 });

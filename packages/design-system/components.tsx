@@ -272,12 +272,15 @@ export function Donut({
   centro,
   size = 180,
   thickness = 18,
+  aoTocar,
 }: {
   slices: Slice[];
   total?: number;
   caption?: ReactNode;
   /** O que vai no centro no lugar do total (ex.: "R$ 7,42 mi", que cabe no anel). */
   centro?: ReactNode;
+  /** Toque na fatia. O anel é só para o mouse: quem usa, deixa a legenda como botão para o teclado. */
+  aoTocar?: (label: string) => void;
   size?: number;
   thickness?: number;
 }) {
@@ -315,6 +318,8 @@ export function Donut({
                   strokeDasharray={dash}
                   strokeDashoffset={-offset}
                   strokeLinecap="butt"
+                  onClick={aoTocar ? () => aoTocar(slice.label) : undefined}
+                  style={aoTocar ? { cursor: "pointer" } : undefined}
                 />
               );
               offset += length;
