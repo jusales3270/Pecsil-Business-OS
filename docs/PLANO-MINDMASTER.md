@@ -131,7 +131,7 @@ O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor d
   - `modules/warroom/src/holograma/voz-ao-vivo.ts`: o motor no navegador.
 
 **Como a J2 funciona no código:**
-- A tarefa de 10 em 10 minutos (`scripts/sync-os-cron.mjs`) chama `/api/sara/bom-dia/rodar`. Fora da janela (7h às 11h, de segunda a sábado), nada acontece, e o que ficou na fila não sai mais.
+- A tarefa de 10 em 10 minutos (`scripts/sync-os-cron.mjs`) chama `/api/sara/bom-dia/rodar`. Fora da janela (7h30 às 11h, de segunda a sexta), nada acontece, e o que ficou na fila não sai mais.
 - Na janela, entra na fila (`sara_bom_dia`, uma linha por pessoa por dia) quem está ativo e tem a SARA de algum módulo, ou é o proprietário. A fila roda até 9 por vez, 3 em paralelo.
 - Cada Bom dia é montado com a sessão da pessoa (`sessaoComo`, como as guias):
   - os avisos de cada módulo dela (`alertasDo`, os mesmos da janela da SARA);
@@ -343,7 +343,7 @@ raciocínio na legenda. A cena enquadra sozinha o foco; a tela só dispara o imp
 
 1. A central mora em War Room › Conselho; só o proprietário usa a visão da empresa inteira por enquanto (permissão `warroom.sara`).
 2. Achados vão direto ao responsável da área pelo "quem decide o quê", e o proprietário acompanha tudo.
-3. "Bom dia" às 7h30 (era 7h; mudou em 25/10/2026), de segunda a sábado, para quem tem a SARA liberada. A partir de 27/10/2026 também pelo WhatsApp, em texto, para quem está na allowlist.
+3. "Bom dia" às 7h30 (era 7h; mudou em 25/10/2026), de segunda a sexta (sábado saiu em 31/10/2026), para quem tem a SARA liberada, menos quem está em `FORA_DO_BOM_DIA` (a Sandra, desde 31/10/2026). A partir de 27/10/2026 também pelo WhatsApp, em texto, para quem está na allowlist.
 4. Pesquisa de concorrência e de recursos na internet aberta, só com o assunto.
 5. Sonnet 5.5 na central, na vigia e no crescimento; Haiku no "Bom dia". Teto da central em cerca de R$ 300 por mês (60 milhões de tokens), com aviso aos 80%.
 6. Ordem: J1 → J2 → J3 → J4 → J5.

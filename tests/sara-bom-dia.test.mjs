@@ -1,22 +1,25 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { BOM_DIA, escreverBomDia, janelaDoBomDia, moduloDoBomDia, ordenarItens, resumoDoBomDia, textoDaPlataforma } from "../lib/sara/central/bom-dia.ts";
+import { BOM_DIA, escreverBomDia, janelaDoBomDia, moduloDoBomDia, ordenarItens, recebeBomDia, resumoDoBomDia, textoDaPlataforma } from "../lib/sara/central/bom-dia.ts";
 
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 const item = (x) => ({ tipo: "aviso", nivel: "aviso", modulo: "financeiro", area: "Financeiro", titulo: "Aviso", ...x });
 
-test("bom dia: janela de segunda a sábado, das 7h30 às 11h de São Paulo", () => {
+test("bom dia: janela de segunda a sexta, das 7h30 às 11h de São Paulo", () => {
   // 23/10/2026 é sexta-feira. Desde 26/10/2026 o horário oficial é 7h30.
   assert.deepEqual(janelaDoBomDia(new Date("2026-10-23T07:30:00-03:00")), { dia: "2026-10-23", semana: 5 });
   assert.equal(janelaDoBomDia(new Date("2026-10-23T07:29:00-03:00")), null, "antes das 7h30 não sai");
-  assert.deepEqual(janelaDoBomDia(new Date("2026-10-24T10:59:00-03:00")), { dia: "2026-10-24", semana: 6 });
+  assert.deepEqual(janelaDoBomDia(new Date("2026-10-23T10:59:00-03:00")), { dia: "2026-10-23", semana: 5 });
+  assert.equal(janelaDoBomDia(new Date("2026-10-24T08:00:00-03:00")), null, "sábado não tem (proprietário, 31/10/2026)");
+  assert.equal(janelaDoBomDia(new Date("2026-10-31T07:30:00-03:00")), null, "o sábado em que ainda saiu");
+  assert.deepEqual(janelaDoBomDia(new Date("2026-10-26T07:30:00-03:00")), { dia: "2026-10-26", semana: 1 }, "segunda volta");
   assert.equal(janelaDoBomDia(new Date("2026-10-23T06:59:00-03:00")), null);
   assert.equal(janelaDoBomDia(new Date("2026-10-23T11:00:00-03:00")), null);
   assert.equal(janelaDoBomDia(new Date("2026-10-25T08:00:00-03:00")), null, "domingo não tem");
   // 01h UTC do sábado ainda é sexta à noite em São Paulo.
   assert.equal(janelaDoBomDia(new Date("2026-10-24T01:00:00Z")), null);
-  assert.deepEqual(BOM_DIA.dias, [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(BOM_DIA.dias, [1, 2, 3, 4, 5]);
 });
 
 test("bom dia: urgente primeiro, depois decisões e ações, guias, avisos e novidades; corta no máximo", () => {
@@ -92,3 +95,12 @@ test("bom dia: a tarefa agendada chama a rota; o teste só passa hora e pessoas 
   assert.match(exec, /if \(!todos\.length\) \{ await terminar\(admin, l\.id, \{ situacao: "vazia" \}\)/, "sem nada, não manda");
   assert.match(exec, /ignoreDuplicates: true/, "não manda duas vezes no dia");
 });
+
+test("bom dia: a Sandra fica fora só do Bom dia; os demais seguem", () => {
+  assert.equal(recebeBomDia("sandra-contabil@pecsil.com.br"), false);
+  assert.equal(recebeBomDia(" Sandra-Contabil@Pecsil.com.br "), false);
+  assert.equal(recebeBomDia("ana@pecsil.com.br"), true);
+  assert.equal(recebeBomDia(null), true);
+  assert.match(ler("lib/sara/central/bom-dia-executar.ts"), /comSara\.has\(p\.id\)\) && recebeBomDia\(p\.email\)/, "o filtro vale também para o proprietário e para quem tem a SARA");
+});
+

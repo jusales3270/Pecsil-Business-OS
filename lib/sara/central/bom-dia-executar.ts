@@ -9,11 +9,11 @@ import { SARAS } from "../modulos";
 import { agoraSP } from "../tempo";
 import { semExpressoes, semTags, tratamento } from "../personalidade";
 import { paraWhatsApp } from "../../whatsapp/mensagem";
-import { BOM_DIA, DIAS_DA_SEMANA, escreverBomDia, janelaDoBomDia, moduloDoBomDia, ordenarItens, resumoDoBomDia, type ItemBomDia } from "./bom-dia";
+import { BOM_DIA, DIAS_DA_SEMANA, escreverBomDia, janelaDoBomDia, moduloDoBomDia, ordenarItens, recebeBomDia, resumoDoBomDia, type ItemBomDia } from "./bom-dia";
 
 /**
  * Execução do Bom dia (J2). A mesma tarefa de 10 em 10 minutos chama /api/sara/bom-dia/rodar: na janela
- * (7h às 11h, segunda a sábado), põe na fila quem tem a SARA liberada e ainda não recebeu hoje e roda a
+ * (7h30 às 11h, segunda a sexta), põe na fila quem tem a SARA liberada e ainda não recebeu hoje e roda a
  * fila aos poucos. Cada Bom dia é montado COMO a pessoa (sessão aberta pelo servidor, como nas guias),
  * então o RLS e as permissões dela valem em tudo. Sem nada para hoje, não manda nada (sem ruído).
  */
@@ -25,15 +25,15 @@ const ha = (agora: Date, min: number) => new Date(agora.getTime() - min * 60_000
 
 /** Quem recebe: perfil ativo, com login, e a SARA de algum módulo liberada (ou o proprietário). */
 async function quemRecebe(admin: SupabaseClient, agora: Date, somente?: string[]): Promise<{ id: string; organization_id: string }[]> {
-  let q = admin.from("profiles").select("id, organization_id, is_owner, access_expires_at").eq("status", "active").not("user_id", "is", null);
+  let q = admin.from("profiles").select("id, organization_id, email, is_owner, access_expires_at").eq("status", "active").not("user_id", "is", null);
   if (somente) q = q.in("id", somente);
   const [{ data: perfis }, { data: grants }] = await Promise.all([
     q.limit(1000),
     admin.from("user_feature_grants").select("profile_id").like("feature_code", "%.sara").limit(5000),
   ]);
   const comSara = new Set(((grants ?? []) as { profile_id: string }[]).map((g) => g.profile_id));
-  return ((perfis ?? []) as { id: string; organization_id: string; is_owner: boolean; access_expires_at: string | null }[])
-    .filter((p) => (!p.access_expires_at || Date.parse(p.access_expires_at) > agora.getTime()) && (p.is_owner || comSara.has(p.id)))
+  return ((perfis ?? []) as { id: string; organization_id: string; email: string | null; is_owner: boolean; access_expires_at: string | null }[])
+    .filter((p) => (!p.access_expires_at || Date.parse(p.access_expires_at) > agora.getTime()) && (p.is_owner || comSara.has(p.id)) && recebeBomDia(p.email))
     .map((p) => ({ id: p.id, organization_id: p.organization_id }));
 }
 

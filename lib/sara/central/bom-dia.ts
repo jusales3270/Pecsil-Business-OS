@@ -3,7 +3,7 @@ import { conferirNumeros } from "./verificador.ts";
 
 /**
  * Bom dia da SARA (E7, J2 — docs/PLANO-MINDMASTER.md). Às 7h30 (horário oficial desde 26/10/2026, decisão do
- * proprietário), de segunda a sábado, cada pessoa com a SARA
+ * proprietário), de segunda a sexta (sem sábado, proprietário em 31/10/2026), cada pessoa com a SARA
  * liberada recebe um resumo do que importa HOJE para ela: os avisos dos módulos que ela usa, as decisões e
  * as ações esperando por ela e o que as guias dela fizeram. Tudo é colhido com a sessão dela (só o que ela
  * já vê). O texto é escrito pelo Haiku SÓ com esses fatos; se algum número não bater com eles (o mesmo
@@ -12,7 +12,7 @@ import { conferirNumeros } from "./verificador.ts";
  */
 
 /** Quando sai (fuso de São Paulo). Depois de `ate`, o dia que não saiu não sai mais (ninguém quer bom dia à tarde). */
-export const BOM_DIA = { dias: [1, 2, 3, 4, 5, 6], hora: "07:30", ate: "11:00", maxItens: 12, modelo: "claude-haiku-5-5" } as const;
+export const BOM_DIA = { dias: [1, 2, 3, 4, 5], hora: "07:30", ate: "11:00", maxItens: 12, modelo: "claude-haiku-5-5" } as const;
 
 export type ItemBomDia = {
   tipo: "aviso" | "decisao" | "acao" | "guia" | "novidade";
@@ -26,6 +26,14 @@ export type ItemBomDia = {
 /** O Brasil não tem horário de verão desde 2019: São Paulo é sempre UTC−3. */
 const SP_MS = 3 * 3600_000;
 const minutos = (hhmm: string) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
+/**
+ * Quem não recebe o Bom dia, pelo e-mail do perfil. Configuração da empresa, como o QUEM_DECIDE, até virar cadastro. Vale
+ * só para o Bom dia: a SARA, o sino, as decisões e as mensagens pontuais seguem normais.
+ * Sandra (contadora, 31/10/2026): só recebe mensagem pontual, quando surgir demanda.
+ */
+export const FORA_DO_BOM_DIA = ["sandra-contabil@pecsil.com.br"];
+export const recebeBomDia = (email: string | null | undefined) => !FORA_DO_BOM_DIA.includes(String(email ?? "").trim().toLowerCase());
+
 export const DIAS_DA_SEMANA = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
 /** O dia do Bom dia (AAAA-MM-DD em São Paulo) se agora está na janela dele; senão, null. */

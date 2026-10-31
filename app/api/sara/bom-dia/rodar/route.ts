@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 /**
  * Bom dia da SARA (J2). Quem chama é a tarefa agendada do Coolify (scripts/sync-os-cron.mjs, de 10 em 10
- * minutos), com o segredo FORJA_SYNC_SECRET. Fora da janela (7h às 11h, segunda a sábado), não faz nada.
+ * minutos), com o segredo FORJA_SYNC_SECRET. Fora da janela (7h30 às 11h, segunda a sexta), não faz nada.
  * Fora de produção, o teste pode passar a hora (`agora`) e limitar quem recebe (`somente`, ids de perfil),
  * para nunca mandar Bom dia de teste a quem trabalha. A resposta traz só contagens e situações.
  * Na mesma tarefa sai o aviso do fim da experiência (RH) no sino, todos os dias a partir das 7h30.
