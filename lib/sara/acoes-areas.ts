@@ -426,10 +426,60 @@ const REGISTRAR_NC: Ferramenta = {
   },
 };
 
-export const ACOES_AREAS: Ferramenta[] = [ENCAMINHAR_PARA_COTAR, CONVIDAR_FORNECEDOR, PENDENCIA_ESCRITORIO, INCLUIR_TERCEIRO, CADASTRAR_EQUIPAMENTO, REGISTRAR_INCIDENTE, ATENDER_CHAMADO, ENTRADA_DE_PRODUCAO, REGISTRAR_NC];
+// --- Comercial: mover um card do funil (C-18) -----------------------------------------------------------
+const ETAPAS_ABERTAS = ["triagem", "analise", "proposta", "aguardando"];
+type CardEtapa = { card: { id: string; title: string; etapa: string }; destino: { id: string; label: string } };
+
+async function resolverCard(sb: SupabaseClient, e: Record<string, unknown>): Promise<Resolvido<CardEtapa>> {
+  const busca = termo(e.card);
+  if (!busca) return { erro: "Diga qual card (o título ou o número do orçamento)." };
+  const etapa = normal(e.etapa);
+  if (!ETAPAS_ABERTAS.includes(etapa)) return { erro: `Etapa inválida. Use: ${ETAPAS_ABERTAS.join(", ")}. Ganho e perdido saem do orçamento.` };
+  const { data, error } = await sb.from("crm_cards").select("id, title, stage_id, crm_stages(label)").eq("status", "aberto").ilike("title", `%${busca}%`).limit(5);
+  if (error) throw new Error(error.message);
+  const cards = (data ?? []) as unknown as { id: string; title: string; stage_id: string; crm_stages: { label: string } | null }[];
+  if (!cards.length) return { erro: `Nenhum card aberto com "${busca}". Consulte o funil.` };
+  if (cards.length > 1) return { erro: `Mais de um card com "${busca}": ${cards.map((c) => c.title).join("; ")}. Pergunte qual.` };
+  const { data: destino, error: e2 } = await sb.from("crm_stages").select("id, label").eq("code", etapa).maybeSingle<{ id: string; label: string }>();
+  if (e2) throw new Error(e2.message);
+  if (!destino) return { erro: "Etapa não encontrada." };
+  if (destino.id === cards[0].stage_id) return { erro: `O card já está em ${destino.label}.` };
+  return { card: { id: cards[0].id, title: cards[0].title, etapa: cards[0].crm_stages?.label ?? "?" }, destino };
+}
+
+const MOVER_CARD: Ferramenta = {
+  nome: "mover_card", rotulo: "preparou a mudança de um card no funil", exige: ["comercial.funil"],
+  descricao: "PREPARA a mudança de um card aberto para outra etapa do funil (triagem, analise, proposta, aguardando); a pessoa confirma no cartão. Ganho e perdido saem do orçamento.",
+  esquema: { type: "object", properties: {
+    card: { type: "string", description: "Parte do título do card, como aparece no funil (ex.: Orçamento #120)." },
+    etapa: { type: "string", enum: ETAPAS_ABERTAS },
+    motivo: { type: "string", description: "Por que mudar, se a pessoa disser." },
+  }, required: ["card", "etapa"] },
+  acao: {
+    nivel: "operar", modulos: ["comercial"],
+    preparar: async (sb, e) => {
+      const r = await resolverCard(sb, e);
+      if ("erro" in r) return r;
+      return { resumo: `Mover "${r.card.title}" de ${r.card.etapa} para ${r.destino.label}.`, detalhes: e.motivo ? [`Motivo: ${String(e.motivo).slice(0, 300)}`] : [] };
+    },
+  },
+  rodar: async (sb, e) => {
+    const r = await resolverCard(sb, e);
+    if ("erro" in r) throw new Error(r.erro);
+    // Entra no fim da coluna. Com a sessão de quem permitiu: sem permissão de operar o funil, nenhuma linha muda.
+    const { data: ultimo } = await sb.from("crm_cards").select("position").eq("stage_id", r.destino.id).order("position", { ascending: false }).limit(1).maybeSingle<{ position: number }>();
+    const { data, error } = await sb.from("crm_cards").update({ stage_id: r.destino.id, position: Number(ultimo?.position ?? 0) + 1000 }).eq("id", r.card.id).eq("status", "aberto").select("id");
+    if (error) throw new Error(error.message);
+    if (!data?.length) throw new Error("O card não pôde ser movido: sem permissão, ou ele acabou de mudar.");
+    return { dados: { feito: `"${r.card.title}" foi para ${r.destino.label}.` }, fontes: [] };
+  },
+};
+
+export const ACOES_AREAS: Ferramenta[] = [MOVER_CARD, ENCAMINHAR_PARA_COTAR, CONVIDAR_FORNECEDOR, PENDENCIA_ESCRITORIO, INCLUIR_TERCEIRO, CADASTRAR_EQUIPAMENTO, REGISTRAR_INCIDENTE, ATENDER_CHAMADO, ENTRADA_DE_PRODUCAO, REGISTRAR_NC];
 
 /** Nome de cada ação para quem lê (quadro de limites das guias). */
 export const ROTULO_DAS_ACOES: Record<string, string> = {
+  mover_card: "Mover card do funil",
   encaminhar_para_cotar: "Encaminhar itens para cotar", convidar_fornecedor: "Convidar fornecedor a cotar pelo link", pendencia_para_o_escritorio: "Abrir pendência para o escritório", incluir_terceiro: "Incluir terceiro no quadro",
   cadastrar_equipamento: "Cadastrar equipamento", registrar_incidente: "Registrar incidente de TI", atender_chamado_ti: "Atender chamado de TI", entrada_de_producao: "Dar entrada de produção", registrar_nao_conformidade: "Registrar não conformidade",
 };

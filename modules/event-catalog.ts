@@ -42,6 +42,7 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "comercial.card.movido", module: "comercial", label: "Card movido", description: "O card mudou de etapa no funil." },
   { type: "comercial.card.ganho", module: "comercial", label: "Card ganho", description: "O card foi fechado como ganho." },
   { type: "comercial.card.perdido", module: "comercial", label: "Card perdido", description: "O card foi fechado como perdido, com motivo." },
+  { type: "financeiro.titulo.vencido", module: "financeiro", label: "A receber vencido", description: "Uma parcela a receber venceu e segue em aberto." },
   { type: "comercial.orcamento.enviado", module: "comercial", label: "Orçamento enviado", description: "O orçamento foi enviado ao cliente; o card do funil vai para Proposta enviada." },
   { type: "comercial.orcamento.ganho", module: "comercial", label: "Orçamento ganho", description: "O cliente aprovou o orçamento (com o pedido de compra e a cotação anexados); vira previsão a receber." },
   { type: "comercial.orcamento.perdido", module: "comercial", label: "Orçamento perdido", description: "O orçamento foi fechado como perdido, com motivo." },

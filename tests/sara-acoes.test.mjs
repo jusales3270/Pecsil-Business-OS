@@ -214,3 +214,27 @@ test("I-24: teto cheio avisa o proprietário e só diz que avisou se avisou", ()
   assert.match(sql, /event_type = 'sara\.teto\.atingido' and entity_id = chave/, "uma vez por mês e módulo");
   assert.match(readFileSync(new URL("../app/api/foundation/whatsapp/route.ts", import.meta.url), "utf8"), /prompt_antes: antes\?\.prompt \?\? null, prompt_depois: v\.prompt/);
 });
+
+test("C-18: mover_card é do Comercial, exige operar o funil e não fecha card", async () => {
+  const mover = ACOES.find((a) => a.nome === "mover_card");
+  assert.deepEqual([mover.acao.nivel, mover.acao.modulos, mover.exige], ["operar", ["comercial"], ["comercial.funil"]]);
+  const sb = (cards, etapa = { id: "e2", label: "Proposta enviada" }) => ({ from: (t) => t === "crm_cards"
+    ? { select: () => ({ eq: () => ({ ilike: () => ({ limit: async () => ({ data: cards, error: null }) }) }) }) }
+    : { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: etapa, error: null }) }) }) } });
+  const um = [{ id: "c1", title: "Orçamento #120 · O-I", stage_id: "e1", crm_stages: { label: "Triagem" } }];
+  const ok = await mover.acao.preparar(sb(um), { card: "#120", etapa: "proposta", motivo: "preço enviado" });
+  assert.equal(ok.resumo, 'Mover "Orçamento #120 · O-I" de Triagem para Proposta enviada.');
+  assert.match((await mover.acao.preparar(sb(um), { card: "#120", etapa: "ganho" })).erro, /Ganho e perdido saem do orçamento/);
+  assert.match((await mover.acao.preparar(sb([]), { card: "#9", etapa: "proposta" })).erro, /Nenhum card/);
+  assert.match((await mover.acao.preparar(sb([...um, { ...um[0], id: "c2", title: "Orçamento #1200" }]), { card: "#120", etapa: "proposta" })).erro, /Mais de um card/);
+  assert.match((await mover.acao.preparar(sb(um, { id: "e1", label: "Triagem" }), { card: "#120", etapa: "triagem" })).erro, /já está em Triagem/);
+});
+
+test("Cobrança: o vencido vira evento só de parcela recente, sem previsão e sem cobrar ninguém", () => {
+  const sql = readFileSync(new URL("../supabase/migrations/202610310004_financeiro_titulo_vencido.sql", import.meta.url), "utf8");
+  assert.match(sql, /not t\.is_forecast/);
+  assert.match(sql, /between hoje - 7 and hoje - 1/, "o histórico antigo não vira enxurrada");
+  assert.match(sql, /e\.event_type = 'financeiro\.titulo\.vencido' and e\.entity_id = i\.id::text/, "não repete a parcela");
+  assert.match(sql, /grant execute on function public\.financeiro_vencidos_emitir\(\) to service_role/);
+  assert.doesNotMatch(sql, /notify_|whatsapp/i, "só emite o evento");
+});

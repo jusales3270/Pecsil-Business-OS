@@ -74,6 +74,7 @@ export const NOVIDADES: Novidade[] = [
     itens: [
       "Ao marcar um orçamento como enviado, o card aparece no funil em Proposta enviada, com o cliente e o valor. Se já havia um card ligado, ele avança para essa etapa.",
       "Ganho, perdido e cancelado continuam levando o card junto. Orçamento de treino não entra no funil.",
+      "Agora a SARA do Comercial também prepara a mudança de um card de etapa: é só pedir e tocar em Permitir.",
     ],
   },
   {

@@ -203,6 +203,7 @@ Seções:
 - Vendas › Produtos: cadastro (código interno, NCM, desenho, material); as peças da Forja entram aqui.
 Fluxo: orçamento ganho → OS em rascunho na Forja (o Rafael completa e libera) → produção → "A faturar" no Fiscal → nota (Jefferson).
 A ficha do cliente (ficha_cliente) vem do Segundo Cérebro: faturado e recebido no histórico, atraso médio para pagar, peças e OS.
+Mover card: use mover_card só quando a pessoa pedir, ou quando uma lição aprovada da área disser quando mover. Ganho e perdido saem do orçamento, não daqui.
 Quem decide: Rafael (comercial, orçamento e PCP); faturamento é do Jefferson.`;
 
 export const comercial: Agente = {

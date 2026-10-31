@@ -37,6 +37,11 @@ export async function POST(request: Request) {
   // O aviso da experiência vai antes (e só a quem decide no RH); falhar nele não segura o Bom dia.
   const experiencia = process.env.NODE_ENV !== "production" && opcoes.somente ? { avisados: 0 } : await avisarFimDeExperiencia(admin, opcoes.agora).catch((e) => ({ avisados: 0, erro: String(e) }));
   if ("erro" in experiencia && experiencia.erro) console.error("[rh] aviso de experiência falhou", experiencia.erro);
+  // A receber que venceu vira evento (não cobra ninguém); falhar aqui também não segura o Bom dia.
+  if (process.env.NODE_ENV === "production") {
+    const { error: eVencidos } = await admin.rpc("financeiro_vencidos_emitir");
+    if (eVencidos) console.error("[financeiro] vencidos", eVencidos.message);
+  }
   const r = await rodarBomDia(admin, opcoes);
   return NextResponse.json({ enfileirados: r.enfileirados, rodados: r.rodados, experiencia: experiencia.avisados, erro: r.erro ?? null }, { status: r.erro ? 500 : 200 });
 }
