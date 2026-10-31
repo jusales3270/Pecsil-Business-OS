@@ -115,3 +115,16 @@ test("número brasileiro: ponto de milhar, vírgula decimal e ponto decimal sozi
   assert.equal(lerNumeroBr(""), 0);
   assert.ok(Number.isNaN(lerNumeroBr("abc", NaN)));
 });
+
+test("C-18: orçamento enviado anda o funil (cria o card ou avança), nunca para trás, e o treino fica fora", () => {
+  const sql = readFileSync(new URL("../supabase/migrations/202610310001_comercial_funil_orcamento.sql", import.meta.url), "utf8");
+  assert.match(sql, /alter type public\.crm_card_origem add value if not exists 'orcamento'/);
+  const enviado = sql.slice(sql.indexOf("if p_situacao = 'enviado' then"), sql.indexOf("elsif p_situacao = 'ganho' then"));
+  assert.match(enviado, /if not q\.treino then/, "o treino não entra no funil");
+  assert.match(enviado, /insert into public\.crm_cards/);
+  assert.match(enviado, /update public\.sales_quotes set crm_card_id = card/, "o card fica ligado: reenviar não cria outro");
+  assert.match(enviado, /< ordem/, "só anda para a frente");
+  assert.match(enviado, /'comercial\.orcamento\.enviado'/);
+  assert.match(sql, /status = 'aberto' and origem = 'orcamento'/, "cancelar só fecha o card que o orçamento criou");
+  assert.match(readFileSync(new URL("../modules/event-catalog.ts", import.meta.url), "utf8"), /"comercial\.orcamento\.enviado"/);
+});

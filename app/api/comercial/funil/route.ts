@@ -17,7 +17,7 @@ export type FunilCard = {
   position: number;
   status: "aberto" | "ganho" | "perdido";
   lostReason: string | null;
-  origem: "manual" | "email";
+  origem: "manual" | "email" | "orcamento";
   updatedAt: string;
 };
 

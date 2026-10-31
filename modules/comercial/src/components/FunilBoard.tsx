@@ -17,7 +17,7 @@ type CardFunil = {
   position: number;
   status: "aberto" | "ganho" | "perdido";
   lostReason: string | null;
-  origem: "manual" | "email";
+  origem: "manual" | "email" | "orcamento";
   updatedAt: string;
 };
 
@@ -194,6 +194,7 @@ export function FunilBoard({ notify }: { notify: (message: string) => void }) {
                     <small>
                       {card.customerName ?? "Sem cliente"} · {TIPO_LABEL[card.kind]}
                       {card.origem === "email" && " · do e-mail"}
+                      {card.origem === "orcamento" && " · do orçamento"}
                     </small>
                     <span className="funil-card-meta">
                       {money(card.valueCents) && <b>{money(card.valueCents)}</b>}

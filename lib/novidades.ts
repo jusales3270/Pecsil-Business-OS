@@ -44,6 +44,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-31-funil-anda-com-o-orcamento",
+    data: "2026-10-31",
+    area: "Comercial",
+    modulos: ["comercial"],
+    titulo: "O funil anda sozinho quando o orçamento é enviado",
+    itens: [
+      "Ao marcar um orçamento como enviado, o card aparece no funil em Proposta enviada, com o cliente e o valor. Se já havia um card ligado, ele avança para essa etapa.",
+      "Ganho, perdido e cancelado continuam levando o card junto. Orçamento de treino não entra no funil.",
+    ],
+  },
+  {
     id: "2026-10-30-arquivos-abrem-de-qualquer-lugar",
     data: "2026-10-30",
     area: "Fiscal",
