@@ -19,6 +19,7 @@ import { temaDe } from "./temas";
 import { PERSONALIDADE, regraDeTratamento, semTratamentoIndevido, tratamento } from "./personalidade";
 import { memoriaDaSara } from "./central/licoes";
 import { blocoDaMemoria, lembrancas, lembrarDaConversa } from "./memoria-pessoa";
+import { avisarArea, comParecer, conferirSaida, textosDeSaida, type Parecer } from "./conferir-saida";
 import { SARAS } from "./modulos";
 import { createSupabaseAdminClient } from "../supabase/admin";
 import { fotosPendentes, guardarFoto, leituraDaConversa } from "../qualidade/fotos-servidor";
@@ -142,7 +143,10 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const areasDaMemoria = p.sara.central ? Object.values(SARAS).filter((s) => !s.central && p.access.canModule(s.feature) && p.access.can(s.permissao, "ver")).map((s) => s.modulo) : [modulo];
   const memoria = await memoriaDaSara(areasDaMemoria, Boolean(p.sara.central));
   // I-21: o que foi tratado com esta pessoa em outras conversas, na tela ou no WhatsApp. Só de áreas que ela ainda acessa.
-  const memoriaPessoa = blocoDaMemoria(await lembrancas(p.sb, [...new Set([...areasDaMemoria, modulo, "central"])], conversa).catch(() => []), Object.fromEntries(Object.values(SARAS).map((s) => [s.modulo, s.rotulo])));
+  // A SARA central entra na lista de todas: é ela que costuma atender pelo WhatsApp.
+  const central = Object.values(SARAS).find((s) => s.central);
+  const areasDaPessoa = [...areasDaMemoria, modulo, ...(central && p.access.canModule(central.feature) && p.access.can(central.permissao, "ver") ? [central.modulo] : [])];
+  const memoriaPessoa = blocoDaMemoria(await lembrancas(p.sb, [...new Set(areasDaPessoa)], conversa).catch(() => []), Object.fromEntries(Object.values(SARAS).map((s) => [s.modulo, s.rotulo])));
   // Marcador secreto desta resposta (injeção): se aparecer na resposta, a SARA revelou as instruções.
   const marcador = novoMarcador();
   // Fixo (vai para o cache) + do momento (hora, quem conversa, situação da conversa, o que não pode).
@@ -215,6 +219,15 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
     r = { ...r, texto: marcarSemFonte(r.texto, conferencia), visuais: [...r.visuais, ...p.visuaisSubagentes].slice(0, 8) };
     passoConferir.fim(true);
   }
+  // I-22: o que vai sair da empresa passa por uma segunda leitura. Reprovou, a pessoa vê o motivo e a área é avisada.
+  let parecer: Parecer | null = null;
+  const saindo = !fora && !sigilo ? textosDeSaida(r) : [];
+  if (saindo.length) {
+    const passoSaida = iniciarPasso("conferencia", "Conferindo o que vai sair da empresa");
+    parecer = await conferirSaida({ chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", empresa, pedido: pergunta, textos: saindo });
+    r = { ...comParecer(r, parecer), tokensEntrada: r.tokensEntrada + parecer.tokensEntrada, tokensSaida: r.tokensSaida + parecer.tokensSaida };
+    passoSaida.fim(parecer.aprovada);
+  }
   // Cumprimento e aviso de retomada vêm da plataforma (hora certa de São Paulo, nome de quem está logado).
   const nomeCurto = tratamento(interlocutor);
   // A SARA central (holograma) já cumprimenta ao ser invocada: a resposta não repete o cumprimento.
@@ -227,6 +240,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
     p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou, sigilo }, tempos: { total_ms: Date.now() - inicioRota, conversa_ms: msModelo, etapas: r.tempos ?? [] },
       lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)),
       ...(r.falhasDoModelo?.length ? { falhas_do_modelo: r.falhasDoModelo } : {}),
+      ...(parecer ? { conferencia_saida: { aprovada: parecer.aprovada, motivo: parecer.motivo, area: parecer.area, falhou: parecer.falhou } } : {}),
       ...(p.sara.central ? { verificador: conferencia, subagentes: p.subagentes, documentos: p.documentos?.criados ?? [] } : {}) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
@@ -283,6 +297,12 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   // habilidades que a SARA propôs — e a rede de segurança da plataforma quando ela não lembrou de propor.
   const resposta = r;
   depois(async () => {
+    if (parecer && !parecer.aprovada && ids?.mensagem) {
+      const admin = createSupabaseAdminClient();
+      const { data: conv } = await admin.from("sara_conversas").select("organization_id").eq("id", ids.conversa).maybeSingle<{ organization_id: string }>();
+      if (conv) await avisarArea(admin, { organizacao: conv.organization_id, mensagem: ids.mensagem, parecer, quemPediu: nomeCurto })
+        .catch((e) => console.error("[sara] aviso da conferência", e instanceof Error ? e.message : e));
+    }
     if (!fora && !sigilo && ids?.conversa) {
       await lembrarDaConversa(createSupabaseAdminClient(), { chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", conversa: ids.conversa, modulo, historico, pergunta, resposta: resposta.texto })
         .catch((e) => console.error("[sara] memória da pessoa", e instanceof Error ? e.message : e));

@@ -51,6 +51,7 @@ export const NOVIDADES: Novidade[] = [
     itens: [
       "No WhatsApp, um \"obrigado\" recebe uma reação 🙏 no lugar de uma resposta.",
       "Quando a SARA de um módulo chega ao limite do mês, ela avisa que o proprietário já sabe e que o trabalho segue pelas telas do módulo.",
+      "Antes de uma carta ou mensagem sair para fora da empresa, a SARA faz uma segunda leitura. Se achar algo, como um desconto que ninguém pediu, mostra o motivo no cartão e avisa quem responde pela área. Quem decide o envio continua sendo você.",
     ],
   },
   {

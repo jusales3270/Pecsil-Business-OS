@@ -89,6 +89,12 @@ test("I-21: preferência vale desde a 1ª mensagem e até no RH", async () => {
   }
 });
 
+test("I-21: a memória lida inclui a SARA central, que atende pelo WhatsApp", () => {
+  const r = ler("lib/sara/responder.ts");
+  assert.match(r, /Object\.values\(SARAS\)\.find\(\(s\) => s\.central\)/);
+  assert.doesNotMatch(r, /modulo, "central"\]/, "o módulo da central é warroom, não central");
+});
+
 test("I-21: só o dono lê, só o servidor grava, e apagar não deixa o resumo voltar", () => {
   const sql = ler("supabase/migrations/202610310002_sara_memoria_pessoa.sql");
   assert.match(sql, /using \(profile_id = public\.current_profile_id\(\) and not esquecida\)/);
