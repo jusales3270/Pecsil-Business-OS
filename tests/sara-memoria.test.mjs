@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import "./ts-resolver.mjs";
 
-const { blocoDaMemoria, lembrarDaConversa, podeGuardar, preferenciaPedida, resumirConversa, SEM_RESUMO } = await import("../lib/sara/memoria-pessoa.ts");
+const { blocoDaMemoria, cortarResumo, lembrarDaConversa, podeGuardar, preferenciaPedida, resumirConversa, SEM_RESUMO } = await import("../lib/sara/memoria-pessoa.ts");
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 
 /** Banco de mentira: guarda o que foi gravado e devolve a conversa e a memória pedidas. */
@@ -49,6 +49,17 @@ test("I-21: resumo usa Haiku, trata a conversa como dado e cai para null sem der
   assert.equal(await resumirConversa({ chave: "k", buscar: modeloResponde(""), mensagens: uma }), null, "consulta rápida não vira lembrança");
   assert.equal(await resumirConversa({ chave: "k", buscar: modeloResponde("texto qualquer longo", 529), mensagens: uma }), null);
   assert.equal(await resumirConversa({ chave: "k", buscar: async () => { throw new Error("rede"); }, mensagens: uma }), null);
+});
+
+test("I-21: resumo longo corta na frase, nunca no meio da palavra", () => {
+  const frase = "Ficou pendente confirmar o prazo de entrega com a Fundição até sexta. ";
+  const corte = cortarResumo(frase.repeat(8));
+  assert.ok(corte.length <= 350);
+  assert.match(corte, /sexta\.$/);
+  const semPonto = cortarResumo("palavra ".repeat(80).trim());
+  assert.ok(semPonto.length <= 351);
+  assert.match(semPonto, /palavra…$/);
+  assert.equal(cortarResumo("Curto e inteiro."), "Curto e inteiro.");
 });
 
 test("I-21: grava com o dono da conversa, não com quem chamou", async () => {
