@@ -20,6 +20,7 @@ import { PERSONALIDADE, regraDeTratamento, semTratamentoIndevido, tratamento } f
 import { memoriaDaSara } from "./central/licoes";
 import { blocoDaMemoria, lembrancas, lembrarDaConversa } from "./memoria-pessoa";
 import { linhaDaTela, rotuloDaTela } from "./tela";
+import { AVISO_GRAFO, pedeGrafo } from "./central/grafo";
 import { rotuloDoRegistro } from "./registros";
 import { avisarArea, comParecer, conferirSaida, textosDeSaida, type Parecer } from "./conferir-saida";
 import { SARAS } from "./modulos";
@@ -164,6 +165,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const naTela = corpo?.canal === "whatsapp" ? null : rotuloDaTela(corpo?.tela, p.access);
   const registroNaTela = naTela ? await rotuloDoRegistro(p.sb, (corpo?.tela as { registro?: unknown } | null)?.registro ?? null).catch(() => null) : null;
   sistema.variavel += notaFoto + memoriaPessoa + linhaDaTela(registroNaTela ?? naTela);
+  if (p.sara.central && corpo?.canal !== "whatsapp" && pedeGrafo(pergunta) && p.ferramentas.some((f) => f.nome === "mostrar_grafo")) sistema.variavel += AVISO_GRAFO;
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
   const ultima = [...historico].reverse().find((m) => m.papel === "sara")?.texto ?? null;

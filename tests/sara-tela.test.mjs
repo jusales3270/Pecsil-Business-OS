@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import "./ts-resolver.mjs";
 
-const { MOSTRAR_GRAFO, acharNo } = await import("../lib/sara/central/grafo.ts");
+const { MOSTRAR_GRAFO, acharNo, pedeGrafo } = await import("../lib/sara/central/grafo.ts");
 const { conversarCom } = await import("../lib/sara/laco.ts");
 const { FORA_DA_SUBAGENTE } = await import("../lib/sara/central/subagente.ts");
 const { FERRAMENTAS_DE_VOZ } = await import("../lib/sara/central/voz-ao-vivo.ts");
@@ -253,4 +253,16 @@ test("T4: a voz só acende o que existe no gráfico", () => {
   assert.equal(r.selecao, null);
   assert.deepEqual(r.existem, ["ROMI", "COMIL"]);
   assert.equal(acharNoVisual([tabela()], "ROMI").selecao, null);
+});
+
+test("T1: as frases de quem usa pedem o cérebro, sem dizer a palavra", () => {
+  for (const f of ["Eu quero que cê me traga tudo sobre Plam.", "Não, não, não, não. P L A M. Eu quero que cê me traga tudo sobre Plam.", "Destaque para mim, tudo que está relacionado à usinagem. Sarah?", "Traga tudo que for relacionado ao fornecedor Paulo.", "Me mostra tudo que liga à PLAM", "qual a ligação entre a Bolloré e a conta de frete", "o que depende do material X", "mostra no cérebro a Verallia"]) assert.equal(pedeGrafo(f), true, f);
+  for (const f of ["Quanto temos a pagar para a Plam?", "Como está a usinagem?", "Monta um painel de compras", "Quais pedidos estão atrasados?", "Mostra as cotações pendentes", "Liste tudo de contas a pagar"]) assert.equal(pedeGrafo(f), false, f);
+});
+
+test("T1: nota com o nome do fornecedor não é ambiguidade; dois fornecedores são", async () => {
+  const sb = sessao({ cerebro_buscar: [no("f", "PLAM EMBALAGENS", "fornecedor", 110), no("d", "NF 13945/1 Plam Marcenaria", "documento", 1), no("i", "Caixa Plam", "item", 3)] });
+  assert.equal((await acharNo(sb, "Plam")).no.id, "f");
+  const dois = await acharNo(sessao({ cerebro_buscar: [no("a", "Plam SP"), no("b", "Plam RJ"), no("d", "NF Plam", "documento")] }), "Plam");
+  assert.deepEqual(dois.escolher, ["Plam SP (Fornecedor)", "Plam RJ (Fornecedor)", "NF Plam (Documento)"]);
 });

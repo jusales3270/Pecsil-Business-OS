@@ -10,6 +10,7 @@ import { link, type Ferramenta, type Resultado } from "../base.ts";
 
 const SEM_PERMISSAO = "Sem permissão para ver o Segundo Cérebro.";
 const TIPOS_NO = TIPOS.map((t) => t.tipo);
+const TIPOS_DONOS = new Set<string>(["fornecedor", "cliente", "setor", "pessoa", "sistema"]);
 const PROFUNDIDADE_ATE = 3;
 /** Mesmo limite da tela, para o número falado bater com o que aparece. */
 const LIMITE_DA_TELA = 5000;
@@ -30,6 +31,9 @@ export async function acharNo(sb: SupabaseClient, nome: unknown, tipo: unknown):
   const exatos = lista.filter((n) => normal(n.nome) === normal(termo));
   if (exatos.length === 1) return { no: exatos[0] };
   if (lista.length === 1) return { no: lista[0] };
+  // Nota, item e conta carregam o nome de quem a pessoa pediu: entre eles e um único fornecedor, ela quer o fornecedor.
+  const donos = (exatos.length ? exatos : lista).filter((n) => TIPOS_DONOS.has(n.tipo));
+  if (donos.length === 1) return { no: donos[0] };
   return { escolher: (exatos.length ? exatos : lista).map(rotuloDe) };
 }
 
@@ -51,9 +55,19 @@ async function consultar(sb: SupabaseClient, f: string, args: Record<string, unk
   return { g: { ...g, nos: g.nos ?? [], ligacoes: g.ligacoes ?? [] } };
 }
 
+/**
+ * O pedido é para VER as ligações de alguém? Quem fala não diz "cérebro": diz "tudo sobre a Plam" ou "destaque tudo que
+ * é da usinagem". Sem este sinal, o modelo perguntava às áreas e montava painel, e o cérebro nunca abria.
+ */
+export const pedeGrafo = (pergunta: string) =>
+  /\btudo\b.{0,30}\b(sobre|relacionad\w*|lig\w*|conect\w*|envolv\w*|referente\w*)\b|\bdestaqu\w*\b.{0,30}\b(tudo|relacionad\w*|lig\w*)\b|\b(liga[cç][aã]o|liga[cç][oõ]es|conex[aã]o|conex[oõ]es)\b|\bo que depende\b|\bcaminho entre\b|\bc[eé]rebro\b/i.test(pergunta);
+
+/** Vai às instruções só nessas perguntas. Sem isso, a última navegação da resposta descartava o foco. */
+export const AVISO_GRAFO = "\n\nEsta pergunta pede para VER as ligações de alguém. Se ela for sobre um fornecedor, cliente, setor, material, pessoa, conta ou item: chame mostrar_grafo AGORA, antes de qualquer outra ferramenta, com o nome como a pessoa disse. Nesta resposta não abra outra tela, não monte painel e não pergunte às áreas; responda com os números que mostrar_grafo devolver. Se ele não achar o nome, aí sim siga pelas áreas.";
+
 export const MOSTRAR_GRAFO: Ferramenta = {
   nome: "mostrar_grafo", rotulo: "mostrou o Segundo Cérebro", exige: ["warroom.cerebro"],
-  descricao: "Abre o Segundo Cérebro focado para a pessoa VER como as coisas se ligam: tudo que liga a alguém (vizinhanca), o que depende de algo (dependencias) ou o caminho entre dois (caminho). Passe os NOMES, nunca ids. Devolve os números apurados: fale só deles e nunca invente ligação. Se vier \"escolher\", pergunte à pessoa qual é.",
+  descricao: "Abre o Segundo Cérebro focado. Use quando pedirem \"tudo sobre X\", \"tudo relacionado a X\" ou \"destaque X\", sendo X um fornecedor, cliente, setor, material ou pessoa. Serve para a pessoa VER como as coisas se ligam: tudo que liga a alguém (vizinhanca), o que depende de algo (dependencias) ou o caminho entre dois (caminho). Passe os NOMES, nunca ids. Devolve os números apurados: fale só deles e nunca invente ligação. Se vier \"escolher\", pergunte à pessoa qual é.",
   esquema: { type: "object", properties: {
     modo: { type: "string", enum: ["vizinhanca", "dependencias", "caminho"] },
     nome: { type: "string", description: "vizinhanca e dependencias: o nome de quem focar." },
