@@ -5,6 +5,7 @@ import { Callout, Carregando, useEscolherArquivo } from "../../packages/design-s
 import { pedirRegistro, type PedidoRegistro } from "../../lib/abrir-registro";
 import type { Visual } from "../../lib/sara/visual";
 import { duracao, juntarPasso, passoAtual, perguntarComPassos, type PassoSara } from "../../lib/sara/progresso-cliente";
+import { lerTelaAtual } from "../../lib/tela-atual";
 import { SaraVisual } from "./sara-visual";
 import { SaraGuias } from "./sara-guias";
 
@@ -555,7 +556,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
     setPassos([]); setRelogio({ inicio: t0, sinal: t0, passo: t0 });
     let vistos: PassoVisto[] = [];
     const resposta = await perguntarComPassos(`/api/sara/${modulo}`,
-      { pergunta: p, conversa, habilidade: habilidade ?? null, voz, imagem: comFoto ? { tipo: comFoto.tipo, dados: comFoto.dados } : null, anexo: comAnexo ? { nome: comAnexo.nome, texto: comAnexo.texto } : null },
+      { pergunta: p, conversa, habilidade: habilidade ?? null, voz, tela: lerTelaAtual(), imagem: comFoto ? { tipo: comFoto.tipo, dados: comFoto.dados } : null, anexo: comAnexo ? { nome: comAnexo.nome, texto: comAnexo.texto } : null },
       (passo) => {
         const agora = Date.now();
         const antes = vistos.find((x) => x.id === passo.id && x.agente === passo.agente);

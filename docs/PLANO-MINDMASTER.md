@@ -331,7 +331,7 @@ WhatsApp e subagente ficam fora; texto vindo da tela é dado, não instrução.
 | Etapa | Entrega | Situação |
 |---|---|---|
 | T1 | `mostrar_grafo`: foca o Segundo Cérebro (vizinhança, dependências, caminho) | construída 31/10, falta o Deploy |
-| T2 | Contexto da tela: "isso" e "esse" se referem ao que a pessoa vê; lista fechada, rótulo resolvido no servidor | na fila |
+| T2 | Contexto da tela: "isso" e "esse" se referem ao que a pessoa vê; lista fechada, rótulo resolvido no servidor | construída 31/10 (só módulo e seção; o registro aberto entra com a T3), falta o Deploy |
 | T3 | `abrir_registro` genérico e modo destacar: OS → card do Comercial → não conformidade → pedido de compra | na fila |
 | T4 | Visuais ligados: tocar na fatia filtra a tabela da mesma consulta; destacar pela voz; tabela ligada até 100 linhas | na fila |
 

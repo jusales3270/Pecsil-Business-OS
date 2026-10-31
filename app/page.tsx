@@ -26,6 +26,7 @@ import { AccountPanel } from "./components/account-panel";
 import { MeusChamadosTi } from "./components/ti-meus-chamados";
 import { DecisoesParaVoce } from "./components/decisoes";
 import { MemoriaDaSara } from "./components/sara-memoria";
+import { definirTelaAtual } from "../lib/tela-atual";
 import { DocumentosParaVoce } from "./components/documentos-recebidos";
 import { SaraHolograma } from "../modules/warroom/src/holograma/SaraHolograma";
 import { ACCESS_CATALOG, ACCESS_LEVELS, LEVEL_LABELS, levelRank, type AccessGrants } from "../modules/access-catalog";
@@ -381,6 +382,7 @@ function HomeContent() {
   const telaSecao = activeModuleId
     ? (navState?.moduleId === activeModuleId ? [navState.areas?.find((a) => a.id === navState.activeAreaId)?.label, navState.items.find((i) => i.id === navState.activeId)?.label ?? navState.activeId].filter(Boolean).join(" › ") : "")
     : view;
+  useEffect(() => { definirTelaAtual({ modulo: telaModulo, secao: telaSecao ?? null }); }, [telaModulo, telaSecao]);
   useEffect(() => {
     const t = setTimeout(() => {
       void fetch("/api/auditoria/acesso", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ modulo: telaModulo, secao: telaSecao }) }).catch(() => undefined);

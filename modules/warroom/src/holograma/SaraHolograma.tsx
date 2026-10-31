@@ -5,6 +5,7 @@ import { Texto } from "../../../../app/components/sara-painel";
 import { SaraVisual } from "../../../../app/components/sara-visual";
 import { pedirRegistro, type PedidoRegistro } from "../../../../lib/abrir-registro";
 import { pedirFocoGrafo } from "../../../../lib/foco-grafo";
+import { lerTelaAtual } from "../../../../lib/tela-atual";
 import type { FocoGrafo } from "../../../../lib/cerebro/visual";
 import { resumoFalado } from "../../../../lib/sara/central/fala";
 import { duracao, juntarPasso, perguntarComPassos, type PassoSara } from "../../../../lib/sara/progresso-cliente";
@@ -210,7 +211,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     try {
       const anterior = modulo === "warroom" ? conversa.current : conversasDasAreas.current[modulo] ?? null;
       setAtividade({ inicio: Date.now(), passos: [] });
-      const r = await perguntarComPassos(`/api/sara/${modulo}`, { pergunta, conversa: anterior, voz },
+      const r = await perguntarComPassos(`/api/sara/${modulo}`, { pergunta, conversa: anterior, voz, tela: lerTelaAtual() },
         (passo) => setAtividade((a) => (a ? { ...a, passos: juntarPasso(a.passos, passo) } : a))).finally(() => setAtividade(null));
       const j = r.body as { conversa?: string; texto?: string; fontes?: Fonte[]; abrir?: Abrir | null; grafo?: FocoGrafo | null; visuais?: Visual[]; documentos?: DocCriado[]; acoes?: CartaoAcao[]; error?: string } | null;
       if (r.status === 403) return { erro: "Você não tem permissão para a SARA desta área." };

@@ -19,6 +19,7 @@ import { temaDe } from "./temas";
 import { PERSONALIDADE, regraDeTratamento, semTratamentoIndevido, tratamento } from "./personalidade";
 import { memoriaDaSara } from "./central/licoes";
 import { blocoDaMemoria, lembrancas, lembrarDaConversa } from "./memoria-pessoa";
+import { linhaDaTela, rotuloDaTela } from "./tela";
 import { avisarArea, comParecer, conferirSaida, textosDeSaida, type Parecer } from "./conferir-saida";
 import { SARAS } from "./modulos";
 import { createSupabaseAdminClient } from "../supabase/admin";
@@ -68,6 +69,8 @@ function lerFoto(f: { tipo?: string; dados?: string } | null | undefined): { tip
 export type Corpo = { pergunta?: string; conversa?: string | null; habilidade?: string | null; imagem?: { tipo?: string; dados?: string } | null; voz?: boolean; anexo?: { nome?: string; texto?: string } | null;
   /** A pergunta veio pelo WhatsApp (W3): resposta curta, sem gráfico nem tabela, sem "abaixo" ou "no painel". */
   canal?: "whatsapp";
+  /** O que a pessoa está vendo (lib/tela-atual.ts): só um apontador, conferido em lib/sara/tela.ts. */
+  tela?: unknown;
   /** A tela quer ver os passos enquanto a SARA trabalha (resposta em fluxo, uma linha JSON por passo). */
   progresso?: boolean };
 export type Preparado = Exclude<Awaited<ReturnType<typeof preparar>>, { erro: unknown }>;
@@ -156,7 +159,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
       ? "\nA conversa é pelo WhatsApp e a sua resposta volta em ÁUDIO: fale direto, de forma natural, com os números, em até 60 palavras e sem lista. Não fale de \"painel\", \"tela\", \"abaixo\" nem \"tabela\": a pessoa só ouve este áudio. Se houver mais detalhe, diga que ela pode ver na plataforma. Se preparar uma ação, diga o que preparou e que falta a confirmação, sem falar de cartão nem de Permitir: a plataforma manda logo depois como confirmar (pela enquete ou pelo link). Exceção: documento, mensagem de voz ou texto que a pessoa pediu PARA ELA MESMA (enviar_pelo_whatsapp com para \"mim\") chega nesta conversa logo depois da sua resposta, sem confirmar: diga que está mandando, nunca prometa um envio sem preparar com enviar_pelo_whatsapp."
       : "\nA conversa é pelo WhatsApp: responda em texto corrido e curto (até 120 palavras), com os números; no máximo uma lista curta, sem tabela e sem gráfico. Não diga \"abaixo\", \"na tabela\" nem \"no painel\", e não ofereça abrir telas: a pessoa só vê esta mensagem. Se houver mais detalhe, diga que ela pode ver na plataforma. Se preparar uma ação, diga o que preparou e que falta a confirmação, sem falar de cartão nem de Permitir: a plataforma manda logo depois como confirmar (pela enquete ou pelo link). Exceção: documento, mensagem de voz ou texto que a pessoa pediu PARA ELA MESMA (enviar_pelo_whatsapp com para \"mim\") chega nesta conversa logo depois da sua resposta, sem confirmar: diga que está mandando, nunca prometa um envio sem preparar com enviar_pelo_whatsapp.") : ""}${doCanal.comportamento ? `\n\nComo se comportar neste número de WhatsApp (definido pelo proprietário; complementa o que está acima, e as regras de segurança, de permissão e de escopo da empresa continuam valendo e prevalecem):\n${doCanal.comportamento}` : ""}\nResponda sempre em português do Brasil.`,
   };
-  sistema.variavel += notaFoto + memoriaPessoa;
+  sistema.variavel += notaFoto + memoriaPessoa + (corpo?.canal === "whatsapp" ? "" : linhaDaTela(rotuloDaTela(corpo?.tela, p.access)));
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
   const ultima = [...historico].reverse().find((m) => m.papel === "sara")?.texto ?? null;
