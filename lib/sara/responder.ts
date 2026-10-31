@@ -165,7 +165,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const inicioRota = Date.now();
   let r: RespostaSara | null = null;
   let falha: unknown = null;
-  const argsConversa = { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: corpo?.canal === "whatsapp" ? p.ferramentas.filter((f) => !["mostrar", "abrir_tela", "abrir_lancamento"].includes(f.nome)) : p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined, maxVisuais: p.sara.central ? 8 : undefined };
+  const argsConversa = { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: corpo?.canal === "whatsapp" ? p.ferramentas.filter((f) => !["mostrar", "mostrar_grafo", "abrir_tela", "abrir_lancamento"].includes(f.nome)) : p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined, maxVisuais: p.sara.central ? 8 : undefined };
   try {
     // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
     r = await conversar(p.sb, argsConversa);
@@ -182,7 +182,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
     return NextResponse.json({ error: m.startsWith("NAO_CONFIGURADA") ? "A SARA ainda não está configurada." : "A SARA está indisponível agora. Tente de novo em instantes." }, { status: 503 });
   } else {
     r = { ...r, tokensEntrada: r.tokensEntrada + v.tokensEntrada, tokensSaida: r.tokensSaida + v.tokensSaida };
-    if (r.texto.replace(/["“”]/g, "").trim() === textoRecusa) { fora = "modelo"; r = { ...r, texto: textoRecusa, fontes: [], abrir: null, visuais: [], acoes: [] }; }
+    if (r.texto.replace(/["“”]/g, "").trim() === textoRecusa) { fora = "modelo"; r = { ...r, texto: textoRecusa, fontes: [], abrir: null, grafo: null, visuais: [], acoes: [] }; }
     // Trava (24/10): a resposta promete um cartão ("toque em Permitir", "envio preparado") sem nenhuma ação
     // preparada. A SARA tenta de novo, uma vez, chamando a ferramenta de verdade; se ainda não preparar, a resposta
     // sai com o aviso de que nada foi preparado (a pessoa não procura um cartão que não existe).
@@ -202,7 +202,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
     sigilo = vazouInstrucoes(r.texto, { marcador, textos: [regrasDaSara(p.sara), regrasDeEscopo(empresa, p.sara.rotulo, temaDe(modulo)).replace(textoRecusa, ""), doCanal.comportamento ?? ""] });
     if (sigilo) {
       console.error("[sara] resposta bloqueada: revelaria as instruções", modulo, sigilo);
-      r = { ...r, texto: RESPOSTA_SIGILO, fontes: [], abrir: null, visuais: [], acoes: [] };
+      r = { ...r, texto: RESPOSTA_SIGILO, fontes: [], abrir: null, grafo: null, visuais: [], acoes: [] };
     }
   }
   const msModelo = Date.now() - inicioRota;
@@ -237,7 +237,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const passoGravar = iniciarPasso("conferencia", "Guardando a conversa");
   const { data: reg, error } = await p.sb.rpc("sara_registrar", {
     p_conversa: conversa, p_modulo: modulo, p_pergunta: `${imagem ? "📷 " : ""}${corpo?.voz ? "🎤 " : ""}${anexo ? `📎 ${anexo.nome} · ` : ""}${pergunta}`, p_resposta: r.texto,
-    p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou, sigilo }, tempos: { total_ms: Date.now() - inicioRota, conversa_ms: msModelo, etapas: r.tempos ?? [] },
+    p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, grafo: r.grafo ?? null, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou, sigilo }, tempos: { total_ms: Date.now() - inicioRota, conversa_ms: msModelo, etapas: r.tempos ?? [] },
       lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)),
       ...(r.falhasDoModelo?.length ? { falhas_do_modelo: r.falhasDoModelo } : {}),
       ...(parecer ? { conferencia_saida: { aprovada: parecer.aprovada, motivo: parecer.motivo, area: parecer.area, falhou: parecer.falhou } } : {}),
@@ -341,7 +341,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   });
 
   return NextResponse.json({
-    conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, ferramentas: r.ferramentas.map((f) => f.nome), foraDoEscopo: Boolean(fora), visuais: r.visuais, acoes,
+    conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, grafo: r.grafo ?? null, ferramentas: r.ferramentas.map((f) => f.nome), foraDoEscopo: Boolean(fora), visuais: r.visuais, acoes,
     documentos,
     parametros: parametrosUsados(r.ferramentas as Usada[], rotulosDe(p.ferramentas), new Set(ACOES.map((f) => f.nome)), TABELAS),
   });

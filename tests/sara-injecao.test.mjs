@@ -47,7 +47,7 @@ test("injeção: regras fixas em toda SARA e o filtro na resposta, antes de regi
   const r = ler("lib/sara/responder.ts");
   assert.match(r, /variavel: `\$\{linhaDoMarcador\(marcador\)\}/);
   assert.ok(r.indexOf("vazouInstrucoes(r.texto") < r.indexOf('rpc("sara_acao_propor"'), "a resposta bloqueada não deixa ação preparada");
-  assert.match(r, /r = \{ \.\.\.r, texto: RESPOSTA_SIGILO, fontes: \[\], abrir: null, visuais: \[\], acoes: \[\] \}/);
+  assert.match(r, /r = \{ \.\.\.r, texto: RESPOSTA_SIGILO, fontes: \[\], abrir: null, grafo: null, visuais: \[\], acoes: \[\] \}/);
   assert.match(r, /escopo: \{ fora, verificador_falhou: v\.falhou, sigilo \}/);
   // As três montagens das instruções usam regrasDeEscopo (conversa, guias e as SARAs consultadas pela central).
   for (const f of ["lib/sara/responder.ts", "lib/sara/guias-executar.ts", "lib/sara/sessao.ts"]) assert.match(ler(f), /regrasDeEscopo\(empresa/, f);

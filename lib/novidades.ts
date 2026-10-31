@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-31-sara-abre-o-segundo-cerebro",
+    data: "2026-10-31",
+    area: "War Room",
+    modulos: ["warroom"],
+    funcionalidades: ["warroom.cerebro"],
+    titulo: "A SARA abre o Segundo Cérebro já focado",
+    itens: [
+      "Peça \"me mostra tudo que liga a este fornecedor\", \"o que depende deste material\" ou \"qual a ligação entre estes dois\": a SARA abre o cérebro focado e explica com os números de verdade.",
+      "Se houver mais de um com o mesmo nome, ela pergunta qual é. Pela voz, diga para voltar ao cérebro inteiro.",
+    ],
+  },
+  {
     id: "2026-10-31-sara-ajustes-whatsapp-teto",
     data: "2026-10-31",
     area: "SARA",

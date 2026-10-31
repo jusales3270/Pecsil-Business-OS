@@ -13,6 +13,11 @@ export type LigacaoGrafo = {
   primeira: string | null; ultima: string | null; resumo: Record<string, unknown>; procedencia: string; situacao: string;
 };
 export type Subgrafo = { nos: NoGrafo[]; ligacoes: LigacaoGrafo[]; centro?: string };
+/** O que está em foco no cérebro: pela tela ou pedido pela SARA central (mostrar_grafo). */
+export type FocoGrafo =
+  | { modo: "vizinhanca"; no: string; nome: string; profundidade: number }
+  | { modo: "dependencias"; no: string; nome: string; sentido: "jusante" | "montante" }
+  | { modo: "caminho"; de: string; para: string; nomes: [string, string] };
 
 /**
  * Os grupos, na ordem da legenda. `cor` é o token do tema (fichas nas telas); `neuro` é a cor da cena

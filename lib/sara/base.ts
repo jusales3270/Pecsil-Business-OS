@@ -1,3 +1,4 @@
+import type { FocoGrafo } from "../cerebro/visual.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -12,6 +13,8 @@ export type Registro = { tipo: "titulo"; id: string; direcao: "payable" | "recei
 export type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: Registro };
 export type Resultado = {
   dados: unknown; fontes: Fonte[]; abrir?: Abrir;
+  /** Foco do Segundo Cérebro, junto do `abrir` que leva até ele (mostrar_grafo). */
+  grafo?: FocoGrafo;
   /**
    * Dados que ficam na plataforma para o `mostrar` (não vão ao modelo): a SARA central monta o painel com o
    * resultado bruto das consultas que as áreas fizeram ("financeiro.contas_a_receber").

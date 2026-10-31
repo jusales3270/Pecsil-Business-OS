@@ -67,7 +67,7 @@ ajuda antes de ser pedido. A SARA central faz isso para a empresa inteira.
   - 🆕 verificador de números (etapa da plataforma), `simular_cenario`, `avaliar_investimento` (prazo de retorno, VPL, TIR, cenário pessimista), `pareceres_do_conselho` (CFO, Operações, Compras, Comercial, Pessoas, TI);
   - ✅ `calcular`.
 - **Agir e acionar:**
-  - 🆕 `registrar_achado`, `acionar_responsavel` (sobre as Decisões), `pedir_decisao`, `agendar_retorno`, `avisar` (com limite), `mostrar_grafo`;
+  - 🆕 `registrar_achado`, `acionar_responsavel` (sobre as Decisões), `pedir_decisao`, `agendar_retorno`, `avisar` (com limite); ✅ `mostrar_grafo` (T1 da seção 4h);
   - ✅ as ações com Permitir, guias, telas, visual.
 - **Olhar para fora:** 🆕 `pesquisar_na_internet` (aberta, só o assunto, com filtro que barra nome, CNPJ e valores da empresa) e `ler_pagina`.
 - **Memória:** 🆕 `achados_anteriores`, `decisoes_respondidas`, `relatorios_anteriores`.
@@ -320,6 +320,24 @@ Inspirada no Harness² (Google Research, out/2026): melhorar o agente mexendo no
 - Usar só o que já temos: Claude, as SARAs e o banco. O código do Harness² espera Vertex AI e mandaria as perguntas reais para outro serviço externo.
 
 **Quando:** depois da ordem combinada (ações por módulo → Android → E7 → conector universal), e com algumas centenas de perguntas reais por área já acumuladas.
+
+## 4h. E7.T: a SARA central comanda a tela (proprietário, 31/10/2026)
+
+Hoje ela abre telas e monta painéis, mas não muda o que está em foco numa tela aberta. Origem: comparação com o projeto
+LangClean (agente que seleciona no gráfico e a tabela segue a seleção). Regras: o modelo só aponta e a plataforma resolve
+com a sessão da pessoa; mesma permissão da tela; uma navegação por resposta, valendo a última; navegar não grava nada;
+WhatsApp e subagente ficam fora; texto vindo da tela é dado, não instrução.
+
+| Etapa | Entrega | Situação |
+|---|---|---|
+| T1 | `mostrar_grafo`: foca o Segundo Cérebro (vizinhança, dependências, caminho) | construída 31/10, falta o Deploy |
+| T2 | Contexto da tela: "isso" e "esse" se referem ao que a pessoa vê; lista fechada, rótulo resolvido no servidor | na fila |
+| T3 | `abrir_registro` genérico e modo destacar: OS → card do Comercial → não conformidade → pedido de compra | na fila |
+| T4 | Visuais ligados: tocar na fatia filtra a tabela da mesma consulta; destacar pela voz; tabela ligada até 100 linhas | na fila |
+
+Decisões de 31/10: ordem T1 → T4; `mostrar_grafo` só na central; tabela ligada com 100 linhas; ordem das telas acima.
+Na T1, `mostrar_grafo` ficou fora de `SO_ACAO`: ele devolve dados, então o texto antes dele é rascunho e, na lista, vazava
+raciocínio na legenda. A cena enquadra sozinha o foco; a tela só dispara o impulso.
 
 ## 5. Decisões do proprietário (aprovadas em 23/10/2026)
 

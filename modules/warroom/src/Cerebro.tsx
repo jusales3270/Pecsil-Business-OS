@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FAMILIAS, TIPOS, TIPOS_INICIAIS, type LigacaoGrafo, type NoGrafo, type Subgrafo,
-  dataBR, filtrar, linhasDaFicha, resumoDaLigacao, rotuloLigacao, tipoDe,
-} from "../../../lib/cerebro/visual";
+  dataBR, filtrar, linhasDaFicha, resumoDaLigacao, rotuloLigacao, tipoDe, type FocoGrafo } from "../../../lib/cerebro/visual";
 import { type ApiCena, Cena3D, type Margens, type OpcoesCena } from "./Cena3D";
+import { ouvirFocoGrafo, tomarFocoGrafo } from "../../../lib/foco-grafo";
 
 /**
  * War Room › Segundo Cérebro: o grafo da empresa em 3D (docs/PLANO-WAR-ROOM-CEREBRO.md). A cena ocupa a
@@ -13,10 +13,7 @@ import { type ApiCena, Cena3D, type Margens, type OpcoesCena } from "./Cena3D";
  * das SARAs ou ligação nova vira um pulso na cena. Quem tem o War Room vê tudo (W2), com os valores (W4).
  */
 
-type Foco =
-  | { modo: "vizinhanca"; no: string; nome: string; profundidade: number }
-  | { modo: "dependencias"; no: string; nome: string; sentido: "jusante" | "montante" }
-  | { modo: "caminho"; de: string; para: string; nomes: [string, string] };
+type Foco = FocoGrafo;
 type Filtros = { tipos: string[]; familias: string[]; desde: string | null; foco: Foco | null };
 type Visao = { id: string; nome: string; filtros: Filtros; criado_por_nome: string | null; updated_at: string };
 type Situacao = { ultima: { inicio: string; fim: string | null; ms: number | null; nos: { total: number } | null; ligacoes: { total: number } | null } | null; visoes: Visao[]; podeRefazer: boolean };
@@ -127,6 +124,27 @@ export function Cerebro({ notify }: { notify: (m: string) => void }) {
     });
     return () => { vivo = false; };
   }, [foco, lembrar]);
+
+  // A SARA central pediu o foco (mostrar_grafo): vale ao abrir a tela e com ela já aberta. Foco nulo volta ao cérebro inteiro.
+  const pelaSara = useRef(false);
+  useEffect(() => {
+    const pegar = () => {
+      const p = tomarFocoGrafo();
+      if (!p) return;
+      pelaSara.current = Boolean(p.foco);
+      setNoSel(null); setCaminhoDe(null); setFoco(p.foco);
+    };
+    const t = setTimeout(pegar, 0);
+    const parar = ouvirFocoGrafo(pegar);
+    return () => { clearTimeout(t); parar(); };
+  }, []);
+  // Com o subgrafo na tela, o impulso corre pelas ligações. Enquadrar é da cena: com foco, ela ajusta sozinha ao terminar de abrir.
+  useEffect(() => {
+    if (!focado || !pelaSara.current) return;
+    pelaSara.current = false;
+    const t = setTimeout(() => api.current?.pulsar(focado.nos.slice(0, 60).map((n) => n.id), focado.ligacoes.slice(0, 60).map((l) => l.id)), 2500);
+    return () => clearTimeout(t);
+  }, [focado]);
 
   // Pulsos: o que acontece na empresa acende o grafo (a cada 15 s, só com a aba aberta).
   const atual = foco ? focado : base;

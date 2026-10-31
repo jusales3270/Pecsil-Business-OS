@@ -123,8 +123,8 @@ test("holograma: a voz é só a do Grok (Realtime, luna); sem ela, só a legenda
 test("CEO apresentando: navega pelas telas das áreas, minimiza para mostrar e apresenta os gráficos das áreas", () => {
   const c = ler("modules/warroom/src/holograma/SaraHolograma.tsx");
   assert.match(c, /CEO · SISTEMA ATIVO/);
-  assert.match(c, /const apresentar = useCallback\(\(abrir: Abrir \| null, visuais: Visual\[\]\) => \{[\s\S]*setModo\("mini"\)[\s\S]*navegar\(abrir\.modulo/, "minimiza e abre a tela");
-  assert.match(c, /apresentar\(j\.abrir \?\? null, j\.visuais \?\? \[\]\)/, "toda resposta da central passa pela apresentação (digitada ou por voz)");
+  assert.match(c, /const apresentar = useCallback\(\(abrir: Abrir \| null, visuais: Visual\[\], grafo: FocoGrafo \| null = null\) => \{[\s\S]*setModo\("mini"\)[\s\S]*navegar\(abrir\.modulo/, "minimiza e abre a tela");
+  assert.match(c, /apresentar\(j\.abrir \?\? null, j\.visuais \?\? \[\], j\.grafo \?\? null\)/, "toda resposta da central passa pela apresentação (digitada ou por voz)");
   assert.match(c, /setPalco\(visuais\)/, "apresenta os gráficos no palco");
   assert.match(c, /if \(!naWarRoom && modo === "fechado"\) return null;/, "fora da War Room, só quando está trabalhando");
   const sessao = ler("lib/sara/sessao.ts");
@@ -165,7 +165,7 @@ test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números d
   assert.equal(s.voice, "luna");
   assert.equal(s.audio.input.transcription.language_hint, "pt-BR");
   assert.deepEqual(s.audio.input.format, { type: "audio/pcm", rate: 24000 });
-  assert.deepEqual(s.tools.map((t) => t.name), ["responder", "minimizar", "tela_cheia", "proximo_visual", "visual_anterior", "fechar_apresentacao"]);
+  assert.deepEqual(s.tools.map((t) => t.name), ["responder", "minimizar", "tela_cheia", "proximo_visual", "visual_anterior", "limpar_foco_grafo", "fechar_apresentacao"]);
   assert.ok(s.tools.every((t) => t.type === "function"), "sem busca na internet nem outras ferramentas do Grok");
   const ins = v.instrucoesDeVoz({ empresa: "Empresa X", nome: "Júnior", quemDecide: "Financeiro: Ana" });
   assert.match(ins, /português do Brasil/);

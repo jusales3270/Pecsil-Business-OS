@@ -3,6 +3,7 @@ import { iniciarPasso, passoFeito, textoDoPasso } from "./progresso.ts";
 import { filtrarEstado } from "../decisao/guard.ts";
 import { semPensar, type Proposta } from "./base.ts";
 import type { Abrir, Ferramenta, Fonte } from "./ferramentas.ts";
+import type { FocoGrafo } from "../cerebro/visual.ts";
 import { dicaVisual, MOSTRAR, resolverVisual, type ResultadoConsulta, type Visual } from "./visual.ts";
 import { modeloReserva } from "./modelos.ts";
 import { comReserva, falhaDaResposta, FalhaDoModelo, type FalhaRegistrada } from "./tentativas.ts";
@@ -38,7 +39,7 @@ export const AVISO_PROPOSTA = "Preparado, mas NADA foi feito ainda: a pessoa vê
 const MAX_PROPOSTAS = 3;
 
 export type RespostaSara = {
-  texto: string; fontes: Fonte[]; abrir: Abrir | null; ferramentas: { nome: string; entrada: unknown; ok: boolean }[];
+  texto: string; fontes: Fonte[]; abrir: Abrir | null; grafo?: FocoGrafo | null; ferramentas: { nome: string; entrada: unknown; ok: boolean }[];
   /** tokensEntrada inclui os tokens lidos do cache e os gravados nele (volume total de entrada). */
   tokensEntrada: number; tokensSaida: number; cacheLido: number; cacheGravado: number; modelo: string;
   /** Visuais montados pela plataforma com o resultado das consultas (o modelo só apontou). */
@@ -149,6 +150,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
   }
   const fontes: Fonte[] = [];
   let abrir: Abrir | null = null;
+  let grafo: FocoGrafo | null = null;
   const usadas: RespostaSara["ferramentas"] = [];
   let tokensEntrada = 0, tokensSaida = 0, cacheLido = 0, cacheGravado = 0;
   // O texto de todas as rodadas: o modelo pode escrever a resposta antes de pedir uma ferramenta
@@ -199,7 +201,8 @@ export async function conversarCom(sb: SupabaseClient, a: {
       const res = await f.rodar(sb, entrada);
       const json = JSON.stringify(res.dados);
       fontes.push(...res.fontes);
-      if (res.abrir) abrir = res.abrir;
+      // Uma navegação por resposta, e vale a última: abrir outra tela depois descarta o foco do cérebro.
+      if (res.abrir) { abrir = res.abrir; grafo = res.grafo ?? null; }
       resultados.push({ nome, rotulo: f.rotulo ?? nome.replace(/_/g, " "), dados: res.dados, fontes: res.fontes });
       // O resultado bruto das consultas das áreas (SARA central): fica aqui para o mostrar, não vai ao modelo.
       if (res.paraVisual?.length) resultados.push(...res.paraVisual);
@@ -277,7 +280,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
     if (corpo.stop_reason !== "tool_use" || !pedidos.length || !consultou) textos.push(textoDaRodada);
     if (corpo.stop_reason !== "tool_use" || !pedidos.length) {
       const texto = juntar();
-      return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: modeloAtual, visuais, acoes, tempos, falhasDoModelo,
+      return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, grafo, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: modeloAtual, visuais, acoes, tempos, falhasDoModelo,
         resultados: resultados.map((x) => ({ nome: x.nome, rotulo: x.rotulo, dados: x.dados, fontes: x.fontes })) };
     }
     mensagens.push({ role: "assistant", content: corpo.content });
@@ -307,7 +310,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
     }
     mensagens.push({ role: "user", content: devolvidos });
   }
-  return { texto: "A pergunta pediu consultas demais. Tente uma pergunta mais direta.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: modeloAtual, visuais, acoes, tempos, falhasDoModelo };
+  return { texto: "A pergunta pediu consultas demais. Tente uma pergunta mais direta.", fontes: unicas(fontes), abrir, grafo, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: modeloAtual, visuais, acoes, tempos, falhasDoModelo };
 }
 
 const unicas = (f: Fonte[]) => f.filter((x, i) => f.findIndex((y) => y.link === x.link) === i);

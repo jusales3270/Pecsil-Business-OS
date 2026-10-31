@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Texto } from "../../../../app/components/sara-painel";
 import { SaraVisual } from "../../../../app/components/sara-visual";
 import { pedirRegistro, type PedidoRegistro } from "../../../../lib/abrir-registro";
+import { pedirFocoGrafo } from "../../../../lib/foco-grafo";
+import type { FocoGrafo } from "../../../../lib/cerebro/visual";
 import { resumoFalado } from "../../../../lib/sara/central/fala";
 import { duracao, juntarPasso, perguntarComPassos, type PassoSara } from "../../../../lib/sara/progresso-cliente";
 import { paraVoz, semTags } from "../../../../lib/sara/personalidade";
@@ -185,7 +187,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
 
   /* ---- conversa com a SARA central ---- */
   // Apresentação: logo depois de começar a falar, minimiza e mostra a tela ou os gráficos.
-  const apresentar = useCallback((abrir: Abrir | null, visuais: Visual[]) => {
+  const apresentar = useCallback((abrir: Abrir | null, visuais: Visual[], grafo: FocoGrafo | null = null) => {
     if (!abrir && !visuais.length) return;
     setTimeout(() => {
       setPainel(false); setModo("mini");
@@ -194,6 +196,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
         navegar(abrir.modulo, abrir.secao ?? undefined);
         const registro = abrir.registro;
         if (registro) setTimeout(() => pedirRegistro(registro), 400);
+        if (grafo) setTimeout(() => pedirFocoGrafo(grafo), 400);
       }
     }, 1200);
   }, [navegar]);
@@ -209,7 +212,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
       setAtividade({ inicio: Date.now(), passos: [] });
       const r = await perguntarComPassos(`/api/sara/${modulo}`, { pergunta, conversa: anterior, voz },
         (passo) => setAtividade((a) => (a ? { ...a, passos: juntarPasso(a.passos, passo) } : a))).finally(() => setAtividade(null));
-      const j = r.body as { conversa?: string; texto?: string; fontes?: Fonte[]; abrir?: Abrir | null; visuais?: Visual[]; documentos?: DocCriado[]; acoes?: CartaoAcao[]; error?: string } | null;
+      const j = r.body as { conversa?: string; texto?: string; fontes?: Fonte[]; abrir?: Abrir | null; grafo?: FocoGrafo | null; visuais?: Visual[]; documentos?: DocCriado[]; acoes?: CartaoAcao[]; error?: string } | null;
       if (r.status === 403) return { erro: "Você não tem permissão para a SARA desta área." };
       if (!r.ok || !j?.texto) return { erro: j?.error ?? "Não consegui falar com as áreas agora. Tente de novo em instantes." };
       if (modulo === "warroom") conversa.current = j.conversa ?? conversa.current;
@@ -217,7 +220,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
       setResposta({ texto: j.texto, fontes: j.fontes ?? [] });
       const envios = (j.acoes ?? []).filter((a) => a.situacao === "pendente");
       if (j.documentos?.length || envios.length) setDocs({ documentos: j.documentos ?? [], acoes: envios, modulo });
-      apresentar(j.abrir ?? null, j.visuais ?? []);
+      apresentar(j.abrir ?? null, j.visuais ?? [], j.grafo ?? null);
       return { texto: j.texto };
     } catch { return { erro: "Perdi a conexão com a plataforma por um instante. Tente de novo." }; }
   }, [apresentar]);
@@ -271,6 +274,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     if (nome === "tela_cheia") { setModo("cheio"); return { saida: { ok: true } }; }
     if (nome === "proximo_visual") { setEmPainel(false); setSlide((n) => n + 1); return { saida: { ok: true } }; }
     if (nome === "visual_anterior") { setEmPainel(false); setSlide((n) => Math.max(0, n - 1)); return { saida: { ok: true } }; }
+    if (nome === "limpar_foco_grafo") { pedirFocoGrafo(null); return { saida: { ok: true } }; }
     if (nome === "fechar_apresentacao") { setPalco([]); return { saida: { ok: true } }; }
     return { saida: { erro: `Função desconhecida: ${nome}` } };
   }, [consultar]);
