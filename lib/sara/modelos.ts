@@ -12,3 +12,6 @@ export const MODELOS: ModeloOpcao[] = [
 ];
 
 export const modeloValido = (provedor: string, id: string) => MODELOS.some((m) => m.provedor === provedor && m.id === id);
+
+/** O modelo que assume quando o escolhido está fora do ar (lib/sara/tentativas.ts). Haiku → Sonnet, Sonnet → Haiku. */
+export const modeloReserva = (id: string) => MODELOS.find((m) => m.id !== id)?.id ?? null;

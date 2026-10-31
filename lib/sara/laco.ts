@@ -4,6 +4,8 @@ import { filtrarEstado } from "../decisao/guard.ts";
 import { semPensar, type Proposta } from "./base.ts";
 import type { Abrir, Ferramenta, Fonte } from "./ferramentas.ts";
 import { dicaVisual, MOSTRAR, resolverVisual, type ResultadoConsulta, type Visual } from "./visual.ts";
+import { modeloReserva } from "./modelos.ts";
+import { comReserva, falhaDaResposta, FalhaDoModelo, type FalhaRegistrada } from "./tentativas.ts";
 
 /**
  * Laço da conversa da SARA com o Claude (Anthropic) por *tool use*. Não lê o ambiente (a chave e o
@@ -47,6 +49,8 @@ export type RespostaSara = {
   resultados?: { nome: string; rotulo?: string; dados: unknown; fontes?: Fonte[] }[];
   /** Quanto levou cada chamada ao modelo e cada consulta (ms), para medir onde vai o tempo. */
   tempos?: { etapa: string; ms: number }[];
+  /** O que falhou no modelo antes de dar certo (nova tentativa ou troca pelo reserva). */
+  falhasDoModelo?: FalhaRegistrada[];
 };
 export type Sistema = string | { fixo: string; variavel: string };
 
@@ -206,11 +210,11 @@ export async function conversarCom(sb: SupabaseClient, a: {
 
 
   const tempos: { etapa: string; ms: number }[] = [];
-  for (let rodada = 0; rodada < (a.rodadas ?? RODADAS); rodada++) {
-    if (a.sinal?.aborted) throw new Error("CANCELADA");
-    const inicioModelo = Date.now();
-    // Na tela: o que a SARA está fazendo agora (o modelo pensando é o passo mais longo).
-    const pensando = iniciarPasso("pensando", rodada === 0 ? "Entendendo o pedido" : "Analisando o que encontrou");
+  const falhasDoModelo: FalhaRegistrada[] = [];
+  // Trocou para o reserva: fica nele até o fim desta resposta; a próxima pergunta volta ao modelo escolhido.
+  let modeloAtual = a.modelo;
+  type RespostaDoModelo = { content: Bloco[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } };
+  const chamarModelo = async (modelo: string): Promise<RespostaDoModelo> => {
     const ctrl = new AbortController();
     const relogio = setTimeout(() => ctrl.abort(), 60_000);
     const cancelar = () => ctrl.abort();
@@ -220,16 +224,30 @@ export async function conversarCom(sb: SupabaseClient, a: {
       r = await buscar(API, {
         method: "POST", signal: ctrl.signal,
         headers: { "content-type": "application/json", "x-api-key": chave, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({ model: a.modelo, max_tokens: a.maxTokens ?? 1500, thinking: semPensar(a.modelo), system: blocosDoSistema(a.sistema), messages: comCacheNoFim(mensagens), ...(tools.length ? { tools } : {}) }),
+        body: JSON.stringify({ model: modelo, max_tokens: a.maxTokens ?? 1500, thinking: semPensar(modelo), system: blocosDoSistema(a.sistema), messages: comCacheNoFim(mensagens), ...(tools.length ? { tools } : {}) }),
       });
     } catch (e) {
-      pensando.fim(false);
       if (a.sinal?.aborted) throw new Error("CANCELADA");
-      throw e;
+      throw ctrl.signal.aborted ? new FalhaDoModelo("sem resposta em 60 s", { passageira: true, demorou: true })
+        : new FalhaDoModelo(`falha de rede: ${e instanceof Error ? e.message.slice(0, 120) : "erro"}`, { passageira: true });
     } finally { clearTimeout(relogio); a.sinal?.removeEventListener("abort", cancelar); }
-    const corpo = await r.json().catch(() => null) as { content?: Bloco[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }; error?: { message?: string } } | null;
-    pensando.fim(Boolean(r.ok && corpo?.content));
-    if (!r.ok || !corpo?.content) throw new Error(`MODELO_INDISPONIVEL: ${r.status} ${corpo?.error?.message ?? ""}`.trim());
+    const corpo = await r.json().catch(() => null) as (Partial<RespostaDoModelo> & { error?: { message?: string } }) | null;
+    if (!r.ok || !corpo?.content) throw falhaDaResposta(r.status, corpo?.error?.message ?? "", r.headers?.get?.("retry-after"));
+    return corpo as RespostaDoModelo;
+  };
+  for (let rodada = 0; rodada < (a.rodadas ?? RODADAS); rodada++) {
+    if (a.sinal?.aborted) throw new Error("CANCELADA");
+    const inicioModelo = Date.now();
+    // Na tela: o que a SARA está fazendo agora (o modelo pensando é o passo mais longo).
+    const pensando = iniciarPasso("pensando", rodada === 0 ? "Entendendo o pedido" : "Analisando o que encontrou");
+    let corpo: RespostaDoModelo;
+    try {
+      const feito = await comReserva({ modelo: modeloAtual, reserva: modeloReserva(modeloAtual), chamar: chamarModelo, sinal: a.sinal });
+      corpo = feito.resultado;
+      falhasDoModelo.push(...feito.falhas);
+      if (feito.modelo !== modeloAtual) { modeloAtual = feito.modelo; passoFeito("pensando", "O modelo principal não respondeu: seguindo pelo reserva"); }
+    } catch (e) { pensando.fim(false); throw e; }
+    pensando.fim(true);
     tempos.push({ etapa: `modelo ${rodada + 1} (${corpo.usage?.output_tokens ?? 0} tokens de saída)`, ms: Date.now() - inicioModelo });
     cacheLido += corpo.usage?.cache_read_input_tokens ?? 0;
     cacheGravado += corpo.usage?.cache_creation_input_tokens ?? 0;
@@ -259,7 +277,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
     if (corpo.stop_reason !== "tool_use" || !pedidos.length || !consultou) textos.push(textoDaRodada);
     if (corpo.stop_reason !== "tool_use" || !pedidos.length) {
       const texto = juntar();
-      return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais, acoes, tempos,
+      return { texto: texto || "Não consegui montar uma resposta agora.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: modeloAtual, visuais, acoes, tempos, falhasDoModelo,
         resultados: resultados.map((x) => ({ nome: x.nome, rotulo: x.rotulo, dados: x.dados, fontes: x.fontes })) };
     }
     mensagens.push({ role: "assistant", content: corpo.content });
@@ -289,7 +307,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
     }
     mensagens.push({ role: "user", content: devolvidos });
   }
-  return { texto: "A pergunta pediu consultas demais. Tente uma pergunta mais direta.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: a.modelo, visuais, acoes, tempos };
+  return { texto: "A pergunta pediu consultas demais. Tente uma pergunta mais direta.", fontes: unicas(fontes), abrir, ferramentas: usadas, tokensEntrada, tokensSaida, cacheLido, cacheGravado, modelo: modeloAtual, visuais, acoes, tempos, falhasDoModelo };
 }
 
 const unicas = (f: Fonte[]) => f.filter((x, i) => f.findIndex((y) => y.link === x.link) === i);

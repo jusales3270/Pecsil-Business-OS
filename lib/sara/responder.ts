@@ -179,7 +179,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
       const deNovo = await conversar(p.sb, { ...argsConversa, historico: [...historico, { papel: "pessoa", texto: pergunta, created_at: new Date().toISOString() }, { papel: "sara", texto: antes.texto, created_at: new Date().toISOString() }],
         pergunta: AVISO_SEM_CARTAO }).catch(() => null);
       if (deNovo) r = { ...deNovo, ferramentas: [...antes.ferramentas, ...deNovo.ferramentas], tokensEntrada: antes.tokensEntrada + deNovo.tokensEntrada, tokensSaida: antes.tokensSaida + deNovo.tokensSaida,
-        cacheLido: antes.cacheLido + deNovo.cacheLido, cacheGravado: antes.cacheGravado + deNovo.cacheGravado, resultados: [...(antes.resultados ?? []), ...(deNovo.resultados ?? [])] };
+        cacheLido: antes.cacheLido + deNovo.cacheLido, cacheGravado: antes.cacheGravado + deNovo.cacheGravado, resultados: [...(antes.resultados ?? []), ...(deNovo.resultados ?? [])], falhasDoModelo: [...(antes.falhasDoModelo ?? []), ...(deNovo.falhasDoModelo ?? [])] };
       if (!r.acoes.length && prometeuCartao(r.texto)) r = { ...r, texto: `${r.texto}\n\n⚠️ Nada foi preparado nesta resposta: não há cartão para permitir. Peça de novo.` };
     }
   }
@@ -218,6 +218,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
     p_conversa: conversa, p_modulo: modulo, p_pergunta: `${imagem ? "📷 " : ""}${corpo?.voz ? "🎤 " : ""}${anexo ? `📎 ${anexo.nome} · ` : ""}${pergunta}`, p_resposta: r.texto,
     p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou, sigilo }, tempos: { total_ms: Date.now() - inicioRota, conversa_ms: msModelo, etapas: r.tempos ?? [] },
       lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)),
+      ...(r.falhasDoModelo?.length ? { falhas_do_modelo: r.falhasDoModelo } : {}),
       ...(p.sara.central ? { verificador: conferencia, subagentes: p.subagentes, documentos: p.documentos?.criados ?? [] } : {}) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
