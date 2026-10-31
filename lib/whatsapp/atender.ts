@@ -3,6 +3,7 @@ import { gravarMensagemDeVoz } from "../sara/central/mensagem-de-voz";
 import { resumoFalado } from "../sara/central/fala";
 import { sessaoComo } from "../sara/guias-executar";
 import { paraVoz, semExpressoes, semTags } from "../sara/personalidade";
+import { preferenciaPedida, respostaPreferida } from "../sara/memoria-pessoa";
 import { responder } from "../sara/responder";
 import { prepararCom } from "../sara/sessao";
 import { transcrever } from "../sara/voz";
@@ -147,7 +148,10 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
         await marcar({ situacao: "respondida", motivo: "sem_permissao" });
         return { situacao: "respondida", respostas: n };
       }
-      const resposta = await responder(p, sara, { pergunta: pergunta || (imagem ? "" : "Oi"), conversa, voz: audio, imagem, canal: "whatsapp" }, { comportamento: canal.prompt, modelo: canal.modelo, apelido: contato.nome });
+      // Quem pediu resposta por escrito recebe texto, mesmo mandando áudio; o pedido desta mensagem vale na hora.
+      const preferida = preferenciaPedida(pergunta) ?? await respostaPreferida(s.sb).catch(() => null);
+      const falar = audio && preferida !== "texto";
+      const resposta = await responder(p, sara, { pergunta: pergunta || (imagem ? "" : "Oi"), conversa, voz: falar, imagem, canal: "whatsapp" }, { comportamento: canal.prompt, modelo: canal.modelo, apelido: contato.nome });
       const corpo = (await resposta.json().catch(() => null)) as { texto?: string; conversa?: string; acoes?: { id: string; situacao: string }[]; visuais?: unknown[]; error?: string } | null;
       if (!resposta.ok || !corpo?.texto) {
         const n = await responderTexto(corpo?.error ?? "A SARA está indisponível agora. Tente de novo em instantes.");
@@ -162,7 +166,7 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
       const enquete = await avaliarEnquete(admin, perfil.id, contato.id, pendentes.map((a) => a.id)).catch(() => null);
       const extra = complementoEscrito({ acoesPendentes: pendentes.length, visuais: (corpo.visuais ?? []).length, linkSara, enquete: Boolean(enquete) });
       let n = 0;
-      if (audio) {
+      if (falar) {
         // Áudio com áudio: a parte falada é a resposta direta; o resto que não dá para ouvir vai por escrito.
         try {
           const falado = resumoFalado(semTags(corpo.texto), 420, { detalhe: "O detalhe está na plataforma.", semTexto: "Mandei a resposta para a plataforma: abra a SARA para ver." });

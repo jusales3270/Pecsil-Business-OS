@@ -18,6 +18,7 @@ import { preparar } from "./sessao";
 import { temaDe } from "./temas";
 import { PERSONALIDADE, regraDeTratamento, semTratamentoIndevido, tratamento } from "./personalidade";
 import { memoriaDaSara } from "./central/licoes";
+import { blocoDaMemoria, lembrancas, lembrarDaConversa } from "./memoria-pessoa";
 import { SARAS } from "./modulos";
 import { createSupabaseAdminClient } from "../supabase/admin";
 import { fotosPendentes, guardarFoto, leituraDaConversa } from "../qualidade/fotos-servidor";
@@ -135,6 +136,8 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   // J5: o que a empresa ensinou (lições aprovadas pela área) e, na central, o que a vigia aprendeu nas áreas da pessoa.
   const areasDaMemoria = p.sara.central ? Object.values(SARAS).filter((s) => !s.central && p.access.canModule(s.feature) && p.access.can(s.permissao, "ver")).map((s) => s.modulo) : [modulo];
   const memoria = await memoriaDaSara(areasDaMemoria, Boolean(p.sara.central));
+  // I-21: o que foi tratado com esta pessoa em outras conversas, na tela ou no WhatsApp. Só de áreas que ela ainda acessa.
+  const memoriaPessoa = blocoDaMemoria(await lembrancas(p.sb, [...new Set([...areasDaMemoria, modulo, "central"])], conversa).catch(() => []), Object.fromEntries(Object.values(SARAS).map((s) => [s.modulo, s.rotulo])));
   // Marcador secreto desta resposta (injeção): se aparecer na resposta, a SARA revelou as instruções.
   const marcador = novoMarcador();
   // Fixo (vai para o cache) + do momento (hora, quem conversa, situação da conversa, o que não pode).
@@ -144,7 +147,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
       ? "\nA conversa é pelo WhatsApp e a sua resposta volta em ÁUDIO: fale direto, de forma natural, com os números, em até 60 palavras e sem lista. Não fale de \"painel\", \"tela\", \"abaixo\" nem \"tabela\": a pessoa só ouve este áudio. Se houver mais detalhe, diga que ela pode ver na plataforma. Se preparar uma ação, diga o que preparou e que falta a confirmação, sem falar de cartão nem de Permitir: a plataforma manda logo depois como confirmar (pela enquete ou pelo link). Exceção: documento, mensagem de voz ou texto que a pessoa pediu PARA ELA MESMA (enviar_pelo_whatsapp com para \"mim\") chega nesta conversa logo depois da sua resposta, sem confirmar: diga que está mandando, nunca prometa um envio sem preparar com enviar_pelo_whatsapp."
       : "\nA conversa é pelo WhatsApp: responda em texto corrido e curto (até 120 palavras), com os números; no máximo uma lista curta, sem tabela e sem gráfico. Não diga \"abaixo\", \"na tabela\" nem \"no painel\", e não ofereça abrir telas: a pessoa só vê esta mensagem. Se houver mais detalhe, diga que ela pode ver na plataforma. Se preparar uma ação, diga o que preparou e que falta a confirmação, sem falar de cartão nem de Permitir: a plataforma manda logo depois como confirmar (pela enquete ou pelo link). Exceção: documento, mensagem de voz ou texto que a pessoa pediu PARA ELA MESMA (enviar_pelo_whatsapp com para \"mim\") chega nesta conversa logo depois da sua resposta, sem confirmar: diga que está mandando, nunca prometa um envio sem preparar com enviar_pelo_whatsapp.") : ""}${doCanal.comportamento ? `\n\nComo se comportar neste número de WhatsApp (definido pelo proprietário; complementa o que está acima, e as regras de segurança, de permissão e de escopo da empresa continuam valendo e prevalecem):\n${doCanal.comportamento}` : ""}\nResponda sempre em português do Brasil.`,
   };
-  sistema.variavel += notaFoto;
+  sistema.variavel += notaFoto + memoriaPessoa;
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
   const ultima = [...historico].reverse().find((m) => m.papel === "sara")?.texto ?? null;
@@ -275,6 +278,10 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   // habilidades que a SARA propôs — e a rede de segurança da plataforma quando ela não lembrou de propor.
   const resposta = r;
   depois(async () => {
+    if (!fora && !sigilo && ids?.conversa) {
+      await lembrarDaConversa(createSupabaseAdminClient(), { chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", conversa: ids.conversa, modulo, historico, pergunta, resposta: resposta.texto })
+        .catch((e) => console.error("[sara] memória da pessoa", e instanceof Error ? e.message : e));
+    }
     // Custo (E4): passou de 80% do teto do mês, o proprietário é avisado (uma vez no mês).
     const { error: eTeto } = await p.sb.rpc("sara_aviso_teto", { p_modulo: modulo });
     if (eTeto) console.error("[sara] aviso do teto", eTeto.message);

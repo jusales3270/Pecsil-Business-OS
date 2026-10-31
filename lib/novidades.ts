@@ -44,6 +44,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-31-sara-lembra-da-pessoa",
+    data: "2026-10-31",
+    area: "SARA",
+    titulo: "A SARA lembra do que vocês trataram",
+    itens: [
+      "Na volta, a SARA sabe o que ficou pendente na última conversa, seja pela tela ou pelo WhatsApp, sem você repetir a história.",
+      "Se preferir, peça \"prefiro por escrito\": mesmo mandando áudio pelo WhatsApp, a resposta vem em texto.",
+      "No menu da conta, em \"O que a SARA lembra de mim\", só você vê o que foi guardado e apaga o que quiser. Conversas do RH não são guardadas.",
+    ],
+  },
+  {
     id: "2026-10-31-funil-anda-com-o-orcamento",
     data: "2026-10-31",
     area: "Comercial",

@@ -25,6 +25,7 @@ import { SARAS } from "../lib/sara/modulos";
 import { AccountPanel } from "./components/account-panel";
 import { MeusChamadosTi } from "./components/ti-meus-chamados";
 import { DecisoesParaVoce } from "./components/decisoes";
+import { MemoriaDaSara } from "./components/sara-memoria";
 import { DocumentosParaVoce } from "./components/documentos-recebidos";
 import { SaraHolograma } from "../modules/warroom/src/holograma/SaraHolograma";
 import { ACCESS_CATALOG, ACCESS_LEVELS, LEVEL_LABELS, levelRank, type AccessGrants } from "../modules/access-catalog";
@@ -396,6 +397,7 @@ function HomeContent() {
   const [chamadosTi,setChamadosTi]=useState<{id:string|null}|null>(null);
   // "Decisões para você" (menu da conta) e quantas esperam resposta (lido ao abrir o menu).
   const [decisoes,setDecisoes]=useState<{id:string|null}|null>(null);
+  const [memoriaSara,setMemoriaSara]=useState(false);
   const [decisoesPendentes,setDecisoesPendentes]=useState(0);
   // "Documentos para você": os PDFs que a SARA central mandou (aviso do sino abre já no documento).
   const [documentos,setDocumentos]=useState<{id:string|null}|null>(null);
@@ -645,7 +647,7 @@ function HomeContent() {
             {sessionProfile.avatarUrl ? <img className="avatar top avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span className="avatar top">{access.initials}</span>}
             <span><b>{access.name}</b><small>{access.role}</small></span>
           </button>
-          {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setDecisoes({id:null})}}><Icon name="check" size={16}/> Decisões para você{decisoesPendentes>0&&<i className="account-contador">{decisoesPendentes}</i>}</button>}{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setDocumentos({id:null})}}><Icon name="file" size={16}/> Documentos para você</button>}{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setChamadosTi({id:null})}}><Icon name="inbox" size={16}/> Chamados de TI</button>}{canInstall && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar aplicativo</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
+          {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setDecisoes({id:null})}}><Icon name="check" size={16}/> Decisões para você{decisoesPendentes>0&&<i className="account-contador">{decisoesPendentes}</i>}</button>}{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setMemoriaSara(true)}}><Icon name="users" size={16}/> O que a SARA lembra de mim</button>}{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setDocumentos({id:null})}}><Icon name="file" size={16}/> Documentos para você</button>}{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setChamadosTi({id:null})}}><Icon name="inbox" size={16}/> Chamados de TI</button>}{canInstall && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar aplicativo</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
         </div>
       </header>
       {(()=>{
@@ -713,7 +715,7 @@ function HomeContent() {
           <span>Menu</span>
         </button>
       </nav>
-    </main>{accountPanel&&<AccountPanel access={access} profile={sessionProfile} onClose={()=>setAccountPanel(false)} onSaved={reloadIdentity} notify={notify}/>}{chamadosTi&&realAccess&&<MeusChamadosTi key={chamadosTi.id??"lista"} abrirId={chamadosTi.id} onClose={()=>setChamadosTi(null)} notify={notify}/>}{decisoes&&realAccess&&<DecisoesParaVoce focoId={decisoes.id} onClose={()=>{setDecisoes(null);setDecisoesPendentes(0)}} notify={notify}/>}{documentos&&realAccess&&<DocumentosParaVoce focoId={documentos.id} onClose={()=>setDocumentos(null)}/>}{realAccess&&canUseFeature(access,"warroom.sara","ver")&&<SaraHolograma naWarRoom={activeModuleId==="warroom"} navegar={(m,s)=>openModule(m,s)}/>}
+    </main>{accountPanel&&<AccountPanel access={access} profile={sessionProfile} onClose={()=>setAccountPanel(false)} onSaved={reloadIdentity} notify={notify}/>}{memoriaSara&&realAccess&&<MemoriaDaSara onClose={()=>setMemoriaSara(false)} notify={notify}/>}{chamadosTi&&realAccess&&<MeusChamadosTi key={chamadosTi.id??"lista"} abrirId={chamadosTi.id} onClose={()=>setChamadosTi(null)} notify={notify}/>}{decisoes&&realAccess&&<DecisoesParaVoce focoId={decisoes.id} onClose={()=>{setDecisoes(null);setDecisoesPendentes(0)}} notify={notify}/>}{documentos&&realAccess&&<DocumentosParaVoce focoId={documentos.id} onClose={()=>setDocumentos(null)}/>}{realAccess&&canUseFeature(access,"warroom.sara","ver")&&<SaraHolograma naWarRoom={activeModuleId==="warroom"} navegar={(m,s)=>openModule(m,s)}/>}
       {toast&&<div className="toast"><span>✓</span>{toast}</div>}
   </div>;
 }
