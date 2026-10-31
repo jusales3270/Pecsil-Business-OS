@@ -9703,6 +9703,11 @@ a.doc-abrir { text-decoration: none; }
 .ds-excluir { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-secondary); cursor: pointer; }
 .ds-excluir:hover, .ds-excluir:focus-visible { outline: none; background: var(--tint-red); color: var(--accent-red); }
 .ds-excluir:focus-visible { box-shadow: var(--shadow-focus); }
+
+/* O registro que a SARA mostrou na tela acende por 4 s. */
+.sara-destaque { outline: 2px solid var(--accent, #2563eb); outline-offset: 2px; border-radius: var(--radius-sm, 6px); animation: sara-destaque 1.2s ease-in-out 3; }
+@keyframes sara-destaque { 50% { outline-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .sara-destaque { animation: none; } }
 .ds-excluir:disabled { opacity: .4; cursor: not-allowed; background: transparent; color: var(--text-muted); }
 /* Notas emitidas: faixa da homologação (a SEFAZ de teste), azul para não confundir com o treino. */
 .nfe-faixa-treino.homologacao { border-color: var(--edge-blue); background: var(--tint-blue); }

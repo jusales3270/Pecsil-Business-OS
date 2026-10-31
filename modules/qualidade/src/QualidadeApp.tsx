@@ -3,6 +3,8 @@
 /* eslint-disable @next/next/no-img-element -- fotos servidas pela rota autenticada da plataforma */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { destacarNaTela, useRegistroNaTela } from "../../../lib/registro-na-tela";
+import { definirRegistroAberto } from "../../../lib/tela-atual";
 import { Button, Callout, Modal, Segmented, Status } from "../../../packages/design-system";
 import { VisualizarArquivo } from "../../../app/components/visualizar-arquivo";
 import { useModuleNav } from "../../../lib/module-nav-context";
@@ -104,6 +106,12 @@ function Lista({ dados, temSara, depois }: { dados: Dados | null; temSara: boole
   const [setor, setSetor] = useState("");
   const [busca, setBusca] = useState("");
   const [aberta, setAberta] = useState<string | null>(null);
+  // A SARA pediu uma NC: tira os filtros (ela pode não estar entre as abertas) e abre ou acende a linha.
+  useRegistroNaTela("nc", (p) => {
+    setFiltro("todas"); setTipo(""); setSetor(""); setBusca("");
+    if (p.modo === "destacar") destacarNaTela(p.id); else setAberta(p.id);
+  });
+  useEffect(() => { definirRegistroAberto(aberta ? { tipo: "nc", id: aberta } : null); return () => definirRegistroAberto(null); }, [aberta]);
 
   const todas = useMemo(() => dados?.ncs ?? [], [dados]);
   const lista = useMemo(() => {
@@ -136,7 +144,7 @@ function Lista({ dados, temSara, depois }: { dados: Dados | null; temSara: boole
             <div className="vnd-tabela qualidade-nc" role="table" aria-label="Não conformidades">
               <div className="cabeca" role="row"><span>Foto</span><span>Nº</span><span>O que aconteceu</span><span>Setor e local</span><span>Tipo</span><span>Situação</span><span>Registrou</span></div>
               {lista.map((n) => (
-                <button type="button" role="row" key={n.id} onClick={() => setAberta(n.id)}>
+                <button type="button" role="row" key={n.id} data-registro={n.id} onClick={() => setAberta(n.id)}>
                   <span className="qualidade-miniatura">{n.qualidade_nc_fotos[0] ? <img src={urlFoto(n.qualidade_nc_fotos[0].id)} alt="" loading="lazy" /> : <small>sem foto</small>}</span>
                   <span>NC-{n.numero}</span>
                   <span className="nome qualidade-desc">{n.descricao}<small>{dataHora(n.created_at)}{n.qualidade_nc_fotos.length > 1 ? ` · ${n.qualidade_nc_fotos.length} fotos` : ""}</small><small className="qualidade-so-celular">NC-{n.numero} · {n.setor} · {SITUACAO[n.situacao].label}</small></span>

@@ -5,12 +5,28 @@ import DivisaoTabs from '@/components/DivisaoTabs';
 
 import { useEffect } from 'react';
 import { rotuloOC } from '../../../../lib/compras/rotulo';
+import { destacarNaTela, useRegistroNaTela } from '../../../../lib/registro-na-tela';
 
 export default function ComprasPage() {
-  const { user, compras, cotacoes, currentDivisao, activeCotacaoIdForModal, setActiveCotacaoIdForModal } = useStore();
+  const { user, compras, cotacoes, currentDivisao, setDivisao, activeCotacaoIdForModal, setActiveCotacaoIdForModal } = useStore();
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+
+  // A SARA mostra uma compra: tira os filtros, vai para a divisão dela e acende a linha (esta tela não tem detalhe).
+  // Espera a lista carregar: sem a cotação não dá para saber a divisão.
+  const [pedidoSara, setPedidoSara] = useState<{ id: string; cotacao: number | null } | null>(null);
+  useRegistroNaTela('pedido_compra', (p) => { setSearch(''); setDateFrom(''); setDateTo(''); setPedidoSara({ id: p.id, cotacao: p.cotacao }); });
+  useEffect(() => {
+    if (!pedidoSara || !cotacoes.length) return;
+    const t = setTimeout(() => {
+      const cot = cotacoes.find((c) => c.id === pedidoSara.cotacao);
+      if (cot && cot.divisao !== currentDivisao) setDivisao(cot.divisao);
+      destacarNaTela(pedidoSara.id);
+      setPedidoSara(null);
+    }, 0);
+    return () => clearTimeout(t);
+  }, [pedidoSara, cotacoes, currentDivisao, setDivisao]);
 
   useEffect(() => {
     if (activeCotacaoIdForModal) {
@@ -146,7 +162,7 @@ export default function ComprasPage() {
               </thead>
               <tbody>
                 {filteredCompras.map(c => (
-                  <tr key={c.id} className="border-b border-black/[0.04] hover:bg-[#fafafa] transition-colors">
+                  <tr key={c.id} data-registro={c.id} className="border-b border-black/[0.04] hover:bg-[#fafafa] transition-colors">
                     <td className="py-3 px-4 font-medium text-[#212121] whitespace-nowrap">{rotuloOC(c.cotacaoId)}</td>
                     <td className="py-3 px-4 text-[#212121] max-w-[180px] truncate">{c.fornecedor}</td>
                     <td className="py-3 px-4 text-[#212121] max-w-[220px] truncate">{c.produto}</td>
@@ -171,7 +187,7 @@ export default function ComprasPage() {
           </div>
         ) : (
           filteredCompras.map(c => (
-            <div key={c.id} className="bg-white rounded-xl border border-black/[0.08] shadow-sm p-4">
+            <div key={c.id} data-registro={c.id} className="bg-white rounded-xl border border-black/[0.08] shadow-sm p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-[#757575]">{rotuloOC(c.cotacaoId)}</span>
                 <span className="text-xs text-[#757575]">{formatDate(c.dataCompra)}</span>

@@ -1,3 +1,4 @@
+import { ABRIR_REGISTRO } from "./registros.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CENARIOS, projetar, saldoDePartida, type CenarioId, type Conta, type Parcela } from "../finance/fluxo-90.ts";
 
@@ -236,7 +237,7 @@ export const DADOS_DA_EMPRESA: Ferramenta = {
 };
 
 /** Todas as consultas da equipe: as do Financeiro, as de cada agente (lib/sara/agentes) e os dados da empresa. */
-export const FERRAMENTAS: Ferramenta[] = [...FINANCEIRO, ...AGENTES.flatMap((a) => a.ferramentas), DADOS_DA_EMPRESA];
+export const FERRAMENTAS: Ferramenta[] = [...FINANCEIRO, ...AGENTES.flatMap((a) => a.ferramentas), DADOS_DA_EMPRESA, ABRIR_REGISTRO];
 
 /** Abrir uma tela para a pessoa: só entre as que ela pode abrir (a lista entra já filtrada). */
 export function ferramentaDeTelas(telas: { id: string; modulo: string; secao?: string; rotulo: string; serve: string }[]): Ferramenta | null {

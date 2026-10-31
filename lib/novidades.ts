@@ -44,6 +44,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-31-sara-mostra-o-registro",
+    data: "2026-10-31",
+    area: "SARA",
+    modulos: ["producao", "comercial", "qualidade", "compras", "financeiro"],
+    titulo: "A SARA leva você ao registro certo",
+    itens: [
+      "Peça \"mostra onde está a OS 1234\" ou \"abre a NC-1\": a SARA vai até a tela e acende a linha por alguns segundos, ou abre o detalhe. Vale para OS, cards do funil, não conformidades e compras.",
+      "Com a tela aberta, pode perguntar \"esse aqui está atrasado?\" sem dizer o nome: ela sabe o que você está vendo.",
+    ],
+  },
+  {
     id: "2026-10-31-sara-abre-o-segundo-cerebro",
     data: "2026-10-31",
     area: "War Room",

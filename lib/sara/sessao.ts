@@ -75,6 +75,7 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
     const telasDasAreas = areas.flatMap((x) => x.telas).filter((t) => t.exige.some((f) => access.can(f, "ver")));
     const navegarCentral = ferramentaDeTelas(telasDasAreas.filter((t, i) => telasDasAreas.findIndex((y) => y.id === t.id) === i));
     const lancamento = FERRAMENTAS.find((f) => f.nome === "abrir_lancamento" && f.exige.some(pode));
+    const registro = FERRAMENTAS.find((f) => f.nome === "abrir_registro" && f.exige.some(pode));
     // Documentos (só a central cria): as fontes dos números são o que as áreas e a calculadora devolveram.
     const documentos: ContextoDocumentos = { fontes: [], visuais: visuaisSubagentes, criados: [], conversa: null };
     // Zero-inference na conta: cada parcela tem de ter vindo das áreas (ou de uma conta anterior), porque o
@@ -94,7 +95,7 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
       return { ...r, dados };
     } };
     const ferramentas: Ferramenta[] = [ferramentaPerguntarASara(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos.fontes), calcular, PERIODO,
-      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ...(pode("warroom.cerebro") ? [MOSTRAR_GRAFO] : []), ferramentaCriarDocumento(documentos), ENVIAR_DOCUMENTO, ENVIAR_WHATSAPP, ferramentaCriarMensagemDeVoz(documentos),
+      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ...(registro ? [registro] : []), ...(pode("warroom.cerebro") ? [MOSTRAR_GRAFO] : []), ferramentaCriarDocumento(documentos), ENVIAR_DOCUMENTO, ENVIAR_WHATSAPP, ferramentaCriarMensagemDeVoz(documentos),
       // Painel na tela (como as SARAs das áreas): os números vêm das consultas das áreas ou da calculadora.
       MOSTRAR,
       // J5: o que a pessoa ensina vira lição, aprovada pela área.

@@ -24,7 +24,7 @@ export async function opcoesDaNc(sb: SupabaseClient) {
   return { tipos: r.data.tipos as string[], setores: (s.data ?? []).map((d) => String(d.name)), usa_gravidade: Boolean(r.data.usar_gravidade), gravidades: r.data.usar_gravidade ? (r.data.gravidades as string[]) : [], lista_provisoria: !r.data.revisado_em };
 }
 
-type LinhaNc = { numero: number; tipo: string; setor: string; local: string | null; maquina: string | null; os_codigo: string | null; gravidade: string | null; situacao: string; descricao: string; autor_nome: string; created_at: string };
+type LinhaNc = { id: string; numero: number; tipo: string; setor: string; local: string | null; maquina: string | null; os_codigo: string | null; gravidade: string | null; situacao: string; descricao: string; autor_nome: string; created_at: string };
 
 const conta = (l: LinhaNc[], campo: "tipo" | "setor") => Object.entries(l.reduce<Record<string, number>>((x, n) => { x[n[campo]] = (x[n[campo]] ?? 0) + 1; return x; }, {})).sort((a, b) => b[1] - a[1]);
 
@@ -45,7 +45,7 @@ const ferramentasNc: Ferramenta[] = [
     rodar: async (sb, e) => {
       const janela = Math.min(Math.max(Number(e.dias) || 90, 1), 1100);
       const desde = new Date(Date.now() - janela * 86_400_000).toISOString();
-      let q = sb.from("qualidade_nao_conformidades").select("numero, tipo, setor, local, maquina, os_codigo, gravidade, situacao, descricao, autor_nome, created_at").gte("created_at", desde).order("created_at", { ascending: false }).limit(500);
+      let q = sb.from("qualidade_nao_conformidades").select("id, numero, tipo, setor, local, maquina, os_codigo, gravidade, situacao, descricao, autor_nome, created_at").gte("created_at", desde).order("created_at", { ascending: false }).limit(500);
       if (e.situacao && SITUACAO[String(e.situacao)]) q = q.eq("situacao", String(e.situacao));
       const { data, error } = await q;
       if (error) throw new Error(error.message);
@@ -55,7 +55,7 @@ const ferramentasNc: Ferramenta[] = [
       const h = hoje();
       return {
         dados: { periodo_dias: janela, total: l.length, abertas: l.filter((n) => n.situacao === "aberta").length, por_tipo: conta(l, "tipo"), por_setor: conta(l, "setor"),
-          lista: l.slice(0, 40).map((n) => ({ numero: `NC-${n.numero}`, data: n.created_at.slice(0, 10), dias_atras: dias(n.created_at.slice(0, 10), h), tipo: n.tipo, setor: n.setor, local: n.local, maquina: n.maquina, os: n.os_codigo, gravidade: n.gravidade, situacao: SITUACAO[n.situacao], descricao: n.descricao.slice(0, 300), registrou: n.autor_nome })) },
+          lista: l.slice(0, 40).map((n) => ({ id: n.id, numero: `NC-${n.numero}`, data: n.created_at.slice(0, 10), dias_atras: dias(n.created_at.slice(0, 10), h), tipo: n.tipo, setor: n.setor, local: n.local, maquina: n.maquina, os: n.os_codigo, gravidade: n.gravidade, situacao: SITUACAO[n.situacao], descricao: n.descricao.slice(0, 300), registrou: n.autor_nome })) },
         fontes: [fonteNc],
       };
     },
@@ -103,7 +103,7 @@ Quem decide: a área de Qualidade (tipos, gravidade, como tratar). Se a lista de
 export const qualidade: Agente = {
   sara: {
     modulo: M, nome: "SARA da Qualidade", rotulo: "Qualidade", feature: M, permissao: "qualidade.sara", manual: MANUAL,
-    ferramentas: SECOES.flatMap((s) => s.ferramentas.map((f) => f.nome)), telas: SECOES.flatMap((s) => s.telas),
+    ferramentas: [...SECOES.flatMap((s) => s.ferramentas.map((f) => f.nome)), "abrir_registro"], telas: SECOES.flatMap((s) => s.telas),
     sugestoes: ["Quero registrar uma não conformidade", "Quais não conformidades estão abertas?", "O que mais se repete nos últimos 90 dias?", "O que é um 8D?"],
     // Julgar foto e descrição pede o modelo mais capaz; o volume é baixo (plano de 30/10/2026).
     modelo: "claude-sonnet-5-5", maxTokens: 2000,

@@ -1,6 +1,7 @@
 "use client";
 
 import { DragEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { destacarNaTela, useRegistroNaTela } from "../../../../lib/registro-na-tela";
 import { Button, Card, Status } from "../../../../packages/design-system";
 
 type Etapa = { id: string; code: string; label: string; kind: "aberto" | "ganho" | "perdido" };
@@ -57,6 +58,8 @@ export function FunilBoard({ notify }: { notify: (message: string) => void }) {
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [alvo, setAlvo] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  // A SARA mostra um card: acende no quadro (o funil não tem detalhe).
+  useRegistroNaTela("card_comercial", (p) => destacarNaTela(p.id));
 
   const carregar = useCallback(async (signal?: AbortSignal) => {
     const resposta = await fetch("/api/comercial/funil", { cache: "no-store", signal });
@@ -181,6 +184,7 @@ export function FunilBoard({ notify }: { notify: (message: string) => void }) {
                 {cards.map((card) => (
                   <article
                     key={card.id}
+                    data-registro={card.id}
                     className={`funil-card${arrastando === card.id ? " arrastando" : ""}`}
                     draggable={canEdit}
                     onDragStart={(event) => {

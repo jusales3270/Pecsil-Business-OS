@@ -20,6 +20,7 @@ import { PERSONALIDADE, regraDeTratamento, semTratamentoIndevido, tratamento } f
 import { memoriaDaSara } from "./central/licoes";
 import { blocoDaMemoria, lembrancas, lembrarDaConversa } from "./memoria-pessoa";
 import { linhaDaTela, rotuloDaTela } from "./tela";
+import { rotuloDoRegistro } from "./registros";
 import { avisarArea, comParecer, conferirSaida, textosDeSaida, type Parecer } from "./conferir-saida";
 import { SARAS } from "./modulos";
 import { createSupabaseAdminClient } from "../supabase/admin";
@@ -159,7 +160,10 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
       ? "\nA conversa é pelo WhatsApp e a sua resposta volta em ÁUDIO: fale direto, de forma natural, com os números, em até 60 palavras e sem lista. Não fale de \"painel\", \"tela\", \"abaixo\" nem \"tabela\": a pessoa só ouve este áudio. Se houver mais detalhe, diga que ela pode ver na plataforma. Se preparar uma ação, diga o que preparou e que falta a confirmação, sem falar de cartão nem de Permitir: a plataforma manda logo depois como confirmar (pela enquete ou pelo link). Exceção: documento, mensagem de voz ou texto que a pessoa pediu PARA ELA MESMA (enviar_pelo_whatsapp com para \"mim\") chega nesta conversa logo depois da sua resposta, sem confirmar: diga que está mandando, nunca prometa um envio sem preparar com enviar_pelo_whatsapp."
       : "\nA conversa é pelo WhatsApp: responda em texto corrido e curto (até 120 palavras), com os números; no máximo uma lista curta, sem tabela e sem gráfico. Não diga \"abaixo\", \"na tabela\" nem \"no painel\", e não ofereça abrir telas: a pessoa só vê esta mensagem. Se houver mais detalhe, diga que ela pode ver na plataforma. Se preparar uma ação, diga o que preparou e que falta a confirmação, sem falar de cartão nem de Permitir: a plataforma manda logo depois como confirmar (pela enquete ou pelo link). Exceção: documento, mensagem de voz ou texto que a pessoa pediu PARA ELA MESMA (enviar_pelo_whatsapp com para \"mim\") chega nesta conversa logo depois da sua resposta, sem confirmar: diga que está mandando, nunca prometa um envio sem preparar com enviar_pelo_whatsapp.") : ""}${doCanal.comportamento ? `\n\nComo se comportar neste número de WhatsApp (definido pelo proprietário; complementa o que está acima, e as regras de segurança, de permissão e de escopo da empresa continuam valendo e prevalecem):\n${doCanal.comportamento}` : ""}\nResponda sempre em português do Brasil.`,
   };
-  sistema.variavel += notaFoto + memoriaPessoa + (corpo?.canal === "whatsapp" ? "" : linhaDaTela(rotuloDaTela(corpo?.tela, p.access)));
+  // T2: a tela vem do catálogo; o registro aberto, resolvido aqui com a sessão da pessoa.
+  const naTela = corpo?.canal === "whatsapp" ? null : rotuloDaTela(corpo?.tela, p.access);
+  const registroNaTela = naTela ? await rotuloDoRegistro(p.sb, (corpo?.tela as { registro?: unknown } | null)?.registro ?? null).catch(() => null) : null;
+  sistema.variavel += notaFoto + memoriaPessoa + linhaDaTela(registroNaTela ?? naTela);
   // Verificador de escopo em paralelo: se der FORA, cancela a conversa e responde a recusa padrão.
   const parar = new AbortController();
   const ultima = [...historico].reverse().find((m) => m.papel === "sara")?.texto ?? null;
@@ -168,7 +172,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const inicioRota = Date.now();
   let r: RespostaSara | null = null;
   let falha: unknown = null;
-  const argsConversa = { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: corpo?.canal === "whatsapp" ? p.ferramentas.filter((f) => !["mostrar", "mostrar_grafo", "abrir_tela", "abrir_lancamento"].includes(f.nome)) : p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined, maxVisuais: p.sara.central ? 8 : undefined };
+  const argsConversa = { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: corpo?.canal === "whatsapp" ? p.ferramentas.filter((f) => !["mostrar", "mostrar_grafo", "abrir_tela", "abrir_lancamento", "abrir_registro"].includes(f.nome)) : p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined, maxVisuais: p.sara.central ? 8 : undefined };
   try {
     // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
     r = await conversar(p.sb, argsConversa);

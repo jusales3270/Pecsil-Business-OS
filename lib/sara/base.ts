@@ -9,7 +9,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type Fonte = { rotulo: string; link: string };
 /** Registro exato a abrir dentro da tela (hoje: título do Financeiro, na aba onde ele está). */
-export type Registro = { tipo: "titulo"; id: string; direcao: "payable" | "receivable"; aba: "aberto" | "previsoes" | "quitados"; mes: string | null };
+export type ModoRegistro = "abrir" | "destacar";
+export type Registro =
+  | { tipo: "titulo"; id: string; direcao: "payable" | "receivable"; aba: "aberto" | "previsoes" | "quitados"; mes: string | null }
+  | { tipo: "os"; id: string; modo: ModoRegistro }
+  | { tipo: "card_comercial"; id: string; modo: ModoRegistro }
+  | { tipo: "nc"; id: string; modo: ModoRegistro }
+  | { tipo: "pedido_compra"; id: string; cotacao: number | null; modo: ModoRegistro };
 export type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: Registro };
 export type Resultado = {
   dados: unknown; fontes: Fonte[]; abrir?: Abrir;

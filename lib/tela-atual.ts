@@ -4,8 +4,13 @@
  */
 
 export type TelaAtual = { modulo: string; secao: string | null };
+export type RegistroAberto = { tipo: string; id: string };
 
 let atual: TelaAtual | null = null;
+let registro: RegistroAberto | null = null;
 
-export function definirTelaAtual(t: TelaAtual | null) { atual = t; }
-export const lerTelaAtual = () => atual;
+/** Mudou de tela: o registro aberto na anterior deixa de valer. */
+export function definirTelaAtual(t: TelaAtual | null) { atual = t; registro = null; }
+/** A tela que abre um detalhe avisa ao abrir e limpa ao fechar. */
+export function definirRegistroAberto(r: RegistroAberto | null) { registro = r; }
+export const lerTelaAtual = () => (atual ? { ...atual, registro } : null);

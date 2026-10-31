@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { destacarNaTela, useRegistroNaTela } from '../../../../lib/registro-na-tela';
 import type { DashboardData, OSResumo } from '../types';
 import { Panel, SectionLabel, Status } from '../../../../packages/design-system';
 import { ProducaoIcon } from './ProducaoIcon';
@@ -10,6 +11,8 @@ interface Props {
 export function OrdensServicoSection({ data }: Props) {
   const [filtroStatus, setFiltroStatus] = useState<string>('todas');
   const [busca, setBusca] = useState<string>('');
+  // A SARA mostra uma OS: tira os filtros e acende a linha (esta tela não tem detalhe).
+  useRegistroNaTela('os', (p) => { setFiltroStatus('todas'); setBusca(''); destacarNaTela(p.id); });
 
   // "atrasada" no Forja é calculada pelo prazo: a mesma OS também está na lista
   // do status gravado (aberta ou em produção). Aqui ela aparece uma vez só.
@@ -104,7 +107,7 @@ export function OrdensServicoSection({ data }: Props) {
                 </tr>
               ) : (
                 osFiltradas.map((os) => (
-                  <tr key={os.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <tr key={os.id} data-registro={os.codigoGrv} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                     <td style={{ padding: '10px 8px', fontFamily: 'var(--font-mono, monospace)', fontWeight: 'var(--fw-bold)' }}>
                       {os.codigoGrv}
                     </td>

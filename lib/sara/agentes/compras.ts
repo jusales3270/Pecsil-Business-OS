@@ -146,12 +146,12 @@ const ferramentas: Ferramenta[] = [
     esquema: { type: "object", properties: { dias: { type: "integer", description: "Janela em dias (padrão 30, máximo 365)." }, fornecedor: { type: "string" }, produto: { type: "string" } } },
     rodar: async (sb, e) => {
       const de = new Date(Date.now() - num(e.dias, 30, 1, 365) * 86_400_000).toISOString().slice(0, 10);
-      let q = sb.from("compras").select("fornecedor, produto, quantidade, unidade, valor_unit, total, data_compra").gte("data_compra", de).order("data_compra", { ascending: false }).limit(1000);
+      let q = sb.from("compras").select("id, fornecedor, produto, quantidade, unidade, valor_unit, total, data_compra").gte("data_compra", de).order("data_compra", { ascending: false }).limit(1000);
       if (termo(e.fornecedor)) q = q.ilike("fornecedor", `%${termo(e.fornecedor)}%`);
       if (termo(e.produto)) q = q.ilike("produto", `%${termo(e.produto)}%`);
       const { data, error } = await q;
       if (error) throw new Error(error.message);
-      const linhas = (data ?? []) as { fornecedor: string; produto: string; quantidade: number; unidade: string | null; valor_unit: number; total: number | null; data_compra: string }[];
+      const linhas = (data ?? []) as { id: number; fornecedor: string; produto: string; quantidade: number; unidade: string | null; valor_unit: number; total: number | null; data_compra: string }[];
       const valor = (l: (typeof linhas)[number]) => Number(l.total ?? Number(l.valor_unit) * Number(l.quantidade));
       const porFornecedor = Object.entries(linhas.reduce<Record<string, number>>((acc, l) => { acc[l.fornecedor] = reais((acc[l.fornecedor] ?? 0) + valor(l)); return acc; }, {}))
         .sort((a, b) => b[1] - a[1]).slice(0, 10).map(([fornecedor, total]) => ({ fornecedor, total }));
@@ -323,6 +323,7 @@ const regras: Agente["regras"] = [
 ];
 
 const MANUAL = `Você é a SARA do Compras do Business OS.
+Para mostrar uma compra exata na lista: consulte compras_realizadas e use abrir_registro com tipo pedido_compra e o id dela.
 Seções (aparecem conforme a permissão e a visão — Orçamentista cota, Gestor aprova):
 - Dashboard: visão geral.
 - Pedidos almoxarifado: pedidos de material do almoxarifado e da fundição para cotar; dá para convidar fornecedor por link (ele responde sem login e vira cotação ligada ao pedido).
@@ -338,7 +339,7 @@ Quem decide: aprovar cotação é do Domingo e do Ricardo; o cadastro de fornece
 export const compras: Agente = {
   sara: {
     modulo: M, nome: "SARA do Compras", rotulo: "Compras", feature: M, permissao: "compras.sara", manual: MANUAL,
-    ferramentas: ferramentas.map((f) => f.nome), telas,
+    ferramentas: [...ferramentas.map((f) => f.nome), "abrir_registro"], telas,
     sugestoes: ["A quem pedir preço do pedido mais novo?", "Quantas cotações estão esperando aprovação?", "Quais OCs aprovadas ainda não viraram compra?", "Quem vende a resina mais barato?", "Tem pedido de material para cotar?"],
   },
   ferramentas, regras,

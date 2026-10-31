@@ -6,6 +6,7 @@ import type { FinanceChartAccount, FinanceTitle } from "../../lib/data/finance";
 import { FinanceRevisao, useRevisaoCount } from "./finance-revisao";
 import { agruparRecebiveis, emAberto, resumoRecebiveis, situacaoRecebivel, type SituacaoRecebivel } from "../../lib/finance/recebiveis-core";
 import { ouvirRegistro, tomarRegistro } from "../../lib/abrir-registro";
+import { definirRegistroAberto } from "../../lib/tela-atual";
 
 /**
  * Contas a pagar e Contas a receber: a mesma tela, com os nomes de cada lado.
@@ -106,7 +107,7 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
   useEffect(() => {
     const aplicar = () => {
       const p = tomarRegistro((x) => x.tipo === "titulo" && x.direcao === direction);
-      if (!p) return;
+      if (p?.tipo !== "titulo") return;
       setAba(p.aba);
       if (p.mes) setMesQuitados(p.mes);
       setSelecionado(p.id);
@@ -186,6 +187,7 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
     if (novo.has(nome)) novo.delete(nome); else novo.add(nome);
     return novo;
   });
+  useEffect(() => { definirRegistroAberto(selecionado ? { tipo: "titulo", id: selecionado } : null); return () => definirRegistroAberto(null); }, [selecionado]);
   const titulo = selecionado ? daAba.find((t) => t.id === selecionado) ?? titles.find((t) => t.id === selecionado) ?? null : null;
   const trocarAba = (nova: Aba) => { setAba(nova); setGrupo("Todos"); setMes("Todos"); setDia(""); setFiltro("Em aberto"); setAbertos(new Set()); };
   const alterado = async (mensagem: string) => {

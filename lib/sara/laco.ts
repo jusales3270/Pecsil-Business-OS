@@ -30,7 +30,7 @@ export type Imagem = { tipo: "image/jpeg" | "image/png" | "image/webp"; dados: s
 export type Anexo = { nome: string; texto: string };
 /** Vai com o resultado de abrir_tela/mostrar quando a pessoa ainda não viu nenhuma resposta. */
 export const LEMBRETE_RESPOSTA = "A pessoa ainda não viu nenhuma resposta (o que você pensa não aparece para ela): escreva agora a resposta completa, com os números, a explicação e o próximo passo.";
-const SO_ACAO = new Set(["abrir_tela", "abrir_lancamento", "mostrar", "registrar_lacuna", "propor_habilidade"]);
+const SO_ACAO = new Set(["abrir_tela", "abrir_lancamento", "abrir_registro", "mostrar", "registrar_lacuna", "propor_habilidade"]);
 
 /** Ação que a SARA preparou e espera o "Permitir" da pessoa (nada foi gravado). */
 export type AcaoProposta = Proposta & { ferramenta: string; entrada: Record<string, unknown> };

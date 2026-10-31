@@ -67,11 +67,11 @@ const ferramentas: Ferramenta[] = [
     descricao: "Cards abertos do funil por etapa (triagem, análise, proposta, aguardando…): título, tipo, valor, prazo, há quantos dias sem mexer, e os vencidos.",
     esquema: { type: "object", properties: {} },
     rodar: async (sb) => {
-      const { data, error } = await sb.from("crm_cards").select("title, kind, value_cents, due_date, updated_at, crm_stages(label, position), customers(name)").eq("status", "aberto").order("updated_at").limit(500);
+      const { data, error } = await sb.from("crm_cards").select("id, title, kind, value_cents, due_date, updated_at, crm_stages(label, position), customers(name)").eq("status", "aberto").order("updated_at").limit(500);
       if (error) throw new Error(error.message);
       const h = hoje();
-      const cards = ((data ?? []) as unknown as { title: string; kind: string; value_cents: number | null; due_date: string | null; updated_at: string; crm_stages: { label: string } | null; customers: { name: string } | null }[])
-        .map((x) => ({ titulo: x.title, tipo: x.kind, etapa: x.crm_stages?.label ?? null, cliente: x.customers?.name ?? null, valor: x.value_cents != null ? reais(x.value_cents / 100) : null,
+      const cards = ((data ?? []) as unknown as { id: string; title: string; kind: string; value_cents: number | null; due_date: string | null; updated_at: string; crm_stages: { label: string } | null; customers: { name: string } | null }[])
+        .map((x) => ({ id: x.id, titulo: x.title, tipo: x.kind, etapa: x.crm_stages?.label ?? null, cliente: x.customers?.name ?? null, valor: x.value_cents != null ? reais(x.value_cents / 100) : null,
           prazo: x.due_date, vencido: Boolean(x.due_date && x.due_date < h), sem_mexer_ha_dias: dias(x.updated_at, h) }));
       const porEtapa = Object.entries(cards.reduce<Record<string, number>>((a, x) => { a[x.etapa ?? "?"] = (a[x.etapa ?? "?"] ?? 0) + 1; return a; }, {})).map(([etapa, quantidade]) => ({ etapa, quantidade }));
       return { dados: { abertos: cards.length, vencidos: cards.filter((x) => x.vencido).length, por_etapa: porEtapa, cards: cards.slice(0, 25) }, fontes: [fonte("funil", "Funil")] };
@@ -209,7 +209,7 @@ Quem decide: Rafael (comercial, orçamento e PCP); faturamento é do Jefferson.`
 export const comercial: Agente = {
   sara: {
     modulo: M, nome: "SARA do Comercial", rotulo: "Comercial", feature: M, permissao: "comercial.sara", manual: MANUAL,
-    ferramentas: ferramentas.map((f) => f.nome), telas,
+    ferramentas: [...ferramentas.map((f) => f.nome), "abrir_registro"], telas,
     sugestoes: ["Quais orçamentos estão em aberto?", "Tem algum orçamento ganho para faturar?", "O cliente Verallia está pronto para a NF-e?", "Quantos produtos estão sem NCM?"],
   },
   ferramentas, regras,

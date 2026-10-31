@@ -4,7 +4,9 @@
  * Quem pede manda depois da navegação (a tela antiga, se for a mesma, já foi desmontada).
  */
 
-export type PedidoRegistro = { tipo: "titulo"; id: string; direcao: "payable" | "receivable"; aba: "aberto" | "previsoes" | "quitados"; mes: string | null };
+import type { Registro } from "./sara/base";
+
+export type PedidoRegistro = Registro;
 
 const EVENTO = "pecsil:abrir-registro";
 let pendente: PedidoRegistro | null = null;

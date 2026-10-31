@@ -69,7 +69,7 @@ export function textoDoPasso(nome: string, rotulo: string | undefined, entrada: 
   if (nome === "calcular") return { tipo: "conta", texto: "Fazendo as contas" };
   if (nome === "periodo") return { tipo: "conta", texto: "Calculando o período" };
   if (nome === "mostrar_grafo") return { tipo: "consulta", texto: "Abrindo o Segundo Cérebro" };
-  if (nome === "abrir_tela" || nome === "abrir_lancamento") return { tipo: "consulta", texto: "Abrindo a tela" };
+  if (nome === "abrir_tela" || nome === "abrir_lancamento" || nome === "abrir_registro") return { tipo: "consulta", texto: "Abrindo a tela" };
   if (nome === "criar_documento") return { tipo: "acao", texto: "Montando o documento" };
   if (ehAcao) return { tipo: "acao", texto: `Preparando o cartão para você permitir${rotulo ? ` (${rotulo.replace(/^preparou /, "")})` : ""}` };
   if (nome === "consultar_dados") return { tipo: "consulta", texto: com("Consultando as tabelas") };

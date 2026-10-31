@@ -110,7 +110,7 @@ Quem decide: Rafael (PCP); Guilherme na Fundição.`;
 export const producao: Agente = {
   sara: {
     modulo: M, nome: "SARA da Produção", rotulo: "Produção", feature: M, permissao: "producao.sara", manual: MANUAL,
-    ferramentas: ferramentas.map((f) => f.nome), telas,
+    ferramentas: [...ferramentas.map((f) => f.nome), "abrir_registro"], telas,
     sugestoes: ["Quais OS estão atrasadas?", "O que vence nesta semana?", "Quantas OS a Verallia tem em aberto?", "A Forja está sincronizando?"],
   },
   ferramentas, regras,
