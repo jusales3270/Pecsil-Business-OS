@@ -15,7 +15,7 @@
 
 | Item | O quê | Situação |
 |---|---|---|
-| B-12 | Conector universal (prioridade máxima do proprietário, 22/10) | C1 e C2 construídas em 25/10 (área de chegada, serviço conector com drivers testados em PostgreSQL, Firebird e MySQL, descoberta, de-para por regra, Fundação › Conectores); C3 (GRV) espera o Cesar dizer o banco e o IP |
+| B-12 | Conector universal (prioridade máxima do proprietário, 22/10) | C1 e C2 construídas em 25/10 (área de chegada, serviço conector com drivers testados em PostgreSQL, Firebird e MySQL, descoberta, de-para por regra, Fundação › Conectores); C3 (GRV): banco PostgreSQL em 192.168.0.136:5432 (Cesar, 26/10); falta o proprietário passar usuário, senha e nome do banco que o Cesar enviou a ele |
 | N-03 | IBS/CBS completo (frente do Contábil-Fiscal, depois da N-02) | 1ª parte no ar (Deploy 25/10, `ae26677`): tela Fiscal › IBS e CBS com a apuração informativa de 2026; base do IBS/CBS na emissão com frete, seguro e outras. 2ª parte construída em 25/10: cada nota conferida pela alíquota legal da data dela (base refeita item a item; coluna Conferência, cartão Valor divergente, detalhe por item); XML lido na hora do envio e pela tarefa de 10 em 10 minutos; nova alíquota aprovada reconfere as notas já lidas; Simples Nacional sem o grupo deixa de ser falta (obrigatório só em 2027); mesma chave conta uma vez. Migração 202610250010 aplicada; QA 83/83. Devolução no formato de 03/11/2026 construída: cada item com DFeReferenciado (chave + nº do item), refNFe fora, regras do grupo VC, botão que traz os itens da nota devolvida; XML validado no XSD PL_010f e no do transmissor; QA 19/19. No ar (Deploy 25/10 de `fa4868d` e `be013b0`; a tarefa do servidor leu um XML de teste às 23h10 com o código novo). Depois: NFS-e, homologação (C-09), APIs da apuração assistida e DeRE, CBS 2027 |
 | I-01 | Unificação de fornecedores e clientes pelo Clef (Jev, Etapa 1) | Calibração; fila "para unificar" a partir de 17/10 |
 | Q-01 | Módulo Qualidade: não conformidades pela SARA (decisão do proprietário, 30/10) | Construído; falta teste com fotos reais, Deploy e permissão do Ricardo |
@@ -27,7 +27,7 @@
 | 1 | Mais ações da SARA por módulo | Esperando as respostas das áreas (13 perguntas de 23/10, sem resposta em 25/10) |
 | 2 | Teste real no Android (foto, leitor de código, voz e atalho da SARA) | Com o proprietário (cerca de 10 minutos) |
 | 3 | E7, SARA central (mindmaster) | Feito (J1–J5 no ar em 24/10) |
-| 4 | Conector universal, C3 em diante: GRV | Esperando o Cesar (banco, IP e usuário só de leitura); destrava C-01, C-13, A-03 e A-10 |
+| 4 | Conector universal, C3 em diante: GRV | Com o proprietário: usuário de leitura que o Cesar enviou; destrava C-01, C-13, A-03 e A-10 |
 
 **Quem decide o quê** (regra de 16/10/2026): o proprietário cuida da **construção e dos recursos** da
 plataforma: ordem do roadmap, acessos e permissões, infraestrutura, caixas de e-mail conectadas, uso e custo
@@ -185,7 +185,7 @@ Marco: **1**, **2** ou **+**.
 | B-09 | Infraestrutura documentada no Git | 2 | 2 | 2 | 0,5 | 1 | 12,0 | feito ([INFRA.md](INFRA.md)) | — | INFRA-DOC |
 | B-10 | Plano B: nobreak, link reserva, réplica do banco | 2 | 3 | 1 | 1 | 3 | 5,0 | travado | Compra | INFRA-PLANOB |
 | B-11 | IP do login na auditoria (passa pelo proxy) | + | 2 | 1 | 0,5 | 1 | 8,0 | no ar (conferir em produção) | — | AUD-IP |
-| B-12 | Conector universal: ler qualquer ERP, banco antigo ou pasta em degraus (API, banco só leitura, arquivos, computer use), área de chegada com sha256 e de-para aprovado pela área; começa pelo GRV | 1 | 5 | 5 | 3 | 2 | 5,0 | em construção: C1 e C2 construídas (25/10); C3 espera o Cesar | Cesar (banco, IP, usuário só leitura) | [PLANO-CONECTOR.md](PLANO-CONECTOR.md) |
+| B-12 | Conector universal: ler qualquer ERP, banco antigo ou pasta em degraus (API, banco só leitura, arquivos, computer use), área de chegada com sha256 e de-para aprovado pela área; começa pelo GRV | 1 | 5 | 5 | 3 | 2 | 5,0 | em construção: C1 e C2 construídas (25/10); C3 espera as credenciais de leitura | Proprietário (usuário, senha e nome do banco; serviço no Coolify) | [PLANO-CONECTOR.md](PLANO-CONECTOR.md) |
 
 ### C — Comercial e faturamento
 
@@ -569,6 +569,7 @@ SARA da Qualidade cresce com elas. A inspeção da Forja continua nascendo na Fo
 | 31/10/2026 | Migração 202610310003 aplicada com OK do proprietário (`sara_aviso_teto_cheio`) | Proprietário / Claude |
 | 31/10/2026 | I-22 construído: `lib/sara/conferir-saida.ts` confere com Haiku só o que sai da empresa (carta nova e mensagem a contato externo; 8 s, e se cair a saída segue e o registro marca). Mudou do plano: reprovar não tira o cartão nem bloqueia, porque todo envio externo já passa pelo Permitir de uma pessoa; ela vê o motivo e a área recebe uma decisão só com o motivo, sem o texto. Promessa em resposta à equipe fica fora: quem lê é da casa. Testes 6/6 e modelo real 7/7 (desconto inventado, margem, preço de outro cliente, menção à IA e injeção reprovados; dois textos legítimos aprovados). Sem teste de ponta a ponta: nenhum envio real ao contato externo. Corrigido no I-21: a memória buscava o módulo "central", e o da SARA central é `warroom` | Claude |
 | 31/10/2026 | Deploy de `64acf5d` (I-24, I-22) feito pelo proprietário, que vê a plataforma no ar. Daqui e de fora (WebFetch) a 443 segue recusada às 10h19, fechada desde cerca de 06h33, logo depois do Deploy; 80 e 8000 abertas. A plataforma funciona por dentro: 30 mensagens da SARA em 5 h e o primeiro resumo real da memória às 09h15. Versão não conferida | Proprietário / Claude |
+| 31/10/2026 | Fila revista depois do lote do vídeo: nada sem dependência. Ações da SARA: 13 perguntas de 23/10 ainda sem resposta. C-12 (duplicatas no contas a receber) espera o fim da F1 com o Jefferson e a decisão da Ana (PLANO-EMISSAO-NFE, F3). Conector: o Cesar respondeu PostgreSQL em 26/10; a C3 passa a depender das credenciais de leitura com o proprietário | Claude |
 
 ## 9. Painel
 
