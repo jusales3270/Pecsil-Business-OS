@@ -137,3 +137,7 @@ export function complementoEscrito(o: { acoesPendentes: number; visuais: number;
   if (o.visuais) partes.push(`${o.visuais === 1 ? "Montei um gráfico" : `Montei ${o.visuais} gráficos`}: veja na plataforma, ${o.linkSara}`);
   return partes.length ? partes.join("\n") : null;
 }
+
+/** A mensagem inteira é só um agradecimento? Qualquer outra palavra vai para a SARA ("obrigado, e o saldo?"). */
+export const soAgradecimento = (texto: string | null | undefined) =>
+  /^(muit[oa]s?\s+)?(obrigad[oa]s?|brigad[oa]s?|obg|vlw|valeu|agrade[cç]o)(,?\s+(sara|viu|mesmo|demais|chefe|hein))*[\s!.,🙏👍❤️]*$/iu.test(String(texto ?? "").trim());

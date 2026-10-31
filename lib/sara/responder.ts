@@ -94,7 +94,12 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   if (pergunta.length < 2) return NextResponse.json({ error: "Escreva a pergunta." }, { status: 400 });
   if (!chaveConfigurada()) return NextResponse.json({ error: "A SARA ainda não está configurada (falta a chave do modelo no servidor)." }, { status: 503 });
   const { data: uso } = await p.sb.rpc("sara_uso_mes", { p_modulo: modulo });
-  if (Number(uso ?? 0) >= p.cfg.teto_tokens_mes) return NextResponse.json({ error: "A SARA deste módulo atingiu o limite de uso do mês. Fale com o proprietário." }, { status: 429 });
+  if (Number(uso ?? 0) >= p.cfg.teto_tokens_mes) {
+    // A pessoa só lê "foi avisado" se o aviso saiu de verdade.
+    const { data: avisou, error: eCheio } = await p.sb.rpc("sara_aviso_teto_cheio", { p_modulo: modulo });
+    if (eCheio) console.error("[sara] aviso do teto cheio", eCheio.message);
+    return NextResponse.json({ error: `A SARA deste módulo chegou ao limite de uso do mês. ${avisou ? "O proprietário já foi avisado." : "Fale com o proprietário."} Enquanto isso, o trabalho segue pelas telas do módulo.` }, { status: 429 });
+  }
 
   const conversa = corpo?.conversa && UUID.test(corpo.conversa) ? corpo.conversa : null;
   // Documentos da SARA central ficam ligados à conversa em que foram pedidos.

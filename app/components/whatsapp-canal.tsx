@@ -18,7 +18,7 @@ type Canal = { id: string; instancia: string; nome: string; departamento: string
   recebimento: { ligado: boolean; erro?: string } | null; movimento: Movimento };
 type Agendado = { id: string; para_nome: string; quando: string; texto: string | null; documentos: number; situacao: string; tentativas: number; erro: string | null; enviado_em: string | null };
 type Dados = { canais: Canal[]; modelos: Modelo[]; configurada: boolean; agendados?: Agendado[] };
-type FormCanal = { id?: string; nome: string; departamento: string; descricao: string; prompt: string; modelo: string; conexao: "whatsapp_web" | "api_oficial" };
+type FormCanal = { id?: string; nome: string; departamento: string; descricao: string; prompt: string; modelo: string; conexao: "whatsapp_web" | "api_oficial"; promptOriginal?: string };
 
 const ROTULO: Record<Estado, [string, "success" | "attention" | "danger" | "neutral" | "info"]> = {
   conectado: ["Conectado", "success"],
@@ -87,7 +87,7 @@ export function WhatsappCanal({ notify }: { notify: (m: string) => void }) {
       {!dados.canais.length
         ? <div className="finance-empty almox-vazio"><b>Nenhum número cadastrado</b><small>Adicione o primeiro número e conecte o chip pelo QR Code.</small></div>
         : dados.canais.map((c) => (
-          <CartaoCanal key={c.id} canal={c} notify={notify} recarregar={carregar} editar={() => setForm({ id: c.id, nome: c.nome, departamento: c.departamento ?? "", descricao: c.descricao ?? "", prompt: c.prompt ?? "", modelo: c.modelo ?? "", conexao: c.conexao })} modelos={dados.modelos} />
+          <CartaoCanal key={c.id} canal={c} notify={notify} recarregar={carregar} editar={() => setForm({ id: c.id, nome: c.nome, departamento: c.departamento ?? "", descricao: c.descricao ?? "", prompt: c.prompt ?? "", promptOriginal: c.prompt ?? "", modelo: c.modelo ?? "", conexao: c.conexao })} modelos={dados.modelos} />
         ))}
 
       {(dados.agendados ?? []).length > 0 && <Agendados lista={dados.agendados ?? []} notify={notify} recarregar={carregar} />}
@@ -100,8 +100,24 @@ export function WhatsappCanal({ notify }: { notify: (m: string) => void }) {
 }
 
 function FormularioCanal({ form, modelos, ocupado, mudar, salvar, cancelar }: { form: FormCanal; modelos: Modelo[]; ocupado: boolean; mudar: (c: Partial<FormCanal>) => void; salvar: () => void; cancelar: () => void }) {
+  const [conferindo, setConferindo] = useState(false);
+  const antes = (form.promptOriginal ?? "").trim(), depois = form.prompt.trim();
+  // Mudar o comportamento de um número em uso passa por antes × depois; o que foi trocado fica na auditoria.
+  if (conferindo) return (
+    <div className="wa-form wa-form-canal">
+      <b>Confira a mudança no comportamento da SARA</b>
+      <div className="wa-prompt-comparar">
+        <section><h4>Como está hoje</h4><p>{antes || "Sem comportamento definido."}</p></section>
+        <section><h4>Como vai ficar</h4><p>{depois || "Sem comportamento definido."}</p></section>
+      </div>
+      <div className="wa-acoes">
+        <Button type="button" variant="secondary" onClick={() => setConferindo(false)}>Voltar e editar</Button>
+        <Button type="button" disabled={ocupado} onClick={salvar}>{ocupado ? "Salvando…" : "Confirmar e salvar"}</Button>
+      </div>
+    </div>
+  );
   return (
-    <form className="wa-form wa-form-canal" onSubmit={(e) => { e.preventDefault(); salvar(); }}>
+    <form className="wa-form wa-form-canal" onSubmit={(e) => { e.preventDefault(); if (form.id && antes !== depois) setConferindo(true); else salvar(); }}>
       <b>{form.id ? "Alterar número" : "Novo número da plataforma"}</b>
       <label>Nome<input value={form.nome} onChange={(e) => mudar({ nome: e.target.value })} maxLength={60} placeholder="Ex.: Comercial, Atendimento a clientes" required /></label>
       <label>Departamento

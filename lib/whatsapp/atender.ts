@@ -10,8 +10,8 @@ import { transcrever } from "../sara/voz";
 import { createSupabaseAdminClient } from "../supabase/admin";
 import { avaliarEnquete, executarAcao, mandarEnquete, receberVoto } from "./confirmar";
 import { destinoDoEnvio } from "./enviar";
-import { apagarMensagem, baixarMidia, enviarAudio, enviarInterativo, enviarTexto, marcarLida, presenca } from "./evolution";
-import { complementoEscrito, dividir, lerMensagem, paraWhatsApp, type Recebida } from "./mensagem";
+import { apagarMensagem, baixarMidia, enviarAudio, enviarInterativo, enviarTexto, marcarLida, presenca, reagir } from "./evolution";
+import { complementoEscrito, dividir, lerMensagem, paraWhatsApp, soAgradecimento, type Recebida } from "./mensagem";
 import { SARA_OPCOES } from "./saras";
 
 /**
@@ -31,11 +31,11 @@ import { SARA_OPCOES } from "./saras";
  */
 
 export type Deps = {
-  enviarTexto: typeof enviarTexto; enviarAudio: typeof enviarAudio; marcarLida: typeof marcarLida; presenca: typeof presenca;
+  enviarTexto: typeof enviarTexto; enviarAudio: typeof enviarAudio; marcarLida: typeof marcarLida; presenca: typeof presenca; reagir: typeof reagir;
   baixarMidia: typeof baixarMidia; transcrever: typeof transcrever; gravarVoz: typeof gravarMensagemDeVoz;
   enviarInterativo: typeof enviarInterativo; apagarMensagem: typeof apagarMensagem;
 };
-const PADRAO: Deps = { enviarTexto, enviarAudio, marcarLida, presenca, baixarMidia, transcrever, gravarVoz: gravarMensagemDeVoz, enviarInterativo, apagarMensagem };
+const PADRAO: Deps = { enviarTexto, enviarAudio, marcarLida, presenca, reagir, baixarMidia, transcrever, gravarVoz: gravarMensagemDeVoz, enviarInterativo, apagarMensagem };
 
 export type Resultado = { situacao: "descartada" | "repetida" | "ignorada" | "respondida" | "falhou"; motivo?: string; conversa?: string | null; respostas?: number };
 
@@ -90,6 +90,14 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
   // A partir daqui é alguém da lista: "lida" e "digitando" (ou "gravando", se veio áudio).
   const audio = m.tipo === "audio";
   await d.marcarLida(canal.instancia, m.jid, m.waId);
+  // Só um "obrigado": reage com emoji, sem resposta e sem gastar o modelo. Se a reação falhar, a SARA responde normalmente.
+  if (soAgradecimento(m.texto)) {
+    try {
+      await d.reagir(canal.instancia, m.jid, m.waId, "🙏");
+      await marcar({ situacao: "respondida", motivo: "agradecimento" });
+      return { situacao: "respondida", motivo: "agradecimento", respostas: 0 };
+    } catch (e) { console.error("[whatsapp] reação", e instanceof Error ? e.message : e); }
+  }
   await d.presenca(canal.instancia, m.numero, audio ? "recording" : "composing");
   const responderTexto = async (texto: string) => {
     let n = 0;

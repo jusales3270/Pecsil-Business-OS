@@ -95,7 +95,8 @@ export async function POST(request: Request) {
       const { data: antes } = await d.sb.from("whatsapp_canais").select("prompt").eq("id", id).maybeSingle();
       const { error } = await d.sb.from("whatsapp_canais").update(v).eq("id", id);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-      await auditar(d.sb, "whatsapp.canal_alterado", { canal: id, nome: v.nome, modelo: v.modelo, prompt_alterado: (antes?.prompt ?? null) !== v.prompt });
+      const promptAlterado = (antes?.prompt ?? null) !== v.prompt;
+      await auditar(d.sb, "whatsapp.canal_alterado", { canal: id, nome: v.nome, modelo: v.modelo, prompt_alterado: promptAlterado, ...(promptAlterado ? { prompt_antes: antes?.prompt ?? null, prompt_depois: v.prompt } : {}) });
       return NextResponse.json({ ok: true, id });
     }
     // Número novo: a instância nasce aqui com nome fixo; a Evolution cria na hora do QR Code.

@@ -9282,6 +9282,9 @@ a.doc-abrir { text-decoration: none; }
 .wa-form .wa-prompt small { color: var(--text-muted); }
 .wa-vinculo li button:disabled { color: var(--text-muted); cursor: not-allowed; background: transparent; }
 .wa-prompt-resumo { white-space: pre-line; color: var(--text-secondary); }
+.wa-prompt-comparar { grid-column: 1 / -1; width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sp-3); }
+.wa-prompt-comparar h4 { margin: 0 0 var(--sp-2); font-size: 13px; color: var(--text-muted); }
+.wa-prompt-comparar p { margin: 0; white-space: pre-line; max-height: 280px; overflow: auto; line-height: 1.5; }
 .wa-movimento { font-size: var(--fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
 /* Fundação › Conectores (docs/PLANO-CONECTOR.md) */

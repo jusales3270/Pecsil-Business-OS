@@ -44,6 +44,16 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-31-sara-ajustes-whatsapp-teto",
+    data: "2026-10-31",
+    area: "SARA",
+    titulo: "Ajustes na SARA e no WhatsApp",
+    itens: [
+      "No WhatsApp, um \"obrigado\" recebe uma reação 🙏 no lugar de uma resposta.",
+      "Quando a SARA de um módulo chega ao limite do mês, ela avisa que o proprietário já sabe e que o trabalho segue pelas telas do módulo.",
+    ],
+  },
+  {
     id: "2026-10-31-sara-lembra-da-pessoa",
     data: "2026-10-31",
     area: "SARA",

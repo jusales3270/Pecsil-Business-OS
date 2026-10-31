@@ -204,3 +204,13 @@ test("E2 voz: Whisper da Cloudflare (conta do Clef), áudio conferido e não gua
   assert.match(painel, /fluxo\.getTracks\(\)\.forEach\(\(t\) => t\.stop\(\)\)/, "desliga o microfone");
   assert.match(painel, /useEffect\(\(\) => \(\) => pararGravacao\(false\), \[\]\)/, "fechou a janela: descarta");
 });
+
+test("I-24: teto cheio avisa o proprietário e só diz que avisou se avisou", () => {
+  const r = readFileSync(new URL("../lib/sara/responder.ts", import.meta.url), "utf8");
+  assert.match(r, /rpc\("sara_aviso_teto_cheio"/);
+  assert.match(r, /avisou \? "O proprietário já foi avisado\." : "Fale com o proprietário\."/);
+  const sql = readFileSync(new URL("../supabase/migrations/202610310003_sara_teto_atingido.sql", import.meta.url), "utf8");
+  assert.match(sql, /uso < teto then return false/, "só com o teto batido de verdade");
+  assert.match(sql, /event_type = 'sara\.teto\.atingido' and entity_id = chave/, "uma vez por mês e módulo");
+  assert.match(readFileSync(new URL("../app/api/foundation/whatsapp/route.ts", import.meta.url), "utf8"), /prompt_antes: antes\?\.prompt \?\? null, prompt_depois: v\.prompt/);
+});

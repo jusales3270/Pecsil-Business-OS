@@ -81,3 +81,22 @@ test("botões, lista e enquete: a escolha vem junto (tipo outro) e a SARA só co
   assert.match(a, /Por enquanto é só teste: nada foi feito/);
   assert.ok(a.indexOf("if (m.escolha)") > a.indexOf('return ignorar("fora_da_lista")'), "fora da lista continua em silêncio");
 });
+
+test("I-24: só um agradecimento vira reação; qualquer outra palavra vai para a SARA", async () => {
+  const { soAgradecimento } = await import("../lib/whatsapp/mensagem.ts");
+  for (const t of ["obrigado", "Obrigada!", "muito obrigado", "valeu", "vlw", "obg", "Obrigado, Sara", "obrigada mesmo 🙏", "brigado!!"]) assert.equal(soAgradecimento(t), true, t);
+  for (const t of ["obrigado, e o saldo?", "valeu, manda o PDF", "", null, "ok", "não precisa, obrigado", "obrigatório"]) assert.equal(soAgradecimento(t), false, String(t));
+  const a = readFileSync(new URL("../lib/whatsapp/atender.ts", import.meta.url), "utf8");
+  assert.ok(a.indexOf("await d.marcarLida(") < a.indexOf("soAgradecimento(m.texto)"), "só para quem está na lista");
+  assert.ok(a.indexOf("soAgradecimento(m.texto)") < a.indexOf("await responder("), "sem gastar o modelo");
+});
+
+test("I-24: reação pela Evolution com a chave da mensagem recebida", async () => {
+  process.env.EVOLUTION_API_URL ??= "http://evolution.teste"; process.env.EVOLUTION_API_KEY ??= "k";
+  const { reagir } = await import("../lib/whatsapp/evolution.ts");
+  const pedidos = [];
+  const buscar = async (u, i) => { pedidos.push({ u: String(u), i }); return new Response("{}", { status: 201 }); };
+  await reagir("pecsil-comercial", "5511@s.whatsapp.net", "ABC", "🙏", buscar);
+  assert.match(pedidos[0].u, /\/message\/sendReaction\/pecsil-comercial$/);
+  assert.deepEqual(JSON.parse(pedidos[0].i.body), { key: { remoteJid: "5511@s.whatsapp.net", fromMe: false, id: "ABC" }, reaction: "🙏" });
+});

@@ -172,6 +172,13 @@ export async function marcarLida(instancia: string, jid: string, waId: string, b
   await evolution(c, "POST", `/chat/markMessageAsRead/${conferir(instancia)}`, { readMessages: [{ remoteJid: jid, fromMe: false, id: waId }] }, buscar).catch(() => null);
 }
 
+/** Reação com emoji a uma mensagem recebida. Diferente de marcarLida, a falha sobe: quem chama responde de outro jeito. */
+export async function reagir(instancia: string, jid: string, waId: string, emoji: string, buscar: typeof fetch = fetch): Promise<void> {
+  const c = configuracao();
+  if (!c) throw new ErroEvolution(503, "Falta a configuração da Evolution no servidor.");
+  await evolution(c, "POST", `/message/sendReaction/${conferir(instancia)}`, { key: { remoteJid: jid, fromMe: false, id: waId }, reaction: emoji }, buscar);
+}
+
 /** "Digitando…" ou "gravando áudio…" enquanto a SARA prepara a resposta. */
 export async function presenca(instancia: string, numero: string, tipo: "composing" | "recording", buscar: typeof fetch = fetch): Promise<void> {
   const c = configuracao();
