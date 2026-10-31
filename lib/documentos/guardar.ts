@@ -142,11 +142,3 @@ function registro(e: GuardarEntrada, hash: string, caminho: string, tipo: string
     p_source: e.origem, p_intake: e.intakeId ?? null, p_entity_type: e.entidade?.tipo ?? null, p_entity_id: e.entidade?.id ?? null, p_previous: e.anterior ?? null,
   };
 }
-
-/** Link de download de 60 s — só depois que a rota conferiu, com a sessão, que a pessoa vê o documento. */
-export async function linkDeDownload(caminho: string, nome: string): Promise<string> {
-  const admin = createSupabaseAdminClient();
-  const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(caminho, 60, { download: nome });
-  if (error || !data?.signedUrl) throw new Error("Não foi possível gerar o link do arquivo.");
-  return data.signedUrl;
-}

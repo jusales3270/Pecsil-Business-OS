@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { VisualizarArquivo } from "../../../app/components/visualizar-arquivo";
 import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../../packages/design-system";
 import { api, cnpjFormatado, curto, date, dataHora, hoje, money } from "./comum";
 
@@ -32,6 +33,7 @@ export function NotasRecebidas({ notify }: { notify: (m: string) => void }) {
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [lancar, setLancar] = useState<Nota | null>(null);
+  const [vendo, setVendo] = useState<Nota | null>(null);
 
   const carregar = useCallback(async (f: Filtro) => {
     const r = await api<Omit<Dados, "carregadoEm">>(`/api/fiscal/dfe?filtro=${f}`);
@@ -124,7 +126,7 @@ export function NotasRecebidas({ notify }: { notify: (m: string) => void }) {
                     <span className="c">{n.no_painel ? <Status tone="success">Sim</Status> : n.situacao === "autorizada" ? <Status tone="attention">Não</Status> : "—"}</span>
                     <span className="c">{n.recebida ? <Status tone="success">Sim</Status> : <Status tone="neutral">Não</Status>}</span>
                     <span className="fiscal-dfe-acoes">
-                      {n.document_id && <a className="almox-link" href={`/api/documentos/${n.document_id}/baixar`} target="_blank" rel="noreferrer">XML</a>}
+                      {n.document_id && <button type="button" className="almox-link" onClick={() => setVendo(n)}>XML</button>}
                       {dados.podeOperar && n.situacao === "autorizada" && !n.document_id && n.manifestacao === "nenhuma" && (
                         <button type="button" className="almox-link" disabled={ocupado === n.id} onClick={() => void darCiencia(n)}>{ocupado === n.id ? "Enviando…" : "Dar ciência"}</button>
                       )}
@@ -146,6 +148,9 @@ export function NotasRecebidas({ notify }: { notify: (m: string) => void }) {
         </>
       )}
 
+      {vendo?.document_id && (
+        <VisualizarArquivo nome={`NFe${vendo.chave}.xml`} detalhe={vendo.emitente_nome ?? undefined} url={`/api/documentos/${vendo.document_id}/baixar?ver=1`} danfe={`/api/documentos/${vendo.document_id}/baixar?danfe=1`} baixar={`/api/documentos/${vendo.document_id}/baixar`} onFechar={() => setVendo(null)} />
+      )}
       {lancar && <LancarModal nota={lancar} onClose={() => setLancar(null)} onFeito={(msg) => { setLancar(null); notify(msg); void carregar(filtro); }} />}
     </div>
   );

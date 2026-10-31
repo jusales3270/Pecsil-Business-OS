@@ -44,6 +44,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-30-arquivos-abrem-de-qualquer-lugar",
+    data: "2026-10-30",
+    area: "Fiscal",
+    modulos: ["fiscal", "comercial"],
+    titulo: "Arquivos abrem de qualquer lugar",
+    itens: [
+      "Em Notas recebidas, o XML agora abre numa janela dentro da plataforma, com o DANFE, o resumo da nota e o XML.",
+      "Baixar arquivos de Documentos, do portal do escritório e dos anexos do orçamento voltou a funcionar fora da rede da empresa.",
+    ],
+  },
+  {
     id: "2026-10-30-qualidade-nao-conformidades",
     data: "2026-10-30",
     area: "Qualidade",

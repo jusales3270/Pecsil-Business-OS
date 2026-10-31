@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { dbError, requireAnyFeature, requireFeature } from "../../../../../../lib/auth/feature-guard";
-import { guardarOriginal, linkDeDownload } from "../../../../../../lib/documentos/guardar";
+import { entregarArquivo } from "../../../../../../lib/documentos/entregar";
+import { guardarOriginal } from "../../../../../../lib/documentos/guardar";
 import { createSupabaseAdminClient } from "../../../../../../lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +66,7 @@ export async function GET(request: Request, context: Contexto) {
     .eq("id", a.document_id).eq("organization_id", a.organization_id).maybeSingle();
   if (!doc) return NextResponse.json({ error: "Arquivo não encontrado." }, { status: 404 });
   try {
-    return NextResponse.redirect(await linkDeDownload(doc.storage_path, doc.original_name), 302);
+    return await entregarArquivo(doc.storage_path, doc.original_name, "baixar");
   } catch (e) {
     console.error("Falha ao gerar link do anexo", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Não foi possível abrir o arquivo agora." }, { status: 503 });
