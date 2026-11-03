@@ -7,6 +7,7 @@ import type { Visual } from "../../lib/sara/visual";
 import { duracao, juntarPasso, passoAtual, perguntarComPassos, type PassoSara } from "../../lib/sara/progresso-cliente";
 import { lerTelaAtual } from "../../lib/tela-atual";
 import { reduzirFoto, type Foto } from "../../lib/sara/foto-cliente";
+import { CameraFoto } from "./camera-foto";
 import type { OpcaoDeResposta } from "../../lib/sara/base";
 import { SaraVisual, useVisuaisLigados } from "./sara-visual";
 import { SaraGuias } from "./sara-guias";
@@ -399,6 +400,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
   const [foto, setFoto] = useState<Foto | null>(null);
   const [preparandoFoto, setPreparandoFoto] = useState(false);
   const [lendoCodigo, setLendoCodigo] = useState(false);
+  const [tirandoFoto, setTirandoFoto] = useState(false);
   // Anexo (E5): Excel, Word, PDF ou texto, lido no servidor; print/foto vai pelo caminho da foto.
   const [anexo, setAnexo] = useState<{ nome: string; texto: string; cortado: boolean } | null>(null);
   const [lendoAnexo, setLendoAnexo] = useState(false);
@@ -793,6 +795,8 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
             ))}
             {pensando && <AtividadeSara passos={passos} inicio={relogio.inicio} ultimoSinal={relogio.sinal} ultimoPasso={relogio.passo} />}
           </div>
+          {tirandoFoto && <CameraFoto sobreposta onFechar={() => setTirandoFoto(false)} onEscolher={() => { setTirandoFoto(false); escolherFoto(); }}
+            onFoto={async (f) => { setTirandoFoto(false); setPreparandoFoto(true); try { setFoto(await reduzirFoto(f)); } catch { setFoto(null); } setPreparandoFoto(false); }} />}
           {lendoCodigo && <LeitorDeCodigo onFechar={() => setLendoCodigo(false)} onLido={(valor, formato) => { setLendoCodigo(false); void perguntar(`Código lido: ${valor} (${formato}). O que é?`); }} />}
           {/* Caixa de mensagem (o padrão dos chats): + (foto, arquivo, código) à esquerda; microfone e enviar à direita. */}
           <form className={`sara-caixa${gravando ? " gravando" : ""}`} onSubmit={(e) => { e.preventDefault(); void perguntar(texto); }}>
@@ -835,7 +839,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
                     aria-haspopup="menu" aria-expanded={menuMais} aria-label="Adicionar foto, arquivo ou código" title="Adicionar"><IconeMais /></button>
                   {menuMais && (
                     <span className="sara-menu" role="menu">
-                      <button type="button" role="menuitem" onClick={() => { setMenuMais(false); escolherFoto(); }}><IconeCamera /> Tirar foto</button>
+                      <button type="button" role="menuitem" onClick={() => { setMenuMais(false); if (typeof navigator.mediaDevices?.getUserMedia === "function") setTirandoFoto(true); else escolherFoto(); }}><IconeCamera /> Tirar foto</button>
                       <button type="button" role="menuitem" onClick={() => { setMenuMais(false); escolherAnexo(); }}><IconeClipe /> Foto ou arquivo</button>
                       <button type="button" role="menuitem" onClick={() => { setMenuMais(false); setLendoCodigo(true); }}><IconeCodigo /> Ler código</button>
                     </span>

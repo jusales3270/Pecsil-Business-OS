@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Carregando, Modal, useEscolherArquivo } from "../../../packages/design-system";
 import { reduzirFoto, type Foto } from "../../../lib/sara/foto-cliente";
+import { CameraFoto } from "../../../app/components/camera-foto";
 
 /**
  * Registrar não conformidade pela tela (pedido do proprietário, 03/11/2026): a janela padrão da plataforma
@@ -47,6 +48,7 @@ export function RegistrarNc({ onClose, onRegistrada }: { onClose: () => void; on
   const [segundos, setSegundos] = useState(0);
   const [ouvindo, setOuvindo] = useState(false);
   const [erro, setErro] = useState("");
+  const [cameraAberta, setCameraAberta] = useState(false);
   const fim = useRef<HTMLDivElement>(null);
   const gravador = useRef<{ rec: MediaRecorder; enviar: boolean; limite: ReturnType<typeof setTimeout> } | null>(null);
   const conversaRef = useRef<string | null>(null);
@@ -78,6 +80,10 @@ export function RegistrarNc({ onClose, onRegistrada }: { onClose: () => void; on
   };
   const camera = useEscolherArquivo((a) => void comFoto(a));
   const galeria = useEscolherArquivo((a) => void comFoto(a));
+  // A câmera abre dentro da janela (computador e celular). Sem câmera pela página (ex.: endereço sem HTTPS), o campo
+  // com capture ainda abre a câmera no celular.
+  const abrirCamera = () => { setErro(""); if (typeof navigator.mediaDevices?.getUserMedia === "function") setCameraAberta(true); else camera.abrir(); };
+  const fotoDaCamera = (f: File) => { setCameraAberta(false); void comFoto([f]); };
 
   const decidir = async (c: Cartao, permitir: boolean) => {
     setDecidindo(c.id);
@@ -145,9 +151,10 @@ export function RegistrarNc({ onClose, onRegistrada }: { onClose: () => void; on
       <input {...camera.inputProps} accept="image/*" capture="environment" />
       <input {...galeria.inputProps} accept="image/*" />
       <div className="qualidade-registro">
-        {!comecou && (
+        {cameraAberta && <CameraFoto onFoto={fotoDaCamera} onFechar={() => setCameraAberta(false)} onEscolher={() => { setCameraAberta(false); camera.abrir(); }} />}
+        {!comecou && !cameraAberta && (
           <div className="qualidade-captura">
-            <button type="button" onClick={camera.abrir} disabled={ocupado}>{camera.abrindo ? <Carregando tamanho={22} /> : <IconeCamera />}<b>Tirar foto</b><small>Abre a câmera do celular</small></button>
+            <button type="button" onClick={abrirCamera} disabled={ocupado}>{camera.abrindo ? <Carregando tamanho={22} /> : <IconeCamera />}<b>Tirar foto</b><small>Abre a câmera</small></button>
             <button type="button" onClick={galeria.abrir} disabled={ocupado}>{galeria.abrindo ? <Carregando tamanho={22} /> : <IconeGaleria />}<b>Escolher foto</b><small>Da galeria ou do computador</small></button>
           </div>
         )}
@@ -179,9 +186,10 @@ export function RegistrarNc({ onClose, onRegistrada }: { onClose: () => void; on
           </div>
         )}
         {erro && <p className="almox-erro" role="alert">{erro}</p>}
-        {comecou && !registrada && (
+        {comecou && !registrada && !cameraAberta && (
           <form className={`qualidade-relato${gravando ? " gravando" : ""}`} onSubmit={(e) => { e.preventDefault(); enviar(); }}>
-            <button type="button" className="qualidade-icone" onClick={galeria.abrir} disabled={ocupado} aria-label="Mais uma foto" title="Mais uma foto"><IconeGaleria /></button>
+            <button type="button" className="qualidade-icone" onClick={abrirCamera} disabled={ocupado} aria-label="Tirar mais uma foto" title="Tirar mais uma foto"><IconeCamera /></button>
+            <button type="button" className="qualidade-icone" onClick={galeria.abrir} disabled={ocupado} aria-label="Escolher mais uma foto" title="Escolher mais uma foto"><IconeGaleria /></button>
             {gravando
               ? <span className="qualidade-gravando" aria-live="polite"><span className="sara-rec" aria-hidden /> Gravando {`0:${String(segundos).padStart(2, "0")}`}</span>
               : <textarea rows={2} value={texto} maxLength={2000} disabled={pensando} placeholder="O que aconteceu, onde e quando…" aria-label="Relato do ocorrido"
