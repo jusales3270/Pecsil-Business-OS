@@ -18,7 +18,16 @@ O registro nasce na conversa com a SARA do módulo:
 3. a SARA classifica pelos tipos da área e prepara o cartão;
 4. o "Permitir" grava a NC-n com as fotos.
 
-A tela mostra a lista, as fotos, a descrição, a leitura da SARA e o histórico. Corrigir, encerrar, reabrir e
+Dois caminhos (ajuste do proprietário, 03/11/2026):
+
+- **Pela SARA do módulo:** foto sem texto → a SARA diz em uma frase o que aparece e pergunta o que fazer, com os
+  botões **Registrar não conformidade** e **Descartar** (descartar apaga a foto na hora). Daí segue o fluxo acima.
+- **Pela tela:** o botão "Registrar não conformidade" abre a janela padrão com **Tirar foto** (câmera do celular)
+  e **Escolher foto**. A SARA lê a foto, a pessoa conta por texto ou voz o que aconteceu, onde e quando, e a
+  SARA devolve o resumo com a hora e o local informados. Fechar sem registrar descarta a foto.
+
+A hora do ocorrido é dita pela pessoa ("agora" vale a hora atual) e fica no registro (`ocorrido_em`); dá para
+corrigir na tela. A tela mostra a lista, as fotos, a descrição, a leitura da SARA e o histórico. Corrigir, encerrar, reabrir e
 cancelar ficam na tela. Nada se apaga.
 
 | Decisão | Como ficou |
@@ -32,6 +41,8 @@ cancelar ficam na tela. Nada se apaga.
 | Tipos e gravidade | Configuração em Qualidade › Regras. Lista provisória até a área revisar; gravidade desligada |
 | Setor | Lista real de departamentos |
 | Modelo | Sonnet nesta SARA: pouco volume, o julgamento pesa |
+| Respostas | Curtas, sem palestra; a confiança na leitura da foto vai só no registro, não na conversa |
+| Voz | A SARA da Qualidade recebe áudio e responde só em texto (decisão do proprietário, 30/10: só a central e o WhatsApp falam) |
 
 Ainda não feito: tratamento (causa, ação, prazo, eficácia), reprovação da Forja virar NC, fila sem rede e
 registro pelo WhatsApp.

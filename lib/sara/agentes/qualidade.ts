@@ -24,7 +24,7 @@ export async function opcoesDaNc(sb: SupabaseClient) {
   return { tipos: r.data.tipos as string[], setores: (s.data ?? []).map((d) => String(d.name)), usa_gravidade: Boolean(r.data.usar_gravidade), gravidades: r.data.usar_gravidade ? (r.data.gravidades as string[]) : [], lista_provisoria: !r.data.revisado_em };
 }
 
-type LinhaNc = { id: string; numero: number; tipo: string; setor: string; local: string | null; maquina: string | null; os_codigo: string | null; gravidade: string | null; situacao: string; descricao: string; autor_nome: string; created_at: string };
+type LinhaNc = { id: string; numero: number; tipo: string; setor: string; local: string | null; maquina: string | null; os_codigo: string | null; gravidade: string | null; situacao: string; descricao: string; autor_nome: string; ocorrido_em: string | null; created_at: string };
 
 const conta = (l: LinhaNc[], campo: "tipo" | "setor") => Object.entries(l.reduce<Record<string, number>>((x, n) => { x[n[campo]] = (x[n[campo]] ?? 0) + 1; return x; }, {})).sort((a, b) => b[1] - a[1]);
 
@@ -45,7 +45,7 @@ const ferramentasNc: Ferramenta[] = [
     rodar: async (sb, e) => {
       const janela = Math.min(Math.max(Number(e.dias) || 90, 1), 1100);
       const desde = new Date(Date.now() - janela * 86_400_000).toISOString();
-      let q = sb.from("qualidade_nao_conformidades").select("id, numero, tipo, setor, local, maquina, os_codigo, gravidade, situacao, descricao, autor_nome, created_at").gte("created_at", desde).order("created_at", { ascending: false }).limit(500);
+      let q = sb.from("qualidade_nao_conformidades").select("id, numero, tipo, setor, local, maquina, os_codigo, gravidade, situacao, descricao, autor_nome, ocorrido_em, created_at").gte("created_at", desde).order("created_at", { ascending: false }).limit(500);
       if (e.situacao && SITUACAO[String(e.situacao)]) q = q.eq("situacao", String(e.situacao));
       const { data, error } = await q;
       if (error) throw new Error(error.message);
@@ -55,7 +55,7 @@ const ferramentasNc: Ferramenta[] = [
       const h = hoje();
       return {
         dados: { periodo_dias: janela, total: l.length, abertas: l.filter((n) => n.situacao === "aberta").length, por_tipo: conta(l, "tipo"), por_setor: conta(l, "setor"),
-          lista: l.slice(0, 40).map((n) => ({ id: n.id, numero: `NC-${n.numero}`, data: n.created_at.slice(0, 10), dias_atras: dias(n.created_at.slice(0, 10), h), tipo: n.tipo, setor: n.setor, local: n.local, maquina: n.maquina, os: n.os_codigo, gravidade: n.gravidade, situacao: SITUACAO[n.situacao], descricao: n.descricao.slice(0, 300), registrou: n.autor_nome })) },
+          lista: l.slice(0, 40).map((n) => ({ id: n.id, numero: `NC-${n.numero}`, data: n.created_at.slice(0, 10), dias_atras: dias(n.created_at.slice(0, 10), h), ocorrido_em: n.ocorrido_em, tipo: n.tipo, setor: n.setor, local: n.local, maquina: n.maquina, os: n.os_codigo, gravidade: n.gravidade, situacao: SITUACAO[n.situacao], descricao: n.descricao.slice(0, 300), registrou: n.autor_nome })) },
         fontes: [fonteNc],
       };
     },
@@ -67,16 +67,21 @@ const telasNc: Tela[] = [
   { id: "qualidade_regras", modulo: M, secao: "Regras", rotulo: "Qualidade › Regras", exige: NC, serve: "tipos de não conformidade e uso da gravidade (quem aprova)" },
 ];
 
-const TEXTO_NC = `Não conformidades: é o principal trabalho de hoje. A pessoa manda uma foto (ou anexa) e explica por voz ou texto. Ela pode falar de uma vez, mandar a foto sem dizer nada ou mandar só o texto.
-Ao receber a foto, siga nesta ordem:
-1. Diga em uma frase o que você vê. Só o que aparece na imagem; se não dá para ver bem, diga isso e peça outra foto.
-2. Se a pessoa ainda não disse, pergunte se é para registrar como não conformidade.
-3. Use tudo o que ela já contou e pergunte só o que falta, UMA pergunta por vez, curta (quem está no chão de fábrica responde falando): o que aconteceu, em que setor, onde exatamente, se envolve máquina ou peça, a OS se souber.
-4. Consulte qualidade_opcoes_nc e escolha o tipo pela descrição da pessoa; a foto só apoia. Se a descrição e a foto não baterem, pergunte antes de seguir. Se a gravidade não estiver em uso, não fale dela.
-5. Com tipo, setor, local e descrição, prepare registrar_nao_conformidade. A descrição é o que a pessoa disse, organizado, sem acrescentar. O que você leu na foto vai separado em analise_sara, com a sua confiança, mesmo que a foto tenha vindo em mensagem anterior: use o que você disse ao vê-la.
+const TEXTO_NC = `Não conformidades: é o principal trabalho de hoje. A pessoa manda a foto (câmera ou anexo) e explica por voz ou texto, aqui ou pela janela "Registrar não conformidade" da tela.
+Seja curta em tudo: uma ou duas frases por vez, sem explicar o processo e sem palestra.
+Foto sem texto: uma frase curta com o que aparece e a pergunta "O que faço com ela?". Nada mais: sem confiança, sem qualidade da imagem, sem hipóteses. A plataforma mostra os botões "Registrar não conformidade" e "Descartar": não liste opções.
+Foto com pedido de registro: uma frase com o que vê e o pedido do relato (o que aconteceu, onde e quando).
+A sua confiança na leitura da foto vai só em analise_sara, nunca no texto da conversa.
+Para registrar, use tudo o que a pessoa já disse e pergunte só o que falta, curto (quem está no chão de fábrica responde falando):
+- o que aconteceu;
+- onde: setor e o lugar exato;
+- quando: a hora. "Agora" ou "agora há pouco" é a hora atual; "hoje de manhã", "ontem" sem hora: pergunte a hora;
+- máquina, peça ou OS, se houver.
+Pode juntar onde e quando numa pergunta só. Consulte qualidade_opcoes_nc e escolha o tipo pela descrição da pessoa; a foto só apoia. Se a descrição e a foto não baterem, pergunte. Se a gravidade não estiver em uso, não fale dela.
+Com tipo, setor, local, quando e descrição, prepare registrar_nao_conformidade e escreva só uma linha junto (o cartão já mostra o resumo). A descrição é o que a pessoa disse, organizado, sem acrescentar. O que você leu na foto vai separado em analise_sara, com a sua confiança, mesmo que a foto tenha vindo em mensagem anterior: use o que você disse ao vê-la.
 Sem foto: peça uma vez. Se a pessoa seguir sem foto, registre assim mesmo; o cartão avisa.
-Nunca invente setor, local, máquina, OS, causa ou responsável. Não dê causa como certa: quem conclui é a Qualidade.
-A foto já fica guardada quando a pessoa manda, e entra sozinha na não conformidade. Se ela mandar outra foto da mesma ocorrência, entra junto.
+Nunca invente setor, local, hora, máquina, OS, causa ou responsável. Não dê causa como certa: quem conclui é a Qualidade.
+A foto fica guardada quando a pessoa manda e entra sozinha na não conformidade; outra foto da mesma ocorrência entra junto.
 Corrigir, encerrar ou cancelar é na tela Não conformidades: abra a tela. Registro não se apaga.`;
 
 const regrasNc: Agente["regras"] = [
@@ -108,7 +113,8 @@ export const qualidade: Agente = {
     // Julgar foto e descrição pede o modelo mais capaz; o volume é baixo (plano de 30/10/2026).
     modelo: "claude-sonnet-5-5", maxTokens: 2000,
     guardaFotos: "qualidade.nao_conformidades",
-    fotoSemTexto: "Mandei esta foto. Diga o que você vê e me pergunte o que precisa para registrar.",
+    fotoSemTexto: "Mandei esta foto sem dizer nada. Em uma frase curta, diga o que aparece e pergunte o que faço com ela.",
+    opcoesDaFoto: [{ rotulo: "Registrar não conformidade", pergunta: "Registrar como não conformidade." }, { rotulo: "Descartar", rota: "/api/qualidade/fotos/descartar", aviso: "Foto descartada. Nada foi registrado." }],
   },
   ferramentas: SECOES.flatMap((s) => s.ferramentas), regras: SECOES.flatMap((s) => s.regras),
 };

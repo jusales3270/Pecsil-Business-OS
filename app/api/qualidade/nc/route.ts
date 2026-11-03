@@ -9,7 +9,7 @@ export async function GET() {
   if ("error" in guard) return guard.error;
   const sb = guard.supabase;
   const [ncs, regras, setores] = await Promise.all([
-    sb.from("qualidade_nao_conformidades").select("id, numero, tipo, setor, local, maquina, os_codigo, gravidade, situacao, descricao, autor_nome, created_at, qualidade_nc_fotos(id)").order("created_at", { ascending: false }).limit(500),
+    sb.from("qualidade_nao_conformidades").select("id, numero, tipo, setor, local, maquina, os_codigo, gravidade, situacao, descricao, autor_nome, ocorrido_em, created_at, qualidade_nc_fotos(id)").order("created_at", { ascending: false }).limit(500),
     sb.from("qualidade_regras").select("tipos, usar_gravidade, gravidades, revisado_por_nome, revisado_em").maybeSingle(),
     sb.from("departments").select("name").eq("active", true).order("name"),
   ]);

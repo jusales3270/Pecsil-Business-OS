@@ -54,6 +54,11 @@ export type Ferramenta = {
   paralela?: boolean;
 };
 
+/**
+ * Botão de resposta rápida: `pergunta` manda a frase como se a pessoa tivesse escrito; `rota` chama a rota
+ * (POST com a conversa) e mostra `aviso` (ex.: descartar a foto, sem passar pelo modelo).
+ */
+export type OpcaoDeResposta = { rotulo: string; pergunta?: string; rota?: string; aviso?: string };
 export type Proposta = { resumo: string; detalhes: string[]; risco?: "normal" | "alto" };
 export type Acao = {
   nivel: "operar" | "aprovar";
@@ -99,6 +104,8 @@ export type SaraModulo = {
   guardaFotos?: string;
   /** O que a SARA recebe quando a pessoa manda a foto sem escrever nada. */
   fotoSemTexto?: string;
+  /** Botões que aparecem embaixo da resposta a uma foto sem texto (ex.: Registrar não conformidade · Descartar). */
+  opcoesDaFoto?: OpcaoDeResposta[];
 };
 
 export type Nivel = "urgente" | "aviso";

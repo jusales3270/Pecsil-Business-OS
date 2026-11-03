@@ -9798,3 +9798,35 @@ a.doc-abrir { text-decoration: none; }
   .qualidade-so-celular { display: block; }
   .qualidade-filtros :is(select, input) { width: 100%; }
 }
+/* Botões de resposta rápida da SARA (ex.: foto na Qualidade → Registrar não conformidade · Descartar). */
+.sara-opcoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.sara-opcoes button { min-height: 34px; padding: 6px 14px; border: 1px solid var(--accent-blue); border-radius: 999px; background: transparent; color: var(--accent-blue); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; }
+.sara-opcoes button:first-child { background: var(--accent-blue); color: var(--text-on-accent); }
+.sara-opcoes button:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-blue) 12%, transparent); }
+.sara-opcoes button:first-child:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-blue) 88%, black); }
+.sara-opcoes button:disabled { opacity: .5; cursor: default; }
+/* Janela "Registrar não conformidade": captura da foto e a conversa com a SARA. */
+.qualidade-registro { display: flex; flex-direction: column; gap: var(--sp-3); min-height: 260px; }
+.qualidade-captura { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
+@media (max-width: 560px) { .qualidade-captura { grid-template-columns: 1fr; } }
+.qualidade-captura button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 150px; padding: var(--sp-4); border: 1.5px dashed var(--border); border-radius: var(--radius-md, 12px); background: var(--bg-subtle); color: var(--text-primary); font: inherit; cursor: pointer; }
+.qualidade-captura button:first-child { border-style: solid; border-color: var(--accent-blue); background: var(--tint-blue); color: var(--accent-blue); }
+.qualidade-captura button:hover:not(:disabled) { border-color: var(--accent-blue); }
+.qualidade-captura button b { font-size: var(--fs-md, 1rem); }
+.qualidade-captura button small { font-size: var(--fs-xs); color: var(--text-muted); }
+.qualidade-conversa { display: flex; flex-direction: column; gap: var(--sp-2); max-height: min(52vh, 460px); overflow-y: auto; padding: 2px; }
+.qualidade-msg { display: flex; flex-direction: column; gap: 6px; max-width: 88%; padding: 8px 12px; border-radius: 14px; font-size: var(--fs-sm); }
+.qualidade-msg p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.qualidade-msg.pessoa { align-self: flex-end; background: var(--tint-blue); }
+.qualidade-msg.sara { align-self: flex-start; background: var(--bg-subtle); }
+.qualidade-msg.erro { color: var(--accent-red); }
+.qualidade-msg.pensando { flex-direction: row; align-items: center; gap: 8px; color: var(--text-secondary); }
+.qualidade-msg img { display: block; max-width: 220px; max-height: 220px; border-radius: 10px; object-fit: cover; }
+.qualidade-msg .sara-acao { margin-top: 2px; }
+.qualidade-relato { display: flex; align-items: flex-end; gap: var(--sp-2); padding-top: var(--sp-2); border-top: 1px solid var(--border-subtle); }
+.qualidade-relato textarea { flex: 1; min-width: 0; resize: none; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.qualidade-icone { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 40px; height: 40px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.qualidade-icone:hover:not(:disabled) { color: var(--accent-blue); border-color: var(--accent-blue); }
+.qualidade-icone.ativo { color: var(--accent-red); border-color: var(--accent-red); }
+.qualidade-icone:disabled { opacity: .5; cursor: default; }
+.qualidade-gravando { flex: 1; display: flex; align-items: center; gap: 8px; min-height: 40px; color: var(--accent-red); font-size: var(--fs-sm); font-weight: 600; }

@@ -6,6 +6,8 @@ import { pedirRegistro, type PedidoRegistro } from "../../lib/abrir-registro";
 import type { Visual } from "../../lib/sara/visual";
 import { duracao, juntarPasso, passoAtual, perguntarComPassos, type PassoSara } from "../../lib/sara/progresso-cliente";
 import { lerTelaAtual } from "../../lib/tela-atual";
+import { reduzirFoto, type Foto } from "../../lib/sara/foto-cliente";
+import type { OpcaoDeResposta } from "../../lib/sara/base";
 import { SaraVisual, useVisuaisLigados } from "./sara-visual";
 import { SaraGuias } from "./sara-guias";
 
@@ -29,7 +31,7 @@ type Salva = { parametros?: Parametro[]; id: string; papel: "pessoa" | "sara"; t
 type Estado = { nome: string; configurada: boolean; ferramentas: string[]; alcance?: { outrosModulos: boolean; dados: boolean; pesquisa: boolean }; rotulos?: Record<string, string>; habilidades?: { id: string; nome: string; pedido: string }[]; sugestoes: string[]; pessoa: string; saudacao: string; conversa: { id: string; mensagens: Salva[] } | null };
 type Abrir = { modulo: string; secao: string | null; rotulo: string; registro?: PedidoRegistro };
 type PassoVisto = PassoSara & { desde: number };
-type Mensagem = { passos?: PassoVisto[]; duracaoMs?: number; parametros?: Parametro[]; anexo?: string; foto?: string; papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string; visuais?: Visual[]; acoes?: Cartao[] };
+type Mensagem = { passos?: PassoVisto[]; duracaoMs?: number; parametros?: Parametro[]; anexo?: string; foto?: string; papel: "pessoa" | "sara"; texto: string; fontes?: { rotulo: string; link: string }[]; consultas?: string[]; abrir?: Abrir | null; id?: string | null; nota?: number; erro?: boolean; fora?: boolean; quando?: string; visuais?: Visual[]; acoes?: Cartao[]; opcoes?: OpcaoDeResposta[]; opcoesUsadas?: boolean };
 
 const CONSULTA: Record<string, string> = {
   contas_a_pagar: "contas a pagar", contas_a_receber: "contas a receber", fluxo_de_caixa_90_dias: "fluxo de caixa",
@@ -113,18 +115,6 @@ const IconeCamera = () => <Ico><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="
 const IconeClipe = () => <Ico><path d="M20 11.5 12.2 19.3a5 5 0 0 1-7.1-7.1l8-8a3.3 3.3 0 0 1 4.7 4.7l-8 8a1.7 1.7 0 0 1-2.4-2.4l7.3-7.3" /></Ico>;
 const IconeCodigo = () => <Ico><path d="M4 6v12M7 6v12M10 6v12M14 6v12M16 6v12M20 6v12" /></Ico>;
 
-/** Foto pronta para enviar: reduzida no celular (lado maior 1568 px, JPEG). Não fica no aparelho; na plataforma, só na SARA que guarda evidência (Qualidade). */
-type Foto = { tipo: "image/jpeg"; dados: string; previa: string };
-async function reduzirFoto(arquivo: File): Promise<Foto> {
-  const img = await createImageBitmap(arquivo);
-  const escala = Math.min(1, 1568 / Math.max(img.width, img.height));
-  const tela = document.createElement("canvas");
-  tela.width = Math.round(img.width * escala); tela.height = Math.round(img.height * escala);
-  tela.getContext("2d")?.drawImage(img, 0, 0, tela.width, tela.height);
-  img.close();
-  const previa = tela.toDataURL("image/jpeg", 0.82);
-  return { tipo: "image/jpeg", dados: previa.split(",")[1] ?? "", previa };
-}
 
 type Detector = { detect: (fonte: CanvasImageSource) => Promise<{ rawValue: string; format: string }[]> };
 type DetectorCtor = new (o?: { formats?: string[] }) => Detector;
@@ -557,7 +547,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
     const comAnexo = anexo;
     if ((!p && !comFoto && !comAnexo) || pensando) return;
     setTexto(""); setFoto(null); setAnexo(null);
-    setMsgs((m) => [...m, { papel: "pessoa", texto: p || (comFoto ? "📷 O que é isto?" : "Leia o documento e cruze com a plataforma."), foto: comFoto?.previa, anexo: comAnexo?.nome, quando: new Date().toISOString() }]); setPensando(true);
+    setMsgs((m) => [...m, { papel: "pessoa", texto: p || (comFoto ? "📷 Foto" : "Leia o documento e cruze com a plataforma."), foto: comFoto?.previa, anexo: comAnexo?.nome, quando: new Date().toISOString() }]); setPensando(true);
     const t0 = Date.now();
     setPassos([]); setRelogio({ inicio: t0, sinal: t0, passo: t0 });
     let vistos: PassoVisto[] = [];
@@ -576,7 +566,7 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
     const r = resposta as { ok: boolean; body: any };
     if (!r.ok) { setMsgs((m) => [...m, { papel: "sara", texto: r.body?.error ?? "A SARA está indisponível agora.", erro: true, quando: new Date().toISOString(), passos: vistos, duracaoMs: Date.now() - t0 }]); return; }
     setConversa(r.body.conversa ?? conversa);
-    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo), quando: new Date().toISOString(), visuais: r.body.visuais ?? [], acoes: r.body.acoes ?? [], parametros: r.body.parametros ?? [],
+    setMsgs((m) => [...m, { papel: "sara", texto: r.body.texto, fontes: r.body.fontes ?? [], consultas: r.body.ferramentas ?? [], abrir: r.body.abrir ?? null, id: r.body.mensagem, fora: Boolean(r.body.foraDoEscopo), quando: new Date().toISOString(), visuais: r.body.visuais ?? [], acoes: r.body.acoes ?? [], opcoes: r.body.opcoes ?? [], parametros: r.body.parametros ?? [],
       passos: vistos, duracaoMs: Date.now() - t0 }]);
     // A SARA pediu para mostrar uma tela: abre por dentro da plataforma (a janela continua aberta).
     if (r.body.abrir) abrir(r.body.abrir);
@@ -663,6 +653,17 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
     mudarCartao(c.id, { situacao: r.body.situacao, feito: r.body.feito ?? null, erro: r.body.erro ?? null, umaVez: r.body.umaVez ?? null });
     if (r.body.situacao === "executada") window.dispatchEvent(new Event("sara:acao-feita"));
     if (r.body.abrir) abrir(r.body.abrir);
+  };
+  // Botões de resposta rápida (ex.: foto na Qualidade → Registrar não conformidade · Descartar). Valem uma vez.
+  const escolherOpcao = async (i: number, o: OpcaoDeResposta) => {
+    setMsgs((l) => l.map((x, k) => (k === i ? { ...x, opcoesUsadas: true } : x)));
+    if (o.pergunta) { void perguntar(o.pergunta); return; }
+    if (!o.rota) return;
+    setMsgs((m) => [...m, { papel: "pessoa", texto: o.rotulo, quando: new Date().toISOString() }]);
+    const r = await fetch(o.rota, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ conversa }) })
+      .then(async (x) => ({ ok: x.ok, body: await x.json().catch(() => null) })).catch(() => ({ ok: false, body: null }));
+    setMsgs((m) => [...m, r.ok ? { papel: "sara", texto: o.aviso ?? "Feito.", quando: new Date().toISOString() }
+      : { papel: "sara", texto: r.body?.error ?? "Não foi possível agora. Tente de novo.", erro: true, quando: new Date().toISOString() }]);
   };
   const avaliar = async (i: number, nota: number) => {
     const m = msgs[i];
@@ -764,6 +765,11 @@ export function SaraPainel({ modulo, navegar, abrirAoCarregar = 0, abrirGuias = 
                 <div className="sara-texto">{m.papel === "sara" ? <Texto texto={m.texto} /> : <p>{m.texto}</p>}</div>
                 {m.visuais?.length ? <VisuaisDaResposta visuais={m.visuais} /> : null}
                 {m.acoes?.map((c) => <CartaoAcao key={c.id} c={c} decidindo={decidindo} confirmar={confirmar} decidir={(x, permitir) => void decidir(x, permitir)} />)}
+                {m.opcoes && m.opcoes.length > 0 && (
+                  <div className="sara-opcoes" role="group" aria-label="O que fazer">
+                    {m.opcoes.map((o) => <button type="button" key={o.rotulo} disabled={m.opcoesUsadas || pensando} onClick={() => void escolherOpcao(i, o)}>{o.rotulo}</button>)}
+                  </div>
+                )}
                 {m.consultas && m.consultas.length > 0 && <small className="sara-consultas">Consultou: {[...new Set(m.consultas)].map(rotulo).join(", ")}</small>}
                 {m.passos && m.passos.length > 0 && <ComoChegou passos={m.passos} ms={m.duracaoMs} />}
                 {m.parametros && m.parametros.length > 0 && (

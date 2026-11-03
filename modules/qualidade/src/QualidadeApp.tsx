@@ -10,6 +10,7 @@ import { VisualizarArquivo } from "../../../app/components/visualizar-arquivo";
 import { useModuleNav } from "../../../lib/module-nav-context";
 import { canUseFeature } from "../../access";
 import type { ModuleRuntimeProps } from "../../runtime";
+import { RegistrarNc } from "./RegistrarNc";
 
 /**
  * Qualidade (docs/PLANO-QUALIDADE.md). Primeira seção: Não conformidades. O registro nasce na conversa com
@@ -19,7 +20,7 @@ import type { ModuleRuntimeProps } from "../../runtime";
 type Secao = "Não conformidades" | "Regras";
 type Situacao = "aberta" | "encerrada" | "cancelada";
 type Filtro = Situacao | "todas";
-type Linha = { id: string; numero: number; tipo: string; setor: string; local: string | null; maquina: string | null; os_codigo: string | null; gravidade: string | null; situacao: Situacao; descricao: string; autor_nome: string; created_at: string; qualidade_nc_fotos: { id: string }[] };
+type Linha = { id: string; numero: number; tipo: string; setor: string; local: string | null; maquina: string | null; os_codigo: string | null; gravidade: string | null; situacao: Situacao; descricao: string; autor_nome: string; ocorrido_em: string | null; created_at: string; qualidade_nc_fotos: { id: string }[] };
 type Regras = { tipos: string[]; usar_gravidade: boolean; gravidades: string[]; revisado_por_nome: string | null; revisado_em: string | null };
 type Dados = { ncs: Linha[]; regras: Regras | null; setores: string[]; podeOperar: boolean; podeRegras: boolean };
 type Detalhe = { nc: Linha & { analise_sara: string | null; confianca: "alta" | "media" | "baixa" | null }; andamentos: { id: string; autor_nome: string; tipo: string; texto: string; created_at: string }[] };
@@ -30,6 +31,8 @@ const SITUACAO: Record<Situacao, { label: string; tone: "attention" | "success" 
 const CONFIANCA = { alta: "alta", media: "média", baixa: "baixa" } as const;
 const dataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 const urlFoto = (id: string) => `/api/qualidade/foto/${id}`;
+/** Instante → valor do campo datetime-local, na hora de Brasília. */
+const paraCampo = (iso: string | null) => (iso ? new Date(Date.parse(iso) - 3 * 3_600_000).toISOString().slice(0, 16) : "");
 
 async function chamar<T>(url: string, init?: RequestInit): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
   try {
@@ -106,6 +109,7 @@ function Lista({ dados, temSara, depois }: { dados: Dados | null; temSara: boole
   const [setor, setSetor] = useState("");
   const [busca, setBusca] = useState("");
   const [aberta, setAberta] = useState<string | null>(null);
+  const [registrando, setRegistrando] = useState(false);
   // A SARA pediu uma NC: tira os filtros (ela pode não estar entre as abertas) e abre ou acende a linha.
   useRegistroNaTela("nc", (p) => {
     setFiltro("todas"); setTipo(""); setSetor(""); setBusca("");
@@ -127,7 +131,7 @@ function Lista({ dados, temSara, depois }: { dados: Dados | null; temSara: boole
     <>
       <div className="finance-page-head almox-head">
         <div><p className="eyebrow">QUALIDADE · NÃO CONFORMIDADES</p><h1>Não conformidades</h1><p>O que foi visto na fábrica, com a foto e o histórico. O registro é feito pela SARA da Qualidade: foto, voz ou texto, e você confirma.</p></div>
-        {temSara && dados?.podeOperar && <Button onClick={() => window.dispatchEvent(new Event("sara:abrir"))}>Registrar com a SARA</Button>}
+        {temSara && dados?.podeOperar && <Button onClick={() => setRegistrando(true)}>Registrar não conformidade</Button>}
       </div>
       {!dados ? <Carregando /> : (
         <section className="almox-bloco">
@@ -147,7 +151,7 @@ function Lista({ dados, temSara, depois }: { dados: Dados | null; temSara: boole
                 <button type="button" role="row" key={n.id} data-registro={n.id} onClick={() => setAberta(n.id)}>
                   <span className="qualidade-miniatura">{n.qualidade_nc_fotos[0] ? <img src={urlFoto(n.qualidade_nc_fotos[0].id)} alt="" loading="lazy" /> : <small>sem foto</small>}</span>
                   <span>NC-{n.numero}</span>
-                  <span className="nome qualidade-desc">{n.descricao}<small>{dataHora(n.created_at)}{n.qualidade_nc_fotos.length > 1 ? ` · ${n.qualidade_nc_fotos.length} fotos` : ""}</small><small className="qualidade-so-celular">NC-{n.numero} · {n.setor} · {SITUACAO[n.situacao].label}</small></span>
+                  <span className="nome qualidade-desc">{n.descricao}<small>{dataHora(n.ocorrido_em ?? n.created_at)}{n.qualidade_nc_fotos.length > 1 ? ` · ${n.qualidade_nc_fotos.length} fotos` : ""}</small><small className="qualidade-so-celular">NC-{n.numero} · {n.setor} · {SITUACAO[n.situacao].label}</small></span>
                   <span className="nome">{n.setor}<small>{[n.local, n.maquina].filter(Boolean).join(" · ") || "—"}</small></span>
                   <span>{n.tipo}{n.gravidade ? ` · ${n.gravidade}` : ""}</span>
                   <span><Status tone={SITUACAO[n.situacao].tone}>{SITUACAO[n.situacao].label}</Status></span>
@@ -158,6 +162,7 @@ function Lista({ dados, temSara, depois }: { dados: Dados | null; temSara: boole
           )}
         </section>
       )}
+      {registrando && <RegistrarNc onClose={() => setRegistrando(false)} onRegistrada={(aviso) => void depois(aviso)} />}
       {aberta && dados && <DetalheNc id={aberta} dados={dados} onClose={() => setAberta(null)} depois={depois} />}
     </>
   );
@@ -169,7 +174,7 @@ function DetalheNc({ id, dados, onClose, depois }: { id: string; dados: Dados; o
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [foto, setFoto] = useState<string | null>(null);
-  const [corrigir, setCorrigir] = useState<{ tipo: string; setor: string; local: string; maquina: string; os: string; descricao: string; gravidade: string } | null>(null);
+  const [corrigir, setCorrigir] = useState<{ tipo: string; setor: string; local: string; maquina: string; os: string; descricao: string; gravidade: string; quando: string } | null>(null);
 
   const carregar = useCallback(async () => {
     const r = await chamar<Detalhe>(`/api/qualidade/nc/${id}`);
@@ -190,7 +195,7 @@ function DetalheNc({ id, dados, onClose, depois }: { id: string; dados: Dados; o
 
   return (
     <Modal eyebrow={n ? `NC-${n.numero} · ${n.tipo}` : "Não conformidade"} title={n ? `${n.setor}${n.local ? ` · ${n.local}` : ""}` : "Carregando…"}
-      subtitle={n ? `Registrada por ${n.autor_nome} em ${dataHora(n.created_at)}` : undefined} onClose={onClose}>
+      subtitle={n ? `${n.ocorrido_em ? `Ocorrido em ${dataHora(n.ocorrido_em)} · ` : ""}Registrada por ${n.autor_nome} em ${dataHora(n.created_at)}` : undefined} onClose={onClose}>
       {!n ? (erro ? <p className="almox-erro">{erro}</p> : <p className="ds-detail-empty">Carregando…</p>) : (
         <div className="almox-detalhe ti-chamado">
           <div className="ti-chamado-selos">
@@ -229,7 +234,7 @@ function DetalheNc({ id, dados, onClose, depois }: { id: string; dados: Dados; o
               <div className="ti-acoes">
                 {n.situacao === "aberta" && <Button onClick={() => void agir("comentar", "Comentário registrado.")} disabled={enviando || !texto.trim()}>Comentar</Button>}
                 {n.situacao === "aberta" && <Button variant="secondary" onClick={() => void agir("encerrar", `NC-${n.numero} encerrada.`)} disabled={enviando}>Encerrar</Button>}
-                {n.situacao === "aberta" && !corrigir && <Button variant="secondary" disabled={enviando} onClick={() => setCorrigir({ tipo: n.tipo, setor: n.setor, local: n.local ?? "", maquina: n.maquina ?? "", os: n.os_codigo ?? "", descricao: n.descricao, gravidade: n.gravidade ?? "" })}>Corrigir</Button>}
+                {n.situacao === "aberta" && !corrigir && <Button variant="secondary" disabled={enviando} onClick={() => setCorrigir({ tipo: n.tipo, setor: n.setor, local: n.local ?? "", maquina: n.maquina ?? "", os: n.os_codigo ?? "", descricao: n.descricao, gravidade: n.gravidade ?? "", quando: paraCampo(n.ocorrido_em) })}>Corrigir</Button>}
                 {n.situacao !== "aberta" && <Button onClick={() => void agir("reabrir", `NC-${n.numero} reaberta.`)} disabled={enviando}>Reabrir</Button>}
                 {n.situacao === "aberta" && <Button variant="ghost" className="almox-perigo" onClick={() => void agir("cancelar", `NC-${n.numero} cancelada.`)} disabled={enviando || !texto.trim()} title="Use o texto para dizer o motivo">Cancelar registro</Button>}
               </div>
@@ -243,12 +248,13 @@ function DetalheNc({ id, dados, onClose, depois }: { id: string; dados: Dados; o
                 <label><span>Setor</span><select value={corrigir.setor} onChange={(e) => setCorrigir({ ...corrigir, setor: e.target.value })}>{[...new Set([n.setor, ...dados.setores])].map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
                 <label><span>Local</span><input value={corrigir.local} maxLength={160} onChange={(e) => setCorrigir({ ...corrigir, local: e.target.value })} /></label>
                 <label><span>Máquina</span><input value={corrigir.maquina} maxLength={160} onChange={(e) => setCorrigir({ ...corrigir, maquina: e.target.value })} /></label>
+                <label><span>Quando aconteceu</span><input type="datetime-local" value={corrigir.quando} onChange={(e) => setCorrigir({ ...corrigir, quando: e.target.value })} /></label>
                 <label><span>OS</span><input value={corrigir.os} maxLength={40} onChange={(e) => setCorrigir({ ...corrigir, os: e.target.value })} /></label>
                 {dados.regras?.usar_gravidade && <label><span>Gravidade</span><select value={corrigir.gravidade} onChange={(e) => setCorrigir({ ...corrigir, gravidade: e.target.value })}><option value="">—</option>{dados.regras.gravidades.map((g) => <option key={g} value={g}>{g}</option>)}</select></label>}
                 <label className="ti-campo-4"><span>Descrição</span><textarea rows={4} maxLength={4000} value={corrigir.descricao} onChange={(e) => setCorrigir({ ...corrigir, descricao: e.target.value })} /></label>
               </div>
               <div className="ti-acoes">
-                <Button disabled={enviando} onClick={() => void agir("corrigir", `NC-${n.numero} corrigida.`, corrigir)}>Salvar correção</Button>
+                <Button disabled={enviando} onClick={() => void agir("corrigir", `NC-${n.numero} corrigida.`, { ...corrigir, quando: corrigir.quando ? `${corrigir.quando}:00-03:00` : "" })}>Salvar correção</Button>
                 <Button variant="ghost" disabled={enviando} onClick={() => setCorrigir(null)}>Desistir</Button>
               </div>
             </div>

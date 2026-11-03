@@ -377,6 +377,18 @@ const ENTRADA_DE_PRODUCAO: Ferramenta = {
 // --- Qualidade: não conformidade -------------------------------------------------------------------------
 const CONFIANCA: Record<string, string> = { alta: "alta", media: "média", baixa: "baixa" };
 
+/** "AAAA-MM-DDTHH:MM" de Brasília → instante, nunca no futuro nem de mais de um ano atrás. */
+export function horaDoOcorrido(v: unknown, agora = Date.now()): { iso: string; texto: string } | { erro: string } {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(String(v ?? "").trim());
+  if (!m) return { erro: "Falta quando aconteceu. Pergunte a hora à pessoa (\"agora\" vale a hora atual)." };
+  const iso = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00-03:00`;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return { erro: "Hora inválida. Pergunte de novo quando aconteceu." };
+  if (t > agora + 10 * 60_000) return { erro: "A hora ficou no futuro. Confira com a pessoa quando aconteceu." };
+  if (t < agora - 400 * 86_400_000) return { erro: "A hora ficou de mais de um ano atrás. Confira com a pessoa." };
+  return { iso, texto: `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}` };
+}
+
 const REGISTRAR_NC: Ferramenta = {
   nome: "registrar_nao_conformidade", rotulo: "preparou o registro de uma não conformidade", exige: ["qualidade.nao_conformidades"],
   descricao: "PREPARA o registro de uma não conformidade, depois de saber o que aconteceu, o setor e o local e de consultar os tipos; as fotos da conversa entram sozinhas; a pessoa confirma no cartão.",
@@ -386,6 +398,7 @@ const REGISTRAR_NC: Ferramenta = {
       tipo: { type: "string", description: "Um dos tipos de qualidade_opcoes_nc, escolhido pela descrição da pessoa." },
       setor: { type: "string", description: "Um dos setores de qualidade_opcoes_nc." },
       local: { type: "string", description: "Onde exatamente, como a pessoa disse." },
+      quando: { type: "string", description: "Quando aconteceu, AAAA-MM-DDTHH:MM no horário de Brasília, pelo que a pessoa disse (\"agora\" = a hora atual)." },
       descricao: { type: "string", description: "O que aconteceu, com as palavras da pessoa, organizado e sem acrescentar." },
       maquina: { type: "string", description: "Máquina ou equipamento, se a pessoa disse." },
       os: { type: "string", description: "Código da OS, se a pessoa disse." },
@@ -393,7 +406,7 @@ const REGISTRAR_NC: Ferramenta = {
       confianca: { type: "string", enum: Object.keys(CONFIANCA), description: "Sua confiança na leitura da foto." },
       gravidade: { type: "string", description: "Só se a gravidade estiver em uso; uma das opções da lista." },
     },
-    required: ["tipo", "setor", "local", "descricao"],
+    required: ["tipo", "setor", "local", "quando", "descricao"],
   },
   acao: {
     nivel: "operar", modulos: ["qualidade"], soComPessoa: true, levaFotos: true,
@@ -405,6 +418,8 @@ const REGISTRAR_NC: Ferramenta = {
       if (!setor) return { erro: `Setor inválido. Pergunte à pessoa qual destes: ${o.setores.join(", ")}.` };
       const local = String(e.local ?? "").trim(), descricao = String(e.descricao ?? "").trim();
       if (!local) return { erro: "Falta onde foi. Pergunte à pessoa." };
+      const quando = horaDoOcorrido(e.quando);
+      if ("erro" in quando) return { erro: quando.erro };
       if (descricao.length < 3) return { erro: "Falta o que aconteceu. Pergunte à pessoa." };
       const gravidade = String(e.gravidade ?? "").trim();
       if (o.usa_gravidade && !o.gravidades.includes(gravidade)) return { erro: `Falta a gravidade. Pergunte à pessoa qual destas: ${o.gravidades.join(", ")}.` };
@@ -412,13 +427,14 @@ const REGISTRAR_NC: Ferramenta = {
       // O espelho só tem OS abertas e nem todos o enxergam: OS não achada não impede o registro.
       const achada = os ? (await sb.from("production_orders").select("customer_name").eq("code", os).maybeSingle()).data : null;
       const conf = CONFIANCA[String(e.confianca ?? "")];
-      return { resumo: `Registrar não conformidade: ${tipo}, ${setor}.`, detalhes: [`Local: ${local.slice(0, 160)}`, ...(maquina ? [`Máquina: ${maquina.slice(0, 160)}`] : []),
+      return { resumo: `Registrar não conformidade: ${tipo}, ${setor}.`, detalhes: [`Quando: ${quando.texto}`, `Local: ${local.slice(0, 160)}`, ...(maquina ? [`Máquina: ${maquina.slice(0, 160)}`] : []),
         ...(os ? [`OS: ${os.slice(0, 40)}${achada ? ` (${achada.customer_name ?? "sem cliente"})` : " (não achada nas OS abertas)"}`] : []),
         ...(o.usa_gravidade ? [`Gravidade: ${gravidade}`] : []), `Descrição: ${descricao.slice(0, 600)}`, ...(analise ? [`Leitura da SARA${conf ? ` (confiança ${conf})` : ""}: ${analise.slice(0, 400)}`] : [])] };
     },
   },
   rodar: async (sb, e) => {
-    const { data, error } = await sb.rpc("qualidade_nc_registrar", { p: { tipo: e.tipo, setor: e.setor, local: e.local, maquina: e.maquina, os: e.os, descricao: e.descricao, analise_sara: e.analise_sara, confianca: e.confianca, gravidade: e.gravidade, fotos: Array.isArray(e.fotos) ? e.fotos : [] } });
+    const quando = horaDoOcorrido(e.quando);
+    const { data, error } = await sb.rpc("qualidade_nc_registrar", { p: { tipo: e.tipo, setor: e.setor, local: e.local, quando: "iso" in quando ? quando.iso : null, maquina: e.maquina, os: e.os, descricao: e.descricao, analise_sara: e.analise_sara, confianca: e.confianca, gravidade: e.gravidade, fotos: Array.isArray(e.fotos) ? e.fotos : [] } });
     if (error) throw new Error(error.message);
     const r = data as { numero: number; fotos: number };
     return { dados: { feito: `Não conformidade NC-${r.numero} registrada${r.fotos ? `, com ${r.fotos === 1 ? "1 foto" : `${r.fotos} fotos`}` : ", sem foto"}.` }, fontes: [{ rotulo: "Qualidade › Não conformidades", link: link("qualidade", "Não conformidades") }],

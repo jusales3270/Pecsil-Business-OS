@@ -33,8 +33,14 @@ export async function guardarFoto(sb: SupabaseClient, imagem: { tipo: string; da
 async function limparVencidas(sb: SupabaseClient) {
   const { data, error } = await sb.rpc("qualidade_fotos_vencidas_limpar");
   if (error) return console.error("[qualidade] não limpou as fotos vencidas", error.message);
-  const caminhos = (data ?? []) as string[];
-  if (caminhos.length) await createSupabaseAdminClient().storage.from(BUCKET).remove(caminhos);
+  await apagarArquivos((data ?? []) as string[]);
+}
+
+/** Apaga os arquivos depois que a função do banco tirou as linhas (ela confere de quem são). */
+export async function apagarArquivos(caminhos: string[]) {
+  if (!caminhos.length) return;
+  const { error } = await createSupabaseAdminClient().storage.from(BUCKET).remove(caminhos);
+  if (error) console.error("[qualidade] não apagou os arquivos", error.message);
 }
 
 /** Fotos pendentes que a pessoa mandou nesta conversa, na ordem em que chegaram. */

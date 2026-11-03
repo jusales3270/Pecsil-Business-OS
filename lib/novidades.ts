@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-03-qualidade-registro-pela-tela",
+    data: "2026-11-03",
+    area: "Qualidade",
+    modulos: ["qualidade"],
+    funcionalidades: ["qualidade.nao_conformidades"],
+    titulo: "Não conformidades: janela de registro e botões na SARA",
+    itens: [
+      "O botão \"Registrar não conformidade\" abre uma janela para tirar a foto pela câmera ou escolher da galeria. A SARA lê a foto, você conta por escrito ou por voz o que aconteceu, onde e quando, e ela mostra o resumo para você permitir.",
+      "Mandou uma foto para a SARA da Qualidade sem dizer nada? Ela diz em uma frase o que vê e oferece os botões Registrar não conformidade e Descartar.",
+      "Cada registro agora guarda a hora em que aconteceu, que também pode ser corrigida na tela.",
+    ],
+  },
+  {
     id: "2026-11-03-vigia-configuravel",
     data: "2026-11-03",
     area: "WhatsApp",

@@ -160,7 +160,9 @@ test("E2: a foto vai ao modelo como imagem junto da pergunta, e não fica guarda
 test("E2: no celular, foto pela câmera (reduzida no aparelho) e leitor de código de barras/QR", () => {
   const painel = ler("app/components/sara-painel.tsx");
   assert.match(painel, /accept="image\/\*" capture="environment"/);
-  assert.match(painel, /1568 \/ Math\.max\(img\.width, img\.height\)/, "reduz antes de enviar");
+  // A redução fica em lib/sara/foto-cliente.ts (03/11/2026), usada pelo painel e pela janela de registro da Qualidade.
+  assert.match(painel, /import \{ reduzirFoto, type Foto \} from "\.\.\/\.\.\/lib\/sara\/foto-cliente"/);
+  assert.match(ler("lib/sara/foto-cliente.ts"), /1568 \/ Math\.max\(img\.width, img\.height\)/, "reduz antes de enviar");
   assert.match(painel, /BarcodeDetector/);
   assert.match(painel, /facingMode: "environment"/);
   assert.match(painel, /getTracks\(\)\.forEach\(\(t\) => t\.stop\(\)\)/, "a câmera desliga ao ler ou fechar");

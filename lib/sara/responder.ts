@@ -350,6 +350,8 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   });
 
   return NextResponse.json({
+    // Foto sem dizer o que fazer: a pessoa escolhe nos botões (só se a foto ficou guardada e nada foi preparado).
+    opcoes: fotoGuardada && !digitada && !acoes.length ? (p.sara.opcoesDaFoto ?? []) : [],
     conversa: ids?.conversa ?? conversa, mensagem: ids?.mensagem ?? null, texto: r.texto, fontes: r.fontes, abrir: r.abrir, grafo: r.grafo ?? null, ferramentas: r.ferramentas.map((f) => f.nome), foraDoEscopo: Boolean(fora), visuais: r.visuais, acoes,
     documentos,
     parametros: parametrosUsados(r.ferramentas as Usada[], rotulosDe(p.ferramentas), new Set(ACOES.map((f) => f.nome)), TABELAS),
