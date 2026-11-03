@@ -8,8 +8,9 @@ const { janelaDoBomDia } = await import("../lib/sara/central/bom-dia.ts");
 const { validarAvulso } = await import("../lib/whatsapp/avulso.ts");
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 
-test("vigia: o padrão é o de hoje, segunda a sexta às 6h30, só no sino", () => {
-  assert.deepEqual(PADRAO_VIGIA, { dias: [1, 2, 3, 4, 5], hora: "06:30", whatsapp: false });
+test("vigia: o padrão é segunda a sexta às 6h30, pelo WhatsApp", () => {
+  assert.deepEqual(PADRAO_VIGIA, { dias: [1, 2, 3, 4, 5], hora: "06:30", whatsapp: true });
+  assert.doesNotMatch(readFileSync(new URL("../app/components/whatsapp-vigia.tsx", import.meta.url), "utf8"), /Só no sino/);
   assert.equal(textoDaAgenda(PADRAO_VIGIA), "de segunda a sexta, às 6h30");
 });
 

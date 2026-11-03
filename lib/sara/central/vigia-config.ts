@@ -8,7 +8,8 @@ import { VIGIA } from "./vigia.ts";
  */
 
 export type ConfigVigia = { dias: number[]; hora: string; whatsapp: boolean };
-export const PADRAO_VIGIA: ConfigVigia = { dias: [...VIGIA.dias], hora: VIGIA.hora, whatsapp: false };
+/** Na seção do WhatsApp, o padrão é mandar pelo WhatsApp (proprietário, 03/11/2026); o sino segue junto. */
+export const PADRAO_VIGIA: ConfigVigia = { dias: [...VIGIA.dias], hora: VIGIA.hora, whatsapp: true };
 /** A rodada pode começar até 3h30 depois da hora marcada (a tarefa roda de 10 em 10 minutos). */
 const FOLGA_MIN = 210;
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;

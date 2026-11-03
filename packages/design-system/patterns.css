@@ -9302,6 +9302,7 @@ a.doc-abrir { text-decoration: none; }
 .wa-form label.wa-vigia-ligar { grid-column: 1 / -1; }
 .wa-vigia-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px var(--sp-3); max-height: 260px; overflow: auto; }
 .wa-vigia-lista legend, .wa-vigia-lista > small { grid-column: 1 / -1; color: var(--text-muted); }
+.wa-vigia-lista > small.wa-vigia-alerta { color: var(--accent-amber); font-weight: 600; }
 .wa-vigia-avulso > b { grid-column: 1 / -1; font-size: var(--fs-sm); }
 .wa-tabela th, .wa-tabela td { padding: 8px var(--sp-3); border-bottom: 1px solid var(--border-subtle, color-mix(in srgb, var(--text-primary) 8%, transparent)); text-align: left; vertical-align: middle; white-space: nowrap; color: var(--text-primary); }
 .wa-tabela td:first-child { font-variant-numeric: tabular-nums; }
