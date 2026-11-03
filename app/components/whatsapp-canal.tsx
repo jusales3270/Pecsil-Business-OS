@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button, Callout, Status } from "../../packages/design-system";
+import { VigiaWhatsapp, type DadosVigia } from "./whatsapp-vigia";
 import { WhatsappListas } from "./whatsapp-listas";
 
 /**
@@ -17,7 +18,7 @@ type Movimento = { respondidas: number; ignoradas: number; fora_da_lista: number
 type Canal = { id: string; instancia: string; nome: string; departamento: string | null; descricao: string | null; prompt: string | null; modelo: string | null; conexao: "whatsapp_web" | "api_oficial"; ativo: boolean; situacao: Situacao;
   recebimento: { ligado: boolean; erro?: string } | null; movimento: Movimento };
 type Agendado = { id: string; para_nome: string; quando: string; texto: string | null; documentos: number; situacao: string; tentativas: number; erro: string | null; enviado_em: string | null };
-type Dados = { canais: Canal[]; modelos: Modelo[]; configurada: boolean; agendados?: Agendado[] };
+type Dados = { canais: Canal[]; modelos: Modelo[]; configurada: boolean; agendados?: Agendado[]; vigia?: DadosVigia };
 type FormCanal = { id?: string; nome: string; departamento: string; descricao: string; prompt: string; modelo: string; conexao: "whatsapp_web" | "api_oficial"; promptOriginal?: string };
 
 const ROTULO: Record<Estado, [string, "success" | "attention" | "danger" | "neutral" | "info"]> = {
@@ -89,6 +90,8 @@ export function WhatsappCanal({ notify }: { notify: (m: string) => void }) {
         : dados.canais.map((c) => (
           <CartaoCanal key={c.id} canal={c} notify={notify} recarregar={carregar} editar={() => setForm({ id: c.id, nome: c.nome, departamento: c.departamento ?? "", descricao: c.descricao ?? "", prompt: c.prompt ?? "", promptOriginal: c.prompt ?? "", modelo: c.modelo ?? "", conexao: c.conexao })} modelos={dados.modelos} />
         ))}
+
+      {dados.vigia && <VigiaWhatsapp key={JSON.stringify(dados.vigia.config) + dados.vigia.transmissao.join()} dados={dados.vigia} chamar={chamar} notify={notify} recarregar={carregar} />}
 
       {(dados.agendados ?? []).length > 0 && <Agendados lista={dados.agendados ?? []} notify={notify} recarregar={carregar} />}
 

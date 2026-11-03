@@ -13,7 +13,7 @@ type Achado = {
   ligacoes: string[]; contencao: string[]; confianca: "alta" | "media" | "baixa"; origem: "modelo" | "plataforma"; situacao: string; envios: Envio[]; efeito: string | null; created_at: string;
 };
 type Rodada = { id: string; disparo: string; situacao: string; sinais: number; achados_novos: number; enviados: number; modelo: string | null; resumo: string | null; erro: string | null; created_at: string };
-type Quadro = { rodadas: Rodada[]; achados: Achado[]; responsaveis: { modulo: string; area: string; pessoas: string[] }[] };
+type Quadro = { rodadas: Rodada[]; achados: Achado[]; responsaveis: { modulo: string; area: string; pessoas: string[] }[]; agenda?: string | null };
 
 const SITUACAO: Record<string, string> = {
   aberto: "Na fila para enviar", enviado: "Esperando resposta", tratando: "Vou tratar", ajuda: "Pediu ajuda", nao_e_problema: "Não é problema",
@@ -56,7 +56,7 @@ export function Vigia() {
       <header className="vigia-topo">
         <div>
           <h3 id="vigia-titulo">Vigia</h3>
-          <p>Todo dia, de segunda a sábado, às 6h30, ela lê os avisos de todas as áreas e o que está parado, liga uma coisa à outra e leva cada gargalo a quem decide, como Decisão para você.</p>
+          <p>{q?.agenda ? `${q.agenda.charAt(0).toUpperCase()}${q.agenda.slice(1)}, ela` : "Ela"} lê os avisos de todas as áreas e o que está parado, liga uma coisa à outra e leva cada gargalo a quem decide, como Decisão para você. Dias, hora e envio pelo WhatsApp: Fundação › WhatsApp › Vigia.</p>
         </div>
         <button type="button" className="vigia-rodar" onClick={() => void rodar()} disabled={rodando}>{rodando ? "Lendo a empresa…" : "Rodar a vigia agora"}</button>
       </header>
@@ -68,7 +68,7 @@ export function Vigia() {
           {ultima.resumo && <><br /><span className="vigia-ia">Análise da SARA (IA):</span> {ultima.resumo}</>}
         </p>
       )}
-      {q && !q.rodadas.length && <p className="vigia-vazio">A vigia ainda não rodou. A primeira leitura sai no próximo dia útil às 6h30, ou agora, pelo botão.</p>}
+      {q && !q.rodadas.length && <p className="vigia-vazio">A vigia ainda não rodou. A primeira leitura sai na próxima rodada marcada{q.agenda ? ` (${q.agenda})` : ""}, ou agora, pelo botão.</p>}
       {q && q.achados.length > 0 && (
         <div className="vigia-filtro" role="group" aria-label="Quais achados">
           <button type="button" aria-pressed={!verTodos} onClick={() => setVerTodos(false)}>Em aberto · {q.achados.filter((a) => ABERTOS.has(a.situacao)).length}</button>

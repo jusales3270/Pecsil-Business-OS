@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { readSessionAccess } from "../../../../../lib/auth/session-access";
 import { rodarVigia } from "../../../../../lib/sara/central/vigia-executar";
+import { lerConfigVigia, textoDaAgenda } from "../../../../../lib/sara/central/vigia-config";
 import { SARAS } from "../../../../../lib/sara/modulos";
 import { createSupabaseAdminClient } from "../../../../../lib/supabase/admin";
 import { requireUserSession } from "../../../../../lib/supabase/session";
@@ -42,7 +43,10 @@ export async function GET() {
   const nomes = new Map<string, string[]>();
   for (const r of (resp ?? []) as unknown as { modulo: string; profiles: { full_name: string } | null }[]) nomes.set(r.modulo, [...(nomes.get(r.modulo) ?? []), r.profiles?.full_name ?? "?"]);
   const responsaveis = Object.values(SARAS).filter((s) => !s.central).map((s) => ({ modulo: s.modulo, area: s.rotulo, pessoas: nomes.get(s.modulo) ?? [] }));
-  return NextResponse.json({ rodadas: rodadas ?? [], achados: lista, responsaveis });
+  // A agenda vem da configuração (só o proprietário lê a tabela; aqui o servidor lê para todos do quadro).
+  let agenda: string | null = null;
+  try { const c = await lerConfigVigia(createSupabaseAdminClient()); agenda = textoDaAgenda(c); } catch { agenda = null; }
+  return NextResponse.json({ rodadas: rodadas ?? [], achados: lista, responsaveis, agenda });
 }
 
 export async function POST() {

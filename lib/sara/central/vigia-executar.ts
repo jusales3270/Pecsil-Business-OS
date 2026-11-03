@@ -7,6 +7,7 @@ import { sessaoComo } from "../guias-executar";
 import { SARAS } from "../modulos";
 import { agoraSP } from "../tempo";
 import { janelaDoBomDia } from "./bom-dia";
+import { janelaDaVigia, lerConfigVigia, mensagemDaVigia } from "./vigia-config";
 import { APRENDIZADO, aprendizadoDaVigia, comRecorrencia, doMesmoProblema, textoDoSilencio } from "./aprendizado";
 import { historicoDaVigia } from "./licoes";
 import {
@@ -30,7 +31,7 @@ import {
 const ATIVOS = ["aberto", "enviado", "tratando", "ajuda", "sem_responsavel", "silenciado"];
 const rotulo = (m: string) => SARAS[m]?.rotulo ?? m;
 type Linha = { id: string; tipo: string; modulo: string; titulo: string; sinais: string[]; situacao: string; envios: Envio[]; created_at: string; updated_at: string };
-export type RelatorioVigia = { rodada?: string; sinais: number; novos: number; enviados: number; resolvidos: number; cobrados: number; descartados: string[]; recorrentes?: number; perguntasDeSilencio?: number; jaRodou?: boolean; erro?: string };
+export type RelatorioVigia = { rodada?: string; sinais: number; novos: number; enviados: number; resolvidos: number; cobrados: number; descartados: string[]; recorrentes?: number; perguntasDeSilencio?: number; jaRodou?: boolean; erro?: string; transmitidos?: number };
 export type OpcoesVigia = {
   agora?: Date; disparo?: "agenda" | "manual";
   /** Sessão da visão (o proprietário pedindo na War Room). Sem ela, o servidor abre a do proprietário. */
@@ -48,11 +49,45 @@ async function sinaisDa(sb: SupabaseClient, profileId: string, hoje: string, mod
   return sinaisDe(avisos, doModulo).filter((s) => !modulo || s.modulo === modulo);
 }
 
+/**
+ * A Vigia pelo WhatsApp (03/11/2026): cada pessoa da lista de transmissão recebe só os gargalos NOVOS desta rodada que
+ * as credenciais dela enxergam (a mesma conferência das Decisões). Sem nada para ela, não manda nada. Sai pelos envios
+ * agendados, que respeitam o horário silencioso.
+ */
+async function transmitir(admin: SupabaseClient, a: { org: string; rodada: string; hoje: string; sessoes: Map<string, { sb: SupabaseClient; sair: () => Promise<void> } | null> }): Promise<number> {
+  const { data: lista } = await admin.from("sara_vigia_transmissao").select("contato_id").eq("organization_id", a.org);
+  const ids = ((lista ?? []) as { contato_id: string }[]).map((x) => x.contato_id);
+  if (!ids.length) return 0;
+  const { data: achados } = await admin.from("sara_achados").select("area, titulo, por_que, impacto, sinais").eq("rodada_id", a.rodada)
+    .not("situacao", "in", "(resolvido,nao_e_problema,silenciado)");
+  const novos = (achados ?? []) as { area: string; titulo: string; por_que: string | null; impacto: string | null; sinais: string[] }[];
+  if (!novos.length) return 0;
+  const { data: contatos } = await admin.from("whatsapp_contatos").select("id, canal_id, nome, profile_id, profiles!inner(full_name, status), whatsapp_canais!inner(ativo, conexao)")
+    .in("id", ids).eq("lista", "interna").eq("ativo", true).eq("profiles.status", "active").eq("whatsapp_canais.ativo", true).eq("whatsapp_canais.conexao", "whatsapp_web");
+  const base = (process.env.PLATAFORMA_URL?.trim() || "https://home.pecsil.com.br").replace(/\/+$/, "");
+  let n = 0;
+  for (const c of (contatos ?? []) as unknown as { id: string; canal_id: string; nome: string | null; profile_id: string; profiles: { full_name: string | null } }[]) {
+    if (!a.sessoes.has(c.profile_id)) { const s = await sessaoComo(admin, c.profile_id); a.sessoes.set(c.profile_id, "erro" in s ? null : s); }
+    const s = a.sessoes.get(c.profile_id);
+    if (!s) continue;
+    const dela = new Set((await sinaisDa(s.sb, c.profile_id, a.hoje)).map((x) => x.tipo));
+    const dele = novos.filter((x) => x.sinais.length > 0 && x.sinais.every((k) => dela.has(tipoDaChave(k))));
+    if (!dele.length) continue;
+    const nome = (c.nome || c.profiles.full_name || "").split(" ")[0];
+    const { error } = await admin.from("whatsapp_agendados").insert({ organization_id: a.org, canal_id: c.canal_id, contato_id: c.id, para_nome: (c.nome || c.profiles.full_name || "Vigia").slice(0, 120),
+      quando: new Date().toISOString(), texto: mensagemDaVigia({ nome, dia: a.hoje, achados: dele, base }), criado_por_nome: "SARA (Vigia)" });
+    if (error) console.error("[vigia] não agendou o WhatsApp", error.message); else n++;
+  }
+  return n;
+}
+
 export async function rodarVigia(admin: SupabaseClient, o: OpcoesVigia = {}): Promise<RelatorioVigia> {
   const agora = o.agora ?? new Date();
   const disparo = o.disparo ?? "agenda";
   const rel: RelatorioVigia = { sinais: 0, novos: 0, enviados: 0, resolvidos: 0, cobrados: 0, descartados: [] };
-  const janela = janelaDoBomDia(agora, VIGIA);
+  // Dias e hora vêm da tela (Fundação › WhatsApp › Vigia); sem configuração, vale o padrão de VIGIA.
+  const config = await lerConfigVigia(admin);
+  const janela = janelaDoBomDia(agora, janelaDaVigia(config));
   if (disparo === "agenda" && !janela) return rel;
   const hoje = janela?.dia ?? agoraSP(agora).dia;
 
@@ -206,6 +241,8 @@ export async function rodarVigia(admin: SupabaseClient, o: OpcoesVigia = {}): Pr
       // Ninguém da área enxerga estes dados (e não foi o limite do dia): fica no quadro da War Room.
       else if (!noLimite) await admin.from("sara_achados").update({ situacao: "sem_responsavel", efeito: "Quem decide nesta área não tem acesso a estes dados.", updated_at: agora.toISOString() }).eq("id", p.id);
     }
+
+    if (config.whatsapp) rel.transmitidos = await transmitir(admin, { org: dono.organization_id, rodada: rodada.id, hoje, sessoes }).catch((e) => { console.error("[vigia] transmissão", e instanceof Error ? e.message : e); return 0; });
 
     await admin.from("sara_vigia_rodadas").update({ situacao: "feita", sinais: rel.sinais, achados_novos: rel.novos, enviados: rel.enviados, modelo,
       tokens_entrada: tokens.entrada, tokens_saida: tokens.saida, resumo: [resumo, rel.descartados.length ? `Descartados pelo verificador: ${rel.descartados.join("; ")}` : ""].filter(Boolean).join(" ").slice(0, 2000),

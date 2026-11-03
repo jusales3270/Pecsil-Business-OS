@@ -9289,6 +9289,20 @@ a.doc-abrir { text-decoration: none; }
 /* O rótulo invisível "Ações" (sr-only, absoluto) fica dentro da rolagem da tabela: sem isso, estica a página no celular. */
 .wa-listas .fin-tabela-rolagem, .wa-agendados { position: relative; }
 .wa-tabela { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+/* Vigia no WhatsApp (03/11/2026). */
+.wa-vigia > header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-3); }
+.wa-vigia fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.wa-vigia legend { padding: 0; margin-bottom: 6px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.wa-vigia-dias { display: flex; flex-wrap: wrap; gap: 6px; }
+.wa-vigia-dias legend { width: 100%; }
+.wa-vigia-dias button { min-width: 44px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border-default); background: var(--bg-surface); color: var(--text-secondary); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
+.wa-vigia-dias button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent, #fff); }
+.wa-vigia-dias button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.wa-form label.wa-vigia-ligar, .wa-vigia-lista label { flex-direction: row; align-items: center; gap: 8px; color: var(--text-primary); font-size: var(--fs-sm); }
+.wa-form label.wa-vigia-ligar { grid-column: 1 / -1; }
+.wa-vigia-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px var(--sp-3); max-height: 260px; overflow: auto; }
+.wa-vigia-lista legend, .wa-vigia-lista > small { grid-column: 1 / -1; color: var(--text-muted); }
+.wa-vigia-avulso > b { grid-column: 1 / -1; font-size: var(--fs-sm); }
 .wa-tabela th, .wa-tabela td { padding: 8px var(--sp-3); border-bottom: 1px solid var(--border-subtle, color-mix(in srgb, var(--text-primary) 8%, transparent)); text-align: left; vertical-align: middle; white-space: nowrap; color: var(--text-primary); }
 .wa-tabela td:first-child { font-variant-numeric: tabular-nums; }
 .wa-tabela thead th { background: var(--bg-subtle); font-size: var(--fs-micro); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }

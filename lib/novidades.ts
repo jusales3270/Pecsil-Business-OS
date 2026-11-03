@@ -44,6 +44,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-03-vigia-configuravel",
+    data: "2026-11-03",
+    area: "WhatsApp",
+    modulos: ["warroom"],
+    titulo: "A Vigia se configura pela tela",
+    itens: [
+      "Em Fundação › WhatsApp › Vigia: os dias e a hora da Vigia, e se ela manda os gargalos pelo WhatsApp para a lista de transmissão. Cada pessoa da lista recebe só o que as credenciais dela enxergam.",
+      "Mensagem avulsa: escreva um texto, escolha um ou mais números e mande agora ou num horário marcado.",
+    ],
+  },
+  {
     id: "2026-11-03-rh-adesoes-beneficios",
     data: "2026-11-03",
     area: "RH",
