@@ -8408,6 +8408,20 @@ a.doc-abrir { text-decoration: none; }
 .rh-adesoes-barra label { display: grid; gap: 4px; font-size: var(--fs-xs); color: var(--text-muted); }
 .rh-adesoes-barra small { font-size: var(--fs-xs); color: var(--text-muted); padding-bottom: 8px; }
 
+/* Ficha do colaborador › Benefícios. Em vigor: Benefício · Início · Valor mensal. Movimentações: Movimentação · Vigência · Valor · Situação */
+.rh-ficha-tabela { display: grid; align-content: start; column-gap: var(--sp-3); overflow-x: auto; }
+.rh-ficha-adesoes { grid-template-columns: minmax(220px, 1fr) max-content minmax(100px, max-content); }
+.rh-ficha-movs { grid-template-columns: minmax(240px, 1fr) max-content minmax(90px, max-content) max-content; }
+.rh-ficha-tabela > * { grid-column: 1 / -1; }
+.rh-ficha-tabela > [role="row"] { display: grid; grid-template-columns: subgrid; column-gap: inherit; min-width: 0; align-items: center; padding: 8px 2px; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
+.rh-ficha-tabela > [role="row"] > :not(.nome) { white-space: nowrap; }
+.rh-ficha-tabela > .cabeca { border-top: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.rh-ficha-tabela > .cabeca.total { border-top: 1px solid var(--border-subtle); color: var(--text-primary); }
+.rh-ficha-tabela .r { text-align: right; font-variant-numeric: tabular-nums; }
+.rh-ficha-tabela .nome { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-weight: 600; }
+.rh-ficha-tabela small { font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); }
+.employee-beneficios { display: grid; gap: var(--sp-4); }
+
 /* Recebida · Fornecedor · NF-e · Valor · ICMS · IPI · Tipo · F · U · RS · XML · LACTO · AUT · editar */
 .icms-tabela { grid-template-columns: max-content minmax(180px, 1fr) repeat(5, max-content) repeat(6, minmax(36px, max-content)) max-content; }
 /* Descrição · Crédito · Débito · Saldo · ações */

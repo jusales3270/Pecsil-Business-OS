@@ -53,7 +53,7 @@ export const NOVIDADES: Novidade[] = [
     itens: [
       "Ao aprovar uma movimentação de benefício, o colaborador passa a participar dele com o valor mensal da solicitação. As que já estavam aprovadas entraram agora.",
       "O painel de Benefícios mostra os participantes e o custo somando o valor de cada adesão, e a aba Participantes lista cada um, com o início e o valor.",
-      "A ficha do colaborador mostra os benefícios dele, com o valor por mês.",
+      "A ficha do colaborador ganhou a aba Benefícios: o que está em vigor, com o valor e o início, o total por mês, os dependentes e todas as movimentações, com quem pediu e quem aprovou.",
       "Em aprovação conta todas as solicitações pendentes, não só as 20 mais recentes.",
     ],
   },

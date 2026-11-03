@@ -74,3 +74,28 @@ export function aplicarAprovacao(
   const inicio = s.acao === "change" && atual ? atual.inicio : s.vigencia;
   return [...outras, { planId: s.planId, planName: s.planName, employeeId: s.employeeId, employeeName: s.employeeName, department: s.department, inicio, valor: s.valor ?? atual?.valor ?? null }];
 }
+
+/** Benefícios de um colaborador, para a aba Benefícios da ficha (GET /api/rh/beneficios?colaborador=). */
+export type FichaBeneficios = {
+  adesoes: {
+    id: string; plano: string; fornecedor: string | null; contribuicao: string | null; regra: string | null;
+    inicio: string; fim: string | null; ativa: boolean; valor: number | null;
+    dependentes: { nome: string; parentesco: string | null; nascimento: string | null }[];
+  }[];
+  movimentacoes: {
+    id: string; plano: string; acao: "enroll" | "change" | "cancel" | "add_dependent"; situacao: "pending" | "under_review" | "approved" | "rejected";
+    vigencia: string | null; valor: number | null; justificativa: string | null;
+    pedidaEm: string; pedidaPor: string | null; decididaEm: string | null; decididaPor: string | null;
+  }[];
+};
+
+/** Os números do alto da aba: em vigor (ativas), total por mês, em aprovação e quantas começam depois de `hoje`. */
+export function resumoDaFicha(f: FichaBeneficios, hoje: string) {
+  const ativas = f.adesoes.filter((a) => a.ativa);
+  return {
+    emVigor: ativas.length,
+    totalMensal: Math.round(ativas.reduce((s, a) => s + (a.valor ?? 0), 0) * 100) / 100,
+    emAprovacao: f.movimentacoes.filter((m) => m.situacao === "pending" || m.situacao === "under_review").length,
+    futuras: ativas.filter((a) => a.inicio > hoje).length,
+  };
+}

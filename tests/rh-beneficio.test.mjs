@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { aplicarAprovacao, custoDoPlano, lerValorEmReais, mediaPorParticipante, valorParaDigitar, vigenciaSugerida } from "../lib/rh/beneficio.ts";
+import { aplicarAprovacao, custoDoPlano, lerValorEmReais, mediaPorParticipante, resumoDaFicha, valorParaDigitar, vigenciaSugerida } from "../lib/rh/beneficio.ts";
 
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 
@@ -82,4 +82,21 @@ test("benefício: aprovar no banco cria a adesão (gatilho) e o painel lê as ad
   const repo = ler("lib/data/rh-repository.ts");
   assert.match(repo, /rh_benefit_enrollments"\)\.select\("plan_id,employee_id,enrolled_at,monthly_value/);
   assert.doesNotMatch(repo, /rh_benefit_requests"\)[\s\S]{0,300}\.limit\(20\)/, "a lista de solicitações não pode parar nas 20 últimas");
+});
+
+test("ficha › Benefícios: em vigor, total por mês, em aprovação e as que começam depois", () => {
+  const ad = (ativa, inicio, valor) => ({ id: inicio, plano: "x", fornecedor: null, contribuicao: null, regra: null, inicio, fim: null, ativa, valor, dependentes: [] });
+  const mov = (situacao) => ({ id: situacao, plano: "x", acao: "enroll", situacao, vigencia: null, valor: null, justificativa: null, pedidaEm: "2026-10-30T12:00:00Z", pedidaPor: null, decididaEm: null, decididaPor: null });
+  const r = resumoDaFicha({ adesoes: [ad(true, "2026-07-10", 714.5), ad(true, "2027-05-01", 5.76), ad(false, "2025-01-01", 100)], movimentacoes: [mov("pending"), mov("under_review"), mov("approved"), mov("rejected")] }, "2026-11-03");
+  assert.deepEqual(r, { emVigor: 2, totalMensal: 720.26, emAprovacao: 2, futuras: 1 });
+});
+
+test("ficha › Benefícios: aba só com RH › Benefícios, dados lidos na hora pela sessão", () => {
+  const rota = ler("app/api/rh/beneficios/route.ts");
+  assert.match(rota, /requireFeature\("rh\.beneficios"\)/);
+  assert.match(rota, /guard\.supabase\.from\("rh_benefit_enrollments"\)/, "pela sessão (RLS), nunca pela chave de serviço");
+  assert.doesNotMatch(rota, /createSupabaseAdminClient/);
+  const tela = ler("app/components/hr-module.tsx");
+  assert.match(tela, /item !== "Benefícios" \|\| \(canViewBenefits && Boolean\(employee\.id\)\)/);
+  assert.match(tela, /\/api\/rh\/beneficios\?colaborador=/);
 });
