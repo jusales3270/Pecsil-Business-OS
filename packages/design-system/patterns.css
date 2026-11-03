@@ -8394,6 +8394,20 @@ a.doc-abrir { text-decoration: none; }
 }
 :is(.icms-tabela, .fiscal-dfe-tabela, .nfe-tabela, .vnd-tabela, .almox-tabela, .rev-parcelas, .bib-tabela) > [role="row"] > :not(.nome, .bib-selos) { white-space: nowrap; }
 
+/* RH › Benefícios › Participantes: Colaborador · Benefício · Início · Valor mensal */
+.rh-adesoes { display: grid; align-content: start; column-gap: var(--sp-3); overflow-x: auto; grid-template-columns: minmax(240px, 1fr) repeat(2, max-content) minmax(110px, max-content); }
+.rh-adesoes > * { grid-column: 1 / -1; }
+.rh-adesoes > [role="row"] { display: grid; grid-template-columns: subgrid; column-gap: inherit; min-width: 0; align-items: center; padding: 8px 6px; border-top: 1px solid var(--border-subtle); font-size: var(--fs-sm); color: var(--text-primary); }
+.rh-adesoes > [role="row"] > :not(.nome) { white-space: nowrap; }
+.rh-adesoes > .cabeca { border-top: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.rh-adesoes > .cabeca.total { border-top: 1px solid var(--border-subtle); color: var(--text-primary); }
+.rh-adesoes .r { text-align: right; font-variant-numeric: tabular-nums; }
+.rh-adesoes .nome { display: flex; flex-direction: column; min-width: 0; font-weight: 600; }
+.rh-adesoes small { font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); }
+.rh-adesoes-barra { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.rh-adesoes-barra label { display: grid; gap: 4px; font-size: var(--fs-xs); color: var(--text-muted); }
+.rh-adesoes-barra small { font-size: var(--fs-xs); color: var(--text-muted); padding-bottom: 8px; }
+
 /* Recebida · Fornecedor · NF-e · Valor · ICMS · IPI · Tipo · F · U · RS · XML · LACTO · AUT · editar */
 .icms-tabela { grid-template-columns: max-content minmax(180px, 1fr) repeat(5, max-content) repeat(6, minmax(36px, max-content)) max-content; }
 /* Descrição · Crédito · Débito · Saldo · ações */

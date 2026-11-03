@@ -10,6 +10,8 @@
 // planos de benefício e registros de SST não-clínicos.
 // ============================================================================
 
+import type { AdesaoBeneficio } from "../rh/beneficio";
+
 export type RhAbsenceType =
   | "vacation" | "time_bank" | "medical_certificate" | "leave"
   | "attendance_statement" | "family_care" | "occupational_exam" | "legal_leave"
@@ -43,7 +45,10 @@ export type RhBenefitPlan = {
   name: string;
   category: RhBenefitCategory;
   provider: string | null;
+  /** Custo mensal no painel: a soma das adesões (sem valor nelas, o do catálogo). */
   monthlyCost: number;
+  /** Custo digitado no catálogo (Editar valores). */
+  catalogCost: number;
   members: number;
   eligible: number;
   employeeContribution: string | null;
@@ -56,6 +61,8 @@ export type RhBenefitRequestStatus = "pending" | "under_review" | "approved" | "
 
 export type RhBenefitRequest = {
   id: string;
+  planId: string;
+  employeeId: string;
   employeeName: string;
   department: string | null;
   planName: string;
@@ -162,6 +169,8 @@ export type RhSnapshot = {
   absences: RhAbsence[];
   benefitPlans: RhBenefitPlan[];
   benefitRequests: RhBenefitRequest[];
+  /** Adesões ativas (quem participa de cada benefício, com o valor). */
+  benefitEnrollments: AdesaoBeneficio[];
   sstRecords: RhSstRecord[];
   /** SST vencido ou a vencer — a lista que o indicador conta. */
   sstAlertList: RhSstRecord[];
@@ -192,6 +201,7 @@ export const demoRhSnapshot: RhSnapshot = {
   absences: [],
   benefitPlans: [],
   benefitRequests: [],
+  benefitEnrollments: [],
   sstRecords: [],
   sstAlertList: [],
   vacationAlerts: [],

@@ -13,7 +13,7 @@ import { HolidaysSection } from "./hr-holidays";
 import { JANELA_ALERTA_DIAS, diasAte, hojeBrasilia, situacaoSst } from "../../lib/rh/sst-situacao";
 import { PERIODOS_EXPERIENCIA, fimDaExperiencia } from "../../lib/rh/experiencia";
 import { SEM_CARGO } from "../../lib/rh/cargo";
-import { lerValorEmReais, mediaPorParticipante, valorParaDigitar, vigenciaSugerida } from "../../lib/rh/beneficio";
+import { aplicarAprovacao, custoDoPlano, lerValorEmReais, mediaPorParticipante, valorParaDigitar, vigenciaSugerida, type AdesaoBeneficio } from "../../lib/rh/beneficio";
 import { PpeSection, usePpeData } from "./hr-epi";
 import { TerceirosSection } from "./hr-terceiros";
 import { ExigenciasFuncao } from "./rh-exigencias";
@@ -112,7 +112,10 @@ type BenefitPlan = {
   icon: string;
   members: number;
   eligible: number;
+  /** No painel: a soma das adesões (sem valor nelas, o do catálogo). */
   monthlyCost: number;
+  /** Digitado no catálogo (Editar valores). */
+  catalogCost: number;
   employeeContribution: string;
   status: "Ativo" | "Em revisão";
   rule: string;
@@ -169,6 +172,9 @@ type BenefitRequestStatus = "Pendente" | "Em análise" | "Aprovada" | "Reprovada
 type BenefitRequest = {
   id: number;
   sourceId?: string;
+  /** ids do benefício e do colaborador no banco (a aprovação vira adesão na tela). */
+  planId?: string;
+  employeeId?: string;
   employee: string;
   initials: string;
   department: string;
@@ -245,6 +251,12 @@ export function HrModule({
   // Dados reais do RH (rh_*). Sem conexão, a tela fica vazia e nada é gravado: não
   // há sessão ou conexão — mesmo contrato do Financeiro.
   const { snapshot: rh } = useRhData();
+  // Adesões aos benefícios: do snapshot, e atualizadas na hora quando uma solicitação é aprovada (aparecem no
+  // painel de Benefícios e na ficha). Snapshot novo (loadedAt) recomeça do banco, sem efeito.
+  const [adesoesDe, setAdesoesDe] = useState<{ chave: string; lista: AdesaoBeneficio[] }>({ chave: rh.loadedAt, lista: rh.benefitEnrollments });
+  const adesoes = adesoesDe.chave === rh.loadedAt ? adesoesDe.lista : rh.benefitEnrollments;
+  const mudarAdesoes = useCallback((f: (atual: AdesaoBeneficio[]) => AdesaoBeneficio[]) =>
+    setAdesoesDe(cur => ({ chave: rh.loadedAt, lista: f(cur.chave === rh.loadedAt ? cur.lista : rh.benefitEnrollments) })), [rh.loadedAt, rh.benefitEnrollments]);
   const [employees, setEmployees] = useState<EmployeeRecord[]>(() => people.map(toEmployee));
   const [createRequested, setCreateRequested] = useState(0);
   const filteredPeople = useMemo(
@@ -292,12 +304,12 @@ export function HrModule({
         <>
           {section === "Painel" && <HrDashboard people={employees} summary={summary} rh={rh} setSection={setSection} notify={track} access={access} canCreate={canCreate} requestCreate={() => setCreateRequested(value => value + 1)}/>}
           {section === "Colaboradores" && canSeeClt && canSeeTerceiros && <PeopleKindTabs value={kind} onChange={setPeopleKind}/>}
-          {section === "Colaboradores" && kind === "CLT" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} canViewDocs={canUseFeature(access, "rh.documentos")} persists={rh.source === "supabase" || employees.some(person => person.id)} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
+          {section === "Colaboradores" && kind === "CLT" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} canViewDocs={canUseFeature(access, "rh.documentos")} persists={rh.source === "supabase" || employees.some(person => person.id)} adesoes={adesoes} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
           {section === "Colaboradores" && kind === "Terceiros" && <TerceirosSection podeEditar={canUseFeature(access, "rh.terceiros", "operar")} notify={track}/>}
           {section === "Ponto e jornada" && <JourneySection notify={track} access={access}/>}
           {section === "Férias e ausências" && <AbsenceSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Feriados" && <HolidaysSection notify={track}/>}
-          {section === "Benefícios" && <BenefitsSection key={rh.loadedAt} summary={summary} notify={track} access={access} rh={rh}/>}
+          {section === "Benefícios" && <BenefitsSection key={rh.loadedAt} summary={summary} notify={track} access={access} rh={rh} adesoes={adesoes} mudarAdesoes={mudarAdesoes}/>}
           {section === "Saúde e segurança" && <SafetySection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Documentos" && <DocumentsSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Relatórios" && <ReportsSection notify={track} access={access}/>} 
@@ -598,6 +610,8 @@ function toBenefitUiRequest(request: RhBenefitRequest, index: number): BenefitRe
   return {
     id: index + 1,
     sourceId: request.id,
+    planId: request.planId,
+    employeeId: request.employeeId,
     employee: request.employeeName,
     initials: initialsOf(request.employeeName),
     department: request.department ?? "—",
@@ -620,6 +634,7 @@ function toBenefitUiPlan(plan: RhBenefitPlan, index: number): BenefitPlan {
     members: plan.members,
     eligible: plan.eligible || 1,
     monthlyCost: plan.monthlyCost,
+    catalogCost: plan.catalogCost,
     employeeContribution: plan.employeeContribution ?? "—",
     status: plan.status === "active" ? "Ativo" : "Em revisão",
     rule: plan.eligibilityRule ?? "—",
@@ -681,7 +696,7 @@ function HrDashboard({ people, summary, rh, setSection, notify, access, canCreat
   </>;
 }
 
-function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, canCreate, canViewDocs, persists, createRequested, onCreateHandled }: { people: EmployeeRecord[]; allPeople: EmployeeRecord[]; setPeople: React.Dispatch<React.SetStateAction<EmployeeRecord[]>>; query: string; setQuery: (value: string) => void; notify: (message: string) => void; canCreate: boolean; canViewDocs: boolean; persists: boolean; createRequested: number; onCreateHandled: () => void }) {
+function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, canCreate, canViewDocs, persists, adesoes, createRequested, onCreateHandled }: { people: EmployeeRecord[]; allPeople: EmployeeRecord[]; setPeople: React.Dispatch<React.SetStateAction<EmployeeRecord[]>>; query: string; setQuery: (value: string) => void; notify: (message: string) => void; canCreate: boolean; canViewDocs: boolean; persists: boolean; adesoes: AdesaoBeneficio[]; createRequested: number; onCreateHandled: () => void }) {
   const [selected, setSelected] = useState<EmployeeRecord | null>(null);
   const [editing, setEditing] = useState<EmployeeRecord | null>(null);
   const [creating, setCreating] = useState(createRequested > 0 && canCreate);
@@ -790,13 +805,13 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
         : <Card><span><HrIcon name="file"/></span><div><strong>{allPeople.filter(person => person.documentStatus === "Pendente").length}</strong><small>cadastros pendentes</small></div></Card>}
     </div>
     <Card className="hr-table-card"><div className="hr-tools"><label><HrIcon name="search"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, matrícula, cargo ou departamento..."/></label><select value={unit} onChange={event => setUnit(event.target.value)} aria-label="Filtrar unidade"><option>Todas as unidades</option>{Array.from(new Set(allPeople.map(person => person.unit))).sort().map(name => <option key={name}>{name}</option>)}</select><button onClick={() => { setQuery(""); setUnit("Todas as unidades"); }}><HrIcon name="filter"/> Limpar filtros</button></div><div className="hr-people-table"><div className="hr-table-header"><span>Colaborador</span><span>Cargo</span><span>Departamento</span><span>Status</span><span/></div>{visiblePeople.map(person => <button key={personKey(person)} onClick={() => setSelected(person)}><span className="hr-person"><i>{person.initials}</i><span><b>{person.name}</b><small>Matrícula {person.registration}{person.email ? ` · ${person.email}` : ""}</small></span></span><span><b>{person.role}</b><small>{person.unit}</small></span><span>{person.department}</span><Status tone={person.status === "Ativo" ? "success" : person.status === "Pendente" ? "info" : "neutral"}>{person.status}</Status><HrIcon name="arrow"/></button>)}{!visiblePeople.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhum colaborador encontrado</b><small>Ajuste a busca ou a unidade selecionada.</small></div>}</div></Card>
-    {selected && <EmployeeDrawer employee={selected} canEdit={canCreate} canViewDocs={canViewDocs} notify={notify} onClose={() => setSelected(null)} onEdit={(withPersonal) => { setEditing(withPersonal); setSelected(null); }} onDelete={persists && selected.id ? () => { setDeleting(selected); setSelected(null); } : undefined}/>}
+    {selected && <EmployeeDrawer employee={selected} beneficios={selected.id ? adesoes.filter(a => a.employeeId === selected.id) : []} canEdit={canCreate} canViewDocs={canViewDocs} notify={notify} onClose={() => setSelected(null)} onEdit={(withPersonal) => { setEditing(withPersonal); setSelected(null); }} onDelete={persists && selected.id ? () => { setDeleting(selected); setSelected(null); } : undefined}/>}
     {deleting && <EmployeeDeleteDialog employee={deleting} onClose={() => setDeleting(null)} onDeleted={() => removeEmployee(deleting)}/>} 
     {(creating || editing) && <EmployeeForm employee={editing} nextRegistration={String(allPeople.length + 1).padStart(4,"0")} units={Array.from(new Set(allPeople.map(person => person.unit).filter(Boolean))).sort()} roles={Array.from(new Set(allPeople.map(person => person.role).filter(role => role && role !== SEM_CARGO))).sort((a, b) => a.localeCompare(b, "pt-BR"))} departments={Array.from(new Set(allPeople.map(person => person.department).filter(Boolean))).sort()} onClose={() => { setCreating(false); setEditing(null); onCreateHandled(); }} onSave={saveEmployee}/>} 
   </>;
 }
 
-function EmployeeDrawer({ employee, canEdit, canViewDocs, notify, onClose, onEdit, onDelete }: { employee: EmployeeRecord; canEdit: boolean; canViewDocs: boolean; notify: (message: string) => void; onClose: () => void; onEdit: (withPersonal: EmployeeRecord) => void; onDelete?: () => void }) {
+function EmployeeDrawer({ employee, beneficios, canEdit, canViewDocs, notify, onClose, onEdit, onDelete }: { employee: EmployeeRecord; beneficios: AdesaoBeneficio[]; canEdit: boolean; canViewDocs: boolean; notify: (message: string) => void; onClose: () => void; onEdit: (withPersonal: EmployeeRecord) => void; onDelete?: () => void }) {
   const [tab, setTab] = useState<"Resumo" | "Vínculo" | "Documentos" | "Histórico">("Resumo");
   // CPF e telefone: tabela protegida, lida ao abrir a ficha (só quem pode).
   const [personal, setPersonal] = useState<{ id: string; data: RhPersonalData } | null>(null);
@@ -821,7 +836,7 @@ function EmployeeDrawer({ employee, canEdit, canViewDocs, notify, onClose, onEdi
       <header><button onClick={onClose} aria-label="Fechar ficha"><HrIcon name="close"/></button><span className="employee-avatar">{employee.initials}</span><div><p className="eyebrow">FICHA DO COLABORADOR</p><h2>{employee.name}</h2><p>{employee.role} · {employee.department}</p></div><Status tone={employee.status === "Ativo" ? "success" : employee.status === "Pendente" ? "info" : "neutral"}>{employee.status}</Status></header>
       <nav className="employee-tabs" aria-label="Seções da ficha">{(["Resumo","Vínculo","Documentos","Histórico"] as const).map(item => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</nav>
       <div className="employee-detail-content">
-        {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div>{inExperience ? <div><small>Experiência até</small><strong>{employee.experienciaFim ? formatDate(employee.experienciaFim) : "Não informada"}</strong></div> : <div><small>Admissão</small><strong>{admission}</strong></div>}{termination && <div><small>Demissão</small><strong>{termination}</strong></div>}</section><DetailGroup title="Contato" rows={[["E-mail",employee.email || "Não informado"],["Telefone",phoneShown],["CPF",cpfShown]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/></>}
+        {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div>{inExperience ? <div><small>Experiência até</small><strong>{employee.experienciaFim ? formatDate(employee.experienciaFim) : "Não informada"}</strong></div> : <div><small>Admissão</small><strong>{admission}</strong></div>}{termination && <div><small>Demissão</small><strong>{termination}</strong></div>}</section><DetailGroup title="Contato" rows={[["E-mail",employee.email || "Não informado"],["Telefone",phoneShown],["CPF",cpfShown]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/>{beneficios.length > 0 && <DetailGroup title="Benefícios" rows={[...beneficios].sort((a, b) => a.planName.localeCompare(b.planName, "pt-BR")).map(b => [b.planName, `${b.valor === null ? "Sem valor informado" : formatCurrency(b.valor)} por mês · desde ${formatDate(b.inicio)}`])}/>}</>}
         {tab === "Vínculo" && <><DetailGroup title="Dados contratuais" rows={[["Tipo de contrato",employee.contractType],...(experiencePeriod ? [[inExperience ? "Período de experiência" : "Experiência cumprida", experiencePeriod] as [string, string]] : []),...(inExperience ? [] : [["Admissão", admission] as [string, string]]),["Cargo",employee.role],["Gestor responsável",employee.manager],["Jornada",employee.schedule]]}/><div className="employee-callout"><HrIcon name="shield"/><span><b>Escopo protegido</b><small>Alterações do cadastro ficam registradas em Fundação › Auditoria.</small></span></div></>}
         {tab === "Documentos" && employee.id && <EmployeeDocuments employeeId={employee.id} canView={canViewDocs} notify={notify}/>}
         {tab === "Documentos" && !employee.id && <div className="employee-callout"><HrIcon name="alert"/><span><b>Sem ficha no RH</b><small>Esta pessoa tem acesso à plataforma, mas ainda não tem cadastro de colaborador. Os documentos aparecem depois que o RH cadastrar.</small></span></div>}
@@ -1309,8 +1324,14 @@ function formatDate(value: string) { if (!value || !/^\d{4}-\d{2}-\d{2}/.test(va
 function formatPeriod(start: string,end: string) { return start === end ? formatDate(start) : `${formatDate(start)} — ${formatDate(end)}`; }
 function absenceTone(status: AbsenceStatus): "success" | "attention" | "info" | "neutral" { return status === "Aprovada" || status === "Registrado" ? "success" : status === "Pendente" ? "attention" : status === "Em análise" ? "info" : "neutral"; }
 
-function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationSummary; notify: (message: string) => void; access: ModuleAccessContext; rh: RhSnapshot }) {
-  const [plans,setPlans] = useState<BenefitPlan[]>(rh.source === "supabase" ? rh.benefitPlans.map(toBenefitUiPlan) : initialBenefitPlans);
+function BenefitsSection({ summary, notify, access, rh, adesoes, mudarAdesoes }: { summary: FoundationSummary; notify: (message: string) => void; access: ModuleAccessContext; rh: RhSnapshot; adesoes: AdesaoBeneficio[]; mudarAdesoes: (f: (atual: AdesaoBeneficio[]) => AdesaoBeneficio[]) => void }) {
+  const [catalogPlans,setPlans] = useState<BenefitPlan[]>(rh.source === "supabase" ? rh.benefitPlans.map(toBenefitUiPlan) : initialBenefitPlans);
+  // Participantes e custo saem das adesões (as aprovadas agora entram na hora).
+  const plans = useMemo(() => catalogPlans.map(plan => {
+    if (!plan.sourceId) return plan;
+    const doPlano = adesoes.filter(a => a.planId === plan.sourceId);
+    return { ...plan, members: doPlano.length, monthlyCost: custoDoPlano(plan.catalogCost, doPlano) };
+  }), [catalogPlans, adesoes]);
   const [requests,setRequests] = useState<BenefitRequest[]>(rh.source === "supabase" ? rh.benefitRequests.map(toBenefitUiRequest) : initialBenefitRequests);
   const [selectedPlan,setSelectedPlan] = useState<BenefitPlan|null>(null);
   const [selectedRequest,setSelectedRequest] = useState<BenefitRequest|null>(null);
@@ -1341,6 +1362,8 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
     setSelectedRequest(updated);
     try{
       const persisted=target.sourceId?await sendRhMutation({entity:"benefit_request",id:target.sourceId,decision:status==="Aprovada"?"approved":"rejected"}):false;
+      // Aprovada: o banco já criou (ou mudou) a adesão; a tela mostra o mesmo sem recarregar.
+      if(persisted&&status==="Aprovada"&&target.planId&&target.employeeId){const{planId,employeeId}=target;mudarAdesoes(atual=>aplicarAprovacao(atual,{acao:benefitActionEnum[target.action],planId,planName:target.plan,employeeId,employeeName:target.employee,department:target.department==="—"?null:target.department,vigencia:target.effectiveDate||hojeBrasilia(),valor:target.value}));}
       notify(persisted?`${target.employee}: solicitação de benefício ${status.toLowerCase()} no banco.`:`${target.employee}: este registro não está no banco; recarregue a página.`);
     }catch(error){
       setRequests(current=>current.map(request=>request.id===target.id?target:request));setSelectedRequest(target);
@@ -1352,7 +1375,8 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
     if(!plan.sourceId)return false;
     try{
       await sendRhMutation({entity:"benefit_plan",id:plan.sourceId,action:"update",changes:{monthlyCost:changes.monthlyCost,provider:changes.provider||null,employeeContribution:changes.employeeContribution||null,eligibilityRule:changes.eligibilityRule||null}});
-      const updated:BenefitPlan={...plan,monthlyCost:changes.monthlyCost,provider:changes.provider.trim()||"—",employeeContribution:changes.employeeContribution.trim()||"—",rule:changes.eligibilityRule.trim()||"—"};
+      const doPlano=adesoes.filter(a=>a.planId===plan.sourceId);
+      const updated:BenefitPlan={...plan,catalogCost:changes.monthlyCost,monthlyCost:custoDoPlano(changes.monthlyCost,doPlano),provider:changes.provider.trim()||"—",employeeContribution:changes.employeeContribution.trim()||"—",rule:changes.eligibilityRule.trim()||"—"};
       setPlans(current=>current.map(item=>item.id===plan.id?updated:item));setSelectedPlan(updated);
       notify(`${plan.name}: valores gravados no banco.`);
       return true;
@@ -1375,8 +1399,9 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
         if(!response.ok)throw new Error("RH_CREATE_DENIED");
         const{ids}=(await response.json()) as {ids:string[]};
         const idOf=new Map(batch.map((request,index)=>[request.id,ids[index]]));
-        setRequests(current=>current.map(r=>idOf.has(r.id)?{...r,sourceId:idOf.get(r.id)||undefined}:r));
-        setSelectedRequest(current=>current&&idOf.has(current.id)?{...current,sourceId:idOf.get(current.id)||undefined}:current);
+        const comIds=(r:BenefitRequest)=>({...r,sourceId:idOf.get(r.id)||undefined,planId:planIdByName(r.plan),employeeId});
+        setRequests(current=>current.map(r=>idOf.has(r.id)?comIds(r):r));
+        setSelectedRequest(current=>current&&idOf.has(current.id)?comIds(current):current);
         notify(batch.length===1?`${who}: solicitação de benefício registrada no banco.`:`${who}: ${batch.length} benefícios registrados no banco, cada um com a sua solicitação.`);
       }catch{
         const added=new Set(batch.map(request=>request.id));
@@ -1392,7 +1417,7 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
     <KpiGrid><HrStat value={String(plans.length)} label="Benefícios ativos" meta="Catálogo corporativo" icon="heart" tone="blue" onOpen={openPlans}/><HrStat value={String(rh.source === "supabase" ? rh.summary.activeEmployees : summary.activeEmployees)} label="Elegíveis" meta="Colaboradores ativos" icon="users" tone="green" onOpen={openEligible}/><HrStat value={String(pending)} label="Em aprovação" meta="Solicitações pendentes" icon="clock" tone="orange" onOpen={openRequests}/><HrStat value={totalCost >= 100000 ? `R$ ${Math.round(totalCost/1000)} mil` : formatCurrency(totalCost)} label="Custo estimado" meta="Competência mensal" icon="chart" tone="purple" onOpen={openCost}/></KpiGrid>{detail&&<KpiDetailModal detail={detail} onClose={()=>setDetail(null)}/>}
     <div className="benefit-tabs" role="tablist">{(["Visão geral","Participantes","Solicitações","Políticas"] as const).map(item=><button role="tab" aria-selected={tab===item} className={tab===item?"active":""} onClick={()=>setTab(item)} key={item}>{item}{item==="Solicitações"&&<i>{pending}</i>}</button>)}</div>
     {tab==="Visão geral"&&<div className="benefit-plan-grid">{plans.map(plan=><Card key={plan.id}><span className={`benefit-plan-icon category-${plan.id}`}><HrIcon name={plan.icon}/></span><Status tone={plan.status==="Ativo"?"success":"attention"}>{plan.status}</Status><p className="eyebrow">{plan.category.toUpperCase()}</p><h2>{plan.name}</h2><div className="benefit-coverage"><span><b>{plan.members}</b><small>participantes</small></span><span><b>{Math.round(plan.members/plan.eligible*100)}%</b><small>dos elegíveis</small></span></div><div className="benefit-adhesion"><div className="benefit-progress"><span><i style={{width:`${plan.members/plan.eligible*100}%`}}/></span></div><small>{Math.max(0,plan.eligible-plan.members)} elegíveis ainda não aderiram</small></div><footer><span><small>Custo mensal estimado</small><b>{formatCurrency(plan.monthlyCost)}</b></span><button onClick={()=>setSelectedPlan(plan)}>Ver gestão <HrIcon name="arrow"/></button></footer></Card>)}</div>}
-    {tab==="Participantes"&&<BenefitParticipants plans={plans} notify={notify}/>} 
+    {tab==="Participantes"&&<BenefitParticipants plans={plans} adesoes={adesoes}/>} 
     {tab==="Solicitações"&&<Card className="benefit-request-card"><div className="benefit-request-toolbar"><div><p className="eyebrow">FLUXO DE APROVAÇÃO</p><h2>Solicitações de benefícios</h2><p>Movimentações recentes do quadro ativo</p></div><label><span>Status</span><select value={requestStatus} onChange={event=>setRequestStatus(event.target.value)}><option>Todos os status</option><option>Pendente</option><option>Em análise</option><option>Aprovada</option><option>Reprovada</option></select></label></div><div className="benefit-request-table"><div className="benefit-request-head"><span>Colaborador</span><span>Movimentação</span><span>Vigência</span><span>Situação</span><span/></div>{filteredRequests.map(request=><button key={request.id} onClick={()=>setSelectedRequest(request)}><span className="benefit-request-person"><i>{request.initials}</i><span><b>{request.employee}</b><small>{request.department}</small></span></span><span><b>{request.action}</b><small>{request.plan}{request.value!==null?` · ${formatCurrency(request.value)}/mês`:""}</small></span><span><b>{formatDate(request.effectiveDate)}</b><small>{request.requestedAt}</small></span><Status tone={benefitRequestTone(request.status)}>{request.status}</Status><HrIcon name="arrow"/></button>)}</div></Card>}
     {tab==="Políticas"&&<BenefitPolicies/>}
     {selectedPlan&&<BenefitPlanDrawer plan={selectedPlan} canEdit={canManage&&Boolean(selectedPlan.sourceId)} onClose={()=>setSelectedPlan(null)} onParticipants={()=>{setSelectedPlan(null);setTab("Participantes")}} onSave={savePlan}/>}
@@ -1401,12 +1426,24 @@ function BenefitsSection({ summary, notify, access, rh }: { summary: FoundationS
   </>;
 }
 
-function BenefitParticipants({ plans }: { plans: BenefitPlan[]; notify: (message: string) => void }) {
-  // A lista de participantes por pessoa exige adesões reais (rh_benefit_enrollments).
-  const totalMembers = plans.reduce((sum, plan) => sum + plan.members, 0);
+function BenefitParticipants({ plans, adesoes }: { plans: BenefitPlan[]; adesoes: AdesaoBeneficio[] }) {
+  // Uma linha por adesão ativa (solicitação aprovada), com o valor mensal do colaborador.
+  const [plano, setPlano] = useState("Todos");
+  const hoje = hojeBrasilia();
+  const lista = adesoes.filter(a => plano === "Todos" || a.planName === plano)
+    .sort((a, b) => a.planName.localeCompare(b.planName, "pt-BR") || a.employeeName.localeCompare(b.employeeName, "pt-BR"));
+  const total = lista.reduce((soma, a) => soma + (a.valor ?? 0), 0);
+  const futuras = lista.filter(a => a.inicio > hoje).length;
   return <Card className="benefit-participant-card">
-    <div className="card-head"><div><p className="eyebrow">ADESÕES</p><h2>Participantes por benefício</h2></div><Status tone={totalMembers ? "info" : "neutral"}>{totalMembers} {totalMembers === 1 ? "adesão" : "adesões"}</Status></div>
-    <div className="hr-empty"><HrIcon name="heart" size={26}/><b>Nenhuma adesão individual registrada</b><small>As adesões por colaborador aparecerão aqui quando forem lançadas no módulo.</small></div>
+    <div className="card-head"><div><p className="eyebrow">ADESÕES</p><h2>Participantes por benefício</h2></div><Status tone={lista.length ? "info" : "neutral"}>{lista.length} {lista.length === 1 ? "adesão" : "adesões"}</Status></div>
+    {adesoes.length ? <>
+      <div className="rh-adesoes-barra"><label><span>Benefício</span><select value={plano} onChange={event => setPlano(event.target.value)}><option>Todos</option>{plans.filter(p => adesoes.some(a => a.planName === p.name)).map(p => <option key={p.id}>{p.name}</option>)}</select></label>{futuras > 0 && <small>{futuras} {futuras === 1 ? "começa" : "começam"} depois de hoje, pela vigência da solicitação.</small>}</div>
+      <div className="rh-adesoes" role="table" aria-label="Adesões aos benefícios">
+        <div className="cabeca" role="row"><span>Colaborador</span><span>Benefício</span><span>Início</span><span className="r">Valor mensal</span></div>
+        {lista.map(a => <div role="row" key={`${a.planId}-${a.employeeId}`}><span className="nome">{a.employeeName}<small>{a.department ?? "—"}</small></span><span>{a.planName}</span><span>{formatDate(a.inicio)}{a.inicio > hoje ? <small> futura</small> : null}</span><span className="r">{a.valor === null ? "—" : formatCurrency(a.valor)}</span></div>)}
+        <div className="cabeca total" role="row"><span>Total por mês</span><span/><span/><span className="r">{formatCurrency(total)}</span></div>
+      </div>
+    </> : <div className="hr-empty"><HrIcon name="heart" size={26}/><b>Nenhuma adesão ainda</b><small>A adesão entra aqui quando a solicitação é aprovada, em Solicitações.</small></div>}
   </Card>;
 }
 
@@ -1416,16 +1453,16 @@ function BenefitPlanDrawer({plan,canEdit,onClose,onParticipants,onSave}:{plan:Be
   const blank=(value:string)=>value==="—"?"":value;
   const[editing,setEditing]=useState(false);
   const[saving,setSaving]=useState(false);
-  const[cost,setCost]=useState(valorParaDigitar(plan.monthlyCost));
+  const[cost,setCost]=useState(valorParaDigitar(plan.catalogCost));
   const[provider,setProvider]=useState(blank(plan.provider));
   const[contribution,setContribution]=useState(blank(plan.employeeContribution));
   const[rule,setRule]=useState(blank(plan.rule));
   const parsedCost=lerValorEmReais(cost);
   const average=mediaPorParticipante(plan.monthlyCost,plan.members);
-  const startEditing=()=>{setCost(valorParaDigitar(plan.monthlyCost));setProvider(blank(plan.provider));setContribution(blank(plan.employeeContribution));setRule(blank(plan.rule));setEditing(true)};
+  const startEditing=()=>{setCost(valorParaDigitar(plan.catalogCost));setProvider(blank(plan.provider));setContribution(blank(plan.employeeContribution));setRule(blank(plan.rule));setEditing(true)};
   const save=async(event:React.FormEvent)=>{event.preventDefault();if(parsedCost===null||saving)return;setSaving(true);const ok=await onSave(plan,{monthlyCost:parsedCost,provider,employeeContribution:contribution,eligibilityRule:rule});setSaving(false);if(ok)setEditing(false)};
   return <div className="employee-layer"><aside className="benefit-drawer" onMouseDown={event=>event.stopPropagation()} aria-label={`Gestão de ${plan.name}`}><header><button onClick={onClose} aria-label="Fechar benefício"><HrIcon name="close"/></button><span><HrIcon name={plan.icon}/></span><div><p className="eyebrow">{plan.category.toUpperCase()}</p><h2>{plan.name}</h2><p>{plan.provider}</p></div><Status tone="success">{plan.status}</Status></header>
-    {editing?<form id="benefit-plan-values" className="benefit-drawer-content" onSubmit={save}><div className="benefit-form-fields benefit-values-fields"><label className="field-wide"><span>Custo mensal estimado (R$) *</span><input inputMode="decimal" autoComplete="off" value={cost} onChange={event=>setCost(event.target.value)} placeholder="0,00" aria-invalid={parsedCost===null}/>{parsedCost===null?<small className="benefit-values-error">Digite um valor em reais, por exemplo 1.250,00.</small>:<small>Total da empresa por mês com este benefício.</small>}</label><label className="field-wide"><span>Fornecedor ou operação</span><input value={provider} maxLength={120} onChange={event=>setProvider(event.target.value)} placeholder="Ex.: operadora, cartão ou empresa de transporte"/></label><label className="field-wide"><span>Contribuição do colaborador</span><input value={contribution} maxLength={200} onChange={event=>setContribution(event.target.value)} placeholder="Ex.: 6% do salário, R$ 30,00 por mês ou sem desconto"/></label><label className="field-wide"><span>Elegibilidade</span><textarea value={rule} maxLength={300} onChange={event=>setRule(event.target.value)} placeholder="Quem tem direito a este benefício"/></label></div></form>
+    {editing?<form id="benefit-plan-values" className="benefit-drawer-content" onSubmit={save}><div className="benefit-form-fields benefit-values-fields"><label className="field-wide"><span>Custo mensal estimado (R$) *</span><input inputMode="decimal" autoComplete="off" value={cost} onChange={event=>setCost(event.target.value)} placeholder="0,00" aria-invalid={parsedCost===null}/>{parsedCost===null?<small className="benefit-values-error">Digite um valor em reais, por exemplo 1.250,00.</small>:<small>Total da empresa por mês com este benefício. Com adesões lançadas, o painel soma o valor de cada uma.</small>}</label><label className="field-wide"><span>Fornecedor ou operação</span><input value={provider} maxLength={120} onChange={event=>setProvider(event.target.value)} placeholder="Ex.: operadora, cartão ou empresa de transporte"/></label><label className="field-wide"><span>Contribuição do colaborador</span><input value={contribution} maxLength={200} onChange={event=>setContribution(event.target.value)} placeholder="Ex.: 6% do salário, R$ 30,00 por mês ou sem desconto"/></label><label className="field-wide"><span>Elegibilidade</span><textarea value={rule} maxLength={300} onChange={event=>setRule(event.target.value)} placeholder="Quem tem direito a este benefício"/></label></div></form>
     :<div className="benefit-drawer-content"><section className="benefit-drawer-stats"><span><small>Participantes</small><b>{plan.members}</b></span><span><small>Elegíveis</small><b>{plan.eligible}</b></span><span><small>Adesão</small><b>{Math.round(plan.members/plan.eligible*100)}%</b></span></section><section className="benefit-cost-card"><div><span><small>Custo mensal estimado</small><b>{formatCurrency(plan.monthlyCost)}</b></span><span><small>Média por participante</small><b>{average===null?"—":formatCurrency(average)}</b></span></div><i><em style={{width:`${plan.members/plan.eligible*100}%`}}/></i><p>Adesão sobre os elegíveis. A folha de pagamento fica com o escritório contábil.</p></section><DetailGroup title="Regras do benefício" rows={[["Elegibilidade",plan.rule],["Contribuição do colaborador",plan.employeeContribution],["Fornecedor ou operação",plan.provider]]}/><section className="benefit-security-note"><HrIcon name="shield"/><span><b>Dados protegidos por escopo</b><small>Informações sensíveis de saúde não são exibidas nesta visão gerencial.</small></span></section></div>}
     <footer>{editing?<><button type="button" className="employee-cancel" onClick={()=>setEditing(false)} disabled={saving}>Cancelar</button><Button type="submit" form="benefit-plan-values" disabled={parsedCost===null||saving}>{saving?"Gravando…":"Salvar valores"} <HrIcon name="check"/></Button></>:<><button className="employee-cancel" onClick={onClose}>Fechar</button>{canEdit&&<button type="button" className="employee-cancel" onClick={startEditing}><HrIcon name="edit"/> Editar valores</button>}<Button onClick={onParticipants}>Ver participantes <HrIcon name="arrow"/></Button></>}</footer></aside></div>}
 

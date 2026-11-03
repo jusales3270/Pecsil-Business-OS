@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseServerClient } from "../supabase/server";
+import { custoDoPlano, type AdesaoBeneficio } from "../rh/beneficio";
 import { situacaoSst } from "../rh/sst-situacao";
 import type {
   RhAbsence,
@@ -77,14 +78,15 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
       .eq("organization_id", organizationId)
       .eq("active", true)
       .order("name"),
-    supabase.from("rh_benefit_enrollments").select("plan_id")
+    supabase.from("rh_benefit_enrollments").select("plan_id,employee_id,enrolled_at,monthly_value,employees(full_name,departments(name)),rh_benefit_plans(name)")
       .eq("organization_id", organizationId).eq("active", true),
+    // Todas (até 1.000): o "Em aprovação" e a aba Solicitações contam sobre esta lista.
     supabase
       .from("rh_benefit_requests")
-      .select("id,action,status,reason,effective_date,monthly_value,requested_at,employees(full_name,departments(name)),rh_benefit_plans(name)")
+      .select("id,plan_id,employee_id,action,status,reason,effective_date,monthly_value,requested_at,employees(full_name,departments(name)),rh_benefit_plans(name)")
       .eq("organization_id", organizationId)
       .order("requested_at", { ascending:false })
-      .limit(20),
+      .limit(1000),
     supabase
       .from("rh_sst_records")
       .select("id,category,title,due_date,status,risk,note,clinical_confidential,employees(full_name),departments(name),units(name)")
@@ -133,16 +135,11 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
   const sstRecords = ((sstResult.data ?? []) as unknown as Row[]).map(toSstRecord);
   const sstAlertList = sstRecords.filter((record) => record.status === "due_soon" || record.status === "overdue");
 
-  // Membros por plano, contados a partir das adesões ativas.
-  const enrollments = (enrollmentsResult.data ?? []) as unknown as Row[];
-  const membersByPlan = enrollments.reduce<Record<string, number>>((acc, row) => {
-    const planId = String(row.plan_id);
-    acc[planId] = (acc[planId] ?? 0) + 1;
-    return acc;
-  }, {});
+  // Adesões ativas: quem participa de cada benefício, com o valor (vêm das solicitações aprovadas).
+  const benefitEnrollments = ((enrollmentsResult.data ?? []) as unknown as Row[]).map(toBenefitEnrollment);
   const eligible = activeEmployeesResult.count ?? 0;
   const benefitPlans = ((plansResult.data ?? []) as unknown as Row[])
-    .map(row => toBenefitPlan(row, membersByPlan[String(row.id)] ?? 0, eligible));
+    .map(row => toBenefitPlan(row, benefitEnrollments.filter(e => e.planId === String(row.id)), eligible));
 
   const balances = (vacationResult.data ?? []) as unknown as Row[];
   // Férias programadas = os gozos futuros registrados ou aprovados; o número
@@ -224,6 +221,7 @@ export async function getSupabaseRhSnapshot(): Promise<RhSnapshot> {
     absences,
     benefitPlans,
     benefitRequests,
+    benefitEnrollments,
     sstRecords,
     sstAlertList: sstAlertList.slice(0, 200),
     vacationAlerts,
@@ -254,14 +252,29 @@ function toAbsence(row: Row): RhAbsence {
   };
 }
 
-function toBenefitPlan(row: Row, members: number, eligible: number): RhBenefitPlan {
+function toBenefitEnrollment(row: Row): AdesaoBeneficio {
+  const employee = Array.isArray(row.employees) ? row.employees[0] : row.employees;
+  return {
+    planId: String(row.plan_id),
+    planName: relationName(row.rh_benefit_plans) ?? "—",
+    employeeId: String(row.employee_id),
+    employeeName: relationName(row.employees) ?? "Não informado",
+    department: employee && typeof employee === "object" ? relationName((employee as Row).departments) : null,
+    inicio: String(row.enrolled_at),
+    valor: row.monthly_value === null || row.monthly_value === undefined ? null : number(row.monthly_value),
+  };
+}
+
+function toBenefitPlan(row: Row, adesoes: AdesaoBeneficio[], eligible: number): RhBenefitPlan {
   return {
     id: String(row.id),
     name: String(row.name),
     category: row.category as RhBenefitPlan["category"],
     provider: row.provider ? String(row.provider) : null,
-    monthlyCost: number(row.monthly_cost),
-    members,
+    // No painel: a soma das adesões; o custo do catálogo fica para Editar valores.
+    monthlyCost: custoDoPlano(number(row.monthly_cost), adesoes),
+    catalogCost: number(row.monthly_cost),
+    members: adesoes.length,
     eligible,
     employeeContribution: row.employee_contribution ? String(row.employee_contribution) : null,
     eligibilityRule: row.eligibility_rule ? String(row.eligibility_rule) : null,
@@ -295,6 +308,8 @@ function toBenefitRequest(row: Row): RhBenefitRequest {
   const department = employee && typeof employee === "object" ? relationName((employee as Row).departments) : null;
   return {
     id: String(row.id),
+    planId: String(row.plan_id),
+    employeeId: String(row.employee_id),
     employeeName: relationName(row.employees) ?? "Não informado",
     department,
     planName: relationName(row.rh_benefit_plans) ?? "—",

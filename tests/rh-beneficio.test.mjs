@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { lerValorEmReais, mediaPorParticipante, valorParaDigitar, vigenciaSugerida } from "../lib/rh/beneficio.ts";
+import { aplicarAprovacao, custoDoPlano, lerValorEmReais, mediaPorParticipante, valorParaDigitar, vigenciaSugerida } from "../lib/rh/beneficio.ts";
 
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 
@@ -52,4 +52,34 @@ test("benefício: a movimentação leva vários benefícios, cada um com o valor
   assert.ok(servidor.includes("new Set(drafts.map(d => d.planId)).size !== drafts.length"), "benefício repetido é recusado");
   assert.ok(ler("lib/data/rh-repository.ts").includes("monthly_value,requested_at"));
   assert.ok(ler("supabase/migrations/202610290004_rh_beneficio_valor_solicitacao.sql").includes("add column if not exists monthly_value numeric(18,2)"));
+});
+
+test("benefício: custo do painel = soma das adesões; sem valor nelas, o custo do catálogo", () => {
+  assert.equal(custoDoPlano(0, [{ valor: 345.14 }, { valor: 512.1 }]), 857.24);
+  assert.equal(custoDoPlano(1200, []), 1200);
+  assert.equal(custoDoPlano(1200, [{ valor: null }]), 1200);
+  assert.equal(custoDoPlano(0, [{ valor: 5.76 }, { valor: null }, { valor: 5.76 }]), 11.52);
+});
+
+test("benefício: aprovação vira adesão (adesão, alteração, cancelamento, dependente)", () => {
+  const base = { planId: "p1", planName: "Convênio médico", employeeId: "e1", employeeName: "Ana", department: "RH" };
+  let a = aplicarAprovacao([], { ...base, acao: "enroll", vigencia: "2026-12-01", valor: 345.14 });
+  assert.deepEqual(a.map((x) => [x.inicio, x.valor]), [["2026-12-01", 345.14]]);
+  a = aplicarAprovacao(a, { ...base, acao: "change", vigencia: "2027-01-01", valor: 400 });
+  assert.deepEqual(a.map((x) => [x.inicio, x.valor]), [["2026-12-01", 400]], "alteração troca o valor e mantém o início");
+  assert.equal(aplicarAprovacao(a, { ...base, acao: "add_dependent", vigencia: "2027-01-01", valor: null }), a);
+  a = aplicarAprovacao(a, { ...base, acao: "enroll", vigencia: "2027-02-01", valor: null });
+  assert.equal(a.length, 1, "nunca duas adesões da mesma pessoa no mesmo benefício");
+  assert.equal(a[0].valor, 400, "sem valor novo, fica o que tinha");
+  assert.deepEqual(aplicarAprovacao(a, { ...base, acao: "cancel", vigencia: "2027-03-01", valor: null }), []);
+});
+
+test("benefício: aprovar no banco cria a adesão (gatilho) e o painel lê as adesões com valor", () => {
+  const mig = ler("supabase/migrations/202611030001_rh_beneficio_adesao.sql");
+  assert.match(mig, /after update of status on public\.rh_benefit_requests/);
+  assert.match(mig, /on conflict \(plan_id, employee_id\)/);
+  assert.match(mig, /status = 'approved' order by decided_at/, "as já aprovadas entram");
+  const repo = ler("lib/data/rh-repository.ts");
+  assert.match(repo, /rh_benefit_enrollments"\)\.select\("plan_id,employee_id,enrolled_at,monthly_value/);
+  assert.doesNotMatch(repo, /rh_benefit_requests"\)[\s\S]{0,300}\.limit\(20\)/, "a lista de solicitações não pode parar nas 20 últimas");
 });

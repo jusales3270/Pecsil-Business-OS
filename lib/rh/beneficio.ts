@@ -37,3 +37,40 @@ export function vigenciaSugerida(hoje: string): string {
   return mes === 12 ? `${ano + 1}-01-01` : `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
 }
 
+
+/** Uma adesão ativa: o colaborador participa do benefício, com o valor mensal, desde `inicio` (AAAA-MM-DD). */
+export type AdesaoBeneficio = {
+  planId: string;
+  planName: string;
+  employeeId: string;
+  employeeName: string;
+  department: string | null;
+  inicio: string;
+  valor: number | null;
+};
+
+/**
+ * Custo mensal de um benefício no painel: a soma dos valores das adesões; sem nenhum valor nas adesões, o custo
+ * digitado no catálogo (Editar valores).
+ */
+export function custoDoPlano(custoCatalogo: number, adesoes: { valor: number | null }[]): number {
+  const comValor = adesoes.filter((a) => a.valor !== null);
+  return comValor.length ? Math.round(comValor.reduce((s, a) => s + (a.valor ?? 0), 0) * 100) / 100 : custoCatalogo;
+}
+
+/**
+ * O que a aprovação de uma solicitação faz nas adesões (o mesmo que o gatilho do banco,
+ * rh_benefit_aplicar_solicitacao, para a tela mostrar na hora): adesão e alteração deixam o colaborador no benefício
+ * com o valor da solicitação (alteração mantém o início); cancelamento tira; inclusão de dependente não mexe.
+ */
+export function aplicarAprovacao(
+  adesoes: AdesaoBeneficio[],
+  s: { acao: "enroll" | "change" | "cancel" | "add_dependent"; planId: string; planName: string; employeeId: string; employeeName: string; department: string | null; vigencia: string; valor: number | null },
+): AdesaoBeneficio[] {
+  const atual = adesoes.find((a) => a.planId === s.planId && a.employeeId === s.employeeId);
+  const outras = adesoes.filter((a) => a !== atual);
+  if (s.acao === "cancel") return outras;
+  if (s.acao === "add_dependent") return adesoes;
+  const inicio = s.acao === "change" && atual ? atual.inicio : s.vigencia;
+  return [...outras, { planId: s.planId, planName: s.planName, employeeId: s.employeeId, employeeName: s.employeeName, department: s.department, inicio, valor: s.valor ?? atual?.valor ?? null }];
+}

@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-03-rh-adesoes-beneficios",
+    data: "2026-11-03",
+    area: "RH",
+    modulos: ["rh"],
+    funcionalidades: ["rh.beneficios", "rh.colaboradores"],
+    titulo: "Benefícios aprovados viram adesão",
+    itens: [
+      "Ao aprovar uma movimentação de benefício, o colaborador passa a participar dele com o valor mensal da solicitação. As que já estavam aprovadas entraram agora.",
+      "O painel de Benefícios mostra os participantes e o custo somando o valor de cada adesão, e a aba Participantes lista cada um, com o início e o valor.",
+      "A ficha do colaborador mostra os benefícios dele, com o valor por mês.",
+      "Em aprovação conta todas as solicitações pendentes, não só as 20 mais recentes.",
+    ],
+  },
+  {
     id: "2026-10-31-sara-mostra-o-registro",
     data: "2026-10-31",
     area: "SARA",
