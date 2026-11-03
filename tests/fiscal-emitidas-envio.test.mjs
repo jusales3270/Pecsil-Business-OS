@@ -127,7 +127,11 @@ test("portal: vários anexos, sem repetir a nota, excluir pelo lado que enviou e
   assert.match(rota, /export async function DELETE/);
   assert.match(rota, /já está anexada aqui/, "mesma NF-e em outro arquivo");
   assert.match(rota, /lerIbsCbs\(admin/, "a nota anexada é lida na hora");
-  const ver = ler("app/api/fiscal/portal/anexo/[id]/route.ts");
+  // Desde 30/10 (297548c) o anexo sai pela própria plataforma, pela entrega comum de lib/documentos/entregar.ts.
+  const rotaVer = ler("app/api/fiscal/portal/anexo/[id]/route.ts");
+  assert.match(rotaVer, /entregarArquivo\(arquivo\.storage_path, arquivo\.original_name, parametros\.get\("danfe"\) === "1" \? "danfe" : parametros\.get\("ver"\) === "1" \? "ver" : "baixar"\)/);
+  assert.doesNotMatch(rotaVer, /NextResponse\.redirect/, "nada de link do endereço interno");
+  const ver = ler("lib/documentos/entregar.ts");
   assert.match(ver, /xml: "text\/plain; charset=utf-8"/, "XML vai como texto");
   assert.match(ver, /content-security-policy": "sandbox/, "nada do arquivo executa");
   const tela = ler("modules/fiscal/src/PortalEscritorio.tsx");
@@ -146,7 +150,8 @@ test("portal: lixeira padrão da plataforma e NF-e aberta no DANFE", () => {
   assert.match(tela, /danfe=\{\/\\\.xml\$\/i\.test\(aberto\.nome\)/);
   const vis = ler("app/components/visualizar-arquivo.tsx");
   assert.match(vis, /"danfe" \| "resumo" \| "xml"/);
-  assert.match(ler("app/api/fiscal/portal/anexo/[id]/route.ts"), /obterTransmissor\(\)\.danfe/);
+  assert.match(ler("app/api/fiscal/portal/anexo/[id]/route.ts"), /"danfe"/);
+  assert.match(ler("lib/documentos/entregar.ts"), /obterTransmissor\(\)\.danfe/);
   const transmissor = ler("services/transmissor-nfe/servidor.mjs");
   assert.match(transmissor, /generatePDF\(false\)/, "DANFE sem a marca NFeWizard-io");
   assert.match(transmissor, /DANFE_INVALIDO/, "XML que não monta não derruba o serviço");
