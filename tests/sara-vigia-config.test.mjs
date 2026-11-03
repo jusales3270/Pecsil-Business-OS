@@ -75,3 +75,11 @@ test("envio avulso: texto, destinos e horário conferidos", () => {
   assert.equal(validarAvulso({ contatos: [um], texto: "a", quando: "2026-11-04T10:00:00Z" }, agora).quando, "2026-11-04T10:00:00.000Z");
   assert.match(validarAvulso({ contatos: [um], texto: "x".repeat(4001) }, agora).erro, /4\.000/);
 });
+
+test("vigia: contatos apontam a ligação certa com o perfil (há duas: profile_id e criado_por)", () => {
+  for (const f of ["app/api/foundation/whatsapp/route.ts", "lib/sara/central/vigia-executar.ts"]) {
+    const t = ler(f);
+    assert.doesNotMatch(t, /from\("whatsapp_contatos"\)\.select\("[^"]*[ ,]profiles(\(|!inner)/, f);
+  }
+});
+

@@ -72,7 +72,7 @@ export async function GET() {
   const [cfg, { data: lista }, { data: contatos }] = await Promise.all([
     lerConfigVigia(d.sb),
     d.sb.from("sara_vigia_transmissao").select("contato_id"),
-    d.sb.from("whatsapp_contatos").select("id, lista, numero, nome, canal_id, profile_id, profiles(full_name), whatsapp_canais(nome)").eq("ativo", true).order("nome").limit(500),
+    d.sb.from("whatsapp_contatos").select("id, lista, numero, nome, canal_id, profile_id, profiles:profiles!whatsapp_contatos_profile_id_fkey(full_name), whatsapp_canais(nome)").eq("ativo", true).order("nome").limit(500),
   ]);
   const vigia = { config: cfg, agenda: textoDaAgenda(cfg), transmissao: ((lista ?? []) as { contato_id: string }[]).map((x) => x.contato_id),
     contatos: ((contatos ?? []) as unknown as { id: string; lista: string; numero: string; nome: string | null; profile_id: string | null; profiles: { full_name: string | null } | null; whatsapp_canais: { nome: string } | null }[])
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
     const admin = createSupabaseAdminClient();
     const [{ data: org }, { data: eu }] = await Promise.all([d.sb.from("organizations").select("id").limit(1).single(), d.sb.rpc("current_profile_id")]);
     const { data: perfil } = eu ? await d.sb.from("profiles").select("full_name").eq("id", eu).maybeSingle() : { data: null };
-    const { data: contatos } = await admin.from("whatsapp_contatos").select("id, canal_id, nome, numero, profiles(full_name)").in("id", v.contatos).eq("ativo", true);
+    const { data: contatos } = await admin.from("whatsapp_contatos").select("id, canal_id, nome, numero, profiles:profiles!whatsapp_contatos_profile_id_fkey(full_name)").in("id", v.contatos).eq("ativo", true);
     const lista = (contatos ?? []) as unknown as { id: string; canal_id: string; nome: string | null; numero: string; profiles: { full_name: string | null } | null }[];
     if (lista.length !== v.contatos.length) return NextResponse.json({ error: "Algum número escolhido não está mais ativo." }, { status: 400 });
     const { error } = await admin.from("whatsapp_agendados").insert(lista.map((c) => ({ organization_id: org?.id, canal_id: c.canal_id, contato_id: c.id,

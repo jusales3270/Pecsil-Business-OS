@@ -62,7 +62,7 @@ async function transmitir(admin: SupabaseClient, a: { org: string; rodada: strin
     .not("situacao", "in", "(resolvido,nao_e_problema,silenciado)");
   const novos = (achados ?? []) as { area: string; titulo: string; por_que: string | null; impacto: string | null; sinais: string[] }[];
   if (!novos.length) return 0;
-  const { data: contatos } = await admin.from("whatsapp_contatos").select("id, canal_id, nome, profile_id, profiles!inner(full_name, status), whatsapp_canais!inner(ativo, conexao)")
+  const { data: contatos } = await admin.from("whatsapp_contatos").select("id, canal_id, nome, profile_id, profiles:profiles!whatsapp_contatos_profile_id_fkey!inner(full_name, status), whatsapp_canais!inner(ativo, conexao)")
     .in("id", ids).eq("lista", "interna").eq("ativo", true).eq("profiles.status", "active").eq("whatsapp_canais.ativo", true).eq("whatsapp_canais.conexao", "whatsapp_web");
   const base = (process.env.PLATAFORMA_URL?.trim() || "https://home.pecsil.com.br").replace(/\/+$/, "");
   let n = 0;

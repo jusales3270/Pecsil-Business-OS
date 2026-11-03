@@ -9296,7 +9296,7 @@ a.doc-abrir { text-decoration: none; }
 .wa-vigia-dias { display: flex; flex-wrap: wrap; gap: 6px; }
 .wa-vigia-dias legend { width: 100%; }
 .wa-vigia-dias button { min-width: 44px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border-default); background: var(--bg-surface); color: var(--text-secondary); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
-.wa-vigia-dias button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent, #fff); }
+.wa-vigia-dias button[aria-pressed="true"] { border-color: var(--accent-blue); color: var(--text-primary); background: color-mix(in srgb, var(--accent-blue) 12%, var(--bg-surface)); font-weight: 600; }
 .wa-vigia-dias button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .wa-form label.wa-vigia-ligar, .wa-vigia-lista label { flex-direction: row; align-items: center; gap: 8px; color: var(--text-primary); font-size: var(--fs-sm); }
 .wa-form label.wa-vigia-ligar { grid-column: 1 / -1; }
@@ -9752,10 +9752,10 @@ a.doc-abrir { text-decoration: none; }
 .sv-bar.sv-aceso, .sv-rosca li.sv-aceso { background: var(--tint-blue, var(--bg-subtle)); border-radius: 6px; }
 .sv-rosca li button { all: unset; display: contents; cursor: pointer; }
 .sv-filtro { margin: 0 0 6px; font-size: var(--fs-xs); color: var(--text-secondary); }
-.sv-filtro button { border: 0; padding: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+.sv-filtro button { border: 0; padding: 0; background: none; color: var(--accent-blue); font: inherit; cursor: pointer; text-decoration: underline; }
 
 /* O registro que a SARA mostrou na tela acende por 4 s. */
-.sara-destaque { outline: 2px solid var(--accent, #2563eb); outline-offset: 2px; border-radius: var(--radius-sm, 6px); animation: sara-destaque 1.2s ease-in-out 3; }
+.sara-destaque { outline: 2px solid var(--accent-blue); outline-offset: 2px; border-radius: var(--radius-sm, 6px); animation: sara-destaque 1.2s ease-in-out 3; }
 @keyframes sara-destaque { 50% { outline-color: transparent; } }
 @media (prefers-reduced-motion: reduce) { .sara-destaque { animation: none; } }
 .ds-excluir:disabled { opacity: .4; cursor: not-allowed; background: transparent; color: var(--text-muted); }
