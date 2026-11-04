@@ -26,7 +26,7 @@ function minutosDesde(entrada: string, agora: Date) {
   return minutosDaPassagem(entrada, agoraHm) ?? 0;
 }
 
-type PessoaQuadro = { id: string; nome: string; incluido_por: string | null; incluido_por_nome: string | null; incluido_em: string };
+type PessoaQuadro = { id: string; nome: string; incluido_por: string | null; incluido_por_nome: string | null; incluido_em: string; responsavel_setor: string | null };
 
 async function chamar<T>(url: string, init?: RequestInit): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
   try {
@@ -40,12 +40,16 @@ async function chamar<T>(url: string, init?: RequestInit): Promise<{ ok: true; d
 }
 
 /** Quadro de terceiros: a lista de prestadores da Portaria. Quem tem Operar inclui e exclui. */
-function QuadroTerceiros({ podeEditar, notify }: { podeEditar: boolean; notify?: (mensagem: string) => void }) {
+function QuadroTerceiros({ podeEditar, podeMarcar, notify }: { podeEditar: boolean; podeMarcar: boolean; notify?: (mensagem: string) => void }) {
   const [quadro, setQuadro] = useState<PessoaQuadro[] | null>(null);
   const [erro, setErro] = useState("");
   const [nome, setNome] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [confirmar, setConfirmar] = useState<string | null>(null);
+  // Setor sendo digitado de quem teve o check marcado (ou o setor aberto para alterar), ainda não gravado.
+  const [editando, setEditando] = useState<Record<string, string>>({});
+  // Quem está sendo desmarcado: o check já aparece vazio enquanto o servidor grava.
+  const [saindo, setSaindo] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     const res = await chamar<{ quadro: PessoaQuadro[] }>("/api/rh/terceiros/quadro");
@@ -81,6 +85,25 @@ function QuadroTerceiros({ podeEditar, notify }: { podeEditar: boolean; notify?:
     await carregar();
   };
 
+  // Responsável pelo setor (04/11/2026): marcado com o setor, o terceiro aparece em Responsável nas visitas da Portaria.
+  const marcar = async (pessoa: PessoaQuadro, marcado: boolean, setor?: string) => {
+    if (marcado && (setor ?? "").trim().length < 2) { setErro(`Digite o setor pelo qual ${pessoa.nome} responde.`); return; }
+    setSalvando(true);
+    const res = await chamar<{ nome: string; setor: string | null }>("/api/rh/responsaveis", { method: "POST", body: JSON.stringify({ tipo: "terceiro", id: pessoa.id, marcado, setor }) });
+    setSalvando(false);
+    if (!res.ok) { setErro(res.error); return; }
+    setErro("");
+    setEditando((atual) => Object.fromEntries(Object.entries(atual).filter(([id]) => id !== pessoa.id)));
+    notify?.(marcado ? `${res.data.nome} agora aparece como responsável por ${res.data.setor} na Portaria.` : `${res.data.nome} saiu dos responsáveis da Portaria.`);
+    await carregar();
+  };
+  const alternar = (pessoa: PessoaQuadro, marcado: boolean) => {
+    setErro("");
+    if (marcado) { setEditando((atual) => ({ ...atual, [pessoa.id]: pessoa.responsavel_setor ?? "" })); return; }
+    if (pessoa.responsavel_setor) { setSaindo(pessoa.id); void marcar(pessoa, false).finally(() => setSaindo(null)); return; }
+    setEditando((atual) => Object.fromEntries(Object.entries(atual).filter(([id]) => id !== pessoa.id)));
+  };
+
   return (
     <Card className="absence-card">
       <div className="absence-toolbar">
@@ -104,11 +127,24 @@ function QuadroTerceiros({ podeEditar, notify }: { podeEditar: boolean; notify?:
             <div key={pessoa.id} role="listitem">
               <span><b>{pessoa.nome}</b><small>{pessoa.incluido_por
                 ? `incluído por ${pessoa.incluido_por_nome ?? "—"} em ${new Date(pessoa.incluido_em).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`
-                : "já estava na lista da Portaria"}</small></span>
+                : "já estava na lista da Portaria"}</small>{!podeMarcar && pessoa.responsavel_setor && <small className="terceiros-resp-setor">Responsável · {pessoa.responsavel_setor}</small>}</span>
               {podeEditar && (
                 <button type="button" className={`terceiros-quadro-excluir${confirmar === pessoa.id ? " confirmar" : ""}`} onClick={() => void excluir(pessoa)} onBlur={() => setConfirmar((c) => (c === pessoa.id ? null : c))} disabled={salvando} aria-label={confirmar === pessoa.id ? `Confirmar exclusão de ${pessoa.nome}` : `Excluir ${pessoa.nome} do quadro`}>
                   {confirmar === pessoa.id ? "Confirmar exclusão" : "Excluir"}
                 </button>
+              )}
+              {podeMarcar && (
+                <div className="terceiros-resp">
+                  <label><input type="checkbox" checked={(Boolean(pessoa.responsavel_setor) && saindo !== pessoa.id) || pessoa.id in editando} disabled={salvando} onChange={(event) => alternar(pessoa, event.target.checked)} /> Responsável pelo setor</label>
+                  {pessoa.id in editando ? (
+                    <form onSubmit={(event) => { event.preventDefault(); void marcar(pessoa, true, editando[pessoa.id]); }}>
+                      <input autoFocus value={editando[pessoa.id]} onChange={(event) => setEditando((atual) => ({ ...atual, [pessoa.id]: event.target.value }))} placeholder="Setor (ex.: Manutenção)" maxLength={60} aria-label={`Setor pelo qual ${pessoa.nome} responde`} />
+                      <Button type="submit" disabled={salvando}>Salvar</Button>
+                    </form>
+                  ) : pessoa.responsavel_setor && saindo !== pessoa.id && (
+                    <span>{pessoa.responsavel_setor}<button type="button" onClick={() => setEditando((atual) => ({ ...atual, [pessoa.id]: pessoa.responsavel_setor ?? "" }))}>Alterar</button></span>
+                  )}
+                </div>
               )}
             </div>
           ))}
@@ -118,7 +154,7 @@ function QuadroTerceiros({ podeEditar, notify }: { podeEditar: boolean; notify?:
   );
 }
 
-export function TerceirosSection({ podeEditar = false, notify }: { podeEditar?: boolean; notify?: (mensagem: string) => void }) {
+export function TerceirosSection({ podeEditar = false, podeMarcar = false, notify }: { podeEditar?: boolean; podeMarcar?: boolean; notify?: (mensagem: string) => void }) {
   const [hoje] = useState(hojeLocal);
   const [data, setData] = useState(hoje);
   const [estado, setEstado] = useState<Estado>({ status: "loading" });
@@ -216,6 +252,6 @@ export function TerceirosSection({ podeEditar = false, notify }: { podeEditar?: 
       </div>
     </Card>
 
-    <QuadroTerceiros podeEditar={podeEditar} notify={notify} />
+    <QuadroTerceiros podeEditar={podeEditar} podeMarcar={podeMarcar} notify={notify} />
   </>;
 }

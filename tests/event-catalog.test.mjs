@@ -28,7 +28,7 @@ const sql = [
   "202610120004_fiscal_portal_escritorio.sql",
   "202610130005_comercial_orcamentos.sql",
   "202610140001_compras_diretas.sql",
-  "202610140003_terceiros_quadro.sql",
+  "202610140003_terceiros_quadro.sql", "202611040001_responsaveis_setor.sql",
   "202610190001_ti_base.sql",
   "202610200001_logistica_entregas.sql",
   "202610200002_logistica_link_cliente.sql",

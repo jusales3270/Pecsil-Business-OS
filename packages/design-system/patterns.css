@@ -5948,6 +5948,17 @@ button.holiday-row:hover {
 .terceiros-quadro-excluir { flex: none; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-secondary); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer; }
 .terceiros-quadro-excluir:hover, .terceiros-quadro-excluir.confirmar { border-color: var(--accent-red); color: var(--accent-red); }
 .terceiros-quadro-excluir.confirmar { background: color-mix(in srgb, var(--accent-red) 10%, var(--bg-surface)); }
+/* Responsável pelo setor no quadro (04/11/2026): o check e o setor ocupam a linha de baixo do cartão. */
+.terceiros-quadro > div { flex-wrap: wrap; }
+.terceiros-resp { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.terceiros-resp > label { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--text-secondary); cursor: pointer; }
+.terceiros-resp > label input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent-blue); }
+.terceiros-resp > form { display: flex; gap: var(--sp-2); flex: 1 1 200px; min-width: 0; }
+.terceiros-resp > form input { flex: 1 1 auto; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); }
+.terceiros-resp > span { display: inline-flex; align-items: center; gap: var(--sp-2); font-weight: 600; color: var(--text-primary); }
+.terceiros-resp > span button { padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-secondary); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
+.terceiros-resp > span button:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+.terceiros-resp-setor { color: var(--accent-blue) !important; font-weight: 600; }
 .terceiros-date {
   display: flex;
   flex-direction: column;
@@ -8421,6 +8432,11 @@ a.doc-abrir { text-decoration: none; }
 .rh-ficha-tabela .nome { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-weight: 600; }
 .rh-ficha-tabela small { font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); }
 .employee-beneficios { display: grid; gap: var(--sp-4); }
+/* Responsável pelo setor no cadastro do colaborador (04/11/2026): check ao lado do texto, não campo de 38px. */
+.employee-fields label.employee-responsavel { flex-direction: row; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); cursor: pointer; }
+.employee-fields label.employee-responsavel > input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; padding: 0; accent-color: var(--accent-blue); }
+.employee-fields label.employee-responsavel > span { display: grid; gap: 2px; }
+.employee-fields label.employee-responsavel b { color: var(--text-primary); font-weight: 600; }
 
 /* Recebida · Fornecedor · NF-e · Valor · ICMS · IPI · Tipo · F · U · RS · XML · LACTO · AUT · editar */
 .icms-tabela { grid-template-columns: max-content minmax(180px, 1fr) repeat(5, max-content) repeat(6, minmax(36px, max-content)) max-content; }

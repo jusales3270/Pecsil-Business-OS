@@ -19,10 +19,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Label } from "./components/ui/label";
 import { Separator } from "./components/ui/separator";
 import type { Visita, ControleVeiculo, RegistroTerceiro, Recebido } from "./types";
-import { RESPONSAVEIS, MOTORISTAS, DESCRICOES, VEICULOS, DESTINATARIOS } from "./types";
+import { RESPONSAVEIS, MOTORISTAS, DESCRICOES, VEICULOS } from "./types";
+import { listaDeResponsaveis, opcoesComAtual, opcoesDoFiltro } from "./lib/responsaveis";
 import { CameraCapture } from "./components/CameraCapture";
 import { extractFaceDescriptor, base64ToImage } from "./lib/faceApi";
-import { buscarVisitantePorFace, type CandidatoFacial, buscarVisitantesPorNome, salvarVisitante, fetchVisitas, fetchFotoVisita, fetchFrota, inserirVisita, atualizarVisitaDb, encerrarVisitaDb, excluirVisitaDb, inserirVeiculo, atualizarVeiculoDb, excluirVeiculoDb, fetchTerceiros, fetchQuadroTerceiros, quadroTerceirosGuardado, inserirTerceiro, encerrarTerceiroDb, excluirTerceiroDb, fetchRecebidos, fetchFotoRecebido, inserirRecebido, excluirRecebidoDb } from "./lib/supabase"; import { gerenciaAlgumaArea, podePortaria, useAuth } from "./contexts/AuthContext";
+import { buscarVisitantePorFace, type CandidatoFacial, buscarVisitantesPorNome, salvarVisitante, fetchVisitas, fetchFotoVisita, fetchFrota, inserirVisita, atualizarVisitaDb, encerrarVisitaDb, excluirVisitaDb, inserirVeiculo, atualizarVeiculoDb, excluirVeiculoDb, fetchTerceiros, fetchQuadroTerceiros, quadroTerceirosGuardado, fetchResponsaveis, responsaveisGuardados, inserirTerceiro, encerrarTerceiroDb, excluirTerceiroDb, fetchRecebidos, fetchFotoRecebido, inserirRecebido, excluirRecebidoDb } from "./lib/supabase"; import { gerenciaAlgumaArea, podePortaria, useAuth } from "./contexts/AuthContext";
 import { Login } from "./pages/Login";
 import { Configuracoes } from "./pages/Configuracoes";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
@@ -55,6 +56,9 @@ function App({ onExit, initialSection }: { onExit?: () => void; initialSection?:
   const [terceiros, setTerceiros] = useState<RegistroTerceiro[]>([]);
   // Quadro de terceiros: mantido pelo RH (começa com a última lista guardada, para funcionar sem conexão).
   const [quadroTerceiros, setQuadroTerceiros] = useState<string[]>(() => quadroTerceirosGuardado());
+  // Responsáveis pelo setor marcados pelo RH; sem nenhum marcado, vale a lista antiga.
+  const [responsaveisMarcados, setResponsaveisMarcados] = useState<string[]>(() => responsaveisGuardados());
+  const responsaveis = listaDeResponsaveis(responsaveisMarcados, RESPONSAVEIS);
   const [carregando, setCarregando] = useState(true);
   const { user, perfil, loading: authLoading, signOut } = useAuth();
   const [paginaAtiva, setPaginaAtiva] = useState<PaginaAtiva>(() => (initialSection && PAGINA_DA_SECAO[initialSection]) || 'dashboard');
@@ -117,12 +121,13 @@ function App({ onExit, initialSection }: { onExit?: () => void; initialSection?:
     async function carregar() {
       setCarregando(true);
       try {
-        const [v, f, t, e, q] = await Promise.all([fetchVisitas(), fetchFrota(), fetchTerceiros(), fetchRecebidos(), fetchQuadroTerceiros()]);
+        const [v, f, t, e, q, r] = await Promise.all([fetchVisitas(), fetchFrota(), fetchTerceiros(), fetchRecebidos(), fetchQuadroTerceiros(), fetchResponsaveis()]);
         setVisitas(v);
         setVeiculos(f);
         setTerceiros(t as RegistroTerceiro[]);
         setRecebidos(e);
         setQuadroTerceiros(q);
+        setResponsaveisMarcados(r);
       } catch (err) {
         console.error('Erro ao carregar dados:', err);
       } finally {
@@ -136,12 +141,13 @@ function App({ onExit, initialSection }: { onExit?: () => void; initialSection?:
     if (!user || !isOnline) return;
     const interval = setInterval(async () => {
       try {
-        const [v, f, t, e, q] = await Promise.all([fetchVisitas(), fetchFrota(), fetchTerceiros(), fetchRecebidos(), fetchQuadroTerceiros()]);
+        const [v, f, t, e, q, r] = await Promise.all([fetchVisitas(), fetchFrota(), fetchTerceiros(), fetchRecebidos(), fetchQuadroTerceiros(), fetchResponsaveis()]);
         setVisitas(v);
         setVeiculos(f);
         setTerceiros(t as RegistroTerceiro[]);
         setRecebidos(e);
         setQuadroTerceiros(q);
+        setResponsaveisMarcados(r);
         console.log('[Sync] Dados recarregados do Supabase');
       } catch (err) {
         console.error('[Sync] Erro ao recarregar dados:', err);
@@ -1514,7 +1520,7 @@ function App({ onExit, initialSection }: { onExit?: () => void; initialSection?:
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os responsáveis</SelectItem>
-                {RESPONSAVEIS.map((r) => (
+                {opcoesDoFiltro(responsaveis, visitas.map((v) => v.responsavel)).map((r) => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>
                 ))}
               </SelectContent>
@@ -2233,11 +2239,12 @@ function App({ onExit, initialSection }: { onExit?: () => void; initialSection?:
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    {RESPONSAVEIS.map((r) => (
+                    {opcoesComAtual(responsaveis, visitaEditando?.responsavel).map((r) => (
                       <SelectItem key={r} value={r}>{r}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {responsaveisMarcados.length === 0 && <p className="text-xs text-amber-700">Nenhum responsável pelo setor marcado ainda: vale a lista antiga. Quem marca é o RH, na ficha do colaborador ou no quadro de terceiros.</p>}
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Horário Entrada</Label>
@@ -3152,7 +3159,7 @@ function App({ onExit, initialSection }: { onExit?: () => void; initialSection?:
                     <SelectValue placeholder="Selecione o setor/responsável destinatário" />
                   </SelectTrigger>
                   <SelectContent>
-                    {DESTINATARIOS.map((dest) => (
+                    {responsaveis.map((dest) => (
                       <SelectItem key={dest} value={dest}>{dest}</SelectItem>
                     ))}
                   </SelectContent>

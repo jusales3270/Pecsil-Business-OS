@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-04-responsavel-pelo-setor",
+    data: "2026-11-04",
+    area: "RH e Portaria",
+    modulos: ["rh", "portaria"],
+    funcionalidades: ["rh.responsaveis", "rh.colaboradores", "rh.terceiros", "portaria.visitas", "portaria.recebidos"],
+    titulo: "Responsável pelo setor: o RH marca, a Portaria escolhe",
+    itens: [
+      "Na ficha do colaborador, o check \"Responsável pelo setor\": ele passa a responder pelo próprio departamento. No quadro de terceiros, o mesmo check abre o campo para digitar o setor.",
+      "Na Portaria, o Responsável da visita e o Destinatário dos recebidos mostram só quem o RH marcou, como \"Nome · Setor\". Desmarcou, saiu da lista.",
+      "A Ferramentaria entrou nos departamentos do cadastro.",
+      "Quem pode marcar e desmarcar é a nova permissão RH › Responsáveis pelo setor, em Pessoas e Acessos.",
+    ],
+  },
+  {
     id: "2026-11-04-bom-dia-lista-whatsapp",
     data: "2026-11-04",
     area: "WhatsApp",

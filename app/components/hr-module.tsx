@@ -224,6 +224,7 @@ const initialAbsences: AbsenceRecord[] = [];
 
 export function HrModule({
   people,
+  departmentNames = [],
   summary,
   notify,
   onEvent,
@@ -232,6 +233,8 @@ export function HrModule({
   initialSection,
 }: {
   people: Person[];
+  /** Departamentos ativos do cadastro da estrutura (aparecem no cadastro mesmo sem ninguém lotado). */
+  departmentNames?: string[];
   summary: FoundationSummary;
   notify: (message: string) => void;
   onEvent: (message: string) => void;
@@ -304,8 +307,8 @@ export function HrModule({
         <>
           {section === "Painel" && <HrDashboard people={employees} summary={summary} rh={rh} setSection={setSection} notify={track} access={access} canCreate={canCreate} requestCreate={() => setCreateRequested(value => value + 1)}/>}
           {section === "Colaboradores" && canSeeClt && canSeeTerceiros && <PeopleKindTabs value={kind} onChange={setPeopleKind}/>}
-          {section === "Colaboradores" && kind === "CLT" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} canViewDocs={canUseFeature(access, "rh.documentos")} persists={rh.source === "supabase" || employees.some(person => person.id)} canViewBenefits={canUseFeature(access, "rh.beneficios")} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
-          {section === "Colaboradores" && kind === "Terceiros" && <TerceirosSection podeEditar={canUseFeature(access, "rh.terceiros", "operar")} notify={track}/>}
+          {section === "Colaboradores" && kind === "CLT" && <PeopleSection people={filteredPeople} allPeople={employees} setPeople={setEmployees} query={query} setQuery={setQuery} notify={track} canCreate={canCreate} canViewDocs={canUseFeature(access, "rh.documentos")} persists={rh.source === "supabase" || employees.some(person => person.id)} canViewBenefits={canUseFeature(access, "rh.beneficios")} canMarkResponsavel={canUseFeature(access, "rh.responsaveis", "operar")} departmentNames={departmentNames} createRequested={createRequested} onCreateHandled={() => setCreateRequested(0)}/>}
+          {section === "Colaboradores" && kind === "Terceiros" && <TerceirosSection podeEditar={canUseFeature(access, "rh.terceiros", "operar")} podeMarcar={canUseFeature(access, "rh.responsaveis", "operar")} notify={track}/>}
           {section === "Ponto e jornada" && <JourneySection notify={track} access={access}/>}
           {section === "Férias e ausências" && <AbsenceSection key={rh.loadedAt} notify={track} access={access} rh={rh}/>}
           {section === "Feriados" && <HolidaysSection notify={track}/>}
@@ -696,12 +699,25 @@ function HrDashboard({ people, summary, rh, setSection, notify, access, canCreat
   </>;
 }
 
-function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, canCreate, canViewDocs, persists, canViewBenefits, createRequested, onCreateHandled }: { people: EmployeeRecord[]; allPeople: EmployeeRecord[]; setPeople: React.Dispatch<React.SetStateAction<EmployeeRecord[]>>; query: string; setQuery: (value: string) => void; notify: (message: string) => void; canCreate: boolean; canViewDocs: boolean; persists: boolean; canViewBenefits: boolean; createRequested: number; onCreateHandled: () => void }) {
+function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, canCreate, canViewDocs, persists, canViewBenefits, canMarkResponsavel, departmentNames, createRequested, onCreateHandled }: { people: EmployeeRecord[]; allPeople: EmployeeRecord[]; setPeople: React.Dispatch<React.SetStateAction<EmployeeRecord[]>>; query: string; setQuery: (value: string) => void; notify: (message: string) => void; canCreate: boolean; canViewDocs: boolean; persists: boolean; canViewBenefits: boolean; canMarkResponsavel: boolean; departmentNames: string[]; createRequested: number; onCreateHandled: () => void }) {
   const [selected, setSelected] = useState<EmployeeRecord | null>(null);
   const [editing, setEditing] = useState<EmployeeRecord | null>(null);
   const [creating, setCreating] = useState(createRequested > 0 && canCreate);
   const [unit, setUnit] = useState("Todas as unidades");
   const visiblePeople = unit === "Todas as unidades" ? people : people.filter(person => person.unit === unit);
+
+  // Responsável pelo setor: grava à parte, com a credencial própria (rh.responsaveis), e só se mudou. Depois da lotação,
+  // porque o setor dele é o departamento gravado.
+  const gravarResponsavel = async (employee: EmployeeRecord, id: string, antes: boolean) => {
+    const marcado = Boolean(employee.responsavelSetor);
+    if (!canMarkResponsavel || marcado === antes) return;
+    const response = await fetch("/api/rh/responsaveis", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tipo: "colaborador", id, marcado }) }).catch(() => null);
+    if (response?.ok) { notify(marcado ? `${employee.name} agora aparece como responsável por ${employee.department} na Portaria.` : `${employee.name} saiu dos responsáveis da Portaria.`); return; }
+    const erro = response ? ((await response.json().catch(() => ({}))) as { error?: string }).error : undefined;
+    setPeople(current => current.map(item => item.id === id ? { ...item, responsavelSetor: antes } : item));
+    setSelected(current => current && current.id === id ? { ...current, responsavelSetor: antes } : current);
+    notify(`${employee.name}: a marcação de responsável pelo setor não foi gravada. ${erro && erro !== "FORBIDDEN" ? erro : "Verifique suas permissões."}`);
+  };
 
   const saveEmployee = async (employee: EmployeeRecord, isNew: boolean) => {
     const before = editing;
@@ -735,6 +751,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
         notify(employee.terminationDate
           ? `${employee.name}: demissão registrada em ${formatDate(employee.terminationDate)}.`
           : `Cadastro de ${employee.name} atualizado no banco.`);
+        await gravarResponsavel(employee, employee.id, Boolean(before?.responsavelSetor));
       } catch (error) {
         if (before) {
           setPeople(current => current.map(item => personKey(item) === personKey(employee) ? before : item));
@@ -771,6 +788,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
         setPeople(current => current.map(item => item === employee ? { ...employee, id } : item));
         setSelected(current => current === employee ? { ...employee, id } : current);
         notify(`${employee.name} foi cadastrado no banco.`);
+        await gravarResponsavel({ ...employee, id }, id, false);
       } catch (error) {
         // Remove só o item recém-incluído (antes removia pela matrícula e podia
         // tirar da lista o colaborador que já existia com a mesma matrícula).
@@ -807,7 +825,7 @@ function PeopleSection({ people, allPeople, setPeople, query, setQuery, notify, 
     <Card className="hr-table-card"><div className="hr-tools"><label><HrIcon name="search"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, matrícula, cargo ou departamento..."/></label><select value={unit} onChange={event => setUnit(event.target.value)} aria-label="Filtrar unidade"><option>Todas as unidades</option>{Array.from(new Set(allPeople.map(person => person.unit))).sort().map(name => <option key={name}>{name}</option>)}</select><button onClick={() => { setQuery(""); setUnit("Todas as unidades"); }}><HrIcon name="filter"/> Limpar filtros</button></div><div className="hr-people-table"><div className="hr-table-header"><span>Colaborador</span><span>Cargo</span><span>Departamento</span><span>Status</span><span/></div>{visiblePeople.map(person => <button key={personKey(person)} onClick={() => setSelected(person)}><span className="hr-person"><i>{person.initials}</i><span><b>{person.name}</b><small>Matrícula {person.registration}{person.email ? ` · ${person.email}` : ""}</small></span></span><span><b>{person.role}</b><small>{person.unit}</small></span><span>{person.department}</span><Status tone={person.status === "Ativo" ? "success" : person.status === "Pendente" ? "info" : "neutral"}>{person.status}</Status><HrIcon name="arrow"/></button>)}{!visiblePeople.length && <div className="hr-empty"><HrIcon name="search"/><b>Nenhum colaborador encontrado</b><small>Ajuste a busca ou a unidade selecionada.</small></div>}</div></Card>
     {selected && <EmployeeDrawer employee={selected} canViewBenefits={canViewBenefits} canEdit={canCreate} canViewDocs={canViewDocs} notify={notify} onClose={() => setSelected(null)} onEdit={(withPersonal) => { setEditing(withPersonal); setSelected(null); }} onDelete={persists && selected.id ? () => { setDeleting(selected); setSelected(null); } : undefined}/>}
     {deleting && <EmployeeDeleteDialog employee={deleting} onClose={() => setDeleting(null)} onDeleted={() => removeEmployee(deleting)}/>} 
-    {(creating || editing) && <EmployeeForm employee={editing} nextRegistration={String(allPeople.length + 1).padStart(4,"0")} units={Array.from(new Set(allPeople.map(person => person.unit).filter(Boolean))).sort()} roles={Array.from(new Set(allPeople.map(person => person.role).filter(role => role && role !== SEM_CARGO))).sort((a, b) => a.localeCompare(b, "pt-BR"))} departments={Array.from(new Set(allPeople.map(person => person.department).filter(Boolean))).sort()} onClose={() => { setCreating(false); setEditing(null); onCreateHandled(); }} onSave={saveEmployee}/>} 
+    {(creating || editing) && <EmployeeForm employee={editing} nextRegistration={String(allPeople.length + 1).padStart(4,"0")} units={Array.from(new Set(allPeople.map(person => person.unit).filter(Boolean))).sort()} roles={Array.from(new Set(allPeople.map(person => person.role).filter(role => role && role !== SEM_CARGO))).sort((a, b) => a.localeCompare(b, "pt-BR"))} departments={Array.from(new Set([...departmentNames, ...allPeople.map(person => person.department)].filter(name => name && name !== "Sem departamento"))).sort((a, b) => a.localeCompare(b, "pt-BR"))} canMarkResponsavel={canMarkResponsavel} onClose={() => { setCreating(false); setEditing(null); onCreateHandled(); }} onSave={saveEmployee}/>} 
   </>;
 }
 
@@ -838,7 +856,7 @@ function EmployeeDrawer({ employee, canViewBenefits, canEdit, canViewDocs, notif
       <header><button onClick={onClose} aria-label="Fechar ficha"><HrIcon name="close"/></button><span className="employee-avatar">{employee.initials}</span><div><p className="eyebrow">FICHA DO COLABORADOR</p><h2>{employee.name}</h2><p>{employee.role} · {employee.department}</p></div><Status tone={employee.status === "Ativo" ? "success" : employee.status === "Pendente" ? "info" : "neutral"}>{employee.status}</Status></header>
       <nav className="employee-tabs" aria-label="Seções da ficha">{abas.map(item => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</nav>
       <div className="employee-detail-content">
-        {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div>{inExperience ? <div><small>Experiência até</small><strong>{employee.experienciaFim ? formatDate(employee.experienciaFim) : "Não informada"}</strong></div> : <div><small>Admissão</small><strong>{admission}</strong></div>}{termination && <div><small>Demissão</small><strong>{termination}</strong></div>}</section><DetailGroup title="Contato" rows={[["E-mail",employee.email || "Não informado"],["Telefone",phoneShown],["CPF",cpfShown]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team]]}/></>}
+        {tab === "Resumo" && <><section className="employee-highlight"><span><HrIcon name="users"/></span><div><small>Matrícula</small><strong>{employee.registration}</strong></div>{inExperience ? <div><small>Experiência até</small><strong>{employee.experienciaFim ? formatDate(employee.experienciaFim) : "Não informada"}</strong></div> : <div><small>Admissão</small><strong>{admission}</strong></div>}{termination && <div><small>Demissão</small><strong>{termination}</strong></div>}</section><DetailGroup title="Contato" rows={[["E-mail",employee.email || "Não informado"],["Telefone",phoneShown],["CPF",cpfShown]]}/><DetailGroup title="Lotação atual" rows={[["Unidade",employee.unit],["Departamento",employee.department],["Equipe",employee.team],["Responsável pelo setor",employee.responsavelSetor ? "Sim" : "Não"]]}/></>}
         {tab === "Vínculo" && <><DetailGroup title="Dados contratuais" rows={[["Tipo de contrato",employee.contractType],...(experiencePeriod ? [[inExperience ? "Período de experiência" : "Experiência cumprida", experiencePeriod] as [string, string]] : []),...(inExperience ? [] : [["Admissão", admission] as [string, string]]),["Cargo",employee.role],["Gestor responsável",employee.manager],["Jornada",employee.schedule]]}/><div className="employee-callout"><HrIcon name="shield"/><span><b>Escopo protegido</b><small>Alterações do cadastro ficam registradas em Fundação › Auditoria.</small></span></div></>}
         {tab === "Benefícios" && employee.id && <EmployeeBenefits employeeId={employee.id}/>}
         {tab === "Documentos" && employee.id && <EmployeeDocuments employeeId={employee.id} canView={canViewDocs} notify={notify}/>}
@@ -994,7 +1012,7 @@ function DetailGroup({ title, rows }: { title: string; rows: string[][] }) {
   return <section className="employee-detail-group"><h3>{title}</h3><dl>{rows.map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>;
 }
 
-function EmployeeForm({ employee, nextRegistration, units, roles, departments, onClose, onSave }: { employee: EmployeeRecord | null; nextRegistration: string; units: string[]; roles: string[]; departments: string[]; onClose: () => void; onSave: (employee: EmployeeRecord, isNew: boolean) => void }) {
+function EmployeeForm({ employee, nextRegistration, units, roles, departments, canMarkResponsavel, onClose, onSave }: { employee: EmployeeRecord | null; nextRegistration: string; units: string[]; roles: string[]; departments: string[]; canMarkResponsavel: boolean; onClose: () => void; onSave: (employee: EmployeeRecord, isNew: boolean) => void }) {
   const isNew = !employee;
   const [step, setStep] = useState(1);
   // Uma unidade só: o campo não aparece e o cadastro fica nela.
@@ -1061,6 +1079,7 @@ function EmployeeForm({ employee, nextRegistration, units, roles, departments, o
             ? <label><span>Período de experiência *</span><select value={form.experienciaDias ?? ""} onChange={event => setForm(current => ({ ...current, experienciaDias: event.target.value ? Number(event.target.value) : null }))}><option value="">Selecione</option>{PERIODOS_EXPERIENCIA.map(dias => <option key={dias} value={dias}>{dias} dias</option>)}</select><small className="field-hint">{experienceEnd ? `De ${formatDate(experienceStart)} a ${formatDate(experienceEnd)}. Ainda não é efetivo: o RH é avisado 2 dias antes do vencimento.` : `Começa em ${formatDate(experienceStart)}. Ainda não é efetivo da empresa.`}</small></label>
             : <label><span>Data de admissão *</span><input type="date" value={form.admissionDate} onChange={event => update("admissionDate",event.target.value)}/><small className="field-hint">Data em que o colaborador efetivou na empresa.</small></label>}
           <label><span>Departamento *</span><select value={form.department} onChange={event => update("department",event.target.value)}><option value="">Selecione</option>{departments.map(name => <option key={name}>{name}</option>)}</select></label>
+          {canMarkResponsavel && <label className="field-wide employee-responsavel"><input type="checkbox" checked={Boolean(form.responsavelSetor)} onChange={event => setForm(current => ({ ...current, responsavelSetor: event.target.checked }))}/><span><b>Responsável pelo setor</b><small className="field-hint">{form.department ? `Aparece como responsável por ${form.department} nas visitas da Portaria.` : "Escolha o departamento: é por ele que a pessoa responde nas visitas da Portaria."}</small></span></label>}
           {!singleUnit && <label><span>Unidade *</span><select value={form.unit} onChange={event => update("unit",event.target.value)}><option value="">Selecione</option>{units.map(name => <option key={name}>{name}</option>)}</select></label>}
           <label className="field-wide"><span>Cargo *</span><input list="employee-form-cargos" value={form.role} onChange={event => update("role",event.target.value)} placeholder="Ex.: Analista de Recursos Humanos"/><datalist id="employee-form-cargos">{roles.map(name => <option key={name} value={name}/>)}</datalist><small className="field-hint">Escolha um cargo da lista ou digite um novo: o cargo novo entra no cadastro de cargos.</small></label>
           <label className="field-wide"><span>Jornada *</span><select value={form.jornadaId ?? ""} disabled={jornadas === null} onChange={event => { const escolhida = jornadas?.find(j => j.id === event.target.value); setForm(current => ({ ...current, jornadaId: escolhida?.id ?? null, schedule: escolhida?.rotulo ?? "" })); }}><option value="">{jornadas === null ? "Carregando…" : "Selecione"}</option>{(jornadas ?? []).map(j => <option key={j.id} value={j.id}>{j.rotulo}</option>)}</select><small className="field-hint">Horário do relógio de ponto (Secullum).</small></label>

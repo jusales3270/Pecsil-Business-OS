@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { lazySupabaseBrowserClient } from '../../../../lib/supabase/lazy-browser-client';
+import { rotuloDoResponsavel } from './responsaveis';
 
 // Camada de dados idêntica à do app oficial (controle-acesso-pecsil). A única
 // diferença é o cliente: o do Business OS carrega a sessão do usuário logado,
@@ -327,6 +328,22 @@ export async function fetchQuadroTerceiros(): Promise<string[]> {
   const nomes = (data ?? []).map((t: { nome: string }) => t.nome);
   try { localStorage.setItem(QUADRO_CACHE, JSON.stringify(nomes)); } catch { /* sem armazenamento: segue com a lista lida */ }
   return nomes;
+}
+
+/**
+ * Responsáveis pelo setor marcados pelo RH ("Nome · Setor"), pela função do banco. Guarda a última lista lida para a
+ * Portaria seguir funcionando sem conexão.
+ */
+const RESPONSAVEIS_CACHE = 'portaria_responsaveis';
+export function responsaveisGuardados(): string[] {
+  try { const v = JSON.parse(localStorage.getItem(RESPONSAVEIS_CACHE) ?? '[]'); return Array.isArray(v) ? v.filter((n) => typeof n === 'string') : []; } catch { return []; }
+}
+export async function fetchResponsaveis(): Promise<string[]> {
+  const { data, error } = await supabase.rpc('portaria_responsaveis');
+  if (error) { console.error('Erro ao carregar os responsáveis:', error); return responsaveisGuardados(); }
+  const rotulos = ((data ?? []) as { nome: string; setor: string }[]).map(rotuloDoResponsavel);
+  try { localStorage.setItem(RESPONSAVEIS_CACHE, JSON.stringify(rotulos)); } catch { /* sem armazenamento: segue com a lista lida */ }
+  return rotulos;
 }
 
 export async function inserirTerceiro(t: {

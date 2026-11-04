@@ -25,6 +25,8 @@ export type Person = {
   /** Jornada de trabalho (horário do Secullum). */
   jornadaId?: string | null;
   jornada?: string | null;
+  /** Responsável pelo setor (o próprio departamento): aparece em Responsável nas visitas da Portaria. */
+  responsavelSetor?: boolean;
 };
 
 export type OrganizationEntity = {

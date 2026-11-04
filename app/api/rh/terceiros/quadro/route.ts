@@ -13,7 +13,7 @@ export async function GET() {
   if ("error" in guard) return guard.error;
   const { data, error } = await guard.supabase
     .from("terceiros_quadro")
-    .select("id, nome, incluido_por, incluido_por_nome, incluido_em")
+    .select("id, nome, incluido_por, incluido_por_nome, incluido_em, responsavel_setor")
     .eq("ativo", true)
     .order("nome");
   if (error) return dbError(error);

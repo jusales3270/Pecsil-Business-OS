@@ -46,7 +46,7 @@ export async function getSupabaseFoundationSnapshot(): Promise<FoundationSnapsho
     positionsResult,
   ] = await Promise.all([
     supabase.from("organizations").select("id,display_name").eq("id", organizationId).single(),
-    supabase.from("employees").select("id,profile_id,full_name,corporate_email,active,employee_number,admission_date,termination_date,contract_type,experiencia_dias,experiencia_inicio,experiencia_fim,jornada_id,rh_jornadas(numero,nome),profiles!employees_profile_id_fkey(email,status),positions(name),departments(name),teams(name),units(name)").eq("organization_id", organizationId).order("full_name").limit(500),
+    supabase.from("employees").select("id,profile_id,full_name,corporate_email,active,employee_number,admission_date,termination_date,contract_type,experiencia_dias,experiencia_inicio,experiencia_fim,jornada_id,responsavel_setor,rh_jornadas(numero,nome),profiles!employees_profile_id_fkey(email,status),positions(name),departments(name),teams(name),units(name)").eq("organization_id", organizationId).order("full_name").limit(500),
     supabase.from("employees").select("id", { count:"exact", head:true }).eq("organization_id", organizationId),
     supabase.from("employees").select("id", { count:"exact", head:true }).eq("organization_id", organizationId).eq("active", true),
     supabase.from("profiles").select("id", { count:"exact", head:true }).eq("organization_id", organizationId),
@@ -114,6 +114,7 @@ function toPerson(row: Row): Person {
     experienciaFim: row.experiencia_fim ? String(row.experiencia_fim) : null,
     jornadaId: row.jornada_id ? String(row.jornada_id) : null,
     jornada: jornadaLabel(relation(row.rh_jornadas)),
+    responsavelSetor: row.responsavel_setor === true,
   };
 }
 

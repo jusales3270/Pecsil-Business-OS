@@ -148,6 +148,8 @@ export const EVENT_CATALOG: readonly EventType[] = [
   { type: "rh.colaborador.reativado", module: "rh", label: "Colaborador reativado", description: "O colaborador voltou ao quadro." },
   { type: "rh.terceiro.incluido", module: "rh", label: "Terceiro incluído", description: "O RH incluiu um prestador no quadro de terceiros da Portaria." },
   { type: "rh.terceiro.excluido", module: "rh", label: "Terceiro excluído", description: "O RH tirou um prestador do quadro de terceiros da Portaria." },
+  { type: "rh.responsavel.marcado", module: "rh", label: "Responsável pelo setor marcado", description: "O RH marcou um colaborador ou terceiro como responsável pelo setor; ele passa a aparecer em Responsável nas visitas da Portaria." },
+  { type: "rh.responsavel.desmarcado", module: "rh", label: "Responsável pelo setor desmarcado", description: "O RH tirou a marcação de responsável pelo setor; a pessoa sai da lista de Responsável da Portaria." },
   { type: "rh.ausencia.aprovada", module: "rh", label: "Ausência aprovada", description: "Férias, folga ou licença aprovada." },
   { type: "rh.ausencia.reprovada", module: "rh", label: "Ausência reprovada", description: "Solicitação de ausência reprovada." },
   { type: "financeiro.titulo.criado", module: "financeiro", label: "Título criado", description: "Conta a pagar ou a receber lançada." },
