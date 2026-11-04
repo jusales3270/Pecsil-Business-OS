@@ -1,8 +1,8 @@
 -- ============================================================
 -- Isolamento do backup em um projeto de nuvem compartilhado
 -- ============================================================
--- Executar DEPOIS de 001_vigia.sql e 002_backup.sql, dentro de uma
--- transação do instalador (BEGIN/COMMIT). Não é uma migração da fábrica.
+-- Executar DEPOIS de 001_vigia.sql e 002_backup.sql, dentro de um
+-- bloco DO atômico ou de uma transação explícita. Não é uma migração da fábrica.
 --
 -- Políticas permissivas do aplicativo anterior são combinadas com OR.
 -- Estas quatro políticas RESTRITIVAS acrescentam uma condição obrigatória

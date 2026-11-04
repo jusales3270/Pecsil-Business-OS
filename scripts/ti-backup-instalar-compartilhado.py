@@ -26,13 +26,15 @@ preflight = f"""-- Instalação aditiva de backup externo no projeto {project_ur
 -- Preserva as sete tabelas existentes e seus registros. Sem senhas/tokens neste arquivo.
 -- Executar UMA VEZ no SQL Editor desse projeto, como postgres.
 -- Cria o monitor e seus agendamentos, bucket privado e proteção do backup.
--- Conflitos ou falhas cancelam a transação inteira; uma instalação já feita é recusada.
-begin;
-set local lock_timeout = '5s';
-set local statement_timeout = '90s';
-do $preflight$
-declare t text; collision boolean;
+-- V2: um único DO atômico, sem tabelas temporárias nem dependência de sessão.
+-- Conflitos ou falhas cancelam o bloco inteiro; uma instalação já feita é recusada.
+do $pecsil_install$
+declare
+ t text; collision boolean;
+ before_tables jsonb; before_functions jsonb; before_policies jsonb; before_buckets jsonb;
+ before_entry jsonb; current_entry jsonb;
 begin
+ perform set_config('lock_timeout','5s',true);
  if not pg_try_advisory_xact_lock(hashtext('pecsil.vigia.shared-bootstrap')) then
   raise exception 'Outra instalação do backup está em andamento';
  end if;
@@ -57,52 +59,59 @@ begin
   execute 'select exists(select 1 from cron.job where jobname in (''vigia-minuto'',''vigia-limpar'',''vigia-backup-limpar''))' into collision;
   if collision then raise exception 'Agendamento Vigia já existe. Nenhuma alteração aplicada'; end if;
  end if;
-end $preflight$;
-
 -- Registra somente definições, sem ler os dados de negócio.
-create temporary table pecsil_backup_tabelas_antes on commit drop as
- select c.oid as object_id,{metadata} as definition
+ select coalesce(jsonb_agg(jsonb_build_object('object_id',c.oid,'definition',{metadata})), '[]'::jsonb)
+ into before_tables
  from pg_class c join pg_namespace n on n.oid=c.relnamespace
  where n.nspname='public' and c.relname in ({tables});
-create temporary table pecsil_backup_funcoes_antes on commit drop as
- select p.oid as object_id,md5(pg_get_functiondef(p.oid)) as definition,p.proacl::text as acl
+ select coalesce(jsonb_agg(jsonb_build_object('object_id',p.oid,'definition',jsonb_build_object('source',md5(pg_get_functiondef(p.oid)),'acl',p.proacl::text))), '[]'::jsonb)
+ into before_functions
  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
  where n.nspname='public' and p.prokind in ('f','p');
-create temporary table pecsil_backup_politicas_antes on commit drop as
- select p.oid as object_id,to_jsonb(p) as definition from pg_policy p
+ select coalesce(jsonb_agg(jsonb_build_object('object_id',p.oid,'definition',to_jsonb(p))), '[]'::jsonb)
+ into before_policies from pg_policy p
  where p.polrelid in ('storage.objects'::regclass,'storage.buckets'::regclass);
-create temporary table pecsil_backup_buckets_antes on commit drop as
- select b.id,to_jsonb(b) as definition from storage.buckets b;
+ select coalesce(jsonb_agg(jsonb_build_object('object_id',b.id,'definition',to_jsonb(b))), '[]'::jsonb)
+ into before_buckets from storage.buckets b;
 """
 parts = [preflight]
 for name in ['001_vigia.sql','002_backup.sql','003_painel.sql','004_backup_isolamento.sql']:
     content = (repo/'infra/vigia'/name).read_text()
-    parts.append(f'\n-- Fonte: infra/vigia/{name}\n-- SHA256: {hashlib.sha256(content.encode()).hexdigest()}\n{content}\n')
+    tag = '$pecsil_source_' + name[:3] + '$'
+    if tag in content:
+        raise ValueError('Delimitador SQL em conflito com a fonte de instalação')
+    parts.append(f'\n-- Fonte: infra/vigia/{name}\n-- SHA256: {hashlib.sha256(content.encode()).hexdigest()}\nexecute {tag}\n{content}\n{tag};\n')
 parts.append(f"""
 insert into public.vigia_config(chave,valor)
  values('projeto_url','{project_url}');
 
 -- As definições e permissões anteriores precisam continuar idênticas.
-do $verify$
-begin
- if exists(select 1 from pecsil_backup_tabelas_antes b left join pg_class c on c.oid=b.object_id
-  where c.oid is null or b.definition is distinct from {metadata}) then
+ for before_entry in select value from jsonb_array_elements(before_tables) loop
+ select {metadata} into current_entry from pg_class c where c.oid=(before_entry->>'object_id')::oid;
+ if not found or current_entry is distinct from before_entry->'definition' then
   raise exception 'Uma definição da aplicação mudou; instalação inteira revertida';
  end if;
- if exists(select 1 from pecsil_backup_funcoes_antes b left join pg_proc p on p.oid=b.object_id
-  where p.oid is null or b.definition is distinct from md5(pg_get_functiondef(p.oid)) or b.acl is distinct from p.proacl::text) then
+ end loop;
+ for before_entry in select value from jsonb_array_elements(before_functions) loop
+ select jsonb_build_object('source',md5(pg_get_functiondef(p.oid)),'acl',p.proacl::text)
+ into current_entry from pg_proc p where p.oid=(before_entry->>'object_id')::oid;
+ if not found or current_entry is distinct from before_entry->'definition' then
   raise exception 'Uma função anterior mudou; instalação inteira revertida';
  end if;
- if exists(select 1 from pecsil_backup_politicas_antes b left join pg_policy p on p.oid=b.object_id
-  where p.oid is null or b.definition is distinct from to_jsonb(p)) then
+ end loop;
+ for before_entry in select value from jsonb_array_elements(before_policies) loop
+ select to_jsonb(p) into current_entry from pg_policy p where p.oid=(before_entry->>'object_id')::oid;
+ if not found or current_entry is distinct from before_entry->'definition' then
   raise exception 'Uma política anterior mudou; instalação inteira revertida';
  end if;
- if exists(select 1 from pecsil_backup_buckets_antes b left join storage.buckets s on s.id=b.id
-  where s.id is null or b.definition is distinct from to_jsonb(s)) then
+ end loop;
+ for before_entry in select value from jsonb_array_elements(before_buckets) loop
+ select to_jsonb(s) into current_entry from storage.buckets s where s.id=before_entry->>'object_id';
+ if not found or current_entry is distinct from before_entry->'definition' then
   raise exception 'Um bucket anterior mudou; instalação inteira revertida';
  end if;
-end $verify$;
-commit;
+ end loop;
+end $pecsil_install$;
 
 select
  to_regclass('public.vigia_alvos') is not null as vigia_instalado,

@@ -19,11 +19,12 @@ test("shared cloud installer preserves the existing app and refuses conflicts at
   const generated = spawnSync("python3", ["scripts/ti-backup-instalar-compartilhado.py", "--project-url", "https://fongsabmkjnurojblhge.supabase.co", "--output", artifact], { encoding: "utf8" });
   assert.equal(generated.status, 0, generated.stderr);
   const source = readFileSync(artifact, "utf8");
-  assert.equal([...source.matchAll(/^begin;$/gm)].length, 1);
-  assert.equal([...source.matchAll(/^commit;$/gm)].length, 1);
-  // Keep the exact installer body in an outer rollback-only transaction. Its
-  // new cron jobs stay uncommitted and never perform outbound checks in tests.
-  const body = source.replace(/^begin;\n/m, "").replace(/^commit;\n/m, "");
+  assert.equal([...source.matchAll(/^do \$pecsil_install\$$/gm)].length, 1);
+  assert.equal([...source.matchAll(/^end \$pecsil_install\$;$/gm)].length, 1);
+  assert.equal([...source.matchAll(/^(?:begin|commit);$/gm)].length, 0);
+  // Execute the exact generated artifact, without rewriting transaction control.
+  // Our outer rollback keeps cron jobs uncommitted and prevents outbound calls.
+  const body = source;
   const db = new pg.Client({ connectionString: dsn });
   await db.connect();
   const q = (sql, params = []) => db.query(sql, params);
@@ -72,7 +73,7 @@ test("shared cloud installer preserves the existing app and refuses conflicts at
       await q("release savepoint prior_function");
     });
     await t.test("failure after setup rolls back new objects and leaves app data intact", async () => {
-      const failing = body.replace("-- As definições e permissões anteriores", () => "do $$ begin raise exception 'Injected deployment failure'; end $$;\n-- As definições e permissões anteriores");
+      const failing = body.replace("-- As definições e permissões anteriores", () => "raise exception 'Injected deployment failure';\n-- As definições e permissões anteriores");
       await attempt(failing);
       await emptyVigia();
       assert.equal((await q("select count(*)::integer n from storage.buckets where id='backups'")).rows[0].n, 0);

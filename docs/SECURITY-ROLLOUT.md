@@ -1,6 +1,8 @@
 # Implantação das correções de segurança
 
-Estado em **04/11/2026**: pacote preparado e verificado localmente; **não implantado em produção**.
+Estado em **04/11/2026**: correções da aplicação, banco da fábrica e perímetro preparadas e
+verificadas localmente; **ainda não implantadas na fábrica**. A estrutura do destino de backup na
+nuvem foi criada pelo operador, com os controles principais confirmados conforme o registro abaixo.
 O shell/root do host foi confirmado manualmente em 04/11 pelo terminal do servidor no Coolify
 (`systemd`, virtualização `none`, inventário Docker). Isso não confirma recuperação independente:
 o console físico ou outro canal de recuperação ainda precisa ser testado. O token salvo para a API
@@ -14,14 +16,15 @@ e arquivos criptografados (1.377 objetos, cinco buckets, 61.648.330 bytes), mas 
 `fetch failed`. O diagnóstico apontou `ENOTFOUND` no domínio configurado em `VIGIA_URL`, enquanto
 o domínio de controle resolveu normalmente; uma consulta DNS pública também retornou NXDOMAIN.
 Essas contagens **não comprovam um backup concluído**: o serviço só confirma depois do envio e
-do aviso ao vigia, e remove os temporários ao encerrar. O novo endereço sugerido respondeu por
-HTTPS com certificado válido e HTTP 401 sem chave, mas as consultas de existência de
-`vigia_alvos`, `vigia_sinal` e bucket privado `backups` retornaram falso. Confirmar o projeto de
-destino e suas configurações antes de substituir variáveis ou instalar a estrutura; tabelas de
-negócio existentes não comprovam que o projeto hospeda o backup criptografado.
-Depois do inventário, o operador escolheu adaptar o projeto existente `fongsabmkjnurojblhge`.
-O instalador compartilhado e a proteção contra políticas permissivas foram preparados e testados
-localmente; **a instalação na nuvem e o backup concluído ainda precisam ser verificados**.
+do aviso ao vigia, e remove os temporários ao encerrar. Depois do inventário, o operador escolheu
+adaptar o projeto existente `fongsabmkjnurojblhge`, preservando suas sete tabelas de negócio.
+O instalador anterior informou `42P01` para `pecsil_backup_tabelas_antes`; não se comprovou a causa
+da perda da tabela temporária. As consultas posteriores do operador confirmaram que os objetos
+principais persistiram: Vigia, função de backup, bucket privado, quatro políticas restritivas,
+RLS nas tabelas Vigia e restrição de geração de tokens. Isso não prova a preservação integral
+dos dados anteriores. A versão atual executa a instalação num único `DO` atômico com variáveis
+locais, sem tabelas temporárias; não deve ser reaplicada nesse destino já instalado.
+**A conta técnica, as credenciais no Coolify, o envio completo e a restauração ainda estão pendentes.**
 Ver a seção de reutilização em [BACKUP-EXTERNO.md](BACKUP-EXTERNO.md).
 
 As correções reduzem os riscos identificados. Não constituem garantia de ausência de outras
@@ -302,7 +305,7 @@ Verificação local registrada nesta preparação:
 | Leitura, extratos, portal e limites | Testes de arquivos normais, XML malformado, expansão, tempo, streaming e cancelamento passaram; incluídos na rodada completa |
 | Firewall | 11 cenários Python com executor falso e dois testes Node passaram; sem aplicar regras reais |
 | Auditor de perímetro | 16 cenários com DNS/TCP/TLS simulados, incluindo exposição isolada de 6001/6002/8080 em ambas as famílias; sem tráfego a produção |
-| Backup no projeto compartilhado | 13 testes locais com RLS real: políticas antigas permissivas, conta dedicada, preservação da aplicação, conflitos e reversão; registros fictícios revertidos, sem chamadas externas |
+| Backup no projeto compartilhado | 13 testes locais com RLS real, repetidos com o artefato `DO` exato sem reescrever comandos: políticas antigas permissivas, conta dedicada, preservação da aplicação, conflitos e reversão; registros fictícios revertidos e cron sem commit, sem chamadas externas |
 | Transmissor | 15/15 testes passaram na imagem Linux Node 22 |
 | Conector | 9/9 testes passaram |
 | Auditoria de dependências | App: 16 moderados em ferramentas de desenvolvimento; transmissor: sete moderados e cinco baixos indiretos; conector: zero; nenhum crítico/alto nos três |

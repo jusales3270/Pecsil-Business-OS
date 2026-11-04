@@ -55,16 +55,27 @@ python3 scripts/ti-backup-instalar-compartilhado.py \
 ```
 
 O gerador não acessa bancos nem rede. O arquivo reúne `001`, `002`, `003` e
-`004_backup_isolamento.sql` numa transação. Conferir o projeto no painel e executar o conteúdo
+`004_backup_isolamento.sql` num único bloco `DO` atômico. Os registros das definições anteriores
+ficam em variáveis locais JSONB, sem depender de tabelas temporárias ou da mesma sessão entre
+comandos do editor. Conferir o projeto no painel e executar o conteúdo
 inteiro no SQL Editor como `postgres`. O preflight exige as sete tabelas inventariadas e recusa
 qualquer estrutura `vigia_`, bucket `backups`, política ou agendamento Vigia existente; isso
 também impede repetir silenciosamente uma instalação já concluída. Compara definições,
-permissões, funções e buckets anteriores antes de confirmar. Erros revertem a transação.
+permissões, funções e buckets anteriores antes de concluir. Erros revertem o bloco inteiro.
+
+No projeto `fongsabmkjnurojblhge`, o operador já criou a estrutura em 04/11/2026. O instalador
+anterior informou ausência de `pecsil_backup_tabelas_antes` na verificação final, mas as consultas
+posteriores confirmaram Vigia, função de backup, bucket privado, quatro políticas restritivas,
+RLS nas tabelas Vigia e restrição de geração de tokens. Não repetir a instalação nesse projeto;
+continuar com a configuração da conta e do envio. Esses resultados não comprovam, por si só,
+a preservação integral dos dados anteriores nem uma cópia externa concluída.
 
 O passo `004` acrescenta quatro políticas restritivas somente ao bucket `backups` para
 `anon`/`authenticated`: outras políticas permissivas da aplicação não podem autorizar leitura,
 alteração ou exclusão dos backups, nem envio por outro usuário. As permissões dos demais buckets
 continuam como estavam. A conta dedicada insere arquivos novos sem `upsert` ou `RETURNING`.
+Essa proteção é específica dos backups: revisar também os perfis, gatilhos de cadastro e políticas
+da aplicação anterior, que podem conceder acesso da conta técnica a outros dados desse projeto.
 Papéis administrativos com `BYPASSRLS`, incluindo `service_role`, continuam administrativos:
 revisar funções privilegiadas existentes e impedir que uma chave administrativa **desse destino**
 fique acessível ao servidor da fábrica, inclusive nas configurações de outros aplicativos.
@@ -86,7 +97,8 @@ do uso anterior do projeto. Não presumir que a estimativa gratuita de outubro a
 
 **Na nuvem** (projeto do vigia):
 
-1. Rodar `infra/vigia/002_backup.sql` no SQL Editor, depois do `001_vigia.sql`.
+1. Em um projeto novo, rodar `infra/vigia/002_backup.sql` no SQL Editor, depois do `001_vigia.sql`.
+   Se a instalação compartilhada acima já foi executada, não repetir esses arquivos.
 2. Em *Authentication › Users*, criar o usuário do backup (por exemplo `backup@pecsil.com.br`, senha
    forte) e copiar o id dele.
 3. No SQL Editor:
