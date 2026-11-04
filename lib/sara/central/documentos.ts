@@ -1,3 +1,5 @@
+import { caminhoArquivoSaraValido } from "../caminho-arquivo";
+import { identidadeSara } from "../uso-servidor";
 import "server-only";
 
 import { readFile } from "node:fs/promises";
@@ -113,12 +115,13 @@ export async function guardarDocumento(sb: SupabaseClient, documento: Documento,
   const { id, numero } = reg as { id: string; numero: string };
   const [empresa, imagem] = await Promise.all([empresaDe(sb), logoDaEmpresa()]);
   const pdf = await gerarPdf(documento, { numero, empresa, logo: imagem });
-  const { data: org } = await sb.rpc("current_organization_id");
+  const { organizacao: org, perfil } = await identidadeSara(sb);
   const caminho = `${org}/${id}/${nomeDoArquivo(numero, documento.titulo).replace(/[^\w.\- ]+/g, "")}`;
+  if (!caminhoArquivoSaraValido(caminho, org, id)) return { erro: "Caminho do PDF inválido." };
   const admin = createSupabaseAdminClient();
   const { error: eUp } = await admin.storage.from(BUCKET_DOCUMENTOS).upload(caminho, pdf.bytes, { contentType: "application/pdf", upsert: false });
   if (eUp) return { erro: `Não guardou o PDF: ${eUp.message}` };
-  const { error: eArq } = await sb.rpc("sara_documento_arquivo", { p_documento: id, p_caminho: caminho, p_paginas: pdf.paginas, p_bytes: pdf.bytes.length });
+  const { error: eArq } = await createSupabaseAdminClient().rpc("sara_documento_arquivo_servidor", { p_organizacao: org, p_perfil: perfil, p_documento: id, p_caminho: caminho, p_paginas: pdf.paginas, p_bytes: pdf.bytes.length });
   if (eArq) return { erro: `Não ligou o PDF: ${eArq.message}` };
   return { id, numero, paginas: pdf.paginas };
 }

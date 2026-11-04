@@ -1,3 +1,4 @@
+import { caminhoArquivoSaraValido } from "../sara/caminho-arquivo";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -21,19 +22,19 @@ type Destino = { contato: string; canal: string; instancia: string; canalNome: s
 type Doc = { id: string; numero: string; tipo: string; titulo: string; caminho: string | null };
 
 /** Quem pode receber: os contatos ativos das listas dos números ativos (conectados pelo QR). */
-async function destinos(): Promise<Destino[]> {
+async function destinos(org: string): Promise<Destino[]> {
   const admin = createSupabaseAdminClient();
   // O usuário de cada contato vem numa consulta à parte: whatsapp_contatos liga a profiles duas vezes (o usuário e
   // quem cadastrou), e o embutido ficaria ambíguo.
   const { data, error } = await admin.from("whatsapp_contatos")
-    .select("id, lista, numero, nome, profile_id, sara_modulo, organization_id, whatsapp_canais!inner(id, instancia, nome, conexao, ativo, created_at)")
-    .eq("ativo", true).eq("whatsapp_canais.ativo", true).eq("whatsapp_canais.conexao", "whatsapp_web");
+    .select("id, lista, numero, nome, profile_id, sara_modulo, organization_id, whatsapp_canais!inner(id, organization_id, instancia, nome, conexao, ativo, created_at)")
+    .eq("organization_id", org).eq("whatsapp_canais.organization_id", org).eq("ativo", true).eq("whatsapp_canais.ativo", true).eq("whatsapp_canais.conexao", "whatsapp_web");
   if (error) throw new Error(`Não consegui ler as listas do WhatsApp: ${error.message}`);
   type L = { id: string; lista: "interna" | "externa"; numero: string; nome: string | null; profile_id: string | null; sara_modulo: string | null; organization_id: string;
     whatsapp_canais: { id: string; instancia: string; nome: string; created_at: string } };
   const linhas = (data ?? []) as unknown as L[];
   const ids = [...new Set(linhas.map((c) => c.profile_id).filter(Boolean))] as string[];
-  const { data: perfis, error: eP } = ids.length ? await admin.from("profiles").select("id, full_name, status, access_expires_at").in("id", ids) : { data: [], error: null };
+  const { data: perfis, error: eP } = ids.length ? await admin.from("profiles").select("id, full_name, status, access_expires_at").eq("organization_id", org).in("id", ids) : { data: [], error: null };
   if (eP) throw new Error(`Não consegui ler os usuários das listas: ${eP.message}`);
   const perfil = new Map(((perfis ?? []) as { id: string; full_name: string; status: string; access_expires_at: string | null }[]).map((p) => [p.id, p]));
   const ativo = (id: string | null) => { const p = id ? perfil.get(id) : null; return Boolean(p && p.status === "active" && (!p.access_expires_at || Date.parse(p.access_expires_at) > Date.now())); };
@@ -61,7 +62,9 @@ export const ehQuemPede = (nome: string) => /^(para |pra )?(mim|eu|me|o proprio|
  * (o primeiro, pela ordem).
  */
 async function acharDestino(nome: string, sb: SupabaseClient): Promise<Destino | { erro: string }> {
-  const lista = await destinos();
+  const { data: org, error } = await sb.rpc("current_organization_id");
+  if (error || !org) return { erro: "Empresa da sessão indisponível." };
+  const lista = await destinos(org);
   const unicos = lista.filter((d, i) => lista.findIndex((x) => x.nome === d.nome && x.numero === d.numero) === i);
   if (ehQuemPede(nome)) {
     const { data: eu } = await sb.rpc("current_profile_id");
@@ -102,6 +105,8 @@ async function documentos(sb: SupabaseClient, refs: string[]): Promise<Doc[] | {
  * uma pessoa da empresa também entra no histórico de envios dele (canal whatsapp). Devolve a frase do que saiu.
  */
 async function entregar(sb: SupabaseClient, d: Destino, docs: Doc[], texto: string): Promise<string> {
+  const { data: org, error: eOrg } = await sb.rpc("current_organization_id");
+  if (eOrg || !org || org !== d.organizacao || docs.some((doc) => !caminhoArquivoSaraValido(doc.caminho, org, doc.id))) throw new Error("Destino ou documento de outra empresa.");
   const admin = createSupabaseAdminClient();
   const registrar = async (waId: string | null, tipo: "texto" | "audio" | "documento") => {
     await admin.from("whatsapp_mensagens").insert({ organization_id: d.organizacao, canal_id: d.canal, contato_id: d.contato, profile_id: d.perfil, direcao: "saida", wa_id: waId,
@@ -124,7 +129,7 @@ async function entregar(sb: SupabaseClient, d: Destino, docs: Doc[], texto: stri
     const pdfs = docs.filter((x) => !ehVoz(x));
     if (pdfs.length) {
       const { data: eu } = await sb.rpc("current_profile_id");
-      const { data: quem } = eu ? await admin.from("profiles").select("full_name").eq("id", eu).maybeSingle() : { data: null };
+      const { data: quem } = eu ? await admin.from("profiles").select("full_name").eq("organization_id", org).eq("id", eu).maybeSingle() : { data: null };
       const { error } = await admin.from("sara_documento_envios").upsert(pdfs.map((x) => ({ organization_id: d.organizacao, documento_id: x.id, para_profile_id: d.perfil, para_nome: d.nome,
         canal: "whatsapp", enviado_por: eu ?? null, enviado_por_nome: quem?.full_name ?? null })), { onConflict: "documento_id,para_profile_id,canal", ignoreDuplicates: true });
       if (error) console.error("[whatsapp] histórico do envio", error.message);
@@ -134,8 +139,10 @@ async function entregar(sb: SupabaseClient, d: Destino, docs: Doc[], texto: stri
 }
 
 /** Quem pode receber, para a tela escolher (o número aparece só pelo final). */
-export async function destinosDaTela(): Promise<{ contato: string; nome: string; final: string; lista: "interna" | "externa"; canal: string }[]> {
-  const lista = await destinos();
+export async function destinosDaTela(sb: SupabaseClient): Promise<{ contato: string; nome: string; final: string; lista: "interna" | "externa"; canal: string }[]> {
+  const { data: org, error } = await sb.rpc("current_organization_id");
+  if (error || !org) throw new Error("Empresa da sessão indisponível.");
+  const lista = await destinos(org);
   return lista.filter((d, i) => lista.findIndex((x) => x.nome === d.nome && x.numero === d.numero) === i)
     .map((d) => ({ contato: d.contato, nome: d.nome, final: d.numero.slice(-4), lista: d.lista, canal: d.canalNome }))
     .sort((a, b) => a.lista.localeCompare(b.lista) || a.nome.localeCompare(b.nome, "pt-BR"));
@@ -147,7 +154,9 @@ export async function destinosDaTela(): Promise<{ contato: string; nome: string;
  */
 export async function enviarDaTela(sb: SupabaseClient, contato: string, refs: string[]): Promise<{ feito: string } | { erro: string }> {
   if (!(await podeUsarACentral(sb))) return { erro: SEM_CENTRAL };
-  const d = (await destinos()).find((x) => x.contato === contato);
+  const { data: org, error } = await sb.rpc("current_organization_id");
+  if (error || !org) return { erro: "Empresa da sessão indisponível." };
+  const d = (await destinos(org)).find((x) => x.contato === contato);
   if (!d) return { erro: "Este contato não está mais nas listas do WhatsApp." };
   const docs = await documentos(sb, refs);
   if ("erro" in docs) return docs;

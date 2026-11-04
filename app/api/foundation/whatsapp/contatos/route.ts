@@ -25,7 +25,9 @@ async function dono() {
   if ("error" in session && session.error) return { erro: session.error } as const;
   const access = await readSessionAccess(session.supabase).catch(() => null);
   if (!access?.isOwner) return { erro: NextResponse.json({ error: "As listas do WhatsApp são do proprietário." }, { status: 403 }) } as const;
-  return { sb: session.supabase as SupabaseClient } as const;
+  const { data: org, error } = await session.supabase.rpc("current_organization_id");
+  if (error || !org) return { erro: NextResponse.json({ error: "Empresa indisponível." }, { status: 503 }) } as const;
+  return { sb: session.supabase as SupabaseClient, org: org as string } as const;
 }
 
 async function auditar(sb: SupabaseClient, evento: string, metadata: Record<string, unknown>) {
@@ -40,11 +42,11 @@ async function auditar(sb: SupabaseClient, evento: string, metadata: Record<stri
 }
 
 /** Usuários ativos com as SARAs que a credencial de cada um libera (lidos pelo servidor: o RLS de profiles esconde). */
-async function usuarios() {
+async function usuarios(org: string) {
   const admin = createSupabaseAdminClient();
   const [{ data: perfis }, { data: grants }] = await Promise.all([
-    admin.from("profiles").select("id, full_name, email, is_owner, access_expires_at").eq("status", "active").order("full_name"),
-    admin.from("user_feature_grants").select("profile_id, feature_code").like("feature_code", "%.sara"),
+    admin.from("profiles").select("id, full_name, email, is_owner, access_expires_at").eq("organization_id", org).eq("status", "active").order("full_name"),
+    admin.from("user_feature_grants").select("profile_id, feature_code").eq("organization_id", org).like("feature_code", "%.sara"),
   ]);
   const por = new Map<string, Set<string>>();
   for (const g of (grants ?? []) as { profile_id: string; feature_code: string }[]) (por.get(g.profile_id) ?? por.set(g.profile_id, new Set()).get(g.profile_id)!).add(g.feature_code);
@@ -75,7 +77,7 @@ export async function GET(request: Request) {
   if (!UUID.test(canal)) return NextResponse.json({ error: "Escolha o número da plataforma." }, { status: 400 });
   const [{ data: contatos, error }, lista] = await Promise.all([
     d.sb.from("whatsapp_contatos").select("id, lista, numero, profile_id, nome, sara_modulo, categoria, ativo, observacao, created_at, suppliers(name, trade_name), customers(name)").eq("canal_id", canal).order("created_at"),
-    usuarios(),
+    usuarios(d.org),
   ]);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const nomes = new Map(lista.map((u) => [u.id, u]));
@@ -108,7 +110,7 @@ export async function POST(request: Request) {
     const lista = e.lista === "externa" ? "externa" : "interna";
     let dados: Record<string, unknown>;
     if (lista === "interna") {
-      const u = (await usuarios()).find((x) => x.id === e.profile_id);
+      const u = (await usuarios(d.org)).find((x) => x.id === e.profile_id);
       if (!u) return NextResponse.json({ error: "Usuário não encontrado ou inativo." }, { status: 400 });
       const v = validarInterno(e, u.saras);
       if ("erro" in v) return NextResponse.json({ error: v.erro }, { status: 400 });
@@ -146,7 +148,8 @@ export async function POST(request: Request) {
   }
   if (acao === "boas_vindas") {
     if (c.lista !== "interna" || !c.ativo || !canal || canal.conexao !== "whatsapp_web") return NextResponse.json({ error: "Boas-vindas só para número ativo da allowlist, num WhatsApp conectado pelo QR." }, { status: 400 });
-    const u = (await usuarios()).find((x) => x.id === c.profile_id);
+    const u = (await usuarios(d.org)).find((x) => x.id === c.profile_id);
+    if (!u || !c.sara_modulo || !u.saras.includes(c.sara_modulo)) return NextResponse.json({ error: "Usuário inativo ou SARA não autorizada." }, { status: 403 });
     const sara = SARA_OPCOES.find((s) => s.modulo === c.sara_modulo)?.rotulo ?? null;
     try {
       await enviarTexto(canal.instancia, c.numero, boasVindas(u?.nome.split(/\s+/)[0] ?? null, canal.nome, sara));

@@ -85,8 +85,7 @@ test("sotaque: pronúncia brasileira nativa nas instruções e voz personalizada
   assert.match(v.instrucoesDeVoz({ empresa: "X", nome: "A", quemDecide: "" }), /português do Brasil é a sua língua materna[\s\S]*sem nenhum sotaque estrangeiro/);
   assert.equal(v.sessaoDeVoz({ instrucoes: "x", termos: [], voz: "vozbr123" }).voice, "vozbr123");
   const rota = ler("app/api/sara/[modulo]/voz-ao-vivo/route.ts");
-  assert.match(rota, /const voz = vozDaSara\(\);/);
-  assert.match(rota, /if \(!personalizada && \(!vozConferida/, "a voz personalizada não está na lista das prontas");
+  assert.match(rota, /status: 503/, "voz direta suspensa até haver controle de consumo");
   const script = ler("scripts/criar-voz-sara.mjs");
   assert.match(script, /form\.append\("language", "pt-BR"\)/);
   assert.match(script, /https:\/\/api\.x\.ai\/v1\/custom-voices/);

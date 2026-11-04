@@ -130,8 +130,10 @@ export async function POST(request: Request) {
   if (acao === "cancelar_agendado") {
     const ag = String(e.agendado ?? "");
     if (!UUID.test(ag)) return NextResponse.json({ error: "Envio não encontrado." }, { status: 404 });
-    // Só o que ainda não saiu; quem grava é o servidor (o proprietário só lê a tabela).
-    const { data, error } = await createSupabaseAdminClient().from("whatsapp_agendados").update({ situacao: "cancelado" }).eq("id", ag).eq("situacao", "agendado").select("id, para_nome").maybeSingle();
+    const { data: org, error: eOrg } = await d.sb.rpc("current_organization_id");
+    if (eOrg || !org) return NextResponse.json({ error: "Empresa indisponível." }, { status: 503 });
+    // Só o que ainda não saiu, na empresa do proprietário autenticado.
+    const { data, error } = await createSupabaseAdminClient().from("whatsapp_agendados").update({ situacao: "cancelado" }).eq("organization_id", org).eq("id", ag).eq("situacao", "agendado").select("id, para_nome").maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     if (!data) return NextResponse.json({ error: "Esse envio já saiu ou já foi cancelado." }, { status: 409 });
     await auditar(d.sb, "whatsapp.agendado_cancelado", { agendado: ag, para: data.para_nome });

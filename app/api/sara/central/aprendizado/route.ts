@@ -28,11 +28,13 @@ const ORDEM: Record<string, number> = { proposta: 0, ativa: 1, recusada: 2, desa
 export async function GET() {
   const a = await acesso();
   if ("erro" in a) return a.erro;
+  const { data: org, error: eOrg } = await a.sb.rpc("current_organization_id");
+  if (eOrg || !org) return NextResponse.json({ error: "Empresa indisponível." }, { status: 503 });
   const desde = new Date(Date.now() - 180 * 86_400_000).toISOString();
   const [{ data: licoes, error }, historico] = await Promise.all([
     a.sb.from("sara_licoes").select("id, modulo, origem, efeito, texto, tipo_achado, ensinada_por_nome, situacao, pedida_a, decidida_por_nome, decidida_em, nota, created_at")
       .gte("created_at", desde).order("created_at", { ascending: false }).limit(200),
-    historicoDaVigia(a.sb),
+    historicoDaVigia(a.sb, new Date(), org),
   ]);
   const lista = ((licoes ?? []) as { modulo: string; situacao: string; created_at: string; tipo_achado: string | null; efeito: string }[])
     .map((l) => ({ ...l, area: SARAS[l.modulo]?.rotulo ?? l.modulo }))

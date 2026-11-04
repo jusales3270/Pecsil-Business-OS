@@ -91,7 +91,7 @@ test("bom dia: a tarefa agendada chama a rota; o teste só passa hora e pessoas 
   assert.match(rota, /segredoConfere\(request\.headers\.get\("x-sync-secret"\)\)/);
   assert.match(rota, /if \(process\.env\.NODE_ENV !== "production"\)/);
   const exec = ler("lib/sara/central/bom-dia-executar.ts");
-  assert.match(exec, /sessaoComo\(admin, l\.profile_id\)/, "monta com a sessão da pessoa");
+  assert.match(exec, /sessaoComo\(admin, l\.profile_id, l\.organization_id\)/, "monta com a sessão da pessoa");
   assert.match(exec, /if \(!todos\.length\) \{ await terminar\(admin, l\.id, \{ situacao: "vazia" \}\)/, "sem nada, não manda");
   assert.match(exec, /ignoreDuplicates: true/, "não manda duas vezes no dia");
 });

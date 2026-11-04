@@ -1,3 +1,5 @@
+import { identidadeSara } from "../uso-servidor";
+import { usoDoMes } from "../uso-servidor";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -45,21 +47,25 @@ export async function rodarCrescimento(admin: SupabaseClient, o: OpcoesCrescimen
   const rel: RelatorioCrescimento = { buscas: 0, achadosDaPesquisa: 0 };
   if (disparo === "agenda" && !janelaDoBomDia(agora, CRESCIMENTO)) return rel;
   const semana = semanaDe(agora);
-  const { data: dono } = await admin.from("profiles").select("id, organization_id").eq("is_owner", true).eq("status", "active").order("created_at").limit(1).maybeSingle();
+  const empresaDaVisao = o.visao ? (await identidadeSara(o.visao.sb)).organizacao : null;
+  // Scheduled tasks currently support one organization; refuse an ambiguous multi-company run.
+  const { data: donos } = await admin.from("profiles").select("id, organization_id").eq("is_owner", true).eq("status", "active").order("created_at");
+  const empresas = [...new Set((donos ?? []).map((d) => d.organization_id))];
+  const dono = empresaDaVisao ? donos?.find((d) => d.organization_id === empresaDaVisao) : empresas.length === 1 ? donos?.[0] : null;
   if (!dono) return { ...rel, erro: "Sem proprietário ativo para a visão da empresa." };
   const { data: linha, error: eL } = await admin.from("sara_relatorios").insert({ organization_id: dono.organization_id, semana, disparo, pedido_por: o.visao?.profileId ?? null }).select("id").single();
   if (eL) return eL.code === "23505" ? { ...rel, jaRodou: true } : { ...rel, erro: eL.message };
   rel.id = linha.id;
   const fim = (campos: Record<string, unknown>) => admin.from("sara_relatorios").update({ ...campos, terminada_em: new Date().toISOString() }).eq("id", linha.id);
-  const aberta = o.visao ? null : await sessaoComo(admin, dono.id);
+  const aberta = o.visao ? null : await sessaoComo(admin, dono.id, dono.organization_id);
   if (aberta && "erro" in aberta) { await fim({ situacao: "falhou", erro: aberta.erro.slice(0, 500) }); return { ...rel, erro: aberta.erro }; }
   const visao = o.visao ?? { sb: (aberta as { sb: SupabaseClient }).sb, profileId: dono.id };
   const tokens = { entrada: 0, saida: 0 };
   try {
     const chave = process.env.ANTHROPIC_API_KEY?.trim() ?? "";
-    const [{ data: cfg }, { data: uso }] = await Promise.all([
+    const [{ data: cfg }, uso] = await Promise.all([
       visao.sb.from("sara_modulos").select("teto_tokens_mes").eq("modulo", "warroom").maybeSingle(),
-      visao.sb.rpc("sara_uso_mes", { p_modulo: "warroom" }),
+      usoDoMes(visao.sb, "warroom"),
     ]);
     if (Number(uso ?? 0) >= Number(cfg?.teto_tokens_mes ?? 60_000_000)) throw new Error("A SARA central atingiu o teto de uso do mês.");
     if (!chave) throw new Error("A SARA não está configurada (falta a chave do modelo).");
@@ -103,7 +109,7 @@ export async function rodarCrescimento(admin: SupabaseClient, o: OpcoesCrescimen
       // user_feature_grants liga duas vezes a profiles (a pessoa e quem concedeu): o embutido tem de dizer qual.
       const [{ data: donos }, { data: grants, error: eG }] = await Promise.all([
         admin.from("profiles").select("id").eq("organization_id", dono.organization_id).eq("is_owner", true).eq("status", "active"),
-        admin.from("user_feature_grants").select("profile_id, profiles!user_feature_grants_profile_id_fkey!inner(status)").eq("feature_code", "warroom.sara").eq("profiles.status", "active"),
+        admin.from("user_feature_grants").select("profile_id, profiles!user_feature_grants_profile_id_fkey!inner(status, organization_id)").eq("feature_code", "warroom.sara").eq("profiles.status", "active").eq("profiles.organization_id", dono.organization_id),
       ]);
       if (eG) console.error("[crescimento] quem tem a SARA central", eG.message);
       para = [...new Set([...((donos ?? []) as { id: string }[]).map((x) => x.id), ...((grants ?? []) as { profile_id: string }[]).map((x) => x.profile_id)])];

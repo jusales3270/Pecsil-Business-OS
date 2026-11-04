@@ -33,7 +33,7 @@ async function abrir(id: string) {
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const a = await abrir((await context.params).id);
   if ("erro" in a) return a.erro;
-  const [pessoas, whatsapp] = await Promise.all([pessoasAtivas(a.sb), destinosDaTela().catch(() => [])]);
+  const [pessoas, whatsapp] = await Promise.all([pessoasAtivas(a.sb), destinosDaTela(a.sb).catch(() => [])]);
   return NextResponse.json({ pessoas: pessoas.map((p) => ({ id: p.id, nome: p.nome })).sort((x, y) => x.nome.localeCompare(y.nome, "pt-BR")), whatsapp });
 }
 

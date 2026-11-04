@@ -198,14 +198,9 @@ test("voz ao vivo (Grok): luna em pt-BR, só funções da plataforma, números d
   assert.doesNotMatch(holoVoz, /v\.perguntar\(pergunta\)/, "pergunta digitada não passa mais pela camada de voz");
 
   const rota = ler("app/api/sara/[modulo]/voz-ao-vivo/route.ts");
-  assert.match(rota, /p\.access\.can\(s\.permissao, "ver"\)/, "área só com a permissão da SARA dela");
-  assert.match(rota, /if \(!SARAS\[modulo\]\?\.central\)/, "só a central fala ao vivo");
-  assert.match(rota, /const p = await preparar\(modulo\);/, "com a permissão da pessoa");
-  assert.match(rota, /process\.env\.XAI_API_KEY/);
-  assert.match(rota, /expires_after: \{ seconds: 300 \}/, "token temporário de 5 minutos");
-  assert.match(rota, /vozExiste\(lista, VOZ_DA_SARA\)/, "não troca de voz calada");
-  assert.doesNotMatch(rota, /NEXT_PUBLIC_XAI/, "a chave não vai para o navegador");
-  assert.match(rota, /return NextResponse\.json\(\{ token, url: URL_VOZ_AO_VIVO, sessao \}\);/, "o navegador recebe só o token temporário, o endereço e a sessão");
+  assert.match(rota, /await preparar\(/, "mantém a autenticação da SARA");
+  assert.match(rota, /status: 503/, "sem sessão direta sem limite verificável de custo");
+  assert.doesNotMatch(rota, /client_secrets|return NextResponse\.json\(\{ token/, "não emite token para contornar o teto");
 
   const motor = ler("modules/warroom/src/holograma/voz-ao-vivo.ts");
   assert.match(motor, /\[`xai-client-secret\.\$\{j\.token\}`\]/, "token no subprotocolo, como a xAI pede para navegador");

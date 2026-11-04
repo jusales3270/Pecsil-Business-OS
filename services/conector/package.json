@@ -13,7 +13,7 @@
     "test": "node --test teste/*.test.mjs"
   },
   "dependencies": {
-    "mssql": "12.7.4",
+    "mssql": "12.7.13",
     "mysql2": "3.24.5",
     "node-firebird": "2.18.2",
     "pg": "8.23.1"

@@ -1,3 +1,5 @@
+import { identidadeSara } from "../uso-servidor";
+import { usoDoMes } from "../uso-servidor";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -92,12 +94,16 @@ export async function rodarVigia(admin: SupabaseClient, o: OpcoesVigia = {}): Pr
   const hoje = janela?.dia ?? agoraSP(agora).dia;
 
   // A visão da empresa: quem pediu (War Room) ou o proprietário ativo.
-  const { data: dono } = await admin.from("profiles").select("id, organization_id").eq("is_owner", true).eq("status", "active").order("created_at").limit(1).maybeSingle();
+  const empresaDaVisao = o.visao ? (await identidadeSara(o.visao.sb)).organizacao : null;
+  // Scheduled tasks currently support one organization; refuse an ambiguous multi-company run.
+  const { data: donos } = await admin.from("profiles").select("id, organization_id").eq("is_owner", true).eq("status", "active").order("created_at");
+  const empresas = [...new Set((donos ?? []).map((d) => d.organization_id))];
+  const dono = empresaDaVisao ? donos?.find((d) => d.organization_id === empresaDaVisao) : empresas.length === 1 ? donos?.[0] : null;
   if (!dono) return { ...rel, erro: "Sem proprietário ativo para a visão da empresa." };
   const { data: rodada, error: eR } = await admin.from("sara_vigia_rodadas").insert({ organization_id: dono.organization_id, dia: hoje, disparo }).select("id").single();
   if (eR) return eR.code === "23505" ? { ...rel, jaRodou: true } : { ...rel, erro: eR.message };
   rel.rodada = rodada.id;
-  const aberta = o.visao ? null : await sessaoComo(admin, dono.id);
+  const aberta = o.visao ? null : await sessaoComo(admin, dono.id, dono.organization_id);
   if (aberta && "erro" in aberta) {
     await admin.from("sara_vigia_rodadas").update({ situacao: "falhou", erro: aberta.erro.slice(0, 500), terminada_em: new Date().toISOString() }).eq("id", rodada.id);
     return { ...rel, erro: aberta.erro };
@@ -115,7 +121,7 @@ export async function rodarVigia(admin: SupabaseClient, o: OpcoesVigia = {}): Pr
       .eq("organization_id", dono.organization_id).in("situacao", [...ATIVOS, "nao_e_problema"]).order("created_at").limit(200);
     const abertos = (abertosBrutos ?? []) as Linha[];
     const decisoesIds = abertos.flatMap((a) => a.envios.map((e) => e.decisao_id)).filter(Boolean);
-    const { data: respostas } = decisoesIds.length ? await admin.from("decisoes").select("id, resposta").in("id", decisoesIds) : { data: [] };
+    const { data: respostas } = decisoesIds.length ? await admin.from("decisoes").select("id, resposta").eq("organization_id", dono.organization_id).in("id", decisoesIds) : { data: [] };
     const respostaDe = new Map(((respostas ?? []) as { id: string; resposta: string | null }[]).map((d) => [d.id, d.resposta]));
     for (const a of abertos) {
       // Efeito: nenhum dos sinais do achado aparece mais na empresa.
@@ -152,7 +158,7 @@ export async function rodarVigia(admin: SupabaseClient, o: OpcoesVigia = {}): Pr
     // --- Análise do dia ----------------------------------------------------------------------------------
     const modulos = Object.values(SARAS).filter((s) => !s.central).map((s) => s.modulo);
     const { data: cfg } = await visao.sb.from("sara_modulos").select("teto_tokens_mes").eq("modulo", "warroom").maybeSingle();
-    const { data: uso } = await visao.sb.rpc("sara_uso_mes", { p_modulo: "warroom" });
+    const uso = await usoDoMes(visao.sb, "warroom");
     const noTeto = Number(uso ?? 0) >= Number(cfg?.teto_tokens_mes ?? 60_000_000);
     const analise = noTeto ? null : await analisarSinais({ chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", hoje: agoraSP(agora).data, sinais, abertos: ativos });
     let achados: Achado[];
@@ -224,12 +230,12 @@ export async function rodarVigia(admin: SupabaseClient, o: OpcoesVigia = {}): Pr
         const { count } = await admin.from("decisoes").select("id", { count: "exact", head: true }).eq("para_profile_id", pid).eq("origem", "sara.vigia").gte("created_at", inicioDoDia);
         if ((count ?? 0) >= VIGIA.maxPorPessoaDia) { noLimite = true; continue; }
         // A pessoa enxerga os sinais deste achado com a sessão dela? Sem isso, não vai para ela.
-        if (!sessoes.has(pid)) { const s = await sessaoComo(admin, pid); sessoes.set(pid, "erro" in s ? null : s); }
+        if (!sessoes.has(pid)) { const s = await sessaoComo(admin, pid, dono.organization_id); sessoes.set(pid, "erro" in s ? null : s); }
         const s = sessoes.get(pid);
         if (!s) continue;
         const dela = new Set((await sinaisDa(s.sb, pid, hoje, p.modulo)).map((x) => x.tipo));
         if (!p.sinais.every((c) => dela.has(tipoDaChave(c)))) continue;
-        const { data: perfil } = await admin.from("profiles").select("full_name").eq("id", pid).maybeSingle();
+        const { data: perfil } = await admin.from("profiles").select("full_name").eq("organization_id", dono.organization_id).eq("id", pid).maybeSingle();
         const ev: Sinal[] = p.evidencias.map((x, i) => ({ id: `e${i}`, chave: p.sinais[i] ?? "", tipo: "", modulo: p.modulo, area: x.area, nivel: "aviso", titulo: x.titulo, detalhe: x.detalhe ?? undefined, origem: "aviso" }));
         const d = decisaoDoAchado({ ...p, sinais: ev.map((x) => x.id) }, ev, rotulo);
         const { data: dec, error: eD } = await admin.from("decisoes").insert({ organization_id: dono.organization_id, chave: `vigia.${p.id}`, origem: "sara.vigia", modulo: p.modulo,

@@ -461,6 +461,10 @@ function Detalhe({ direction, titulo, hoje: today, accounts, canEdit, canSettle,
     <Modal {...cabecalho} eyebrow={titulo.isForecast ? texto.eyebrowPrevisao : texto.eyebrowTitulo} onClose={onClose}>
       <div className="receber-detalhe">
         {titulo.reviewReason && <Callout variant="warning" title="Conferir este lançamento">{titulo.reviewReason}.</Callout>}
+        {titulo.isForecast && aberto && <Callout title="Confirmar a previsão antes da baixa">
+          {titulo.paidAmount > 0 ? "Estorne as baixas existentes antes de confirmar esta previsão como título."
+            : "Confira os dados e confirme a previsão para trazê-la ao total em aberto. As aprovações exigidas precisam ser concluídas antes da baixa."}
+        </Callout>}
         <dl>
           <div><dt>Valor</dt><dd><b>{money(titulo.originalAmount)}</b></dd></div>
           <div><dt>Situação</dt><dd><Status tone={TONE[situacao]}>{situacao === "Recebido" ? texto.quitado : situacao}</Status>{titulo.isForecast && <Status tone="purple">Previsão</Status>}{titulo.historical && <Status tone="attention">Histórico a conferir</Status>}</dd></div>
@@ -509,9 +513,10 @@ function Detalhe({ direction, titulo, hoje: today, accounts, canEdit, canSettle,
             {canEdit && <Button type="button" variant="secondary" onClick={() => setModo("editar")}>Editar</Button>}
             {canEdit && titulo.historical && aberto && <Button type="button" variant="secondary" disabled={ocupado} onClick={() => operar(() => chamar(`/api/finance/titulos/${titulo.id}`, "PATCH", { historical: false }), `Histórico conferido, volta para ${texto.abaAberto}: ${quem}.`)}>Manter em aberto</Button>}
             {canSettle && aberto && <Button type="button" variant="secondary" className="perigo-texto" onClick={() => setConfirmar("cancelar")}>Cancelar título</Button>}
-            {canSettle && situacao === "Em aprovação" && (hist?.aprovacao.niveis.length ?? 0) > 0 && <Button type="button" variant="secondary" className="perigo-texto" disabled={ocupado} onClick={() => { setMotivo(""); setErro(""); setMotivoDe({ tipo: "recusar" }); }}>Recusar</Button>}
-            {canSettle && situacao === "Em aprovação" && <Button type="button" disabled={ocupado} onClick={() => operar(() => chamar("/api/finance", "PATCH", { type: "approve", titleId: titulo.id }), (hist?.aprovacao.niveis.filter((n) => !n.aprovadoPor).length ?? 0) > 1 ? `Nível aprovado; falta o próximo nível: ${quem}.` : `${texto.eyebrowTitulo} aprovada: ${quem}.`)}>Aprovar</Button>}
-            {canSettle && aberto && situacao !== "Em aprovação" && <Button type="button" className="sucesso" onClick={() => setModo("baixar")}>{titulo.isForecast ? "Dar baixa" : texto.baixar}</Button>}
+            {canSettle && !titulo.isForecast && situacao === "Em aprovação" && (hist?.aprovacao.niveis.length ?? 0) > 0 && <Button type="button" variant="secondary" className="perigo-texto" disabled={ocupado} onClick={() => { setMotivo(""); setErro(""); setMotivoDe({ tipo: "recusar" }); }}>Recusar</Button>}
+            {canSettle && !titulo.isForecast && situacao === "Em aprovação" && <Button type="button" disabled={ocupado} onClick={() => operar(() => chamar("/api/finance", "PATCH", { type: "approve", titleId: titulo.id }), (hist?.aprovacao.niveis.filter((n) => !n.aprovadoPor).length ?? 0) > 1 ? `Nível aprovado; falta o próximo nível: ${quem}.` : `${texto.eyebrowTitulo} aprovada: ${quem}.`)}>Aprovar</Button>}
+            {canEdit && aberto && titulo.isForecast && titulo.paidAmount === 0 && <Button type="button" disabled={ocupado} onClick={() => operar(() => chamar(`/api/finance/titulos/${titulo.id}`, "PATCH", { isForecast: false }), `Previsão confirmada. Confira a situação de aprovação antes da baixa: ${quem}.`)}>Confirmar previsão</Button>}
+            {canSettle && aberto && !titulo.isForecast && situacao !== "Em aprovação" && <Button type="button" className="sucesso" onClick={() => setModo("baixar")}>{texto.baixar}</Button>}
             {!(canSettle && aberto) && <Button type="button" variant="secondary" onClick={onClose}>Fechar</Button>}
           </footer>
         )}

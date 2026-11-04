@@ -1,3 +1,4 @@
+import { caminhoArquivoSaraValido } from "../../../../../../lib/sara/caminho-arquivo";
 import { NextResponse } from "next/server";
 import { BUCKET_DOCUMENTOS } from "../../../../../../lib/sara/central/documentos";
 import { createSupabaseAdminClient } from "../../../../../../lib/supabase/admin";
@@ -18,9 +19,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   if (!UUID.test(id)) return NextResponse.json({ error: "Documento não encontrado." }, { status: 404 });
   const session = await requireUserSession();
   if ("error" in session && session.error) return session.error;
-  const { data: doc } = await session.supabase.from("sara_documentos").select("id, numero, titulo, tipo, caminho").eq("id", id).maybeSingle();
+  const { data: doc } = await session.supabase.from("sara_documentos").select("id, organization_id, numero, titulo, tipo, caminho").eq("id", id).maybeSingle();
   if (!doc) return NextResponse.json({ error: "Documento não encontrado ou sem permissão." }, { status: 404 });
   if (!doc.caminho) return NextResponse.json({ error: "O arquivo deste documento ainda não foi gerado." }, { status: 409 });
+  if (!caminhoArquivoSaraValido(doc.caminho, doc.organization_id, doc.id)) return NextResponse.json({ error: "Arquivo inválido. Solicite a geração novamente." }, { status: 409 });
   let admin;
   try { admin = createSupabaseAdminClient(); } catch { return NextResponse.json({ error: "Configuração do banco ausente." }, { status: 503 }); }
   const { data: arquivo, error } = await admin.storage.from(BUCKET_DOCUMENTOS).download(doc.caminho);
