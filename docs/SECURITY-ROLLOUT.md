@@ -170,7 +170,7 @@ Não executar migrações antigas novamente nem usar `db reset` na produção. C
 real de migrações já implantadas e aplicar somente as novas deste pacote, em ordem, com canal
 administrativo seguro e transação/backup próprios do procedimento do banco.
 
-A base integrada é o `main` em `dc0bb92`. Ela inclui as migrações
+A base integrada é o `main` em `559cf2b`. Ela inclui as migrações
 `202611030001_rh_beneficio_adesao.sql`, `202611030002_sara_vigia_config.sql` e
 `202611030003_qualidade_ocorrido_e_descarte.sql`. Se alguma ainda estiver pendente no ambiente,
 aplicá-la na ordem normal antes das duas abaixo, sem repetir as já registradas. A proteção de
@@ -266,7 +266,7 @@ Verificação local registrada nesta preparação:
 |---|---|
 | Build de produção | Next.js 16.4.4 passou |
 | Contratos de módulos e pacote Supabase | 13 módulos e 181 migrações válidos |
-| Rodada completa após integrar `dc0bb92` | 931 passaram de 932, sem testes ignorados; uma falha legada |
+| Rodada completa após integrar `559cf2b` | 932 passaram de 933, sem testes ignorados; uma falha legada |
 | Falha legada | `rendered-html` espera `dist/server/index.js`, ausente no app Next; reproduzida antes das correções. As duas falhas fiscais da rodada inicial foram corrigidas pelo upstream integrado |
 | Banco descartável | 181 migrações aplicadas do zero; 17 testes de RH/financeiro/documentos e um teste composto de SARA/WhatsApp passaram, incluídos na rodada completa |
 | Análise SQL | Nenhum alerta nas 14 funções alteradas; a análise global aponta cinco referências a tabelas temporárias em funções inalteradas, além de avisos antigos |
