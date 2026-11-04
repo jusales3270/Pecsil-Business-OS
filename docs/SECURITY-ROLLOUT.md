@@ -1,15 +1,20 @@
 # Implantação das correções de segurança
 
 Estado em **04/11/2026**: correções da aplicação, banco da fábrica e perímetro preparadas e
-verificadas localmente; **ainda não implantadas na fábrica**. A estrutura do destino de backup na
-nuvem foi criada pelo operador, com os controles principais confirmados conforme o registro abaixo.
+verificadas localmente; **ainda não implantadas na fábrica**. O operador interrompeu expressamente
+o trabalho no backup externo e pediu a retomada destas correções. Não condicionar esta implantação
+à configuração do destino externo nem retomar esse trabalho sem nova solicitação.
 O shell/root do host foi confirmado manualmente em 04/11 pelo terminal do servidor no Coolify
-(`systemd`, virtualização `none`, inventário Docker). Isso não confirma recuperação independente:
-o console físico ou outro canal de recuperação ainda precisa ser testado. O token salvo para a API
+(`systemd`, virtualização `none`, inventário Docker). Após retomar o hardening, o operador confirmou
+acesso físico ou console independente do Coolify. Preservar esse acesso durante o fechamento das portas.
+O token salvo para a API
 HTTPS do Coolify respondeu 401 na verificação anterior; isso não prova revogação, pois token
 incorreto e ausente geram a mesma resposta. O histórico em [INFRA.md](INFRA.md) registra a perda
 do acesso SSH por senha. Não usar HTTP na porta 8001 para contornar o bloqueio da API. Nenhuma
 regra de firewall foi aplicada por aqui.
+
+<details>
+<summary>Registro da tentativa de backup externo, interrompida pelo operador</summary>
 
 A tentativa manual de backup de 04/11 às 12:12 UTC gerou o banco criptografado (57.513.601 bytes)
 e arquivos criptografados (1.377 objetos, cinco buckets, 61.648.330 bytes), mas terminou com
@@ -24,27 +29,45 @@ principais persistiram: Vigia, função de backup, bucket privado, quatro polít
 RLS nas tabelas Vigia e restrição de geração de tokens. Isso não prova a preservação integral
 dos dados anteriores. A versão atual executa a instalação num único `DO` atômico com variáveis
 locais, sem tabelas temporárias; não deve ser reaplicada nesse destino já instalado.
-**A conta técnica, as credenciais no Coolify, o envio completo e a restauração ainda estão pendentes.**
-Ver a seção de reutilização em [BACKUP-EXTERNO.md](BACKUP-EXTERNO.md).
+Depois, o operador vinculou uma conta técnica confirmada e atualizou as credenciais no Coolify.
+A execução das 18:27–18:28 UTC gerou banco e arquivos criptografados e chegou ao aviso final,
+que retornou `sinal recusado`. Pelo fluxo do serviço, esse aviso ocorre após os envios; o manifesto
+na nuvem e a restauração não foram conferidos. **O operador cancelou a continuação desse trabalho.**
+Este registro histórico não afirma que o monitoramento externo esteja operacional.
+
+</details>
 
 As correções reduzem os riscos identificados. Não constituem garantia de ausência de outras
 vulnerabilidades nem evidência de que nunca houve acesso indevido.
 
-## 1. Preparar recuperação, backup e validação
+## 1. Preparar acesso e validação
 
 - Definir uma janela com o responsável pelo servidor. Manter console físico/hipervisor ou outro
   canal de recuperação realmente testado; uma segunda janela SSH no mesmo caminho não é console
   independente. Guardar as credenciais no cofre, sem colá-las em chamados, logs ou comandos.
-- Recuperar a API HTTPS do Coolify e o shell/root. Confirmar a versão implantada, o inventário dos
+- Usar o shell/root do host já confirmado. A API HTTPS do Coolify é um caminho opcional e depende
+  de credencial válida; sua indisponibilidade não impede o procedimento manual pelo host.
+  Confirmar a versão implantada, o inventário dos
   contêineres, interface(s) de entrada, encaminhamentos do roteador, IPv4/IPv6, rede LAN/VPN e
   redes Docker. Não deduzir o nome da interface ou os CIDRs a partir dos exemplos deste documento.
-- Fazer backup consistente dos bancos, Storage, configurações de serviços e segredos por canal
-  cifrado. Conferir uma restauração isolada e registrar os identificadores dos backups. Uma cópia
-  do repositório não substitui banco/arquivos. Ver [BACKUP-EXTERNO.md](BACKUP-EXTERNO.md).
+- Registrar os commits e imagens em execução, a lista real de migrações e os objetos necessários
+  antes de aplicar as alterações. Executar o SQL de forma transacional, interrompendo no primeiro
+  erro. O procedimento de backup externo foi retirado desta sequência a pedido do operador.
 - Executar os testes do pacote em ambiente isolado e registrar o commit/imagens anteriores para
   rollback. Não usar dados pessoais reais para os testes de autorização.
 - Suspender automações que recarreguem firewall durante a janela. Não trocar o backend do Docker,
   reiniciar o proxy ou recriar contêineres como parte do fechamento das portas.
+
+A [pré-checagem do servidor](../infra/security-preflight.sh) reúne o inventário de banco e rede:
+
+```bash
+bash infra/security-preflight.sh
+```
+
+Executar no host Linux com `root`, no terminal do servidor do Coolify, usando o arquivo desta
+revisão. O script recusa o terminal de uma aplicação, consulta o banco em transação somente de
+leitura e não aplica migrações nem regras de firewall. A saída determina o plano real de implantação;
+histórico ausente, instalação parcial ou diferenças de esquema precisam ser resolvidos antes do SQL.
 
 ## 2. Fechar o perímetro sem romper LAN e Docker
 
@@ -198,7 +221,7 @@ Revisar chaves SSH, autenticação e quem mantém acesso administrativo após a 
 
 Não executar migrações antigas novamente nem usar `db reset` na produção. Capturar a lista
 real de migrações já implantadas e aplicar somente as novas deste pacote, em ordem, com canal
-administrativo seguro e transação/backup próprios do procedimento do banco.
+administrativo seguro, transação e interrupção no primeiro erro.
 
 A base integrada é o `main` em `559cf2b`. Ela inclui as migrações
 `202611030001_rh_beneficio_adesao.sql`, `202611030002_sara_vigia_config.sql` e
@@ -305,6 +328,7 @@ Verificação local registrada nesta preparação:
 | Leitura, extratos, portal e limites | Testes de arquivos normais, XML malformado, expansão, tempo, streaming e cancelamento passaram; incluídos na rodada completa |
 | Firewall | 11 cenários Python com executor falso e dois testes Node passaram; sem aplicar regras reais |
 | Auditor de perímetro | 16 cenários com DNS/TCP/TLS simulados, incluindo exposição isolada de 6001/6002/8080 em ambas as famílias; sem tráfego a produção |
+| Pré-checagem do host | Sintaxe Bash e recusa do ambiente Mac conferidas; SQL exato executado com sucesso no Postgres 17.6 descartável em transação somente leitura, sem mutações de produção |
 | Backup no projeto compartilhado | 13 testes locais com RLS real, repetidos com o artefato `DO` exato sem reescrever comandos: políticas antigas permissivas, conta dedicada, preservação da aplicação, conflitos e reversão; registros fictícios revertidos e cron sem commit, sem chamadas externas |
 | Transmissor | 15/15 testes passaram na imagem Linux Node 22 |
 | Conector | 9/9 testes passaram |
