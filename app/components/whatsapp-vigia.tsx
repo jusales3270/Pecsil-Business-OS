@@ -53,7 +53,7 @@ export function VigiaWhatsapp({ dados, chamar, notify, recarregar }: {
       <header>
         <div>
           <h2>Vigia</h2>
-          <small>Roda {dados.agenda}: lê os avisos de todas as áreas e o que está parado, liga uma coisa à outra e manda cada gargalo pelo WhatsApp para a lista de transmissão, além da Decisão para você no sino.</small>
+          <small>Roda {dados.agenda}: lê os avisos de todas as áreas e o que está parado, liga uma coisa à outra e manda cada gargalo pelo WhatsApp para a lista de transmissão, além da Decisão para você no sino. O Bom dia pelo WhatsApp segue os mesmos dias, a mesma hora e a mesma lista.</small>
         </div>
         <Status tone={!dados.config.whatsapp ? "attention" : dados.transmissao.length ? "success" : "attention"}>
           {!dados.config.whatsapp ? "WhatsApp desligado" : dados.transmissao.length ? `WhatsApp para ${dados.transmissao.length} ${dados.transmissao.length === 1 ? "pessoa" : "pessoas"}` : "Ninguém na lista"}
@@ -68,11 +68,11 @@ export function VigiaWhatsapp({ dados, chamar, notify, recarregar }: {
           ))}
         </fieldset>
         <label>Hora<input type="time" value={hora} onChange={(ev) => setHora(ev.target.value)} required /></label>
-        <label className="wa-vigia-ligar"><input type="checkbox" checked={whatsapp} onChange={(ev) => setWhatsapp(ev.target.checked)} /> Mandar os gargalos pelo WhatsApp (desmarque só para pausar)</label>
+        <label className="wa-vigia-ligar"><input type="checkbox" checked={whatsapp} onChange={(ev) => setWhatsapp(ev.target.checked)} /> Mandar o Bom dia e os gargalos pelo WhatsApp (desmarque só para pausar)</label>
         <fieldset className="wa-vigia-lista wa-obs">
           <legend>Lista de transmissão · {lista.length} {lista.length === 1 ? "pessoa" : "pessoas"}</legend>
-          <small>Só pessoas da empresa. Cada uma recebe só os gargalos das áreas que as credenciais dela enxergam, e só quando houver gargalo novo.</small>
-          {whatsapp && !lista.length && internos.length > 0 && <small className="wa-vigia-alerta">Ninguém marcado: assim nenhum gargalo sai pelo WhatsApp. Marque quem recebe e salve.</small>}
+          <small>Só pessoas da empresa. Só quem está marcado recebe o Bom dia e os gargalos pelo WhatsApp; cada um vê só as áreas que as credenciais dele enxergam, e o gargalo só quando for novo. No sino da plataforma, nada muda.</small>
+          {whatsapp && !lista.length && internos.length > 0 && <small className="wa-vigia-alerta">Ninguém marcado: assim nem o Bom dia nem os gargalos saem pelo WhatsApp. Marque quem recebe e salve.</small>}
           {!internos.length && <small>Nenhuma pessoa na lista interna dos números. Inclua pela allowlist de cada número.</small>}
           {internos.map((c) => (
             <label key={c.id}><input type="checkbox" checked={lista.includes(c.id)} onChange={() => setLista((x) => alternar(x, c.id))} /> {rotulo(c)}</label>
