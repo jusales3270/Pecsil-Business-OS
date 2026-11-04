@@ -44,6 +44,16 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-04-bom-dia-lista-whatsapp",
+    data: "2026-11-04",
+    area: "WhatsApp",
+    modulos: ["warroom"],
+    titulo: "O Bom dia pelo WhatsApp segue a lista da Vigia",
+    itens: [
+      "Em Fundação › WhatsApp › Vigia: só quem está marcado na lista de transmissão recebe o Bom dia pelo WhatsApp, nos dias e na hora marcados. O Bom dia no sino da plataforma continua para todos.",
+    ],
+  },
+  {
     id: "2026-11-03-qualidade-registro-pela-tela",
     data: "2026-11-03",
     area: "Qualidade",

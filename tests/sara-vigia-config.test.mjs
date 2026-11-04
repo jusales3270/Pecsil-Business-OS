@@ -84,3 +84,19 @@ test("vigia: contatos apontam a ligação certa com o perfil (há duas: profile_
   }
 });
 
+
+test("bom dia no WhatsApp: só para quem está marcado, nos dias e na hora da seção (04/11/2026)", async () => {
+  const { bomDiaNoWhatsapp } = await import("../lib/sara/central/vigia-config.ts");
+  const cfg = { dias: [1, 2, 3, 4, 5], hora: "08:15", whatsapp: true };
+  const cedo = new Date("2026-11-04T07:30:00-03:00"); // quarta
+  assert.equal(bomDiaNoWhatsapp(cfg, { marcado: false, dia: "2026-11-04", agora: cedo }), null, "desmarcado não recebe");
+  assert.equal(bomDiaNoWhatsapp(cfg, { marcado: true, dia: "2026-11-04", agora: cedo }), "2026-11-04T11:15:00.000Z", "marcado recebe na hora marcada");
+  const tarde = new Date("2026-11-04T09:00:00-03:00");
+  assert.equal(bomDiaNoWhatsapp(cfg, { marcado: true, dia: "2026-11-04", agora: tarde }), tarde.toISOString(), "passou da hora: sai agora");
+  assert.equal(bomDiaNoWhatsapp({ ...cfg, dias: [1, 3] }, { marcado: true, dia: "2026-11-05", agora: cedo }), null, "dia desmarcado não recebe");
+  assert.equal(bomDiaNoWhatsapp({ ...cfg, whatsapp: false }, { marcado: true, dia: "2026-11-04", agora: cedo }), null, "WhatsApp pausado");
+  const exec = ler("lib/sara/central/bom-dia-executar.ts");
+  assert.match(exec, /sara_vigia_transmissao/, "o Bom dia lê a lista de transmissão");
+  assert.match(exec, /if \(wa && quandoWa\)/, "sem estar marcado, nada vai ao WhatsApp");
+  assert.match(exec, /quando: quandoWa/);
+});

@@ -49,6 +49,18 @@ export async function lerConfigVigia(sb: SupabaseClient): Promise<ConfigVigia> {
   return { dias: (data.dias ?? []).map(Number), hora: data.hora, whatsapp: Boolean(data.whatsapp) };
 }
 
+/**
+ * O Bom dia pelo WhatsApp segue a mesma seção (proprietário, 04/11/2026: "o bom dia e os gargalos são a mesma coisa"): só
+ * para quem está marcado na lista de transmissão, nos dias marcados, a partir da hora marcada, e nada com o WhatsApp
+ * pausado. Devolve quando agendar (ISO) ou null. O Bom dia no sino da plataforma não muda.
+ */
+export function bomDiaNoWhatsapp(c: ConfigVigia, a: { marcado: boolean; dia: string; agora: Date }): string | null {
+  const semana = new Date(`${a.dia}T12:00:00-03:00`).getUTCDay();
+  if (!c.whatsapp || !a.marcado || !c.dias.includes(semana)) return null;
+  const alvo = Date.parse(`${a.dia}T${c.hora}:00-03:00`);
+  return new Date(Math.max(alvo, a.agora.getTime())).toISOString();
+}
+
 /** A mensagem da Vigia no WhatsApp: só os gargalos que a pessoa enxerga. Sem modelo: o texto é da plataforma. */
 export function mensagemDaVigia(a: { nome: string; dia: string; achados: { area: string; titulo: string; por_que: string | null; impacto: string | null }[]; base: string }): string {
   const [ano, mes, d] = a.dia.split("-");
