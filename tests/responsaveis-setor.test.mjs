@@ -3,18 +3,16 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import "./ts-resolver.mjs";
 
-const { listaDeResponsaveis, opcoesComAtual, opcoesDoFiltro, rotuloDoResponsavel, semMarcacaoDoRh } = await import("../modules/portaria/src/lib/responsaveis.ts");
+const { listaDeResponsaveis, opcoesComAtual, rotuloDoResponsavel } = await import("../modules/portaria/src/lib/responsaveis.ts");
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 
-test("responsáveis: rótulo Nome · Setor; a lista antiga só enquanto o RH não marcar ninguém (diretores não contam)", () => {
+test("responsáveis: só os do banco, como Nome · Setor; a lista fixa antiga saiu", () => {
   assert.equal(rotuloDoResponsavel({ nome: " Rosana ", setor: "Recursos Humanos " }), "Rosana · Recursos Humanos");
   const dir = { nome: "Ana Claudia", setor: "Diretoria", tipo: "diretor" };
   const rh = { nome: "Rosana", setor: "Recursos Humanos", tipo: "colaborador" };
-  assert.deepEqual(listaDeResponsaveis([dir, rh], ["Almoxarifado", "Rosana"]), ["Ana Claudia · Diretoria", "Rosana · Recursos Humanos"]);
-  assert.deepEqual(listaDeResponsaveis([dir], ["Almoxarifado", "Rosana"]), ["Ana Claudia · Diretoria", "Almoxarifado", "Rosana"]);
-  assert.deepEqual(listaDeResponsaveis([], ["Almoxarifado"]), ["Almoxarifado"]);
-  assert.equal(semMarcacaoDoRh([dir]), true);
-  assert.equal(semMarcacaoDoRh([dir, rh]), false);
+  assert.deepEqual(listaDeResponsaveis([dir, rh]), ["Ana Claudia · Diretoria", "Rosana · Recursos Humanos"]);
+  assert.deepEqual(listaDeResponsaveis([]), []);
+  assert.doesNotMatch(ler("modules/portaria/src/types/index.ts"), /RESPONSAVEIS|DESTINATARIOS/);
 });
 
 test("diretoria: todo diretor ativo entra nos responsáveis da Portaria; edição do usuário muda vínculo e cargo", () => {
@@ -30,12 +28,11 @@ test("diretoria: todo diretor ativo entra nos responsáveis da Portaria; ediçã
   assert.match(ler("app/page.tsx"), /tab==="Diretoria" \? <UserManagement key="diretoria" diretoria/);
 });
 
-test("responsáveis: visita antiga mantém o gravado; o filtro inclui o histórico sem repetir", () => {
+test("responsáveis: visita antiga mantém o gravado ao editar", () => {
   const lista = ["Rosana · Recursos Humanos"];
   assert.deepEqual(opcoesComAtual(lista, "Ricardo"), ["Ricardo", "Rosana · Recursos Humanos"]);
   assert.deepEqual(opcoesComAtual(lista, "Rosana · Recursos Humanos"), lista);
   assert.deepEqual(opcoesComAtual(lista, undefined), lista);
-  assert.deepEqual(opcoesDoFiltro(lista, ["Ricardo", "Ana Claudia", "Ricardo", "", "Rosana · Recursos Humanos"]), ["Rosana · Recursos Humanos", "Ana Claudia", "Ricardo"]);
 });
 
 test("responsáveis: banco com credencial própria, trava no update comum e lista só dos marcados", () => {
@@ -59,5 +56,5 @@ test("responsáveis: rota exige a credencial; telas só mostram o check para que
   assert.match(ler("modules/access-catalog.ts"), /code: "rh\.responsaveis"/);
   const portaria = ler("modules/portaria/src/App.tsx");
   assert.match(portaria, /fetchResponsaveis\(\)/);
-  assert.doesNotMatch(portaria, /RESPONSAVEIS\.map|DESTINATARIOS/, "as listas da tela saem do banco");
+  assert.doesNotMatch(portaria, /RESPONSAVEIS|DESTINATARIOS|opcoesDoFiltro/, "as listas da tela saem só do banco");
 });

@@ -64,28 +64,7 @@ export const VEICULOS = [
   'STRADA FLX5966'
 ] as const;
 
-export const RESPONSAVEIS = [
-  'Almoxarifado',
-  'Ana Claudia',
-  'Compras',
-  'Diretoria',
-  'Domingo',
-  'Edimilson',
-  'Ferramentaria',
-  'Fundição',
-  'Gerência',
-  'Jefferson',
-  'Julio',
-  'Leila',
-  'Marketing',
-  'PCP',
-  'Produção',
-  'Rafael',
-  'Ricardo',
-  'Rosana',
-  'T.I',
-  'Vendas',
-] as const;
+// Responsáveis: vêm do banco (portaria_responsaveis): quem o RH marcou como responsável pelo setor e a Diretoria.
 
 export const DESCRICOES: TipoDescricao[] = [
   'Entrega',
@@ -119,4 +98,3 @@ export interface Recebido {
   fotoBase64?: string;
 }
 
-export const DESTINATARIOS = RESPONSAVEIS;

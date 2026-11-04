@@ -19,8 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Label } from "./components/ui/label";
 import { Separator } from "./components/ui/separator";
 import type { Visita, ControleVeiculo, RegistroTerceiro, Recebido } from "./types";
-import { RESPONSAVEIS, MOTORISTAS, DESCRICOES, VEICULOS } from "./types";
-import { listaDeResponsaveis, opcoesComAtual, opcoesDoFiltro, semMarcacaoDoRh, type Responsavel } from "./lib/responsaveis";
+import { MOTORISTAS, DESCRICOES, VEICULOS } from "./types";
+import { listaDeResponsaveis, opcoesComAtual, type Responsavel } from "./lib/responsaveis";
 import { CameraCapture } from "./components/CameraCapture";
 import { extractFaceDescriptor, base64ToImage } from "./lib/faceApi";
 import { buscarVisitantePorFace, type CandidatoFacial, buscarVisitantesPorNome, salvarVisitante, fetchVisitas, fetchFotoVisita, fetchFrota, inserirVisita, atualizarVisitaDb, encerrarVisitaDb, excluirVisitaDb, inserirVeiculo, atualizarVeiculoDb, excluirVeiculoDb, fetchTerceiros, fetchQuadroTerceiros, quadroTerceirosGuardado, fetchResponsaveis, responsaveisGuardados, inserirTerceiro, encerrarTerceiroDb, excluirTerceiroDb, fetchRecebidos, fetchFotoRecebido, inserirRecebido, excluirRecebidoDb } from "./lib/supabase"; import { gerenciaAlgumaArea, podePortaria, useAuth } from "./contexts/AuthContext";
@@ -56,9 +56,9 @@ function App({ onExit, initialSection }: { onExit?: () => void; initialSection?:
   const [terceiros, setTerceiros] = useState<RegistroTerceiro[]>([]);
   // Quadro de terceiros: mantido pelo RH (começa com a última lista guardada, para funcionar sem conexão).
   const [quadroTerceiros, setQuadroTerceiros] = useState<string[]>(() => quadroTerceirosGuardado());
-  // Responsáveis pelo setor marcados pelo RH e a Diretoria; sem marcação do RH, a lista antiga vem junto.
+  // Responsáveis pelo setor marcados pelo RH e a Diretoria (Nome · Setor).
   const [responsaveisMarcados, setResponsaveisMarcados] = useState<Responsavel[]>(() => responsaveisGuardados());
-  const responsaveis = listaDeResponsaveis(responsaveisMarcados, RESPONSAVEIS);
+  const responsaveis = listaDeResponsaveis(responsaveisMarcados);
   const [carregando, setCarregando] = useState(true);
   const { user, perfil, loading: authLoading, signOut } = useAuth();
   const [paginaAtiva, setPaginaAtiva] = useState<PaginaAtiva>(() => (initialSection && PAGINA_DA_SECAO[initialSection]) || 'dashboard');
@@ -1520,7 +1520,7 @@ function App({ onExit, initialSection }: { onExit?: () => void; initialSection?:
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os responsáveis</SelectItem>
-                {opcoesDoFiltro(responsaveis, visitas.map((v) => v.responsavel)).map((r) => (
+                {responsaveis.map((r) => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>
                 ))}
               </SelectContent>
@@ -2244,7 +2244,7 @@ function App({ onExit, initialSection }: { onExit?: () => void; initialSection?:
                     ))}
                   </SelectContent>
                 </Select>
-                {semMarcacaoDoRh(responsaveisMarcados) && <p className="text-xs text-amber-700">Nenhum responsável pelo setor marcado ainda: a lista antiga vem junto da Diretoria. Quem marca é o RH, na ficha do colaborador ou no quadro de terceiros.</p>}
+                {responsaveis.length === 0 && <p className="text-xs text-amber-700">Nenhum responsável cadastrado. Quem marca é o RH, na ficha do colaborador ou no quadro de terceiros; os diretores entram sozinhos.</p>}
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Horário Entrada</Label>
