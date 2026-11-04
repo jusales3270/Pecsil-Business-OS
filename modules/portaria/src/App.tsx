@@ -20,7 +20,7 @@ import { Label } from "./components/ui/label";
 import { Separator } from "./components/ui/separator";
 import type { Visita, ControleVeiculo, RegistroTerceiro, Recebido } from "./types";
 import { RESPONSAVEIS, MOTORISTAS, DESCRICOES, VEICULOS } from "./types";
-import { listaDeResponsaveis, opcoesComAtual, opcoesDoFiltro } from "./lib/responsaveis";
+import { listaDeResponsaveis, opcoesComAtual, opcoesDoFiltro, semMarcacaoDoRh, type Responsavel } from "./lib/responsaveis";
 import { CameraCapture } from "./components/CameraCapture";
 import { extractFaceDescriptor, base64ToImage } from "./lib/faceApi";
 import { buscarVisitantePorFace, type CandidatoFacial, buscarVisitantesPorNome, salvarVisitante, fetchVisitas, fetchFotoVisita, fetchFrota, inserirVisita, atualizarVisitaDb, encerrarVisitaDb, excluirVisitaDb, inserirVeiculo, atualizarVeiculoDb, excluirVeiculoDb, fetchTerceiros, fetchQuadroTerceiros, quadroTerceirosGuardado, fetchResponsaveis, responsaveisGuardados, inserirTerceiro, encerrarTerceiroDb, excluirTerceiroDb, fetchRecebidos, fetchFotoRecebido, inserirRecebido, excluirRecebidoDb } from "./lib/supabase"; import { gerenciaAlgumaArea, podePortaria, useAuth } from "./contexts/AuthContext";
@@ -56,8 +56,8 @@ function App({ onExit, initialSection }: { onExit?: () => void; initialSection?:
   const [terceiros, setTerceiros] = useState<RegistroTerceiro[]>([]);
   // Quadro de terceiros: mantido pelo RH (começa com a última lista guardada, para funcionar sem conexão).
   const [quadroTerceiros, setQuadroTerceiros] = useState<string[]>(() => quadroTerceirosGuardado());
-  // Responsáveis pelo setor marcados pelo RH; sem nenhum marcado, vale a lista antiga.
-  const [responsaveisMarcados, setResponsaveisMarcados] = useState<string[]>(() => responsaveisGuardados());
+  // Responsáveis pelo setor marcados pelo RH e a Diretoria; sem marcação do RH, a lista antiga vem junto.
+  const [responsaveisMarcados, setResponsaveisMarcados] = useState<Responsavel[]>(() => responsaveisGuardados());
   const responsaveis = listaDeResponsaveis(responsaveisMarcados, RESPONSAVEIS);
   const [carregando, setCarregando] = useState(true);
   const { user, perfil, loading: authLoading, signOut } = useAuth();
@@ -2244,7 +2244,7 @@ function App({ onExit, initialSection }: { onExit?: () => void; initialSection?:
                     ))}
                   </SelectContent>
                 </Select>
-                {responsaveisMarcados.length === 0 && <p className="text-xs text-amber-700">Nenhum responsável pelo setor marcado ainda: vale a lista antiga. Quem marca é o RH, na ficha do colaborador ou no quadro de terceiros.</p>}
+                {semMarcacaoDoRh(responsaveisMarcados) && <p className="text-xs text-amber-700">Nenhum responsável pelo setor marcado ainda: a lista antiga vem junto da Diretoria. Quem marca é o RH, na ficha do colaborador ou no quadro de terceiros.</p>}
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Horário Entrada</Label>

@@ -2463,7 +2463,7 @@ i.info                 { background: var(--accent-blue); }
 .user-admin-head,
 .user-admin-row {
   display: grid;
-  grid-template-columns: minmax(200px, 2fr) minmax(120px, 1fr) minmax(120px, 1fr) 116px;
+  grid-template-columns: minmax(200px, 2fr) minmax(120px, 1fr) minmax(120px, 1fr) 116px max-content;
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
@@ -2488,6 +2488,11 @@ i.info                 { background: var(--accent-blue); }
 
 .user-admin-row:hover:not(:disabled) { background: var(--bg-hover); }
 .user-admin-row:disabled { cursor: default; opacity: 0.75; }
+/* Editar (04/11/2026): a linha inteira abre o cadastro; o botão deixa isso à vista. */
+.user-admin-editar { display: inline-flex; align-items: center; padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-secondary); font-size: var(--fs-xs); font-weight: var(--fw-semibold); }
+.user-admin-row:hover:not(:disabled) .user-admin-editar { border-color: var(--accent-blue); color: var(--accent-blue); }
+.user-admin-editar { justify-content: center; }
+.user-admin-editar.vazio { visibility: hidden; }
 
 /* Linha de botões de ação dentro do painel de gestão. */
 .user-admin-actions {
@@ -5455,7 +5460,7 @@ button.holiday-row:hover {
    (linha flex) tem especificidade maior que `.user-admin-row` e desalinhava
    as colunas; aqui a grade é declarada com a mesma força e vem depois. */
 .ds-card.user-admin-card {
-  --user-admin-cols: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.6fr) 104px;
+  --user-admin-cols: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.6fr) 104px 72px;
 }
 .ds-card.user-admin-card > .user-admin-head,
 .ds-card.user-admin-card > button.user-admin-row {
@@ -5493,6 +5498,7 @@ button.holiday-row:hover {
   .ds-card.user-admin-card > button.user-admin-row > span:not([class]) { grid-area: employee; white-space: normal; }
   .ds-card.user-admin-card > button.user-admin-row > .access-chips { grid-area: access; }
   .ds-card.user-admin-card > button.user-admin-row > .ds-status { grid-area: status; justify-self: end; }
+  .ds-card.user-admin-card > button.user-admin-row > .user-admin-editar { display: none; }
   .user-admin-toolbar { flex-wrap: wrap; }
 }
 

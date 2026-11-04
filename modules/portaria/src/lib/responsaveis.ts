@@ -1,16 +1,20 @@
 /**
- * Responsáveis da Portaria (04/11/2026): quem o RH marcou como "Responsável pelo setor", no formato "Nome · Setor". É a
- * lista do Responsável da visita e do Destinatário dos recebidos. Enquanto ninguém estiver marcado, vale a lista antiga
- * (reserva), para a Portaria não travar. Puro.
+ * Responsáveis da Portaria (04/11/2026): quem o RH marcou como "Responsável pelo setor" e todo diretor (Pessoas e
+ * Acessos › Diretoria), no formato "Nome · Setor". É a lista do Responsável da visita e do Destinatário dos recebidos.
+ * Enquanto o RH não marcar ninguém, a lista antiga vem junto dos diretores (reserva), para a Portaria não travar. Puro.
  */
 
-export type Responsavel = { nome: string; setor: string };
+export type Responsavel = { nome: string; setor: string; tipo?: string };
 
 export const rotuloDoResponsavel = (r: Responsavel) => `${r.nome.trim()} · ${r.setor.trim()}`;
 
-/** Os marcados; sem nenhum, a reserva. */
-export function listaDeResponsaveis(marcados: readonly string[], reserva: readonly string[]): string[] {
-  return marcados.length ? [...marcados] : [...reserva];
+/** Só os diretores = o RH ainda não marcou ninguém. */
+export const semMarcacaoDoRh = (itens: readonly Responsavel[]) => !itens.some((r) => r.tipo !== "diretor");
+
+/** Os responsáveis do banco; sem marcação do RH, os diretores e a reserva. */
+export function listaDeResponsaveis(itens: readonly Responsavel[], reserva: readonly string[]): string[] {
+  const rotulos = itens.map(rotuloDoResponsavel);
+  return semMarcacaoDoRh(itens) ? [...rotulos, ...reserva.filter((r) => !rotulos.includes(r))] : rotulos;
 }
 
 /** Ao editar uma visita antiga, o responsável gravado continua escolhível mesmo fora da lista. */

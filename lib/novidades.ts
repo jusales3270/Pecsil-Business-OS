@@ -44,6 +44,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-04-diretoria-na-portaria",
+    data: "2026-11-04",
+    area: "Portaria",
+    modulos: ["portaria"],
+    funcionalidades: ["portaria.visitas", "portaria.recebidos"],
+    titulo: "A Diretoria aparece nos responsáveis",
+    itens: [
+      "Todo diretor aparece sozinho em Responsável das visitas e em Destinatário dos recebidos, como \"Nome · Diretoria\".",
+    ],
+  },
+  {
     id: "2026-11-04-responsavel-pelo-setor",
     data: "2026-11-04",
     area: "RH e Portaria",

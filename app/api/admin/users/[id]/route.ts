@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "../../../../../lib/supabase/admin";
 import { authorize, replaceGrants, writeAudit } from "../../../../../lib/auth/admin-users";
-import { endOfDayBrasilia, isAccessExpired, isJobTitle, normalizeGrants } from "../../../../../modules/access-catalog";
+import { ACCOUNT_TYPES, endOfDayBrasilia, isAccessExpired, isJobTitle, normalizeGrants, type AccountType } from "../../../../../modules/access-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,9 @@ const BAN_FOREVER = "876000h";
 
 type PatchBody = {
   grants?: unknown;
+  /** Dados do usuário (Editar, 04/11/2026): nome e vínculo; com o vínculo vêm o cargo (administrativo) e a empresa (terceiro). */
+  fullName?: string;
+  accountType?: string;
   /** Só para terceiros: empresa prestadora e validade (AAAA-MM-DD ou null). */
   companyName?: string;
   accessExpiresAt?: string | null;
@@ -23,7 +26,7 @@ type PatchBody = {
 };
 
 /**
- * Altera o acesso de um usuário: permissões por funcionalidade, situação
+ * Altera um usuário: nome e vínculo (com cargo ou empresa), permissões por funcionalidade, situação
  * (ativo/bloqueado/desativado) ou senha. Só o proprietário; o proprietário em
  * si não é editável por aqui, e ninguém altera o próprio acesso.
  */
@@ -77,8 +80,41 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     applied.push("grants");
   }
 
+  // --- Dados do usuário: nome e vínculo (com cargo ou empresa) -----------------
+  if (body.fullName !== undefined || body.accountType !== undefined) {
+    const fullName = body.fullName === undefined ? String(target.full_name ?? "") : String(body.fullName).replace(/\s+/g, " ").trim();
+    if (fullName.length < 2 || fullName.length > 120) return NextResponse.json({ error: "Informe o nome (2 a 120 letras)." }, { status: 400 });
+    const kind = (body.accountType ?? target.account_type) as AccountType;
+    if (!ACCOUNT_TYPES.includes(kind)) return NextResponse.json({ error: "Vínculo inválido." }, { status: 400 });
+    const jobTitle = kind === "administrativo" ? (body.jobTitle ?? target.job_title) : null;
+    if (kind === "administrativo" && !isJobTitle(jobTitle)) return NextResponse.json({ error: "Escolha o cargo do administrativo." }, { status: 400 });
+    const companyName = kind === "terceiro" ? String(body.companyName ?? target.company_name ?? "").trim() : null;
+    if (kind === "terceiro" && !companyName) return NextResponse.json({ error: "Informe a empresa prestadora." }, { status: 400 });
+    const changes = {
+      full_name: fullName, account_type: kind, job_title: jobTitle, company_name: companyName,
+      // Validade é só de terceiro: quem deixa de ser terceiro perde o prazo.
+      ...(kind !== "terceiro" ? { access_expires_at: null } : {}),
+    };
+    const { error } = await admin.from("profiles").update(changes).eq("id", targetId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await writeAudit(admin, {
+      orgId,
+      actorProfileId,
+      actorUserId,
+      eventType: "core.access.user.profile_change",
+      entityType: "profile",
+      entityId: targetId,
+      metadata: {
+        email: target.email,
+        before: { fullName: target.full_name, accountType: target.account_type, jobTitle: target.job_title, companyName: target.company_name },
+        after: { fullName, accountType: kind, jobTitle, companyName },
+      },
+    });
+    applied.push("profile");
+  }
+
   // --- Dados do terceiro: empresa e validade ------------------------------------
-  if (body.companyName !== undefined || body.accessExpiresAt !== undefined) {
+  if (body.accountType === undefined && (body.companyName !== undefined || body.accessExpiresAt !== undefined)) {
     if (target.account_type !== "terceiro") {
       return NextResponse.json({ error: "Empresa e validade são só de terceiros." }, { status: 400 });
     }
@@ -119,7 +155,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   }
 
   // --- Cargo do administrativo ------------------------------------------------
-  if (body.jobTitle !== undefined) {
+  if (body.accountType === undefined && body.fullName === undefined && body.jobTitle !== undefined) {
     if (target.account_type !== "administrativo") {
       return NextResponse.json({ error: "Cargo é só do administrativo." }, { status: 400 });
     }

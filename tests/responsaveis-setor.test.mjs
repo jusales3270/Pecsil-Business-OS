@@ -3,13 +3,31 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import "./ts-resolver.mjs";
 
-const { listaDeResponsaveis, opcoesComAtual, opcoesDoFiltro, rotuloDoResponsavel } = await import("../modules/portaria/src/lib/responsaveis.ts");
+const { listaDeResponsaveis, opcoesComAtual, opcoesDoFiltro, rotuloDoResponsavel, semMarcacaoDoRh } = await import("../modules/portaria/src/lib/responsaveis.ts");
 const ler = (c) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
 
-test("responsáveis: rótulo Nome · Setor e a lista antiga só enquanto ninguém estiver marcado", () => {
+test("responsáveis: rótulo Nome · Setor; a lista antiga só enquanto o RH não marcar ninguém (diretores não contam)", () => {
   assert.equal(rotuloDoResponsavel({ nome: " Rosana ", setor: "Recursos Humanos " }), "Rosana · Recursos Humanos");
-  assert.deepEqual(listaDeResponsaveis(["Rosana · Recursos Humanos"], ["Almoxarifado", "Rosana"]), ["Rosana · Recursos Humanos"]);
-  assert.deepEqual(listaDeResponsaveis([], ["Almoxarifado", "Rosana"]), ["Almoxarifado", "Rosana"]);
+  const dir = { nome: "Ana Claudia", setor: "Diretoria", tipo: "diretor" };
+  const rh = { nome: "Rosana", setor: "Recursos Humanos", tipo: "colaborador" };
+  assert.deepEqual(listaDeResponsaveis([dir, rh], ["Almoxarifado", "Rosana"]), ["Ana Claudia · Diretoria", "Rosana · Recursos Humanos"]);
+  assert.deepEqual(listaDeResponsaveis([dir], ["Almoxarifado", "Rosana"]), ["Ana Claudia · Diretoria", "Almoxarifado", "Rosana"]);
+  assert.deepEqual(listaDeResponsaveis([], ["Almoxarifado"]), ["Almoxarifado"]);
+  assert.equal(semMarcacaoDoRh([dir]), true);
+  assert.equal(semMarcacaoDoRh([dir, rh]), false);
+});
+
+test("diretoria: todo diretor ativo entra nos responsáveis da Portaria; edição do usuário muda vínculo e cargo", () => {
+  const m = ler("supabase/migrations/202611040003_portaria_responsaveis_diretoria.sql");
+  assert.match(m, /p\.job_title = 'diretor' and p\.status = 'active'/);
+  assert.match(m, /'Diretoria'::text as setor/);
+  const rota = ler("app/api/admin/users/[id]/route.ts");
+  assert.match(rota, /core\.access\.user\.profile_change/, "a mudança vai para a Auditoria");
+  assert.match(rota, /kind === "administrativo" && !isJobTitle\(jobTitle\)/, "administrativo exige cargo");
+  const tela = ler("app/components/user-management.tsx");
+  assert.match(tela, /users\.filter\(\(user\) => user\.jobTitle === "diretor"\)/, "aba Diretoria");
+  assert.match(tela, /className=\{user\.isOwner \? "user-admin-editar vazio" : "user-admin-editar"\}/, "botão Editar em cada linha");
+  assert.match(ler("app/page.tsx"), /tab==="Diretoria" \? <UserManagement key="diretoria" diretoria/);
 });
 
 test("responsáveis: visita antiga mantém o gravado; o filtro inclui o histórico sem repetir", () => {

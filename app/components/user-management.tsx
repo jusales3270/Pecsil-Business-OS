@@ -80,7 +80,11 @@ function summary(grants: AccessGrants) {
   return `${features} ${features === 1 ? "funcionalidade" : "funcionalidades"} em ${modules} ${modules === 1 ? "módulo" : "módulos"}`;
 }
 
-export function UserManagement({ notify }: { notify: (message: string) => void }) {
+/**
+ * Usuários e acessos. Com `diretoria`, a aba Diretoria (04/11/2026): só quem tem o cargo Diretor, que aparece sozinho
+ * como responsável na Portaria. Em qualquer linha, Editar abre o cadastro (dados, acessos, situação e senha).
+ */
+export function UserManagement({ notify, diretoria = false }: { notify: (message: string) => void; diretoria?: boolean }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
@@ -126,14 +130,22 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
   }
 
   const copySources = users.filter((user) => !user.isOwner && Object.keys(user.grants).length > 0);
+  const lista = diretoria ? users.filter((user) => user.jobTitle === "diretor") : users;
 
   return (
     <>
       <div className="user-admin-toolbar">
-        <div>
-          <b>Usuários e acessos</b>
-          <small>Cada pessoa tem o próprio acesso: os módulos e, dentro deles, as funcionalidades com o nível.</small>
-        </div>
+        {diretoria ? (
+          <div>
+            <b>Diretoria</b>
+            <small>Quem tem o cargo Diretor. Cada diretor aparece sozinho como responsável nas visitas e nos recebidos da Portaria, como &ldquo;Nome · Diretoria&rdquo;. Para incluir alguém, edite o usuário: Vínculo Administrativo, Cargo Diretor.</small>
+          </div>
+        ) : (
+          <div>
+            <b>Usuários e acessos</b>
+            <small>Cada pessoa tem o próprio acesso: os módulos e, dentro deles, as funcionalidades com o nível.</small>
+          </div>
+        )}
         <Button onClick={() => setCreating(true)}>+ Novo usuário</Button>
       </div>
 
@@ -141,21 +153,22 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
         <div className="user-admin-head">
           <span>Usuário</span>
           <span>Vínculo</span>
-          <span>Acesso</span>
+          <span>{diretoria ? "Na Portaria" : "Acesso"}</span>
           <span>Situação</span>
+          <span aria-hidden />
         </div>
         {loading ? (
           <div className="user-admin-empty">Carregando usuários…</div>
-        ) : users.length === 0 ? (
-          <div className="user-admin-empty">Nenhum usuário cadastrado ainda.</div>
+        ) : lista.length === 0 ? (
+          <div className="user-admin-empty">{diretoria ? "Nenhum diretor ainda. Em Usuários, clique em Editar e escolha Vínculo Administrativo, Cargo Diretor." : "Nenhum usuário cadastrado ainda."}</div>
         ) : (
-          users.map((user) => (
+          lista.map((user) => (
             <button
               className="user-admin-row"
               key={user.id}
               onClick={() => !user.isOwner && setEditing(user)}
               disabled={user.isOwner}
-              title={user.isOwner ? "O proprietário tem acesso total" : "Gerenciar acesso"}
+              title={user.isOwner ? "O proprietário tem acesso total" : `Editar ${user.fullName}`}
             >
               <span className="user-admin-person">
                 <i>{initials(user.fullName)}</i>
@@ -167,7 +180,9 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
               </span>
               <span>{linkLabel(user)}</span>
               <span className="access-chips">
-                {user.isOwner ? (
+                {diretoria ? (
+                  user.status === "active" && !user.expired ? <em>Responsável · Diretoria</em> : <em>Fora da lista (acesso inativo)</em>
+                ) : user.isOwner ? (
                   <em>Proprietário · acesso total</em>
                 ) : modulesOf(user.grants).length === 0 ? (
                   <em>Sem acesso</em>
@@ -180,6 +195,7 @@ export function UserManagement({ notify }: { notify: (message: string) => void }
               ) : (
                 <Status tone={statusTone(user.status)}>{STATUS_LABEL[user.status] ?? user.status}</Status>
               )}
+              <span className={user.isOwner ? "user-admin-editar vazio" : "user-admin-editar"} aria-hidden>{user.isOwner ? "" : "Editar"}</span>
             </button>
           ))
         )}
@@ -651,6 +667,8 @@ function EditUserDrawer({
 }) {
   const [grants, setGrants] = useState<AccessGrants>(user.grants);
   const [checklistKey, setChecklistKey] = useState(0);
+  const [fullName, setFullName] = useState(user.fullName);
+  const [accountType, setAccountType] = useState<AccountType>(user.accountType);
   const [companyName, setCompanyName] = useState(user.companyName ?? "");
   const [jobTitle, setJobTitle] = useState<JobTitle | "">(user.jobTitle ?? "");
   const [expiresAt, setExpiresAt] = useState(inputDate(user.accessExpiresAt));
@@ -663,6 +681,10 @@ function EditUserDrawer({
   // Ações destrutivas exigem digitar o e-mail: protege contra clique errado.
   const confirmed = confirm.trim().toLowerCase() === user.email.toLowerCase();
   const changed = !sameGrants(grants, user.grants);
+  const dadosMudaram = fullName.trim() !== user.fullName || accountType !== user.accountType
+    || (accountType === "administrativo" && jobTitle !== (user.jobTitle ?? ""))
+    || (accountType === "terceiro" && companyName.trim() !== (user.companyName ?? ""));
+  const dadosOk = fullName.trim().length >= 2 && (accountType !== "administrativo" || Boolean(jobTitle)) && (accountType !== "terceiro" || Boolean(companyName.trim()));
 
   async function send(body: Record<string, unknown>, message: string) {
     setBusy(true);
@@ -708,17 +730,57 @@ function EditUserDrawer({
         </header>
 
         <div className="user-admin-fields">
-          {user.accountType === "terceiro" && (
-            <div className="field-wide access-step">
-              <span className="access-step-title">Dados do terceiro</span>
-              {user.expired && (
-                <p className="user-admin-error">O acesso expirou em {brDate(user.accessExpiresAt!)}. Defina uma nova data ou remova o prazo para liberar de novo.</p>
+          <div className="field-wide access-step user-admin-dados">
+            <span className="access-step-title">Dados do usuário</span>
+            <div className="access-third-party">
+              <label>
+                <span>Nome *</span>
+                <input value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={120} />
+              </label>
+              <label>
+                <span>Vínculo *</span>
+                <select value={accountType} onChange={(e) => setAccountType(e.target.value as AccountType)}>
+                  <option value="colaborador">Colaborador (ficha do RH)</option>
+                  <option value="administrativo">Administrativo</option>
+                  <option value="terceiro">Terceiro</option>
+                </select>
+              </label>
+              {accountType === "administrativo" && (
+                <label>
+                  <span>Cargo *</span>
+                  <select value={jobTitle} onChange={(e) => setJobTitle(e.target.value as JobTitle | "")}>
+                    <option value="">Escolha o cargo</option>
+                    {(Object.entries(JOB_TITLES) as [JobTitle, string][]).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                  {jobTitle === "diretor" && <small>Entra na aba Diretoria e aparece como responsável na Portaria.</small>}
+                </label>
               )}
-              <div className="access-third-party">
+              {accountType === "terceiro" && (
                 <label>
                   <span>Empresa prestadora *</span>
                   <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
                 </label>
+              )}
+            </div>
+            <div className="user-admin-actions">
+              <Button
+                variant="secondary"
+                disabled={busy || !dadosMudaram || !dadosOk}
+                onClick={() => send({ fullName: fullName.trim(), accountType, jobTitle: jobTitle || undefined, companyName: companyName.trim() || undefined }, `Dados de ${fullName.trim()} atualizados.`)}
+              >
+                Salvar dados
+              </Button>
+            </div>
+          </div>
+          {user.accountType === "terceiro" && accountType === "terceiro" && (
+            <div className="field-wide access-step">
+              <span className="access-step-title">Validade do acesso</span>
+              {user.expired && (
+                <p className="user-admin-error">O acesso expirou em {brDate(user.accessExpiresAt!)}. Defina uma nova data ou remova o prazo para liberar de novo.</p>
+              )}
+              <div className="access-third-party">
                 <label>
                   <span>Acesso válido até</span>
                   <input type="date" value={expiresAt} min={todayInput()} onChange={(e) => setExpiresAt(e.target.value)} />
@@ -728,35 +790,10 @@ function EditUserDrawer({
               <div className="user-admin-actions">
                 <Button
                   variant="secondary"
-                  disabled={busy || !companyName.trim() || (companyName.trim() === (user.companyName ?? "") && expiresAt === inputDate(user.accessExpiresAt))}
-                  onClick={() => send({ companyName: companyName.trim(), accessExpiresAt: expiresAt || null }, `Dados de ${user.fullName} atualizados.`)}
+                  disabled={busy || expiresAt === inputDate(user.accessExpiresAt)}
+                  onClick={() => send({ accessExpiresAt: expiresAt || null }, `Validade de ${user.fullName} atualizada.`)}
                 >
-                  Salvar dados do terceiro
-                </Button>
-              </div>
-            </div>
-          )}
-          {user.accountType === "administrativo" && (
-            <div className="field-wide access-step">
-              <span className="access-step-title">Dados do administrativo</span>
-              <div className="access-third-party">
-                <label>
-                  <span>Cargo *</span>
-                  <select value={jobTitle} onChange={(e) => setJobTitle(e.target.value as JobTitle | "")}>
-                    <option value="">Escolha o cargo</option>
-                    {(Object.entries(JOB_TITLES) as [JobTitle, string][]).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <div className="user-admin-actions">
-                <Button
-                  variant="secondary"
-                  disabled={busy || !jobTitle || jobTitle === user.jobTitle}
-                  onClick={() => send({ jobTitle }, `Cargo de ${user.fullName} atualizado.`)}
-                >
-                  Salvar cargo
+                  Salvar validade
                 </Button>
               </div>
             </div>
