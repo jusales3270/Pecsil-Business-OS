@@ -1,11 +1,28 @@
 # Implantação das correções de segurança
 
 Estado em **04/11/2026**: pacote preparado e verificado localmente; **não implantado em produção**.
-O token salvo para a API HTTPS do Coolify respondeu 401 na verificação da sessão. Isso não prova
-revogação: token incorreto e ausente geram a mesma resposta. O histórico em [INFRA.md](INFRA.md)
-registra também a perda do acesso SSH por senha e a necessidade de recuperar o console. Não usar
-HTTP na porta 8001 para contornar esse bloqueio. Recuperar acesso autorizado por HTTPS e console
-independente antes de executar este procedimento. Nenhuma regra de firewall foi aplicada por aqui.
+O shell/root do host foi confirmado manualmente em 04/11 pelo terminal do servidor no Coolify
+(`systemd`, virtualização `none`, inventário Docker). Isso não confirma recuperação independente:
+o console físico ou outro canal de recuperação ainda precisa ser testado. O token salvo para a API
+HTTPS do Coolify respondeu 401 na verificação anterior; isso não prova revogação, pois token
+incorreto e ausente geram a mesma resposta. O histórico em [INFRA.md](INFRA.md) registra a perda
+do acesso SSH por senha. Não usar HTTP na porta 8001 para contornar o bloqueio da API. Nenhuma
+regra de firewall foi aplicada por aqui.
+
+A tentativa manual de backup de 04/11 às 12:12 UTC gerou o banco criptografado (57.513.601 bytes)
+e arquivos criptografados (1.377 objetos, cinco buckets, 61.648.330 bytes), mas terminou com
+`fetch failed`. O diagnóstico apontou `ENOTFOUND` no domínio configurado em `VIGIA_URL`, enquanto
+o domínio de controle resolveu normalmente; uma consulta DNS pública também retornou NXDOMAIN.
+Essas contagens **não comprovam um backup concluído**: o serviço só confirma depois do envio e
+do aviso ao vigia, e remove os temporários ao encerrar. O novo endereço sugerido respondeu por
+HTTPS com certificado válido e HTTP 401 sem chave, mas as consultas de existência de
+`vigia_alvos`, `vigia_sinal` e bucket privado `backups` retornaram falso. Confirmar o projeto de
+destino e suas configurações antes de substituir variáveis ou instalar a estrutura; tabelas de
+negócio existentes não comprovam que o projeto hospeda o backup criptografado.
+Depois do inventário, o operador escolheu adaptar o projeto existente `fongsabmkjnurojblhge`.
+O instalador compartilhado e a proteção contra políticas permissivas foram preparados e testados
+localmente; **a instalação na nuvem e o backup concluído ainda precisam ser verificados**.
+Ver a seção de reutilização em [BACKUP-EXTERNO.md](BACKUP-EXTERNO.md).
 
 As correções reduzem os riscos identificados. Não constituem garantia de ausência de outras
 vulnerabilidades nem evidência de que nunca houve acesso indevido.
@@ -30,8 +47,8 @@ vulnerabilidades nem evidência de que nunca houve acesso indevido.
 
 O novo [protect-public-ports.py](../infra/protect-public-ports.py) acrescenta regras na tabela
 `filter` de **IPv4 e IPv6**, em `INPUT` e `DOCKER-USER`. Bloqueia da interface escolhida as portas TCP
-**5432, 6543, 8000, 8001, 8443, 3000, 3100 e 3200**, preservando as fontes LAN/VPN explicitamente
-informadas. Na cadeia Docker compara a **porta original anterior ao DNAT**, de modo que
+**5432, 6543, 6001, 6002, 8000, 8001, 8080, 8443, 3000, 3100 e 3200**, preservando as fontes
+LAN/VPN explicitamente informadas. Na cadeia Docker compara a **porta original anterior ao DNAT**, de modo que
 `8001 → outra porta do contêiner` também seja protegido. HTTP 80/HTTPS 443 e os fluxos das bridges
 Docker não recebem bloqueios novos. A lista LAN usa `RETURN`: as regras existentes do host ainda
 se aplicam; o programa não abre permissões gerais.
@@ -56,6 +73,13 @@ foi desativado e recusa `--apply`.
   IPv6/Docker às cegas. Não há opção para ignorar essa cobertura.
 - Firewall do roteador/provedor continua necessário quando aplicável. Reduzir os encaminhamentos
   públicos ao que foi efetivamente autorizado; conferir IPv6, que pode chegar sem NAT.
+- Antes de fechar 8001, 6001 e 6002, verificar painel, atualizações em tempo real e uma nova sessão
+  do terminal do Coolify pelo domínio HTTPS em 443, preservando o console independente. O
+  inventário de 04/11 mostrou 6001/6002 no Coolify e 8080 no `coolify-proxy`, publicados em IPv4/IPv6;
+  isso não prova acesso pela internet. 6001 atende o Reverb e 6002 o terminal web. A porta 8080
+  do proxy pode servir a API/painel do Traefik: conferir a configuração real e manter
+  `api.insecure` desativado. Ver [firewall do Coolify](https://coolify.io/docs/core/infrastructure/servers/firewall)
+  e [painel do Traefik](https://coolify.io/docs/core/networking/proxy/traefik/dashboard).
 
 ### Gerar e revisar o plano
 
@@ -97,7 +121,7 @@ externa do backend pode impedir recuperação e requer o console — por isso el
 
 Anotar o identificador de 12 caracteres exibido. Dentro dos 180 segundos:
 
-1. De **fora da LAN**, verificar IPv4 e, se houver rota/AAAA, IPv6 separadamente: as oito portas
+1. De **fora da LAN**, verificar IPv4 e, se houver rota/AAAA, IPv6 separadamente: as onze portas
    sensíveis não devem aceitar conexão; HTTPS 443 deve continuar atendendo com certificado válido.
    Conferir também 80 conforme o redirecionamento/desafio TLS da instalação. O script
    `HOST=dominio-da-plataforma npm run check:perimeter` confere todas as respostas DNS IPv4/IPv6.
@@ -112,7 +136,8 @@ Anotar o identificador de 12 caracteres exibido. Dentro dos 180 segundos:
    sem usar a variável para ignorar endereço inacessível desta estação.
 2. Abrir a plataforma e testar login, acesso ao banco, leitura de documento e uma operação
    reversível de teste. Conferir painel administrativo por HTTPS/VPN e uma **nova sessão** de
-   administração, preservando o console atual.
+   administração, preservando o console atual. Conferir também as atualizações em tempo real e
+   uma nova sessão do terminal do Coolify pelo domínio em 443, com as portas diretas bloqueadas.
 3. Pela LAN e de dentro dos contêineres, testar os caminhos usados pela aplicação, transmissor,
    conector e backup. Não imprimir tokens ou cabeçalhos de autorização nos resultados.
 4. Se qualquer teste falhar, executar o rollback pelo console ou deixar o timer agir. Não confirmar
@@ -159,7 +184,9 @@ real e testar nova sessão de dentro dela antes de confirmar. A família sem CID
 fica bloqueada para SSH na interface escolhida; isso é proposital e precisa constar da revisão.
 Não habilitar essa opção se o acesso depende de IP dinâmico sem VPN ou de console não testado.
 
-Fechar 8001 elimina o acesso direto público por HTTP. O domínio do Coolify servido em 443 precisa
+Fechar 8001 elimina o acesso direto público por HTTP; 6001/6002 deixam de receber acesso direto
+público aos serviços em tempo real/terminal, e 8080 ao serviço publicado pelo proxy. Os destinos
+internos das redes Docker continuam necessários. O domínio do Coolify servido em 443 precisa
 ser restringido à VPN/rede administrativa no proxy, conforme a política escolhida e depois de
 validar o acesso de recuperação; o filtro de portas não restringe um hostname HTTPS específico.
 Revisar chaves SSH, autenticação e quem mantém acesso administrativo após a recuperação.
@@ -274,7 +301,8 @@ Verificação local registrada nesta preparação:
 | Lint global | A rodada inicial encontrou 55 erros fora das alterações; não se declara aprovação global |
 | Leitura, extratos, portal e limites | Testes de arquivos normais, XML malformado, expansão, tempo, streaming e cancelamento passaram; incluídos na rodada completa |
 | Firewall | 11 cenários Python com executor falso e dois testes Node passaram; sem aplicar regras reais |
-| Auditor de perímetro | 13 cenários com DNS/TCP/TLS simulados: cobertura, falhas, prazos e declarações de família ausente; sem tráfego a produção |
+| Auditor de perímetro | 16 cenários com DNS/TCP/TLS simulados, incluindo exposição isolada de 6001/6002/8080 em ambas as famílias; sem tráfego a produção |
+| Backup no projeto compartilhado | 13 testes locais com RLS real: políticas antigas permissivas, conta dedicada, preservação da aplicação, conflitos e reversão; registros fictícios revertidos, sem chamadas externas |
 | Transmissor | 15/15 testes passaram na imagem Linux Node 22 |
 | Conector | 9/9 testes passaram |
 | Auditoria de dependências | App: 16 moderados em ferramentas de desenvolvimento; transmissor: sete moderados e cinco baixos indiretos; conector: zero; nenhum crítico/alto nos três |

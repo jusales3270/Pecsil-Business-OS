@@ -18,7 +18,7 @@ import sys
 import time
 import uuid
 
-PORTS = (5432, 6543, 8000, 8001, 8443, 3000, 3100, 3200)
+PORTS = (5432, 6543, 6001, 6002, 8000, 8001, 8080, 8443, 3000, 3100, 3200)
 STATE_DIR = Path("/var/lib/pecsil-firewall")
 UNIT = "pecsil-public-ports.service"
 UNIT_PATH = Path("/etc/systemd/system") / UNIT

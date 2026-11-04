@@ -4,6 +4,7 @@ import { EventEmitter } from "node:events";
 import { registerHooks } from "node:module";
 
 const scenario = process.env.PERIMETER_TEST_CASE;
+const exposedPort = scenario === "exposed" ? 8001 : Number(scenario?.match(/^exposed-(6001|6002|8080)$/)?.[1]);
 const sockets = [];
 globalThis.__perimeterTestIsIP = isIP;
 globalThis.__perimeterTestSocket = (options, callback) => {
@@ -18,7 +19,7 @@ globalThis.__perimeterTestSocket = (options, callback) => {
       if (scenario === "tls-stall") return; // Nenhum evento: só o prazo absoluto termina a checagem.
       if (scenario === "tls-close") socket.emit("close"); else callback();
     } else if (scenario === "local-error") socket.emit("error", { code: "ENETUNREACH" });
-    else if (options.port === 443 || scenario === "exposed" && options.port === 8001) socket.emit("connect");
+    else if (options.port === 443 || options.port === exposedPort) socket.emit("connect");
     else if (scenario === "filtered") socket.emit("timeout");
     else socket.emit("error", { code: "ECONNREFUSED" });
   });

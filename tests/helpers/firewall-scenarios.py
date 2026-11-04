@@ -22,7 +22,22 @@ class FirewallSafety(unittest.TestCase):
             self.assertEqual(guard.main(["--interface", "ens18", "--allow-cidr", "192.168.0.0/24"]), 0)
         commands = [command for command, _ in guard.operations(CFG, ID)]
         self.assertEqual({c[0] for c in commands}, {"iptables", "ip6tables"})
-        self.assertTrue(any("--ctorigdstport" in c and "8001" in c for c in commands))
+        expected_ports = {5432, 6543, 6001, 6002, 8000, 8001, 8080, 8443, 3000, 3100, 3200}
+        for binary, network in (("iptables", "192.168.0.0/24"), ("ip6tables", "fd12:3456:789a::/64")):
+            rules = [c for c in commands if c[0] == binary]
+            input_drops = [c for c in rules if "--dports" in c]
+            self.assertEqual(len(input_drops), 1)
+            self.assertEqual(set(map(int, input_drops[0][input_drops[0].index("--dports") + 1].split(","))), expected_ports)
+            docker_drops = [c for c in rules if "--ctorigdstport" in c]
+            self.assertEqual({int(c[c.index("--ctorigdstport") + 1]) for c in docker_drops}, expected_ports)
+            self.assertEqual(len(docker_drops), len(expected_ports))
+            for c in docker_drops:
+                self.assertEqual(c[c.index("--ctdir") + 1], "ORIGINAL")
+            # A mesma exceção LAN/VPN antecede todo bloqueio, nas duas cadeias.
+            for chain in ("PBOI_" + ID, "PBOD_" + ID):
+                scoped = [c for c in rules if c[1:3] == ["-A", chain]]
+                self.assertEqual(scoped[0], [binary, "-A", chain, "-s", network, "-j", "RETURN"])
+                self.assertTrue(all(c[-1] == "DROP" for c in scoped[1:]))
         self.assertTrue(any(c[1:3] == ["-I", "INPUT"] for c in commands))
         self.assertTrue(any(c[1:3] == ["-I", "DOCKER-USER"] for c in commands))
         for c in commands:

@@ -29,8 +29,11 @@ if (!Number.isFinite(TIMEOUT) || TIMEOUT < 1 || TIMEOUT > 60000) {
 const MUST_BE_CLOSED = [
   [5432, "PostgreSQL", "acesso direto ao banco amplia a superfície de ataque"],
   [6543, "Pooler (Supavisor)", "mesmo alcance do PostgreSQL"],
+  [6001, "Coolify Reverb", "atualizações devem passar pelo domínio HTTPS do painel"],
+  [6002, "Coolify Terminal", "terminal deve passar pelo domínio HTTPS do painel"],
   [8000, "Kong HTTP", "API em texto claro; deve entrar só via Caddy"],
   [8001, "Console administrativo", "painel administrativo não deve estar público"],
+  [8080, "Proxy administrativo", "API/painel do proxy não deve ter acesso direto pela internet"],
   [8443, "Kong TLS interno", "deve entrar só via Caddy"],
   [3000, "Studio", "console com poder de service_role"],
   [3100, "Transmissor fiscal", "serviço interno; deve entrar só pela aplicação"],

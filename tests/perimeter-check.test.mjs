@@ -13,13 +13,21 @@ function checar(caso, ambiente = {}) {
   return { ...result, sockets: trace ? JSON.parse(trace) : [], output: result.stdout.replace(/\x1b\[[0-9;]*m/g, "") };
 }
 
-test("perímetro: audita todos os destinos e oito portas em IPv4/IPv6, com identidade TLS", () => {
+test("perímetro: audita todos os destinos e onze portas sensíveis em IPv4/IPv6, com identidade TLS", () => {
   const r = checar("dual"); assert.equal(r.status, 0, r.stderr);
   for (const ip of ["198.51.100.1", "2001:db8::1"]) {
-    assert.deepEqual(r.sockets.filter((s) => s.address === ip && !s.tls).map((s) => s.port).sort((a, b) => a - b), [443, 3000, 3100, 3200, 5432, 6543, 8000, 8001, 8443]);
+    assert.deepEqual(r.sockets.filter((s) => s.address === ip && !s.tls).map((s) => s.port).sort((a, b) => a - b), [443, 3000, 3100, 3200, 5432, 6001, 6002, 6543, 8000, 8001, 8080, 8443]);
     assert.equal(r.sockets.find((s) => s.address === ip && s.tls)?.servername, "perimeter.example.test");
   }
 });
+for (const port of [6001, 6002, 8080]) {
+  test(`perímetro: exposição isolada da porta ${port} falha em IPv4 e IPv6`, () => {
+    const r = checar(`exposed-${port}`);
+    assert.equal(r.status, 1, r.stderr + r.output);
+    assert.equal([...r.output.matchAll(new RegExp(`^  ✗ ${port}\\s+.*ACESSÍVEL$`, "gm"))].length, 2);
+    assert.doesNotMatch(r.output, /Destinos informados testados sem acesso TCP sensível/);
+  });
+}
 for (const caso of ["v4-only", "v6-only"]) {
   test(`perímetro: ${caso} sem prova da família ausente retorna cobertura incompleta`, () => {
     const r = checar(caso); assert.equal(r.status, 2); assert.match(r.output, /Cobertura incompleta/);

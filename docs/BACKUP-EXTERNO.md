@@ -40,6 +40,50 @@ abre um incidente ("o backup diário não chegou") e manda o alerta como em qual
 
 ## Instalação
 
+### Reutilizar um projeto que já contém uma aplicação
+
+Em 04/11/2026 o operador escolheu `fongsabmkjnurojblhge` para receber os backups, preservando
+as sete tabelas existentes. A instalação compartilhada é aditiva: não restaurar um dump por cima
+da aplicação nem executar os arquivos de instalação separadamente sem verificar conflitos.
+
+Gerar um arquivo único, sem credenciais, na estação de revisão:
+
+```bash
+python3 scripts/ti-backup-instalar-compartilhado.py \
+  --project-url https://fongsabmkjnurojblhge.supabase.co \
+  --output /tmp/pecsil-backup-compartilhado.sql
+```
+
+O gerador não acessa bancos nem rede. O arquivo reúne `001`, `002`, `003` e
+`004_backup_isolamento.sql` numa transação. Conferir o projeto no painel e executar o conteúdo
+inteiro no SQL Editor como `postgres`. O preflight exige as sete tabelas inventariadas e recusa
+qualquer estrutura `vigia_`, bucket `backups`, política ou agendamento Vigia existente; isso
+também impede repetir silenciosamente uma instalação já concluída. Compara definições,
+permissões, funções e buckets anteriores antes de confirmar. Erros revertem a transação.
+
+O passo `004` acrescenta quatro políticas restritivas somente ao bucket `backups` para
+`anon`/`authenticated`: outras políticas permissivas da aplicação não podem autorizar leitura,
+alteração ou exclusão dos backups, nem envio por outro usuário. As permissões dos demais buckets
+continuam como estavam. A conta dedicada insere arquivos novos sem `upsert` ou `RETURNING`.
+Papéis administrativos com `BYPASSRLS`, incluindo `service_role`, continuam administrativos:
+revisar funções privilegiadas existentes e impedir que uma chave administrativa **desse destino**
+fique acessível ao servidor da fábrica, inclusive nas configurações de outros aplicativos.
+Caso contrário, não se pode afirmar que um invasor da fábrica não conseguiria apagar as cópias.
+
+Quatro resultados verdadeiros ao final confirmam apenas a estrutura. Depois configurar a conta
+dedicada, `backup_user_id`, tokens e Vault conforme os passos abaixo; atualizar o conjunto de
+variáveis do destino no Coolify e recriar somente o serviço de backup. Preservar as variáveis
+`BACKUP_PG_URL_*` e `BACKUP_ARQUIVOS_*`, que apontam para a origem, e a chave pública de
+criptografia existente. Não enviar credenciais no chat nem colocá-las no SQL de instalação.
+Só considerar recuperado após envio completo e restauração isolada, com a chave privada do dono.
+
+A tentativa de 04/11 mediu cerca de **119 MB criptografados por execução**, antes de falhar na
+conexão ao destino anterior. Conferir a cota disponível e dimensionar a retenção antes de ativar
+a rotina diária: oito cópias desse tamanho já ocupam cerca de 953 MB, além das cópias semanais e
+do uso anterior do projeto. Não presumir que a estimativa gratuita de outubro ainda se aplica.
+
+### Configuração do destino
+
 **Na nuvem** (projeto do vigia):
 
 1. Rodar `infra/vigia/002_backup.sql` no SQL Editor, depois do `001_vigia.sql`.
