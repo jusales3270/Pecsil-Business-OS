@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { acharPessoa, doVisual, nomeDoArquivo, textoParaConferir, validarDocumento } from "../lib/sara/documentos/documento.ts";
+import { acharPessoa, nomeDoArquivo, textoParaConferir, validarDocumento } from "../lib/sara/documentos/documento.ts";
 import { gerarPdf, limpar } from "../lib/sara/documentos/pdf.ts";
 import { conferirNumeros } from "../lib/sara/central/verificador.ts";
 

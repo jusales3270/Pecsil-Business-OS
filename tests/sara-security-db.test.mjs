@@ -28,10 +28,15 @@ test("SARA/WhatsApp security: server ledger ACL, attribution, object paths, tena
     await denied("select public.sara_registrar_servidor($1,$2,$3,'financeiro','p','r','{}','test',1,1)",[a,pa,ids.conversa],"42501");
     await denied("select public.sara_registrar_servidor($1,$2,null,'warroom','p','r','{}','test',2147483647,1)",[a,pa],"22023");
     await q("insert into public.whatsapp_canais(id,organization_id,instancia,nome) values($1,$3,$5,'Canal A'),($2,$4,$6,'Canal B')",[ca,cb,a,b,`pecsil-${ca}`,`pecsil-${cb}`]);
-    const contato = "insert into public.whatsapp_contatos(organization_id,canal_id,lista,numero,profile_id,sara_modulo) values($1,$2,'interna','5511999999999',$3,'warroom')";
+    const contato = "insert into public.whatsapp_contatos(organization_id,canal_id,lista,numero,profile_id,sara_modulo) values($1,$2,'interna','5511999999999',$3,'warroom') returning id";
     await denied(contato,[a,ca,pb],"23514");
     await denied(contato,[a,cb,pa],"23514");
-    await q(contato,[a,ca,pa]);
+    const contatoLocal=(await q(contato,[a,ca,pa])).rows[0].id;
+    const contatoEstrangeiro=(await q(contato,[b,cb,pb])).rows[0].id;
+    await denied("insert into public.sara_vigia_transmissao(organization_id,contato_id) values($1,$2)",[a,contatoEstrangeiro],"23514");
+    await q("insert into public.sara_vigia_transmissao(organization_id,contato_id) values($1,$2)",[a,contatoLocal]);
+    await denied("update public.sara_vigia_transmissao set organization_id=$1 where contato_id=$2",[b,contatoLocal],"23514");
+    await denied("update public.whatsapp_contatos set organization_id=$1,canal_id=$2,profile_id=$3,numero='5511888888888' where id=$4",[b,cb,pb,contatoLocal],"23503");
     await denied("insert into public.whatsapp_mensagens(organization_id,canal_id,direcao,tipo,situacao) values($1,$2,'entrada','texto','recebida')",[a,cb],"23514");
     await denied("insert into public.whatsapp_agendados(organization_id,canal_id,para_nome,quando,texto) values($1,$2,'Security',now(),'hello')",[a,cb],"23514");
     await q("insert into public.sara_documentos(id,organization_id,numero,tipo,titulo,criado_por) values($1,$3,'DOC-2026-9001','relatorio','Owned', $4),($2,$3,'DOC-2026-9002','relatorio','Other', $4)",[doc,other,a,pa]);

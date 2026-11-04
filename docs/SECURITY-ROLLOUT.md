@@ -170,6 +170,12 @@ Não executar migrações antigas novamente nem usar `db reset` na produção. C
 real de migrações já implantadas e aplicar somente as novas deste pacote, em ordem, com canal
 administrativo seguro e transação/backup próprios do procedimento do banco.
 
+A base integrada é o `main` em `dc0bb92`. Ela inclui as migrações
+`202611030001_rh_beneficio_adesao.sql`, `202611030002_sara_vigia_config.sql` e
+`202611030003_qualidade_ocorrido_e_descarte.sql`. Se alguma ainda estiver pendente no ambiente,
+aplicá-la na ordem normal antes das duas abaixo, sem repetir as já registradas. A proteção de
+transmissão da SARA depende da tabela criada pela `202611030002`.
+
 Aplicar somente as migrações ainda ausentes do histórico, nesta ordem:
 
 1. [20261103174707_sara_security.sql](../supabase/migrations/20261103174707_sara_security.sql)
@@ -259,11 +265,14 @@ Verificação local registrada nesta preparação:
 | Verificação | Resultado e limite |
 |---|---|
 | Build de produção | Next.js 16.4.4 passou |
-| Contratos de módulos e pacote Supabase | 13 módulos e 176 migrações válidos |
-| Rodada principal de testes | 865 passaram de 868; três falhas reproduzidas no checkout base `bcf66de` |
-| Causa das três falhas anteriores | Duas asserções de fonte antiga em `fiscal-emitidas-envio`; um teste espera `dist/server/index.js`, ausente no app Next |
-| Lint global | 55 erros em arquivos inalterados; não está totalmente verde |
-| Leitura, extratos, portal e limites | 66 testes pertinentes passaram; TypeScript e lint dos respectivos arquivos passaram |
+| Contratos de módulos e pacote Supabase | 13 módulos e 181 migrações válidos |
+| Rodada completa após integrar `dc0bb92` | 931 passaram de 932, sem testes ignorados; uma falha legada |
+| Falha legada | `rendered-html` espera `dist/server/index.js`, ausente no app Next; reproduzida antes das correções. As duas falhas fiscais da rodada inicial foram corrigidas pelo upstream integrado |
+| Banco descartável | 181 migrações aplicadas do zero; 17 testes de RH/financeiro/documentos e um teste composto de SARA/WhatsApp passaram, incluídos na rodada completa |
+| Análise SQL | Nenhum alerta nas 14 funções alteradas; a análise global aponta cinco referências a tabelas temporárias em funções inalteradas, além de avisos antigos |
+| Lint dos arquivos alterados | 54 arquivos, sem erros ou avisos |
+| Lint global | A rodada inicial encontrou 55 erros fora das alterações; não se declara aprovação global |
+| Leitura, extratos, portal e limites | Testes de arquivos normais, XML malformado, expansão, tempo, streaming e cancelamento passaram; incluídos na rodada completa |
 | Firewall | 11 cenários Python com executor falso e dois testes Node passaram; sem aplicar regras reais |
 | Auditor de perímetro | 13 cenários com DNS/TCP/TLS simulados: cobertura, falhas, prazos e declarações de família ausente; sem tráfego a produção |
 | Transmissor | 15/15 testes passaram na imagem Linux Node 22 |

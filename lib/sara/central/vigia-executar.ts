@@ -60,16 +60,18 @@ async function transmitir(admin: SupabaseClient, a: { org: string; rodada: strin
   const { data: lista } = await admin.from("sara_vigia_transmissao").select("contato_id").eq("organization_id", a.org);
   const ids = ((lista ?? []) as { contato_id: string }[]).map((x) => x.contato_id);
   if (!ids.length) return 0;
-  const { data: achados } = await admin.from("sara_achados").select("area, titulo, por_que, impacto, sinais").eq("rodada_id", a.rodada)
+  const { data: achados } = await admin.from("sara_achados").select("area, titulo, por_que, impacto, sinais").eq("organization_id", a.org).eq("rodada_id", a.rodada)
     .not("situacao", "in", "(resolvido,nao_e_problema,silenciado)");
   const novos = (achados ?? []) as { area: string; titulo: string; por_que: string | null; impacto: string | null; sinais: string[] }[];
   if (!novos.length) return 0;
-  const { data: contatos } = await admin.from("whatsapp_contatos").select("id, canal_id, nome, profile_id, profiles:profiles!whatsapp_contatos_profile_id_fkey!inner(full_name, status), whatsapp_canais!inner(ativo, conexao)")
-    .in("id", ids).eq("lista", "interna").eq("ativo", true).eq("profiles.status", "active").eq("whatsapp_canais.ativo", true).eq("whatsapp_canais.conexao", "whatsapp_web");
+  const { data: contatos } = await admin.from("whatsapp_contatos").select("id, canal_id, nome, profile_id, profiles:profiles!whatsapp_contatos_profile_id_fkey!inner(full_name, status, organization_id, access_expires_at), whatsapp_canais!inner(organization_id, ativo, conexao)")
+    .eq("organization_id", a.org).in("id", ids).eq("lista", "interna").eq("ativo", true).eq("profiles.status", "active")
+    .eq("profiles.organization_id", a.org).or(`access_expires_at.is.null,access_expires_at.gt.${new Date().toISOString()}`, { referencedTable: "profiles" })
+    .eq("whatsapp_canais.organization_id", a.org).eq("whatsapp_canais.ativo", true).eq("whatsapp_canais.conexao", "whatsapp_web");
   const base = (process.env.PLATAFORMA_URL?.trim() || "https://home.pecsil.com.br").replace(/\/+$/, "");
   let n = 0;
   for (const c of (contatos ?? []) as unknown as { id: string; canal_id: string; nome: string | null; profile_id: string; profiles: { full_name: string | null } }[]) {
-    if (!a.sessoes.has(c.profile_id)) { const s = await sessaoComo(admin, c.profile_id); a.sessoes.set(c.profile_id, "erro" in s ? null : s); }
+    if (!a.sessoes.has(c.profile_id)) { const s = await sessaoComo(admin, c.profile_id, a.org); a.sessoes.set(c.profile_id, "erro" in s ? null : s); }
     const s = a.sessoes.get(c.profile_id);
     if (!s) continue;
     const dela = new Set((await sinaisDa(s.sb, c.profile_id, a.hoje)).map((x) => x.tipo));
@@ -87,12 +89,6 @@ export async function rodarVigia(admin: SupabaseClient, o: OpcoesVigia = {}): Pr
   const agora = o.agora ?? new Date();
   const disparo = o.disparo ?? "agenda";
   const rel: RelatorioVigia = { sinais: 0, novos: 0, enviados: 0, resolvidos: 0, cobrados: 0, descartados: [] };
-  // Dias e hora vêm da tela (Fundação › WhatsApp › Vigia); sem configuração, vale o padrão de VIGIA.
-  const config = await lerConfigVigia(admin);
-  const janela = janelaDoBomDia(agora, janelaDaVigia(config));
-  if (disparo === "agenda" && !janela) return rel;
-  const hoje = janela?.dia ?? agoraSP(agora).dia;
-
   // A visão da empresa: quem pediu (War Room) ou o proprietário ativo.
   const empresaDaVisao = o.visao ? (await identidadeSara(o.visao.sb)).organizacao : null;
   // Scheduled tasks currently support one organization; refuse an ambiguous multi-company run.
@@ -100,6 +96,11 @@ export async function rodarVigia(admin: SupabaseClient, o: OpcoesVigia = {}): Pr
   const empresas = [...new Set((donos ?? []).map((d) => d.organization_id))];
   const dono = empresaDaVisao ? donos?.find((d) => d.organization_id === empresaDaVisao) : empresas.length === 1 ? donos?.[0] : null;
   if (!dono) return { ...rel, erro: "Sem proprietário ativo para a visão da empresa." };
+  // Read this company's schedule only after its authenticated/scheduled context is known.
+  const config = await lerConfigVigia(admin, dono.organization_id);
+  const janela = janelaDoBomDia(agora, janelaDaVigia(config));
+  if (disparo === "agenda" && !janela) return rel;
+  const hoje = janela?.dia ?? agoraSP(agora).dia;
   const { data: rodada, error: eR } = await admin.from("sara_vigia_rodadas").insert({ organization_id: dono.organization_id, dia: hoje, disparo }).select("id").single();
   if (eR) return eR.code === "23505" ? { ...rel, jaRodou: true } : { ...rel, erro: eR.message };
   rel.rodada = rodada.id;

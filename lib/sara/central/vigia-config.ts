@@ -43,8 +43,10 @@ export function validarConfig(e: unknown): ConfigVigia | { erro: string } {
   return { dias, hora: x.hora, whatsapp: x.whatsapp === true };
 }
 
-export async function lerConfigVigia(sb: SupabaseClient): Promise<ConfigVigia> {
-  const { data, error } = await sb.from("sara_vigia_config").select("dias, hora, whatsapp").limit(1).maybeSingle<ConfigVigia>();
+export async function lerConfigVigia(sb: SupabaseClient, organizacao?: string): Promise<ConfigVigia> {
+  const { data: org, error: eOrg } = organizacao ? { data: organizacao, error: null } : await sb.rpc("current_organization_id");
+  if (eOrg || !org) return PADRAO_VIGIA;
+  const { data, error } = await sb.from("sara_vigia_config").select("dias, hora, whatsapp").eq("organization_id", org).limit(1).maybeSingle<ConfigVigia>();
   if (error || !data) return PADRAO_VIGIA;
   return { dias: (data.dias ?? []).map(Number), hora: data.hora, whatsapp: Boolean(data.whatsapp) };
 }

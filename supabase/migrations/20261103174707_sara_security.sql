@@ -158,3 +158,28 @@ revoke all on function public.whatsapp_relacao_tenant_guard() from public,anon,a
 create trigger whatsapp_mensagens_tenant_guard before insert or update on public.whatsapp_mensagens for each row execute function public.whatsapp_relacao_tenant_guard();
 create trigger whatsapp_enquetes_tenant_guard before insert or update on public.whatsapp_enquetes for each row execute function public.whatsapp_relacao_tenant_guard();
 create trigger whatsapp_agendados_tenant_guard before insert or update on public.whatsapp_agendados for each row execute function public.whatsapp_relacao_tenant_guard();
+
+-- Upstream configurable Vigia: a broadcast membership must share the contact's company.
+-- Remove malformed configuration links; conversation/audit history is left intact.
+delete from public.sara_vigia_transmissao t where not exists (
+  select 1 from public.whatsapp_contatos c
+  join public.whatsapp_canais k on k.id=c.canal_id and k.organization_id=c.organization_id
+  join public.profiles p on p.id=c.profile_id and p.organization_id=c.organization_id
+  where c.id=t.contato_id and c.organization_id=t.organization_id and c.lista='interna'
+);
+create unique index whatsapp_contatos_id_org on public.whatsapp_contatos(id,organization_id);
+alter table public.sara_vigia_transmissao add constraint sara_vigia_transmissao_contato_empresa
+  foreign key (contato_id,organization_id) references public.whatsapp_contatos(id,organization_id) on delete cascade;
+create function public.sara_vigia_transmissao_tenant_guard() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if not exists (
+    select 1 from public.whatsapp_contatos c
+    join public.whatsapp_canais k on k.id=c.canal_id and k.organization_id=c.organization_id
+    join public.profiles p on p.id=c.profile_id and p.organization_id=c.organization_id
+    where c.id=new.contato_id and c.organization_id=new.organization_id and c.lista='interna'
+  ) then raise exception 'A transmissão aceita apenas contatos internos da mesma empresa.' using errcode='23514'; end if;
+  return new;
+end $$;
+revoke all on function public.sara_vigia_transmissao_tenant_guard() from public,anon,authenticated;
+create trigger sara_vigia_transmissao_tenant_guard before insert or update on public.sara_vigia_transmissao
+  for each row execute function public.sara_vigia_transmissao_tenant_guard();
