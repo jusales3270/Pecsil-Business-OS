@@ -13,6 +13,18 @@ incorreto e ausente geram a mesma resposta. O histórico em [INFRA.md](INFRA.md)
 do acesso SSH por senha. Não usar HTTP na porta 8001 para contornar o bloqueio da API. Nenhuma
 regra de firewall foi aplicada por aqui.
 
+O inventário enviado pelo operador nesta retomada mostrou **histórico de migrações ausente**
+(`supabase_migrations.schema_migrations` não existe), `public.sara_vigia_transmissao` presente e
+`public.sara_audio_uso` ausente. A entrada física é `eno1`, com endereço `192.168.0.89/24` e
+gateway `192.168.0.254`; Tailscale está ativo. A tabela de rotas enviada não tem rota IPv6
+pública, o que não dispensa conferir publicações Docker e o perímetro. Não preencher um histórico
+fictício das 179 migrações anteriores para executar estas duas correções.
+
+Na estação de trabalho, a conexão administrativa HTTPS do Supabase recusou o certificado
+autossinado antes de enviar credenciais. A impressão SHA256 do certificado deve ser conferida
+pelo console do host antes de confiar nessa conexão. A alternativa é executar o instalador
+localmente pelo `psql` do contêiner, sem transmitir a chave administrativa pela rede.
+
 <details>
 <summary>Registro da tentativa de backup externo, interrompida pelo operador</summary>
 
@@ -219,20 +231,62 @@ Revisar chaves SSH, autenticação e quem mantém acesso administrativo após a 
 
 ## 3. Aplicar banco, depois aplicações e testes
 
-Não executar migrações antigas novamente nem usar `db reset` na produção. Capturar a lista
-real de migrações já implantadas e aplicar somente as novas deste pacote, em ordem, com canal
-administrativo seguro, transação e interrupção no primeiro erro.
+Não executar migrações antigas novamente, `db reset` ou `db push` na produção sem histórico
+reconciliado. A instalação atual não registra versões no esquema da CLI; o procedimento histórico
+aplicava SQL manualmente. Usar o instalador específico abaixo: ele verifica as dependências reais,
+aplica somente as duas correções em uma transação e registra somente os seus próprios recibos.
 
 A base integrada é o `main` em `559cf2b`. Ela inclui as migrações
 `202611030001_rh_beneficio_adesao.sql`, `202611030002_sara_vigia_config.sql` e
-`202611030003_qualidade_ocorrido_e_descarte.sql`. Se alguma ainda estiver pendente no ambiente,
-aplicá-la na ordem normal antes das duas abaixo, sem repetir as já registradas. A proteção de
-transmissão da SARA depende da tabela criada pela `202611030002`.
+`202611030003_qualidade_ocorrido_e_descarte.sql`. A presença da tabela da transmissão SARA foi
+confirmada pelo operador, mas não comprova sozinha a instalação integral dessa base. O instalador
+exige as tabelas, colunas, tipos, funções, RLS e buckets necessários antes de alterar o banco;
+uma recusa deve ser investigada, sem repetir as 179 migrações ou contornar a verificação.
 
-Aplicar somente as migrações ainda ausentes do histórico, nesta ordem:
+As fontes revisadas, seladas por SHA256 no instalador, são aplicadas nesta ordem:
 
 1. [20261103174707_sara_security.sql](../supabase/migrations/20261103174707_sara_security.sql)
 2. [20261103174840_data_security_boundaries.sql](../supabase/migrations/20261103174840_data_security_boundaries.sql)
+
+O [gerador do instalador](../scripts/ti-security-instalar.py) funciona sem rede e produz um único
+bloco `DO`. Não usa tabelas temporárias nem altera o histórico da CLI. Cria recibos privados em
+`pecsil_ops.security_patches`, com versão, arquivo, SHA256, commit e data. Instalações parciais,
+objetos conflitantes ou recibos divergentes interrompem tudo. Uma repetição com os mesmos dois
+recibos confere as pós-condições e não reaplica o SQL. Os corpos das 14 funções alteradas são
+conferidos pelo SHA256 extraído das fontes revisadas. O esquema de recibos não concede acesso a
+`PUBLIC`, `anon`, `authenticated` nem `service_role`. Essas verificações não substituem a revisão
+das demais políticas e permissões existentes no banco de produção.
+
+No **terminal root do host**, usando um checkout autenticado desta revisão e com o deploy
+compatível pronto, gerar e aplicar:
+
+```bash
+(
+  set -euo pipefail
+  umask 077
+  sql_instalacao=$(mktemp /tmp/pecsil-security.XXXXXX)
+  trap 'rm -f "$sql_instalacao"' EXIT
+  python3 scripts/ti-security-instalar.py \
+    --source-commit "$(git rev-parse HEAD)" --output "$sql_instalacao"
+  docker exec -i -u postgres \
+    -e PGOPTIONS='-c statement_timeout=120000' supabase-db \
+    psql -X -w -U postgres -d postgres -v ON_ERROR_STOP=1 \
+    --single-transaction -f - < "$sql_instalacao"
+)
+```
+
+O repositório é privado: obter o checkout pelo acesso autenticado já autorizado. Não substituir
+por download público de `raw.githubusercontent.com`. Esse comando não serve no terminal `/app`
+nem no SQL Editor. Pelo SQL Editor, usar somente o conteúdo SQL gerado, com conexão administrativa
+verificada. Um aviso de instalação dentro de uma transação externa só vale após o commit.
+Depois, conferir em uma nova consulta administrativa que existem exatamente os dois recibos:
+
+```sql
+SELECT version, filename, sql_sha256, source_commit, applied_at
+FROM pecsil_ops.security_patches
+WHERE version IN ('20261103174707', '20261103174840')
+ORDER BY version;
+```
 
 As novas regras corrigem confidencialidade do RH/Storage, fluxos de aprovação, autorização da
 SARA e isolamento por empresa. Mudanças de autorização no banco podem fazer a versão antiga
@@ -329,6 +383,7 @@ Verificação local registrada nesta preparação:
 | Firewall | 11 cenários Python com executor falso e dois testes Node passaram; sem aplicar regras reais |
 | Auditor de perímetro | 16 cenários com DNS/TCP/TLS simulados, incluindo exposição isolada de 6001/6002/8080 em ambas as famílias; sem tráfego a produção |
 | Pré-checagem do host | Sintaxe Bash e recusa do ambiente Mac conferidas; SQL exato executado com sucesso no Postgres 17.6 descartável em transação somente leitura, sem mutações de produção |
+| Instalador manual sem histórico | 14 testes passaram, sem ignorados, no banco descartável: fontes seladas, dependências, falha intermediária com rollback, conflitos, preservação de dados, dois recibos, isolamento inclusive diante de grants padrão para service_role, repetição sem reaplicar e detecção de alteração em função/ACL |
 | Backup no projeto compartilhado | 13 testes locais com RLS real, repetidos com o artefato `DO` exato sem reescrever comandos: políticas antigas permissivas, conta dedicada, preservação da aplicação, conflitos e reversão; registros fictícios revertidos e cron sem commit, sem chamadas externas |
 | Transmissor | 15/15 testes passaram na imagem Linux Node 22 |
 | Conector | 9/9 testes passaram |
