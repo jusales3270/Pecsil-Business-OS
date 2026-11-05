@@ -7081,14 +7081,14 @@ button.holiday-row:hover {
 .fiscal-campos > label.fiscal-inteiro { grid-column: 1 / -1; }
 .fiscal-campos > label > span, .fiscal-cert-form label > span, .fiscal-cert-campo > span { display: block; margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
 .fiscal-campos > label > span small { font-weight: 400; color: var(--text-muted); }
-.fiscal-campos input, .fiscal-campos textarea, .fiscal-cert-form input:not([type="file"]) {
+.fiscal-campos input, .fiscal-campos textarea, .fiscal-cert-form input:not([type="file"]), :is(.vnd-regras-ligas, .vnd-regras-sobremetal) input:not([type="radio"]) {
   width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-sm);
 }
 .fiscal-campos select { width: 100%; font: inherit; font-size: var(--fs-sm); background-color: var(--bg-surface); }
 .fiscal-campos textarea { resize: vertical; line-height: 1.45; }
 .fiscal-campos input:disabled, .fiscal-campos select:disabled, .fiscal-campos textarea:disabled { background: var(--bg-subtle); color: var(--text-secondary); }
-.fiscal-campos input:focus, .fiscal-campos select:focus, .fiscal-campos textarea:focus, .fiscal-cert-form input:focus { outline: none; border-color: var(--accent-blue); box-shadow: var(--shadow-focus); }
+.fiscal-campos input:focus, .fiscal-campos select:focus, .fiscal-campos textarea:focus, .fiscal-cert-form input:focus, :is(.vnd-regras-ligas, .vnd-regras-sobremetal) input:focus { outline: none; border-color: var(--accent-blue); box-shadow: var(--shadow-focus); }
 .fiscal-cert { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); margin: 0; }
 .fiscal-cert > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--bg-subtle); min-width: 0; }
 .fiscal-cert dt { font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
@@ -8478,18 +8478,20 @@ a.doc-abrir { text-decoration: none; }
 .vnd-medicao-arquivo { font-weight: 600; overflow-wrap: anywhere; }
 .vnd-medicao-liga { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); margin-left: auto; }
 .vnd-medicao-liga > span { color: var(--text-secondary); }
-.vnd-pecas3d-resumo { grid-template-columns: minmax(140px, max-content) repeat(2, max-content) minmax(180px, 1fr) max-content; overflow-x: auto; }
-.vnd-pecas3d { grid-template-columns: max-content minmax(200px, 1fr) max-content repeat(3, max-content); overflow-x: auto; }
+.vnd-pecas3d-resumo { grid-template-columns: minmax(120px, max-content) repeat(2, max-content) minmax(160px, 1fr); overflow-x: auto; }
+.vnd-pecas3d { grid-template-columns: max-content minmax(160px, 1fr) minmax(130px, 170px) repeat(2, max-content); overflow-x: auto; }
+.vnd-pecas3d select { width: 100%; }
 .vnd-pecas3d-fora { color: var(--text-muted); }
 .vnd-pecas3d-img { display: block; padding: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface); cursor: zoom-in; line-height: 0; }
 .vnd-pecas3d-img:hover { border-color: var(--border-strong, var(--text-muted)); }
 .vnd-pecas3d-img img { width: 72px; height: 54px; object-fit: contain; }
-.vnd-usar-peso { display: inline-flex; align-items: center; gap: var(--sp-2); }
-.vnd-usar-peso select { max-width: 220px; }
+.vnd-usar-peso { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text-secondary); }
+.vnd-usar-peso select { max-width: 240px; min-width: 0; }
 .vnd-regras-titulo { margin: var(--sp-4) 0 var(--sp-2); font-size: var(--fs-md, 1rem); }
-.vnd-regras-ligas { grid-template-columns: minmax(180px, 1fr) max-content max-content max-content; }
-.vnd-regras-sobremetal { grid-template-columns: max-content minmax(160px, 1fr) repeat(2, max-content) max-content; }
-:is(.vnd-regras-ligas, .vnd-regras-sobremetal) input:not([type="radio"]) { width: 100%; min-width: 72px; }
+.vnd-regras-ligas { grid-template-columns: minmax(160px, 1fr) 120px max-content max-content; }
+.vnd-regras-sobremetal { grid-template-columns: minmax(110px, 1fr) minmax(120px, 1fr) 76px 76px max-content; }
+.vnd-regras-sobremetal select { width: 100%; }
+:is(.vnd-regras-ligas, .vnd-regras-sobremetal) input:not([type="radio"]) { width: 100%; min-width: 0; }
 .vnd-regras-acoes { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-4); }
 /* Fiscal › Máscaras de impostos: Código · CFOP · Descrição · ICMS · IPI · PIS/COFINS · Situação; e o IPI por NCM. */
 .msk-tabela { grid-template-columns: max-content max-content minmax(240px, 1fr) repeat(4, max-content); }

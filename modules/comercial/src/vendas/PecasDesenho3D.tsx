@@ -6,7 +6,7 @@ import { VisualizarArquivo } from "../../../../app/components/visualizar-arquivo
 import { api, dataHora } from "../../../fiscal/src/comum";
 import { lerNumeroBr } from "../../../../lib/numero-br";
 import {
-  ROTULO_TIPO, TIPOS_PECA, ehPeca, linhas, medidas, resumoPorTipo,
+  ROTULO_TIPO, TIPOS_PECA, classificar, ehPeca, linhas, medidas, resumoPorTipo,
   type CorpoMedido, type Liga, type RegraSobremetal, type TipoPeca,
 } from "../../../../lib/comercial/peso-3d";
 
@@ -101,6 +101,8 @@ function Medida({ quoteId, m, dados, pode, itens, onAjustar, onMedirDeNovo, onIm
   const [verFora, setVerFora] = useState(false);
   const ls = useMemo(() => linhas(m.corpos ?? [], m.ajustes ?? {}, dados.ligas, m.liga_id, dados.regras), [m, dados.ligas, dados.regras]);
   const resumo = useMemo(() => resumoPorTipo(ls), [ls]);
+  // Voltou ao tipo sugerido: o ajuste some (a linha deixa de dizer "escolhido no orçamento").
+  const sugestao = useMemo(() => classificar(m.corpos ?? []), [m.corpos]);
   const pecas = ls.filter((l) => ehPeca(l.tipo));
   const fora = ls.filter((l) => !ehPeca(l.tipo));
   const tem = (corpo: string) => m.imagens.includes(corpo);
@@ -134,7 +136,7 @@ function Medida({ quoteId, m, dados, pode, itens, onAjustar, onMedirDeNovo, onIm
         <>
           {resumo.length > 0 ? (
             <div className="vnd-tabela vnd-pecas3d-resumo" role="table" aria-label="Peso por peça">
-              <div className="cabeca" role="row"><span>Peça</span><span className="r">Acabado</span><span className="r">Bruto</span><span>Sobremetal</span><span /></div>
+              <div className="cabeca" role="row"><span>Peça</span><span className="r">Acabado</span><span className="r">Bruto</span><span>Sobremetal</span></div>
               {resumo.map((t) => {
                 const regra = ls.find((l) => l.tipo === t.tipo && l.peso)?.peso?.sobremetal;
                 return (
@@ -142,31 +144,38 @@ function Medida({ quoteId, m, dados, pode, itens, onAjustar, onMedirDeNovo, onIm
                     <span className="nome">{ROTULO_TIPO[t.tipo]}<small>{t.corpos > 1 ? `${t.corpos} corpos (metades)` : "1 corpo"}</small></span>
                     <span className="r">{kg(t.acabado_kg)}</span>
                     <span className="r"><b>{kg(t.bruto_kg)}</b></span>
-                    <span>{regra ? `${mm(regra.mm_diametro)} mm no Ø · ${mm(regra.mm_comprimento)} mm no comprimento` : "sem sobremetal"}</span>
-                    <span>{pode && itens.length > 0 && <UsarNoItem itens={itens} onUsar={(chave) => onUsarPeso(chave, t.bruto_kg, ROTULO_TIPO[t.tipo])} />}</span>
+                    <span>{regra ? `+${mm(regra.mm_diametro)} mm no Ø, +${mm(regra.mm_comprimento)} mm no comprimento` : "sem sobremetal"}</span>
                   </div>
                 );
               })}
             </div>
           ) : <p className="fiscal-nota-ajuda">Nenhuma peça reconhecida: escolha o tipo de cada corpo abaixo.</p>}
+          {pode && itens.length > 0 && resumo.length > 0 && (
+            <UsarNoItem itens={itens} pecas={resumo.map((t) => ({ tipo: t.tipo, rotulo: `${ROTULO_TIPO[t.tipo]} · ${kg(t.bruto_kg)}`, kg: t.bruto_kg }))}
+              onUsar={(chave, peca) => onUsarPeso(chave, peca.kg, ROTULO_TIPO[peca.tipo])} />
+          )}
 
           <div className="vnd-tabela vnd-pecas3d" role="table" aria-label="Corpos do desenho">
-            <div className="cabeca" role="row"><span>Imagem</span><span>Na montagem</span><span>Tipo</span><span className="r">Ø × comprimento</span><span className="r">Acabado</span><span className="r">Bruto</span></div>
+            <div className="cabeca" role="row"><span>Imagem</span><span>Na montagem</span><span>Tipo</span><span className="r">Acabado</span><span className="r">Bruto</span></div>
             {[...pecas, ...(verFora ? fora : [])].map((l) => {
               const med = medidas(l.corpo);
               const nome = l.corpo.componente || l.corpo.nome;
               return (
                 <div role="row" key={l.corpo.nome} className={ehPeca(l.tipo) ? undefined : "vnd-pecas3d-fora"}>
                   <span>{tem(l.corpo.nome)
-                    ? <button type="button" className="vnd-pecas3d-img" onClick={() => onImagem(l.corpo.nome, nome)} aria-label={`Ver ${nome}`}>{/* eslint-disable-next-line @next/next/no-img-element -- imagem da rota autenticada do orçamento, sem otimização */}<img src={`/api/comercial/orcamentos/${quoteId}/medicoes/${m.id}/imagem?corpo=${encodeURIComponent(l.corpo.nome)}`} alt="" loading="lazy" /></button>
+                    ? <button type="button" className="vnd-pecas3d-img" onClick={() => onImagem(l.corpo.nome, nome)} aria-label={`Ver ${nome}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element -- imagem da rota autenticada do orçamento, sem otimização */}
+                      <img src={`/api/comercial/orcamentos/${quoteId}/medicoes/${m.id}/imagem?corpo=${encodeURIComponent(l.corpo.nome)}`} alt="" loading="lazy" /></button>
                     : <small>—</small>}</span>
-                  <span className="nome">{nome}<small>{l.motivo}{l.corpo.ocorrencias > 1 ? ` · aparece ${l.corpo.ocorrencias}× na montagem` : ""}</small></span>
+                  <span className="nome">{nome}
+                    <small>{med && "diametro" in med ? `Ø${mm(med.diametro)} × ${mm(med.comprimento)} mm` : med ? `${med.lados.map(mm).join(" × ")} mm` : ""}{l.corpo.ocorrencias > 1 ? ` · aparece ${l.corpo.ocorrencias}× na montagem` : ""}</small>
+                    <small>{l.motivo}</small>
+                  </span>
                   <span>
-                    <select aria-label={`Tipo de ${nome}`} value={l.tipo} disabled={!pode} onChange={(e) => onAjustar(l.corpo.nome, { tipo: e.target.value })}>
+                    <select aria-label={`Tipo de ${nome}`} value={l.tipo} disabled={!pode} onChange={(e) => onAjustar(l.corpo.nome, { tipo: e.target.value === sugestao.get(l.corpo.nome)?.tipo ? "" : e.target.value })}>
                       {TIPOS_PECA.map((t) => <option key={t} value={t}>{ROTULO_TIPO[t as TipoPeca]}</option>)}
                     </select>
                   </span>
-                  <span className="r">{med && "diametro" in med ? `Ø${mm(med.diametro)} × ${mm(med.comprimento)} mm` : med ? med.lados.map(mm).join(" × ") + " mm" : "—"}</span>
                   <span className="r">{l.peso ? kg(l.peso.acabado_kg) : "—"}</span>
                   <span className="r">{l.peso ? kg(l.peso.bruto_kg) : "fora do peso"}</span>
                 </div>
@@ -186,16 +195,25 @@ function Medida({ quoteId, m, dados, pode, itens, onAjustar, onMedirDeNovo, onIm
 
 }
 
-function UsarNoItem({ itens, onUsar }: { itens: ItemParaPeso[]; onUsar: (chave: string) => void }) {
+type PecaPeso = { tipo: TipoPeca; rotulo: string; kg: number };
+/** Levar o peso bruto de uma peça ao item do orçamento (o item grava com o Salvar). */
+function UsarNoItem({ itens, pecas, onUsar }: { itens: ItemParaPeso[]; pecas: PecaPeso[]; onUsar: (chave: string, peca: PecaPeso) => void }) {
   const [chave, setChave] = useState(itens[0]?.chave ?? "");
-  const escolhido = itens.some((i) => i.chave === chave) ? chave : itens[0]?.chave ?? "";
+  const [tipo, setTipo] = useState<TipoPeca>(pecas[0]?.tipo ?? "forma");
+  const item = itens.some((i) => i.chave === chave) ? chave : itens[0]?.chave ?? "";
+  const peca = pecas.find((p) => p.tipo === tipo) ?? pecas[0];
   return (
-    <span className="vnd-usar-peso">
-      <select aria-label="Item do orçamento" value={escolhido} onChange={(e) => setChave(e.target.value)}>
+    <div className="vnd-usar-peso">
+      <span>Levar ao item</span>
+      <select aria-label="Peça" value={peca?.tipo ?? ""} onChange={(e) => setTipo(e.target.value as TipoPeca)}>
+        {pecas.map((p) => <option key={p.tipo} value={p.tipo}>{p.rotulo}</option>)}
+      </select>
+      <span aria-hidden>→</span>
+      <select aria-label="Item do orçamento" value={item} onChange={(e) => setChave(e.target.value)}>
         {itens.map((i) => <option key={i.chave} value={i.chave}>{i.rotulo}</option>)}
       </select>
-      <Button variant="secondary" compact onClick={() => escolhido && onUsar(escolhido)}>Usar no item</Button>
-    </span>
+      <Button variant="secondary" compact onClick={() => item && peca && onUsar(item, peca)}>Usar no item</Button>
+    </div>
   );
 }
 
@@ -260,7 +278,7 @@ function RegrasPeso({ onFechar, notify }: { onFechar: (mudou: boolean) => void; 
           <h3 className="vnd-regras-titulo">Sobremetal</h3>
           <p className="fiscal-nota-ajuda">Segue o contorno da peça: metade no raio de cada lado, metade em cada ponta. Peça sem regra não leva sobremetal. Liga nova: grave primeiro e depois crie a regra dela.</p>
           <div className="vnd-tabela vnd-regras-sobremetal" role="table" aria-label="Sobremetal">
-            <div className="cabeca" role="row"><span>Peça</span><span>Liga</span><span className="r">No Ø (mm)</span><span className="r">No comprimento (mm)</span><span /></div>
+            <div className="cabeca" role="row"><span>Peça</span><span>Liga</span><span className="r">Ø (mm)</span><span className="r">Compr. (mm)</span><span /></div>
             {regras.map((x, k) => (
               <div role="row" key={`${x.tipo_peca}-${x.liga_id}-${k}`}>
                 <span><select aria-label="Peça" value={x.tipo_peca} onChange={(e) => mudarRegra(k, { tipo_peca: e.target.value as TipoPeca })}>{PECAS.map((t) => <option key={t} value={t}>{ROTULO_TIPO[t]}</option>)}</select></span>
