@@ -25,6 +25,15 @@ autossinado antes de enviar credenciais. A impressão SHA256 do certificado deve
 pelo console do host antes de confiar nessa conexão. A alternativa é executar o instalador
 localmente pelo `psql` do contêiner, sem transmitir a chave administrativa pela rede.
 
+Atualização de acesso, **05/11 UTC (noite de 04/11 em Brasília)**: o operador enviou o fingerprint
+do certificado local, identificado como `TRAEFIK DEFAULT CERT`. A comparação externa não foi
+possível: as conexões HTTPS ao IP dos domínios conhecidos foram recusadas e a LAN não respondeu
+desta estação. O nome antigo `supabase.pecsil.com.br` não tem registro DNS público; a resolução
+local vinha da configuração antiga, coerente com a seção 2 de [INFRA.md](INFRA.md). Não foi
+enviada credencial administrativa. A porta SSH pública respondeu, mas ainda falta autenticação
+válida; uma chave de administração temporária e com expiração foi preparada localmente para o
+operador instalar pelo console. A preparação não concede acesso por si só nem altera o host.
+
 <details>
 <summary>Registro da tentativa de backup externo, interrompida pelo operador</summary>
 
