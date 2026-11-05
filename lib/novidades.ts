@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-05-peso-pelo-desenho-3d",
+    data: "2026-11-05",
+    area: "Comercial",
+    modulos: ["comercial"],
+    funcionalidades: ["comercial.orcamentos"],
+    titulo: "Peso das peças pelo STEP do cliente",
+    itens: [
+      "No orçamento, em Peças do desenho 3D, anexe o STEP que o cliente mandou: a plataforma mede cada peça sozinha, em meio minuto a dois minutos.",
+      "Aparecem Forma, Fundo, Bloco, Platô e Funil com a imagem, as medidas, o peso acabado e o bruto com o sobremetal. A garrafa, a pré-forma e os parafusos ficam fora do peso.",
+      "Confira o tipo de cada peça e clique em Usar no item: o peso vai para o item do orçamento.",
+      "Em Ligas e sobremetal ficam a densidade de cada liga e a regra do sobremetal por peça.",
+    ],
+  },
+  {
     id: "2026-11-04-diretoria-na-portaria",
     data: "2026-11-04",
     area: "Portaria",

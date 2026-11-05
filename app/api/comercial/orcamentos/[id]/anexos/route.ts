@@ -1,20 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { dbError, requireAnyFeature, requireFeature } from "../../../../../../lib/auth/feature-guard";
 import { entregarArquivo } from "../../../../../../lib/documentos/entregar";
 import { guardarOriginal } from "../../../../../../lib/documentos/guardar";
 import { createSupabaseAdminClient } from "../../../../../../lib/supabase/admin";
+import { pareceStep, processarMedicao } from "../../../../../../lib/comercial/medidor-3d";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 type Contexto = { params: Promise<{ id: string }> };
-const TIPOS: Record<string, string> = { pedido: "Pedido do cliente", cotacao: "Cotação enviada", outro: "Anexo" };
+const TIPOS: Record<string, string> = { pedido: "Pedido do cliente", cotacao: "Cotação enviada", outro: "Anexo", desenho_3d: "Desenho 3D (STEP)" };
 const LIMITE = 25 * 1024 * 1024;
+/** STEP de montagem passa fácil de 25 MB (o do piloto tinha 9 MB). 50 MB = teto do armazenamento do servidor. */
+const LIMITE_3D = 50 * 1024 * 1024;
 
 /**
  * Anexar ao orçamento: o pedido de compra do cliente e a cotação enviada (os dois são exigidos
  * para marcar como ganho — regra do Jefferson), ou outro arquivo. O original fica em Documentos
  * (setor Comercial), visível para quem vê orçamentos.
+ * Desenho 3D (STEP do cliente, ROADMAP C-19): além de guardar, abre a medição das peças, que roda em
+ * segundo plano no medidor 3D e aparece em "Peças do desenho 3D".
  */
 export async function POST(request: Request, context: Contexto) {
   const { id } = await context.params;
@@ -28,20 +33,42 @@ export async function POST(request: Request, context: Contexto) {
   const tipo = String(form?.get("tipo") ?? "outro");
   if (!(arquivo instanceof File) || !arquivo.size) return NextResponse.json({ error: "Escolha o arquivo." }, { status: 400 });
   if (!(tipo in TIPOS)) return NextResponse.json({ error: "Tipo de anexo desconhecido." }, { status: 400 });
-  if (arquivo.size > LIMITE) return NextResponse.json({ error: "Arquivo acima de 25 MB." }, { status: 413 });
+  const tresD = tipo === "desenho_3d";
+  if (arquivo.size > (tresD ? LIMITE_3D : LIMITE)) return NextResponse.json({ error: tresD ? "Arquivo acima de 50 MB." : "Arquivo acima de 25 MB." }, { status: 413 });
+  const dados = new Uint8Array(await arquivo.arrayBuffer());
+  if (tresD && !pareceStep(arquivo.name, dados)) return NextResponse.json({ error: "O desenho 3D precisa ser um arquivo STEP (.step ou .stp). DWG e PDF vão em Outros." }, { status: 400 });
   try {
     const guardado = await guardarOriginal(guard.supabase, {
       modulo: "comercial", feature: "comercial.orcamentos", origem: "envio",
-      arquivo: { nome: arquivo.name, tipo: arquivo.type, dados: new Uint8Array(await arquivo.arrayBuffer()) },
+      arquivo: { nome: arquivo.name, tipo: arquivo.type, dados },
       titulo: q.treino ? `TREINO · ${TIPOS[tipo]} · orçamento T-${q.numero}` : `${TIPOS[tipo]} · orçamento #${q.numero}`, categoria: TIPOS[tipo], entidade: { tipo: "orcamento", id: q.id },
     });
     const { data: perfil } = await guard.supabase.rpc("current_profile_id");
     const { data: autor } = await guard.supabase.from("profiles").select("full_name, email").eq("id", perfil).maybeSingle();
-    const { error } = await guard.supabase.from("sales_quote_attachments").insert({
-      organization_id: q.organization_id, quote_id: q.id, document_id: guardado.id, tipo, created_by_name: autor?.full_name || autor?.email || null,
-    });
+    const autorNome = autor?.full_name || autor?.email || null;
+    const { data: anexo, error } = await guard.supabase.from("sales_quote_attachments").insert({
+      organization_id: q.organization_id, quote_id: q.id, document_id: guardado.id, tipo, created_by_name: autorNome,
+    }).select("id").maybeSingle();
     if (error && error.code !== "23505") return dbError(error);
-    return NextResponse.json({ ok: true, documento: guardado.id });
+    if (!tresD) return NextResponse.json({ ok: true, documento: guardado.id });
+
+    // O mesmo arquivo anexado de novo não abre outra medição.
+    const { data: existente } = await guard.supabase.from("comercial_medicoes_3d").select("id").eq("quote_id", q.id).eq("document_id", guardado.id).maybeSingle();
+    let medicao = existente?.id ?? null;
+    if (!medicao) {
+      const { data: liga } = await guard.supabase.from("comercial_ligas").select("id").eq("padrao", true).maybeSingle();
+      const { data: nova, error: eMed } = await guard.supabase.from("comercial_medicoes_3d").insert({
+        organization_id: q.organization_id, quote_id: q.id, attachment_id: anexo?.id ?? null, document_id: guardado.id,
+        nome_arquivo: arquivo.name.slice(0, 200), liga_id: liga?.id ?? null, created_by_name: autorNome,
+      }).select("id").single();
+      if (eMed) return dbError(eMed);
+      medicao = nova.id;
+    }
+    const medicaoId = medicao;
+    after(async () => {
+      try { await processarMedicao(createSupabaseAdminClient(), medicaoId); } catch (e) { console.error("Medição do desenho 3D", e instanceof Error ? e.message : e); }
+    });
+    return NextResponse.json({ ok: true, documento: guardado.id, medicao: medicaoId });
   } catch (e) {
     console.error("Falha ao anexar no orçamento", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Não foi possível guardar o arquivo." }, { status: 500 });

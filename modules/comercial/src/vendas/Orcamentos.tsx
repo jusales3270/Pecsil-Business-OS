@@ -12,6 +12,7 @@ import { LerPedidoCliente, type ItemLido } from "./LerPedidoCliente";
 import { pareceCodigo } from "../../../../lib/comercial/busca-produto";
 import { SITUACAO_OS_FORJA } from "../../../../lib/forja/envio-os-core";
 import { FaixaTreino, gravarModoTreino, lerModoTreino, numeroOrcamento } from "../../../../app/components/faixa-treino";
+import { PecasDesenho3D } from "./PecasDesenho3D";
 
 /**
  * Comercial › Vendas › Orçamentos — o orçamento do GRV (P88) na plataforma (docs/PLANO-ORCAMENTO.md,
@@ -33,13 +34,13 @@ type NotaDoOrcamento = {
 type Lista = { orcamentos: Resumo[]; clientes: { id: string; name: string }[]; proximoNumero: number; podeOperar: boolean; podeNumeracao: boolean };
 type ItemBanco = {
   id: string; ordem: number; product_id: string; descricao: string; desenho: string | null; unidade: string; quantidade: number; preco_unitario: number;
-  prazo_entrega: string | null; item_pedido: string | null; observacao: string | null; produto: { codigo: string; ncm: string | null } | null;
+  prazo_entrega: string | null; item_pedido: string | null; observacao: string | null; peso_kg: number | null; produto: { codigo: string; ncm: string | null } | null;
 };
 type Detalhe = {
   orcamento: Resumo & { condicao_pagamento: string | null; frete_modalidade: number; observacoes: string | null; ganho_por_nome: string | null; mascara_id: string | null; cliente: { name: string; tax_id: string | null; uf: string | null; ind_ie: number | null } | null };
   itens: ItemBanco[];
   anotacoes: { id: string; texto: string; autor_nome: string | null; created_at: string }[];
-  anexos: { id: string; tipo: "pedido" | "cotacao" | "outro"; created_by_name: string | null; created_at: string; documento: { id: string; title: string; original_name: string } | null }[];
+  anexos: { id: string; tipo: "pedido" | "cotacao" | "outro" | "desenho_3d"; created_by_name: string | null; created_at: string; documento: { id: string; title: string; original_name: string } | null }[];
   notasFiscais: NotaDoOrcamento[];
   entradas: { id: string; quote_item_id: string; quantidade: number; data: string; created_by_name: string | null }[];
   historico: { product_id: string; preco_unitario: number; quantidade: number; orcamento: { id: string; numero: number; data_orcamento: string; situacao: string; cliente: { name: string } | null } }[];
@@ -139,7 +140,7 @@ export function Orcamentos({ notify }: { notify: (m: string) => void }) {
 
 /* --- Editor ------------------------------------------------------------------------------- */
 
-type ItemForm = { chave: string; product_id: string; busca: string; descricao: string; desenho: string; unidade: string; quantidade: string; preco_unitario: string; prazo_entrega: string; item_pedido: string; observacao: string };
+type ItemForm = { chave: string; product_id: string; busca: string; descricao: string; desenho: string; unidade: string; quantidade: string; preco_unitario: string; prazo_entrega: string; item_pedido: string; observacao: string; peso_kg: string };
 type Cab = { customer_id: string; contato: string; data_orcamento: string; validade: string; pedido_cliente: string; condicao_pagamento: string; frete_modalidade: string; prazo_entrega: string; observacoes: string; mascara_id: string };
 type Cliente = { id: string; name: string; uf?: string | null; ind_ie?: number | null };
 type DadosMascaras = { mascaras: Mascara[]; ipiPorNcm: Map<string, number | null>; ufEmpresa: string | null };
@@ -197,7 +198,7 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
     setItens(d.itens.map((i) => ({
       chave: novaChave(), product_id: i.product_id, busca: i.produto ? rotuloProduto({ codigo: i.produto.codigo, descricao: i.descricao }) : i.descricao,
       descricao: i.descricao, desenho: i.desenho ?? "", unidade: i.unidade, quantidade: br(Number(i.quantidade), 0), preco_unitario: br(Number(i.preco_unitario)),
-      prazo_entrega: i.prazo_entrega ?? "", item_pedido: i.item_pedido ?? "", observacao: i.observacao ?? "",
+      prazo_entrega: i.prazo_entrega ?? "", item_pedido: i.item_pedido ?? "", observacao: i.observacao ?? "", peso_kg: i.peso_kg !== null && i.peso_kg !== undefined ? br(Number(i.peso_kg), 3) : "",
     })));
     setSujo(false);
   }, []);
@@ -266,7 +267,7 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
     notify(`${novos.length} item(ns) do pedido adicionados. Confira e grave o orçamento.`);
   };
   const nomeCliente = (cid: string | null) => (cid ? clientes.find((c) => c.id === cid)?.name ?? null : null);
-  const itemVazio = (): ItemForm => ({ chave: novaChave(), product_id: "", busca: "", descricao: "", desenho: "", unidade: "PC", quantidade: "", preco_unitario: "", prazo_entrega: "", item_pedido: "", observacao: "" });
+  const itemVazio = (): ItemForm => ({ chave: novaChave(), product_id: "", busca: "", descricao: "", desenho: "", unidade: "PC", quantidade: "", preco_unitario: "", prazo_entrega: "", item_pedido: "", observacao: "", peso_kg: "" });
   const produtoCadastrado = async (novo?: { id: string; codigo: string }) => {
     const alvo = cadastro;
     setCadastro(null);
@@ -288,7 +289,7 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
   const ehTreino = det ? Boolean(det.orcamento.treino) : treinoNovo;
   const corpo = () => JSON.stringify({
     ...cab, treino: ehTreino, frete_modalidade: Number(cab.frete_modalidade),
-    itens: itens.map((i) => ({ product_id: i.product_id, descricao: i.descricao, desenho: i.desenho, unidade: i.unidade, quantidade: lerNumero(i.quantidade), preco_unitario: lerNumero(i.preco_unitario), prazo_entrega: i.prazo_entrega, item_pedido: i.item_pedido, observacao: i.observacao })),
+    itens: itens.map((i) => ({ product_id: i.product_id, descricao: i.descricao, desenho: i.desenho, unidade: i.unidade, quantidade: lerNumero(i.quantidade), preco_unitario: lerNumero(i.preco_unitario), prazo_entrega: i.prazo_entrega, item_pedido: i.item_pedido, observacao: i.observacao, peso_kg: i.peso_kg.trim() ? lerNumero(i.peso_kg) : null })),
   });
   const rodar = async (rotulo: string, fn: () => Promise<void>) => { setOcupado(rotulo); try { await fn(); } finally { setOcupado(null); } };
 
@@ -448,6 +449,7 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
                       <label><span>Preço unitário (R$)</span><input inputMode="decimal" value={i.preco_unitario} disabled={!aberto} onChange={(e) => mudarItem(i.chave, { preco_unitario: e.target.value })} /></label>
                       <label><span>Item no pedido<small> · ex.: 060</small></span><input value={i.item_pedido} maxLength={20} disabled={!aberto} onChange={(e) => mudarItem(i.chave, { item_pedido: e.target.value })} /></label>
                       <label><span>Prazo</span><input type="date" value={i.prazo_entrega} disabled={!aberto} onChange={(e) => mudarItem(i.chave, { prazo_entrega: e.target.value })} /></label>
+                      <label><span>Peso por peça (kg)<small> · do desenho 3D ou digitado</small></span><input inputMode="decimal" value={i.peso_kg} disabled={!aberto} onChange={(e) => mudarItem(i.chave, { peso_kg: e.target.value })} /></label>
                     </div>
                     {impostos.ok && impostos.itens[k] && (
                       <p className="nfe-item-calculo">ICMS {money(impostos.itens[k].vICMS)}{impostos.aliquotas.reducao ? ` (base ${money(impostos.itens[k].vBC)})` : ""} · IPI {money(impostos.itens[k].vIPI)}{impostos.aliquotas.ipi[k] !== null ? ` (${String(impostos.aliquotas.ipi[k]).replace(".", ",")}%)` : ""} · com IPI {money(impostos.itens[k].vProd + impostos.itens[k].vIPI)}</p>
@@ -502,6 +504,13 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
               )}
             </section>
           </fieldset>
+
+          {o && id && (
+            <PecasDesenho3D quoteId={id} editavel={editavel} ocupado={ocupado === "anexo-desenho_3d"} notify={notify}
+              itens={itens.map((i, k) => ({ chave: i.chave, rotulo: `Item ${k + 1}${i.descricao ? ` · ${i.descricao.slice(0, 40)}` : ""}` }))}
+              onAnexar={(f) => anexar("desenho_3d", f)}
+              onUsarPeso={(chave, valor) => mudarItem(chave, { peso_kg: br(valor, 3) })} />
+          )}
 
           {o && (det?.notasFiscais.length ?? 0) > 0 && (
             <NotasDoPedido notas={det!.notasFiscais} itens={det!.itens} onAbrir={setNotaAberta} />

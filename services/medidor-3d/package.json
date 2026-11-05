@@ -1,0 +1,14 @@
+{
+  "name": "pecsil-medidor-3d",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Medidor 3D: serviço separado que mede peças de arquivos STEP (volume, área, medidas, faces e imagens) com o motor do SolidCraft, para o peso do orçamento.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node servidor.mjs",
+    "test": "node --test teste/*.test.mjs"
+  }
+}

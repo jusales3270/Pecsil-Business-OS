@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brl, dataBR, dias, hoje, link, plural, reais, termo, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
 import { FICHA_CLIENTE } from "../cerebro-ferramentas.ts";
+import { ROTULO_TIPO, linhas, medidas, resumoPorTipo, type CorpoMedido, type Liga, type RegraSobremetal } from "../../comercial/peso-3d.ts";
 
 /**
  * SARA do Comercial (CRM e Vendas): orçamentos (sem os de TREINO), funil, clientes, produtos e a
@@ -110,6 +111,37 @@ const ferramentas: Ferramenta[] = [
     },
   },
   {
+    nome: "comercial_pesos_3d", rotulo: "peso das peças do desenho 3D", exige: ["comercial.orcamentos"],
+    descricao: "Peso das peças medidas no STEP (desenho 3D) anexado a um orçamento: por peça (Forma, Fundo, Bloco, Platô, Funil), o peso acabado e o bruto com o sobremetal da regra, a liga e as medidas. Informe o número do orçamento. O peso vem do volume do arquivo do cliente × densidade da liga; o tipo de cada peça é sugerido pela plataforma e corrigido pelo Rafael.",
+    esquema: { type: "object", properties: { orcamento: { type: "number" } }, required: ["orcamento"] },
+    rodar: async (sb, e) => {
+      const numero = Number(e.orcamento);
+      const { data: q, error } = await sb.from("sales_quotes").select("id, numero, customers(name)").eq("treino", false).eq("numero", numero).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!q) return { dados: { encontrado: false, orcamento: numero }, fontes: [fonte("orcamentos", "Orçamentos")] };
+      const [{ data: med, error: e1 }, { data: ligas }, { data: regras }] = await Promise.all([
+        sb.from("comercial_medicoes_3d").select("nome_arquivo, situacao, erro, corpos, ajustes, liga_id, medido_em").eq("quote_id", q.id).order("created_at"),
+        sb.from("comercial_ligas").select("id, nome, densidade_g_cm3, padrao").eq("ativo", true),
+        sb.from("comercial_sobremetal").select("tipo_peca, liga_id, mm_diametro, mm_comprimento"),
+      ]);
+      if (e1) throw new Error(e1.message);
+      const L = (ligas ?? []).map((l) => ({ ...l, densidade_g_cm3: Number(l.densidade_g_cm3) })) as Liga[];
+      const R = (regras ?? []).map((r) => ({ ...r, mm_diametro: Number(r.mm_diametro), mm_comprimento: Number(r.mm_comprimento) })) as RegraSobremetal[];
+      const desenhos = (med ?? []).map((m) => {
+        if (m.situacao !== "pronto") return { arquivo: m.nome_arquivo, situacao: m.situacao === "erro" ? `não mediu: ${m.erro ?? "erro"}` : "medindo" };
+        const ls = linhas((m.corpos ?? []) as CorpoMedido[], (m.ajustes ?? {}) as Record<string, { tipo?: string; liga_id?: string | null }>, L, m.liga_id, R);
+        return {
+          arquivo: m.nome_arquivo, situacao: "medido", medido_em: m.medido_em, liga: ls.find((l) => l.peso)?.liga?.nome ?? null,
+          pecas: resumoPorTipo(ls).map((t) => ({ peca: ROTULO_TIPO[t.tipo], corpos: t.corpos, acabado_kg: t.acabado_kg, bruto_kg: t.bruto_kg,
+            sobremetal: ls.find((l) => l.tipo === t.tipo && l.peso)?.peso?.sobremetal ?? null })),
+          corpos: ls.filter((l) => l.peso).map((l) => ({ peca: ROTULO_TIPO[l.tipo], na_montagem: l.corpo.componente ?? l.corpo.nome, medidas_mm: medidas(l.corpo), acabado_kg: l.peso!.acabado_kg, bruto_kg: l.peso!.bruto_kg })),
+          fora_do_peso: ls.filter((l) => !l.peso).length,
+        };
+      });
+      return { dados: { encontrado: true, orcamento: q.numero, cliente: (q.customers as { name?: string } | null)?.name ?? null, desenhos_3d: desenhos }, fontes: [fonte("orcamentos", "Orçamentos")] };
+    },
+  },
+  {
     nome: "comercial_conexao_email", rotulo: "conexão de e-mail", exige: ["comercial.conexao"],
     descricao: "Situação das caixas de e-mail ligadas ao Comercial: endereço, ativa, última leitura e o último erro. E quantos e-mails de saída falharam.",
     esquema: { type: "object", properties: {} },
@@ -201,6 +233,7 @@ Seções:
 - CRM › Conexão de e-mail: a leitura das caixas de e-mail que alimentam o funil.
 - Vendas › Orçamentos: montar o orçamento (itens do catálogo, máscara de impostos, condição de pagamento, prazo), ler o pedido do cliente (PDF) direto para o orçamento, enviar, marcar ganho ou perdido. Orçamentos de TREINO (T-n) não contam.
 - Vendas › Produtos: cadastro (código interno, NCM, desenho, material); as peças da Forja entram aqui.
+- Orçamento › Peças do desenho 3D: o STEP do cliente anexado é medido no servidor; por peça, o peso acabado (volume × densidade da liga) e o bruto (sobremetal da regra: hoje 2 mm no Ø e 4 mm no comprimento no Fundo e no Platô, e em todas as peças de Bronze). Use comercial_pesos_3d com o número do orçamento. É o peso do arquivo do cliente, conferido pelo Rafael, não um peso pesado na balança.
 Fluxo: orçamento ganho → OS em rascunho na Forja (o Rafael completa e libera) → produção → "A faturar" no Fiscal → nota (Jefferson).
 A ficha do cliente (ficha_cliente) vem do Segundo Cérebro: faturado e recebido no histórico, atraso médio para pagar, peças e OS.
 Mover card: use mover_card só quando a pessoa pedir, ou quando uma lição aprovada da área disser quando mover. Ganho e perdido saem do orçamento, não daqui.

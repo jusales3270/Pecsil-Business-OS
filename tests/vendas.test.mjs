@@ -128,3 +128,15 @@ test("C-18: orçamento enviado anda o funil (cria o card ou avança), nunca para
   assert.match(sql, /status = 'aberto' and origem = 'orcamento'/, "cancelar só fecha o card que o orçamento criou");
   assert.match(readFileSync(new URL("../modules/event-catalog.ts", import.meta.url), "utf8"), /"comercial\.orcamento\.enviado"/);
 });
+
+test("peso do item (C-19): vai só quando preenchido, aceita vírgula e recusa negativo", () => {
+  const item = { product_id: "11111111-1111-4111-8111-111111111111", descricao: "FUNDO", quantidade: 2, preco_unitario: 10 };
+  const base = { customer_id: "22222222-2222-4222-8222-222222222222" };
+  const sem = normalizarOrcamento({ ...base, itens: [item] });
+  assert.equal("peso_kg" in sem.orcamento.itens[0], false);
+  const com = normalizarOrcamento({ ...base, itens: [{ ...item, peso_kg: "9,954" }] });
+  assert.equal(com.orcamento.itens[0].peso_kg, 9.954);
+  assert.deepEqual(com.erros, []);
+  const neg = normalizarOrcamento({ ...base, itens: [{ ...item, peso_kg: -1 }] });
+  assert.ok(neg.erros.some((e) => e.includes("peso")));
+});

@@ -57,6 +57,8 @@ export function normalizarProduto(v: unknown): { produto: ProdutoEntrada; erros:
 export type ItemOrcamentoEntrada = {
   id: string | null; product_id: string; descricao: string; desenho: string | null; unidade: string; quantidade: number; preco_unitario: number;
   prazo_entrega: string | null; item_pedido: string | null; observacao: string | null;
+  /** Peso por peça (kg): da medição do STEP (C-19) ou digitado. Só vai quando preenchido (a gravação refaz os itens). */
+  peso_kg?: number;
 };
 export type OrcamentoEntrada = {
   customer_id: string | null; contato: string | null; crm_card_id: string | null; data_orcamento: string | null; validade: string | null;
@@ -85,10 +87,13 @@ export function normalizarOrcamento(v: unknown): { orcamento: OrcamentoEntrada; 
     const preco = num(i.preco_unitario);
     if (Number.isNaN(preco) || preco < 0) erros.push(`${n}: preço unitário inválido.`);
     const unidade = txt(i.unidade, 6).toUpperCase() || "PC";
+    const peso = i.peso_kg === null || i.peso_kg === undefined || i.peso_kg === "" ? null : num(i.peso_kg);
+    if (peso !== null && (Number.isNaN(peso) || peso < 0 || peso >= 1e6)) erros.push(`${n}: peso inválido.`);
     return {
       id: uuid(i.id), product_id: product ?? "", descricao: txt(i.descricao, 120).toUpperCase(), desenho: opc(i.desenho, 80), unidade,
       quantidade: quantidade > 0 ? quantidade : 0, preco_unitario: preco >= 0 ? preco : 0, prazo_entrega: data(i.prazo_entrega),
       item_pedido: opc(i.item_pedido, 20), observacao: opc(i.observacao, 500),
+      ...(peso !== null && peso >= 0 && peso < 1e6 ? { peso_kg: Math.round(peso * 1000) / 1000 } : {}),
     };
   });
   itens.forEach((i, k) => { if (!i.descricao) erros.push(`Item ${k + 1}: falta a descrição.`); });

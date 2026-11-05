@@ -1,0 +1,402 @@
+{
+ "_origem": "Medidor 3D (solidcraft-cli 0.30.1) nas duas montagens do piloto de 05/11/2026, exportadas do SolidWorks 2026",
+ "pesos_solidworks_kg": {
+  "forma": 49.39,
+  "fundo": 8.52,
+  "bloco": 31.39,
+  "plato": 1.46,
+  "funil": 1.98
+ },
+ "blow": [
+  {
+   "nome": "Filete2",
+   "componente": "Blow_Mould_Chaveta_F",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 3465444.4791549877,
+   "volume_negativo": false,
+   "area_mm2": 578831.7227969886,
+   "bbox": {
+    "max": [
+     111.4999742180492,
+     7.105427357601002e-14,
+     111.50000000000003
+    ],
+    "min": [
+     -111.4999742180492,
+     -314.50000000000006,
+     -5.000000039489819
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 30672.127472335495,
+   "area_demais_mm2": 537834.1447409699
+  },
+  {
+   "nome": "Filete1",
+   "componente": "Blow_Mould_Chaveta_M",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 3394754.909115586,
+   "volume_negativo": false,
+   "area_mm2": 573859.6267540818,
+   "bbox": {
+    "max": [
+     111.33844798630886,
+     6.938893903907228e-15,
+     3.398839637693434e-10
+    ],
+    "min": [
+     -111.33844798630888,
+     -314.50000000000006,
+     -111.50000000000001
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 29907.38729322725,
+   "area_demais_mm2": 533782.135466375
+  },
+  {
+   "nome": "Cavidade2",
+   "componente": "BP",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 1182798.133267081,
+   "volume_negativo": false,
+   "area_mm2": 153132.96833254336,
+   "bbox": {
+    "max": [
+     98.5,
+     -222.18632145800487,
+     98.5
+    ],
+    "min": [
+     -98.5,
+     -334.50000000000006,
+     -98.5
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 47462.53765787027,
+   "area_demais_mm2": 104817.70741872668
+  },
+  {
+   "nome": "Chanfro1",
+   "componente": "BP _Pino",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 1098.5395957249386,
+   "volume_negativo": false,
+   "area_mm2": 612.6131885357987,
+   "bbox": {
+    "max": [
+     -80,
+     -306.50000000000006,
+     5.000000000000007
+    ],
+    "min": [
+     -90.00000000000001,
+     -324.50000000000006,
+     -5.000000000000014
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 88.1773488532423,
+   "area_demais_mm2": 522.8127533875901
+  },
+  {
+   "nome": "Cut-Extrude12",
+   "componente": "99642A111_Alloy Steel Cup-Point Set Screw_99642A111",
+   "ocorrencias": 18,
+   "fechado": true,
+   "volume_mm3": 73.51915238555017,
+   "volume_negativo": false,
+   "area_mm2": 257.551967117682,
+   "bbox": {
+    "max": [
+     52.1491222977129,
+     -5.773159728050814e-15,
+     -31.414590332089848
+    ],
+    "min": [
+     46.149124185233546,
+     -6.3750000000000115,
+     -37.41458203003581
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 9.467597621495146,
+   "area_demais_mm2": 251.7825186144803
+  },
+  {
+   "nome": "Filete6",
+   "componente": "DG-0006-00",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 1148986.7881422744,
+   "volume_negativo": false,
+   "area_mm2": 65262.446885172125,
+   "bbox": {
+    "max": [
+     49.91100000000002,
+     0,
+     43.568081304759865
+    ],
+    "min": [
+     -49.91100000000001,
+     -226.7902,
+     -43.568081304759865
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 1861.8421372548796,
+   "area_demais_mm2": 63148.418272833056
+  }
+ ],
+ "blank": [
+  {
+   "nome": "NONE",
+   "componente": "Blank_CHAVETA MACHO",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 2160728.4525702675,
+   "volume_negativo": false,
+   "area_mm2": 216267.3450450223,
+   "bbox": {
+    "max": [
+     1616.9744725065693,
+     541.0898983482432,
+     1356.3811822576738
+    ],
+    "min": [
+     1416.533358959473,
+     319.11989834816626,
+     1257.264281579536
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 28816.783254098576,
+   "area_demais_mm2": 185037.2739887199
+  },
+  {
+   "nome": "NONE (2)",
+   "componente": "Blank_CHAVETA FEMEA",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 2198200.2942749276,
+   "volume_negativo": false,
+   "area_mm2": 220710.31378645,
+   "bbox": {
+    "max": [
+     1617.1535202833063,
+     541.0898983483311,
+     1262.2648467555716
+    ],
+    "min": [
+     1416.353915733021,
+     319.1198983482384,
+     1158.1473809017716
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 29858.85592165053,
+   "area_demais_mm2": 188395.97659680492
+  },
+  {
+   "nome": "NONE (3)",
+   "componente": "Castanha",
+   "ocorrencias": 2,
+   "fechado": true,
+   "volume_mm3": 2597.2098834095245,
+   "volume_negativo": false,
+   "area_mm2": 1784.7251173772147,
+   "bbox": {
+    "max": [
+     1528.7539157330211,
+     432.4998983482441,
+     1189.964283417233
+    ],
+    "min": [
+     1504.7539157330211,
+     408.4998983482441,
+     1175.964283417233
+    ]
+   },
+   "eixo": [
+    0,
+    0,
+    1
+   ],
+   "area_pontas_mm2": 447.90180087398903,
+   "area_demais_mm2": 1333.9726490397647
+  },
+  {
+   "nome": "NONE (4)",
+   "componente": "M8x25 flat head socket cap screw DIN 7991",
+   "ocorrencias": 2,
+   "fechado": true,
+   "volume_mm3": 1532.0217208587783,
+   "volume_negativo": false,
+   "area_mm2": 1049.163023264595,
+   "bbox": {
+    "max": [
+     1524.7539157330211,
+     428.49989834823805,
+     1339.064283417233
+    ],
+    "min": [
+     1508.7539157330211,
+     412.49989834823805,
+     1314.064283417233
+    ]
+   },
+   "eixo": [
+    0,
+    0,
+    1
+   ],
+   "area_pontas_mm2": 238.00080885167063,
+   "area_demais_mm2": 807.8929983899644
+  },
+  {
+   "nome": "NONE (5)",
+   "componente": "FUNNEL_N3",
+   "ocorrencias": 2,
+   "fechado": true,
+   "volume_mm3": 274465.21934195183,
+   "volume_negativo": false,
+   "area_mm2": 42154.78372373829,
+   "bbox": {
+    "max": [
+     1574.7548377077874,
+     579.5898983495056,
+     1320.0849589073944
+    ],
+    "min": [
+     1458.7539156836685,
+     531.5898983495057,
+     1194.4436042505774
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 9089.48176121302,
+   "area_demais_mm2": 32986.83544793692
+  },
+  {
+   "nome": "NONE (6)",
+   "componente": "ML_0006",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 416259.8150497528,
+   "volume_negativo": false,
+   "area_mm2": 35346.56927691502,
+   "bbox": {
+    "max": [
+     1550.0014844646535,
+     531.5957660402775,
+     1285.7940898414795
+    ],
+    "min": [
+     1483.5063470013827,
+     336.56989834822633,
+     1228.7344733179787
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 3639.9757451315404,
+   "area_demais_mm2": 31579.94274500505
+  },
+  {
+   "nome": "NONE (7)",
+   "componente": "ML_0006",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 12862.70438091318,
+   "volume_negativo": false,
+   "area_mm2": 6213.747052831499,
+   "bbox": {
+    "max": [
+     1549.6483810296468,
+     536.5873110948494,
+     1285.4673404590562
+    ],
+    "min": [
+     1483.829109322733,
+     531.5948982482404,
+     1229.0739114310038
+    ]
+   },
+   "eixo": null,
+   "area_pontas_mm2": 0,
+   "area_demais_mm2": 6197.7192090529115
+  },
+  {
+   "nome": "NONE (8)",
+   "componente": "BAFFLE_SG_3",
+   "ocorrencias": 2,
+   "fechado": true,
+   "volume_mm3": 203171.17384164382,
+   "volume_negativo": false,
+   "area_mm2": 42013.17153023613,
+   "bbox": {
+    "max": [
+     1572.7539157327901,
+     588.5898983495059,
+     1313.264281578986
+    ],
+    "min": [
+     1460.7539157327901,
+     531.5898983105925,
+     1201.264281578986
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 9218.331972810063,
+   "area_demais_mm2": 32521.746903969186
+  }
+ ]
+}

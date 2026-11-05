@@ -8471,6 +8471,26 @@ a.doc-abrir { text-decoration: none; }
 .vnd-grupos { grid-template-columns: max-content minmax(140px, 1fr) max-content max-content; }
 /* Nº · Cliente · Data · Pedido · Total · Situação · ação */
 .vnd-orcamentos { grid-template-columns: max-content minmax(240px, 1fr) repeat(5, max-content); }
+/* Orçamento › Peças do desenho 3D (C-19): uma medição por STEP, resumo por peça e corpos da montagem. */
+.vnd-medicao { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-subtle); margin-top: var(--sp-3); min-width: 0; }
+.vnd-medicao-cabeca { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.vnd-medicao-cabeca > small { color: var(--text-muted); font-size: var(--fs-xs); }
+.vnd-medicao-arquivo { font-weight: 600; overflow-wrap: anywhere; }
+.vnd-medicao-liga { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); margin-left: auto; }
+.vnd-medicao-liga > span { color: var(--text-secondary); }
+.vnd-pecas3d-resumo { grid-template-columns: minmax(140px, max-content) repeat(2, max-content) minmax(180px, 1fr) max-content; overflow-x: auto; }
+.vnd-pecas3d { grid-template-columns: max-content minmax(200px, 1fr) max-content repeat(3, max-content); overflow-x: auto; }
+.vnd-pecas3d-fora { color: var(--text-muted); }
+.vnd-pecas3d-img { display: block; padding: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface); cursor: zoom-in; line-height: 0; }
+.vnd-pecas3d-img:hover { border-color: var(--border-strong, var(--text-muted)); }
+.vnd-pecas3d-img img { width: 72px; height: 54px; object-fit: contain; }
+.vnd-usar-peso { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.vnd-usar-peso select { max-width: 220px; }
+.vnd-regras-titulo { margin: var(--sp-4) 0 var(--sp-2); font-size: var(--fs-md, 1rem); }
+.vnd-regras-ligas { grid-template-columns: minmax(180px, 1fr) max-content max-content max-content; }
+.vnd-regras-sobremetal { grid-template-columns: max-content minmax(160px, 1fr) repeat(2, max-content) max-content; }
+:is(.vnd-regras-ligas, .vnd-regras-sobremetal) input:not([type="radio"]) { width: 100%; min-width: 72px; }
+.vnd-regras-acoes { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-4); }
 /* Fiscal › Máscaras de impostos: Código · CFOP · Descrição · ICMS · IPI · PIS/COFINS · Situação; e o IPI por NCM. */
 .msk-tabela { grid-template-columns: max-content max-content minmax(240px, 1fr) repeat(4, max-content); }
 .msk-tabela > button[role="row"] { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; width: 100%; border: 0; border-top: 1px solid var(--border-subtle); background: none; font: inherit; text-align: left; color: var(--text-primary); cursor: pointer; }
