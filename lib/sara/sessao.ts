@@ -128,7 +128,7 @@ async function rodarSubagente(sb: SupabaseClient, modulo: string, pergunta: stri
   ]);
   const empresa = org?.display_name || org?.legal_name || "empresa";
   // J5: as lições aprovadas pela área também valem quando a central pergunta a ela.
-  const memoria = await memoriaDaSara([modulo], false);
+  const memoria = await memoriaDaSara(sb, [modulo], false);
   const sistema = {
     fixo: `${p.sara.manual}\n\n${regrasDaSara(p.sara)}\n\n${regrasDeEscopo(empresa, p.sara.rotulo, null)}${p.habilidades.length ? `\n\n${instrucoesDeHabilidades(p.habilidades)}` : ""}`,
     variavel: `${contextoDeTempo({ nome: primeiroNome(eu?.full_name), situacao: situacaoDaConversa(null) })}\n${REGRA_SUBAGENTE}${memoria.texto ? `\n\n${memoria.texto}` : ""}\nResponda sempre em português do Brasil.`,

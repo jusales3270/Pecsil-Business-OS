@@ -42,7 +42,7 @@ export async function vigiarConexoes(admin: SupabaseClient, deps: Partial<Deps> 
     if (caido) r.caidos++;
     for (const dono of ((donos ?? []) as { id: string; organization_id: string }[]).filter((x) => x.organization_id === c.organization_id && (!somente || somente.includes(x.id)))) {
       // O último aviso deste número para este dono decide: caído já avisado não repete; voltou só depois de um "caiu".
-      const { data: ultimo } = await admin.from("notifications").select("title").eq("recipient_profile_id", dono.id).like("title", `%${marca(c.nome)}%`)
+      const { data: ultimo } = await admin.from("notifications").select("title").eq("organization_id", c.organization_id).eq("recipient_profile_id", dono.id).like("title", `%${marca(c.nome)}%`)
         .order("created_at", { ascending: false }).limit(1).maybeSingle<{ title: string }>();
       const avisouQueda = Boolean(ultimo?.title?.startsWith(tituloCaiu(c.nome)));
       if (caido && !avisouQueda) {

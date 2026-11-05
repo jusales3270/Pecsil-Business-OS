@@ -13,8 +13,13 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@nfewizard/danfe": "1.0.7",
-    "nfewizard-io": "1.1.4",
-    "node-forge": "1.4.0"
+    "@nfewizard/danfe": "1.0.8",
+    "nfewizard-io": "1.1.5",
+    "node-forge": "1.4.2"
+  },
+  "overrides": {
+    "nfewizard-io": {
+      "nodemailer": "10.3.1"
+    }
   }
 }

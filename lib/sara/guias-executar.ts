@@ -1,3 +1,4 @@
+import { registrarNoServidor, usoDoMes } from "./uso-servidor";
 import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -28,8 +29,8 @@ type Execucao = { id: string; organization_id: string; guia_id: string; disparo:
 export type RelatorioGuias = { enfileiradas: number; rodadas: { id: string; guia: string; situacao: string }[]; erro?: string };
 
 /** Sessão de uma pessoa aberta pelo servidor, para a guia rodar com as permissões dela. */
-export async function sessaoComo(admin: SupabaseClient, profileId: string): Promise<{ sb: SupabaseClient; sair: () => Promise<void> } | { erro: string }> {
-  const { data: perfil } = await admin.from("profiles").select("user_id, status").eq("id", profileId).maybeSingle();
+export async function sessaoComo(admin: SupabaseClient, profileId: string, organizationId: string): Promise<{ sb: SupabaseClient; sair: () => Promise<void> } | { erro: string }> {
+  const { data: perfil } = await admin.from("profiles").select("user_id, status").eq("organization_id", organizationId).eq("id", profileId).maybeSingle();
   if (!perfil?.user_id || perfil.status !== "active") return { erro: "Quem criou a guia não está mais ativo na plataforma." };
   const { data: u } = await admin.auth.admin.getUserById(perfil.user_id);
   const email = u?.user?.email;
@@ -65,9 +66,9 @@ const resumoDe = (texto: string) => texto.split("\n").filter((l) => !/^\s*\|/.te
 
 async function rodarUma(admin: SupabaseClient, e: Execucao): Promise<string> {
   const { data: g } = await admin.from("sara_habilidades").select("id, organization_id, modulo, nome, descricao, passos, formato, gatilho, limites, situacao, pausada, responsavel_id, gatilhos")
-    .eq("id", e.guia_id).maybeSingle<Guia>();
+    .eq("id", e.guia_id).eq("organization_id", e.organization_id).maybeSingle<Guia>();
   if (!g || g.situacao !== "ativa" || g.pausada || !g.responsavel_id) { await encerrar(admin, e, "cancelada", "A guia não está mais ativa."); return "cancelada"; }
-  const s = await sessaoComo(admin, g.responsavel_id);
+  const s = await sessaoComo(admin, g.responsavel_id, g.organization_id);
   if ("erro" in s) {
     await encerrar(admin, e, "falhou", s.erro);
     await avisar(admin, g, `⚡ Guia «${g.nome}» não rodou`, s.erro);
@@ -88,7 +89,7 @@ async function rodarUma(admin: SupabaseClient, e: Execucao): Promise<string> {
       return "sem_permissao";
     }
     if (!chaveConfigurada()) throw new Error("A SARA não está configurada (falta a chave do modelo).");
-    const { data: uso } = await s.sb.rpc("sara_uso_mes", { p_modulo: g.modulo });
+    const uso = await usoDoMes(s.sb, g.modulo);
     if (Number(uso ?? 0) >= p.cfg.teto_tokens_mes) throw new Error("A SARA deste módulo atingiu o limite de uso do mês.");
     const [{ data: me }, { data: org }] = await Promise.all([
       s.sb.from("profiles").select("full_name").eq("id", g.responsavel_id).maybeSingle(),
@@ -109,7 +110,7 @@ async function rodarUma(admin: SupabaseClient, e: Execucao): Promise<string> {
     const r = await conversar(s.sb, { modelo: p.cfg.modelo, sistema, historico: [], pergunta: pedidoDaGuia(g, e.disparo, e.evento, anterior), ferramentas,
       todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], maxTokens: p.sara.maxTokens });
     const QUANDO: Record<string, string> = { agenda: "pela agenda", evento: "por um acontecimento", manual: "Rodar agora" };
-    const { data: reg, error: eReg } = await s.sb.rpc("sara_registrar", {
+    const { data: reg, error: eReg } = await registrarNoServidor(s.sb, {
       p_conversa: null, p_modulo: g.modulo, p_pergunta: `⚡ Guia «${g.nome}» · ${QUANDO[e.disparo] ?? e.disparo}${e.evento?.resumo ? ` · ${e.evento.resumo}` : ""}`, p_resposta: r.texto,
       p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, guia: { id: g.id, execucao: e.id } },
       p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,

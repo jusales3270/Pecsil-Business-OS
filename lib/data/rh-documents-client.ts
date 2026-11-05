@@ -98,15 +98,25 @@ export async function listRhEmployeeDocuments(employeeId: string): Promise<RhEmp
 
 /**
  * Exclui um documento: o registro e o arquivo. RLS: `documents_manage` e
- * `rh_docs_objects_delete` exigem rh.documentos em "operar". Registro
- * primeiro — se a RLS recusar, o arquivo fica intacto.
+ * `rh_docs_objects_delete` conferem também a classificação do documento.
+ * O Storage precisa dos metadados para autorizar a remoção: remover o arquivo
+ * primeiro e só então o registro, sempre com a sessão da própria pessoa.
  */
 export async function deleteRhDocument(id: string, objectPath: string): Promise<void> {
   const supabase = createSupabaseBrowserClient();
+  // Confere o caminho no registro autorizado; nunca remove um caminho recebido
+  // da tela sem provar que pertence ao documento solicitado.
+  const { data: document, error: readError } = await supabase.from("documents")
+    .select("id,object_path,storage_bucket").eq("id", id).eq("module_code", "rh").maybeSingle();
+  if (readError) throw readError;
+  if (!document || document.storage_bucket !== BUCKET || document.object_path !== objectPath) throw new Error("RH_MUTATION_DENIED");
+  if (objectPath) {
+    const { error: storageError } = await supabase.storage.from(BUCKET).remove([objectPath]);
+    if (storageError) throw storageError;
+  }
   const { data, error } = await supabase.from("documents").delete().eq("id", id).select("id");
   if (error) throw error;
   if (!data?.length) throw new Error("RH_MUTATION_DENIED");
-  if (objectPath) await supabase.storage.from(BUCKET).remove([objectPath]).catch(() => {});
 }
 
 export type RhPersonalData = { cpf: string | null; phone: string | null; visible: boolean };

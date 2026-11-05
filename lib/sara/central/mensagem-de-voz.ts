@@ -1,3 +1,5 @@
+import { caminhoArquivoSaraValido } from "../caminho-arquivo";
+import { identidadeSara } from "../uso-servidor";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -68,11 +70,12 @@ export function ferramentaCriarMensagemDeVoz(ctx: ContextoDocumentos): Ferrament
       let audio: Uint8Array;
       try { audio = await gravarMensagemDeVoz(texto); }
       catch (err) { return { dados: { erro: err instanceof Error ? err.message : "A gravação falhou." }, fontes: [] }; }
-      const { data: org } = await sb.rpc("current_organization_id");
+      const { organizacao: org, perfil } = await identidadeSara(sb);
       const caminho = `${org}/${id}/${numero} mensagem de voz.mp3`;
+      if (!caminhoArquivoSaraValido(caminho, org, id)) return { dados: { erro: "Caminho do áudio inválido." }, fontes: [] };
       const { error: eUp } = await createSupabaseAdminClient().storage.from(BUCKET_DOCUMENTOS).upload(caminho, audio, { contentType: "audio/mpeg", upsert: false });
       if (eUp) return { dados: { erro: `Não guardou o áudio: ${eUp.message}` }, fontes: [] };
-      const { error: eArq } = await sb.rpc("sara_documento_arquivo", { p_documento: id, p_caminho: caminho, p_paginas: null, p_bytes: audio.length });
+      const { error: eArq } = await createSupabaseAdminClient().rpc("sara_documento_arquivo_servidor", { p_organizacao: org, p_perfil: perfil, p_documento: id, p_caminho: caminho, p_paginas: null, p_bytes: audio.length });
       if (eArq) return { dados: { erro: `Não ligou o áudio: ${eArq.message}` }, fontes: [] };
       ctx.criados.push({ id, numero, titulo: `${titulo} (para ${para})`, tipo: "mensagem_voz", paginas: 0 });
       return { dados: { gravada: true, id, numero, observacao: "A mensagem aparece na tela para ouvir e baixar. Para mandar pelo WhatsApp, use enviar_pelo_whatsapp com este id." },

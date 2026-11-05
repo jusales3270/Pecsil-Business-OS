@@ -1,3 +1,4 @@
+import { registrarNoServidor, usoDoMes } from "../uso-servidor";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -72,7 +73,7 @@ async function colher(admin: SupabaseClient, sb: SupabaseClient, eu: string, hoj
 }
 
 async function rodarUm(admin: SupabaseClient, l: Linha): Promise<string> {
-  const s = await sessaoComo(admin, l.profile_id);
+  const s = await sessaoComo(admin, l.profile_id, l.organization_id);
   if ("erro" in s) { await terminar(admin, l.id, { situacao: "falhou", erro: s.erro.slice(0, 500) }); return "falhou"; }
   try {
     const { areas, itens: todos } = await colher(admin, s.sb, l.profile_id, l.dia);
@@ -80,17 +81,17 @@ async function rodarUm(admin: SupabaseClient, l: Linha): Promise<string> {
     if (!todos.length) { await terminar(admin, l.id, { situacao: "vazia" }); return "vazia"; }
     const { itens, restantes } = ordenarItens(todos);
     const modulo = moduloDoBomDia(itens, areas) as string;
-    const [{ data: me }, { data: cfg }, { data: uso }] = await Promise.all([
+    const [{ data: me }, { data: cfg }, uso] = await Promise.all([
       s.sb.from("profiles").select("full_name, is_owner").eq("id", l.profile_id).maybeSingle(),
       s.sb.from("sara_modulos").select("teto_tokens_mes").eq("modulo", modulo).maybeSingle(),
-      s.sb.rpc("sara_uso_mes", { p_modulo: modulo }),
+      usoDoMes(s.sb, modulo),
     ]);
     // O apelido vem da allowlist do WhatsApp. Pelo WhatsApp, o Bom dia só sai para quem está marcado na lista de
     // transmissão de Fundação › WhatsApp, nos dias e na hora de lá (proprietário, 04/11/2026); o sino segue para todos.
     const [{ data: wa }, config, { data: marcados }] = await Promise.all([
-      admin.from("whatsapp_contatos").select("id, canal_id, nome, whatsapp_canais!inner(ativo, conexao)").eq("profile_id", l.profile_id)
-        .eq("lista", "interna").eq("ativo", true).eq("whatsapp_canais.ativo", true).eq("whatsapp_canais.conexao", "whatsapp_web").order("created_at").limit(1).maybeSingle<{ id: string; canal_id: string; nome: string | null }>(),
-      lerConfigVigia(admin),
+      admin.from("whatsapp_contatos").select("id, canal_id, nome, whatsapp_canais!inner(ativo, conexao)").eq("organization_id", l.organization_id).eq("profile_id", l.profile_id)
+        .eq("lista", "interna").eq("ativo", true).eq("whatsapp_canais.organization_id", l.organization_id).eq("whatsapp_canais.ativo", true).eq("whatsapp_canais.conexao", "whatsapp_web").order("created_at").limit(1).maybeSingle<{ id: string; canal_id: string; nome: string | null }>(),
+      lerConfigVigia(admin, l.organization_id),
       admin.from("sara_vigia_transmissao").select("contato_id").eq("organization_id", l.organization_id),
     ]);
     const quandoWa = wa ? bomDiaNoWhatsapp(config, { marcado: ((marcados ?? []) as { contato_id: string }[]).some((m) => m.contato_id === wa.id), dia: l.dia, agora: new Date() }) : null;
@@ -101,7 +102,7 @@ async function rodarUm(admin: SupabaseClient, l: Linha): Promise<string> {
     const semModelo = Number(uso ?? 0) >= Number(cfg?.teto_tokens_mes ?? 2_000_000);
     const e = await escreverBomDia({ chave: semModelo ? "" : process.env.ANTHROPIC_API_KEY?.trim() ?? "", nome, data: agora.data.slice(0, 5), semana, itens, restantes });
     const urgentes = itens.filter((i) => i.nivel === "urgente").length;
-    const { data: reg, error } = await s.sb.rpc("sara_registrar", {
+    const { data: reg, error } = await registrarNoServidor(s.sb, {
       p_conversa: null, p_modulo: modulo, p_pergunta: `☀️ Bom dia · ${semana}, ${agora.data.slice(0, 5)}`, p_resposta: e.texto,
       p_ferramentas: { usadas: [], fontes: [], bom_dia: { dia: l.dia, itens: itens.length, restantes, urgentes, texto_da_plataforma: e.daPlataforma, sem_fonte: e.semFonte, teto: semModelo } },
       p_modelo: e.modelo, p_tokens_entrada: e.tokensEntrada, p_tokens_saida: e.tokensSaida,

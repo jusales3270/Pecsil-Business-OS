@@ -1,3 +1,4 @@
+import { caminhoArquivoSaraValido } from "../sara/caminho-arquivo";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { BUCKET_DOCUMENTOS } from "../sara/central/documentos";
 import { MAX_TENTATIVAS, proximaTentativa, proximoHorarioPermitido, silencioso } from "./agendados-regras";
@@ -29,19 +30,23 @@ export async function rodarAgendados(admin: SupabaseClient, deps: Partial<Deps> 
     if (!a) continue;
     try {
       const [{ data: canal }, { data: contato }] = await Promise.all([
-        admin.from("whatsapp_canais").select("id, instancia, ativo, conexao").eq("id", a.canal_id).maybeSingle<{ id: string; instancia: string; ativo: boolean; conexao: string }>(),
-        a.contato_id ? admin.from("whatsapp_contatos").select("id, numero, ativo, profile_id").eq("id", a.contato_id).maybeSingle<{ id: string; numero: string; ativo: boolean; profile_id: string | null }>() : Promise.resolve({ data: null }),
+        admin.from("whatsapp_canais").select("id, instancia, ativo, conexao").eq("organization_id", a.organization_id).eq("id", a.canal_id).maybeSingle<{ id: string; instancia: string; ativo: boolean; conexao: string }>(),
+        a.contato_id ? admin.from("whatsapp_contatos").select("id, numero, ativo, profile_id").eq("organization_id", a.organization_id).eq("canal_id", a.canal_id).eq("id", a.contato_id).maybeSingle<{ id: string; numero: string; ativo: boolean; profile_id: string | null }>() : Promise.resolve({ data: null }),
       ]);
       if (!canal?.ativo || canal.conexao !== "whatsapp_web") throw new Error("O número da plataforma está desativado.");
       if (!contato?.ativo) throw new Error("A pessoa não está mais ativa na allowlist.");
+      if (contato.profile_id) {
+        const { data: perfil } = await admin.from("profiles").select("id").eq("organization_id", a.organization_id).eq("id", contato.profile_id).eq("status", "active").or(`access_expires_at.is.null,access_expires_at.gt.${agora.toISOString()}`).maybeSingle();
+        if (!perfil) throw new Error("Destinatário inativo ou de outra empresa.");
+      }
       const registrar = (waId: string | null, tipo: "texto" | "audio" | "documento") => admin.from("whatsapp_mensagens").insert({ organization_id: a.organization_id, canal_id: canal.id,
         contato_id: contato.id, profile_id: contato.profile_id, direcao: "saida", wa_id: waId, numero_final: contato.numero.slice(-4), tipo, situacao: "enviada", motivo: "agendado" });
       if (a.documentos.length) {
-        const { data: docs } = await admin.from("sara_documentos").select("id, numero, tipo, titulo, caminho").in("id", a.documentos);
+        const { data: docs } = await admin.from("sara_documentos").select("id, numero, tipo, titulo, caminho").eq("organization_id", a.organization_id).in("id", a.documentos);
         const porId = new Map(((docs ?? []) as { id: string; numero: string; tipo: string; titulo: string; caminho: string | null }[]).map((x) => [x.id, x]));
         for (const docId of a.documentos) {
           const doc = porId.get(docId);
-          if (!doc?.caminho) throw new Error("Documento agendado sem arquivo.");
+          if (!doc || !caminhoArquivoSaraValido(doc.caminho, a.organization_id, doc.id)) throw new Error("Documento agendado sem arquivo.");
           const { data: arq, error: eArq } = await admin.storage.from(BUCKET_DOCUMENTOS).download(doc.caminho);
           if (eArq || !arq) throw new Error(`Não consegui ler ${doc.numero}.`);
           const base64 = Buffer.from(await arq.arrayBuffer()).toString("base64");

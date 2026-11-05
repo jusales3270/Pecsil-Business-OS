@@ -20,14 +20,16 @@ type DepsEnquete = { enviarInterativo: typeof enviarInterativo; enviarTexto: typ
  * Das ações pendentes da resposta, a que vai virar enquete (só quando é UMA, para a pessoa saber o que confirma).
  * Nula: segue o link para o Permitir.
  */
-export async function avaliarEnquete(admin: SupabaseClient, perfil: string, contato: string, ids: string[]): Promise<AcaoPendente | null> {
+export async function avaliarEnquete(admin: SupabaseClient, perfil: string, contato: string, ids: string[], org: string): Promise<AcaoPendente | null> {
   if (ids.length !== 1) return null;
-  const { data: a } = await admin.from("sara_acoes").select("id, organization_id, modulo, ferramenta, resumo, risco, situacao, expira_em, profile_id").eq("id", ids[0]).maybeSingle<AcaoPendente>();
+  const { data: c } = await admin.from("whatsapp_contatos").select("organization_id").eq("organization_id", org).eq("id", contato).eq("profile_id", perfil).eq("ativo", true).maybeSingle();
+  if (!c) return null;
+  const { data: a } = await admin.from("sara_acoes").select("id, organization_id, modulo, ferramenta, resumo, risco, situacao, expira_em, profile_id").eq("organization_id", c.organization_id).eq("profile_id", perfil).eq("id", ids[0]).maybeSingle<AcaoPendente>();
   if (!a || !(PODE_PELO_WHATSAPP[a.ferramenta] || LIBERADAS_PELO_PROPRIETARIO[a.ferramenta])) return null;
   const [{ data: liberada }, { count }, { count: abertas }] = await Promise.all([
     admin.from("sara_whatsapp_confirmar").select("ate_por_dia").eq("organization_id", a.organization_id).eq("ferramenta", a.ferramenta).maybeSingle<{ ate_por_dia: number }>(),
-    admin.from("whatsapp_enquetes").select("id", { count: "exact", head: true }).eq("profile_id", perfil).eq("ferramenta", a.ferramenta).eq("situacao", "respondida").eq("resposta", "Sim").gte("respondida_em", inicioDoDia()),
-    admin.from("whatsapp_enquetes").select("id", { count: "exact", head: true }).eq("contato_id", contato).eq("situacao", "aberta").gt("expira_em", new Date().toISOString()),
+    admin.from("whatsapp_enquetes").select("id", { count: "exact", head: true }).eq("organization_id", org).eq("profile_id", perfil).eq("ferramenta", a.ferramenta).eq("situacao", "respondida").eq("resposta", "Sim").gte("respondida_em", inicioDoDia()),
+    admin.from("whatsapp_enquetes").select("id", { count: "exact", head: true }).eq("organization_id", org).eq("contato_id", contato).eq("situacao", "aberta").gt("expira_em", new Date().toISOString()),
   ]);
   const r = podeVirarEnquete(a, { perfil, liberada: liberada ?? null, usadasHoje: count ?? 0, temAberta: (abertas ?? 0) > 0 });
   return r.ok ? a : null;
@@ -36,6 +38,9 @@ export async function avaliarEnquete(admin: SupabaseClient, perfil: string, cont
 /** Manda a enquete e registra (vale 15 minutos, ou menos se a proposta vencer antes). Devolve se saiu. */
 export async function mandarEnquete(admin: SupabaseClient, d: Pick<DepsEnquete, "enviarInterativo">, canal: Canal, contato: string, perfil: string, numero: string, a: AcaoPendente): Promise<boolean> {
   try {
+    if (a.organization_id !== canal.organization_id || a.profile_id !== perfil) return false;
+    const { data: c } = await admin.from("whatsapp_contatos").select("id").eq("id", contato).eq("organization_id", canal.organization_id).eq("canal_id", canal.id).eq("profile_id", perfil).eq("ativo", true).maybeSingle();
+    if (!c) return false;
     const r = await d.enviarInterativo(canal.instancia, "enquete", numero, perguntaDaEnquete(a.resumo), OPCOES_ENQUETE);
     if (!r.id) return false;
     const expira = Math.min(Date.parse(a.expira_em), Date.now() + VALIDADE_ENQUETE_MS);
@@ -49,7 +54,7 @@ export async function mandarEnquete(admin: SupabaseClient, d: Pick<DepsEnquete, 
 /** Registra a enquete do teste de Fundação › WhatsApp (sem ação): a mesma trava do primeiro voto. */
 export async function registrarEnqueteDeTeste(admin: SupabaseClient, canal: Canal, numero: string, waId: string | null): Promise<void> {
   if (!waId) return;
-  const { data: contato } = await admin.from("whatsapp_contatos").select("id, profile_id").eq("canal_id", canal.id).eq("numero", numero).maybeSingle<{ id: string; profile_id: string | null }>();
+  const { data: contato } = await admin.from("whatsapp_contatos").select("id, profile_id").eq("organization_id", canal.organization_id).eq("canal_id", canal.id).eq("numero", numero).maybeSingle<{ id: string; profile_id: string | null }>();
   const { error } = await admin.from("whatsapp_enquetes").insert({ organization_id: canal.organization_id, canal_id: canal.id, contato_id: contato?.id ?? null, profile_id: contato?.profile_id ?? null,
     wa_id: waId, opcoes: OPCOES_ENQUETE.map((o) => o.texto), expira_em: new Date(Date.now() + VALIDADE_ENQUETE_MS).toISOString() });
   if (error) console.error("[whatsapp] enquete de teste sem registro", error.message);
@@ -69,13 +74,13 @@ export async function receberVoto(admin: SupabaseClient, d: DepsEnquete, canal: 
   if (!e.texto) return ignorar("voto_retirado");
   const agora = new Date().toISOString();
   const { data: ganhou } = await admin.from("whatsapp_enquetes").update({ situacao: "respondida", resposta: e.texto.slice(0, 100), respondida_em: agora })
-    .eq("canal_id", canal.id).eq("wa_id", e.enquete.waId).eq("contato_id", contato).eq("situacao", "aberta").gt("expira_em", agora)
+    .eq("organization_id", canal.organization_id).eq("canal_id", canal.id).eq("wa_id", e.enquete.waId).eq("contato_id", contato).eq("situacao", "aberta").gt("expira_em", agora)
     .select("id, contato_id, acao_id, situacao, expira_em").maybeSingle<Enquete>();
   const apagar = () => d.apagarMensagem(canal.instancia, e.enquete?.jid || jidChat, e.enquete!.waId);
   const responder = async (texto: string) => { await d.enviarTexto(canal.instancia, numero, texto); return 1; };
 
   if (!ganhou) {
-    const { data: x } = await admin.from("whatsapp_enquetes").select("id, contato_id, acao_id, situacao, expira_em").eq("canal_id", canal.id).eq("wa_id", e.enquete.waId).maybeSingle<Enquete>();
+    const { data: x } = await admin.from("whatsapp_enquetes").select("id, contato_id, acao_id, situacao, expira_em").eq("organization_id", canal.organization_id).eq("canal_id", canal.id).eq("wa_id", e.enquete.waId).maybeSingle<Enquete>();
     if (!x) return ignorar("enquete_desconhecida");
     if (x.contato_id !== contato) return ignorar("enquete_de_outro");
     if (x.situacao !== "aberta") return ignorar("voto_repetido");
@@ -89,9 +94,9 @@ export async function receberVoto(admin: SupabaseClient, d: DepsEnquete, canal: 
   await apagar();
   if (!ganhou.acao_id) return { situacao: "respondida", motivo: "enquete_teste", respostas: await responder(`Resposta registrada: "${e.texto}". Era só teste: nada foi feito.`) };
 
-  const { data: acao } = await admin.from("sara_acoes").select("modulo, resumo").eq("id", ganhou.acao_id).maybeSingle<{ modulo: string; resumo: string }>();
+  const { data: acao } = await admin.from("sara_acoes").select("modulo, resumo").eq("organization_id", canal.organization_id).eq("profile_id", perfil).eq("id", ganhou.acao_id).maybeSingle<{ modulo: string; resumo: string }>();
   const sim = e.texto === "Sim";
-  const s = await sessaoComo(admin, perfil);
+  const s = await sessaoComo(admin, perfil, canal.organization_id);
   if ("erro" in s) return { situacao: "respondida", motivo: "sem_sessao", respostas: await responder("Não consegui confirmar agora: o seu acesso à plataforma não está ativo.") };
   try {
     const titulo = `${sim ? "✅" : "✖️"} ${acao?.resumo ?? "Ação"} (${e.texto})`;

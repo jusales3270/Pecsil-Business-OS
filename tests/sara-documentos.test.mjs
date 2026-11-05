@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { acharPessoa, doVisual, nomeDoArquivo, textoParaConferir, validarDocumento } from "../lib/sara/documentos/documento.ts";
+import { acharPessoa, nomeDoArquivo, textoParaConferir, validarDocumento } from "../lib/sara/documentos/documento.ts";
 import { gerarPdf, limpar } from "../lib/sara/documentos/pdf.ts";
 import { conferirNumeros } from "../lib/sara/central/verificador.ts";
 
@@ -118,6 +118,6 @@ test("documentos: só a central cria e envia; as SARAs dos módulos só recebem"
   assert.match(sql, /d\.criado_por is distinct from me then raise exception 'Só quem criou o documento envia\.'/);
   assert.match(sql, /insert into storage\.buckets \(id, name, public\) values \('sara-documentos', 'sara-documentos', false\)/);
   assert.match(sql, /revoke insert, update, delete on public\.sara_documentos, public\.sara_documento_envios from anon, authenticated/);
-  assert.match(ler("app/api/sara/documentos/[id]/pdf/route.ts"), /session\.supabase\.from\("sara_documentos"\)\.select\("id, numero, titulo, caminho"\)\.eq\("id", id\)/, "quem pode abrir é o RLS");
+  assert.match(ler("app/api/sara/documentos/[id]/pdf/route.ts"), /session\.supabase\.from\("sara_documentos"\)\.select\("id, organization_id, numero, titulo, caminho"\)\.eq\("id", id\)/, "quem pode abrir é o RLS");
   assert.match(ler("modules/event-catalog.ts"), /"sara\.documento\.enviado"/);
 });

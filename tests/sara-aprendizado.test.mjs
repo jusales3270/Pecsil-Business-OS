@@ -73,9 +73,9 @@ test("aprendizado: lição validada (frase, até 500, sem CPF/PIS) e o bloco de 
 test("aprendizado: ligado na central (propor_licao, memória e verificador), na área e na subagente; vigia com recorrência e silêncio", () => {
   const sessao = ler("lib/sara/sessao.ts");
   assert.match(sessao, /ferramentaProporLicao\(areas\.map/, "só a central propõe lição");
-  assert.match(sessao, /const memoria = await memoriaDaSara\(\[modulo\], false\);[\s\S]*REGRA_SUBAGENTE\}\$\{memoria\.texto/, "a subagente usa as lições da área");
+  assert.match(sessao, /const memoria = await memoriaDaSara\(sb, \[modulo\], false\);[\s\S]*REGRA_SUBAGENTE\}\$\{memoria\.texto/, "a subagente usa as lições da área");
   const rota = (ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts"));
-  assert.match(rota, /memoriaDaSara\(areasDaMemoria, Boolean\(p\.sara\.central\)\)/);
+  assert.match(rota, /memoriaDaSara\(p\.sb, areasDaMemoria, Boolean\(p\.sara\.central\)\)/);
   assert.match(rota, /\.\.\.\(memoria\.tipos\.length \? \[memoria\.texto\] : \[\]\)/, "os números do histórico contam como fonte da central");
   const vigia = ler("lib/sara/central/vigia-executar.ts");
   assert.match(vigia, /comRecorrencia\(a, doMesmoProblema\(aprendido/);

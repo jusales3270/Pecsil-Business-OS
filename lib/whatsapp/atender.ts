@@ -1,3 +1,4 @@
+import { reservarTranscricao } from "../sara/uso-servidor";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { gravarMensagemDeVoz } from "../sara/central/mensagem-de-voz";
 import { resumoFalado } from "../sara/central/fala";
@@ -62,13 +63,13 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
   const ignorar = async (motivo: string, extra: Record<string, unknown> = {}) => { await marcar({ situacao: "ignorada", motivo, ...extra }); return { situacao: "ignorada" as const, motivo }; };
 
   if (!canal.ativo || canal.conexao !== "whatsapp_web") return ignorar("canal_inativo");
-  const { data: contato } = await admin.from("whatsapp_contatos").select("id, lista, profile_id, sara_modulo, nome, ativo").eq("canal_id", canal.id).eq("numero", m.numero).maybeSingle<Contato>();
+  const { data: contato } = await admin.from("whatsapp_contatos").select("id, lista, profile_id, sara_modulo, nome, ativo").eq("organization_id", canal.organization_id).eq("canal_id", canal.id).eq("numero", m.numero).maybeSingle<Contato>();
   // Silêncio total para quem não está na lista (nem "lida", nem "digitando").
   if (!contato || !contato.ativo) return ignorar("fora_da_lista");
   if (contato.lista !== "interna" || !contato.profile_id) return ignorar("externa", { contato_id: contato.id });
   const sara = contato.sara_modulo;
   if (!sara) return ignorar("sem_sara", { contato_id: contato.id, profile_id: contato.profile_id });
-  const { data: perfil } = await admin.from("profiles").select("id, status, access_expires_at").eq("id", contato.profile_id).maybeSingle<{ id: string; status: string; access_expires_at: string | null }>();
+  const { data: perfil } = await admin.from("profiles").select("id, status, access_expires_at").eq("organization_id", canal.organization_id).eq("id", contato.profile_id).maybeSingle<{ id: string; status: string; access_expires_at: string | null }>();
   if (!perfil || perfil.status !== "active" || (perfil.access_expires_at && Date.parse(perfil.access_expires_at) < Date.now())) return ignorar("usuario_inativo", { contato_id: contato.id, profile_id: contato.profile_id });
   await marcar({ contato_id: contato.id, profile_id: perfil.id });
 
@@ -123,6 +124,10 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
       const midia = m.base64 ? { base64: m.base64 } : await d.baixarMidia(canal.instancia, m.waId);
       if (!midia) throw new Error("não consegui baixar o áudio");
       const bytes = Buffer.from(midia.base64, "base64");
+      if (!bytes.length || bytes.length > 10_000_000) throw new Error("Áudio vazio ou grande demais.");
+      const sessaoAudio = await sessaoComo(admin, perfil.id, canal.organization_id);
+      if ("erro" in sessaoAudio) throw new Error(sessaoAudio.erro);
+      try { await reservarTranscricao(sessaoAudio.sb, sara, bytes.length, admin); } finally { await sessaoAudio.sair(); }
       const t = await d.transcrever(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
       if ("erro" in t || !t.texto.trim()) {
         const n = await responderTexto("Não consegui entender o áudio. Pode mandar de novo, ou por texto?");
@@ -141,12 +146,12 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
     }
 
     // A conversa continua a mesma da SARA se a última mensagem foi há menos de 12 h.
-    const { data: anterior } = await admin.from("whatsapp_mensagens").select("conversa_id, created_at").eq("contato_id", contato.id).eq("direcao", "entrada")
+    const { data: anterior } = await admin.from("whatsapp_mensagens").select("conversa_id, created_at").eq("organization_id", canal.organization_id).eq("canal_id", canal.id).eq("contato_id", contato.id).eq("direcao", "entrada")
       .not("conversa_id", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle<{ conversa_id: string; created_at: string }>();
     const conversa = anterior && Date.now() - Date.parse(anterior.created_at) < CONTINUA_MS ? anterior.conversa_id : null;
 
     // A SARA do número, com a sessão da pessoa (as permissões dela valem em tudo).
-    const s = await sessaoComo(admin, perfil.id);
+    const s = await sessaoComo(admin, perfil.id, canal.organization_id);
     if ("erro" in s) throw new Error(s.erro);
     try {
       const p = await prepararCom(s.sb, sara);
@@ -171,7 +176,7 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
       const diretas = await paraQuemPede(admin, s.sb, perfil.id, preparadas.map((a) => a.id));
       const pendentes = preparadas.filter((a) => !diretas.includes(a.id));
       // Uma ação que a área liberou para o WhatsApp: vai a enquete depois da resposta.
-      const enquete = await avaliarEnquete(admin, perfil.id, contato.id, pendentes.map((a) => a.id)).catch(() => null);
+      const enquete = await avaliarEnquete(admin, perfil.id, contato.id, pendentes.map((a) => a.id), canal.organization_id).catch(() => null);
       const extra = complementoEscrito({ acoesPendentes: pendentes.length, visuais: (corpo.visuais ?? []).length, linkSara, enquete: Boolean(enquete) });
       let n = 0;
       if (falar) {
@@ -210,7 +215,9 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
 /** Das ações preparadas, os envios pelo WhatsApp cujo destino é a própria pessoa da conversa (lista interna). */
 async function paraQuemPede(admin: SupabaseClient, sb: SupabaseClient, perfil: string, ids: string[]): Promise<string[]> {
   if (!ids.length) return [];
-  const { data } = await admin.from("sara_acoes").select("id, ferramenta, entrada, profile_id").in("id", ids).eq("ferramenta", "enviar_pelo_whatsapp").eq("profile_id", perfil);
+  const { data: org, error } = await sb.rpc("current_organization_id");
+  if (error || !org) return [];
+  const { data } = await admin.from("sara_acoes").select("id, ferramenta, entrada, profile_id").eq("organization_id", org).in("id", ids).eq("ferramenta", "enviar_pelo_whatsapp").eq("profile_id", perfil);
   const diretas: string[] = [];
   for (const a of (data ?? []) as { id: string; entrada: Record<string, unknown> | null }[]) {
     const destino = await destinoDoEnvio(sb, a.entrada ?? {});

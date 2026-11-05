@@ -39,15 +39,16 @@ export function ferramentaProporLicao(areas: { modulo: string; rotulo: string }[
 }
 
 /** As lições valendo nas áreas indicadas. */
-export async function licoesAtivas(admin: SupabaseClient, modulos: string[]): Promise<LicaoAtiva[]> {
-  if (!modulos.length) return [];
+export async function licoesAtivas(admin: SupabaseClient, modulos: string[], org: string): Promise<LicaoAtiva[]> {
+  if (!org || !modulos.length) return [];
   const { data } = await admin.from("sara_licoes").select("modulo, texto, ensinada_por_nome, decidida_por_nome, efeito")
-    .eq("situacao", "ativa").in("modulo", modulos).order("decidida_em", { ascending: false }).limit(APRENDIZADO.maxLicoes * 2);
+    .eq("organization_id", org).eq("situacao", "ativa").in("modulo", modulos).order("decidida_em", { ascending: false }).limit(APRENDIZADO.maxLicoes * 2);
   return ((data ?? []) as Omit<LicaoAtiva, "area">[]).map((l) => ({ ...l, area: rotulo(l.modulo) }));
 }
 
 /** O histórico dos achados da vigia (90 dias), para o que ela aprendeu. */
 export async function historicoDaVigia(sb: SupabaseClient, agora: Date = new Date(), org?: string): Promise<LinhaHistorico[]> {
+  if (!org) return [];
   const desde = new Date(agora.getTime() - APRENDIZADO.janelaDias * 86_400_000).toISOString();
   let q = sb.from("sara_achados").select("tipo, modulo, area, titulo, situacao, envios, created_at, resolvido_em").gte("created_at", desde);
   if (org) q = q.eq("organization_id", org);
@@ -56,10 +57,12 @@ export async function historicoDaVigia(sb: SupabaseClient, agora: Date = new Dat
 }
 
 /** A memória da SARA: as lições das áreas e, na central, o que a vigia aprendeu nessas áreas. */
-export async function memoriaDaSara(modulos: string[], comVigia: boolean): Promise<{ texto: string; tipos: AprendidoTipo[] }> {
+export async function memoriaDaSara(sb: SupabaseClient, modulos: string[], comVigia: boolean): Promise<{ texto: string; tipos: AprendidoTipo[] }> {
   try {
+    const { data: org, error } = await sb.rpc("current_organization_id");
+    if (error || !org) throw new Error("Empresa da sessão indisponível.");
     const admin = createSupabaseAdminClient();
-    const [licoes, historico] = await Promise.all([licoesAtivas(admin, modulos), comVigia ? historicoDaVigia(admin) : Promise.resolve([])]);
+    const [licoes, historico] = await Promise.all([licoesAtivas(admin, modulos, org), comVigia ? historicoDaVigia(admin, new Date(), org) : Promise.resolve([])]);
     const tipos = aprendizadoDaVigia(historico.filter((l) => modulos.includes(l.modulo)));
     return { texto: blocoDeAprendizado(licoes, tipos), tipos };
   } catch (e) {

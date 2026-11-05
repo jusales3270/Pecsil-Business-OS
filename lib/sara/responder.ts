@@ -1,3 +1,4 @@
+import { registrarNoServidor, usoDoMes } from "./uso-servidor";
 import { NextResponse, after } from "next/server";
 import { chaveConfigurada, conversar, verificar } from "./claude";
 import { contextoParaVerificar, MODELO_VERIFICADOR, recusa, regrasDeEscopo } from "./escopo";
@@ -99,7 +100,8 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const pergunta = digitada || (imagem ? p.sara.fotoSemTexto ?? FOTO_SEM_TEXTO : anexo ? ANEXO_SEM_TEXTO : "");
   if (pergunta.length < 2) return NextResponse.json({ error: "Escreva a pergunta." }, { status: 400 });
   if (!chaveConfigurada()) return NextResponse.json({ error: "A SARA ainda não está configurada (falta a chave do modelo no servidor)." }, { status: 503 });
-  const { data: uso } = await p.sb.rpc("sara_uso_mes", { p_modulo: modulo });
+  let uso: number;
+  try { uso = await usoDoMes(p.sb, modulo); } catch { return NextResponse.json({ error: "Não foi possível conferir o limite de uso da SARA." }, { status: 503 }); }
   if (Number(uso ?? 0) >= p.cfg.teto_tokens_mes) {
     // A pessoa só lê "foi avisado" se o aviso saiu de verdade.
     const { data: avisou, error: eCheio } = await p.sb.rpc("sara_aviso_teto_cheio", { p_modulo: modulo });
@@ -146,7 +148,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
     .map((f) => f.descricao.replace(/^PREPARA /, "").split(" (")[0]);
   // J5: o que a empresa ensinou (lições aprovadas pela área) e, na central, o que a vigia aprendeu nas áreas da pessoa.
   const areasDaMemoria = p.sara.central ? Object.values(SARAS).filter((s) => !s.central && p.access.canModule(s.feature) && p.access.can(s.permissao, "ver")).map((s) => s.modulo) : [modulo];
-  const memoria = await memoriaDaSara(areasDaMemoria, Boolean(p.sara.central));
+  const memoria = await memoriaDaSara(p.sb, areasDaMemoria, Boolean(p.sara.central));
   // I-21: o que foi tratado com esta pessoa em outras conversas, na tela ou no WhatsApp. Só de áreas que ela ainda acessa.
   // A SARA central entra na lista de todas: é ela que costuma atender pelo WhatsApp.
   const central = Object.values(SARAS).find((s) => s.central);
@@ -244,7 +246,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   // O "Senhor" é só do fundador verificado: a plataforma corrige o que o modelo tenha concedido a outra pessoa.
   r = { ...r, texto: semTratamentoIndevido(r.texto, interlocutor) };
   const passoGravar = iniciarPasso("conferencia", "Guardando a conversa");
-  const { data: reg, error } = await p.sb.rpc("sara_registrar", {
+  const { data: reg, error } = await registrarNoServidor(p.sb, {
     p_conversa: conversa, p_modulo: modulo, p_pergunta: `${imagem ? "📷 " : ""}${corpo?.voz ? "🎤 " : ""}${anexo ? `📎 ${anexo.nome} · ` : ""}${pergunta}`, p_resposta: r.texto,
     p_ferramentas: { usadas: r.ferramentas, fontes: r.fontes, abriu: r.abrir, grafo: r.grafo ?? null, visuais: r.visuais, cache: { lido: r.cacheLido, gravado: r.cacheGravado }, escopo: { fora, verificador_falhou: v.falhou, sigilo }, tempos: { total_ms: Date.now() - inicioRota, conversa_ms: msModelo, etapas: r.tempos ?? [] },
       lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)),
@@ -252,7 +254,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
       ...(parecer ? { conferencia_saida: { aprovada: parecer.aprovada, motivo: parecer.motivo, area: parecer.area, falhou: parecer.falhou } } : {}),
       ...(p.sara.central ? { verificador: conferencia, subagentes: p.subagentes, documentos: p.documentos?.criados ?? [] } : {}) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
-  if (error) console.error("[sara] não registrou a conversa", error.message);
+  if (error || !reg) return NextResponse.json({ error: "Não foi possível registrar o uso da SARA. Tente novamente." }, { status: 503 });
   passoGravar.fim(!error);
   const ids = reg as { conversa: string; mensagem: string } | null;
   // J5: a lição proposta na primeira mensagem nasce antes da conversa; liga a lição à conversa agora.
