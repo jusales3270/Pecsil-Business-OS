@@ -41,6 +41,8 @@ Internet ── 181.224.8.145 (IP público) ── roteador da empresa
   descarta o Host).
 - **O transmissor da NF-e** só fala com a SEFAZ e com o Business OS, pela rede interna
   (`TRANSMISSOR_URL`). Detalhe em [FISCAL-NFE.md](FISCAL-NFE.md).
+- **O medidor 3D** só fala com o Business OS, pela rede interna (`MEDIDOR_URL`); recebe o STEP
+  do orçamento e devolve as medidas. Detalhe em [services/medidor-3d/README.md](../services/medidor-3d/README.md).
 
 ## 2. Endereços e portas
 
@@ -67,6 +69,7 @@ fechar no roteador não resolve. A correção é no servidor e está em
 | Business OS | App do Coolify, build Railpack a partir do `main` (o Deploy leva uns 3 min) | este repositório | Supabase | `i3rwerhgkqqurapbrowuho1p` (app `pecsil--business--o-s`) |
 | Forja | Compose do Coolify (`docker-compose.coolify.yml`) | `jusales3270/forja-pecsil` | Postgres próprio, banco **`forja_recuperado_20260911`**; MinIO | `f7dr7wdj87pbupkbfezrnnw5` |
 | Transmissor da NF-e | App do Coolify, Dockerfile, Base Directory `/services/transmissor-nfe`, porta 3100 | este repositório (programa separado, GPL-3.0) | nenhum (não guarda nada) | `zqolizieqokegi4w9fihwxlo` (app `transmissor-nfe`) |
+| Medidor 3D (C-19) | App do Coolify, Dockerfile, Base Directory `/services/medidor-3d`, porta 3200, sem domínio, apelido de rede `medidor-3d`; o motor `solidcraft-cli` (MIT/Apache) vem da release oficial com sha256 fixo | este repositório | nenhum (o STEP fica numa pasta temporária só durante a medição) | `sbftwybiqlvxjawqzvs9xnof` (app `medidor-3d`, criado pela API em 05/11/2026) |
 | Fleetbase (entregas, L-01) | Compose do Coolify (`docker-compose.coolify.yml`, ramo **`pecsil`**; submódulos do git **desligados**) | `jusales3270/fleetbase-frota` (fork, AGPL) | MySQL próprio (volume `fleetbase_mysql`, **fora do backup externo por enquanto**) | `vs6zcbrmmlgrnrouwz4rm02b` (app `fleetbase-entregas`) |
 | Backup externo (T-02) | App do Coolify, Dockerfile, Base Directory `/services/backup`, sem domínio | este repositório | lê o Supabase pelo papel `backup_leitura`; grava no projeto do vigia | `vn52r1arcew0qjpirt0gu1mp` (app `backup-externo`) |
 | Supabase | docker-compose manual, **fora** do Coolify | — | Postgres (`public`), Storage (buckets `empresa-documentos`, `rh-documents`…) | — |
@@ -103,6 +106,8 @@ Git. **Nenhum segredo com o prefixo `NEXT_PUBLIC_`**: esse prefixo manda o valor
 | `MAIL_SYNC_SECRET` | Sincronização do e-mail do Comercial | **sim** |
 | `TRANSMISSOR_URL`, `TRANSMISSOR_TIPO` | Onde está o transmissor da NF-e e qual implementação | não |
 | `TRANSMISSOR_SECRET` | Cabeçalho `x-transmissor-secret` (o mesmo no transmissor) | **sim** |
+| `MEDIDOR_URL` | Onde está o medidor 3D (`http://medidor-3d:3200`) | não |
+| `MEDIDOR_SECRET` | Cabeçalho `x-medidor-secret` (o mesmo no medidor) | **sim** |
 | `MS_GRAPH_TENANT_ID`, `MS_GRAPH_CLIENT_ID` | App do Microsoft 365 (C-14, ainda não ligado) | não |
 | `MS_GRAPH_CLIENT_SECRET` | Idem | **sim** |
 | `CLOUDFLARE_ACCOUNT_ID` | Conta do Clef (modelo de decisão) | não |
