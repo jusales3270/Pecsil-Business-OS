@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { proporBancos, proporFornecedores, proporGerenciais, normalizarNome, type ContaRef, type PartidaHist, type Proposta, type TituloVoto } from "./depara";
 import { todas } from "./servidor";
+import { contaNoPlano } from "./eventos";
 
 /**
  * Propõe o de-para do plano (N-04 passo 5), com a chave de serviço DEPOIS de a rota conferir fiscal.contabilidade
@@ -29,9 +30,12 @@ export async function proporVinculos(admin: SupabaseClient, org: string, plano: 
   const grupo = grupoDeFornecedores(contas);
   const contasForn = analiticas.filter((c) => c.superior_codigo === grupo);
 
-  type Titulo = { id: string; direction: string; supplier_id: string | null; chart_account_id: string | null; original_amount: number | string; is_forecast: boolean | null; archived_at: string | null; cancelled_at: string | null };
-  const titulos = (await todas<Titulo>((a, b) => admin.from("finance_titles").select("id, direction, supplier_id, chart_account_id, original_amount, is_forecast, archived_at, cancelled_at")
-    .eq("organization_id", org).eq("direction", "payable").order("id").range(a, b))).filter((t) => !t.is_forecast && !t.archived_at && !t.cancelled_at);
+  // Só o que conta para o plano: o histórico de antes da abertura (memória 2020–2025) não gera proposta.
+  const { data: pl } = await admin.from("contabil_planos").select("abertura").eq("id", plano).maybeSingle();
+  const abertura = (pl?.abertura as string | null | undefined) ?? null;
+  type Titulo = { id: string; direction: string; supplier_id: string | null; chart_account_id: string | null; original_amount: number | string; is_forecast: boolean | null; archived_at: string | null; competence_date: string | null; issue_date: string | null; cancelled_at: string | null };
+  const titulos = (await todas<Titulo>((a, b) => admin.from("finance_titles").select("id, direction, supplier_id, chart_account_id, original_amount, is_forecast, archived_at, cancelled_at, competence_date, issue_date")
+    .eq("organization_id", org).eq("direction", "payable").order("id").range(a, b))).filter((t) => contaNoPlano(t, abertura));
   const idsForn = new Set(titulos.map((t) => t.supplier_id).filter((x): x is string => Boolean(x)));
   const fornecedores = (await todas<{ id: string; name: string | null; legal_name: string | null; trade_name: string | null; merged_into: string | null }>((a, b) =>
     admin.from("suppliers").select("id, name, legal_name, trade_name, merged_into").eq("organization_id", org).order("id").range(a, b))).filter((f) => idsForn.has(f.id) && !f.merged_into);

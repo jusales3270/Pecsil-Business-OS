@@ -27,6 +27,17 @@ const contraparte = (t: { direction: "payable" | "receivable"; counterparty_name
   return id ? { tipo: t.direction === "payable" ? "fornecedor" as const : "cliente" as const, id, nome: t.counterparty_name ?? id } : null;
 };
 
+/**
+ * O título conta para a contabilidade da plataforma (de-para, fornecedores da contabilidade)? Antes da
+ * abertura do plano vale o saldo inicial: o histórico de 2020–2025 que voltou ao Financeiro como memória
+ * (05/11/2026) não entra. Previsão, arquivado e cancelado também não.
+ */
+export function contaNoPlano(t: Pick<LinhaTitulo, "is_forecast" | "archived_at" | "cancelled_at" | "competence_date" | "issue_date">, abertura: string | null): boolean {
+  if (t.is_forecast || t.archived_at || t.cancelled_at) return false;
+  const data = t.competence_date ?? t.issue_date;
+  return !abertura || !data || data >= abertura;
+}
+
 export function eventoDoTitulo(t: LinhaTitulo, rateios: readonly LinhaRateio[]): Evento | null {
   if (t.is_forecast || t.archived_at || t.cancelled_at) return null;
   const data = t.competence_date ?? t.issue_date;

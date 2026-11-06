@@ -6,6 +6,7 @@ import { montarBalanco, montarDre, type Movimento as MovimentoDre, type Saldo } 
 import { lerEcd, lerPlanoCsv, partidasDeAbertura } from "../../../../lib/contabil/escrituracao/ecd";
 import { planoDeExemplo } from "../../../../lib/contabil/escrituracao/exemplo";
 import { proporVinculos } from "../../../../lib/contabil/escrituracao/depara-servidor";
+import { contaNoPlano } from "../../../../lib/contabil/escrituracao/eventos";
 import { importarEcd } from "../../../../lib/contabil/escrituracao/historico";
 import { PAPEIS } from "../../../../lib/contabil/escrituracao/regras";
 import { escriturar, todas } from "../../../../lib/contabil/escrituracao/servidor";
@@ -80,12 +81,12 @@ export async function GET(request: Request) {
     // Quem aparece nos títulos a pagar do Financeiro (lido com a chave de serviço: só nome, quantidade e valor).
     const admin = createSupabaseAdminClient();
     const autor = await autorDaSessao(sb);
-    type T = { supplier_id: string | null; counterparty_name: string | null; original_amount: number | string; is_forecast: boolean | null; archived_at: string | null; cancelled_at: string | null };
-    const titulos = await todas<T>((a, b) => admin.from("finance_titles").select("supplier_id, counterparty_name, original_amount, is_forecast, archived_at, cancelled_at")
+    type T = { supplier_id: string | null; counterparty_name: string | null; original_amount: number | string; is_forecast: boolean | null; archived_at: string | null; cancelled_at: string | null; competence_date: string | null; issue_date: string | null };
+    const titulos = await todas<T>((a, b) => admin.from("finance_titles").select("supplier_id, counterparty_name, original_amount, is_forecast, archived_at, cancelled_at, competence_date, issue_date")
       .eq("organization_id", autor?.org ?? "").eq("direction", "payable").not("supplier_id", "is", null).order("id").range(a, b));
     const porFornecedor = new Map<string, { id: string; nome: string; titulos: number; valor: number }>();
     for (const t of titulos) {
-      if (t.is_forecast || t.archived_at || t.cancelled_at) continue;
+      if (!contaNoPlano(t, plano.abertura ?? null)) continue;
       const f = porFornecedor.get(t.supplier_id!) ?? { id: t.supplier_id!, nome: t.counterparty_name ?? "—", titulos: 0, valor: 0 };
       f.titulos++; f.valor += Number(t.original_amount) || 0;
       porFornecedor.set(t.supplier_id!, f);

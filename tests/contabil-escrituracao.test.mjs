@@ -3,7 +3,7 @@ import test from "node:test";
 import "./ts-resolver.mjs";
 
 const { aplicarRegra, regraNaData } = await import("../lib/contabil/escrituracao/regras.ts");
-const { eventoDoTitulo, eventoDaBaixa } = await import("../lib/contabil/escrituracao/eventos.ts");
+const { eventoDoTitulo, eventoDaBaixa, contaNoPlano } = await import("../lib/contabil/escrituracao/eventos.ts");
 const { lerEcd, lerPlanoCsv, partidasDeAbertura } = await import("../lib/contabil/escrituracao/ecd.ts");
 const { montarBalancete } = await import("../lib/contabil/escrituracao/balancete.ts");
 const { planoDeExemplo } = await import("../lib/contabil/escrituracao/exemplo.ts");
@@ -305,4 +305,15 @@ test("motor: contas a pagar vai para a conta do fornecedor; sem ela, para o pape
   const b = eventoDaBaixa(baixa({}, { supplier_id: "s1" }), null);
   const pago = aplicarRegra(b, regraNaData(REGRAS, b.tipo, b.data), { ...V, fornecedor: new Map([["s1", "c-forn-x"]]) });
   assert.deepEqual(pago.partidas.map((p) => [p.conta_id, p.lado]), [["c-forn-x", "D"], ["c-banco", "C"]]);
+});
+
+test("memória 2020–2025: título de antes da abertura do plano fica fora do de-para e dos fornecedores da contabilidade", () => {
+  const base = { is_forecast: false, archived_at: null, cancelled_at: null, competence_date: null, issue_date: null };
+  assert.equal(contaNoPlano({ ...base, competence_date: "2024-05-10" }, "2026-01-01"), false);
+  assert.equal(contaNoPlano({ ...base, issue_date: "2025-12-31" }, "2026-01-01"), false);
+  assert.equal(contaNoPlano({ ...base, competence_date: "2026-01-01" }, "2026-01-01"), true);
+  assert.equal(contaNoPlano({ ...base, competence_date: "2026-03-02", issue_date: "2025-12-20" }, "2026-01-01"), true);
+  assert.equal(contaNoPlano({ ...base, competence_date: "2026-03-02", archived_at: "2026-10-02T00:00:00Z" }, "2026-01-01"), false);
+  assert.equal(contaNoPlano({ ...base, competence_date: "2026-03-02", is_forecast: true }, "2026-01-01"), false);
+  assert.equal(contaNoPlano({ ...base, competence_date: "2020-01-01" }, null), true);
 });
