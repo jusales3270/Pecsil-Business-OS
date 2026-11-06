@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Callout, EscolherArquivo, Modal, Status } from "../../../../packages/design-system";
+import { Button, Callout, Carregando, EscolherArquivo, Modal, Status } from "../../../../packages/design-system";
 import { VisualizarArquivo } from "../../../../app/components/visualizar-arquivo";
 import { api, dataHora } from "../../../fiscal/src/comum";
 import { lerNumeroBr } from "../../../../lib/numero-br";
@@ -20,6 +20,8 @@ type Medicao = {
   id: string; attachment_id: string | null; nome_arquivo: string | null; situacao: "pendente" | "medindo" | "pronto" | "erro"; erro: string | null;
   versao_motor: string | null; tempo_ms: number | null; corpos: CorpoMedido[]; imagens: string[];
   ajustes: Record<string, { tipo?: string; liga_id?: string | null }>; liga_id: string | null; created_by_name: string | null; created_at: string; medido_em: string | null;
+  /** Em andamento: as etapas que o medidor já avisou. */
+  etapas?: { texto: string; em: string }[];
 };
 type Dados = { medicoes: Medicao[]; ligas: Liga[]; regras: RegraSobremetal[]; podeOperar: boolean; medidorLigado: boolean };
 export type ItemParaPeso = { chave: string; rotulo: string };
@@ -51,7 +53,7 @@ export function PecasDesenho3D({ quoteId, editavel, itens, ocupado, onAnexar, on
   const medindo = Boolean(dados?.medicoes.some((m) => m.situacao === "pendente" || m.situacao === "medindo"));
   useEffect(() => {
     if (!medindo) return;
-    const t = setInterval(() => { void carregar(); }, 5000);
+    const t = setInterval(() => { void carregar(); }, 2000);
     return () => clearInterval(t);
   }, [medindo, carregar]);
 
@@ -66,13 +68,16 @@ export function PecasDesenho3D({ quoteId, editavel, itens, ocupado, onAnexar, on
     setTimeout(() => { void carregar(); }, 1500);
   };
   const [erroAnexo, setErroAnexo] = useState("");
+  // Enquanto o arquivo sobe (13 MB levam alguns segundos), a caixa de progresso já aparece.
+  const [enviando, setEnviando] = useState<{ nome: string; tamanho: number; desde: number } | null>(null);
   const anexar = async (arquivos: File[]) => {
     const f = arquivos[0];
     if (!f) return;
     setErroAnexo("");
     if (!/\.(step|stp)$/i.test(f.name)) { setErroAnexo(`"${f.name}" não é um STEP (.step ou .stp). DWG e PDF vão em Anexos › Outros.`); return; }
     if (f.size > LIMITE_STEP) { setErroAnexo(`"${f.name}" tem ${mb(f.size)}: o limite do desenho 3D é 50 MB.`); return; }
-    const falha = await onAnexar(arquivos);
+    setEnviando({ nome: f.name, tamanho: f.size, desde: Date.now() });
+    const falha = await onAnexar(arquivos).finally(() => setEnviando(null));
     if (falha) setErroAnexo(`Não foi possível anexar "${f.name}": ${falha}`);
     void carregar();
   };
@@ -90,6 +95,7 @@ export function PecasDesenho3D({ quoteId, editavel, itens, ocupado, onAnexar, on
       {erro && <p className="fiscal-nota-ajuda" role="alert">{erro}</p>}
       {erroAnexo && <Callout variant="danger" title="O desenho não foi anexado">{erroAnexo}</Callout>}
       {pode && <EscolherArquivo compacto rotulo="Anexar STEP do cliente" aceita=".step,.stp" onEscolher={(f) => void anexar(f)} ocupado={ocupado} textoOcupado="Guardando…" />}
+      {enviando && <ProgressoMedicao desde={enviando.desde} etapas={[{ texto: `Enviando ${enviando.nome} (${mb(enviando.tamanho)}) para a plataforma`, em: new Date(enviando.desde).toISOString() }]} />}
 
       {dados?.medicoes.map((m) => (
         <Medida key={m.id} quoteId={quoteId} m={m} dados={dados} pode={pode} itens={itens}
@@ -144,7 +150,10 @@ function Medida({ quoteId, m, dados, pode, itens, onAjustar, onMedirDeNovo, onIm
       {m.situacao === "erro" && (
         <p className="fiscal-nota-ajuda" role="alert">{m.erro ?? "A medição falhou."} {pode && <button type="button" className="almox-link" onClick={onMedirDeNovo}>Medir de novo</button>}</p>
       )}
-      {(m.situacao === "pendente" || m.situacao === "medindo") && <p className="fiscal-nota-ajuda">Medindo as peças no servidor. Pode continuar o orçamento: o resultado aparece aqui sozinho.</p>}
+      {(m.situacao === "pendente" || m.situacao === "medindo") && (
+        <ProgressoMedicao desde={new Date(m.created_at).getTime()}
+          etapas={m.etapas?.length ? m.etapas : [{ texto: m.situacao === "pendente" ? "Arquivo guardado: esperando a vez no medidor" : "Medindo as peças no servidor", em: m.created_at }]} />
+      )}
 
       {m.situacao === "pronto" && (
         <>
@@ -207,6 +216,38 @@ function Medida({ quoteId, m, dados, pode, itens, onAjustar, onMedirDeNovo, onIm
     </div>
   );
 
+}
+
+/** Tempo corrido, no jeito de falar: "42 s", "1 min 12 s". */
+const decorrido = (ms: number) => {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")} s`;
+};
+
+/**
+ * O que está acontecendo enquanto mede (leva de meio minuto a alguns minutos): a etapa atual em itálico, com o
+ * spinner, as já feitas embaixo e o tempo correndo. Sem isso, parecia que o envio tinha falhado.
+ */
+function ProgressoMedicao({ desde, etapas }: { desde: number; etapas: { texto: string; em: string }[] }) {
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setAgora(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const atual = etapas.at(-1);
+  const feitas = etapas.slice(0, -1);
+  return (
+    <div className="vnd-progresso" role="status" aria-live="polite">
+      <div className="vnd-progresso-atual">
+        <Carregando tamanho={14} />
+        <em>{atual?.texto ?? "Preparando"}…</em>
+        <span className="vnd-progresso-tempo">{decorrido(agora - desde)}</span>
+      </div>
+      {feitas.length > 0 && (
+        <ol className="vnd-progresso-feitas">
+          {feitas.map((e, k) => <li key={`${e.em}-${k}`}><span aria-hidden>✓</span> {e.texto}</li>)}
+        </ol>
+      )}
+      <small>Costuma levar de meio minuto a três minutos. Pode continuar o orçamento: o resultado aparece aqui sozinho.</small>
+    </div>
+  );
 }
 
 type PecaPeso = { tipo: TipoPeca; rotulo: string; kg: number };

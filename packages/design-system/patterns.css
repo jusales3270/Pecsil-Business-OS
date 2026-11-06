@@ -8482,6 +8482,14 @@ a.doc-abrir { text-decoration: none; }
 .vnd-pecas3d { grid-template-columns: max-content minmax(160px, 1fr) minmax(130px, 170px) repeat(2, max-content); overflow-x: auto; }
 .vnd-pecas3d select { width: 100%; }
 .vnd-pecas3d-fora { color: var(--text-muted); }
+/* Medição em andamento: etapa atual em itálico com o spinner, as feitas embaixo, o tempo correndo. */
+.vnd-progresso { display: flex; flex-direction: column; gap: 6px; max-width: 560px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-surface); font-size: var(--fs-sm); color: var(--text-secondary); }
+.vnd-progresso-atual { display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
+.vnd-progresso-atual em { flex: 1; min-width: 0; font-style: italic; }
+.vnd-progresso-tempo { font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: var(--fs-xs); }
+.vnd-progresso-feitas { margin: 0; padding: 0 0 0 22px; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-xs); color: var(--text-muted); }
+.vnd-progresso-feitas span { color: var(--accent-green, var(--text-muted)); }
+.vnd-progresso > small { font-size: var(--fs-xs); color: var(--text-muted); }
 .vnd-pecas3d-img { display: block; padding: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface); cursor: zoom-in; line-height: 0; }
 .vnd-pecas3d-img:hover { border-color: var(--border-strong, var(--text-muted)); }
 .vnd-pecas3d-img img { width: 72px; height: 54px; object-fit: contain; }

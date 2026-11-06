@@ -104,3 +104,17 @@ test("código do desenho: F = forma (metades), FF = fundo, a garrafa entre as me
   assert.equal(r.fundo.corpos, 2);
   assert.ok(r.fundo.bruto_kg > r.fundo.acabado_kg);
 });
+
+test("etapas ao vivo: lê o NDJSON do medidor, mesmo com a linha cortada entre pedaços, e aceita o JSON antigo", async () => {
+  const { lerRespostaComEtapas } = await import("../lib/comercial/medidor-ndjson.ts");
+  const pedacos = ['{"etapa":"Abrindo o STEP e lendo a montagem"}\n{"etapa":"Montagem com 7 ', 'corpos: medindo"}\n{"ok":true,"resultado":{"versao_motor":"x","tempo_ms":1,"corpos":[],"imagens":{}}}\n'];
+  const corpo = new ReadableStream({ start(c) { for (const p of pedacos) c.enqueue(new TextEncoder().encode(p)); c.close(); } });
+  const etapas = [];
+  const r = await lerRespostaComEtapas(new Response(corpo, { headers: { "content-type": "application/x-ndjson" } }), (t) => etapas.push(t));
+  assert.deepEqual(etapas, ["Abrindo o STEP e lendo a montagem", "Montagem com 7 corpos: medindo"]);
+  assert.equal(r.ok, true);
+  const antigo = await lerRespostaComEtapas(new Response(JSON.stringify({ ok: false, erro: { codigo: "MOTOR", mensagem: "falhou" } }), { headers: { "content-type": "application/json" } }), () => {});
+  assert.equal(antigo.erro.mensagem, "falhou");
+  const cortado = await lerRespostaComEtapas(new Response('{"etapa":"a"}\n', { headers: { "content-type": "application/x-ndjson" } }), () => {});
+  assert.equal(cortado.ok, false);
+});

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { lerRespostaComEtapas, type RespostaMedidor } from "./medidor-ndjson";
 
 /**
  * Medição do STEP anexado ao orçamento (ROADMAP C-19). Roda com a chave de serviço, logo depois do anexo
@@ -15,11 +16,21 @@ const TRAVADA_MS = 15 * 60 * 1000;
 
 export const medidorConfigurado = () => Boolean(process.env.MEDIDOR_URL?.trim() && (process.env.MEDIDOR_SECRET?.trim().length ?? 0) >= 32);
 
-type RespostaMedidor = {
-  ok: boolean;
-  resultado?: { versao_motor: string; tempo_ms: number; corpos: unknown[]; imagens: Record<string, string> };
-  erro?: { codigo: string; mensagem: string };
+/**
+ * Etapas da medição em andamento, para a tela mostrar o que está acontecendo (o processo leva de meio minuto a
+ * alguns minutos). Ficam na memória deste servidor: a medição roda aqui mesmo (after()), um processo só.
+ */
+export type EtapaMedicao = { texto: string; em: string };
+const PROGRESSO: Map<string, EtapaMedicao[]> = ((globalThis as { __medidorProgresso?: Map<string, EtapaMedicao[]> }).__medidorProgresso ??= new Map());
+const avancar = (id: string, texto: string) => {
+  const lista = PROGRESSO.get(id) ?? [];
+  if (lista.at(-1)?.texto !== texto) lista.push({ texto, em: new Date().toISOString() });
+  PROGRESSO.set(id, lista.slice(-30));
 };
+export const etapasDaMedicao = (id: string): EtapaMedicao[] => PROGRESSO.get(id) ?? [];
+const mb = (n: number) => `${(n / 1024 / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB`;
+
+
 
 export async function processarMedicao(admin: SupabaseClient, medicaoId: string): Promise<void> {
   // Reserva: só uma execução por medição (pendente, com erro ou travada).
@@ -32,8 +43,11 @@ export async function processarMedicao(admin: SupabaseClient, medicaoId: string)
     .maybeSingle();
   if (error) throw new Error(`reservar a medição: ${error.message}`);
   if (!m) return;
+  PROGRESSO.delete(m.id);
+  avancar(m.id, "Preparando o arquivo para o medidor");
 
   const falhar = async (mensagem: string) => {
+    PROGRESSO.delete(m.id);
     await admin.from("comercial_medicoes_3d").update({ situacao: "erro", erro: mensagem.slice(0, 500), tentativas: (m.tentativas ?? 0) + 1, updated_at: new Date().toISOString() }).eq("id", m.id);
   };
 
@@ -43,16 +57,17 @@ export async function processarMedicao(admin: SupabaseClient, medicaoId: string)
   if (!doc) { await falhar("O arquivo não está mais em Documentos."); return; }
   const { data: blob, error: eBaixar } = await admin.storage.from(BUCKET_DOCUMENTOS).download(doc.storage_path);
   if (eBaixar || !blob) { await falhar("Não foi possível ler o arquivo guardado."); return; }
+  avancar(m.id, `Enviando o arquivo ao medidor (${mb(blob.size)})`);
 
   let resposta: RespostaMedidor;
   try {
-    const r = await fetch(`${process.env.MEDIDOR_URL!.replace(/\/$/, "")}/v1/medir`, {
+    const r = await fetch(`${process.env.MEDIDOR_URL!.replace(/\/$/, "")}/v1/medir?progresso=1`, {
       method: "POST",
       headers: { "x-medidor-secret": process.env.MEDIDOR_SECRET!.trim(), "content-type": "application/octet-stream" },
       body: new Uint8Array(await blob.arrayBuffer()),
       signal: AbortSignal.timeout(12 * 60 * 1000),
     });
-    resposta = (await r.json().catch(() => ({ ok: false, erro: { codigo: "RESPOSTA", mensagem: `O medidor respondeu ${r.status}.` } }))) as RespostaMedidor;
+    resposta = await lerRespostaComEtapas(r, (texto) => avancar(m.id, texto));
   } catch (e) {
     await falhar(e instanceof Error && e.name === "TimeoutError" ? "O medidor demorou demais: tente de novo." : "O medidor 3D não respondeu.");
     return;
@@ -60,6 +75,7 @@ export async function processarMedicao(admin: SupabaseClient, medicaoId: string)
   if (!resposta.ok || !resposta.resultado) { await falhar(resposta.erro?.mensagem ?? "O medidor não conseguiu medir o arquivo."); return; }
 
   const { corpos, imagens, versao_motor, tempo_ms } = resposta.resultado;
+  avancar(m.id, "Guardando as imagens e os pesos");
   const caminhos: Record<string, string> = {};
   let i = 0;
   for (const [corpo, base64] of Object.entries(imagens ?? {})) {
@@ -72,6 +88,7 @@ export async function processarMedicao(admin: SupabaseClient, medicaoId: string)
     situacao: "pronto", erro: null, corpos, imagens: caminhos, versao_motor, tempo_ms,
     medido_em: new Date().toISOString(), updated_at: new Date().toISOString(),
   }).eq("id", m.id);
+  PROGRESSO.delete(m.id);
   if (eGravar) throw new Error(`gravar a medição: ${eGravar.message}`);
 }
 

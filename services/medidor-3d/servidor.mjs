@@ -10,6 +10,8 @@
  *
  * POST /v1/medir?nome=peca.step   corpo = bytes do STEP
  *   → { ok: true, resultado: { versao_motor, tempo_ms, corpos: [...], imagens: { montagem, <corpo>: base64 } } }
+ * POST /v1/medir?progresso=1        o mesmo, em NDJSON: uma linha { etapa } a cada passo (a tela mostra ao vivo)
+ *                                   e a última com { ok, resultado } ou { ok: false, erro }.
  */
 import { createServer } from "node:http";
 import { timingSafeEqual } from "node:crypto";
@@ -54,7 +56,7 @@ async function versaoMotor() {
 }
 
 /** Mede um STEP. `dados` = bytes do arquivo. */
-export async function medir(dados, { imagens = true } = {}) {
+export async function medir(dados, { imagens = true, aoAvancar = () => {} } = {}) {
   const inicio = Date.now();
   const pasta = await mkdtemp(join(tmpdir(), "medidor-"));
   try {
@@ -63,6 +65,7 @@ export async function medir(dados, { imagens = true } = {}) {
     await writeFile(step, dados);
 
     // 1) Abre o STEP uma vez, guarda o projeto (as próximas chamadas não releem o STEP) e lista a montagem.
+    aoAvancar("Abrindo o STEP e lendo a montagem");
     await writeFile(join(pasta, "abrir.json"), JSON.stringify({ commands: [{ command: "component.list", params: { bodies: true } }] }));
     await cli(["run", "abrir.json", "--in", step, "--save", design, "--results", "--json-out", "r1.json"], { cwd: pasta });
     const [lista] = JSON.parse(await readFile(join(pasta, "r1.json"), "utf8"));
@@ -71,6 +74,7 @@ export async function medir(dados, { imagens = true } = {}) {
     if (!nomes.length) throw new Error("O arquivo não tem nenhum sólido para medir.");
 
     // 2) Mede tudo e lê as faces de cada corpo numa passada só.
+    aoAvancar(`Montagem com ${nomes.length} ${nomes.length === 1 ? "corpo" : "corpos"}: medindo volume e área e lendo as faces de cada um`);
     const comandos = [{ command: "document.inspect", params: { measure: true } }, ...nomes.map((body) => ({ command: "model.faces", params: { body } }))];
     await writeFile(join(pasta, "medir.json"), JSON.stringify({ commands: comandos }));
     await cli(["run", "medir.json", "--in", design, "--results", "--json-out", "r2.json"], { cwd: pasta });
@@ -83,8 +87,10 @@ export async function medir(dados, { imagens = true } = {}) {
     if (imagens) {
       const alvos = corpos.filter((c) => c.volume_mm3 / 1000 >= VOLUME_IMAGEM_CM3).sort((a, b) => b.volume_mm3 - a.volume_mm3).slice(0, MAX_IMAGENS);
       const tarefas = [{ chave: "montagem", args: [] }, ...alvos.map((c, i) => ({ chave: c.nome, args: ["--tool", c.nome], arquivo: `p${i}.png` }))];
-      for (const t of tarefas) {
+      for (const [k, t] of tarefas.entries()) {
         const arquivo = t.arquivo ?? "montagem.png";
+        const quem = t.chave === "montagem" ? "a montagem inteira" : corpos.find((c) => c.nome === t.chave)?.componente || t.chave;
+        aoAvancar(`Desenhando ${quem} (${k + 1} de ${tarefas.length})`);
         try {
           await cli(["snapshot", "--in", design, "--out", arquivo, "--view", "iso", "--width", "720", "--height", "540", "--no-grid", "--no-axes", ...t.args], { cwd: pasta });
           figuras[t.chave] = (await readFile(join(pasta, arquivo))).toString("base64");
@@ -129,6 +135,21 @@ function naFila(tarefa) {
   return vez;
 }
 
+/** NDJSON: cada etapa sai na hora, para a plataforma mostrar o que está acontecendo. */
+async function medirComProgresso(res, dados, imagens) {
+  res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" });
+  const linha = (o) => { if (!res.writableEnded) res.write(`${JSON.stringify(o)}\n`); };
+  if (esperando > 0) linha({ etapa: `Na fila do medidor: ${esperando} ${esperando === 1 ? "medição" : "medições"} antes desta` });
+  try {
+    const resultado = await naFila(() => medir(dados, { imagens, aoAvancar: (etapa) => linha({ etapa }) }));
+    linha({ ok: true, resultado });
+  } catch (e) {
+    console.error("Medição falhou:", e instanceof Error ? e.message : e);
+    linha({ ok: false, erro: { codigo: "MOTOR", mensagem: e instanceof Error ? e.message : "Falha ao medir." } });
+  }
+  res.end();
+}
+
 const pareceStep = (dados) => dados.subarray(0, 64).toString("latin1").includes("ISO-10303-21");
 
 export function criarServidor() {
@@ -143,7 +164,9 @@ export function criarServidor() {
     try {
       const dados = await lerCorpo(req);
       if (!dados.length || !pareceStep(dados)) return responder(res, 400, { ok: false, erro: { codigo: "ARQUIVO", mensagem: "Envie um arquivo STEP (.step ou .stp)." } });
-      const resultado = await naFila(() => medir(dados, { imagens: url.searchParams.get("imagens") !== "0" }));
+      const imagens = url.searchParams.get("imagens") !== "0";
+      if (url.searchParams.get("progresso") === "1") return await medirComProgresso(res, dados, imagens);
+      const resultado = await naFila(() => medir(dados, { imagens }));
       return responder(res, 200, { ok: true, resultado });
     } catch (e) {
       const status = e?.status ?? 502;

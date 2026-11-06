@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { dbError, requireAnyFeature } from "../../../../../../lib/auth/feature-guard";
-import { medidorConfigurado } from "../../../../../../lib/comercial/medidor-3d";
+import { etapasDaMedicao, medidorConfigurado } from "../../../../../../lib/comercial/medidor-3d";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,8 @@ export async function GET(_request: Request, context: Contexto) {
   ]);
   if (error) return dbError(error);
   return NextResponse.json({
-    medicoes: (medicoes ?? []).map((m) => ({ ...m, imagens: Object.keys(m.imagens ?? {}) })),
+    // Em andamento: as etapas que o medidor já avisou (a tela mostra ao vivo).
+    medicoes: (medicoes ?? []).map((m) => ({ ...m, imagens: Object.keys(m.imagens ?? {}), etapas: m.situacao === "pendente" || m.situacao === "medindo" ? etapasDaMedicao(m.id) : [] })),
     ligas: (ligas ?? []).map((l) => ({ ...l, densidade_g_cm3: Number(l.densidade_g_cm3) })),
     regras: (regras ?? []).map((r) => ({ ...r, mm_diametro: Number(r.mm_diametro), mm_comprimento: Number(r.mm_comprimento) })),
     podeOperar: guard.access.can("comercial.orcamentos", "operar"),
