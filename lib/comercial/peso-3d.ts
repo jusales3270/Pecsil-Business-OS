@@ -52,6 +52,17 @@ const PADROES: { tipo: TipoPeca; re: RegExp }[] = [
   { tipo: "forma", re: /blow|forma\b|mould|mold\b/i },
 ];
 
+/**
+ * Código do desenho (padrão dos clientes, ex.: 2IS-5-001508-F-VFW-MACHO, -FF-BASE, -B-, -FB-): o trecho entre
+ * traços diz a peça. F = forma, FF = fundo (de forma), B = bloco, FB = fundo de bloco, que é o platô.
+ */
+const PELO_CODIGO: Record<string, TipoPeca> = { F: "forma", FF: "fundo", B: "bloco", FB: "plato" };
+function tipoPeloCodigo(nome: string): TipoPeca | null {
+  const m = nome.toUpperCase().match(/^[0-9A-Z]+-\d+-\d+-([A-Z]{1,2})(?:[-_ ]|$)/);
+  return m ? PELO_CODIGO[m[1]] ?? null : null;
+}
+const ehMetade = (nome: string) => /(^|[-_ ])(MACHO|FEMEA|FÊMEA)([-_ .]|$)|CHAVETA[_ -]?(M|F|MACHO|FEMEA)\b/i.test(nome);
+
 const dentro = (a: CorpoMedido["bbox"], b: CorpoMedido["bbox"], tol = 0.5) =>
   Boolean(a && b) && [0, 1, 2].every((i) => a!.min[i] >= b!.min[i] - tol && a!.max[i] <= b!.max[i] + tol);
 
@@ -64,13 +75,23 @@ const uniao = (bs: CorpoMedido["bbox"][]): CorpoMedido["bbox"] => {
 /** Sugestão de tipo para cada corpo, com o motivo (mostrado ao Rafael). */
 export function classificar(corpos: CorpoMedido[]): Map<string, { tipo: TipoPeca; motivo: string }> {
   const r = new Map<string, { tipo: TipoPeca; motivo: string }>();
-  const peloNome = new Map(corpos.map((c) => [c.nome, PADROES.find((p) => p.re.test(c.componente || c.nome) || p.re.test(c.nome)) ?? null]));
+  const peloNome = new Map(corpos.map((c) => {
+    const nome = c.componente || c.nome;
+    const porPalavra = PADROES.find((p) => p.re.test(nome) || p.re.test(c.nome)) ?? null;
+    // Ferragem e garrafa pela palavra vencem; senão o código do desenho do cliente diz a peça.
+    if (porPalavra && (porPalavra.tipo === "ferragem" || porPalavra.tipo === "garrafa")) return [c.nome, porPalavra];
+    const codigo = tipoPeloCodigo(nome);
+    return [c.nome, codigo ? { tipo: codigo, re: /./ } : porPalavra];
+  }));
   // Onde a garrafa ou a pré-forma se esconde: dentro de um corpo maior ou entre as metades da Forma ou do Bloco.
   const hospedeiros: { nome: string; volume: number; bbox: CorpoMedido["bbox"] }[] = corpos.map((o) => ({ nome: o.componente || o.nome, volume: o.volume_mm3, bbox: o.bbox }));
   for (const t of ["forma", "bloco"] as const) {
     const metades = corpos.filter((o) => peloNome.get(o.nome)?.tipo === t);
     if (metades.length >= 2) hospedeiros.push({ nome: ROTULO_TIPO[t], volume: metades.reduce((a, o) => a + o.volume_mm3, 0), bbox: uniao(metades.map((o) => o.bbox)) });
   }
+  // Metades sem tipo conhecido (MACHO/FÊMEA no nome): o par também esconde a garrafa entre elas.
+  const semTipo = corpos.filter((o) => ehMetade(o.componente || o.nome) && !["forma", "bloco"].includes(peloNome.get(o.nome)?.tipo ?? ""));
+  if (semTipo.length >= 2) hospedeiros.push({ nome: "as metades", volume: semTipo.reduce((a, o) => a + o.volume_mm3, 0), bbox: uniao(semTipo.map((o) => o.bbox)) });
   for (const c of corpos) {
     const nome = c.componente || c.nome;
     const pelo = peloNome.get(c.nome);
@@ -80,7 +101,7 @@ export function classificar(corpos: CorpoMedido[]): Map<string, { tipo: TipoPeca
     const hospedeiro = hospedeiros.find((o) => o.bbox !== c.bbox && o.volume > c.volume_mm3 && dentro(c.bbox, o.bbox));
     if (hospedeiro && !pelo) { r.set(c.nome, { tipo: "garrafa", motivo: `fica dentro de ${hospedeiro.nome}` }); continue; }
     if (cm3 < VOLUME_FERRAGEM_CM3 && !pelo) { r.set(c.nome, { tipo: "ferragem", motivo: `pequeno (${cm3.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} cm³)` }); continue; }
-    if (pelo) { r.set(c.nome, { tipo: pelo.tipo, motivo: `pelo nome "${nome}"` }); continue; }
+    if (pelo) { r.set(c.nome, { tipo: pelo.tipo, motivo: tipoPeloCodigo(nome) ? `pelo código do desenho "${nome}"` : `pelo nome "${nome}"` }); continue; }
     r.set(c.nome, { tipo: "outro", motivo: "sem nome conhecido: confira" });
   }
   return r;

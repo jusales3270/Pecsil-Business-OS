@@ -24,12 +24,15 @@ type Medicao = {
 type Dados = { medicoes: Medicao[]; ligas: Liga[]; regras: RegraSobremetal[]; podeOperar: boolean; medidorLigado: boolean };
 export type ItemParaPeso = { chave: string; rotulo: string };
 
+/** O mesmo limite da rota de anexos (o servidor recusa acima disso). */
+const LIMITE_STEP = 50 * 1024 * 1024;
+const mb = (b: number) => `${(b / 1024 / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB`;
 const kg = (v: number) => `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 3 })} kg`;
 const mm = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 
 export function PecasDesenho3D({ quoteId, editavel, itens, ocupado, onAnexar, onUsarPeso, notify }: {
   quoteId: string; editavel: boolean; itens: ItemParaPeso[]; ocupado: boolean;
-  onAnexar: (arquivos: File[]) => Promise<void> | void; onUsarPeso: (chave: string, kg: number) => void; notify: (m: string) => void;
+  onAnexar: (arquivos: File[]) => Promise<string | null>; onUsarPeso: (chave: string, kg: number) => void; notify: (m: string) => void;
 }) {
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState("");
@@ -62,7 +65,17 @@ export function PecasDesenho3D({ quoteId, editavel, itens, ocupado, onAnexar, on
     notify(r.ok ? "Medindo de novo…" : r.error);
     setTimeout(() => { void carregar(); }, 1500);
   };
-  const anexar = async (arquivos: File[]) => { await onAnexar(arquivos); void carregar(); };
+  const [erroAnexo, setErroAnexo] = useState("");
+  const anexar = async (arquivos: File[]) => {
+    const f = arquivos[0];
+    if (!f) return;
+    setErroAnexo("");
+    if (!/\.(step|stp)$/i.test(f.name)) { setErroAnexo(`"${f.name}" não é um STEP (.step ou .stp). DWG e PDF vão em Anexos › Outros.`); return; }
+    if (f.size > LIMITE_STEP) { setErroAnexo(`"${f.name}" tem ${mb(f.size)}: o limite do desenho 3D é 50 MB.`); return; }
+    const falha = await onAnexar(arquivos);
+    if (falha) setErroAnexo(`Não foi possível anexar "${f.name}": ${falha}`);
+    void carregar();
+  };
 
   const pode = editavel && Boolean(dados?.podeOperar);
 
@@ -75,6 +88,7 @@ export function PecasDesenho3D({ quoteId, editavel, itens, ocupado, onAnexar, on
       <p className="fiscal-nota-ajuda">Anexe o STEP que o cliente mandou: a plataforma mede cada peça (leva de meio minuto a dois minutos) e mostra o peso acabado e o bruto, com o sobremetal da regra. Confira o tipo de cada peça e use o peso no item. DWG e PDF vão em Anexos › Outros.</p>
       {dados && !dados.medidorLigado && <Callout variant="warning" title="Medidor 3D desligado">O serviço que mede o STEP ainda não está ligado no servidor. O arquivo fica guardado e a medição sai quando ele for ligado (Medir de novo).</Callout>}
       {erro && <p className="fiscal-nota-ajuda" role="alert">{erro}</p>}
+      {erroAnexo && <Callout variant="danger" title="O desenho não foi anexado">{erroAnexo}</Callout>}
       {pode && <EscolherArquivo compacto rotulo="Anexar STEP do cliente" aceita=".step,.stp" onEscolher={(f) => void anexar(f)} ocupado={ocupado} textoOcupado="Guardando…" />}
 
       {dados?.medicoes.map((m) => (
@@ -141,7 +155,7 @@ function Medida({ quoteId, m, dados, pode, itens, onAjustar, onMedirDeNovo, onIm
                 const regra = ls.find((l) => l.tipo === t.tipo && l.peso)?.peso?.sobremetal;
                 return (
                   <div role="row" key={t.tipo}>
-                    <span className="nome">{ROTULO_TIPO[t.tipo]}<small>{t.corpos > 1 ? `${t.corpos} corpos (metades)` : "1 corpo"}</small></span>
+                    <span className="nome">{ROTULO_TIPO[t.tipo]}<small>{t.corpos > 1 ? `${t.corpos} corpos${t.tipo === "forma" || t.tipo === "bloco" ? " (metades)" : ""}` : "1 corpo"}</small></span>
                     <span className="r">{kg(t.acabado_kg)}</span>
                     <span className="r"><b>{kg(t.bruto_kg)}</b></span>
                     <span>{regra ? `+${mm(regra.mm_diametro)} mm no Ø, +${mm(regra.mm_comprimento)} mm no comprimento` : "sem sobremetal"}</span>

@@ -508,7 +508,20 @@ export function EditorOrcamento({ id, treinoNovo, notify, onAbrir, onFechar, vol
           {o && id && (
             <PecasDesenho3D quoteId={id} editavel={editavel} ocupado={ocupado === "anexo-desenho_3d"} notify={notify}
               itens={itens.map((i, k) => ({ chave: i.chave, rotulo: `Item ${k + 1}${i.descricao ? ` · ${i.descricao.slice(0, 40)}` : ""}` }))}
-              onAnexar={(f) => anexar("desenho_3d", f)}
+              onAnexar={async (f) => {
+                // O STEP sobe por aqui mesmo (fica junto dos anexos); o erro volta para a seção mostrar.
+                setOcupado("anexo-desenho_3d");
+                try {
+                  const corpo = new FormData();
+                  corpo.append("arquivo", f[0]);
+                  corpo.append("tipo", "desenho_3d");
+                  const r = await api(`/api/comercial/orcamentos/${id}/anexos`, { method: "POST", body: corpo });
+                  if (!r.ok) return r.error;
+                  notify("Desenho guardado: medindo as peças…");
+                  void carregar(id);
+                  return null;
+                } finally { setOcupado(null); }
+              }}
               onUsarPeso={(chave, valor) => mudarItem(chave, { peso_kg: br(valor, 3) })} />
           )}
 

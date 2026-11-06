@@ -85,3 +85,22 @@ test("medidas: diâmetro e comprimento pelo eixo", () => {
   assert.equal(Math.round(m.diametro), 197);
   assert.equal(Math.round(m.comprimento), 112);
 });
+
+// STEP do Creo (06/11): os corpos vêm pelo código do desenho (…-F-…-MACHO, …-FF-BASE…), sem palavra "forma".
+const CREO = JSON.parse(readFileSync(new URL("./fixtures/medicao-codigo-creo.json", import.meta.url), "utf8")).corpos;
+
+test("código do desenho: F = forma (metades), FF = fundo, a garrafa entre as metades e os parafusos ficam fora", () => {
+  const t = classificar(CREO);
+  const tipo = (sufixo) => t.get(CREO.find((c) => (c.componente ?? c.nome).endsWith(sufixo)).nome).tipo;
+  assert.equal(tipo("F-VFW-MACHO"), "forma");
+  assert.equal(tipo("F-VFW-FEMEA"), "forma");
+  assert.equal(tipo("FF-BASE_AF1"), "fundo");
+  assert.equal(tipo("FF-VFW_AF2"), "fundo");
+  assert.equal(tipo("CF-VFW"), "garrafa");
+  assert.equal(tipo("ISHCS0802"), "ferragem");
+  const r = Object.fromEntries(resumoPorTipo(linhas(CREO, {}, [FERRO], "ferro", REGRAS)).map((x) => [x.tipo, x]));
+  assert.equal(r.forma.corpos, 2);
+  assert.ok(Math.abs(r.forma.acabado_kg - 24.023) < 0.01, `forma ${r.forma.acabado_kg}`);
+  assert.equal(r.fundo.corpos, 2);
+  assert.ok(r.fundo.bruto_kg > r.fundo.acabado_kg);
+});

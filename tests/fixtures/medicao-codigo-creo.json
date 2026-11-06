@@ -1,0 +1,201 @@
+{
+ "_origem": "Medidor 3D (solidcraft-cli 0.30.1) num STEP de montagem exportado do Creo Parametric (06/11/2026), nomes pelo código do desenho do cliente",
+ "corpos": [
+  {
+   "nome": "2IS-5-001508-CF-VFW",
+   "componente": "2IS-5-001508-CF-VFW",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 918552.8906381978,
+   "volume_negativo": false,
+   "area_mm2": 60207.70526311944,
+   "bbox": {
+    "max": [
+     37.65000000000299,
+     8.129419882081726e-17,
+     37.65000000000259
+    ],
+    "min": [
+     -37.65000000000298,
+     -269.6,
+     -37.6500000000026
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 843.8031145401521,
+   "area_demais_mm2": 59126.37664891363
+  },
+  {
+   "nome": "2IS-5-001508-F-VFW-MACHO",
+   "componente": "2IS-5-001508-F-VFW-MACHO",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 1677515.7497449685,
+   "volume_negativo": false,
+   "area_mm2": 382955.9824797511,
+   "bbox": {
+    "max": [
+     69.69644484721488,
+     1.605107797658414e-11,
+     5.5000000000000036
+    ],
+    "min": [
+     -70.20753831024867,
+     -296.39392932358624,
+     -91.27881079731753
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 20819.491702057076,
+   "area_demais_mm2": 356767.1859425242
+  },
+  {
+   "nome": "2IS-5-001508-F-VFW-FEMEA",
+   "componente": "2IS-5-001508-F-VFW-FEMEA",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 1658967.004744704,
+   "volume_negativo": false,
+   "area_mm2": 382994.02216946235,
+   "bbox": {
+    "max": [
+     69.69644484721537,
+     1.7889430570718472e-12,
+     91.27881079731755
+    ],
+    "min": [
+     -70.20753831024817,
+     -296.39392932358624,
+     -3.5558339781108784e-09
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 20539.177309619856,
+   "area_demais_mm2": 357132.1070604376
+  },
+  {
+   "nome": "2IS-5-001508-FF-VFW_AF2",
+   "componente": "2IS-5-001508-FF-VFW_AF2",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 156617.0465242261,
+   "volume_negativo": false,
+   "area_mm2": 27243.331455304186,
+   "bbox": {
+    "max": [
+     44.49991217674222,
+     -251.60000000000002,
+     44.49991665615312
+    ],
+    "min": [
+     -44.4999121767422,
+     -301.0000000000016,
+     -44.49991665612304
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 3510.0650724539805,
+   "area_demais_mm2": 23570.181851975627
+  },
+  {
+   "nome": "2IS-5-001508-FF-BASE_AF1",
+   "componente": "2IS-5-001508-FF-BASE_AF1",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 627894.7269757969,
+   "volume_negativo": false,
+   "area_mm2": 125421.24214429596,
+   "bbox": {
+    "max": [
+     69.00000000000006,
+     -295,
+     76.00000000000001
+    ],
+    "min": [
+     -69.00000000000279,
+     -341.8500000000002,
+     -76.00000000000001
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 17053.99908384273,
+   "area_demais_mm2": 107038.44573575413
+  },
+  {
+   "nome": "ISHCS0704",
+   "componente": "ISHCS0704",
+   "ocorrencias": 4,
+   "fechado": true,
+   "volume_mm3": 952.088117614261,
+   "volume_negativo": false,
+   "area_mm2": 761.790072447083,
+   "bbox": {
+    "max": [
+     15.33245267386,
+     -290.85,
+     29.9447473778
+    ],
+    "min": [
+     5.332452673860001,
+     -316.8500000000001,
+     19.9447473778
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 103.41700604198323,
+   "area_demais_mm2": 656.008779854821
+  },
+  {
+   "nome": "ISHCS0802",
+   "componente": "ISHCS0802",
+   "ocorrencias": 1,
+   "fechado": true,
+   "volume_mm3": 1705.4764554298347,
+   "volume_negativo": false,
+   "area_mm2": 1054.222202601024,
+   "bbox": {
+    "max": [
+     69.5,
+     -288.43006881029993,
+     6.5
+    ],
+    "min": [
+     56.5,
+     -312.4300688103,
+     -6.5
+    ]
+   },
+   "eixo": [
+    0,
+    1,
+    0
+   ],
+   "area_pontas_mm2": 179.85180615379514,
+   "area_demais_mm2": 871.0337772414996
+  }
+ ]
+}
