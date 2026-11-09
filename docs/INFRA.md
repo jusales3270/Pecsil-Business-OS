@@ -18,7 +18,7 @@ Um servidor só, na empresa, com o Coolify administrando os aplicativos. O Supab
 máquina, mas **fora** do Coolify (docker-compose próprio).
 
 ```
-Internet ── 181.224.8.145 (IP público) ── roteador da empresa
+Internet ── 170.83.43.34 (IP público) ── roteador da empresa (192.168.0.254)
                                             │
                                   servidor "innovait-server" · 192.168.0.89 · Ubuntu
                                             │
@@ -46,14 +46,20 @@ Internet ── 181.224.8.145 (IP público) ── roteador da empresa
 
 ## 2. Endereços e portas
 
+> **IP público trocado (visto em 09/11/2026):** o domínio aponta para **170.83.43.34**; o IP antigo
+> (181.224.8.145, citado nos registros até out/2026) não responde em nenhuma porta. O DNS de
+> `pecsil.com.br` fica no Wix (`ns6/ns7.wixdns.net`). Em 09/11 não deu para conferir de fora quais
+> portas do IP novo estão abertas: só que a 443 recusa conexão. De dentro da empresa, o IP público
+> não volta para o servidor (o roteador não faz NAT loopback): por dentro, o caminho é o DNS interno (7.1).
+
 | Endereço | O que é | Situação |
 |---|---|---|
 | `https://home.pecsil.com.br` | Business OS (a plataforma) | Público; a 80 redireciona para a 443 |
 | `https://coolify.pecsil.com.br` | Painel e API do Coolify | Público (deveria ficar só na VPN: B-05) |
-| `http://192.168.0.89:8001` · `http://181.224.8.145:8001` | Coolify direto, sem proxy | **Aberto também na internet, em HTTP** (painel e API sem criptografia; risco: B-05) |
-| `181.224.8.145:8000` | Kong do Supabase (inclui `/pg/query`, SQL com a chave de serviço) | **Aberto na internet, em HTTP** (risco: B-01) |
-| `181.224.8.145:5432`, `:6543`, `:8443` | Postgres, pooler e Kong TLS do Supabase | **Abertos na internet** (risco: B-01) |
-| `181.224.8.145:22` | SSH do servidor | Recusa a senha conhecida (ver 7.4) |
+| `http://192.168.0.89:8001` · `http://170.83.43.34:8001` | Coolify direto, sem proxy | **Aberto também na internet, em HTTP** (painel e API sem criptografia; risco: B-05) |
+| `170.83.43.34:8000` | Kong do Supabase (inclui `/pg/query`, SQL com a chave de serviço) | **Aberto na internet, em HTTP** (risco: B-01) |
+| `170.83.43.34:5432`, `:6543`, `:8443` | Postgres, pooler e Kong TLS do Supabase | **Abertos na internet** (risco: B-01) |
+| `170.83.43.34:22` | SSH do servidor | Recusa a senha conhecida (ver 7.4) |
 | `forja.pecsil` | Forja, pelo Host no Traefik | Responde também pela 80 pública |
 | `frota.pecsil` | Fleetbase (entregas), pelo Host no Traefik | Responde também pela 80 pública. A consulta pública por número de rastreio fica fechada no nginx dele, e o cadastro de contas é fechado depois da conta da empresa |
 | `supabase.pecsil.com.br` | Nome antigo do Supabase | Não é mais usado; existia só no `/etc/hosts` de um Mac |
@@ -169,6 +175,13 @@ de aspas dá erro 500: por isso cada tarefa é um script.
 ## 7. Recuperação — o que fazer em cada pane
 
 ### 7.1 A plataforma não abre (HTTPS)
+
+**Por dentro da empresa** a plataforma não depende da 443 pública: com o nome certo, o servidor
+responde direto (`curl -k --resolve home.pecsil.com.br:443:192.168.0.89 https://home.pecsil.com.br/login`
+deu 200 em 09/11/2026, com a 443 de fora fechada). Para os aparelhos usarem esse caminho, o DNS da
+rede tem de responder `home.pecsil.com.br → 192.168.0.89`. Plano de 09/11: DNS interno no próprio
+servidor e o roteador entregando esse DNS no DHCP (secundário 1.1.1.1). Num computador só, enquanto
+isso: `192.168.0.89 home.pecsil.com.br` no `/etc/hosts`, e tirar ao levar o computador para fora.
 
 1. Testar de fora: `curl -I http://home.pecsil.com.br` e `curl -I https://home.pecsil.com.br`.
    - **80 responde e 443 não conecta:** é a porta 443 (já aconteceu várias vezes). Não é o código.
