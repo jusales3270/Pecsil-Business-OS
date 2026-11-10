@@ -3,7 +3,6 @@ import { useStore, formatAmount, isProductFullyPurchased, getStatusDisplay, calc
 import type { Cotacao } from '@/types';
 import {
   Plus,
-  Search,
   FilterX,
   Eye,
   Pencil,
@@ -18,7 +17,9 @@ import CotacaoModal from '@/components/CotacaoModal';
 import DetalhesCotacaoModal from '@/components/DetalhesCotacaoModal';
 import CompraModal from '@/components/CompraModal';
 import DivisaoTabs from '@/components/DivisaoTabs';
+import BuscaCompraInput from '@/components/BuscaCompraInput';
 import { rotuloCompra } from '../../../../lib/compras/rotulo';
+import { numeroDaBusca } from '../../../../lib/compras/busca-numero';
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'Todos' },
@@ -167,6 +168,9 @@ export default function CotacoesPage() {
       }
       if (search) {
         const s = search.toLowerCase();
+        // Número da cotação ou da OC (o mesmo): "32" acha a 32, a 320, a 3215…
+        const numero = numeroDaBusca(search);
+        if (numero && String(c.id).startsWith(numero)) return true;
         const matchesSupplier = c.fornecedor.toLowerCase().includes(s);
         const matchesProducts = c.produtos && c.produtos.length > 0
           ? c.produtos.some(p => p.produto.toLowerCase().includes(s))
@@ -176,6 +180,12 @@ export default function CotacoesPage() {
       return true;
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Onde a busca por número procura: as cotações da pessoa, nas duas divisões.
+  const minhasCompras = useMemo(
+    () => (user ? cotacoes.filter(c => c.userId === user.id && c.deletedAt === null && c.origem !== 'direta') : []),
+    [user, cotacoes],
+  );
 
   // Counts for the division tabs
   const divisaoCounts = useMemo(() => {
@@ -246,16 +256,14 @@ export default function CotacoesPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-[400px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#757575]" />
-          <input
-            type="text"
-            placeholder="Buscar por fornecedor ou produto..."
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPageNum(1); }}
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-black/[0.08] text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-          />
-        </div>
+        <BuscaCompraInput
+          value={search}
+          onChange={v => { setSearch(v); setPageNum(1); }}
+          compras={minhasCompras}
+          onCotacao={c => setDetailModal(c)}
+          onOC={c => abrirOrdemDeCompra(c.id)}
+          placeholder="Buscar por nº da cotação ou OC, fornecedor ou produto..."
+        />
         <select
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPageNum(1); }}

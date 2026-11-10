@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-10-busca-numero-cotacao-oc",
+    data: "2026-11-10",
+    area: "Compras",
+    titulo: "Busca pelo número da cotação ou da OC",
+    modulos: ["compras"],
+    funcionalidades: ["compras.cotacoes"],
+    itens: [
+      "Em Minhas Cotações, digite o número na busca: já aparecem as cotações e OCs que começam com ele, das duas divisões.",
+      "Quando o número já virou OC, ele aparece duas vezes: \"Cotação nº\" abre os detalhes e \"OC nº\" abre a Ordem de Compra. Escolha com o mouse ou com as setas e Enter.",
+      "Fornecedor e produto continuam funcionando na mesma busca.",
+    ],
+  },
+  {
     id: "2026-11-05-peso-pelo-desenho-3d",
     data: "2026-11-05",
     area: "Comercial",
