@@ -7,6 +7,7 @@ import type { FocoGrafo } from "../cerebro/visual.ts";
 import { dicaVisual, MOSTRAR, resolverVisual, type ResultadoConsulta, type Visual } from "./visual.ts";
 import { modeloReserva } from "./modelos.ts";
 import { comReserva, falhaDaResposta, FalhaDoModelo, type FalhaRegistrada } from "./tentativas.ts";
+import { chamarClaude, type CorpoClaude } from "./motor/anthropic.ts";
 
 /**
  * Laço da conversa da SARA com o Claude (Anthropic) por *tool use*. Não lê o ambiente (a chave e o
@@ -66,7 +67,6 @@ function comCacheNoFim(mensagens: { role: "user" | "assistant"; content: unknown
   return [...mensagens.slice(0, -1), { role: ultima.role, content: blocos }];
 }
 
-const API = "https://api.anthropic.com/v1/messages";
 /** Frase curta de passagem antes de uma consulta ("Vou consultar as contas…"), que não é resposta. */
 const PASSAGEM = /^(vou|deixa eu|deixe-me|um momento|já vou|só um instante)\b[^\n]{0,160}$/i;
 /** Frase em que o modelo comenta o próprio raciocínio ("é uma dúvida de conceito, então respondo com meu conhecimento"). */
@@ -131,7 +131,6 @@ export async function conversarCom(sb: SupabaseClient, a: {
   maxVisuais?: number;
 }): Promise<RespostaSara> {
   const chave = a.chave;
-  const buscar = a.buscar ?? fetch;
   if (!chave) throw new Error("NAO_CONFIGURADA");
   const mensagens: { role: "user" | "assistant"; content: unknown }[] = [
     ...a.historico.slice(-12).map((m) => ({ role: (m.papel === "pessoa" ? "user" : "assistant") as "user" | "assistant", content: m.texto })),
@@ -218,25 +217,15 @@ export async function conversarCom(sb: SupabaseClient, a: {
   let modeloAtual = a.modelo;
   type RespostaDoModelo = { content: Bloco[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } };
   const chamarModelo = async (modelo: string): Promise<RespostaDoModelo> => {
-    const ctrl = new AbortController();
-    const relogio = setTimeout(() => ctrl.abort(), 60_000);
-    const cancelar = () => ctrl.abort();
-    a.sinal?.addEventListener("abort", cancelar);
-    let r: Response;
-    try {
-      r = await buscar(API, {
-        method: "POST", signal: ctrl.signal,
-        headers: { "content-type": "application/json", "x-api-key": chave, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({ model: modelo, max_tokens: a.maxTokens ?? 1500, thinking: semPensar(modelo), system: blocosDoSistema(a.sistema), messages: comCacheNoFim(mensagens), ...(tools.length ? { tools } : {}) }),
-      });
-    } catch (e) {
-      if (a.sinal?.aborted) throw new Error("CANCELADA");
-      throw ctrl.signal.aborted ? new FalhaDoModelo("sem resposta em 60 s", { passageira: true, demorou: true })
-        : new FalhaDoModelo(`falha de rede: ${e instanceof Error ? e.message.slice(0, 120) : "erro"}`, { passageira: true });
-    } finally { clearTimeout(relogio); a.sinal?.removeEventListener("abort", cancelar); }
-    const corpo = await r.json().catch(() => null) as (Partial<RespostaDoModelo> & { error?: { message?: string } }) | null;
-    if (!r.ok || !corpo?.content) throw falhaDaResposta(r.status, corpo?.error?.message ?? "", r.headers?.get?.("retry-after"));
-    return corpo as RespostaDoModelo;
+    if (a.sinal?.aborted) throw new Error("CANCELADA");
+    const r = await chamarClaude({
+      model: modelo, max_tokens: a.maxTokens ?? 1500, thinking: semPensar(modelo), system: blocosDoSistema(a.sistema) as CorpoClaude["system"],
+      messages: comCacheNoFim(mensagens) as CorpoClaude["messages"], ...(tools.length ? { tools: tools as CorpoClaude["tools"] } : {}),
+    }, { chave, buscar: a.buscar, timeoutMs: 60_000, sinal: a.sinal });
+    if (r.ok) return r.mensagem as unknown as RespostaDoModelo;
+    if (r.demorou) throw new FalhaDoModelo(r.erro, { passageira: true, demorou: true });
+    if (r.rede) throw new FalhaDoModelo(r.erro, { passageira: true });
+    throw falhaDaResposta(r.status, r.erro, r.retryAfter);
   };
   for (let rodada = 0; rodada < (a.rodadas ?? RODADAS); rodada++) {
     if (a.sinal?.aborted) throw new Error("CANCELADA");

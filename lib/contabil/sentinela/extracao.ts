@@ -8,6 +8,7 @@
  * estar entre as candidatas da triagem.
  */
 import { semPensar } from "../../sara/base";
+import { chamarClaude, entradaDe } from "../../sara/motor/anthropic";
 
 export type Candidato = { chave: string; titulo: string; valor: unknown };
 export type TeseCandidata = { id: string; tribunal: string; tema: string; titulo: string; situacao: string; modulacao: string | null };
@@ -124,18 +125,14 @@ export function validarExtracao(bruto: unknown, texto: string, candidatos: Candi
 export async function extrair(a: { chave: string; buscar?: typeof fetch; fonte: string; titulo: string; url: string; texto: string; candidatos: Candidato[]; teses: TeseCandidata[] }) {
   if (!a.chave) return null;
   try {
-    const r = await (a.buscar ?? fetch)("https://api.anthropic.com/v1/messages", {
-      method: "POST", signal: AbortSignal.timeout(60_000),
-      headers: { "content-type": "application/json", "x-api-key": a.chave, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
+    const r = await chamarClaude({
         model: MODELO_SENTINELA, max_tokens: 1500, thinking: semPensar(MODELO_SENTINELA), system: REGRA_EXTRACAO,
         tools: [ferramentaProposta(a.candidatos.map((c) => c.chave), a.teses.map((t) => t.id))], tool_choice: { type: "tool", name: "proposta" },
         messages: [{ role: "user", content: pedidoDeExtracao(a) }],
-      }),
-    });
-    const j = await r.json().catch(() => null) as { content?: { type: string; input?: unknown }[]; usage?: { input_tokens?: number; output_tokens?: number } } | null;
-    const entrada = j?.content?.find((b) => b.type === "tool_use")?.input;
-    if (!r.ok || !entrada) return null;
-    return { extracao: validarExtracao(entrada, a.texto, a.candidatos, a.teses), modelo: MODELO_SENTINELA, tokensEntrada: Number(j?.usage?.input_tokens ?? 0), tokensSaida: Number(j?.usage?.output_tokens ?? 0) };
+      }, { chave: a.chave, buscar: a.buscar, timeoutMs: 60_000 });
+    if (!r.ok) return null;
+    const entrada = entradaDe<unknown>(r.mensagem);
+    if (!entrada) return null;
+    return { extracao: validarExtracao(entrada, a.texto, a.candidatos, a.teses), modelo: MODELO_SENTINELA, tokensEntrada: Number(r.mensagem.usage?.input_tokens ?? 0), tokensSaida: Number(r.mensagem.usage?.output_tokens ?? 0) };
   } catch { return null; }
 }

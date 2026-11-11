@@ -53,6 +53,10 @@ Na ordem abaixo. Cada etapa tem QA e commit próprio. Migração em produção s
   - As SARAs no Haiku continuam com `web_search_20250305`, porque o tipo novo não vale para o Haiku 5.5.
 - **Testes:** um ajudante `respostaClaude(corpo, status, headers)` que devolve um `Response` de verdade. Os testes que hoje leem `init.body` continuam conferindo o corpo enviado.
 - **Custo:** os campos de uso (`usage`) não mudam, então `custo.ts` e `sara_registrar` ficam iguais.
+- **Feito em 10/11/2026:** SDK 1.6.0 (de 05/11; a 1.8.0 saiu no mesmo dia e ficou para depois), versão de API `2026-10-21`.
+  - As 10 chamadas foram trocadas, sem mudar o comportamento.
+  - A porta aceita a forma curta de resposta dos testes, então eles continuam como estavam.
+  - **A pesquisa segue no `web_search_20250305` por enquanto.** Trocar para o `_20260209` muda a forma da busca (filtragem com execução de código) e o custo; fica como passo medido à parte, para esta etapa não mudar nada de uma vez.
 
 ### Etapa 2 — Planilha Excel (I-27)
 - **Banco:** tipo `planilha` em `sara_documentos`, no padrão da migração da voz (derruba e recria o CHECK). O texto do sino passa a variar pelo tipo.

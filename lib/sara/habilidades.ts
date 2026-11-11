@@ -1,5 +1,6 @@
 import { filtrarEstado } from "../decisao/guard.ts";
 import { semPensar, type Ferramenta } from "./base.ts";
+import { chamarClaude, entradaDe, type CorpoClaude } from "./motor/anthropic.ts";
 
 /**
  * Habilidades da SARA (proprietário, 18/10/2026): rotinas com nome que combinam consultas que a SARA do
@@ -70,7 +71,7 @@ export async function analisarConversas(a: {
 }): Promise<{ propostas: Proposta[]; usadas: number; tokens: number }> {
   const perguntas = [...new Set(a.perguntas.map((p) => p.trim()).filter((p) => p.length >= 6 && filtrarEstado(p).ok))].slice(0, 250);
   if (perguntas.length < 4) return { propostas: [], usadas: perguntas.length, tokens: 0 };
-  const corpo = {
+  const corpo: CorpoClaude = {
     // Haiku: aceita forçar a resposta pela ferramenta (saída estruturada); o Sonnet 5.5 não aceita.
     model: a.modelo ?? "claude-haiku-5-5", max_tokens: 3000, thinking: semPensar(a.modelo ?? "claude-haiku-5-5"),
     system: `Você analisa como as pessoas da ${a.empresa} usam o assistente do módulo ${a.rotulo}. Ache TRABALHOS REPETITIVOS: o mesmo pedido (ou a mesma combinação de pedidos) que aparece várias vezes. Para cada um que se repete ao menos 3 vezes, proponha uma habilidade: uma rotina com nome, só com as consultas listadas abaixo. Vale a pena quando a rotina junta duas ou mais consultas, ou sempre usa o mesmo filtro e o mesmo jeito de apresentar (ex.: "toda segunda: o que vence na semana + como fica o caixa, em tabela"). Uma pergunta simples, que o assistente já responde direto com uma consulta, NÃO vira habilidade. Não invente consulta. Se nada assim se repete, não proponha nada.\nConsultas do módulo:\n${a.ferramentas.map((f) => `- ${f.nome}: ${f.descricao}`).join("\n")}`,
@@ -80,13 +81,10 @@ export async function analisarConversas(a: {
     }, required: ["habilidades"] } }],
     tool_choice: { type: "tool", name: "propor_habilidades" },
   };
-  const r = await (a.buscar ?? fetch)("https://api.anthropic.com/v1/messages", {
-    method: "POST", signal: AbortSignal.timeout(90_000),
-    headers: { "content-type": "application/json", "x-api-key": a.chave, "anthropic-version": "2023-06-01" }, body: JSON.stringify(corpo),
-  });
-  const j = await r.json().catch(() => null) as { content?: { type: string; input?: { habilidades?: unknown[] } }[]; usage?: { input_tokens?: number; output_tokens?: number }; error?: { message?: string } } | null;
-  if (!r.ok || !j?.content) throw new Error(`Análise indisponível: ${r.status} ${j?.error?.message ?? ""}`.trim());
-  const bruto = j.content.find((b) => b.type === "tool_use")?.input?.habilidades ?? [];
+  const r = await chamarClaude(corpo, { chave: a.chave, buscar: a.buscar, timeoutMs: 90_000 });
+  if (!r.ok) throw new Error(`Análise indisponível: ${r.status} ${r.erro}`.trim());
+  const j = r.mensagem;
+  const bruto = entradaDe<{ habilidades?: unknown[] }>(j)?.habilidades ?? [];
   const permitidas = a.ferramentas.map((f) => f.nome);
   // Só o que se repete (3+) e vale a rotina: duas ou mais consultas, ou filtro e formato fixos.
   const vale = (p: Proposta) => p.passos.length >= 2 || (Boolean(p.formato) && p.passos.some((x) => x.entrada && Object.keys(x.entrada).length));
@@ -110,10 +108,7 @@ export const pedidoRecorrente = (pergunta: string) =>
 export async function nomearHabilidade(a: { chave: string; buscar?: typeof fetch; rotulo: string; pergunta: string; passos: Passo[] }): Promise<Proposta> {
   const reserva: Proposta = { nome: a.pergunta.replace(/\s+/g, " ").trim().slice(0, 60), descricao: a.pergunta.slice(0, 300), gatilhos: [a.pergunta.slice(0, 160)], passos: a.passos, formato: null };
   try {
-    const r = await (a.buscar ?? fetch)("https://api.anthropic.com/v1/messages", {
-      method: "POST", signal: AbortSignal.timeout(15_000),
-      headers: { "content-type": "application/json", "x-api-key": a.chave, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
+    const r = await chamarClaude({
         model: "claude-haiku-5-5", max_tokens: 400, thinking: semPensar("claude-haiku-5-5"),
         system: `Dê nome a uma rotina do assistente do módulo ${a.rotulo}. Em português do Brasil, curto e claro.`,
         messages: [{ role: "user", content: `Pedido recorrente da pessoa: "${a.pergunta.slice(0, 500)}"\nConsultas usadas: ${a.passos.map((p) => p.ferramenta).join(", ")}` }],
@@ -122,11 +117,9 @@ export async function nomearHabilidade(a: { chave: string; buscar?: typeof fetch
           para_que: { type: "array", items: { type: "string" }, description: "Para que serve cada consulta, na mesma ordem (curto)." },
         }, required: ["nome", "descricao", "gatilho"] } }],
         tool_choice: { type: "tool", name: "nomear" },
-      }),
-    });
-    const j = await r.json().catch(() => null) as { content?: { type: string; input?: { nome?: string; descricao?: string; gatilho?: string; formato?: string } }[] } | null;
-    const x = j?.content?.find((b) => b.type === "tool_use")?.input as { nome?: string; descricao?: string; gatilho?: string; formato?: string; para_que?: string[] } | undefined;
-    if (!r.ok || !x?.nome) return reserva;
+      }, { chave: a.chave, buscar: a.buscar, timeoutMs: 15_000 });
+    const x = r.ok ? entradaDe<{ nome?: string; descricao?: string; gatilho?: string; formato?: string; para_que?: string[] }>(r.mensagem) : null;
+    if (!x?.nome) return reserva;
     const passos = a.passos.map((p, i) => (x.para_que?.[i] ? { ...p, para_que: String(x.para_que[i]).slice(0, 200) } : p));
     return { nome: x.nome.slice(0, 80), descricao: (x.descricao ?? reserva.descricao).slice(0, 600), gatilhos: [x.gatilho ?? reserva.gatilhos[0]].map((g) => g.slice(0, 160)), passos, formato: x.formato?.slice(0, 600) ?? null };
   } catch { return reserva; }

@@ -1,4 +1,5 @@
 import { semPensar } from "../base.ts";
+import { chamarClaude, textoDe } from "../motor/anthropic.ts";
 import { conferirNumeros } from "./verificador.ts";
 
 /**
@@ -106,18 +107,14 @@ export async function escreverBomDia(a: { chave: string; buscar?: typeof fetch; 
   if (!a.chave) return reserva();
   const fatos = a.itens.map((i, k) => `${k + 1}. [${i.nivel === "urgente" ? "URGENTE" : i.tipo === "decisao" ? "DECISÃO" : i.tipo === "acao" ? "AÇÃO PARA PERMITIR" : i.tipo === "guia" ? "GUIA" : i.tipo === "novidade" ? "NOVIDADE" : "AVISO"}] ${i.area}: ${i.titulo}${i.detalhe ? `. ${i.detalhe}` : ""}`).join("\n");
   try {
-    const r = await (a.buscar ?? fetch)("https://api.anthropic.com/v1/messages", {
-      method: "POST", signal: AbortSignal.timeout(30_000),
-      headers: { "content-type": "application/json", "x-api-key": a.chave, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
+    const r = await chamarClaude({
         model: BOM_DIA.modelo, max_tokens: 700, thinking: semPensar(BOM_DIA.modelo), system: REGRA_BOM_DIA,
         messages: [{ role: "user", content: `Pessoa: ${a.nome || "(sem nome)"}\nHoje: ${a.semana}, ${a.data}\n${a.restantes ? `Há mais ${a.restantes} itens menos importantes fora da lista (diga só que existem).\n` : ""}Fatos:\n${fatos}` }],
-      }),
-    });
-    const j = await r.json().catch(() => null) as { content?: { type: string; text?: string }[]; usage?: { input_tokens?: number; output_tokens?: number } } | null;
-    const texto = (j?.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("").trim();
-    const ent = Number(j?.usage?.input_tokens ?? 0), sai = Number(j?.usage?.output_tokens ?? 0);
-    if (!r.ok || texto.length < 20) return reserva([], ent, sai);
+      }, { chave: a.chave, buscar: a.buscar, timeoutMs: 30_000 });
+    if (!r.ok) return reserva();
+    const texto = textoDe(r.mensagem).trim();
+    const ent = Number(r.mensagem.usage?.input_tokens ?? 0), sai = Number(r.mensagem.usage?.output_tokens ?? 0);
+    if (texto.length < 20) return reserva([], ent, sai);
     // Todo número do texto tem de estar nos fatos (o dia de hoje conta como fato).
     const c = conferirNumeros(texto, [fatos, `${a.data} ${a.restantes}`]);
     if (c.semFonte.length) return reserva(c.semFonte, ent, sai);

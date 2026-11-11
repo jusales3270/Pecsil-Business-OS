@@ -10,9 +10,9 @@
  */
 
 import { semPensar } from "./base.ts";
+import { chamarClaude, textoDe, type CorpoClaude } from "./motor/anthropic.ts";
 
 export const MODELO_VERIFICADOR = "claude-haiku-5-5";
-const API = "https://api.anthropic.com/v1/messages";
 
 export const recusa = (empresa: string, modulo: string) =>
   `Não estou autorizada a tratar de assuntos fora do contexto da ${empresa} e das suas permissões. Posso ajudar com o módulo ${modulo}: os dados, as telas e a rotina dele.`;
@@ -53,22 +53,17 @@ export function contextoParaVerificar(pergunta: string, ultima: string | null): 
 export async function verificarEscopo(a: {
   chave: string; buscar?: typeof fetch; empresa: string; pergunta: string; contexto?: string | null; timeoutMs?: number; tema?: string | null;
 }): Promise<Veredito> {
-  const buscar = a.buscar ?? fetch;
-  const corpo = {
+  const corpo: CorpoClaude = {
     // Sem "pensamento": a resposta é uma palavra (o modelo não aceita mais temperature).
     model: MODELO_VERIFICADOR, max_tokens: 5, thinking: semPensar(MODELO_VERIFICADOR), system: instrucoes(a.empresa, a.tema),
     messages: [{ role: "user", content: `${a.contexto ? `<ultima_resposta_do_assistente>${a.contexto.slice(0, 400)}</ultima_resposta_do_assistente>\n` : ""}<mensagem>${a.pergunta.slice(0, 2000)}</mensagem>` }],
   };
   try {
-    const r = await buscar(API, {
-      method: "POST", signal: AbortSignal.timeout(a.timeoutMs ?? 8000),
-      headers: { "content-type": "application/json", "x-api-key": a.chave, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify(corpo),
-    });
-    const j = await r.json().catch(() => null) as { content?: { type: string; text?: string }[]; usage?: { input_tokens?: number; output_tokens?: number } } | null;
-    const texto = (j?.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("").trim().toUpperCase();
-    const tokens = { tokensEntrada: j?.usage?.input_tokens ?? 0, tokensSaida: j?.usage?.output_tokens ?? 0 };
-    if (!r.ok || !/^(DENTRO|FORA)/.test(texto)) return { dentro: true, falhou: true, ...tokens };
+    const r = await chamarClaude(corpo, { chave: a.chave, buscar: a.buscar, timeoutMs: a.timeoutMs ?? 8000 });
+    if (!r.ok) return { dentro: true, falhou: true, tokensEntrada: 0, tokensSaida: 0 };
+    const texto = textoDe(r.mensagem).trim().toUpperCase();
+    const tokens = { tokensEntrada: r.mensagem.usage?.input_tokens ?? 0, tokensSaida: r.mensagem.usage?.output_tokens ?? 0 };
+    if (!/^(DENTRO|FORA)/.test(texto)) return { dentro: true, falhou: true, ...tokens };
     return { dentro: texto.startsWith("DENTRO"), falhou: false, ...tokens };
   } catch {
     return { dentro: true, falhou: true, tokensEntrada: 0, tokensSaida: 0 };

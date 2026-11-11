@@ -1,4 +1,5 @@
 import { semPensar } from "../base.ts";
+import { chamarClaude, type CorpoClaude } from "../motor/anthropic.ts";
 import { ASSUNTO_DA_EMPRESA, QUEM_DECIDE } from "./sara.ts";
 import { conferirNumeros } from "./verificador.ts";
 import type { Documento } from "../documentos/documento.ts";
@@ -193,15 +194,12 @@ async function chamar(a: { chave: string; buscar?: typeof fetch; sistema: string
   const blocos: Bloco[] = [];
   let pediu = false;
   for (let volta = 0; volta < 5; volta++) {
-    const r = await (a.buscar ?? fetch)("https://api.anthropic.com/v1/messages", {
-      method: "POST", signal: AbortSignal.timeout(a.timeout),
-      headers: { "content-type": "application/json", "x-api-key": a.chave, "anthropic-version": "2023-06-01" },
-      // O Sonnet 5.5 não aceita forçar a ferramenta: automático, e a regra pede a chamada.
-      body: JSON.stringify({ model: CRESCIMENTO.modelo, max_tokens: a.maxTokens, thinking: semPensar(CRESCIMENTO.modelo), system: a.sistema, tools: a.tools, tool_choice: { type: "auto" }, messages: mensagens }),
-    });
-    const j = await r.json().catch(() => null) as Resposta | null;
-    uso.tokensEntrada += Number(j?.usage?.input_tokens ?? 0); uso.tokensSaida += Number(j?.usage?.output_tokens ?? 0); uso.buscas += Number(j?.usage?.server_tool_use?.web_search_requests ?? 0);
-    if (!r.ok || !j?.content) return { entrada: null, blocos, uso, parada: `erro ${r.status}: ${JSON.stringify((j as { error?: unknown } | null)?.error ?? "").slice(0, 200)}` };
+    // O Sonnet 5.5 não aceita forçar a ferramenta: automático, e a regra pede a chamada.
+    const r = await chamarClaude({ model: CRESCIMENTO.modelo, max_tokens: a.maxTokens, thinking: semPensar(CRESCIMENTO.modelo), system: a.sistema,
+      tools: a.tools as CorpoClaude["tools"], tool_choice: { type: "auto" }, messages: mensagens as CorpoClaude["messages"] }, { chave: a.chave, buscar: a.buscar, timeoutMs: a.timeout });
+    if (!r.ok) return { entrada: null, blocos, uso, parada: `erro ${r.status}: ${r.erro.slice(0, 200)}` };
+    const j = r.mensagem as unknown as Resposta & { content: Bloco[] };
+    uso.tokensEntrada += Number(j.usage?.input_tokens ?? 0); uso.tokensSaida += Number(j.usage?.output_tokens ?? 0); uso.buscas += Number(j.usage?.server_tool_use?.web_search_requests ?? 0);
     blocos.push(...j.content);
     const reg = j.content.find((x) => x.type === "tool_use" && x.name === a.registro.name);
     // Cortada pelo limite (max_tokens), a entrada do registro vem pela metade: não vale.

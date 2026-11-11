@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { filtrarEstado } from "../decisao/guard.ts";
 import { semPensar } from "./base.ts";
+import { chamarClaude, entradaDe } from "./motor/anthropic.ts";
 import type { MensagemHistorico } from "./laco.ts";
 
 /**
@@ -75,19 +76,15 @@ export function cortarResumo(texto: string): string {
 export async function resumirConversa(a: { chave: string; buscar?: typeof fetch; mensagens: MensagemHistorico[] }): Promise<string | null> {
   const conversa = a.mensagens.slice(-10).map((m) => `${m.papel === "pessoa" ? "Pessoa" : "Assistente"}: ${m.texto.slice(0, 800)}`).join("\n");
   try {
-    const r = await (a.buscar ?? fetch)("https://api.anthropic.com/v1/messages", {
-      method: "POST", signal: AbortSignal.timeout(15_000),
-      headers: { "content-type": "application/json", "x-api-key": a.chave, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
+    const r = await chamarClaude({
         model: MODELO, max_tokens: 300, thinking: semPensar(MODELO), system: INSTRUCOES,
         messages: [{ role: "user", content: `<<<\n${conversa}\n>>>` }],
         tools: [{ name: "anotar", description: "Guarda o resumo da conversa.", input_schema: { type: "object", properties: { resumo: { type: "string", description: "Até duas frases curtas (no máximo 300 caracteres), ou vazio." } }, required: ["resumo"] } }],
         tool_choice: { type: "tool", name: "anotar" },
-      }),
-    });
-    const j = await r.json().catch(() => null) as { content?: { type: string; input?: { resumo?: unknown } }[] } | null;
-    const resumo = String(j?.content?.find((b) => b.type === "tool_use")?.input?.resumo ?? "").replace(/\s+/g, " ").trim();
-    return r.ok && resumo.length >= 10 ? cortarResumo(resumo) : null;
+      }, { chave: a.chave, buscar: a.buscar, timeoutMs: 15_000 });
+    if (!r.ok) return null;
+    const resumo = String(entradaDe<{ resumo?: unknown }>(r.mensagem)?.resumo ?? "").replace(/\s+/g, " ").trim();
+    return resumo.length >= 10 ? cortarResumo(resumo) : null;
   } catch { return null; }
 }
 

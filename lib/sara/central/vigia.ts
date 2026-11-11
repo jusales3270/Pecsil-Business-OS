@@ -1,4 +1,5 @@
 import { semPensar } from "../base.ts";
+import { chamarClaude, entradaDe } from "../motor/anthropic.ts";
 import { QUEM_DECIDE } from "./sara.ts";
 import { conferirNumeros } from "./verificador.ts";
 
@@ -230,20 +231,16 @@ export async function analisarSinais(a: { chave: string; buscar?: typeof fetch; 
   const linhas = a.sinais.map((s) => `${s.id} [${s.nivel === "urgente" ? "URGENTE" : "aviso"}] ${s.area} (${s.modulo}): ${s.titulo}${s.detalhe ? `. ${s.detalhe}` : ""}`).join("\n");
   const abertos = a.abertos.length ? a.abertos.map((x) => `${x.id} · ${x.modulo} · ${x.situacao}: ${x.titulo}`).join("\n") : "(nenhum)";
   try {
-    const r = await (a.buscar ?? fetch)("https://api.anthropic.com/v1/messages", {
-      method: "POST", signal: AbortSignal.timeout(90_000),
-      headers: { "content-type": "application/json", "x-api-key": a.chave, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
+    const r = await chamarClaude({
         model: VIGIA.modelo, max_tokens: 4000, thinking: semPensar(VIGIA.modelo), system: REGRA_VIGIA,
         // O Sonnet 5.5 não aceita forçar a ferramenta (tool_choice "tool"/"any"): fica no automático e a regra pede a chamada.
         tools: [FERRAMENTA_ACHADOS], tool_choice: { type: "auto" },
         messages: [{ role: "user", content: `Hoje: ${a.hoje}\n\nSINAIS:\n${linhas}\n\nACHADOS ABERTOS:\n${abertos}` }],
-      }),
-    });
-    const j = await r.json().catch(() => null) as { content?: { type: string; input?: { achados?: unknown[]; resumo?: string } }[]; usage?: { input_tokens?: number; output_tokens?: number } } | null;
-    const uso = { tokensEntrada: Number(j?.usage?.input_tokens ?? 0), tokensSaida: Number(j?.usage?.output_tokens ?? 0) };
-    const entrada = j?.content?.find((b) => b.type === "tool_use")?.input;
-    if (!r.ok || !entrada) return null;
+      }, { chave: a.chave, buscar: a.buscar, timeoutMs: 90_000 });
+    if (!r.ok) return null;
+    const uso = { tokensEntrada: Number(r.mensagem.usage?.input_tokens ?? 0), tokensSaida: Number(r.mensagem.usage?.output_tokens ?? 0) };
+    const entrada = entradaDe<{ achados?: unknown[]; resumo?: string }>(r.mensagem);
+    if (!entrada) return null;
     return { bruto: entrada, resumo: texto(entrada.resumo, 600), modelo: VIGIA.modelo, ...uso };
   } catch { return null; }
 }

@@ -21,6 +21,7 @@
     "keys:rotate": "node infra/rotate-jwt-keys.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.6.0",
     "@huggingface/transformers": "4.2.0",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-label": "^2.1.15",

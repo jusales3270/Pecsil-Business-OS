@@ -126,7 +126,7 @@ export type Agente = { sara: SaraModulo; ferramentas: Ferramenta[]; regras: Regr
  * { type: "between_tools" } (não pensa antes de responder; o que escreve entre consultas volta como
  * bloco de pensamento, que a SARA já ignora).
  */
-export const semPensar = (modelo: string) => (/haiku/i.test(modelo) ? { type: "disabled" } : { type: "between_tools" });
+export const semPensar = (modelo: string) => (/haiku/i.test(modelo) ? { type: "disabled" as const } : { type: "between_tools" as const });
 
 export const hoje = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 export const maisDias = (iso: string, n: number) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };

@@ -60,6 +60,8 @@ test("laço: chamadas paralelas rodam juntas (e voltam na ordem pedida)", async 
   const ordem = [];
   const lenta = (nome) => ({ nome, descricao: nome, exige: [], esquema: { type: "object" }, paralela: true,
     rodar: async () => { ordem.push(`${nome}:inicio`); await new Promise((r) => setTimeout(r, 150)); ordem.push(`${nome}:fim`); return { dados: { nome, valor: 42 }, fontes: [] }; } });
+  // O SDK se prepara na primeira chamada do processo (~100 ms, uma vez só): aquece antes de medir o paralelismo.
+  await conversarCom({}, { chave: "x", buscar: async () => ({ ok: true, status: 200, json: async () => ({ content: [{ type: "text", text: "ok" }], stop_reason: "end_turn", usage: {} }) }), modelo: "claude-sonnet-5-5", sistema: "s", historico: [], pergunta: "?", ferramentas: [] });
   const t0 = Date.now();
   const r = await conversarCom({}, { chave: "x", buscar, modelo: "claude-sonnet-5-5", sistema: "s", historico: [], pergunta: "?", ferramentas: [lenta("lenta_a"), lenta("lenta_b")] });
   const ms = Date.now() - t0;
