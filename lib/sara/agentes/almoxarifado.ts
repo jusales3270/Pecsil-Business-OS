@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { jaRefeitos, refazerPedido } from "../acoes.ts";
+import { jaRefeitos, refazerPedido } from "../acoes-refazer.ts";
 import { brl, dataBR, dias, hoje, link, num, plural, reais, termo, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
 
 /**

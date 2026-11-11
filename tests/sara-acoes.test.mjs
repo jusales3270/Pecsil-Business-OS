@@ -51,10 +51,10 @@ test("E1: entrada incompleta volta ao modelo como erro (para ele perguntar), sem
 test("E1: cada SARA só oferece as ações do módulo dela, e só a quem tem o nível exigido", () => {
   const pode = (lista) => (f, nivel) => lista.includes(`${f}:${nivel}`);
   const nomes = (m, lista) => acoesDaSara(m, pode(lista)).map((f) => f.nome).sort();
-  assert.deepEqual(nomes("fundicao", ["fundicao.pedidos:operar", "fundicao.biblioteca:operar"]), ["abrir_chamado_ti", "anotar_na_biblioteca", "pedir_material_fundicao"]);
-  assert.deepEqual(nomes("fundicao", []), ["abrir_chamado_ti"], "chamado de TI qualquer pessoa abre");
-  assert.deepEqual(nomes("almoxarifado", ["almoxarifado.solicitacoes:operar", "fundicao.pedidos:operar"]), ["abrir_chamado_ti", "pedir_material"]);
-  assert.deepEqual(nomes("financeiro", ["financeiro.pagar:aprovar"]), ["abrir_chamado_ti"], "aprovar título não é ação da SARA (ainda)");
+  assert.deepEqual(nomes("fundicao", ["fundicao.pedidos:operar", "fundicao.biblioteca:operar"]), ["abrir_chamado_ti", "anotar_na_biblioteca", "montar_quadro", "pedir_material_fundicao"]);
+  assert.deepEqual(nomes("fundicao", []), ["abrir_chamado_ti", "montar_quadro"], "chamado de TI e quadro de tarefas qualquer pessoa abre");
+  assert.deepEqual(nomes("almoxarifado", ["almoxarifado.solicitacoes:operar", "fundicao.pedidos:operar"]), ["abrir_chamado_ti", "montar_quadro", "pedir_material"]);
+  assert.deepEqual(nomes("financeiro", ["financeiro.pagar:aprovar"]), ["abrir_chamado_ti", "montar_quadro"], "aprovar título não é ação da SARA (ainda)");
   for (const a of ACOES) assert.ok(a.acao && /^PREPARA/.test(a.descricao), `${a.nome}: a descrição diz que só prepara`);
 });
 

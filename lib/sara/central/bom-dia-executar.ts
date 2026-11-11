@@ -10,7 +10,7 @@ import { agoraSP } from "../tempo";
 import { semExpressoes, semTags, tratamento } from "../personalidade";
 import { paraWhatsApp } from "../../whatsapp/mensagem";
 import { bomDiaNoWhatsapp, lerConfigVigia } from "./vigia-config";
-import { BOM_DIA, DIAS_DA_SEMANA, escreverBomDia, janelaDoBomDia, moduloDoBomDia, ordenarItens, recebeBomDia, resumoDoBomDia, type ItemBomDia } from "./bom-dia";
+import { BOM_DIA, DIAS_DA_SEMANA, escreverBomDia, itensDasTarefas, janelaDoBomDia, moduloDoBomDia, ordenarItens, recebeBomDia, resumoDoBomDia, type ItemBomDia } from "./bom-dia";
 
 /**
  * Execução do Bom dia (J2). A mesma tarefa de 10 em 10 minutos chama /api/sara/bom-dia/rodar: na janela
@@ -48,7 +48,7 @@ async function colher(admin: SupabaseClient, sb: SupabaseClient, eu: string, hoj
   const areas = Object.values(SARAS).filter((s) => !s.central && access.canModule(s.feature) && access.can(s.permissao, "ver"));
   const rotulo = (m: string | null | undefined) => (m && SARAS[m]?.rotulo) || "Plataforma";
   const novidades = novidadesPara(NOVIDADES, { isOwner: access.isOwner, grants: access.grants });
-  const [avisos, decisoes, acoes, guias] = await Promise.all([
+  const [avisos, decisoes, acoes, tarefas, guias] = await Promise.all([
     Promise.all(areas.map(async (s) => (await alertasDo(s.modulo, sb, {
       pode: (f) => access.can(f, "ver"), hoje,
       novidades: novidades.filter((n) => n.modulos?.includes(s.modulo)).map((n) => ({ id: n.id, data: n.data, titulo: n.titulo })),
@@ -60,6 +60,8 @@ async function colher(admin: SupabaseClient, sb: SupabaseClient, eu: string, hoj
     sb.from("sara_acoes").select("modulo, resumo").eq("profile_id", eu).eq("situacao", "pendente").gt("expira_em", new Date().toISOString()).order("created_at").limit(20)
       .then((r) => ((r.data ?? []) as { modulo: string; resumo: string }[]).map((a): ItemBomDia => ({ tipo: "acao", nivel: "aviso", modulo: a.modulo, area: rotulo(a.modulo),
         titulo: `Esperando o seu Permitir: ${a.resumo}` }))),
+    // As tarefas em que a pessoa é a responsável: as de hoje e as vencidas (I-28).
+    sb.rpc("tarefas_minhas").then((r) => itensDasTarefas((r.data ?? []) as Parameters<typeof itensDasTarefas>[0], hoje, rotulo)),
     // As guias da pessoa nas últimas 24 h (a tabela das guias só o servidor lê junto com a execução).
     admin.from("sara_guia_execucoes").select("situacao, resumo, erro, sara_habilidades!inner(nome, modulo, responsavel_id)")
       .eq("sara_habilidades.responsavel_id", eu).in("situacao", ["feita", "falhou", "sem_permissao"]).gt("terminada_em", ha(new Date(), 24 * 60)).order("terminada_em").limit(10)
@@ -68,7 +70,7 @@ async function colher(admin: SupabaseClient, sb: SupabaseClient, eu: string, hoj
           titulo: g.situacao === "feita" ? `A guia «${g.sara_habilidades.nome}» rodou` : `A guia «${g.sara_habilidades.nome}» não rodou`,
           detalhe: (g.situacao === "feita" ? g.resumo : g.erro)?.slice(0, 240) ?? undefined }))),
   ]);
-  return { areas: areas.map((s) => s.modulo), itens: [...avisos, ...decisoes, ...acoes, ...guias] };
+  return { areas: areas.map((s) => s.modulo), itens: [...avisos, ...decisoes, ...acoes, ...tarefas, ...guias] };
 }
 
 async function rodarUm(admin: SupabaseClient, l: Linha): Promise<string> {

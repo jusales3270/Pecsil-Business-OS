@@ -25,6 +25,7 @@ import { SARAS } from "../lib/sara/modulos";
 import { AccountPanel } from "./components/account-panel";
 import { MeusChamadosTi } from "./components/ti-meus-chamados";
 import { DecisoesParaVoce } from "./components/decisoes";
+import { MinhasTarefas, TarefasView } from "./components/tarefas";
 import { MemoriaDaSara } from "./components/sara-memoria";
 import { definirTelaAtual } from "../lib/tela-atual";
 import { DocumentosParaVoce } from "./components/documentos-recebidos";
@@ -33,7 +34,7 @@ import { ACCESS_CATALOG, ACCESS_LEVELS, LEVEL_LABELS, levelRank, type AccessGran
 import { usePwa } from "./components/pwa-provider";
 import { useInbox, type InboxItem } from "../lib/use-inbox";
 
-type View = "Visão Geral" | "Módulos" | "Pessoas e Acessos" | "Estrutura" | "Cadastros" | "Eventos" | "Sugestões da IA" | "Permissões e Segurança" | "Busca Corporativa" | "Documentos" | "Notificações" | "Parados" | "Auditoria" | "O que a SARA aprendeu" | "Linha de base" | "Banco e Autenticação" | "WhatsApp" | "Conectores" | "Configurações";
+type View = "Visão Geral" | "Módulos" | "Pessoas e Acessos" | "Estrutura" | "Cadastros" | "Eventos" | "Sugestões da IA" | "Permissões e Segurança" | "Busca Corporativa" | "Documentos" | "Notificações" | "Parados" | "Tarefas" | "Auditoria" | "O que a SARA aprendeu" | "Linha de base" | "Banco e Autenticação" | "WhatsApp" | "Conectores" | "Configurações";
 
 type OperationalEvent = {
   id: number;
@@ -57,7 +58,7 @@ const nav: { label: View; icon: string }[] = [
   { label: "Cadastros", icon: "briefcase" }, { label: "Eventos", icon: "clock" }, { label: "Sugestões da IA", icon: "check" },
   { label: "Permissões e Segurança", icon: "lock" },
   ...(BUSCA_CORPORATIVA_ATIVA ? [{ label: "Busca Corporativa" as View, icon: "search" }] : []),
-  { label: "Documentos", icon: "file" }, { label: "Notificações", icon: "bell" }, { label: "Parados", icon: "clock" },
+  { label: "Documentos", icon: "file" }, { label: "Notificações", icon: "bell" }, { label: "Parados", icon: "clock" }, { label: "Tarefas", icon: "check" },
   { label: "Auditoria", icon: "shield" }, { label: "O que a SARA aprendeu", icon: "spark" }, { label: "Linha de base", icon: "chart" }, { label: "Banco e Autenticação", icon: "database" }, { label: "WhatsApp", icon: "chat" }, { label: "Conectores", icon: "rede" }, { label: "Configurações", icon: "settings" },
 ];
 
@@ -76,6 +77,7 @@ const headerCopy: Record<View, [string, string]> = {
   "Documentos": ["Documentos", "Arquivos de cada setor, guardados com a permissão das telas"],
   "Notificações": ["Notificações", "Alertas e pendências consolidados dos módulos"],
   "Parados": ["Parados", "O que está esperando alguém da sua área há mais dias que o normal"],
+  "Tarefas": ["Tarefas", "Combinados com responsável e prazo, de reuniões, atas e da SARA"],
   "Auditoria": ["Auditoria", "Rastreabilidade imutável de acessos e operações críticas"],
   "O que a SARA aprendeu": ["O que a SARA aprendeu", "Habilidades propostas, pedidos que ela ainda não atende e respostas que não agradaram"],
   "Linha de base": ["Linha de base", "Os números de antes da virada, para comparar o antes × depois"],
@@ -401,12 +403,18 @@ function HomeContent() {
   const [decisoes,setDecisoes]=useState<{id:string|null}|null>(null);
   const [memoriaSara,setMemoriaSara]=useState(false);
   const [decisoesPendentes,setDecisoesPendentes]=useState(0);
+  // "Minhas tarefas" (menu da conta; o aviso do sino abre já na tarefa) e quantas estão em aberto.
+  const [tarefas,setTarefas]=useState<{id:string|null}|null>(null);
+  const [tarefasAbertas,setTarefasAbertas]=useState(0);
+  // Fundação › Tarefas aberta num quadro (link do resumo da War Room ou do resultado da SARA).
+  const [quadroInicial,setQuadroInicial]=useState("");
   // "Documentos para você": os PDFs que a SARA central mandou (aviso do sino abre já no documento).
   const [documentos,setDocumentos]=useState<{id:string|null}|null>(null);
   useEffect(()=>{
     if(!accountMenu||!realAccess) return;
     let vivo=true;
     void fetch("/api/decisoes?contar=1",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{if(vivo&&j)setDecisoesPendentes(Number(j.pendentes)||0)}).catch(()=>null);
+    void fetch("/api/tarefas?contar=1",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{if(vivo&&j)setTarefasAbertas(Number(j.abertas)||0)}).catch(()=>null);
     return()=>{vivo=false};
   },[accountMenu,realAccess]);
   // Visão executiva (Visão Geral, catálogo de módulos) é do proprietário; os
@@ -436,9 +444,12 @@ function HomeContent() {
   useEffect(() => {
     if (routedInitialModule || accessLoading) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.has("module") || params.has("view") || params.has("chamados-ti") || params.has("sara") || params.has("decisoes") || params.has("documentos")) {
+    if (params.has("module") || params.has("view") || params.has("chamados-ti") || params.has("sara") || params.has("decisoes") || params.has("documentos") || params.has("tarefas")) {
       window.history.replaceState(null, "", window.location.pathname);
     }
+    // Fundação › Tarefas pelo endereço (resumo da War Room, resultado da SARA), já no quadro.
+    if (params.get("view") === "Tarefas") { const q = params.get("quadro") ?? ""; setTimeout(() => { setQuadroInicial(q); change("Tarefas"); }, 0); }
+    if (params.has("tarefas")) { const id = params.get("tarefas") || null; setTimeout(() => setTarefas({ id }), 0); }
     // Aviso do sino de quem abriu um chamado de TI: abre o chamado no painel pessoal (logo depois do efeito).
     const chamadoTi = params.has("chamados-ti") ? { id: params.get("chamados-ti") || null } : null;
     if (chamadoTi) setTimeout(() => setChamadosTi(chamadoTi), 0);
@@ -515,6 +526,7 @@ function HomeContent() {
     if(destino&&nav.some(n=>n.label===destino)){change(destino as View);return}
     if(params.has("chamados-ti")){setChamadosTi({id:params.get("chamados-ti")||null});return}
     if(params.has("decisoes")){setDecisoes({id:params.get("decisoes")||null});return}
+    if(params.has("tarefas")){setTarefas({id:params.get("tarefas")||null});return}
     if(params.has("documentos")){setDocumentos({id:params.get("documentos")||null});return}
     // Aviso da SARA (guias, resultado de uma guia): abre o módulo e a janela da SARA.
     if(params.has("sara")&&params.get("module")){openModule(params.get("module") as string);setAbrirGuias(params.get("sara")==="guias");setAbrirSara((n)=>n+1);return}
@@ -649,7 +661,7 @@ function HomeContent() {
             {sessionProfile.avatarUrl ? <img className="avatar top avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span className="avatar top">{access.initials}</span>}
             <span><b>{access.name}</b><small>{access.role}</small></span>
           </button>
-          {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setDecisoes({id:null})}}><Icon name="check" size={16}/> Decisões para você{decisoesPendentes>0&&<i className="account-contador">{decisoesPendentes}</i>}</button>}{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setMemoriaSara(true)}}><Icon name="users" size={16}/> O que a SARA lembra de mim</button>}{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setDocumentos({id:null})}}><Icon name="file" size={16}/> Documentos para você</button>}{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setChamadosTi({id:null})}}><Icon name="inbox" size={16}/> Chamados de TI</button>}{canInstall && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar aplicativo</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
+          {accountMenu&&<div className="persona-menu account-menu"><p>{realAccess?"Conta":"Modo demonstrativo"}</p><div className="account-identity">{sessionProfile.avatarUrl ? <img className="avatar-photo" src={sessionProfile.avatarUrl} alt=""/> : <span>{access.initials}</span>}<span><b>{access.name}</b><small>{access.role} · {access.scopeLabel}</small></span></div><button className="account-item" onClick={()=>{setAccountMenu(false);setAccountPanel(true)}}><Icon name="users" size={16}/> Minha conta</button>{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setDecisoes({id:null})}}><Icon name="check" size={16}/> Decisões para você{decisoesPendentes>0&&<i className="account-contador">{decisoesPendentes}</i>}</button>}{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setTarefas({id:null})}}><Icon name="check" size={16}/> Minhas tarefas{tarefasAbertas>0&&<i className="account-contador">{tarefasAbertas}</i>}</button>}{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setMemoriaSara(true)}}><Icon name="users" size={16}/> O que a SARA lembra de mim</button>}{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setDocumentos({id:null})}}><Icon name="file" size={16}/> Documentos para você</button>}{realAccess&&<button className="account-item" onClick={()=>{setAccountMenu(false);setChamadosTi({id:null})}}><Icon name="inbox" size={16}/> Chamados de TI</button>}{canInstall && <button className="account-item" onClick={()=>{setAccountMenu(false);promptInstall();}}><Icon name="download" size={16}/> Instalar aplicativo</button>}<button className="account-signout" onClick={signOut}><Icon name="lock" size={16}/> Sair da plataforma</button></div>}
         </div>
       </header>
       {(()=>{
@@ -658,7 +670,7 @@ function HomeContent() {
         const sara=area&&SARAS[area]?area:activeModuleId;
         return sara&&SARAS[sara]&&!SARAS[sara].central&&!deniedTarget?<SaraPainel key={sara} modulo={sara} abrirAoCarregar={abrirSara} abrirGuias={abrirGuias} navegar={(m,s)=>openModule(m,s)}/>:null;
       })()}
-      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={`${snapshot.loadedAt}-${moduleSection?.n??0}`} initialSection={moduleSection?.secao} people={snapshot.people} departmentNames={snapshot.organizationData.Departamentos.map(d=>d.name)} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?<ModuloComColeta key={`${activeModuleId}-${moduleSection?.n??0}`} moduloId={activeModuleId} moduloNome={activeModule?.name??activeModuleId} access={access} notify={notify}>{renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined,initialSection:moduleSection?.secao})}</ModuloComColeta>:view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule} onOpenDocumentos={(busca)=>{change("Documentos");setBuscaDocumentos(busca)}}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Sugestões da IA"?<SugestoesIaView notify={notify}/>:view==="Documentos"?<DocumentosSetorView key={buscaDocumentos} notify={notify} buscaInicial={buscaDocumentos}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents} inbox={inbox.items} unread={inbox.unread} onOpen={openInboxItem} onMarkAll={()=>void inbox.markRead("all")}/>:view==="Parados"?<Parados abrir={(link)=>{const q=new URL(link,window.location.origin).searchParams;const m=q.get("module");if(m)openModule(m,q.get("secao")??undefined)}}/>:view==="Auditoria"?<AuditoriaCentral/>:view==="O que a SARA aprendeu"?<SaraAprendizado notify={notify}/>:view==="Linha de base"?<LinhaDeBase notify={notify}/>:view==="WhatsApp"?<WhatsappCanal notify={notify}/>:view==="Conectores"?<Conectores notify={notify}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
+      <div className="content">{error&&<div className="connection-banner pending"><span><Icon name="alert"/></span><div><b>Modo demonstrativo preservado</b><small>{error}</small></div></div>}{deniedTarget?<AccessDenied target={deniedTarget} access={access} onBack={()=>{setDeniedTarget(null);if(!isExecutive&&targetedModule){setActiveModuleId(targetedModule)}else{setView("Visão Geral")}}}/>:activeModuleId==="rh"?<HrModule key={`${snapshot.loadedAt}-${moduleSection?.n??0}`} initialSection={moduleSection?.secao} people={snapshot.people} departmentNames={snapshot.organizationData.Departamentos.map(d=>d.name)} summary={snapshot.summary} notify={notify} onEvent={recordOperationalEvent} onExit={handleModuleExit} access={access}/>:activeModuleId?<ModuloComColeta key={`${activeModuleId}-${moduleSection?.n??0}`} moduloId={activeModuleId} moduloNome={activeModule?.name??activeModuleId} access={access} notify={notify}>{renderModuleComponent(activeModuleId,{notify,onEvent:recordOperationalEvent,onExit:handleModuleExit,access,initialArea:moduleArea??undefined,initialSection:moduleSection?.secao})}</ModuloComColeta>:view==="Visão Geral"?<Overview setView={change} summary={snapshot.summary} onOpenModule={openModule} access={access} catalogModules={modules} visibleModules={visibleModules}/>:view==="Módulos"?<ModuleCatalog onOpenModule={openModule} modules={modules} access={access}/>:view==="Pessoas e Acessos"?<PeopleAccessView notify={notify} people={snapshot.people} summary={snapshot.summary}/>:view==="Estrutura"?<OrganizationView notify={notify} organizationData={snapshot.organizationData} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:view==="Permissões e Segurança"?<SecurityView notify={notify} access={access}/>:view==="Busca Corporativa"?<CorporateSearchView initialQuery={globalQuery} setView={change} people={snapshot.people} modules={modules} organizationData={snapshot.organizationData} onOpenModule={openModule} onOpenDocumentos={(busca)=>{change("Documentos");setBuscaDocumentos(busca)}}/>:view==="Cadastros"?<MasterDataView notify={notify}/>:view==="Eventos"?<EventTrailView/>:view==="Sugestões da IA"?<SugestoesIaView notify={notify}/>:view==="Documentos"?<DocumentosSetorView key={buscaDocumentos} notify={notify} buscaInicial={buscaDocumentos}/>:view==="Notificações"?<NotificationsView notify={notify} events={operationalEvents} inbox={inbox.items} unread={inbox.unread} onOpen={openInboxItem} onMarkAll={()=>void inbox.markRead("all")}/>:view==="Tarefas"?<TarefasView key={quadroInicial} quadroInicial={quadroInicial} notify={notify}/>:view==="Parados"?<Parados abrir={(link)=>{const q=new URL(link,window.location.origin).searchParams;const m=q.get("module");if(m)openModule(m,q.get("secao")??undefined)}}/>:view==="Auditoria"?<AuditoriaCentral/>:view==="O que a SARA aprendeu"?<SaraAprendizado notify={notify}/>:view==="Linha de base"?<LinhaDeBase notify={notify}/>:view==="WhatsApp"?<WhatsappCanal notify={notify}/>:view==="Conectores"?<Conectores notify={notify}/>:view==="Banco e Autenticação"?<PersistenceView dataSource={snapshot.source} summary={snapshot.summary} organizationName={snapshot.organization.name}/>:<AdminView view={view} organizationName={snapshot.organization.name} summary={snapshot.summary}/>}</div>
       <nav className="mobile-bottom-nav" aria-label="Navegação rápida móvel">
         <button
           type="button"
@@ -717,7 +729,7 @@ function HomeContent() {
           <span>Menu</span>
         </button>
       </nav>
-    </main>{accountPanel&&<AccountPanel access={access} profile={sessionProfile} onClose={()=>setAccountPanel(false)} onSaved={reloadIdentity} notify={notify}/>}{memoriaSara&&realAccess&&<MemoriaDaSara onClose={()=>setMemoriaSara(false)} notify={notify}/>}{chamadosTi&&realAccess&&<MeusChamadosTi key={chamadosTi.id??"lista"} abrirId={chamadosTi.id} onClose={()=>setChamadosTi(null)} notify={notify}/>}{decisoes&&realAccess&&<DecisoesParaVoce focoId={decisoes.id} onClose={()=>{setDecisoes(null);setDecisoesPendentes(0)}} notify={notify}/>}{documentos&&realAccess&&<DocumentosParaVoce focoId={documentos.id} onClose={()=>setDocumentos(null)}/>}{realAccess&&canUseFeature(access,"warroom.sara","ver")&&<SaraHolograma naWarRoom={activeModuleId==="warroom"} navegar={(m,s)=>openModule(m,s)}/>}
+    </main>{accountPanel&&<AccountPanel access={access} profile={sessionProfile} onClose={()=>setAccountPanel(false)} onSaved={reloadIdentity} notify={notify}/>}{memoriaSara&&realAccess&&<MemoriaDaSara onClose={()=>setMemoriaSara(false)} notify={notify}/>}{chamadosTi&&realAccess&&<MeusChamadosTi key={chamadosTi.id??"lista"} abrirId={chamadosTi.id} onClose={()=>setChamadosTi(null)} notify={notify}/>}{decisoes&&realAccess&&<DecisoesParaVoce focoId={decisoes.id} onClose={()=>{setDecisoes(null);setDecisoesPendentes(0)}} notify={notify}/>}{tarefas&&realAccess&&<MinhasTarefas focoId={tarefas.id} onClose={()=>setTarefas(null)} notify={notify}/>}{documentos&&realAccess&&<DocumentosParaVoce focoId={documentos.id} onClose={()=>setDocumentos(null)}/>}{realAccess&&canUseFeature(access,"warroom.sara","ver")&&<SaraHolograma naWarRoom={activeModuleId==="warroom"} navegar={(m,s)=>openModule(m,s)}/>}
       {toast&&<div className="toast"><span>✓</span>{toast}</div>}
   </div>;
 }

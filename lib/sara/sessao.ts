@@ -23,6 +23,7 @@ import { contextoDeTempo, primeiroNome, situacaoDaConversa } from "./tempo";
 import { FORA_DA_SUBAGENTE, REGRA_SUBAGENTE, ferramentaPerguntarASara, type Rodar, type UsoSubagente } from "./central/subagente";
 import { DOCUMENTOS_RECEBIDOS, ENVIAR_DOCUMENTO, ferramentaCriarDocumento, ferramentaCriarPlanilha, type ContextoDocumentos } from "./central/documentos";
 import { ENVIAR_WHATSAPP } from "../whatsapp/enviar";
+import { MINHAS_TAREFAS, MONTAR_QUADRO } from "../tarefas/sara";
 import { ferramentaCriarMensagemDeVoz } from "./central/mensagem-de-voz";
 import { MOSTRAR_GRAFO } from "./central/grafo";
 import { ferramentaProporLicao, memoriaDaSara } from "./central/licoes";
@@ -96,7 +97,7 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
       return { ...r, dados };
     } };
     const ferramentas: Ferramenta[] = [ferramentaPerguntarASara(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos.fontes, documentos.numerar), calcular, PERIODO,
-      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ...(registro ? [registro] : []), ...(pode("warroom.cerebro") ? [MOSTRAR_GRAFO] : []), ferramentaCriarDocumento(documentos), ferramentaCriarPlanilha(documentos), ENVIAR_DOCUMENTO, ENVIAR_WHATSAPP, ferramentaCriarMensagemDeVoz(documentos),
+      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ...(registro ? [registro] : []), ...(pode("warroom.cerebro") ? [MOSTRAR_GRAFO] : []), ferramentaCriarDocumento(documentos), ferramentaCriarPlanilha(documentos), ENVIAR_DOCUMENTO, ENVIAR_WHATSAPP, ferramentaCriarMensagemDeVoz(documentos), MONTAR_QUADRO, MINHAS_TAREFAS,
       // Painel na tela (como as SARAs das áreas): os números vêm das consultas das áreas ou da calculadora.
       MOSTRAR,
       // J5: o que a pessoa ensina vira lição, aprovada pela área.
@@ -109,7 +110,7 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
   // Guias (E3): a pessoa pode pedir uma rotina; os acontecimentos são os dos módulos que ela acessa.
   const eventos = EVENT_CATALOG.filter((e) => e.module !== "sara" && access.canModule(e.module)).map((e) => ({ tipo: e.type, rotulo: e.label }));
   // Documentos que a SARA central mandou para a pessoa: a SARA do módulo só lê (não cria nem envia).
-  const ferramentas = [...ferramentasDaSara(pode, sara.ferramentas), ...(dados ? [dados] : []), CALCULAR, PERIODO, ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), ...acoes, LACUNA, PROPOR_HABILIDADE, ferramentaCriarGuia(eventos), MOSTRAR, DOCUMENTOS_RECEBIDOS];
+  const ferramentas = [...ferramentasDaSara(pode, sara.ferramentas), ...(dados ? [dados] : []), CALCULAR, PERIODO, ...(documentos ? [documentos] : []), ...(navegar ? [navegar] : []), ...acoes, LACUNA, PROPOR_HABILIDADE, ferramentaCriarGuia(eventos), MOSTRAR, DOCUMENTOS_RECEBIDOS, MINHAS_TAREFAS];
   // Habilidades aprovadas pelo proprietário: só as que a pessoa consegue rodar com as consultas dela.
   const { data: hab } = await session.supabase.rpc("sara_habilidades_ativas", { p_modulo: modulo });
   const habilidades = habilidadesQuePode((hab ?? []) as HabilidadeAtiva[], ferramentas.map((f) => f.nome));

@@ -9,7 +9,7 @@
  *
  * Roda como tarefa agendada do Coolify, DENTRO do contêiner do Business OS, a
  * cada 10 minutos: chama as rotas locais /api/producao/sync-os, /api/sara/guias/rodar, /api/sara/vigia/rodar e
- * /api/sara/bom-dia/rodar e /api/sara/crescimento/rodar
+ * /api/sara/bom-dia/rodar, /api/sara/crescimento/rodar e /api/tarefas/cobrar (lembrete e cobrança das tarefas, I-28)
  * com o segredo FORJA_SYNC_SECRET (variável do Coolify). Uma falha não impede a
  * outra; sai com erro se alguma falhar, para a falha aparecer no histórico da tarefa.
  */
@@ -20,7 +20,7 @@ if (!secret) {
   process.exit(1);
 }
 let falhou = false;
-for (const rota of ["/api/producao/sync-os", "/api/sara/guias/rodar", "/api/sara/vigia/rodar", "/api/sara/bom-dia/rodar", "/api/sara/crescimento/rodar", "/api/whatsapp/agendados/rodar", "/api/whatsapp/conexao/vigiar", "/api/contabil/sentinela/rodar", "/api/fiscal/ibs-cbs/rodar"]) {
+for (const rota of ["/api/producao/sync-os", "/api/sara/guias/rodar", "/api/sara/vigia/rodar", "/api/sara/bom-dia/rodar", "/api/sara/crescimento/rodar", "/api/tarefas/cobrar", "/api/whatsapp/agendados/rodar", "/api/whatsapp/conexao/vigiar", "/api/contabil/sentinela/rodar", "/api/fiscal/ibs-cbs/rodar"]) {
   try {
     const response = await fetch(`http://127.0.0.1:${port}${rota}`, {
       method: "POST",

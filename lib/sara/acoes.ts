@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { dataBR, hoje, link, termo, type Ferramenta, type Proposta } from "./base.ts";
 import { ACOES_AREAS } from "./acoes-areas.ts";
+import { MONTAR_QUADRO } from "../tarefas/sara.ts";
 
 /**
  * Ações da SARA (E1, 22/10/2026): o que ela pode FAZER, sempre com o "Permitir" da pessoa.
@@ -209,27 +210,10 @@ const ANOTAR_NA_BIBLIOTECA: Ferramenta = {
   },
 };
 
-/**
- * Degrau 3: pedido rejeitado pelo Compras → o aviso traz "Refazer o pedido", com os mesmos itens (o
- * material do catálogo vai ligado). A pessoa ainda decide no cartão; o Compras recebe um pedido novo.
- */
-export function refazerPedido(p: { numero: number; urgencia: string; divisao?: string; cancel_reason?: string | null;
-  material_request_items?: { produto: string; quantidade: number; unidade: string | null; material_id?: string | null; observacao?: string | null }[] }, ferramenta: "pedir_material" | "pedir_material_fundicao") {
-  const itens = (p.material_request_items ?? []).map((i) => ({ descricao: i.produto, quantidade: Number(i.quantidade), unidade: i.unidade ?? "UN",
-    ...(i.material_id ? { material_id: i.material_id } : {}), ...(i.observacao ? { observacao: i.observacao } : {}) }));
-  if (!itens.length) return undefined;
-  return { ferramenta, rotulo: "Refazer o pedido", entrada: {
-    itens, urgente: p.urgencia === "urgente", ...(ferramenta === "pedir_material" ? { divisao: p.divisao === "FUNDICAO" ? "FUNDICAO" : "USINAGEM" } : {}),
-    observacao: `Refaz o pedido nº ${p.numero}, rejeitado pelo Compras${p.cancel_reason ? ` (${p.cancel_reason})` : ""}.`.slice(0, 300),
-  } };
-}
+// refazerPedido e jaRefeitos moraram aqui; agora em acoes-refazer.ts (os agentes entram no pacote do navegador).
+export { jaRefeitos, refazerPedido } from "./acoes-refazer.ts";
 
-/** Números dos pedidos que já foram refeitos (a observação do pedido novo começa com "Refaz o pedido nº X"). */
-export function jaRefeitos(pedidos: { observacao?: string | null }[]): Set<number> {
-  return new Set(pedidos.map((p) => /^Refaz o pedido nº (\d+)/.exec(p.observacao ?? "")?.[1]).filter(Boolean).map(Number));
-}
-
-export const ACOES: Ferramenta[] = [PEDIR_MATERIAL, PEDIR_MATERIAL_FUNDICAO, ABRIR_CHAMADO_TI, ANOTAR_NA_BIBLIOTECA, ...ACOES_AREAS];
+export const ACOES: Ferramenta[] = [PEDIR_MATERIAL, PEDIR_MATERIAL_FUNDICAO, ABRIR_CHAMADO_TI, ANOTAR_NA_BIBLIOTECA, MONTAR_QUADRO, ...ACOES_AREAS];
 
 /** Ações que a SARA deste módulo oferece a quem tem o nível exigido (vazio em `exige` = qualquer pessoa logada). */
 export function acoesDaSara(modulo: string, pode: (feature: string, nivel: "operar" | "aprovar") => boolean): Ferramenta[] {

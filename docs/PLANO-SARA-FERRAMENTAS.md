@@ -79,6 +79,11 @@ Na ordem abaixo. Cada etapa tem QA e commit próprio. Migração em produção s
   - QA ponta a ponta 15/15, com a SARA central real.
 
 ### Etapa 3 — Tarefas e quadro (I-28)
+> **Situação em 10/11/2026: pronta**, com a migração 202611100002 aplicada. Falta o Deploy. Diferenças do que foi planejado:
+> - A tela agrupa por prazo ou por pessoa e filtra por "minhas / que pedi / todas", por quadro e pelas concluídas. Filtro por área e edição na própria linha ficaram para depois (hoje se edita no detalhe).
+> - O cartão do Permitir mostra a lista mas não a edita. A correção (responsável, prazo) se faz depois, na tela. Na tela "Montar quadro de uma reunião" a lista é editável antes de criar.
+> - O plano de ação da Qualidade (tarefa ligada à NC) ainda não foi construído. O banco já guarda a referência (`referencia_tipo`/`referencia_id`).
+> - O "Comentar" só funciona depois da migração 202611100003, que corrige o tipo do andamento.
 - **Banco (migração nova):**
   - `quadros`: título, data, origem (texto, reunião, SARA), resumo e quem criou.
   - `tarefas`: título, detalhe, área (módulo), responsável, prazo (data), situação (aberta, em_andamento, feita, devolvida, cancelada), motivo da devolução, quadro, referência opcional (OS, cotação, NC…), quem criou, concluída_em, cobranças e cobrado_em.

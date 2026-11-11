@@ -109,7 +109,7 @@ test("documentos: só a central cria e envia; as SARAs dos módulos só recebem"
   assert.match(central, /ferramentaCriarDocumento\(documentos\), ferramentaCriarPlanilha\(documentos\), ENVIAR_DOCUMENTO, ENVIAR_WHATSAPP, ferramentaCriarMensagemDeVoz\(documentos\),/);
   const modulo = sessao.slice(sessao.indexOf("const dados = consultarDados"));
   assert.doesNotMatch(modulo, /ferramentaCriarDocumento|ENVIAR_DOCUMENTO/);
-  assert.match(modulo, /MOSTRAR, DOCUMENTOS_RECEBIDOS\]/);
+  assert.match(modulo, /MOSTRAR, DOCUMENTOS_RECEBIDOS, MINHAS_TAREFAS\]/);
   const docs = ler("lib/sara/central/documentos.ts");
   assert.match(docs, /acao: \{\s*nivel: "operar", modulos: \["warroom"\]/, "enviar é ação com Permitir");
   assert.match(docs, /conferirNumeros\(textoParaConferir\(e\), ctx\.fontes\)/);

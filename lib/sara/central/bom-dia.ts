@@ -16,7 +16,7 @@ import { conferirNumeros } from "./verificador.ts";
 export const BOM_DIA = { dias: [1, 2, 3, 4, 5], hora: "07:30", ate: "11:00", maxItens: 12, modelo: "claude-haiku-5-5" } as const;
 
 export type ItemBomDia = {
-  tipo: "aviso" | "decisao" | "acao" | "guia" | "novidade";
+  tipo: "aviso" | "decisao" | "acao" | "tarefa" | "guia" | "novidade";
   nivel: "urgente" | "aviso";
   modulo: string;
   area: string;
@@ -46,7 +46,20 @@ export function janelaDoBomDia(agora: Date = new Date(), regra: { dias: readonly
   return { dia: sp.toISOString().slice(0, 10), semana };
 }
 
-const PESO: Record<ItemBomDia["tipo"], number> = { aviso: 1, decisao: 0, acao: 0, guia: 2, novidade: 3 };
+const PESO: Record<ItemBomDia["tipo"], number> = { aviso: 1, decisao: 0, acao: 0, tarefa: 0, guia: 2, novidade: 3 };
+
+/**
+ * As tarefas da pessoa no Bom dia (I-28): a vencida é urgente; a de hoje é aviso. As de outros dias ficam de fora
+ * (estão em Minhas tarefas). `lista` é o que tarefas_minhas() devolve (só as em que a pessoa é a responsável).
+ */
+export function itensDasTarefas(lista: { titulo: string; modulo: string | null; prazo: string | null; situacao: string; criado_por: string | null }[], hoje: string,
+  rotulo: (m: string | null) => string): ItemBomDia[] {
+  const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  return lista.filter((t) => (t.situacao === "aberta" || t.situacao === "em_andamento") && t.prazo && t.prazo <= hoje)
+    .map((t): ItemBomDia => ({ tipo: "tarefa", nivel: t.prazo! < hoje ? "urgente" : "aviso", modulo: t.modulo ?? "", area: rotulo(t.modulo),
+      titulo: t.prazo! < hoje ? `Tarefa vencida desde ${dm(t.prazo!)}: ${t.titulo}` : `Tarefa para hoje: ${t.titulo}`,
+      detalhe: `${t.criado_por ? `Pedida por ${t.criado_por}. ` : ""}Conclua ou devolva em Minhas tarefas (menu da sua conta).` }));
+}
 
 /** Urgentes primeiro; depois o que espera a pessoa (decisões e ações), guias, avisos e, por último, novidades. */
 export function ordenarItens(itens: ItemBomDia[], max: number = BOM_DIA.maxItens): { itens: ItemBomDia[]; restantes: number } {
@@ -69,8 +82,10 @@ export function resumoDoBomDia(itens: ItemBomDia[]): string {
   const urg = itens.filter(urgente).length;
   const dec = itens.filter((i) => !urgente(i) && i.tipo === "decisao").length;
   const ac = itens.filter((i) => !urgente(i) && i.tipo === "acao").length;
-  const resto = itens.length - urg - dec - ac;
+  const ta = itens.filter((i) => !urgente(i) && i.tipo === "tarefa").length;
+  const resto = itens.length - urg - dec - ac - ta;
   return [urg && plural(urg, "urgente", "urgentes"), dec && plural(dec, "decisão para você", "decisões para você"), ac && plural(ac, "ação esperando o Permitir", "ações esperando o Permitir"),
+    ta && plural(ta, "tarefa para hoje", "tarefas para hoje"),
     resto > 0 && plural(resto, "aviso", "avisos")].filter(Boolean).join(" · ");
 }
 
@@ -105,7 +120,7 @@ export type Escrito = { texto: string; modelo: string; tokensEntrada: number; to
 export async function escreverBomDia(a: { chave: string; buscar?: typeof fetch; nome: string; data: string; semana: string; itens: ItemBomDia[]; restantes: number }): Promise<Escrito> {
   const reserva = (semFonte: string[] = [], tokensEntrada = 0, tokensSaida = 0): Escrito => ({ texto: textoDaPlataforma(a), modelo: "plataforma", tokensEntrada, tokensSaida, daPlataforma: true, semFonte });
   if (!a.chave) return reserva();
-  const fatos = a.itens.map((i, k) => `${k + 1}. [${i.nivel === "urgente" ? "URGENTE" : i.tipo === "decisao" ? "DECISÃO" : i.tipo === "acao" ? "AÇÃO PARA PERMITIR" : i.tipo === "guia" ? "GUIA" : i.tipo === "novidade" ? "NOVIDADE" : "AVISO"}] ${i.area}: ${i.titulo}${i.detalhe ? `. ${i.detalhe}` : ""}`).join("\n");
+  const fatos = a.itens.map((i, k) => `${k + 1}. [${i.nivel === "urgente" ? "URGENTE" : i.tipo === "decisao" ? "DECISÃO" : i.tipo === "acao" ? "AÇÃO PARA PERMITIR" : i.tipo === "tarefa" ? "TAREFA" : i.tipo === "guia" ? "GUIA" : i.tipo === "novidade" ? "NOVIDADE" : "AVISO"}] ${i.area}: ${i.titulo}${i.detalhe ? `. ${i.detalhe}` : ""}`).join("\n");
   try {
     const r = await chamarClaude({
         model: BOM_DIA.modelo, max_tokens: 700, thinking: semPensar(BOM_DIA.modelo), system: REGRA_BOM_DIA,

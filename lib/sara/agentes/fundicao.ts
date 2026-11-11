@@ -1,6 +1,6 @@
 import { dataBR, dias, hoje, link, plural, termo, type Abrir, type Agente, type Alerta, type Ferramenta, type Tela } from "../base.ts";
 import { buscarMateriais, linhaDoPedido, pedidosDeMaterial } from "./almoxarifado.ts";
-import { jaRefeitos, refazerPedido } from "../acoes.ts";
+import { jaRefeitos, refazerPedido } from "../acoes-refazer.ts";
 
 /**
  * SARA da Fundição: os pedidos de material da Fundição (só os da origem FUNDICAO — quem é da Fundição

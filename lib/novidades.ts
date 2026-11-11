@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-10-tarefas",
+    data: "2026-11-10",
+    area: "Plataforma",
+    titulo: "Tarefas com responsável e prazo",
+    itens: [
+      "Nova tela Fundação › Tarefas: crie uma tarefa para qualquer pessoa, com prazo. Quem recebe é avisado no sino e pode concluir, marcar o andamento ou devolver dizendo o motivo (quem pediu fica sabendo).",
+      "\"Montar quadro de uma reunião\": cole a ata ou as anotações e a SARA lista os combinados com o responsável e o prazo. Você confere e corrige antes de virar tarefa.",
+      "Na SARA de qualquer área, fale do seu jeito (\"anota aí: o Rafa fica de revisar o roteiro até sexta\"): ela prepara o quadro e só cria com o seu Permitir. Pergunte também \"o que eu tenho pra fazer?\".",
+      "Minhas tarefas, no menu da sua conta, com o número das que estão em aberto. Lembrete na véspera do prazo e cobrança da tarefa vencida, no sino e, para quem está na lista do WhatsApp, por lá também. O Bom dia traz as tarefas de hoje e as vencidas.",
+    ],
+  },
+  {
     id: "2026-11-10-sara-planilha-excel",
     data: "2026-11-10",
     area: "SARA",

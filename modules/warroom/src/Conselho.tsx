@@ -3,6 +3,7 @@
 import { SARA_CENTRAL } from "../../../lib/sara/central/sara";
 import { Aprendizado } from "./Aprendizado";
 import { Crescimento } from "./Crescimento";
+import { ResumoTarefas } from "../../../app/components/tarefas";
 import { Documentos } from "./Documentos";
 import { Vigia } from "./Vigia";
 
@@ -34,6 +35,7 @@ export function Conselho() {
       </div>
       <Vigia />
       <Crescimento />
+      <ResumoTarefas />
       <Documentos />
       <Aprendizado />
     </section>
