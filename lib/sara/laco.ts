@@ -129,6 +129,8 @@ export async function conversarCom(sb: SupabaseClient, a: {
   anexo?: Anexo | null;
   /** Quantos visuais por resposta (padrão 4; a SARA central monta painéis de até 8). */
   maxVisuais?: number;
+  /** A central numera cada visual que monta (o documento e a planilha apontam por esse número). */
+  aoMostrar?: (v: Visual) => number;
 }): Promise<RespostaSara> {
   const chave = a.chave;
   if (!chave) throw new Error("NAO_CONFIGURADA");
@@ -176,7 +178,8 @@ export async function conversarCom(sb: SupabaseClient, a: {
       const r = resolverVisual(entrada, resultados);
       if ("erro" in r) return { conteudo: JSON.stringify({ erro: r.erro }), ok: false };
       if (visuais.length < (a.maxVisuais ?? 4)) visuais.push(r.visual);
-      return { conteudo: JSON.stringify({ mostrado: true, componente: r.visual.componente, observacao: "O visual aparece abaixo do seu texto: não repita os números dele no texto, só o resumo." }), ok: true };
+      const numero = a.aoMostrar?.(r.visual);
+      return { conteudo: JSON.stringify({ mostrado: true, componente: r.visual.componente, ...(numero ? { numero_do_visual: numero } : {}), observacao: "O visual aparece abaixo do seu texto: não repita os números dele no texto, só o resumo." }), ok: true };
     }
     const f = a.ferramentas.find((x) => x.nome === nome);
     if (!f) {

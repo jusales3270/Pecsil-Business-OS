@@ -174,7 +174,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const inicioRota = Date.now();
   let r: RespostaSara | null = null;
   let falha: unknown = null;
-  const argsConversa = { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: corpo?.canal === "whatsapp" ? p.ferramentas.filter((f) => !["mostrar", "mostrar_grafo", "abrir_tela", "abrir_lancamento", "abrir_registro"].includes(f.nome)) : p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined, maxVisuais: p.sara.central ? 8 : undefined };
+  const argsConversa = { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: corpo?.canal === "whatsapp" ? p.ferramentas.filter((f) => !["mostrar", "mostrar_grafo", "abrir_tela", "abrir_lancamento", "abrir_registro"].includes(f.nome)) : p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined, maxVisuais: p.sara.central ? 8 : undefined, aoMostrar: p.documentos?.numerar };
   try {
     // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
     r = await conversar(p.sb, argsConversa);

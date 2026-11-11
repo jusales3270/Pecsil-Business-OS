@@ -35,7 +35,7 @@ export const REGRA_SUBAGENTE = "Quem está perguntando agora é a SARA central d
 export const FORA_DA_SUBAGENTE = new Set(["abrir_tela", "abrir_lancamento", "abrir_registro", "mostrar_grafo", "registrar_lacuna", "propor_habilidade", "criar_guia"]);
 
 /** `respostas`: o que cada área devolveu (as fontes dos números dos documentos da central). */
-export function ferramentaPerguntarASara(modulos: Pick<SaraModulo, "modulo" | "rotulo">[], rodar: Rodar, usos: UsoSubagente[], visuais: Visual[] = [], respostas: unknown[] = []): Ferramenta {
+export function ferramentaPerguntarASara(modulos: Pick<SaraModulo, "modulo" | "rotulo">[], rodar: Rodar, usos: UsoSubagente[], visuais: Visual[] = [], respostas: unknown[] = [], numerar?: (v: Visual) => number): Ferramenta {
   const lista = modulos.map((m) => `${m.modulo} (${m.rotulo})`).join(", ");
   return {
     nome: "perguntar_a_sara", rotulo: "perguntou à SARA da área", exige: [], paralela: true,
@@ -62,11 +62,14 @@ export function ferramentaPerguntarASara(modulos: Pick<SaraModulo, "modulo" | "r
         usos.push(r.uso);
         visuais.push(...r.visuais);
         respostas.push({ area: m.rotulo, resposta: r.texto }, ...r.visuais);
+        // O número de cada visual (para o documento e a planilha apontarem sem contar).
+        const numerados = numerar ? r.visuais.map((v) => ({ numero_do_visual: numerar(v), titulo: v.titulo, tipo: v.componente })) : [];
         // O resultado bruto fica na plataforma (para o mostrar da central) e também é fonte dos números.
         const painel = dadosDePainel(modulo, m.rotulo, r.resultados ?? []);
         respostas.push(...painel.dados.map((x) => x.dados));
         return { dados: { area: m.rotulo, resposta: r.texto, consultas: r.consultas,
           ...(r.visuais.length ? { apresentado_na_tela: `${r.visuais.length} visual(is) — a plataforma mostra na tela; fale deles, não repita os números` } : {}),
+          ...(numerados.length ? { visuais_numerados: numerados } : {}),
           ...(painel.dicas.length ? { para_mostrar_no_painel: painel.dicas } : {}) }, fontes: r.fontes, paraVisual: painel.dados };
       } catch (err) {
         passo.fim(false, `SARA · ${m.rotulo} não respondeu`);

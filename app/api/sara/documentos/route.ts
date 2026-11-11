@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   if (!access?.can("warroom.sara", "ver")) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   const [{ data, error }, { data: eu }] = await Promise.all([session.supabase.from("sara_documentos")
     .select("id, numero, tipo, titulo, paginas, criado_por, criado_por_nome, created_at, sara_documento_envios(para_nome, canal, enviado_em, aberto_em)")
-    .in("tipo", ["relatorio", "carta"]).not("caminho", "is", null)
+    .in("tipo", ["relatorio", "carta", "planilha"]).not("caminho", "is", null)
     .order("created_at", { ascending: false }).limit(60), session.supabase.rpc("current_profile_id")]);
   if (error) return NextResponse.json({ error: "Não foi possível carregar os documentos." }, { status: 500 });
   // "meu": só quem criou envia (as funções do banco conferem de novo).

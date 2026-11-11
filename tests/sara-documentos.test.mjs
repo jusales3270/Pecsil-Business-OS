@@ -106,7 +106,7 @@ test("documentos: a carta sai em papel timbrado, com local e data, sem marca de 
 test("documentos: só a central cria e envia; as SARAs dos módulos só recebem", () => {
   const sessao = ler("lib/sara/sessao.ts");
   const central = sessao.slice(sessao.indexOf("if (sara.central) {"), sessao.indexOf("const dados = consultarDados"));
-  assert.match(central, /ferramentaCriarDocumento\(documentos\), ENVIAR_DOCUMENTO, ENVIAR_WHATSAPP, ferramentaCriarMensagemDeVoz\(documentos\),/);
+  assert.match(central, /ferramentaCriarDocumento\(documentos\), ferramentaCriarPlanilha\(documentos\), ENVIAR_DOCUMENTO, ENVIAR_WHATSAPP, ferramentaCriarMensagemDeVoz\(documentos\),/);
   const modulo = sessao.slice(sessao.indexOf("const dados = consultarDados"));
   assert.doesNotMatch(modulo, /ferramentaCriarDocumento|ENVIAR_DOCUMENTO/);
   assert.match(modulo, /MOSTRAR, DOCUMENTOS_RECEBIDOS\]/);
@@ -118,6 +118,6 @@ test("documentos: só a central cria e envia; as SARAs dos módulos só recebem"
   assert.match(sql, /d\.criado_por is distinct from me then raise exception 'Só quem criou o documento envia\.'/);
   assert.match(sql, /insert into storage\.buckets \(id, name, public\) values \('sara-documentos', 'sara-documentos', false\)/);
   assert.match(sql, /revoke insert, update, delete on public\.sara_documentos, public\.sara_documento_envios from anon, authenticated/);
-  assert.match(ler("app/api/sara/documentos/[id]/pdf/route.ts"), /session\.supabase\.from\("sara_documentos"\)\.select\("id, numero, titulo, caminho"\)\.eq\("id", id\)/, "quem pode abrir é o RLS");
+  assert.match(ler("app/api/sara/documentos/[id]/pdf/route.ts"), /session\.supabase\.from\("sara_documentos"\)\.select\("id, numero, titulo, tipo, caminho"\)\.eq\("id", id\)/, "quem pode abrir é o RLS");
   assert.match(ler("modules/event-catalog.ts"), /"sara\.documento\.enviado"/);
 });

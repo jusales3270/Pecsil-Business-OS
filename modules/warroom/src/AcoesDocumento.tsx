@@ -4,7 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Button, Modal } from "../../../packages/design-system";
 
 /**
- * Abrir, imprimir e enviar um documento em PDF da SARA central (War Room › Conselho: Crescimento e Documentos).
+ * Abrir, imprimir e enviar um documento da SARA central (War Room › Conselho: Crescimento e Documentos). A planilha
+ * Excel se baixa (não se imprime daqui: abre no Excel).
  * Enviar: a uma pessoa da empresa pela plataforma (sino e "Documentos para você") ou a qualquer contato das listas
  * do WhatsApp (pessoas da empresa, fornecedores, clientes). O clique em Enviar é a confirmação; contato de fora
  * pede uma confirmação a mais. Só quem criou o documento envia.
@@ -31,19 +32,22 @@ function imprimir(id: string) {
   document.body.appendChild(quadro);
 }
 
-export function AcoesDocumento({ id, numero, titulo, podeEnviar, onEnviado }: { id: string; numero: string; titulo: string; podeEnviar: boolean; onEnviado?: () => void }) {
+export function AcoesDocumento({ id, numero, titulo, tipo, podeEnviar, onEnviado }: { id: string; numero: string; titulo: string; tipo?: string; podeEnviar: boolean; onEnviado?: () => void }) {
   const [enviar, setEnviar] = useState(false);
+  const planilha = tipo === "planilha";
   return (
     <div className="doc-acoes">
-      <a className="ds-button secondary compact" href={pdf(id)} target="_blank" rel="noopener noreferrer">Abrir o PDF ↗</a>
-      <Button type="button" variant="secondary" compact onClick={() => imprimir(id)}>Imprimir</Button>
+      {planilha
+        ? <a className="ds-button secondary compact" href={`/api/sara/documentos/${id}/arquivo?baixar=1`} download>Baixar a planilha ↓</a>
+        : <a className="ds-button secondary compact" href={pdf(id)} target="_blank" rel="noopener noreferrer">Abrir o PDF ↗</a>}
+      {!planilha && <Button type="button" variant="secondary" compact onClick={() => imprimir(id)}>Imprimir</Button>}
       {podeEnviar && <Button type="button" variant="secondary" compact onClick={() => setEnviar(true)}>Enviar…</Button>}
-      {enviar && <EnviarDocumento id={id} numero={numero} titulo={titulo} onClose={() => setEnviar(false)} onEnviado={onEnviado} />}
+      {enviar && <EnviarDocumento id={id} numero={numero} titulo={titulo} planilha={planilha} onClose={() => setEnviar(false)} onEnviado={onEnviado} />}
     </div>
   );
 }
 
-function EnviarDocumento({ id, numero, titulo, onClose, onEnviado }: { id: string; numero: string; titulo: string; onClose: () => void; onEnviado?: () => void }) {
+function EnviarDocumento({ id, numero, titulo, planilha, onClose, onEnviado }: { id: string; numero: string; titulo: string; planilha: boolean; onClose: () => void; onEnviado?: () => void }) {
   const [destinos, setDestinos] = useState<Destinos | null>(null);
   const [canal, setCanal] = useState<"plataforma" | "whatsapp">("plataforma");
   const [para, setPara] = useState("");
@@ -85,7 +89,7 @@ function EnviarDocumento({ id, numero, titulo, onClose, onEnviado }: { id: strin
         <fieldset className="doc-envio-canal">
           <legend>Por onde</legend>
           <label><input type="radio" name="canal" checked={canal === "plataforma"} onChange={() => trocarCanal("plataforma")} /> Pela plataforma <small>aviso no sino e em &ldquo;Documentos para você&rdquo;</small></label>
-          <label><input type="radio" name="canal" checked={canal === "whatsapp"} onChange={() => trocarCanal("whatsapp")} /> Pelo WhatsApp <small>chega como PDF no celular</small></label>
+          <label><input type="radio" name="canal" checked={canal === "whatsapp"} onChange={() => trocarCanal("whatsapp")} /> Pelo WhatsApp <small>chega como {planilha ? "planilha Excel" : "PDF"} no celular</small></label>
         </fieldset>
         {!destinos && !erro && <p className="vigia-vazio">Carregando para quem enviar…</p>}
         {destinos && canal === "plataforma" && (

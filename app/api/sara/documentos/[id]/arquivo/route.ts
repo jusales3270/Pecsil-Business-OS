@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { BUCKET_DOCUMENTOS } from "../../../../../../lib/sara/central/documentos";
+import { arquivoDoTipo, nomeDoArquivo } from "../../../../../../lib/sara/documentos/documento";
 import { createSupabaseAdminClient } from "../../../../../../lib/supabase/admin";
 import { requireUserSession } from "../../../../../../lib/supabase/session";
 
@@ -7,10 +8,9 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const UUID = /^[0-9a-f-]{36}$/i;
-const TIPO: Record<string, { mime: string; ext: string }> = { mensagem_voz: { mime: "audio/mpeg", ext: "mp3" }, relatorio: { mime: "application/pdf", ext: "pdf" }, carta: { mime: "application/pdf", ext: "pdf" } };
 
 /**
- * O arquivo de um documento da SARA central (o PDF ou o áudio da mensagem de voz). Quem pode abrir é decidido
+ * O arquivo de um documento da SARA central (o PDF, a planilha ou o áudio da mensagem de voz). Quem pode abrir é decidido
  * pelo banco (RLS); o arquivo sai do bucket privado pelo servidor. `?baixar=1` baixa em vez de abrir.
  */
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -26,8 +26,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const { data: arquivo, error } = await admin.storage.from(BUCKET_DOCUMENTOS).download(doc.caminho);
   if (error || !arquivo) return NextResponse.json({ error: "Não foi possível abrir o arquivo." }, { status: 500 });
   await session.supabase.rpc("sara_documento_aberto", { p_documento: id });
-  const t = TIPO[doc.tipo] ?? TIPO.relatorio;
-  const nome = `${doc.numero} ${doc.titulo}`.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) + `.${t.ext}`;
+  const t = arquivoDoTipo(doc.tipo);
+  const nome = nomeDoArquivo(doc.numero, doc.titulo, doc.tipo);
   const modo = new URL(request.url).searchParams.get("baixar") === "1" ? "attachment" : "inline";
   return new NextResponse(await arquivo.arrayBuffer(), { headers: {
     "content-type": t.mime, "cache-control": "private, no-store",

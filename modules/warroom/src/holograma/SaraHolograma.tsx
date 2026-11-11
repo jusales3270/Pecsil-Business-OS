@@ -435,9 +435,14 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
             </div>
           ) : (
             <div key={d.id} className="sh-doc-item">
-              <span className="sh-doc-icone" aria-hidden>PDF</span>
-              <div><b>{d.titulo}</b><small>{d.tipo === "carta" ? "Carta" : "Relatório"} {d.numero} · {d.paginas} {d.paginas === 1 ? "página" : "páginas"}</small></div>
-              <a href={`/api/sara/documentos/${d.id}/pdf`} target="_blank" rel="noopener noreferrer">Abrir o PDF</a>
+              <span className="sh-doc-icone" aria-hidden>{d.tipo === "planilha" ? "XLS" : "PDF"}</span>
+              {d.tipo === "planilha" ? <>
+                <div><b>{d.titulo}</b><small>Planilha {d.numero} · {d.paginas} {d.paginas === 1 ? "aba" : "abas"}</small></div>
+                <a href={`/api/sara/documentos/${d.id}/arquivo?baixar=1`} download>Baixar a planilha</a>
+              </> : <>
+                <div><b>{d.titulo}</b><small>{d.tipo === "carta" ? "Carta" : "Relatório"} {d.numero} · {d.paginas} {d.paginas === 1 ? "página" : "páginas"}</small></div>
+                <a href={`/api/sara/documentos/${d.id}/pdf`} target="_blank" rel="noopener noreferrer">Abrir o PDF</a>
+              </>}
             </div>
           ))}
           {docs.acoes.map((a) => (

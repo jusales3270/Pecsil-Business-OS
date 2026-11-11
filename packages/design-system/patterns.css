@@ -7391,6 +7391,9 @@ button.holiday-row:hover {
 .sara-visual figcaption { font-size: var(--fs-xs); font-weight: 700; color: var(--text-secondary); }
 .sara-visual footer { font-size: var(--fs-micro); color: var(--text-muted); }
 .sara-visual footer a { color: var(--accent-blue); }
+.sara-visual footer .sv-excel { margin-left: 10px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--accent-blue); font: inherit; font-weight: 600; cursor: pointer; }
+.sara-visual footer .sv-excel:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-blue) 10%, var(--bg-surface)); }
+.sara-visual footer .sv-excel:disabled { opacity: .65; cursor: progress; }
 .sara-visual .sara-tabela { margin: 0; }
 .sv-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .sv-kpis > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 12px; background: var(--bg-subtle); min-width: 0; }

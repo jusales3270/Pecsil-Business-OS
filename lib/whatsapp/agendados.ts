@@ -2,11 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { BUCKET_DOCUMENTOS } from "../sara/central/documentos";
 import { MAX_TENTATIVAS, proximaTentativa, proximoHorarioPermitido, silencioso } from "./agendados-regras";
 import { enviarAudio, enviarDocumento, enviarTexto } from "./evolution";
+import { arquivoDoTipo, nomeDoArquivo } from "../sara/documentos/documento";
 
 /**
  * Envios agendados pelo WhatsApp (migração 202610250005): a tarefa de 10 em 10 minutos manda o que venceu. Cada envio
  * é travado antes (sai de 'agendado' uma vez só: duas rodadas ao mesmo tempo não mandam duas vezes). Primeiro os
- * documentos, na ordem (mensagem de voz como áudio gravado, o resto como PDF), depois o texto. Falha: tenta de novo
+ * documentos, na ordem (mensagem de voz como áudio gravado, o resto como arquivo: PDF ou planilha), depois o texto. Falha: tenta de novo
  * em 10 minutos, até 3 vezes. Horário silencioso: espera o próximo horário permitido.
  */
 type Deps = { enviarTexto: typeof enviarTexto; enviarAudio: typeof enviarAudio; enviarDocumento: typeof enviarDocumento };
@@ -46,7 +47,7 @@ export async function rodarAgendados(admin: SupabaseClient, deps: Partial<Deps> 
           if (eArq || !arq) throw new Error(`Não consegui ler ${doc.numero}.`);
           const base64 = Buffer.from(await arq.arrayBuffer()).toString("base64");
           if (doc.tipo === "mensagem_voz") await registrar((await d.enviarAudio(canal.instancia, contato.numero, base64)).id, "audio");
-          else await registrar((await d.enviarDocumento(canal.instancia, contato.numero, base64, `${doc.numero} ${doc.titulo}.pdf`.slice(0, 120), doc.titulo)).id, "documento");
+          else await registrar((await d.enviarDocumento(canal.instancia, contato.numero, base64, nomeDoArquivo(doc.numero, doc.titulo, doc.tipo), doc.titulo, arquivoDoTipo(doc.tipo).mime)).id, "documento");
         }
       }
       if (a.texto) await registrar((await d.enviarTexto(canal.instancia, contato.numero, a.texto)).id, "texto");

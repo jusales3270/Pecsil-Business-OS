@@ -80,7 +80,7 @@ test("SARA central: na War Room, Sonnet, sem consulta direta, com o verificador 
   assert.match(SARA_CENTRAL.manual, /quem decide é a área/i);
   const sessao = ler("lib/sara/sessao.ts");
   assert.match(sessao, /if \(sara\.central\) \{/);
-  assert.match(sessao, /ferramentaPerguntarASara\(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos\.fontes\), calcular, PERIODO/);
+  assert.match(sessao, /ferramentaPerguntarASara\(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos\.fontes, documentos\.numerar\), calcular, PERIODO/);
   assert.match(sessao, /const calcular: Ferramenta = \{ \.\.\.CALCULAR, rotulo: "conta da plataforma com os números das áreas", rodar: async \(sb, e\) => \{[\s\S]*documentos\.fontes\.push\(\{ resultados: resultados\.filter/, "a conta (com fonte) vira fonte dos documentos");
   assert.match(sessao, /access\.canModule\(x\.feature\) && access\.can\(x\.permissao, "ver"\)/, "só as áreas da pessoa");
   const rota = (ler("app/api/sara/[modulo]/route.ts") + ler("lib/sara/responder.ts"));

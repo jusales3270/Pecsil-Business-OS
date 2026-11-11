@@ -21,7 +21,7 @@ import { regrasDaSara } from "./modulos";
 import { instrucoesDeHabilidades } from "./habilidades";
 import { contextoDeTempo, primeiroNome, situacaoDaConversa } from "./tempo";
 import { FORA_DA_SUBAGENTE, REGRA_SUBAGENTE, ferramentaPerguntarASara, type Rodar, type UsoSubagente } from "./central/subagente";
-import { DOCUMENTOS_RECEBIDOS, ENVIAR_DOCUMENTO, ferramentaCriarDocumento, type ContextoDocumentos } from "./central/documentos";
+import { DOCUMENTOS_RECEBIDOS, ENVIAR_DOCUMENTO, ferramentaCriarDocumento, ferramentaCriarPlanilha, type ContextoDocumentos } from "./central/documentos";
 import { ENVIAR_WHATSAPP } from "../whatsapp/enviar";
 import { ferramentaCriarMensagemDeVoz } from "./central/mensagem-de-voz";
 import { MOSTRAR_GRAFO } from "./central/grafo";
@@ -77,7 +77,8 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
     const lancamento = FERRAMENTAS.find((f) => f.nome === "abrir_lancamento" && f.exige.some(pode));
     const registro = FERRAMENTAS.find((f) => f.nome === "abrir_registro" && f.exige.some(pode));
     // Documentos (só a central cria): as fontes dos números são o que as áreas e a calculadora devolveram.
-    const documentos: ContextoDocumentos = { fontes: [], visuais: visuaisSubagentes, criados: [], conversa: null };
+    const numerados: Visual[] = [];
+    const documentos: ContextoDocumentos = { fontes: [], visuais: numerados, criados: [], conversa: null, numerar: (v) => { numerados.push(v); return numerados.length; } };
     // Zero-inference na conta: cada parcela tem de ter vindo das áreas (ou de uma conta anterior), porque o
     // resultado vai para o painel e para os documentos. Parcela sem fonte: a conta volta com o erro.
     const calcular: Ferramenta = { ...CALCULAR, rotulo: "conta da plataforma com os números das áreas", rodar: async (sb, e) => {
@@ -94,8 +95,8 @@ export async function prepararCom(sb: SupabaseClient, modulo: string) {
       documentos.fontes.push({ resultados: resultados.filter((c) => !("erro" in c && c.erro)) });
       return { ...r, dados };
     } };
-    const ferramentas: Ferramenta[] = [ferramentaPerguntarASara(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos.fontes), calcular, PERIODO,
-      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ...(registro ? [registro] : []), ...(pode("warroom.cerebro") ? [MOSTRAR_GRAFO] : []), ferramentaCriarDocumento(documentos), ENVIAR_DOCUMENTO, ENVIAR_WHATSAPP, ferramentaCriarMensagemDeVoz(documentos),
+    const ferramentas: Ferramenta[] = [ferramentaPerguntarASara(areas, rodarSubagente, subagentes, visuaisSubagentes, documentos.fontes, documentos.numerar), calcular, PERIODO,
+      ...(navegarCentral ? [navegarCentral] : []), ...(lancamento ? [lancamento] : []), ...(registro ? [registro] : []), ...(pode("warroom.cerebro") ? [MOSTRAR_GRAFO] : []), ferramentaCriarDocumento(documentos), ferramentaCriarPlanilha(documentos), ENVIAR_DOCUMENTO, ENVIAR_WHATSAPP, ferramentaCriarMensagemDeVoz(documentos),
       // Painel na tela (como as SARAs das áreas): os números vêm das consultas das áreas ou da calculadora.
       MOSTRAR,
       // J5: o que a pessoa ensina vira lição, aprovada pela área.

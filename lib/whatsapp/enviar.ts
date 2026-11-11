@@ -5,7 +5,7 @@ import { readSessionAccess } from "../auth/session-access";
 import { createSupabaseAdminClient } from "../supabase/admin";
 import type { Ferramenta } from "../sara/base";
 import { BUCKET_DOCUMENTOS } from "../sara/central/documentos";
-import { acharPessoa } from "../sara/documentos/documento";
+import { acharPessoa, arquivoDoTipo } from "../sara/documentos/documento";
 import { enviarAudio, enviarDocumento, enviarTexto, numeroLegivel } from "./evolution";
 
 /**
@@ -116,7 +116,8 @@ async function entregar(sb: SupabaseClient, d: Destino, docs: Doc[], texto: stri
     if (ehVoz(doc)) { await registrar((await enviarAudio(d.instancia, d.numero, base64)).id, "audio"); feitos.push(`a mensagem de voz ${doc.numero}`); }
     else {
       const nome = `${doc.numero} - ${doc.titulo}`.replace(/[\\/:*?"<>|]/g, " ").slice(0, 120);
-      await registrar((await enviarDocumento(d.instancia, d.numero, base64, `${nome}.pdf`, doc.titulo)).id, "documento");
+      const arq = arquivoDoTipo(doc.tipo);
+      await registrar((await enviarDocumento(d.instancia, d.numero, base64, `${nome}.${arq.ext}`, doc.titulo, arq.mime)).id, "documento");
       feitos.push(`o documento ${doc.numero}`);
     }
   }
@@ -162,7 +163,7 @@ const ehVoz = (d: Doc) => d.tipo === "mensagem_voz";
 
 export const ENVIAR_WHATSAPP: Ferramenta = {
   nome: "enviar_pelo_whatsapp", rotulo: "preparou um envio pelo WhatsApp", exige: [],
-  descricao: "PREPARA o envio pelo WhatsApp, por um número da plataforma, de documentos já criados (criar_documento: chega como PDF), mensagens de voz já gravadas (criar_mensagem_de_voz: chega como áudio gravado) e/ou um texto, para quem está nas listas de um número da plataforma (pessoas da Pecsil e contatos externos: fornecedores, clientes e outros). Na tela, a pessoa que pediu permite antes. Pelo WhatsApp, o que é para a própria pessoa (\"para mim\") sai direto nesta conversa; para outra pessoa da empresa vai uma enquete para confirmar; para contato externo, o Permitir na plataforma. Diga quem recebe como foi falado (\"para mim\" quando é para quem pediu) e o número (DOC-…) de cada documento. Reaproveite os documentos e mensagens de voz já criados nesta conversa: não crie de novo para enviar.",
+  descricao: "PREPARA o envio pelo WhatsApp, por um número da plataforma, de documentos já criados (criar_documento: chega como PDF; criar_planilha: chega como planilha Excel), mensagens de voz já gravadas (criar_mensagem_de_voz: chega como áudio gravado) e/ou um texto, para quem está nas listas de um número da plataforma (pessoas da Pecsil e contatos externos: fornecedores, clientes e outros). Na tela, a pessoa que pediu permite antes. Pelo WhatsApp, o que é para a própria pessoa (\"para mim\") sai direto nesta conversa; para outra pessoa da empresa vai uma enquete para confirmar; para contato externo, o Permitir na plataforma. Diga quem recebe como foi falado (\"para mim\" quando é para quem pediu) e o número (DOC-…) de cada documento. Reaproveite os documentos e mensagens de voz já criados nesta conversa: não crie de novo para enviar.",
   esquema: { type: "object", properties: {
     para: { type: "string", description: "Nome de quem recebe (ex.: \"Júnior\", \"White Martins\")." },
     documentos: { type: "array", items: { type: "string" }, description: "O número de cada documento ou mensagem de voz (ex.: DOC-2026-0008) ou o id que criar_documento/criar_mensagem_de_voz devolveu (até 5)." },
@@ -180,7 +181,7 @@ export const ENVIAR_WHATSAPP: Ferramenta = {
       if (!docs.length && !texto) return { erro: "Diga o que enviar: um documento, uma mensagem de voz ou um texto." };
       return {
         resumo: `Enviar pelo WhatsApp «${d.canalNome}» para ${d.nome} (${numeroLegivel(d.numero)}${d.lista === "externa" ? ", contato externo" : ""})`,
-        detalhes: [...(texto ? [`Texto: ${texto.slice(0, 300)}`] : []), ...docs.map((x) => `${x.numero} · ${x.titulo} (${ehVoz(x) ? "mensagem de voz" : "PDF"})`)],
+        detalhes: [...(texto ? [`Texto: ${texto.slice(0, 300)}`] : []), ...docs.map((x) => `${x.numero} · ${x.titulo} (${ehVoz(x) ? "mensagem de voz" : x.tipo === "planilha" ? "planilha Excel" : "PDF"})`)],
         risco: d.lista === "externa" ? "alto" : "normal",
       };
     },

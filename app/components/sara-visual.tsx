@@ -76,6 +76,23 @@ export function useVisuaisLigados(visuais: Visual[]) {
   return { ligados, selecionar };
 }
 
+/** "Baixar em Excel": a planilha do visual que está na tela (os números como números). */
+function BaixarExcel({ v }: { v: Visual }) {
+  const [estado, setEstado] = useState<"" | "baixando" | "erro">("");
+  const baixar = async () => {
+    setEstado("baixando");
+    const r = await fetch("/api/sara/planilha", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ visual: v }) }).catch(() => null);
+    if (!r?.ok) { setEstado("erro"); return; }
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement("a");
+    a.href = url; a.download = `${v.titulo.replace(/[\\/:*?"<>|]+/g, " ").trim().slice(0, 100) || "Planilha"}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    setEstado("");
+  };
+  return <button type="button" className="sv-excel" onClick={() => void baixar()} disabled={estado === "baixando"}>{estado === "baixando" ? "Gerando…" : estado === "erro" ? "Não saiu: tentar de novo" : "Baixar em Excel"}</button>;
+}
+
 export function SaraVisual({ v, ligados }: { v: Visual; ligados?: Ligados }) {
   const toque = (rotulo: string) => (ligados?.aoTocar && !ehOutros(rotulo) ? () => ligados.aoTocar?.(rotulo) : undefined);
   const aceso = (rotulo: string) => (ligados?.selecionado === rotulo ? " sv-aceso" : "");
@@ -124,7 +141,7 @@ export function SaraVisual({ v, ligados }: { v: Visual; ligados?: Ligados }) {
     <figure className="sara-visual">
       <figcaption>{v.titulo}</figcaption>
       {corpo}
-      <footer>Dados da consulta: <b>{v.origem}</b>{mais ? ` · mostrando parte de ${v.total}` : ""}{v.fonte ? <> · <a href={v.fonte.link}>{v.fonte.rotulo}</a></> : null}</footer>
+      <footer>Dados da consulta: <b>{v.origem}</b>{mais ? ` · mostrando parte de ${v.total}` : ""}{v.fonte ? <> · <a href={v.fonte.link}>{v.fonte.rotulo}</a></> : null}<BaixarExcel v={v} /></footer>
     </figure>
   );
 }

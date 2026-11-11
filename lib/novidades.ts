@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-10-sara-planilha-excel",
+    data: "2026-11-10",
+    area: "SARA",
+    titulo: "Planilha Excel pela SARA",
+    modulos: ["financeiro", "compras", "almoxarifado", "fundicao", "comercial", "fiscal", "rh", "portaria", "producao", "ti", "qualidade", "warroom"],
+    funcionalidades: ["financeiro.sara", "compras.sara", "almoxarifado.sara", "fundicao.sara", "comercial.sara", "fiscal.sara", "rh.sara", "portaria.sara", "producao.sara", "ti.sara", "qualidade.sara", "warroom.sara"],
+    itens: [
+      "Toda tabela ou gráfico que a SARA mostra tem o botão \"Baixar em Excel\": a planilha sai com os números como números, prontos para somar e filtrar.",
+      "Na SARA central, peça \"monte uma planilha Excel com…\": ela levanta os dados com as áreas e entrega uma planilha com uma aba por tabela, que dá para baixar ou enviar pela plataforma e pelo WhatsApp, como o PDF.",
+    ],
+  },
+  {
     id: "2026-11-10-busca-numero-cotacao-oc",
     data: "2026-11-10",
     area: "Compras",

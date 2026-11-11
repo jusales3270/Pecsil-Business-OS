@@ -34,7 +34,14 @@ export type Documento = {
   areas: string[];
 };
 
-export const TIPOS = { relatorio: "Relatório", carta: "Carta", mensagem_voz: "Mensagem de voz" } as const;
+export const TIPOS = { relatorio: "Relatório", carta: "Carta", mensagem_voz: "Mensagem de voz", planilha: "Planilha" } as const;
+export const MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+/** O arquivo de cada tipo de documento (rotas, nome do arquivo, WhatsApp). */
+const ARQUIVO: Record<string, { mime: string; ext: string }> = {
+  relatorio: { mime: "application/pdf", ext: "pdf" }, carta: { mime: "application/pdf", ext: "pdf" },
+  mensagem_voz: { mime: "audio/mpeg", ext: "mp3" }, planilha: { mime: MIME_XLSX, ext: "xlsx" },
+};
+export const arquivoDoTipo = (tipo: string | null | undefined) => ARQUIVO[tipo ?? ""] ?? ARQUIVO.relatorio;
 const LIM = { secoes: 12, linhas: 40, colunas: 8, rotulos: 24, series: 4, insights: 8, recomendacoes: 8 };
 
 const t = (v: unknown, max: number) => String(v ?? "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim().slice(0, max);
@@ -145,8 +152,8 @@ export function textoParaConferir(bruto: unknown): string {
 }
 
 /** "Comparação de financiamentos" → "DOC-2026-0007 Comparação de financiamentos.pdf" (sem caracteres que quebram o nome). */
-export function nomeDoArquivo(numero: string, titulo: string): string {
-  return `${numero} ${titulo}`.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) + ".pdf";
+export function nomeDoArquivo(numero: string, titulo: string, tipo = "relatorio"): string {
+  return `${numero} ${titulo}`.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) + `.${arquivoDoTipo(tipo).ext}`;
 }
 
 /** Acha a pessoa pelo nome falado ("Ana", "a Rosana do RH"): uma só, ou a lista para perguntar. */

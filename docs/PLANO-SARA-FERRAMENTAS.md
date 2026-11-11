@@ -72,6 +72,11 @@ Na ordem abaixo. Cada etapa tem QA e commit próprio. Migração em produção s
   - telas `AcoesDocumento` ("Baixar a planilha", sem Imprimir), `Documentos`, prévia do holograma e `documentos-recebidos`.
 - **Envio e confirmação:** igual ao PDF (plataforma, WhatsApp, Permitir, enquete, direto para si).
 - **Botão "Baixar em Excel"** nas tabelas que a SARA mostra no painel, sem criar documento.
+- **Feito em 10/11/2026:** migração `202611100001_sara_planilha` aplicada (tipo `planilha` e o texto do sino pelo tipo).
+  - Gerador conferido por um leitor independente (openpyxl).
+  - Os visuais passam a ter número dado pela plataforma (`numero_do_visual`), inclusive os que a central monta; isso também vale para o PDF.
+  - "Baixar em Excel" em todo visual da SARA (rota `/api/sara/planilha`).
+  - QA ponta a ponta 15/15, com a SARA central real.
 
 ### Etapa 3 — Tarefas e quadro (I-28)
 - **Banco (migração nova):**

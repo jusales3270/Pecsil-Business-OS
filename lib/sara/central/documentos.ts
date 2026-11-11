@@ -6,7 +6,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { hasModuleAccess, normalizeGrants } from "../../../modules/access-catalog";
 import { createSupabaseAdminClient } from "../../supabase/admin";
 import type { Ferramenta } from "../base";
-import { acharPessoa, nomeDoArquivo, textoParaConferir, validarDocumento, type Documento } from "../documentos/documento";
+import { acharPessoa, MIME_XLSX, nomeDoArquivo, textoParaConferir, validarDocumento, type Documento } from "../documentos/documento";
+import { montarPlanilha } from "../documentos/planilha";
+import { gerarXlsx, type Aba } from "../documentos/xlsx";
 import { gerarPdf, type Empresa } from "../documentos/pdf";
 import { SARAS } from "../modulos";
 import type { Visual } from "../visual";
@@ -25,8 +27,13 @@ export type DocumentoCriado = { id: string; numero: string; titulo: string; tipo
 export type ContextoDocumentos = {
   /** O que as SARAs das áreas e a calculadora devolveram nesta conversa (as fontes dos números). */
   fontes: unknown[];
-  /** Visuais que as áreas montaram nesta conversa (o documento aponta por número). */
+  /**
+   * Todos os visuais desta resposta, das áreas e da própria central, na ordem em que apareceram: o número de cada
+   * um (1, 2…) é o que a plataforma devolve ao modelo, e é por ele que o documento e a planilha apontam.
+   */
   visuais: Visual[];
+  /** Guarda o visual na lista e devolve o número dele. */
+  numerar?: (v: Visual) => number;
   /** Os documentos criados nesta resposta (a tela mostra a prévia). */
   criados: DocumentoCriado[];
   conversa: string | null;
@@ -56,7 +63,7 @@ const SECAO = {
   properties: {
     titulo: { type: "string" },
     texto: { type: "string", description: "Parágrafos separados por linha em branco; tópicos começando com \"- \"." },
-    visual: { type: "number", description: "Número (1, 2…) de um gráfico ou tabela que a SARA da área montou nesta conversa: a plataforma preenche com os números dela. Prefira isto a digitar números." },
+    visual: { type: "number", description: "O número que a plataforma deu a um gráfico ou tabela desta conversa (vem como numero_do_visual no mostrar e em visuais_numerados na resposta da área): a plataforma preenche com os números dele. Prefira isto a digitar números." },
     tabela: { type: "object", properties: { titulo: { type: "string" }, colunas: { type: "array", items: { type: "string" } }, linhas: { type: "array", items: { type: "array", items: { type: ["string", "number"] } } } } },
     grafico: { type: "object", properties: {
       tipo: { type: "string", enum: ["barras", "linhas", "rosca"] }, titulo: { type: "string" }, formato: { type: "string", enum: ["moeda", "numero", "percentual"] },
@@ -121,6 +128,47 @@ export async function guardarDocumento(sb: SupabaseClient, documento: Documento,
   const { error: eArq } = await sb.rpc("sara_documento_arquivo", { p_documento: id, p_caminho: caminho, p_paginas: pdf.paginas, p_bytes: pdf.bytes.length });
   if (eArq) return { erro: `Não ligou o PDF: ${eArq.message}` };
   return { id, numero, paginas: pdf.paginas };
+}
+
+/**
+ * A planilha Excel (I-27): uma aba por gráfico ou tabela desta conversa, com os números crus da plataforma (somam no
+ * Excel). O modelo escolhe os visuais (pelo número que a plataforma deu) e o nome das abas; nenhum número é dele.
+ */
+export function ferramentaCriarPlanilha(ctx: ContextoDocumentos): Ferramenta {
+  return {
+    nome: "criar_planilha", rotulo: "montou uma planilha Excel", exige: [],
+    descricao: "Só quando pedirem PLANILHA ou Excel (para mexer nos números, filtrar, somar). Monta um .xlsx com uma aba por gráfico ou tabela desta conversa, com os números da plataforma (nada digitado por você). Antes, peça às áreas os dados com o visual (perguntar_a_sara: \"...e mostre em tabela\") ou monte com mostrar; cada visual volta com numero_do_visual. NÃO envia: para enviar, use enviar_documento ou enviar_pelo_whatsapp com o número do documento.",
+    esquema: { type: "object", properties: {
+      titulo: { type: "string", description: "Título curto da planilha (ex.: \"Contas a pagar de novembro\")." },
+      abas: { type: "array", description: "Uma aba por visual, na ordem.", items: { type: "object", properties: {
+        visual: { type: "number", description: "O numero_do_visual que a plataforma devolveu." }, nome: { type: "string", description: "Nome da aba (curto)." } }, required: ["visual"] } },
+    }, required: ["titulo", "abas"] },
+    rodar: async (sb, e) => {
+      const m = montarPlanilha(e, ctx.visuais);
+      if ("erro" in m) return { dados: { erro: m.erro }, fontes: [] };
+      const g = await guardarPlanilha(sb, m.titulo, m.abas, ctx.conversa);
+      if ("erro" in g) return { dados: { erro: g.erro }, fontes: [] };
+      ctx.criados.push({ id: g.id, numero: g.numero, titulo: m.titulo, tipo: "planilha", paginas: m.abas.length });
+      return { dados: { criado: true, id: g.id, numero: g.numero, titulo: m.titulo, abas: m.abas.map((a) => `${a.nome} (${a.linhas.length} linhas)`), observacao: "A pessoa baixa a planilha na tela. Para enviar, use enviar_documento ou enviar_pelo_whatsapp com este número." },
+        fontes: [{ rotulo: `Planilha ${g.numero}`, link: `/api/sara/documentos/${g.id}/arquivo?baixar=1` }] };
+    },
+  };
+}
+
+/** Registra a planilha (reserva o DOC-AAAA-NNNN), gera o .xlsx e guarda no bucket privado. */
+export async function guardarPlanilha(sb: SupabaseClient, titulo: string, abas: Aba[], conversa: string | null): Promise<{ id: string; numero: string } | { erro: string }> {
+  const conteudo = { titulo, abas: abas.map((a) => ({ nome: a.nome, colunas: a.colunas, linhas: a.linhas })) };
+  const { data: reg, error } = await sb.rpc("sara_documento_registrar", { p_tipo: "planilha", p_titulo: titulo, p_conteudo: conteudo, p_areas: [], p_conversa: conversa });
+  if (error || !reg) return { erro: `Não registrou a planilha: ${error?.message ?? "sem resposta"}` };
+  const { id, numero } = reg as { id: string; numero: string };
+  const bytes = gerarXlsx(abas, `${numero} ${titulo}`);
+  const { data: org } = await sb.rpc("current_organization_id");
+  const caminho = `${org}/${id}/${nomeDoArquivo(numero, titulo, "planilha").replace(/[^\w.\- ]+/g, "")}`;
+  const { error: eUp } = await createSupabaseAdminClient().storage.from(BUCKET_DOCUMENTOS).upload(caminho, bytes, { contentType: MIME_XLSX, upsert: false });
+  if (eUp) return { erro: `Não guardou a planilha: ${eUp.message}` };
+  const { error: eArq } = await sb.rpc("sara_documento_arquivo", { p_documento: id, p_caminho: caminho, p_paginas: abas.length, p_bytes: bytes.length });
+  if (eArq) return { erro: `Não ligou a planilha: ${eArq.message}` };
+  return { id, numero };
 }
 
 type Pessoa = { id: string; nome: string; isOwner: boolean };

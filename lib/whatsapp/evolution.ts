@@ -203,11 +203,12 @@ export async function enviarAudio(instancia: string, numero: string, audioBase64
 }
 
 /** Documento (PDF) por um número da plataforma: chega como arquivo no WhatsApp, com o nome e a legenda. */
-export async function enviarDocumento(instancia: string, numero: string, base64: string, nomeArquivo: string, legenda: string, buscar: typeof fetch = fetch): Promise<{ id: string | null }> {
+/** Documento como arquivo (PDF por padrão; a planilha vai como .xlsx). */
+export async function enviarDocumento(instancia: string, numero: string, base64: string, nomeArquivo: string, legenda: string, mimetype = "application/pdf", buscar: typeof fetch = fetch): Promise<{ id: string | null }> {
   const c = configuracao();
   if (!c) throw new ErroEvolution(503, "Falta a configuração da Evolution no servidor.");
   const r = await evolution<{ key?: { id?: string } }>(c, "POST", `/message/sendMedia/${conferir(instancia)}`,
-    { number: numero, mediatype: "document", mimetype: "application/pdf", media: base64, fileName: nomeArquivo, caption: legenda }, buscar);
+    { number: numero, mediatype: "document", mimetype, media: base64, fileName: nomeArquivo, caption: legenda }, buscar);
   return { id: r?.key?.id ?? null };
 }
 
