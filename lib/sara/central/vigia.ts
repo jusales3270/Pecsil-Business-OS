@@ -1,5 +1,5 @@
 import { semPensar } from "../base.ts";
-import { chamarClaude, entradaDe } from "../motor/anthropic.ts";
+import { chamarClaude, entradaDe, type CorpoClaude } from "../motor/anthropic.ts";
 import { QUEM_DECIDE } from "./sara.ts";
 import { conferirNumeros } from "./verificador.ts";
 
@@ -234,7 +234,7 @@ export async function analisarSinais(a: { chave: string; buscar?: typeof fetch; 
     const r = await chamarClaude({
         model: VIGIA.modelo, max_tokens: 4000, thinking: semPensar(VIGIA.modelo), system: REGRA_VIGIA,
         // O Sonnet 5.5 não aceita forçar a ferramenta (tool_choice "tool"/"any"): fica no automático e a regra pede a chamada.
-        tools: [FERRAMENTA_ACHADOS], tool_choice: { type: "auto" },
+        tools: [FERRAMENTA_ACHADOS] as unknown as CorpoClaude["tools"], tool_choice: { type: "auto" },
         messages: [{ role: "user", content: `Hoje: ${a.hoje}\n\nSINAIS:\n${linhas}\n\nACHADOS ABERTOS:\n${abertos}` }],
       }, { chave: a.chave, buscar: a.buscar, timeoutMs: 90_000 });
     if (!r.ok) return null;

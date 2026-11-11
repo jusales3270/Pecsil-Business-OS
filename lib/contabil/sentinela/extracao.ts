@@ -8,7 +8,7 @@
  * estar entre as candidatas da triagem.
  */
 import { semPensar } from "../../sara/base";
-import { chamarClaude, entradaDe } from "../../sara/motor/anthropic";
+import { chamarClaude, entradaDe, type CorpoClaude } from "../../sara/motor/anthropic";
 
 export type Candidato = { chave: string; titulo: string; valor: unknown };
 export type TeseCandidata = { id: string; tribunal: string; tema: string; titulo: string; situacao: string; modulacao: string | null };
@@ -127,7 +127,7 @@ export async function extrair(a: { chave: string; buscar?: typeof fetch; fonte: 
   try {
     const r = await chamarClaude({
         model: MODELO_SENTINELA, max_tokens: 1500, thinking: semPensar(MODELO_SENTINELA), system: REGRA_EXTRACAO,
-        tools: [ferramentaProposta(a.candidatos.map((c) => c.chave), a.teses.map((t) => t.id))], tool_choice: { type: "tool", name: "proposta" },
+        tools: [ferramentaProposta(a.candidatos.map((c) => c.chave), a.teses.map((t) => t.id))] as unknown as CorpoClaude["tools"], tool_choice: { type: "tool", name: "proposta" },
         messages: [{ role: "user", content: pedidoDeExtracao(a) }],
       }, { chave: a.chave, buscar: a.buscar, timeoutMs: 60_000 });
     if (!r.ok) return null;

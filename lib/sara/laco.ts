@@ -223,7 +223,7 @@ export async function conversarCom(sb: SupabaseClient, a: {
     if (a.sinal?.aborted) throw new Error("CANCELADA");
     const r = await chamarClaude({
       model: modelo, max_tokens: a.maxTokens ?? 1500, thinking: semPensar(modelo), system: blocosDoSistema(a.sistema) as CorpoClaude["system"],
-      messages: comCacheNoFim(mensagens) as CorpoClaude["messages"], ...(tools.length ? { tools: tools as CorpoClaude["tools"] } : {}),
+      messages: comCacheNoFim(mensagens) as CorpoClaude["messages"], ...(tools.length ? { tools: tools as unknown as CorpoClaude["tools"] } : {}),
     }, { chave, buscar: a.buscar, timeoutMs: 60_000, sinal: a.sinal });
     if (r.ok) return r.mensagem as unknown as RespostaDoModelo;
     if (r.demorou) throw new FalhaDoModelo(r.erro, { passageira: true, demorou: true });
