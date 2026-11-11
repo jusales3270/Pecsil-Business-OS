@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Button, Callout, Modal, Segmented, Status, type StatusTone } from "../../packages/design-system";
+import { GravarReuniao, guardarReuniao, reuniaoGuardada } from "./gravar-reuniao";
 
 /**
  * Tarefas e quadro (I-28, PLANO-SARA-FERRAMENTAS etapa 3): combinados com responsável e prazo, de uma reunião, de
@@ -155,7 +156,7 @@ function NovaTarefa({ pessoas, onClose, onCriada }: { pessoas: Pessoa[]; onClose
 }
 
 /** Uma reunião, ata ou anotação vira um quadro: a SARA lê, a pessoa confere e corrige a lista, e só então cria. */
-export function MontarQuadro({ pessoas, onClose, onCriado, textoInicial = "", origem = "texto" }: { pessoas: Pessoa[]; onClose: () => void; onCriado: () => void; textoInicial?: string; origem?: "texto" | "reuniao" }) {
+export function MontarQuadro({ pessoas, onClose, onCriado, textoInicial = "", origem = "texto", lerAoAbrir = false }: { pessoas: Pessoa[]; onClose: () => void; onCriado: () => void; textoInicial?: string; origem?: "texto" | "reuniao"; lerAoAbrir?: boolean }) {
   const [texto, setTexto] = useState(textoInicial);
   const [lido, setLido] = useState<{ titulo: string; resumo: string; itens: (ItemLido & { responsavelId: string })[] } | null>(null);
   const [erro, setErro] = useState("");
@@ -168,6 +169,15 @@ export function MontarQuadro({ pessoas, onClose, onCriado, textoInicial = "", or
     if (!r.j.itens.length) { setErro("A SARA não achou combinados no texto (alguém ficando de fazer algo)."); return; }
     setLido({ titulo: r.j.titulo, resumo: r.j.resumo, itens: r.j.itens.map((i) => ({ ...i, responsavelId: i.responsavel?.id ?? "" })) });
   };
+  // A reunião gravada chega pronta: a SARA já começa a ler (uma vez).
+  const leu = useRef(false);
+  // A trava só vale quando a leitura começa de fato: montar, desmontar e montar de novo (React em modo estrito)
+  // cancela o primeiro agendamento, e o segundo é o que lê.
+  useEffect(() => {
+    if (!lerAoAbrir || textoInicial.trim().length < 20) return;
+    const t = setTimeout(() => { if (!leu.current) { leu.current = true; void ler(); } }, 0);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const mudar = (k: number, campo: Partial<ItemLido & { responsavelId: string }>) => setLido((l) => (l ? { ...l, itens: l.itens.map((i, j) => (j === k ? { ...i, ...campo } : i)) } : l));
   const criar = async () => {
     if (!lido) return;
@@ -180,12 +190,12 @@ export function MontarQuadro({ pessoas, onClose, onCriado, textoInicial = "", or
   };
   const faltam = lido?.itens.filter((i) => !i.responsavelId || !i.prazo).length ?? 0;
   return (
-    <Modal eyebrow="Tarefas" title={lido ? "Confira o quadro" : "Montar quadro de uma reunião"} subtitle={lido ? "Corrija o que precisar: só vira tarefa quando você criar." : "Cole a ata ou as anotações. A SARA lista os combinados com o responsável e o prazo; você confere antes de criar."} onClose={onClose}>
+    <Modal eyebrow={origem === "reuniao" ? "Tarefas · reunião gravada" : "Tarefas"} title={lido ? "Confira o quadro" : origem === "reuniao" ? "Texto da reunião" : "Montar quadro de uma reunião"} subtitle={lido ? "Corrija o que precisar: só vira tarefa quando você criar." : origem === "reuniao" ? "A reunião virou texto. A SARA lista os combinados com o responsável e o prazo; você confere antes de criar." : "Cole a ata ou as anotações. A SARA lista os combinados com o responsável e o prazo; você confere antes de criar."} onClose={onClose}>
       {!lido ? (
         <div className="almox-form">
           <label><span>Texto da reunião</span><textarea rows={9} maxLength={60000} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder={"Ex.: Ana liga para a Cristal Rosario até sexta para confirmar o pagamento.\nRafa revê o roteiro da OS 12676 até dia 20.\nHenrique confere o estoque de grafite amanhã."} /></label>
           {erro && <p className="almox-erro" role="alert">{erro}</p>}
-          <footer><Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button><Button type="button" disabled={ocupado || texto.trim().length < 20} onClick={() => void ler()}>{ocupado ? "A SARA está lendo…" : "Ler com a SARA"}</Button></footer>
+          <footer><Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button><Button type="button" disabled={ocupado || texto.trim().length < 20} onClick={() => void ler()}>{ocupado ? (texto.length > 8000 ? "A SARA está lendo (pode levar até um minuto)…" : "A SARA está lendo…") : "Ler com a SARA"}</Button></footer>
         </div>
       ) : (
         <div className="almox-form tarefa-quadro-conferir">
@@ -221,7 +231,11 @@ export function TarefasView({ notify, quadroInicial = "" }: { notify: (m: string
   const [fechadas, setFechadas] = useState(false);
   const [aberto, setAberto] = useState<string | null>(null);
   const [nova, setNova] = useState(false);
-  const [montar, setMontar] = useState(false);
+  const [montar, setMontar] = useState<{ texto: string; origem: "texto" | "reuniao" } | null>(null);
+  const [gravar, setGravar] = useState(false);
+  // Reunião gravada que ainda não virou quadro (fechou sem querer, recarregou a página): dá para retomar.
+  const [guardada, setGuardada] = useState<{ texto: string; em: number } | null>(null);
+  useEffect(() => { const t = setTimeout(() => setGuardada(reuniaoGuardada()), 0); return () => clearTimeout(t); }, [montar, gravar]);
   const pessoas = usePessoas();
   const carregar = useCallback(async () => {
     const r = await pedir<NonNullable<typeof dados>>("/api/tarefas");
@@ -261,10 +275,17 @@ export function TarefasView({ notify, quadroInicial = "" }: { notify: (m: string
           <p>O que cada um ficou de fazer, com o prazo. Quem recebe é avisado no sino e cobrado na véspera e no vencimento; pode devolver dizendo o motivo.</p>
         </div>
         <div className="icms-acoes">
-          <Button type="button" variant="secondary" onClick={() => setMontar(true)}>Montar quadro de uma reunião</Button>
+          <Button type="button" variant="secondary" onClick={() => setGravar(true)}>Gravar reunião</Button>
+          <Button type="button" variant="secondary" onClick={() => setMontar({ texto: "", origem: "texto" })}>Montar quadro de uma reunião</Button>
           <Button type="button" onClick={() => setNova(true)}>Nova tarefa</Button>
         </div>
       </div>
+      {guardada && !gravar && !montar && (
+        <Callout variant="info" title="Há uma reunião gravada que ainda não virou quadro">
+          Gravada às {new Date(guardada.em).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}, com {guardada.texto.length.toLocaleString("pt-BR")} caracteres de texto.
+          <span className="tarefa-retomar"><Button type="button" compact onClick={() => setMontar({ texto: guardada.texto, origem: "reuniao" })}>Montar o quadro</Button><Button type="button" compact variant="ghost" onClick={() => { guardarReuniao(""); setGuardada(null); }}>Descartar</Button></span>
+        </Callout>
+      )}
       <div className="tarefas-filtros">
         <Segmented<"minhas" | "pedi" | "todas"> ariaLabel="De quem" value={quem} onChange={setQuem} options={[{ value: "minhas", label: "Minhas" }, { value: "pedi", label: "Que pedi" }, { value: "todas", label: "Todas que vejo" }]} />
         <Segmented<"prazo" | "pessoa"> ariaLabel="Ver por" value={ver} onChange={setVer} options={[{ value: "prazo", label: "Por prazo" }, { value: "pessoa", label: "Por pessoa" }]} />
@@ -282,7 +303,9 @@ export function TarefasView({ notify, quadroInicial = "" }: { notify: (m: string
         ))}
       {aberto && <DetalheTarefa id={aberto} pessoas={pessoas} onClose={() => setAberto(null)} onMudou={() => void carregar()} notify={notify} />}
       {nova && <NovaTarefa pessoas={pessoas} onClose={() => setNova(false)} onCriada={() => { setNova(false); notify("Tarefa criada: o responsável foi avisado."); void carregar(); }} />}
-      {montar && <MontarQuadro pessoas={pessoas} onClose={() => setMontar(false)} onCriado={() => { setMontar(false); setQuem("pedi"); notify("Quadro criado: os responsáveis foram avisados."); void carregar(); }} />}
+      {gravar && <GravarReuniao onClose={() => setGravar(false)} onTexto={(texto) => { setGravar(false); setMontar({ texto, origem: "reuniao" }); }} />}
+      {montar && <MontarQuadro pessoas={pessoas} textoInicial={montar.texto} origem={montar.origem} lerAoAbrir={montar.origem === "reuniao"} onClose={() => setMontar(null)}
+        onCriado={() => { if (montar.origem === "reuniao") guardarReuniao(""); setMontar(null); setQuem("pedi"); notify("Quadro criado: os responsáveis foram avisados."); void carregar(); }} />}
     </>
   );
 }
@@ -335,7 +358,7 @@ export function ResumoTarefas() {
   return (
     <section className="cresc" aria-labelledby="tarefas-titulo">
       <header className="vigia-topo"><div><h3 id="tarefas-titulo">Tarefas</h3><p>Os combinados da empresa com responsável e prazo. O detalhe está em Fundação › Tarefas.</p></div>
-        <a className="ds-button secondary compact" href="/?view=Tarefas">Abrir Tarefas</a></header>
+        <Button type="button" variant="secondary" compact onClick={() => { window.location.href = "/?view=Tarefas"; }}>Abrir Tarefas</Button></header>
       <div className="tarefas-numeros">
         <span><b>{abertas.length}</b><small>em aberto</small></span>
         <span className={vencidas.length ? "ruim" : ""}><b>{vencidas.length}</b><small>vencidas</small></span>

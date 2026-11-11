@@ -106,6 +106,10 @@ Na ordem abaixo. Cada etapa tem QA e commit próprio. Migração em produção s
 - **Qualidade:** a tarefa com referência a uma não conformidade é o plano de ação que falta no módulo (hoje a SARA da Qualidade diz que "virá").
 
 ### Etapa 4 — Gravar reunião (I-29)
+> **Situação em 11/11/2026: pronta.** Falta o Deploy. Diferenças do que foi planejado:
+> - Limite de **60 minutos**, não 90: o proprietário decidiu começar com 60, porque o quadro guarda 60 mil caracteres (cerca de 1 hora de fala). Para passar disso é preciso aumentar `quadros.texto` com uma migração.
+> - A transcrição tem rota própria (`/api/tarefas/transcrever`), aberta a qualquer pessoa ativa, porque tarefa não depende da SARA da área.
+> - O texto fica na aba (sessionStorage) até virar quadro. Quem fechar a janela sem querer retoma pela tela Tarefas.
 - **Botão "Gravar reunião"** no quadro: `MediaRecorder` em pedaços de cerca de 50 s.
   - Cada pedaço vai para `/api/sara/[modulo]/voz` (Whisper na Cloudflare) e o texto é juntado.
   - Aviso fixo na tela: "Avise os presentes que a reunião está sendo transcrita".

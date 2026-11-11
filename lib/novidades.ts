@@ -44,6 +44,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-11-gravar-reuniao",
+    data: "2026-11-11",
+    area: "Plataforma",
+    titulo: "Gravar reunião e virar tarefas",
+    itens: [
+      "Em Fundação › Tarefas, \"Gravar reunião\": a reunião vira texto enquanto acontece e, ao parar, a SARA lista os combinados com o responsável e o prazo. Você confere e corrige antes de virar tarefa.",
+      "O áudio não é guardado: cada trecho vira texto e é descartado. Avise os presentes que a reunião está sendo transcrita, e não grave assunto sensível de RH.",
+      "Até 60 minutos, com pausa. Deixe a plataforma aberta na tela da gravação (no celular, sem trocar de aplicativo). Se fechar a janela sem querer, a reunião continua lá para montar o quadro.",
+    ],
+  },
+  {
     id: "2026-11-10-tarefas",
     data: "2026-11-10",
     area: "Plataforma",
