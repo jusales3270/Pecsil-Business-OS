@@ -99,7 +99,8 @@ ajuda antes de ser pedido. A SARA central faz isso para a empresa inteira.
 - A rota confere os números (`lib/sara/central/verificador.ts`) e grava na conversa o uso de cada subagente.
 - **Limite conhecido:** o custo da conversa da central conta só os tokens dela; o uso das SARAs das áreas, no Haiku, fica no registro da conversa (`subagentes`), mas não entra no painel de custo. É pequeno, porque o Haiku custa cerca de 20 vezes menos.
 
-## 4b. Voz ao vivo: Grok Voice (23/10/2026)
+## 4b. Voz ao vivo: Grok Voice (23/10/2026), substituído pelo GPT-Live em 11/11/2026 (ver 4c)
+
 
 O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor de fala da SARA central, com a voz **"luna"** em **pt-BR**. O diferencial: ela age enquanto fala.
 
@@ -129,6 +130,59 @@ O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor d
 - **Código:**
   - `lib/sara/central/voz-ao-vivo.ts`: a sessão, as funções, a persona e as regras puras;
   - `modules/warroom/src/holograma/voz-ao-vivo.ts`: o motor no navegador.
+
+## 4c. Voz ao vivo: OpenAI GPT-Live (11/11/2026)
+
+O proprietário trocou o motor da voz ao vivo da SARA central: **`gpt-live-1`** (OpenAI), voz **"gleam"**. Pedido dele: falar sempre em português do Brasil, mas, ao ouvir outra língua (inglês, espanhol, francês…), responder na língua de quem está falando, e voltar ao português quando a pessoa voltar.
+
+- **Como o GPT-Live funciona (diferente do Grok).**
+  - Ele escuta e fala ao mesmo tempo (full duplex) e aceita interrupção.
+  - Não tem funções próprias. Quando a pessoa pede algo que precisa de trabalho, ele **delega** (`session.delegation.created`).
+  - Usamos a delegação pelo cliente (`delegation.type: "client"`): quem decide e executa é a plataforma, e o cérebro continua sendo a SARA (Claude + verificador).
+- **Roteador** (`/api/sara/warroom/voz-ao-vivo/rotear`). Faz a escolha que o Grok fazia sozinho.
+  - O Haiku lê o fim da conversa (a transcrição que a própria sessão devolve) e escolhe UMA função: `responder_pela_area`, `responder` ou um comando de tela (minimizar, tela cheia, próximo ou anterior gráfico, destacar, cérebro inteiro, fechar a apresentação).
+  - Diz também a língua da última fala.
+  - A pergunta segue para a SARA sempre em português e completa ("E amanhã?" vira "Quantas contas vencem amanhã?").
+  - No teste: 11 de 11 certos, cerca de 1 s cada.
+  - Se o roteador falhar, a pergunta vai inteira para a central.
+- **Resposta conferida.** O GPT-Live não tem a "frase exata" (`force_message`) do Grok.
+  - A resposta vai por `session.instructions.append` com a ordem de dizer palavra por palavra.
+  - Pessoa em outra língua: a ordem é dizer a tradução fiel NA LÍNGUA DITA ("A pessoa está falando inglês: …"), sem mudar números, valores, datas e nomes.
+  - Teste de 11/11: sem a língua dita, a voz falava em português para quem perguntou em inglês, espanhol ou francês. Com ela, respondeu certo nas quatro línguas e manteve os números.
+  - A legenda mostra sempre o texto conferido.
+- **Velocidade.** O GPT-Live não tem campo de velocidade: o ritmo ágil (1,25, escolha de 23/10) vai nas instruções.
+- **Conexão: WebRTC.**
+  - O navegador cria a oferta.
+  - A rota `/api/sara/warroom/voz-ao-vivo` confere a permissão, monta a sessão (persona, língua, áreas da pessoa, nomes) e a abre na OpenAI com `OPENAI_API_KEY`. Devolve só a resposta SDP.
+  - A chave nunca vai para o navegador, e o navegador não fala com a OpenAI por HTTP.
+  - A voz chega numa trilha de áudio, e o microfone entra na mesma sessão (troca da trilha muda pela do microfone, sem reconectar).
+- **Custo: US$ 0,05 por minuto de sessão aberta**, cobrado por segundo, mais o Haiku do roteador e as SARAs de sempre.
+  - Dois minutos sem nada acontecer e a sessão fecha sozinha (`session.close`).
+  - O próximo toque abre outra, com a conversa anterior como histórico.
+- **Vozes.**
+  - "gleam" é feminina, de sotaque norte-americano no catálogo da OpenAI. A OpenAI também tem "bossa" (feminina, brasileira) e "tempo" (masculina, brasileira).
+  - `OPENAI_VOZ_SARA` troca a voz sem mudar o código.
+  - As duas conversas de teste (gleam e bossa) estão no Desktop do dono, em "Pecsil - SARA ações/Voz OpenAI (comparar)".
+- **Limites conhecidos.**
+  - A língua é percebida pela transcrição da OpenAI. Em 3 de 4 rodadas, a fala em espanhol (voz do Mac) foi transcrita já em português, e aí a resposta sai em português. Inglês e francês foram reconhecidos todas as vezes. Se o espanhol importar, dá para medir a língua no próprio áudio (Whisper) antes de responder.
+  - O "um instante" automático do GPT-Live às vezes sai na língua da fala anterior (só na troca de língua). Pedir no prompt não resolveu: a resposta conferida e a confirmação de tela saem certas porque a plataforma diz a língua.
+- **QA no navegador (11/11): 22 de 22**, com usuários temporários, WebRTC real e microfone falso.
+  - Sem login e sem a SARA central: recusa.
+  - Cumprimento palavra por palavra.
+  - Pergunta em português: SARA do Financeiro, resposta dita exata, com os centavos.
+  - Pergunta em inglês: resposta em inglês com os mesmos números.
+  - "Minimize a tela": vai para o canto e confirma em português.
+  - Nenhuma chamada da página à OpenAI por HTTP, sem erro na sessão.
+  - Dois minutos parada: a sessão fechou sozinha (232 s cobrados no total).
+- **Dados.**
+  - O áudio, a transcrição e a resposta conferida vão à OpenAI. A sessão não é guardada (`store: false`, o padrão).
+  - Sem retenção zero na organização da OpenAI, a API guarda por até 30 dias para monitoramento de abuso.
+- **Fica na xAI:** a mensagem de voz gravada para WhatsApp (`/v1/tts`, voz "luna"), até o proprietário decidir trocar também.
+- **Código:**
+  - `lib/sara/central/voz-ao-vivo.ts`: sessão, instruções, roteador e regras puras;
+  - `lib/sara/central/fala-ao-vivo.ts`: fala conferida, língua e conversa, puras;
+  - `modules/warroom/src/holograma/voz-ao-vivo.ts`: o motor WebRTC no navegador;
+  - testes: `tests/sara-voz-openai.test.mjs` e `tests/sara-central.test.mjs`.
 
 **Como a J2 funciona no código:**
 - A tarefa de 10 em 10 minutos (`scripts/sync-os-cron.mjs`) chama `/api/sara/bom-dia/rodar`. Fora da janela (7h30 às 11h, de segunda a sexta), nada acontece, e o que ficou na fila não sai mais.
@@ -175,7 +229,7 @@ O proprietário escolheu o **Grok Voice** (xAI, `grok-voice-3.0`) como o motor d
 - **Ainda não:** `simular_cenario` e os pareceres do conselho por papel (CFO, Operações…) ficam para depois.
 
 **Os dois motores de voz (decisão do proprietário, 23/10/2026):**
-- **Grok Realtime** (sessão ao vivo, `force_message` para a frase exata) é a voz da SARA no avatar da plataforma e, numa fase seguinte, nas ligações telefônicas.
+- **Voz ao vivo** (desde 11/11/2026, OpenAI GPT-Live, ver 4c; antes, Grok Realtime) é a voz da SARA no avatar da plataforma e, numa fase seguinte, nas ligações telefônicas (o GPT-Live também atende telefone por SIP).
 - **Grok TTS** (`/v1/tts`, mesma voz luna, pt-BR) serve SÓ para gravar a mensagem de voz que vai por WhatsApp a alguém (`criar_mensagem_de_voz`, `lib/sara/central/mensagem-de-voz.ts`).
   - O texto é conferido como os documentos, e as expressões viram tags.
   - O áudio fica guardado como documento `mensagem_voz` (migração 202610230007).

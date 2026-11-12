@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { SARAS } from "../../../../../lib/sara/modulos";
 import { QUEM_DECIDE } from "../../../../../lib/sara/central/sara";
-import { URL_VOZ_AO_VIVO, VOZ_DA_SARA, extrairToken, instrucoesDeVoz, sessaoDeVoz, termosChave, vozDaSara, vozExiste } from "../../../../../lib/sara/central/voz-ao-vivo";
+import { URL_SESSAO_AO_VIVO, conversaLimpa, instrucoesDeVoz, pedidoDeSessao, respostaDaSessao, sdpValido, sessaoDeVoz, termosChave, vozAoVivo } from "../../../../../lib/sara/central/voz-ao-vivo";
 import { preparar } from "../../../../../lib/sara/sessao";
 import { primeiroNome } from "../../../../../lib/sara/tempo";
 import { regraDeTratamento } from "../../../../../lib/sara/personalidade";
@@ -10,41 +10,27 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * Voz ao vivo da SARA central (Grok Voice, xAI). POST: confere a permissão (a SARA central da pessoa),
- * confere se a voz "luna" existe e pede um token temporário (5 min) para o navegador conectar direto ao
- * Grok, sem a chave sair do servidor (`XAI_API_KEY`). Devolve o endereço e a sessão (pt-BR, a persona e as
- * funções). Os dados da empresa não passam por aqui: o Grok chama `responder_pela_area` (a rota normal da SARA
- * daquela área) ou `responder` (a rota da central), com as permissões, o verificador e o registro.
+ * Voz ao vivo da SARA central (OpenAI GPT-Live, `gpt-live-1`, voz "gleam", desde 11/11/2026). POST com a oferta
+ * WebRTC do navegador: confere a permissão (a SARA central da pessoa), monta a sessão (a persona, a língua, as áreas
+ * dela e a conversa anterior, quando a sessão é reaberta) e abre a sessão na OpenAI com a chave do servidor
+ * (`OPENAI_API_KEY`, que nunca vai para o navegador). Devolve só a resposta SDP; o áudio e os eventos passam a
+ * correr direto entre o navegador e a OpenAI. Os dados da empresa não passam por aqui: quando a pessoa pede algo,
+ * a voz avisa o navegador, o roteador escolhe a função (rotear/route.ts) e a SARA responde pelas rotas de sempre,
+ * com as permissões, o verificador e o registro.
  */
-let vozConferida: { quando: number; ok: boolean } | null = null;
-
-export async function POST(_request: Request, context: { params: Promise<{ modulo: string }> }) {
+export async function POST(request: Request, context: { params: Promise<{ modulo: string }> }) {
   const { modulo } = await context.params;
   if (!SARAS[modulo]?.central) return NextResponse.json({ error: "Só a SARA central fala ao vivo." }, { status: 404 });
   const p = await preparar(modulo);
   if ("erro" in p) return p.erro;
-  const chave = process.env.XAI_API_KEY?.trim();
-  if (!chave) return NextResponse.json({ error: "A voz ao vivo ainda não está configurada (falta a chave da xAI no servidor)." }, { status: 503 });
-  const cabecalho = { authorization: `Bearer ${chave}`, "content-type": "application/json" };
+  const chave = process.env.OPENAI_API_KEY?.trim();
+  if (!chave) return NextResponse.json({ error: "A voz ao vivo ainda não está configurada (falta a chave da OpenAI no servidor)." }, { status: 503 });
 
-  // A voz escolhida pelo proprietário precisa existir: sem ela, não liga (em vez de trocar de voz calada).
-  // Voz personalizada (XAI_VOZ_SARA) não aparece na lista das vozes prontas: a xAI confere ao abrir a sessão.
-  const voz = vozDaSara();
-  const personalizada = voz !== VOZ_DA_SARA;
-  if (!personalizada && (!vozConferida || Date.now() - vozConferida.quando > 3_600_000)) {
-    const r = await fetch("https://api.x.ai/v1/tts/voices", { headers: cabecalho, signal: AbortSignal.timeout(10_000) }).catch(() => null);
-    const lista = r?.ok ? await r.json().catch(() => null) : null;
-    vozConferida = lista ? { quando: Date.now(), ok: vozExiste(lista, VOZ_DA_SARA) } : null;
-  }
-  if (!personalizada && vozConferida && !vozConferida.ok) return NextResponse.json({ error: `A voz "${VOZ_DA_SARA}" não está disponível na xAI.` }, { status: 503 });
-
-  const r = await fetch("https://api.x.ai/v1/realtime/client_secrets", { method: "POST", headers: cabecalho, body: JSON.stringify({ expires_after: { seconds: 300 } }), signal: AbortSignal.timeout(10_000) }).catch(() => null);
-  const corpo = r ? await r.json().catch(() => null) : null;
-  const token = r?.ok ? extrairToken(corpo) : null;
-  if (!token) {
-    console.error("[sara] voz ao vivo: token não veio", r?.status);
-    return NextResponse.json({ error: "A voz ao vivo está indisponível agora." }, { status: 503 });
-  }
+  const bruto = await request.text().catch(() => "");
+  if (bruto.length > 80_000) return NextResponse.json({ error: "Pedido grande demais." }, { status: 413 });
+  let corpo: { sdp?: unknown; historico?: unknown } = {};
+  try { corpo = JSON.parse(bruto || "{}"); } catch { return NextResponse.json({ error: "Pedido inválido." }, { status: 400 }); }
+  if (!sdpValido(corpo.sdp)) return NextResponse.json({ error: "Pedido inválido." }, { status: 400 });
 
   const eu = (await p.sb.rpc("current_profile_id")).data as string | null;
   const [{ data: me }, { data: org }] = await Promise.all([
@@ -55,13 +41,24 @@ export async function POST(_request: Request, context: { params: Promise<{ modul
   // As áreas que a pessoa pode consultar direto: as mesmas que a central consulta por ela.
   const saras = Object.values(SARAS).filter((s) => !s.central && p.access.canModule(s.feature) && p.access.can(s.permissao, "ver"));
   const areasDeVoz = saras.map((s) => ({ modulo: s.modulo, rotulo: s.rotulo }));
-  const areas = saras.map((s) => s.rotulo);
   const pessoas = QUEM_DECIDE.split(/[·:,]| e /).map((x) => x.trim()).filter((x) => /^[A-ZÁÉÍÓÚ][a-zà-ú]+$/.test(x));
   const sessao = sessaoDeVoz({
-    instrucoes: instrucoesDeVoz({ empresa, nome: primeiroNome(me?.full_name), quemDecide: QUEM_DECIDE, tratamento: regraDeTratamento({ nome: me?.full_name, fundador: p.access.isOwner, verificado: true }), areas: areasDeVoz }),
-    termos: termosChave([[empresa, "SARA", "War Room"], areas, pessoas]),
-    voz,
-    areas: areasDeVoz,
+    instrucoes: instrucoesDeVoz({ empresa, nome: primeiroNome(me?.full_name), quemDecide: QUEM_DECIDE, tratamento: regraDeTratamento({ nome: me?.full_name, fundador: p.access.isOwner, verificado: true }), areas: areasDeVoz,
+      termos: termosChave([[empresa, "SARA", "War Room"], saras.map((s) => s.rotulo), pessoas]) }),
+    voz: vozAoVivo(),
+    historico: conversaLimpa(corpo.historico),
   });
-  return NextResponse.json({ token, url: URL_VOZ_AO_VIVO, sessao });
+
+  const r = await fetch(URL_SESSAO_AO_VIVO, {
+    method: "POST", headers: { authorization: `Bearer ${chave}`, "content-type": "application/json" },
+    body: JSON.stringify(pedidoDeSessao(sessao, corpo.sdp)), signal: AbortSignal.timeout(15_000),
+  }).catch(() => null);
+  const j = r ? await r.json().catch(() => null) : null;
+  const resposta = r?.ok ? respostaDaSessao(j) : null;
+  if (!resposta) {
+    const erro = (j as { error?: { code?: string; param?: string } } | null)?.error;
+    console.error("[sara] voz ao vivo: a sessão não abriu", r?.status ?? "sem resposta", erro?.code ?? "", erro?.param ?? "");
+    return NextResponse.json({ error: "A voz ao vivo está indisponível agora." }, { status: 503 });
+  }
+  return NextResponse.json({ sdp: resposta.sdp });
 }

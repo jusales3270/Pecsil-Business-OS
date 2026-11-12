@@ -26,10 +26,9 @@ import { iniciarVozAoVivo, type AoVivo, type SessaoDeVoz } from "./voz-ao-vivo";
  *
  * Na plataforma:
  *   - conversa com a SARA central (`/api/sara/warroom`), com a sessão de quem pergunta (as conversas ficam gravadas);
- *   - ouve pelo Whisper da Cloudflare (`/voz`, que não treina nem guarda), não pelo reconhecimento do navegador
- *     (que manda o áudio ao Google);
- *   - fala só com as vozes instaladas no aparelho (`localService`): voz online mandaria o texto da resposta,
- *     com os números da empresa, a um serviço externo. Sem voz local, a legenda acende sozinha.
+ *   - ouve e fala pela sessão de voz ao vivo (OpenAI GPT-Live, voz "gleam", desde 11/11/2026; antes, o Grok):
+ *     ./voz-ao-vivo.ts. Sem a sessão, a escuta cai para o Whisper da Cloudflare (`/voz`) e a fala vira só legenda
+ *     (nunca a voz do navegador, que manda o áudio ao Google).
  */
 
 type Fonte = { rotulo: string; link: string };
@@ -74,7 +73,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const [painel, setPainel] = useState(false);
   const [entrada, setEntrada] = useState("");
   const [vozLigada, setVozLigada] = useState(true);
-  // A voz da SARA é só a do Grok (Realtime, "luna"): sem ela, fica só a legenda (nunca a voz do navegador).
+  // A voz da SARA é só a do GPT-Live (OpenAI, "gleam"): sem ela, fica só a legenda (nunca a voz do navegador).
   const [semVoz, setSemVoz] = useState(false);
   const [aviso, setAviso] = useState("");
   // Palco: os gráficos que ela apresenta na tela principal (um de cada vez, como slides).
@@ -89,7 +88,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   const [slide, setSlide] = useState(0);
   // Dois ou mais visuais: todos juntos, como painel (dashboard); "um por vez" para apresentar.
   const [emPainel, setEmPainel] = useState(true);
-  // A sessão de voz (Grok Realtime, voz "luna", pt-BR): abre ao invocar e fala tudo o que ela diz; o
+  // A sessão de voz (OpenAI GPT-Live, voz "gleam", pt-BR e a língua de quem fala): abre ao invocar e fala tudo o que ela diz; o
   // microfone liga e desliga dentro dela (aoVivo = escutando).
   const [aoVivo, setAoVivo] = useState(false);
   const vozAoVivo = useRef<SessaoDeVoz | null>(null);
@@ -146,7 +145,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     return () => { if (quadro.current) cancelAnimationFrame(quadro.current); quadro.current = null; window.removeEventListener("resize", redimensionar); clearTimeout(t); };
   }, [modo, dimensionar]);
 
-  /* ---- fala: sempre pela sessão do Grok (voz "luna"); sem ela, só a legenda ---- */
+  /* ---- fala: sempre pela sessão do GPT-Live (voz "gleam"); sem ela, só a legenda ---- */
   const garantirVoz = useCallback(async (): Promise<SessaoDeVoz | null> => {
     if (vozAoVivo.current) return vozAoVivo.current;
     if (iniciandoVoz.current) return iniciandoVoz.current;
@@ -187,7 +186,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
       relogioPalavras.current = relogio;
     };
     if (!vozLigada) { soLegenda(); return; }
-    // A voz da SARA: a sessão do Grok fala o texto exatamente como veio (a legenda acende junto).
+    // A voz da SARA: a sessão do GPT-Live fala o texto palavra por palavra (a legenda acende junto, com o texto conferido).
     void garantirVoz().then((v) => { if (esta !== falaAtual.current) return; if (v) v.falar(texto); else soLegenda(); });
   }, [vozLigada, setEstado, garantirVoz]);
 
@@ -247,7 +246,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
     } finally { ocupado.current = false; }
   }, [consultar, falar, pararFala, setEstado]);
 
-  /* ---- voz ao vivo (Grok Voice, "luna", pt-BR) ---- */
+  /* ---- voz ao vivo (OpenAI GPT-Live, "gleam") ---- */
   const legendaAoVivo = useRef<ReturnType<typeof setInterval> | null>(null);
   const acenderAosPoucos = useCallback((bruto: string) => {
     if (legendaAoVivo.current) clearInterval(legendaAoVivo.current);
@@ -338,7 +337,7 @@ export function SaraHolograma({ naWarRoom, navegar }: { naWarRoom: boolean; nave
   }, []);
   const microfone = useCallback(async () => {
     if (gravador.current) { pararGravacao(true); return; }
-    // A escuta liga e desliga dentro da sessão de voz (Grok, "luna"); sem ela, grava e transcreve (Whisper).
+    // A escuta liga e desliga dentro da sessão de voz (GPT-Live, "gleam"); sem ela, grava e transcreve (Whisper).
     setAviso("");
     const v = await garantirVoz();
     if (v) {

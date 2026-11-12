@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-11-sara-voz-openai",
+    data: "2026-11-11",
+    area: "SARA",
+    titulo: "Nova voz da SARA central, que acompanha a sua língua",
+    modulos: ["warroom"],
+    funcionalidades: ["warroom.sara"],
+    itens: [
+      "A SARA central (War Room) ganhou uma voz nova, mais natural, que escuta enquanto fala: pode interromper que ela para e ouve.",
+      "Ela fala português do Brasil, mas se você falar em inglês, espanhol ou francês, ela responde na sua língua (e volta ao português quando você voltar). Os números são sempre os conferidos pela plataforma.",
+      "Depois de dois minutos sem conversa, a voz se desliga sozinha. É só tocar no microfone de novo, e ela lembra do que vocês falaram.",
+    ],
+  },
+  {
     id: "2026-11-11-gravar-reuniao",
     data: "2026-11-11",
     area: "Plataforma",

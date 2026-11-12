@@ -72,33 +72,30 @@ test("mensagem de voz: a API de texto para fala do Grok só para a mensagem de W
   assert.match(m, /if \(temNumeroPorExtenso\(texto\)\) return \{ dados: \{ erro:/, "número por extenso escapa do verificador: recusado");
   assert.match(m, /\\b\(mil\|milh\[ãa\]o/, "extenso reconhecido (mil, milhão, trezentas…)");
   assert.match(m, /process\.env\.XAI_API_KEY/, "a chave só no servidor");
-  assert.doesNotMatch(ler("modules/warroom/src/holograma/voz-ao-vivo.ts"), /\/v1\/tts/, "a voz da plataforma continua sendo o Realtime");
+  assert.doesNotMatch(ler("modules/warroom/src/holograma/voz-ao-vivo.ts"), /\/v1\/tts/, "a voz da plataforma continua sendo a sessão ao vivo");
   assert.doesNotMatch(ler("modules/warroom/src/holograma/SaraHolograma.tsx"), /\/v1\/tts/);
   assert.match(ler("lib/sara/sessao.ts"), /ENVIAR_DOCUMENTO, ENVIAR_WHATSAPP, ferramentaCriarMensagemDeVoz\(documentos\),/, "só a central grava (e envia pelo WhatsApp)");
   assert.match(ler("supabase/migrations/202610230007_sara_mensagem_voz.sql"), /check \(tipo in \('relatorio', 'carta', 'mensagem_voz'\)\)/);
 });
 
-test("sotaque: pronúncia brasileira nativa nas instruções e voz personalizada por variável (XAI_VOZ_SARA)", async () => {
+test("sotaque e língua (11/11): pt-BR nativo nas instruções, a voz ao vivo por variável e a da mensagem de WhatsApp separada", async () => {
   const v = await import("../lib/sara/central/voz-ao-vivo.ts");
-  assert.equal(v.vozDaSara(undefined), "luna", "sem a variável, a luna");
-  assert.equal(v.vozDaSara("  vozbr123 "), "vozbr123", "com a voz personalizada criada de uma brasileira nativa");
-  assert.match(v.instrucoesDeVoz({ empresa: "X", nome: "A", quemDecide: "" }), /português do Brasil é a sua língua materna[\s\S]*sem nenhum sotaque estrangeiro/);
-  assert.equal(v.sessaoDeVoz({ instrucoes: "x", termos: [], voz: "vozbr123" }).voice, "vozbr123");
+  assert.equal(v.vozDaSara(undefined), "luna", "mensagem de voz do WhatsApp (xAI): sem a variável, a luna");
+  assert.equal(v.vozDaSara("  vozbr123 "), "vozbr123", "com a voz personalizada da xAI");
+  assert.match(v.instrucoesDeVoz({ empresa: "X", nome: "A", quemDecide: "" }), /fale SEMPRE em português do Brasil, com pronúncia e entonação brasileiras naturais, sem sotaque estrangeiro/);
+  assert.equal(v.sessaoDeVoz({ instrucoes: "x", voz: "bossa" }).audio.output.voice, "bossa");
   const rota = ler("app/api/sara/[modulo]/voz-ao-vivo/route.ts");
-  assert.match(rota, /const voz = vozDaSara\(\);/);
-  assert.match(rota, /if \(!personalizada && \(!vozConferida/, "a voz personalizada não está na lista das prontas");
+  assert.match(rota, /voz: vozAoVivo\(\),/);
   const script = ler("scripts/criar-voz-sara.mjs");
   assert.match(script, /form\.append\("language", "pt-BR"\)/);
   assert.match(script, /https:\/\/api\.x\.ai\/v1\/custom-voices/);
   assert.match(script, /AUTORIZOU por escrito/, "voz de alguém só com autorização");
 });
 
-test("calibração: voz a 1,2, fala do primeiro parágrafo, central numa rodada e subagente curta", async () => {
+test("calibração: voz ágil (1,25), fala do primeiro parágrafo, central numa rodada e subagente curta", async () => {
   const v = await import("../lib/sara/central/voz-ao-vivo.ts");
-  assert.equal(v.velocidadeDaVoz(undefined), 1.25, "1,25 escolhida pelo proprietário");
-  assert.equal(v.velocidadeDaVoz("1,3"), 1.3);
-  assert.equal(v.velocidadeDaVoz("3"), 1.25, "fora da faixa volta ao padrão");
-  assert.equal(v.sessaoDeVoz({ instrucoes: "x", termos: [] }).audio.output.speed, 1.25, "em audio.output.speed (o único lugar que o Grok aceita)");
+  // O GPT-Live não tem campo de velocidade: o ritmo de 1,25 escolhido pelo proprietário (23/10) vai nas instruções.
+  assert.match(v.instrucoesDeVoz({ empresa: "X", nome: "A", quemDecide: "" }), /Ritmo: fale um pouco mais rápido que o normal[\s\S]*1,25 vez/);
   const fala = resumoFalado("Senhor, são 394 contas vencidas, somando R$ 1.330.419,47.\n\n**Maiores**\n- OTZI: R$ 86.028,00\n\nO Bradesco segue sem extrato desde julho, o que distorce o saldo.");
   assert.equal(fala, "Senhor, são 394 contas vencidas, somando R$ 1.330.419,47. O detalhe está no painel.", "só o primeiro parágrafo é falado");
   const { SARA_CENTRAL } = await import("../lib/sara/central/sara.ts");
