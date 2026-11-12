@@ -36,12 +36,17 @@ export type Documento = {
 
 export const TIPOS = { relatorio: "Relatório", carta: "Carta", mensagem_voz: "Mensagem de voz", planilha: "Planilha" } as const;
 export const MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-/** O arquivo de cada tipo de documento (rotas, nome do arquivo, WhatsApp). */
+/**
+ * O arquivo de cada tipo de documento (rotas, nome do arquivo, WhatsApp). A mensagem de voz é WAV desde 11/11/2026
+ * (gravada pelo GPT-Live); as antigas, do Grok, são MP3: com o caminho guardado, vale a extensão dele.
+ */
 const ARQUIVO: Record<string, { mime: string; ext: string }> = {
   relatorio: { mime: "application/pdf", ext: "pdf" }, carta: { mime: "application/pdf", ext: "pdf" },
-  mensagem_voz: { mime: "audio/mpeg", ext: "mp3" }, planilha: { mime: MIME_XLSX, ext: "xlsx" },
+  mensagem_voz: { mime: "audio/wav", ext: "wav" }, planilha: { mime: MIME_XLSX, ext: "xlsx" },
 };
-export const arquivoDoTipo = (tipo: string | null | undefined) => ARQUIVO[tipo ?? ""] ?? ARQUIVO.relatorio;
+const PELA_EXTENSAO: Record<string, { mime: string; ext: string }> = { mp3: { mime: "audio/mpeg", ext: "mp3" }, wav: { mime: "audio/wav", ext: "wav" } };
+export const arquivoDoTipo = (tipo: string | null | undefined, caminho?: string | null) =>
+  PELA_EXTENSAO[(caminho ?? "").match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() ?? ""] ?? ARQUIVO[tipo ?? ""] ?? ARQUIVO.relatorio;
 const LIM = { secoes: 12, linhas: 40, colunas: 8, rotulos: 24, series: 4, insights: 8, recomendacoes: 8 };
 
 const t = (v: unknown, max: number) => String(v ?? "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim().slice(0, max);
@@ -152,8 +157,8 @@ export function textoParaConferir(bruto: unknown): string {
 }
 
 /** "Comparação de financiamentos" → "DOC-2026-0007 Comparação de financiamentos.pdf" (sem caracteres que quebram o nome). */
-export function nomeDoArquivo(numero: string, titulo: string, tipo = "relatorio"): string {
-  return `${numero} ${titulo}`.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) + `.${arquivoDoTipo(tipo).ext}`;
+export function nomeDoArquivo(numero: string, titulo: string, tipo = "relatorio", caminho?: string | null): string {
+  return `${numero} ${titulo}`.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) + `.${arquivoDoTipo(tipo, caminho).ext}`;
 }
 
 /** Acha a pessoa pelo nome falado ("Ana", "a Rosana do RH"): uma só, ou a lista para perguntar. */

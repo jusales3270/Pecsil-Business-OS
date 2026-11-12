@@ -4,38 +4,37 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "../../supabase/admin";
 import type { Ferramenta } from "../base";
 import { paraVoz } from "../personalidade";
-import { IDIOMA, vozDaSara } from "./voz-ao-vivo";
+import { gravarNaVozAoVivo } from "./gravar-ao-vivo";
+import { vozAoVivo } from "./voz-ao-vivo";
 import { BUCKET_DOCUMENTOS, type ContextoDocumentos } from "./documentos";
 import { conferirNumeros } from "./verificador";
 
 /**
- * Mensagem de voz da SARA central para WhatsApp (proprietário, 23/10/2026): é o ÚNICO uso da API de texto
- * para fala do Grok (`/v1/tts`), com a mesma voz da SARA ("luna", pt-BR). A voz da SARA na plataforma e,
- * depois, nas ligações telefônicas é a sessão Realtime; a mensagem gravada para mandar a alguém é esta.
+ * Mensagem de voz da SARA central para WhatsApp (proprietário, 23/10/2026), na MESMA voz da SARA ao vivo: desde
+ * 11/11/2026 ("quero a mesma voz em tudo"), o OpenAI GPT-Live com a voz "gleam" (a API de texto para fala da OpenAI
+ * não tem essa voz; a gravação é feita por uma sessão do próprio GPT-Live, em lib/sara/central/gravar-ao-vivo.ts).
+ * Antes, a API de texto para fala do Grok (voz "luna", MP3): as 13 mensagens daquela época seguem em MP3.
  *   - O texto é conferido como os documentos: todo número tem de estar no que as áreas devolveram.
- *   - As expressões da personalidade (*suspira*, *pausa breve*…) viram as tags do motor (nunca lidas).
- *   - O áudio (MP3) fica no bucket privado dos documentos, como um documento do tipo mensagem_voz.
- *   - O ENVIO pelo WhatsApp é a ação enviar_pelo_whatsapp (lib/whatsapp/enviar.ts, W4), com o Permitir.
+ *   - As expressões da personalidade (*suspira*, *pausa breve*…) viram indicação de som (nunca lidas).
+ *   - O áudio (WAV) fica no bucket privado dos documentos, como um documento do tipo mensagem_voz.
+ *   - O ENVIO pelo WhatsApp é a ação enviar_pelo_whatsapp (lib/whatsapp/enviar.ts, W4), com o Permitir; o Evolution
+ *     converte o áudio em nota de voz.
  */
 
-export const URL_TTS = "https://api.x.ai/v1/tts";
 export const MAX_MENSAGEM = 1500;
 /** Número por extenso escapa do verificador: a mensagem tem de trazer os números em algarismos (a voz lê certo). */
 const POR_EXTENSO = /\b(mil|milh[ãa]o|milh[õo]es|bilh[ãa]o|cem|cento|duzent[ao]s|trezent[ao]s|quatrocent[ao]s|quinhent[ao]s|seiscent[ao]s|setecent[ao]s|oitocent[ao]s|novecent[ao]s|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove)\b/i;
 export const temNumeroPorExtenso = (texto: string) => POR_EXTENSO.test(texto);
 
-/** O pedido para a API de texto para fala: a voz da SARA, em pt-BR, MP3. */
-export function pedidoDeMensagem(texto: string) {
-  return { text: paraVoz(texto).replace(/\s+/g, " ").trim().slice(0, MAX_MENSAGEM), voice_id: vozDaSara(), language: IDIOMA, output_format: { codec: "mp3", sample_rate: 24000, bit_rate: 64000 } };
-}
-
-/** Grava a mensagem na voz da SARA. A chave (XAI_API_KEY) fica só no servidor. */
-export async function gravarMensagemDeVoz(texto: string, buscar: typeof fetch = fetch): Promise<Uint8Array> {
-  const chave = process.env.XAI_API_KEY?.trim();
-  if (!chave) throw new Error("A voz da SARA não está configurada (falta a chave da xAI).");
-  const r = await buscar(URL_TTS, { method: "POST", signal: AbortSignal.timeout(60_000), headers: { Authorization: `Bearer ${chave}`, "content-type": "application/json" }, body: JSON.stringify(pedidoDeMensagem(texto)) });
-  if (!r.ok) throw new Error(`A gravação da voz falhou (${r.status}).`);
-  return new Uint8Array(await r.arrayBuffer());
+/**
+ * Grava a mensagem na voz da SARA (WAV). Leva mais ou menos o tempo da própria fala (o GPT-Live fala em tempo
+ * real). A chave (OPENAI_API_KEY) fica só no servidor.
+ */
+export async function gravarMensagemDeVoz(texto: string): Promise<Uint8Array> {
+  const chave = process.env.OPENAI_API_KEY?.trim();
+  if (!chave) throw new Error("A voz da SARA não está configurada (falta a chave da OpenAI).");
+  const limpo = paraVoz(texto).replace(/\s+/g, " ").trim().slice(0, MAX_MENSAGEM);
+  return gravarNaVozAoVivo(limpo, { chave, voz: vozAoVivo() });
 }
 
 export function ferramentaCriarMensagemDeVoz(ctx: ContextoDocumentos): Ferramenta {
@@ -69,8 +68,8 @@ export function ferramentaCriarMensagemDeVoz(ctx: ContextoDocumentos): Ferrament
       try { audio = await gravarMensagemDeVoz(texto); }
       catch (err) { return { dados: { erro: err instanceof Error ? err.message : "A gravação falhou." }, fontes: [] }; }
       const { data: org } = await sb.rpc("current_organization_id");
-      const caminho = `${org}/${id}/${numero} mensagem de voz.mp3`;
-      const { error: eUp } = await createSupabaseAdminClient().storage.from(BUCKET_DOCUMENTOS).upload(caminho, audio, { contentType: "audio/mpeg", upsert: false });
+      const caminho = `${org}/${id}/${numero} mensagem de voz.wav`;
+      const { error: eUp } = await createSupabaseAdminClient().storage.from(BUCKET_DOCUMENTOS).upload(caminho, audio, { contentType: "audio/wav", upsert: false });
       if (eUp) return { dados: { erro: `Não guardou o áudio: ${eUp.message}` }, fontes: [] };
       const { error: eArq } = await sb.rpc("sara_documento_arquivo", { p_documento: id, p_caminho: caminho, p_paginas: null, p_bytes: audio.length });
       if (eArq) return { dados: { erro: `Não ligou o áudio: ${eArq.message}` }, fontes: [] };

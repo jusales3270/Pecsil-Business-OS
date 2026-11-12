@@ -26,8 +26,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const { data: arquivo, error } = await admin.storage.from(BUCKET_DOCUMENTOS).download(doc.caminho);
   if (error || !arquivo) return NextResponse.json({ error: "Não foi possível abrir o arquivo." }, { status: 500 });
   await session.supabase.rpc("sara_documento_aberto", { p_documento: id });
-  const t = arquivoDoTipo(doc.tipo);
-  const nome = nomeDoArquivo(doc.numero, doc.titulo, doc.tipo);
+  const t = arquivoDoTipo(doc.tipo, doc.caminho);
+  const nome = nomeDoArquivo(doc.numero, doc.titulo, doc.tipo, doc.caminho);
   const modo = new URL(request.url).searchParams.get("baixar") === "1" ? "attachment" : "inline";
   return new NextResponse(await arquivo.arrayBuffer(), { headers: {
     "content-type": t.mime, "cache-control": "private, no-store",

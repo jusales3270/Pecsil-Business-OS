@@ -177,7 +177,15 @@ O proprietário trocou o motor da voz ao vivo da SARA central: **`gpt-live-1`** 
 - **Dados.**
   - O áudio, a transcrição e a resposta conferida vão à OpenAI. A sessão não é guardada (`store: false`, o padrão).
   - Sem retenção zero na organização da OpenAI, a API guarda por até 30 dias para monitoramento de abuso.
-- **Fica na xAI:** a mensagem de voz gravada para WhatsApp (`/v1/tts`, voz "luna"), até o proprietário decidir trocar também.
+- **A mesma voz em tudo (proprietário, 11/11: "quero a mesma voz em tudo").** A mensagem de voz gravada para o WhatsApp (`criar_mensagem_de_voz`) e a resposta em áudio da SARA no WhatsApp também saem na voz do GPT-Live.
+  - A "gleam" não existe na API de texto para fala da OpenAI (que tem outras 13 vozes). Por isso a gravação é feita por uma sessão do próprio GPT-Live no servidor (`lib/sara/central/gravar-ao-vivo.ts`).
+  - O texto vai em partes de até 650 letras, uma depois que a anterior terminou de ser dita.
+  - O fim de cada parte é o silêncio depois da voz: o GPT-Live manda áudio sem parar, no ritmo da fala.
+  - Os silêncios longos são encurtados, e a transcrição da própria voz confere se a gravação saiu inteira.
+  - O resultado é WAV, que o Evolution converte em nota de voz. As 13 mensagens antigas (MP3, do Grok) seguem servidas como MP3, pelo caminho guardado.
+  - Gravar leva mais ou menos o tempo da própria fala (uma resposta de WhatsApp de 20 s leva uns 25 s; antes, poucos segundos). Se a gravação falhar, o WhatsApp responde por escrito, como antes.
+  - Teste real: mensagem de 70 s em duas partes, conferida pelo Whisper com todos os valores; pela SARA central, gravada, guardada e servida como WAV.
+  - A xAI saiu da voz (`XAI_API_KEY` e o script de voz personalizada não são mais usados).
 - **Código:**
   - `lib/sara/central/voz-ao-vivo.ts`: sessão, instruções, roteador e regras puras;
   - `lib/sara/central/fala-ao-vivo.ts`: fala conferida, língua e conversa, puras;

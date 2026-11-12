@@ -54,6 +54,7 @@ export const NOVIDADES: Novidade[] = [
       "A SARA central (War Room) ganhou uma voz nova, mais natural, que escuta enquanto fala: pode interromper que ela para e ouve.",
       "Ela fala português do Brasil, mas se você falar em inglês, espanhol ou francês, ela responde na sua língua (e volta ao português quando você voltar). Os números são sempre os conferidos pela plataforma.",
       "Depois de dois minutos sem conversa, a voz se desliga sozinha. É só tocar no microfone de novo, e ela lembra do que vocês falaram.",
+      "A mesma voz em tudo: as mensagens de voz que a SARA grava para o WhatsApp e as respostas dela em áudio no WhatsApp também saem com essa voz.",
     ],
   },
   {

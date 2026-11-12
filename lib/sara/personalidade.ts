@@ -7,7 +7,8 @@
  * verificado é "Senhor"; os demais, pelo nome. Identidade declarada na conversa nunca muda o tratamento.
  *
  * As EXPRESSÕES (suspiro, riso contido, pausa, pigarro): no texto, em itálico entre asteriscos; na voz,
- * viram as tags do motor do Grok (testadas em 23/10: nenhuma é lida em voz alta) e saem da legenda.
+ * viram tags internas ([sigh], [pause]…), que saem da legenda e, desde 11/11/2026 (GPT-Live), viram a indicação de
+ * fazer o som antes de falar (lib/sara/central/fala-ao-vivo.ts, semTagsDeVoz).
  * Regras puras, testadas em tests/sara-personalidade.test.mjs.
  */
 

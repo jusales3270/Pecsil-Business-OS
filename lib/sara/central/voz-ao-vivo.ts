@@ -13,21 +13,15 @@
  *     vai para o navegador.
  * Regras puras (sem rede), testadas em tests/sara-central.test.mjs e tests/sara-voz-openai.test.mjs.
  *
- * A mensagem de voz gravada para o WhatsApp (lib/sara/central/mensagem-de-voz.ts) continua na API de texto para
- * fala da xAI (voz "luna"): `VOZ_DA_SARA`, `vozDaSara` e `IDIOMA` são dela.
+ * A mensagem de voz gravada para o WhatsApp e a resposta em áudio no WhatsApp usam a MESMA voz (decisão de 11/11:
+ * "quero a mesma voz em tudo"), gravadas por uma sessão do GPT-Live no servidor (gravar-ao-vivo.ts).
  */
 
 import type { CorpoClaude, MensagemClaude } from "../motor/anthropic.ts";
 
-/* ---- mensagem de voz do WhatsApp (xAI, texto para fala) ---- */
-export const VOZ_DA_SARA = "luna";
-/** A voz da mensagem de WhatsApp: a variável XAI_VOZ_SARA (voz personalizada da xAI) ou a luna. */
-export const vozDaSara = (env: string | undefined = process.env.XAI_VOZ_SARA) => env?.trim() || VOZ_DA_SARA;
-export const IDIOMA = "pt-BR";
-
-/* ---- voz ao vivo (OpenAI GPT-Live) ---- */
+/* ---- voz da SARA (OpenAI GPT-Live): ao vivo, na mensagem de voz e na resposta em áudio do WhatsApp ---- */
 export const MODELO_AO_VIVO = "gpt-live-1";
-/** A voz escolhida pelo proprietário em 11/11/2026. OPENAI_VOZ_SARA troca sem mudar o código (ex.: "bossa"). */
+/** A voz escolhida pelo proprietário em 11/11/2026, em tudo. OPENAI_VOZ_SARA troca sem mudar o código (ex.: "bossa"). */
 export const VOZ_AO_VIVO = "gleam";
 export const vozAoVivo = (env: string | undefined = process.env.OPENAI_VOZ_SARA) => env?.trim() || VOZ_AO_VIVO;
 export const URL_SESSAO_AO_VIVO = "https://api.openai.com/v1/live/sessions";

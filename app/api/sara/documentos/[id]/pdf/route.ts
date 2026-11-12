@@ -28,9 +28,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (error || !arquivo) return NextResponse.json({ error: "Não foi possível abrir o PDF." }, { status: 500 });
   await session.supabase.rpc("sara_documento_aberto", { p_documento: id });
   // Endereço antigo (/pdf) também serve a planilha e o áudio, com o tipo certo.
-  const nome = nomeDoArquivo(doc.numero, doc.titulo, doc.tipo);
+  const nome = nomeDoArquivo(doc.numero, doc.titulo, doc.tipo, doc.caminho);
   return new NextResponse(await arquivo.arrayBuffer(), { headers: {
-    "content-type": arquivoDoTipo(doc.tipo).mime, "cache-control": "private, no-store",
+    "content-type": arquivoDoTipo(doc.tipo, doc.caminho).mime, "cache-control": "private, no-store",
     "content-disposition": `inline; filename="${nome.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "")}"; filename*=UTF-8''${encodeURIComponent(nome)}`,
   } });
 }

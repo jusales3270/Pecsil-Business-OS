@@ -63,33 +63,31 @@ test("personalidade: entra em toda SARA que fala com a pessoa, não na subagente
   assert.match(ler("app/components/sara-painel.tsx"), /<em key=\{i\}>\{p\.slice\(1, -1\)\}<\/em>/, "a expressão em itálico na tela");
 });
 
-test("mensagem de voz: a API de texto para fala do Grok só para a mensagem de WhatsApp, na voz da SARA", () => {
+test("mensagem de voz (11/11): a mesma voz da SARA ao vivo, gravada pelo GPT-Live, conferida e em WAV", () => {
   const m = ler("lib/sara/central/mensagem-de-voz.ts");
-  assert.match(m, /export const URL_TTS = "https:\/\/api\.x\.ai\/v1\/tts";/);
-  assert.match(m, /voice_id: vozDaSara\(\), language: IDIOMA/, "a mesma voz da SARA, em pt-BR");
-  assert.match(m, /text: paraVoz\(texto\)/, "as expressões viram tags");
+  assert.match(m, /return gravarNaVozAoVivo\(limpo, \{ chave, voz: vozAoVivo\(\) \}\);/, "a mesma voz da voz ao vivo (\"quero a mesma voz em tudo\")");
+  assert.match(m, /const limpo = paraVoz\(texto\)/, "as expressões viram indicação de som");
+  assert.match(m, /process\.env\.OPENAI_API_KEY/, "a chave só no servidor");
+  assert.doesNotMatch(m, /x\.ai|XAI_/, "nada mais da xAI na voz");
+  assert.match(m, /mensagem de voz\.wav`/);
+  assert.match(m, /contentType: "audio\/wav"/);
   assert.match(m, /const c = conferirNumeros\(texto, ctx\.fontes\);/, "número só com fonte");
   assert.match(m, /if \(temNumeroPorExtenso\(texto\)\) return \{ dados: \{ erro:/, "número por extenso escapa do verificador: recusado");
   assert.match(m, /\\b\(mil\|milh\[ãa\]o/, "extenso reconhecido (mil, milhão, trezentas…)");
-  assert.match(m, /process\.env\.XAI_API_KEY/, "a chave só no servidor");
+  assert.match(ler("lib/whatsapp/atender.ts"), /const audio = await d\.gravarVoz\(paraVoz\(falado\)\);/, "a resposta em áudio do WhatsApp também");
   assert.doesNotMatch(ler("modules/warroom/src/holograma/voz-ao-vivo.ts"), /\/v1\/tts/, "a voz da plataforma continua sendo a sessão ao vivo");
   assert.doesNotMatch(ler("modules/warroom/src/holograma/SaraHolograma.tsx"), /\/v1\/tts/);
   assert.match(ler("lib/sara/sessao.ts"), /ENVIAR_DOCUMENTO, ENVIAR_WHATSAPP, ferramentaCriarMensagemDeVoz\(documentos\),/, "só a central grava (e envia pelo WhatsApp)");
   assert.match(ler("supabase/migrations/202610230007_sara_mensagem_voz.sql"), /check \(tipo in \('relatorio', 'carta', 'mensagem_voz'\)\)/);
 });
 
-test("sotaque e língua (11/11): pt-BR nativo nas instruções, a voz ao vivo por variável e a da mensagem de WhatsApp separada", async () => {
+test("sotaque e língua (11/11): pt-BR nativo nas instruções e a voz por variável, igual em tudo", async () => {
   const v = await import("../lib/sara/central/voz-ao-vivo.ts");
-  assert.equal(v.vozDaSara(undefined), "luna", "mensagem de voz do WhatsApp (xAI): sem a variável, a luna");
-  assert.equal(v.vozDaSara("  vozbr123 "), "vozbr123", "com a voz personalizada da xAI");
+  assert.ok(!("vozDaSara" in v) && !("VOZ_DA_SARA" in v), "não sobra voz da xAI");
   assert.match(v.instrucoesDeVoz({ empresa: "X", nome: "A", quemDecide: "" }), /fale SEMPRE em português do Brasil, com pronúncia e entonação brasileiras naturais, sem sotaque estrangeiro/);
   assert.equal(v.sessaoDeVoz({ instrucoes: "x", voz: "bossa" }).audio.output.voice, "bossa");
-  const rota = ler("app/api/sara/[modulo]/voz-ao-vivo/route.ts");
-  assert.match(rota, /voz: vozAoVivo\(\),/);
-  const script = ler("scripts/criar-voz-sara.mjs");
-  assert.match(script, /form\.append\("language", "pt-BR"\)/);
-  assert.match(script, /https:\/\/api\.x\.ai\/v1\/custom-voices/);
-  assert.match(script, /AUTORIZOU por escrito/, "voz de alguém só com autorização");
+  assert.match(ler("app/api/sara/[modulo]/voz-ao-vivo/route.ts"), /voz: vozAoVivo\(\),/);
+  assert.match(ler("lib/sara/central/mensagem-de-voz.ts"), /voz: vozAoVivo\(\)/, "a mensagem de voz usa a mesma variável");
 });
 
 test("calibração: voz ágil (1,25), fala do primeiro parágrafo, central numa rodada e subagente curta", async () => {

@@ -178,8 +178,9 @@ export async function atender(payload: unknown, deps: Partial<Deps> = {}, admin:
         // Áudio com áudio: a parte falada é a resposta direta; o resto que não dá para ouvir vai por escrito.
         try {
           const falado = resumoFalado(semTags(corpo.texto), 420, { detalhe: "O detalhe está na plataforma.", semTexto: "Mandei a resposta para a plataforma: abra a SARA para ver." });
-          const mp3 = await d.gravarVoz(paraVoz(falado));
-          const r = await d.enviarAudio(canal.instancia, m.numero, Buffer.from(mp3).toString("base64"));
+          // A mesma voz da SARA ao vivo (GPT-Live, "gleam"): a gravação leva mais ou menos o tempo da fala.
+          const audio = await d.gravarVoz(paraVoz(falado));
+          const r = await d.enviarAudio(canal.instancia, m.numero, Buffer.from(audio).toString("base64"));
           n++; await registrarSaida(admin, canal, contato.id, perfil.id, r.id, "audio");
           if (extra) n += await responderTexto(extra);
         } catch (e) {
