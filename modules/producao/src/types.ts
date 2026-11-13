@@ -192,12 +192,34 @@ export interface EnvioExterno {
   diasAtePrazo: number;
 }
 
+/** Lote que chegou ao Desbaste com menos peças do que a Fundição entregou (Forja). */
+export interface FaltaChegada {
+  opLoteId: string;
+  osId: string;
+  codigoGrv: string;
+  numeroLote: number;
+  cliente: string;
+  artigo: string;
+  descricao: string;
+  estacao: string;
+  esperado: number;
+  contado: number;
+  faltam: number;
+  conferidoPor: string | null;
+  conferidoEm: string;
+  /** A Fundição disse que enviou e o Desbaste ainda não confirmou. */
+  aguardandoConfirmacao: number;
+  enviadoEm: string | null;
+}
+
 export interface DashboardData {
   geradoEm: string;
   indicadores: IndicadoresProducao;
   gargalos: Gargalo[];
   enviosExternos: EnvioExterno[];
   totalOSExternas: number;
+  /** Faltas de peças na chegada ao Desbaste, ainda abertas. */
+  faltasChegada: FaltaChegada[];
   osPorStatus: Record<string, number>;
   osPorStatusLista: Record<string, OSResumo[]>;
   osAtrasadas: OSAtrasada[];

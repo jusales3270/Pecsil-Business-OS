@@ -83,17 +83,19 @@ test("Produção: quem só vê Paradas não recebe OS, clientes nem envios exter
     gargalos: [{ etapaId: "e1" }],
     enviosExternos: [{ opLoteId: "x" }],
     totalOSExternas: 1,
+    faltasChegada: [{ opLoteId: "f" }],
   };
   const empty = {
     geradoEm: "", osPorStatus: {}, osPorStatusLista: {}, osAtrasadas: [], kanban: [], pipelines: [], inspecao: {},
     paradas: { ativas: [], porMotivoHoje: {} }, fantasmas: { opsParadas: [], turnosNaoFechados: [] },
-    indicadores: { carteira: { total: 0 }, historico: { total: 0 } }, gargalos: [], enviosExternos: [], totalOSExternas: 0,
+    indicadores: { carteira: { total: 0 }, historico: { total: 0 } }, gargalos: [], enviosExternos: [], totalOSExternas: 0, faltasChegada: [],
   };
   const data = pruneDashboard(full, (feature) => feature === "producao.paradas", empty);
   assert.deepEqual(data.paradas, full.paradas);
   assert.deepEqual(data.osPorStatusLista, {});
   assert.deepEqual(data.osAtrasadas, []);
   assert.deepEqual(data.enviosExternos, []);
+  assert.deepEqual(data.faltasChegada, [], "faltas só para quem vê o painel");
   assert.deepEqual(data.kanban, []);
   assert.equal(data.indicadores.carteira.total, 0);
 });

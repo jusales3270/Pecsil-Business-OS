@@ -5,6 +5,7 @@ import { dbError, requireFeature } from "../../../../lib/auth/feature-guard";
 import { sincronizarOrdens } from "../../../../lib/forja/sync-orders";
 import { processarEnviosForja, type ResultadoEnvios } from "../../../../lib/forja/envio-os";
 import { sincronizarDesenhos, type RelatorioDesenhos } from "../../../../lib/forja/sync-desenhos";
+import { avisarFaltas, type RelatorioFaltas } from "../../../../lib/forja/aviso-faltas";
 
 export const dynamic = "force-dynamic";
 
@@ -53,15 +54,22 @@ export async function POST(request: Request) {
   const relatorio = await sincronizarOrdens(admin, { simular });
   // Depois do espelho: desenhos da Forja para a Biblioteca da Fundição. Falha aqui vira aviso.
   let desenhos: RelatorioDesenhos | { erro: string } | null = null;
+  let org: string | null = null;
   try {
     const { data: orgs, error } = await admin.from("organizations").select("id").limit(2);
     if (error) throw new Error(error.message);
     if (orgs?.length !== 1) throw new Error("A Biblioteca espera uma organização só.");
-    desenhos = await sincronizarDesenhos(admin, String(orgs[0].id), { simular });
+    org = String(orgs[0].id);
+    desenhos = await sincronizarDesenhos(admin, org, { simular });
   } catch (e) {
     desenhos = { erro: e instanceof Error ? e.message : String(e) };
   }
-  return NextResponse.json({ ...relatorio, envios, desenhos }, { status: relatorio.erro ? 502 : 200 });
+  // Falta de peças na chegada ao Desbaste: aviso ao chefe (sino + WhatsApp). Falha aqui vira aviso.
+  let faltas: RelatorioFaltas | { erro: string } | null = null;
+  if (org) {
+    try { faltas = await avisarFaltas(admin, org, { simular }); } catch (e) { faltas = { erro: e instanceof Error ? e.message : String(e) }; }
+  }
+  return NextResponse.json({ ...relatorio, envios, desenhos, faltas }, { status: relatorio.erro ? 502 : 200 });
 }
 
 export async function GET() {

@@ -19,6 +19,7 @@ export const emptyForjaDashboardData: DashboardData = {
   gargalos: [],
   enviosExternos: [],
   totalOSExternas: 0,
+  faltasChegada: [],
   osPorStatus: {},
   osPorStatusLista: {},
   osAtrasadas: [],

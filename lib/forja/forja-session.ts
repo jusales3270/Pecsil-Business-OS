@@ -248,6 +248,7 @@ export function pruneDashboard(
     gargalos: any("painel") ? data.gargalos : empty.gargalos,
     enviosExternos: any("externos") ? data.enviosExternos : empty.enviosExternos,
     totalOSExternas: any("externos") ? data.totalOSExternas : empty.totalOSExternas,
+    faltasChegada: any("painel") ? data.faltasChegada : empty.faltasChegada,
   };
 }
 
@@ -408,5 +409,23 @@ export function toDashboardData(body: unknown): DashboardData {
       diasAtePrazo: num(envio.diasAtePrazo),
     })),
     totalOSExternas: num(raw.totalOSExternas),
+    // Forja antiga não manda: fica vazio.
+    faltasChegada: list(raw.faltasChegada).map((f) => ({
+      opLoteId: text(f.opLoteId),
+      osId: text(f.osId),
+      codigoGrv: text(f.codigoGrv),
+      numeroLote: num(f.numeroLote),
+      cliente: text(f.cliente),
+      artigo: text(f.artigo),
+      descricao: text(f.descricao),
+      estacao: text(f.estacao),
+      esperado: num(f.esperado),
+      contado: num(f.contado),
+      faltam: num(f.faltam),
+      conferidoPor: nullableText(f.conferidoPor),
+      conferidoEm: text(f.conferidoEm),
+      aguardandoConfirmacao: num(f.aguardandoConfirmacao),
+      enviadoEm: nullableText(f.enviadoEm),
+    })),
   };
 }

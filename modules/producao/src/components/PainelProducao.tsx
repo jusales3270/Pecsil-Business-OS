@@ -62,6 +62,42 @@ export function PainelProducao({
         </div>
       </div>
 
+      {/* Falta de peças na chegada ao Desbaste (Forja): o chefe vê primeiro */}
+      {data.faltasChegada?.length > 0 && (
+        <div
+          role="alert"
+          style={{
+            border: '2px solid var(--accent-red)', borderRadius: 'var(--radius-md)', padding: 'var(--sp-4)',
+            background: 'color-mix(in srgb, var(--accent-red) 12%, transparent)',
+          }}
+        >
+          <p style={{ color: 'var(--accent-red)', fontWeight: 'var(--fw-bold)', fontSize: 'var(--fs-md)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
+            ⚠ Falta de peças {data.faltasChegada.length > 1 ? `em ${data.faltasChegada.length} lotes` : 'no lote'} · chegada ao Desbaste
+          </p>
+          <ul style={{ listStyle: 'none', margin: 'var(--sp-3) 0 0', padding: 0, display: 'grid', gap: 'var(--sp-2)' }}>
+            {data.faltasChegada.map((f) => (
+              <li key={f.opLoteId} style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-primary)' }}>
+                <strong>OS {f.codigoGrv}</strong> · Lote {f.numeroLote} · {f.cliente} · {f.artigo}: chegaram{' '}
+                <strong>{f.contado} de {f.esperado}</strong> —{' '}
+                <strong style={{ color: 'var(--accent-red)' }}>faltam {f.faltam}</strong>
+                <span style={{ color: 'var(--text-muted)' }}>
+                  {' '}· conferido{f.conferidoPor ? ` por ${f.conferidoPor}` : ''} em{' '}
+                  {new Date(f.conferidoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </span>
+                {f.aguardandoConfirmacao > 0 && (
+                  <span style={{ color: 'var(--accent-amber)' }}>
+                    {' '}· 📦 Fundição enviou {f.aguardandoConfirmacao}, aguardando o Desbaste confirmar
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p style={{ margin: 'var(--sp-3) 0 0', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
+            O Desbaste segue com o que chegou. Some daqui quando o Desbaste confirmar o restante ou o PCP aceitar a falta na Forja.
+          </p>
+        </div>
+      )}
+
       {/* Barra de Busca Rápida */}
       <div className="producao-toolbar">
         <div className="producao-search-box">
