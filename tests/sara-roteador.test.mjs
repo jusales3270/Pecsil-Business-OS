@@ -119,3 +119,51 @@ test("etapa 1: o laço e o roteador da voz montam o pedido pelo catálogo (o res
   assert.deepEqual(opus.tool_choice, { type: "auto" }, "o Opus recusa ferramenta forçada");
   assert.match(opus.messages[0].content, /Responda chamando uma das ferramentas disponíveis \(obrigatório\)\./);
 });
+
+test("etapa 2: a política vem do banco por empresa, validada pelo catálogo; quem pode a análise profunda", async () => {
+  const { politicaDaLinha, linhaDaPolitica, validarPolitica, podeProfundo, POLITICA_PADRAO: P } = await import("../lib/sara/politica.ts");
+  assert.deepEqual(politicaDaLinha(null), P, "sem a linha (ou sem a tabela): o padrão, desligado");
+  const linha = { modo: "sombra", rapido_modelo: "claude-haiku-5-5", rapido_esforco: "low", padrao_modelo: "claude-sonnet-5-5", padrao_esforco: "medium",
+    criterio_modelo: "claude-opus-5-5", criterio_esforco: "high", profundo_modelo: "claude-fable-5-2", profundo_esforco: "high", profundo_para: "todos", teto_mes_reais: "150.50", trabalhos: { vigia: "padrao", bobagem: "x" } };
+  const pol = politicaDaLinha(linha);
+  assert.equal(pol.modo, "sombra"); assert.equal(pol.profundoPara, "todos"); assert.equal(pol.tetoMesReais, 150.5);
+  assert.deepEqual(pol.niveis.profundo, { modelo: "claude-fable-5-2", esforco: "high" });
+  assert.equal(pol.trabalhos.vigia, "padrao"); assert.equal(pol.trabalhos.crescimento, "profundo", "o que falta vale o padrão");
+  assert.ok(!("bobagem" in pol.trabalhos));
+  assert.deepEqual(politicaDaLinha({ ...linha, criterio_modelo: "gpt-9" }).niveis.criterio, P.niveis.criterio, "modelo fora do catálogo: o padrão do nível");
+  assert.deepEqual(politicaDaLinha(linhaDaPolitica(pol)), pol, "ida e volta pelo banco sem perda");
+  const corpo = { niveis: pol.niveis, modo: "ligado", profundoPara: "diretoria", tetoMesReais: "200,00", trabalhos: { bom_dia: "rapido" } };
+  const ok = validarPolitica(corpo);
+  assert.ok(ok.ok); assert.equal(ok.politica.tetoMesReais, 200);
+  assert.match(validarPolitica({ ...corpo, niveis: { ...pol.niveis, padrao: { modelo: "gpt-9", esforco: "low" } } }).erro, /Modelo desconhecido no nível padrao/);
+  assert.match(validarPolitica({ ...corpo, niveis: { ...pol.niveis, rapido: { modelo: "claude-haiku-5-5", esforco: "turbo" } } }).erro, /Esforço inválido/);
+  assert.match(validarPolitica({ ...corpo, modo: "talvez" }).erro, /Modo do roteador inválido/);
+  assert.match(validarPolitica({ ...corpo, tetoMesReais: "-5" }).erro, /Teto do mês inválido/);
+  assert.match(validarPolitica({ ...corpo, trabalhos: { vigia: "turbo" } }).erro, /Nível inválido para Vigia/);
+  const dir = { ...P, profundoPara: "diretoria" };
+  assert.ok(podeProfundo(dir, { dono: true, diretor: false }), "o proprietário sempre");
+  assert.ok(podeProfundo(dir, { dono: false, diretor: true }), "diretoria (cargo Diretor)");
+  assert.ok(!podeProfundo(dir, { dono: false, diretor: false }));
+  assert.ok(!podeProfundo({ ...P, profundoPara: "proprietario" }, { dono: false, diretor: true }));
+  assert.ok(podeProfundo({ ...P, profundoPara: "todos" }, { dono: false, diretor: false }));
+
+  const mig = ler("supabase/migrations/202611140001_sara_politica_modelos.sql");
+  assert.match(mig, /organization_id uuid primary key references public\.organizations/, "uma linha por empresa");
+  assert.match(mig, /modo text not null default 'desligado'/, "nasce desligado");
+  assert.match(mig, /criterio_modelo text not null default 'claude-opus-5-5'/);
+  assert.match(mig, /profundo_para text not null default 'diretoria'/);
+  assert.match(mig, /grant select on public\.sara_politica_modelos to authenticated;/, "a SARA de cada pessoa lê");
+  assert.doesNotMatch(mig, /grant (insert|update|delete|all) on public\.sara_politica_modelos/, "ninguém logado grava direto: só o servidor");
+  assert.match(mig, /insert into public\.sara_politica_modelos \(organization_id\) select id from public\.organizations on conflict do nothing;/, "toda empresa ganha a linha");
+  assert.match(mig, /custo_usd numeric\s+generated always as/, "o custo sai do registro que já é gravado, sem mudar o sara_registrar");
+  assert.match(mig, /create or replace function public\.sara_custo_mes\(\)/);
+  assert.doesNotMatch(mig, /pecsil/i, "nada de uma empresa só");
+
+  const rota = ler("app/api/sara/politica/route.ts");
+  assert.match(rota, /if \(!s\.access\.isOwner\) return NextResponse\.json\(\{ error: "Só o proprietário muda a política de modelos\." \}, \{ status: 403 \}\);/);
+  assert.match(rota, /const v = validarPolitica\(/);
+  assert.match(rota, /event_type: "sara\.politica_modelos\.alterada"[\s\S]*metadata: \{ antes, depois: v\.politica \}/, "auditoria do antes e do depois");
+  const tela = ler("app/components/sara-politica.tsx");
+  assert.match(tela, /\(m\?\.esforcos \?\? \[\]\)\.map/, "o seletor de esforço só oferece o que o modelo aceita");
+  assert.match(ler("app/components/sara-aprendizado.tsx"), /<ModelosEEsforco notify=\{notify\} \/>/);
+});

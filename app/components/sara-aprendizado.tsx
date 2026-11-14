@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Callout, Status } from "../../packages/design-system";
+import { ModelosEEsforco } from "./sara-politica";
 
 /**
  * Fundação › O que a SARA aprendeu (proprietário, 18/10/2026). O que a equipe de SARAs colheu das conversas:
@@ -231,6 +232,7 @@ export function SaraAprendizado({ notify }: { notify: (m: string) => void }) {
       </section>
 
       {d.custos && <CustoDaIa c={d.custos} rot={rot} />}
+      {d.custos && <ModelosEEsforco notify={notify} />}
 
       <section className="aprendeu-bloco" aria-label="Uso por módulo">
         <header><h2>Uso por módulo</h2></header>
