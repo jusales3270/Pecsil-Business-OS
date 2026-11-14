@@ -18,6 +18,7 @@
  */
 
 import type { CorpoClaude, MensagemClaude } from "../motor/anthropic.ts";
+import { pedidoPara } from "../modelos.ts";
 
 /* ---- voz da SARA (OpenAI GPT-Live): ao vivo, na mensagem de voz e na resposta em áudio do WhatsApp ---- */
 export const MODELO_AO_VIVO = "gpt-live-1";
@@ -214,13 +215,16 @@ export function conversaParaRotear(conversa: FalaDaConversa[]): string {
 }
 
 /** O pedido ao Claude para rotear: Haiku, sem pensamento, obrigado a chamar uma função. */
-export function pedidoDoRoteador(areas: AreaDeVoz[], conversa: FalaDaConversa[]): CorpoClaude {
+export function pedidoDoRoteador(areas: AreaDeVoz[], conversa: FalaDaConversa[], modelo: string = MODELO_ROTEADOR): CorpoClaude {
+  // O montador (I-32) devolve o pensar e o tool_choice que o modelo aceita: no Haiku, ferramenta forçada e sem pensar;
+  // num modelo que recusa ferramenta forçada, "auto" com a instrução no texto.
+  const p = pedidoPara(modelo, { forcar: "any" });
   return {
-    model: MODELO_ROTEADOR, max_tokens: 400, thinking: { type: "disabled" },
+    model: modelo, max_tokens: 400, thinking: p.thinking as CorpoClaude["thinking"],
     system: instrucoesDoRoteador(areas),
     tools: ferramentasDoRoteador(areas),
-    tool_choice: { type: "any" },
-    messages: [{ role: "user", content: conversaParaRotear(conversa) }],
+    ...(p.tool_choice ? { tool_choice: p.tool_choice as CorpoClaude["tool_choice"] } : {}),
+    messages: [{ role: "user", content: `${conversaParaRotear(conversa)}${p.instrucao ? `\n${p.instrucao}` : ""}` }],
   };
 }
 

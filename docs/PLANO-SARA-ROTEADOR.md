@@ -110,6 +110,13 @@ A linha inicial é criada para todas as organizações (`insert ... select from 
   - o classificador sempre recebe a última resposta, e um dado solto ("Período 01/06 a 30/09") não sobe o nível.
 - **Fica com o proprietário:** julgar os exemplos do relatório e confirmar os padrões dos níveis antes da Etapa 2.
 
+**Etapa 1, catálogo e montador (14/11/2026).**
+- O `semPensar` passa a ler o catálogo. No Opus e no Fable o pensar é adaptativo; o `semPensar` antigo mandaria `between_tools` e daria 400.
+- O laço (`lib/sara/laco.ts`) monta o pedido pelo `pedidoPara` a cada chamada, e o modelo reserva recebe o pensar e o esforço dele. O esforço é opcional: sem ele, nada muda.
+- O roteador da voz também passa pelo montador.
+- O turno da SARA volta inteiro à API, com os blocos de pensamento, como o Opus e o Fable exigem.
+- **Teste real:** 36 de 36 chamadas sem erro — os 4 modelos × esforço (padrão, low, high, max) × ferramenta forçada ou não, mais 2 rodadas de ferramenta devolvendo o pensar.
+
 ## Etapas (QA e commit em cada uma; migração só com o "pode aplicar" do dono)
 0. **Medição, sem mudar nada:** um script lê as perguntas dos últimos 60 dias em `sara_mensagens`.
    - Roda o classificador em cada uma e compara o custo real com o custo pela política padrão.

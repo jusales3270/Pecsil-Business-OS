@@ -1,11 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { iniciarPasso, passoFeito, textoDoPasso } from "./progresso.ts";
 import { filtrarEstado } from "../decisao/guard.ts";
-import { semPensar, type Proposta } from "./base.ts";
+import type { Proposta } from "./base.ts";
 import type { Abrir, Ferramenta, Fonte } from "./ferramentas.ts";
 import type { FocoGrafo } from "../cerebro/visual.ts";
 import { dicaVisual, MOSTRAR, resolverVisual, type ResultadoConsulta, type Visual } from "./visual.ts";
-import { modeloReserva } from "./modelos.ts";
+import { modeloReserva, pedidoPara, type Esforco } from "./modelos.ts";
 import { comReserva, falhaDaResposta, FalhaDoModelo, type FalhaRegistrada } from "./tentativas.ts";
 import { chamarClaude, type CorpoClaude } from "./motor/anthropic.ts";
 
@@ -131,6 +131,12 @@ export async function conversarCom(sb: SupabaseClient, a: {
   maxVisuais?: number;
   /** A central numera cada visual que monta (o documento e a planilha apontam por esse número). */
   aoMostrar?: (v: Visual) => number;
+  /**
+   * O esforço (I-32, roteador): vai em output_config.effort, com o pensar que o modelo aceita (catálogo). Sem ele,
+   * nada muda: o modelo usa o esforço padrão dele, como até 14/11. O reserva recebe o mesmo esforço, ajustado ao que
+   * ele aceita.
+   */
+  esforco?: Esforco | null;
 }): Promise<RespostaSara> {
   const chave = a.chave;
   if (!chave) throw new Error("NAO_CONFIGURADA");
@@ -221,8 +227,11 @@ export async function conversarCom(sb: SupabaseClient, a: {
   type RespostaDoModelo = { content: Bloco[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } };
   const chamarModelo = async (modelo: string): Promise<RespostaDoModelo> => {
     if (a.sinal?.aborted) throw new Error("CANCELADA");
+    // O pedido válido para este modelo (o reserva pode ser outro: o pensar e o esforço são remontados para ele).
+    const p = pedidoPara(modelo, { esforco: a.esforco });
     const r = await chamarClaude({
-      model: modelo, max_tokens: a.maxTokens ?? 1500, thinking: semPensar(modelo), system: blocosDoSistema(a.sistema) as CorpoClaude["system"],
+      model: modelo, max_tokens: a.maxTokens ?? 1500, thinking: p.thinking as CorpoClaude["thinking"], ...(p.output_config ? { output_config: p.output_config } : {}),
+      system: blocosDoSistema(a.sistema) as CorpoClaude["system"],
       messages: comCacheNoFim(mensagens) as CorpoClaude["messages"], ...(tools.length ? { tools: tools as unknown as CorpoClaude["tools"] } : {}),
     }, { chave, buscar: a.buscar, timeoutMs: 60_000, sinal: a.sinal });
     if (r.ok) return r.mensagem as unknown as RespostaDoModelo;

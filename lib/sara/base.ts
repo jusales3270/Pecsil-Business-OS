@@ -1,3 +1,4 @@
+import { pedidoPara } from "./modelos.ts";
 import type { FocoGrafo } from "../cerebro/visual.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -122,11 +123,12 @@ export type Regra = { exige: string[]; gerar: (sb: SupabaseClient, c: ContextoAl
 export type Agente = { sara: SaraModulo; ferramentas: Ferramenta[]; regras: Regra[] };
 
 /**
- * Desligar o "pensamento" do modelo: o Haiku aceita { type: "disabled" }; o Sonnet 5.5 recusa e pede
- * { type: "between_tools" } (não pensa antes de responder; o que escreve entre consultas volta como
- * bloco de pensamento, que a SARA já ignora).
+ * O "pensamento" no mínimo que o modelo aceita, pelo catálogo (lib/sara/modelos.ts, I-32): o Haiku desliga com
+ * { type: "disabled" }; o Sonnet 5.5 recusa e pede { type: "between_tools" } (não pensa antes de responder; o que
+ * escreve entre consultas volta como bloco de pensamento, que a SARA já ignora); o Opus e o Fable não desligam
+ * (adaptativo). Para escolher também o esforço ou forçar uma ferramenta, use `pedidoPara`.
  */
-export const semPensar = (modelo: string) => (/haiku/i.test(modelo) ? { type: "disabled" as const } : { type: "between_tools" as const });
+export const semPensar = (modelo: string) => pedidoPara(modelo).thinking;
 
 export const hoje = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 export const maisDias = (iso: string, n: number) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };

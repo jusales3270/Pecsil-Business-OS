@@ -104,3 +104,18 @@ test("custo pelo catálogo: Opus e Fable com preço; a medição não grava nada
   assert.doesNotMatch(script, /\b(insert|update|delete|upsert)\b/i, "Etapa 0 só lê o banco");
   assert.match(script, /startsWith\("☀️"\)/, "o Bom dia automático fica fora da medição");
 });
+
+test("etapa 1: o laço e o roteador da voz montam o pedido pelo catálogo (o reserva remonta o pensar)", async () => {
+  const laco = ler("lib/sara/laco.ts");
+  assert.match(laco, /const p = pedidoPara\(modelo, \{ esforco: a\.esforco \}\);/, "o pedido é montado para o modelo da vez (o principal ou o reserva)");
+  assert.match(laco, /\.\.\.\(p\.output_config \? \{ output_config: p\.output_config \} : \{\}\)/, "sem esforço pedido, o campo não vai (nada muda)");
+  assert.match(laco, /mensagens\.push\(\{ role: "assistant", content: corpo\.content \}\)/, "o turno volta inteiro, com os blocos de pensamento (exigência do Opus e do Fable)");
+  const { semPensar } = await import("../lib/sara/base.ts");
+  assert.deepEqual(semPensar("claude-opus-5-5"), { type: "adaptive" }, "o Opus não desliga o pensar (o semPensar antigo mandaria between_tools e daria 400)");
+  const { pedidoDoRoteador } = await import("../lib/sara/central/voz-ao-vivo.ts");
+  const haiku = pedidoDoRoteador([], [{ quem: "pessoa", texto: "oi" }]);
+  assert.deepEqual(haiku.tool_choice, { type: "any" }); assert.deepEqual(haiku.thinking, { type: "disabled" });
+  const opus = pedidoDoRoteador([], [{ quem: "pessoa", texto: "oi" }], "claude-opus-5-5");
+  assert.deepEqual(opus.tool_choice, { type: "auto" }, "o Opus recusa ferramenta forçada");
+  assert.match(opus.messages[0].content, /Responda chamando uma das ferramentas disponíveis \(obrigatório\)\./);
+});
