@@ -93,9 +93,10 @@ test("E1: rota da decisão roda com a sessão de quem permitiu; painel mostra Pe
 test("E4: custo em R$ pelos tokens, com o desconto do cache; dólar ajustável", () => {
   // Haiku 5.5: 1M de entrada comum = US$ 0,10; 1M de saída = US$ 0,50.
   assert.equal(custoUsd({ modelo: "claude-haiku-5-5", tokens_entrada: 1_000_000, tokens_saida: 1_000_000, cache_lido: 0, cache_gravado: 0 }).toFixed(4), "0.6000");
-  // Cache lido custa 0,1× e gravado 1,25× (entrada total já inclui os dois).
-  assert.equal(custoUsd({ modelo: "claude-sonnet-5-5", tokens_entrada: 2_000_000, tokens_saida: 0, cache_lido: 1_000_000, cache_gravado: 1_000_000 }).toFixed(4), (2 * 0.1 + 2 * 1.25).toFixed(4));
-  assert.ok(custoUsd({ modelo: "desconhecido", tokens_entrada: 1_000_000, tokens_saida: 0, cache_lido: 0, cache_gravado: 0 }) >= 2, "modelo sem preço não esconde custo");
+  // Cache lido pelo preço do modelo (Sonnet 5.5: US$ 0,10 por milhão, catálogo de 14/11) e gravado a 1,25× (a entrada total já inclui os dois).
+  assert.equal(custoUsd({ modelo: "claude-sonnet-5-5", tokens_entrada: 2_000_000, tokens_saida: 0, cache_lido: 1_000_000, cache_gravado: 1_000_000 }).toFixed(4), (0.1 + 2 * 1.25).toFixed(4));
+  assert.equal(custoUsd({ modelo: "claude-opus-5-5", tokens_entrada: 1_000_000, tokens_saida: 1_000_000, cache_lido: 0, cache_gravado: 0 }).toFixed(4), "24.0000", "Opus 5.5: US$ 4 + US$ 20");
+  assert.ok(custoUsd({ modelo: "desconhecido", tokens_entrada: 1_000_000, tokens_saida: 0, cache_lido: 0, cache_gravado: 0 }) >= 8, "modelo sem preço custa como o mais caro do catálogo (não esconde custo)");
   assert.equal(cotacao("5,80"), 5.8);
   assert.equal(cotacao("abc"), COTACAO_PADRAO);
   assert.equal(emReais(1, 5.5), 5.5);
