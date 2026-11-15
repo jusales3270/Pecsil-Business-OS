@@ -85,7 +85,8 @@ export function ModelosEEsforco({ notify }: { notify: (m: string) => void }) {
         <label><span>Análise profunda para</span>{leitura ? <b>{QUEM[p.profundoPara]}</b> : <select value={p.profundoPara} onChange={(ev) => setP({ ...p, profundoPara: ev.target.value as Politica["profundoPara"] })}>
           {(Object.keys(QUEM) as Politica["profundoPara"][]).map((k) => <option key={k} value={k}>{QUEM[k]}</option>)}</select>}</label>
         <label><span>Teto do mês (R$)</span>{leitura ? <b>{p.tetoMesReais == null ? "Sem teto em reais" : brl(p.tetoMesReais)}</b> : <input inputMode="decimal" value={teto} onChange={(ev) => setTeto(ev.target.value)} placeholder="Sem teto em reais" aria-label="Teto do mês em reais" />}</label>
-        {d.custo_mes_reais != null && <span className="politica-custo">Gasto neste mês: <b>{brl(d.custo_mes_reais)}</b></span>}
+        {/* O custo por resposta passa a ser gravado com o roteador (etapa 3); antes disso o total do mês está em Custo da IA, acima. */}
+        {d.custo_mes_reais != null && d.custo_mes_reais > 0 && <span className="politica-custo">Gasto neste mês: <b>{brl(d.custo_mes_reais)}</b></span>}
       </div>
       <h3>Trabalhos que a SARA faz sozinha</h3>
       <div className="aprendeu-tabela"><table>

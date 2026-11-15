@@ -117,6 +117,20 @@ A linha inicial é criada para todas as organizações (`insert ... select from 
 - O turno da SARA volta inteiro à API, com os blocos de pensamento, como o Opus e o Fable exigem.
 - **Teste real:** 36 de 36 chamadas sem erro — os 4 modelos × esforço (padrão, low, high, max) × ferramenta forçada ou não, mais 2 rodadas de ferramenta devolvendo o pensar.
 
+**Etapa 2, política por empresa (14/11/2026).**
+- A migração `202611140001_sara_politica_modelos.sql` foi **APLICADA** em 14/11, com o "pode aplicar" do proprietário. Ela criou:
+  - a tabela com uma linha por empresa, desligada e com os padrões;
+  - o `custo_usd` gerado;
+  - a função `sara_custo_mes()`.
+- A análise profunda é liberada pela própria política (proprietário, diretoria pelo cargo Diretor, ou todos), sem permissão nova. Uma permissão na Fundação abriria o menu da Fundação para quem a recebesse.
+- **Teste no navegador: 14 de 14**, com usuários temporários:
+  - quem não é dono nem Auditoria é recusado;
+  - a Auditoria lê e não grava;
+  - o proprietário vê o catálogo, e um modelo fora dele é recusado com o motivo;
+  - salvar grava no banco com auditoria do antes e do depois e reaparece ao reabrir;
+  - o aviso do Fable aparece; claro, escuro e celular funcionam.
+  - A linha da política foi restaurada igual à original.
+
 ## Etapas (QA e commit em cada uma; migração só com o "pode aplicar" do dono)
 0. **Medição, sem mudar nada:** um script lê as perguntas dos últimos 60 dias em `sara_mensagens`.
    - Roda o classificador em cada uma e compara o custo real com o custo pela política padrão.

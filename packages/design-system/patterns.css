@@ -9983,7 +9983,7 @@ a.doc-abrir { text-decoration: none; }
 /* Modelos e esforço da SARA (I-32): a política de modelos da empresa, em O que a SARA aprendeu. */
 .politica-modelos .politica-linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-4); }
 .politica-modelos .politica-linha > span:first-child { font-size: var(--fs-sm); color: var(--text-secondary); font-weight: 600; }
-.politica-modelos .politica-linha label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--text-secondary); min-width: 0; }
+.politica-modelos .politica-linha label { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: var(--fs-sm); color: var(--text-secondary); min-width: 0; text-align: left; }
 .politica-modelos .politica-linha input { width: 180px; max-width: 100%; }
 .politica-modelos .politica-custo { font-size: var(--fs-sm); color: var(--text-secondary); align-self: flex-end; }
 .politica-modelos .politica-quando { min-width: 220px; max-width: 360px; white-space: normal; color: var(--text-secondary); }
