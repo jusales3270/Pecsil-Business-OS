@@ -36,7 +36,8 @@ export async function GET() {
     custo_mes_reais: custo == null ? null : emReais(Number(custo), cot),
     catalogo: CATALOGO.map((m) => ({ id: m.id, rotulo: m.rotulo, esforcos: m.esforcos, esforco_padrao: m.esforcoPadrao, preco: m.preco, exige_retencao: m.exigeRetencao })),
     niveis: NIVEIS.map((n) => ({ id: n, rotulo: ROTULO_NIVEL[n] })),
-    trabalhos: TRABALHOS.map((t) => ({ id: t, rotulo: ROTULO_TRABALHO[t] })),
+    // A Sentinela ainda não lê a política (o agendamento dela fica para um passo seguinte): não aparece para escolher.
+    trabalhos: TRABALHOS.filter((t) => t !== "sentinela").map((t) => ({ id: t, rotulo: ROTULO_TRABALHO[t] })),
   });
 }
 

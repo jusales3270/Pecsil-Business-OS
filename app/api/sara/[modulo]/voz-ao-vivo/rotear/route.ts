@@ -3,6 +3,7 @@ import { SARAS } from "../../../../../../lib/sara/modulos";
 import { conversaLimpa, escolhaDoRoteador, pedidoDoRoteador } from "../../../../../../lib/sara/central/voz-ao-vivo";
 import { chamarClaude } from "../../../../../../lib/sara/motor/anthropic";
 import { preparar } from "../../../../../../lib/sara/sessao";
+import { escolhaDaRotinaPela } from "../../../../../../lib/sara/politica";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,7 +30,9 @@ export async function POST(request: Request, context: { params: Promise<{ modulo
   if (!conversa.some((f) => f.quem === "pessoa")) return NextResponse.json({ error: "Sem a fala da pessoa." }, { status: 400 });
 
   const areas = Object.values(SARAS).filter((s) => !s.central && p.access.canModule(s.feature) && p.access.can(s.permissao, "ver")).map((s) => ({ modulo: s.modulo, rotulo: s.rotulo }));
-  const r = await chamarClaude(pedidoDoRoteador(areas, conversa), { chave, timeoutMs: 12_000 }).catch(() => null);
+  // O modelo do roteador vem da política da empresa (roteador ligado); sem ela, o Haiku de sempre (I-32).
+  const escolha = await escolhaDaRotinaPela(p.sb, "roteador_voz");
+  const r = await chamarClaude(pedidoDoRoteador(areas, conversa, escolha), { chave, timeoutMs: escolha && escolha.modelo !== "claude-haiku-5-5" ? 30_000 : 12_000 }).catch(() => null);
   if (!r?.ok) console.error("[sara] voz ao vivo: o roteador falhou", r ? r.status : "exceção", r && !r.ok ? r.erro.slice(0, 120) : "");
   // Sem o roteador, a pergunta vai inteira para a SARA central (ela sabe tudo o que as áreas sabem).
   return NextResponse.json(escolhaDoRoteador(r?.ok ? r.mensagem : null, areas, conversa));

@@ -1,4 +1,4 @@
-import { semPensar } from "../base.ts";
+import { camposDaRotina, type EscolhaDeModelo } from "../modelos.ts";
 import { chamarClaude, entradaDe, type CorpoClaude } from "../motor/anthropic.ts";
 import { QUEM_DECIDE } from "./sara.ts";
 import { conferirNumeros } from "./verificador.ts";
@@ -226,21 +226,23 @@ export const FERRAMENTA_ACHADOS = {
 export type Analise = { bruto: unknown; resumo: string; modelo: string; tokensEntrada: number; tokensSaida: number };
 
 /** A análise do dia pelo modelo (Sonnet). Falhou: null (a rodada segue com os achados da plataforma). */
-export async function analisarSinais(a: { chave: string; buscar?: typeof fetch; hoje: string; sinais: Sinal[]; abertos: AchadoAberto[] }): Promise<Analise | null> {
+export async function analisarSinais(a: { chave: string; buscar?: typeof fetch; hoje: string; sinais: Sinal[]; abertos: AchadoAberto[]; escolha?: EscolhaDeModelo | null }): Promise<Analise | null> {
   if (!a.chave || !a.sinais.length) return null;
   const linhas = a.sinais.map((s) => `${s.id} [${s.nivel === "urgente" ? "URGENTE" : "aviso"}] ${s.area} (${s.modulo}): ${s.titulo}${s.detalhe ? `. ${s.detalhe}` : ""}`).join("\n");
   const abertos = a.abertos.length ? a.abertos.map((x) => `${x.id} · ${x.modulo} · ${x.situacao}: ${x.titulo}`).join("\n") : "(nenhum)";
   try {
+    // O modelo vem da política da empresa (roteador ligado); sem ela, o de sempre (I-32).
+    const q = camposDaRotina(a.escolha, VIGIA.modelo, 4000);
     const r = await chamarClaude({
-        model: VIGIA.modelo, max_tokens: 4000, thinking: semPensar(VIGIA.modelo), system: REGRA_VIGIA,
+        ...q.campos, system: REGRA_VIGIA,
         // O Sonnet 5.5 não aceita forçar a ferramenta (tool_choice "tool"/"any"): fica no automático e a regra pede a chamada.
         tools: [FERRAMENTA_ACHADOS] as unknown as CorpoClaude["tools"], tool_choice: { type: "auto" },
         messages: [{ role: "user", content: `Hoje: ${a.hoje}\n\nSINAIS:\n${linhas}\n\nACHADOS ABERTOS:\n${abertos}` }],
-      }, { chave: a.chave, buscar: a.buscar, timeoutMs: 90_000 });
+      } as CorpoClaude, { chave: a.chave, buscar: a.buscar, timeoutMs: q.campos.thinking.type === "adaptive" ? 240_000 : 90_000 });
     if (!r.ok) return null;
     const uso = { tokensEntrada: Number(r.mensagem.usage?.input_tokens ?? 0), tokensSaida: Number(r.mensagem.usage?.output_tokens ?? 0) };
     const entrada = entradaDe<{ achados?: unknown[]; resumo?: string }>(r.mensagem);
     if (!entrada) return null;
-    return { bruto: entrada, resumo: texto(entrada.resumo, 600), modelo: VIGIA.modelo, ...uso };
+    return { bruto: entrada, resumo: texto(entrada.resumo, 600), modelo: q.modelo, ...uso };
   } catch { return null; }
 }

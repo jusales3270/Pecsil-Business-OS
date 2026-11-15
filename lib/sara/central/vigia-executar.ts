@@ -1,3 +1,4 @@
+import { escolhaDaRotinaDaEmpresa } from "../politica";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -154,7 +155,7 @@ export async function rodarVigia(admin: SupabaseClient, o: OpcoesVigia = {}): Pr
     const { data: cfg } = await visao.sb.from("sara_modulos").select("teto_tokens_mes").eq("modulo", "warroom").maybeSingle();
     const { data: uso } = await visao.sb.rpc("sara_uso_mes", { p_modulo: "warroom" });
     const noTeto = Number(uso ?? 0) >= Number(cfg?.teto_tokens_mes ?? 60_000_000);
-    const analise = noTeto ? null : await analisarSinais({ chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", hoje: agoraSP(agora).data, sinais, abertos: ativos });
+    const analise = noTeto ? null : await analisarSinais({ chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", hoje: agoraSP(agora).data, sinais, abertos: ativos, escolha: await escolhaDaRotinaDaEmpresa(admin, dono.organization_id, "vigia") });
     let achados: Achado[];
     if (analise) {
       tokens = { entrada: analise.tokensEntrada, saida: analise.tokensSaida }; modelo = analise.modelo; resumo = analise.resumo;

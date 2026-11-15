@@ -1,4 +1,4 @@
-import { semPensar } from "../base.ts";
+import { camposDaRotina, type EscolhaDeModelo } from "../modelos.ts";
 import { chamarClaude, type CorpoClaude } from "../motor/anthropic.ts";
 import { ASSUNTO_DA_EMPRESA, QUEM_DECIDE } from "./sara.ts";
 import { conferirNumeros } from "./verificador.ts";
@@ -188,15 +188,17 @@ type Resposta = { content?: Bloco[]; stop_reason?: string; usage?: { input_token
 export type Uso = { tokensEntrada: number; tokensSaida: number; buscas: number };
 
 /** Uma chamada com uma ferramenta de registro; segue quando a busca pausa a vez (pause_turn). */
-async function chamar(a: { chave: string; buscar?: typeof fetch; sistema: string; pedido: string; registro: { name: string }; tools: unknown[]; maxTokens: number; timeout: number }): Promise<{ entrada: unknown; blocos: Bloco[]; uso: Uso; parada: string } | null> {
+async function chamar(a: { chave: string; buscar?: typeof fetch; sistema: string; pedido: string; registro: { name: string }; tools: unknown[]; maxTokens: number; timeout: number; escolha?: EscolhaDeModelo | null }): Promise<{ entrada: unknown; blocos: Bloco[]; uso: Uso; parada: string } | null> {
+  // O modelo vem da política da empresa (roteador ligado); sem ela, o de sempre (I-32).
+  const q = camposDaRotina(a.escolha, CRESCIMENTO.modelo, a.maxTokens);
   const mensagens: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: a.pedido }];
   const uso: Uso = { tokensEntrada: 0, tokensSaida: 0, buscas: 0 };
   const blocos: Bloco[] = [];
   let pediu = false;
   for (let volta = 0; volta < 5; volta++) {
     // O Sonnet 5.5 não aceita forçar a ferramenta: automático, e a regra pede a chamada.
-    const r = await chamarClaude({ model: CRESCIMENTO.modelo, max_tokens: a.maxTokens, thinking: semPensar(CRESCIMENTO.modelo), system: a.sistema,
-      tools: a.tools as CorpoClaude["tools"], tool_choice: { type: "auto" }, messages: mensagens as CorpoClaude["messages"] }, { chave: a.chave, buscar: a.buscar, timeoutMs: a.timeout });
+    const r = await chamarClaude({ ...q.campos, system: a.sistema,
+      tools: a.tools as CorpoClaude["tools"], tool_choice: { type: "auto" }, messages: mensagens as CorpoClaude["messages"] } as CorpoClaude, { chave: a.chave, buscar: a.buscar, timeoutMs: q.campos.thinking.type === "adaptive" ? a.timeout * 3 : a.timeout });
     if (!r.ok) return { entrada: null, blocos, uso, parada: `erro ${r.status}: ${r.erro.slice(0, 200)}` };
     const j = r.mensagem as unknown as Resposta & { content: Bloco[] };
     uso.tokensEntrada += Number(j.usage?.input_tokens ?? 0); uso.tokensSaida += Number(j.usage?.output_tokens ?? 0); uso.buscas += Number(j.usage?.server_tool_use?.web_search_requests ?? 0);
@@ -222,7 +224,7 @@ export function urlsDaBusca(blocos: Bloco[]): Fonte[] {
 }
 
 /** 1. Pesquisa na internet aberta, só com o assunto. */
-export async function pesquisar(a: { chave: string; buscar?: typeof fetch; hoje: string }): Promise<{ achados: Achado[]; fontes: Fonte[]; uso: Uso } | null> {
+export async function pesquisar(a: { chave: string; buscar?: typeof fetch; hoje: string; escolha?: EscolhaDeModelo | null }): Promise<{ achados: Achado[]; fontes: Fonte[]; uso: Uso } | null> {
   if (!a.chave) return null;
   try {
     const r = await chamar({ ...a, sistema: REGRA_PESQUISA, pedido: pedidoDaPesquisa(ASSUNTO_DA_EMPRESA, a.hoje), registro: FERRAMENTA_PESQUISA, maxTokens: 16_000, timeout: 240_000,
@@ -234,7 +236,7 @@ export async function pesquisar(a: { chave: string; buscar?: typeof fetch; hoje:
 }
 
 /** 2. Síntese, sem internet: dados da semana + gargalos + relatório anterior + pesquisa. */
-export async function sintetizar(a: { chave: string; buscar?: typeof fetch; hoje: string; retrato: Record<string, unknown>; gargalos: string[]; anterior: string | null; pesquisa: Achado[] }): Promise<{ bruto: unknown; uso: Uso } | { erro: string; uso: Uso } | null> {
+export async function sintetizar(a: { chave: string; buscar?: typeof fetch; hoje: string; retrato: Record<string, unknown>; gargalos: string[]; anterior: string | null; pesquisa: Achado[]; escolha?: EscolhaDeModelo | null }): Promise<{ bruto: unknown; uso: Uso } | { erro: string; uso: Uso } | null> {
   if (!a.chave) return null;
   const pedido = `Hoje: ${a.hoje}
 RETRATO DA SEMANA (dados da plataforma, em JSON):

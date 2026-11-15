@@ -1,3 +1,4 @@
+import { escolhaDaRotinaDaEmpresa } from "../politica";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -83,18 +84,20 @@ export async function rodarCrescimento(admin: SupabaseClient, o: OpcoesCrescimen
 
     // 2. Pesquisa, só com o assunto.
     const hoje = agoraSP(agora).data;
-    const p = await pesquisar({ chave, hoje });
+    // O modelo vem da política da empresa (roteador ligado: nível do relatório, profundo por padrão); sem ela, o de sempre (I-32).
+    const escolha = await escolhaDaRotinaDaEmpresa(admin, dono.organization_id, "crescimento");
+    const p = await pesquisar({ chave, hoje, escolha });
     if (p) { tokens.entrada += p.uso.tokensEntrada; tokens.saida += p.uso.tokensSaida; rel.buscas = p.uso.buscas; rel.achadosDaPesquisa = p.achados.length; }
 
     // 3. Síntese.
-    const s = await sintetizar({ chave, hoje, retrato, anterior: resumoAnterior, pesquisa: p?.achados ?? [],
+    const s = await sintetizar({ chave, hoje, escolha, retrato, anterior: resumoAnterior, pesquisa: p?.achados ?? [],
       gargalos: ((gargalos ?? []) as { area: string; titulo: string; situacao: string; impacto: string }[]).map((g) => `${g.area} (${g.impacto}, ${g.situacao}): ${g.titulo}`) });
     if (!s) throw new Error("A síntese do relatório não respondeu.");
     tokens.entrada += s.uso.tokensEntrada; tokens.saida += s.uso.tokensSaida;
     if ("erro" in s) throw new Error(s.erro);
     const relatorio = validarRelatorio(s.bruto, Object.values(retrato), p?.achados ?? []);
     rel.relatorio = relatorio;
-    await fim({ situacao: "feito", conteudo: relatorio, pesquisa: { achados: p?.achados ?? [], fontes: p?.fontes ?? [] }, modelo: CRESCIMENTO.modelo,
+    await fim({ situacao: "feito", conteudo: relatorio, pesquisa: { achados: p?.achados ?? [], fontes: p?.fontes ?? [] }, modelo: escolha?.modelo ?? CRESCIMENTO.modelo,
       tokens_entrada: tokens.entrada, tokens_saida: tokens.saida, buscas: rel.buscas });
 
     // 4. Aviso: o proprietário e quem tem a SARA central.

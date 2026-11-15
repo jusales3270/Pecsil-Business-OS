@@ -107,3 +107,27 @@ export function pedidoPara(modelo: string, o: { esforco?: Esforco | null; pensar
   }
   return saida;
 }
+
+/** A escolha de modelo de uma rotina (vem da política da empresa; sem ela, o modelo de sempre da rotina). */
+export type EscolhaDeModelo = { modelo: string; esforco?: Esforco | null };
+
+/**
+ * Os campos do pedido de uma rotina, prontos para o chamarClaude: modelo, limite de saída (com folga quando o pensar
+ * é adaptativo: o raciocínio conta no limite), pensar, esforço e a ferramenta obrigatória. `instrucao`: quando o
+ * modelo não aceita ferramenta forçada, o texto que vai no fim do sistema dizendo qual usar.
+ */
+export function camposDaRotina(escolha: EscolhaDeModelo | null | undefined, deSempre: string, maxTokens: number, forcar?: string | null) {
+  const modelo = escolha?.modelo && doCatalogo(escolha.modelo) ? escolha.modelo : deSempre;
+  const p = pedidoPara(modelo, { esforco: escolha?.modelo === modelo ? escolha?.esforco ?? null : null, forcar: forcar ?? null });
+  return {
+    campos: {
+      model: modelo,
+      max_tokens: p.thinking.type === "adaptive" ? Math.max(maxTokens, 8000) : maxTokens,
+      thinking: p.thinking,
+      ...(p.output_config ? { output_config: p.output_config } : {}),
+      ...(p.tool_choice ? { tool_choice: p.tool_choice } : {}),
+    },
+    modelo,
+    instrucao: p.instrucao ?? null,
+  };
+}

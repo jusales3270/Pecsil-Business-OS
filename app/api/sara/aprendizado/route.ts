@@ -1,3 +1,4 @@
+import { escolhaDaRotinaPela } from "../../../../lib/sara/politica";
 import { NextResponse } from "next/server";
 import { readSessionAccess } from "../../../../lib/auth/session-access";
 import { ferramentasDe } from "../../../../lib/sara/ferramentas";
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
     if (perguntas.length < 4) { resultado.push({ modulo: sara.modulo, perguntas: perguntas.length, propostas: [] }); continue; }
     try {
       const consultas = ferramentasDe(() => true, sara.ferramentas).map((f) => ({ nome: f.nome, descricao: f.descricao }));
-      const r = await analisarConversas({ chave, empresa, rotulo: sara.rotulo, perguntas, ferramentas: consultas });
+      const r = await analisarConversas({ chave, escolha: await escolhaDaRotinaPela(s.sb, "habilidades"), empresa, rotulo: sara.rotulo, perguntas, ferramentas: consultas });
       tokens += r.tokens;
       const feitas: string[] = [];
       for (const p of r.propostas) {

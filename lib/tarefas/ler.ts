@@ -1,5 +1,5 @@
-import { semPensar } from "../sara/base.ts";
-import { chamarClaude, entradaDe } from "../sara/motor/anthropic.ts";
+import { chamarClaude, entradaDe, type CorpoClaude } from "../sara/motor/anthropic.ts";
+import { camposDaRotina, type EscolhaDeModelo } from "../sara/modelos.ts";
 import { agoraSP } from "../sara/tempo.ts";
 import { AREAS_DAS_TAREFAS } from "./regras.ts";
 
@@ -22,12 +22,14 @@ Hoje é ${hoje} (horário de Brasília).`;
 
 export type Lido = { titulo: string; resumo: string; itens: unknown[]; tokensEntrada: number; tokensSaida: number };
 
-export async function lerCombinados(a: { chave: string; buscar?: typeof fetch; empresa: string; texto: string }): Promise<Lido | { erro: string }> {
+export async function lerCombinados(a: { chave: string; buscar?: typeof fetch; empresa: string; texto: string; escolha?: EscolhaDeModelo | null }): Promise<Lido | { erro: string }> {
   const texto = a.texto.trim().slice(0, 60_000);
   if (texto.length < 20) return { erro: "Escreva ou cole o texto da reunião (pelo menos uma frase)." };
   const agora = agoraSP();
+  // O modelo vem da política da empresa (roteador ligado); sem ela, o de sempre (I-32).
+  const q = camposDaRotina(a.escolha, MODELO_LEITURA, 4000, "registrar");
   const r = await chamarClaude({
-    model: MODELO_LEITURA, max_tokens: 4000, thinking: semPensar(MODELO_LEITURA), system: REGRA(a.empresa, `${agora.semana}, ${agora.data}`),
+    ...q.campos, system: `${REGRA(a.empresa, `${agora.semana}, ${agora.data}`)}${q.instrucao ? `\n\n${q.instrucao}` : ""}`,
     messages: [{ role: "user", content: `<texto>\n${texto}\n</texto>` }],
     tools: [{ name: "registrar", description: "Registra o quadro e os combinados.", input_schema: { type: "object", properties: {
       titulo: { type: "string" }, resumo: { type: "string" },
@@ -36,8 +38,7 @@ export async function lerCombinados(a: { chave: string; buscar?: typeof fetch; e
         area: { type: "string", enum: AREAS_DAS_TAREFAS },
       }, required: ["tarefa"] } },
     }, required: ["titulo", "itens"] } }],
-    tool_choice: { type: "tool", name: "registrar" },
-  }, { chave: a.chave, buscar: a.buscar, timeoutMs: 90_000 });
+  } as CorpoClaude, { chave: a.chave, buscar: a.buscar, timeoutMs: q.campos.thinking.type === "adaptive" ? 240_000 : 90_000 });
   if (!r.ok) return { erro: r.demorou ? "A leitura demorou demais. Tente de novo (ou com um texto menor)." : `A leitura falhou (${r.status || "rede"}). Tente de novo.` };
   const e = entradaDe<{ titulo?: unknown; resumo?: unknown; itens?: unknown }>(r.mensagem, "registrar");
   if (!e) return { erro: "Não consegui ler os combinados. Tente de novo." };

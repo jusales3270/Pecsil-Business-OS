@@ -143,3 +143,27 @@ export async function lerPolitica(sb: SupabaseClient): Promise<Politica> {
   if (error || !data) return POLITICA_PADRAO;
   return politicaDaLinha(data as Partial<LinhaPolitica>);
 }
+
+/** A política de uma empresa pelo id (rotinas que rodam com o cliente do servidor, sem a sessão de alguém). */
+export async function lerPoliticaDaEmpresa(admin: SupabaseClient, organizacao: string): Promise<Politica> {
+  const { data, error } = await admin.from("sara_politica_modelos").select("*").eq("organization_id", organizacao).maybeSingle();
+  if (error || !data) return POLITICA_PADRAO;
+  return politicaDaLinha(data as Partial<LinhaPolitica>);
+}
+
+/**
+ * O modelo de uma rotina (Bom dia, vigia, relatório…): com o roteador ligado, o nível dela na política; senão, o
+ * modelo de sempre da rotina, sem esforço (nada muda).
+ */
+export function escolhaParaTrabalho(p: Politica, t: Trabalho, deSempre: string): { modelo: string; esforco: Esforco | null } {
+  if (p.modo !== "ligado") return { modelo: deSempre, esforco: null };
+  const e = escolhaDoTrabalho(p, t);
+  return { modelo: e.modelo, esforco: e.esforco };
+}
+
+/** A escolha de modelo de uma rotina pela política (roteador ligado) ou null (o modelo de sempre da rotina). */
+export const escolhaDaRotina = (p: Politica, t: Trabalho) => (p.modo === "ligado" ? escolhaDoTrabalho(p, t) : null);
+/** O mesmo, lendo a política com a sessão de quem pediu. */
+export async function escolhaDaRotinaPela(sb: SupabaseClient, t: Trabalho) { return escolhaDaRotina(await lerPolitica(sb), t); }
+/** O mesmo, para uma rotina que roda sem a sessão de alguém (cliente do servidor e a empresa). */
+export async function escolhaDaRotinaDaEmpresa(admin: SupabaseClient, organizacao: string, t: Trabalho) { return escolhaDaRotina(await lerPoliticaDaEmpresa(admin, organizacao), t); }

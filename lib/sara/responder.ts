@@ -27,10 +27,10 @@ import { SARAS } from "./modulos";
 import { createSupabaseAdminClient } from "../supabase/admin";
 import { fotosPendentes, guardarFoto, leituraDaConversa } from "../qualidade/fotos-servidor";
 import { chamarClaude } from "./motor/anthropic";
-import { custoUsd } from "./custo";
+import { cotacao, custoUsd, emReais } from "./custo";
 import { NIVEIS, classificacaoDe, pedidoDoClassificador, type Nivel } from "./nivel";
-import { POLITICA_PADRAO, escolhaDoTrabalho, lerPolitica } from "./politica";
-import { custoDaResposta, decidirRoteamento, rotuloDoRoteamento, type Roteamento } from "./roteamento";
+import { POLITICA_PADRAO, escolhaDaRotina, escolhaDoTrabalho, lerPolitica, podeProfundo } from "./politica";
+import { custoDaResposta, decidirRoteamento, degrauAcimaDe, rotuloDoRoteamento, type Roteamento } from "./roteamento";
 
 
 /**
@@ -192,9 +192,23 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const inicioRota = Date.now();
   // I-32: com o roteador ligado, o modelo e o esforço desta resposta vêm do nível do pedido (política da empresa).
   const politica = await politicaP;
+  // Teto do mês em reais (política da empresa): passou, a SARA para, como no teto de tokens; acima de 80%, o roteador
+  // não usa os modelos caros (critério e profundo ficam no nível padrão).
+  let economizar = false;
+  if (politica.tetoMesReais != null) {
+    const { data: gastoUsd } = await p.sb.rpc("sara_custo_mes");
+    const gasto = emReais(Number(gastoUsd ?? 0), cotacao(process.env.SARA_COTACAO_USD));
+    if (gasto >= politica.tetoMesReais) {
+      const { data: avisou, error: eCheio } = await p.sb.rpc("sara_aviso_teto_cheio", { p_modulo: modulo });
+      if (eCheio) console.error("[sara] aviso do teto em reais", eCheio.message);
+      return NextResponse.json({ error: `A SARA chegou ao limite de gasto do mês definido pela empresa. ${avisou ? "O proprietário já foi avisado." : "Fale com o proprietário."} Enquanto isso, o trabalho segue pelas telas do módulo.` }, { status: 429 });
+    }
+    economizar = gasto >= politica.tetoMesReais * 0.8;
+  }
+  const podeProf = podeProfundo(politica, { dono: p.access.isOwner, diretor: me?.job_title === "diretor" });
   const nivelAnterior = NIVEIS.includes(ultimaSara?.nivel as Nivel) ? (ultimaSara?.nivel as Nivel) : null;
   const decidir = (cls: { c: ReturnType<typeof classificacaoDe>; ms: number; usd: number } | null): Roteamento | null => {
-    const d = decidirRoteamento({ politica, classificacao: cls?.c ?? null, anterior: nivelAnterior, pergunta, dono: p.access.isOwner, diretor: me?.job_title === "diretor", central: Boolean(p.sara.central), modeloDoCanal: doCanal.modelo ?? null });
+    const d = decidirRoteamento({ politica, classificacao: cls?.c ?? null, anterior: nivelAnterior, pergunta, dono: p.access.isOwner, diretor: me?.job_title === "diretor", central: Boolean(p.sara.central), modeloDoCanal: doCanal.modelo ?? null, economizar });
     return d && cls ? { ...d, classificador_ms: cls.ms, classificador_usd: cls.usd } : d;
   };
   let roteamento: Roteamento | null = politica.modo === "ligado" ? decidir(await classificacaoP) : null;
@@ -262,9 +276,42 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const saindo = !fora && !sigilo ? textosDeSaida(r) : [];
   if (saindo.length) {
     const passoSaida = iniciarPasso("conferencia", "Conferindo o que vai sair da empresa");
-    parecer = await conferirSaida({ chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", empresa, pedido: pergunta, textos: saindo });
+    parecer = await conferirSaida({ chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", empresa, pedido: pergunta, textos: saindo, escolha: escolhaDaRotina(politica, "conferir_saida") });
     r = { ...comParecer(r, parecer), tokensEntrada: r.tokensEntrada + parecer.tokensEntrada, tokensSaida: r.tokensSaida + parecer.tokensSaida };
     passoSaida.fim(parecer.aprovada);
+  }
+  // I-32, a escada: com o roteador ligado, a resposta que não passou na conferência (número sem fonte na central ou
+  // texto de saída reprovado) é refeita UMA vez, um degrau acima (mais esforço; depois o modelo do nível de cima).
+  // Só fica a nova se ela passar melhor; o custo das duas tentativas entra no registro.
+  let custoSemAreas: number | null = null;
+  const semFonteAntes = conferencia?.semFonte.length ?? 0;
+  const reprovada = parecer ? !parecer.aprovada && !parecer.falhou : false;
+  if (roteamento?.aplicado && !fora && !sigilo && (semFonteAntes > 0 || reprovada)) {
+    const acima = degrauAcimaDe(politica, roteamento, podeProf);
+    if (acima) {
+      const passoEscada = iniciarPasso("pensando", `Refazendo com mais cuidado · ${rotuloDoRoteamento(acima)}${acima.como === "esforço" ? " (mais esforço)" : ""}`);
+      const custoPrimeira = custoDaResposta({ modelo: r.modelo, tokensEntrada: r.tokensEntrada, tokensSaida: r.tokensSaida, cacheLido: r.cacheLido, cacheGravado: r.cacheGravado });
+      const deNovo = await conversar(p.sb, { ...argsConversa, modelo: acima.modelo, esforco: acima.esforco }).catch(() => null);
+      let melhorou = false;
+      if (deNovo) {
+        const c2 = p.sara.central ? conferirNumeros(deNovo.texto, [...(deNovo.resultados ?? []).map((x) => x.dados), ...fontesDaConversa, ...(memoria.tipos.length ? [memoria.texto] : [])]) : null;
+        const saindo2 = reprovada ? textosDeSaida(deNovo) : [];
+        const parecer2 = saindo2.length ? await conferirSaida({ chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", empresa, pedido: pergunta, textos: saindo2, escolha: escolhaDaRotina(politica, "conferir_saida") }) : null;
+        melhorou = (semFonteAntes ? (c2?.semFonte.length ?? semFonteAntes) < semFonteAntes : true) && (reprovada ? Boolean(parecer2?.aprovada) : true);
+        const custoNova = custoDaResposta({ modelo: deNovo.modelo, tokensEntrada: deNovo.tokensEntrada, tokensSaida: deNovo.tokensSaida, cacheLido: deNovo.cacheLido, cacheGravado: deNovo.cacheGravado })
+          + (parecer2 ? custoUsd({ modelo: "claude-haiku-5-5", tokens_entrada: parecer2.tokensEntrada, tokens_saida: parecer2.tokensSaida, cache_lido: 0, cache_gravado: 0 }) : 0);
+        custoSemAreas = custoPrimeira + custoNova;
+        const soma = { tokensEntrada: r.tokensEntrada + deNovo.tokensEntrada + (parecer2?.tokensEntrada ?? 0), tokensSaida: r.tokensSaida + deNovo.tokensSaida + (parecer2?.tokensSaida ?? 0), cacheLido: r.cacheLido + deNovo.cacheLido, cacheGravado: r.cacheGravado + deNovo.cacheGravado };
+        if (melhorou) {
+          let nova: RespostaSara = { ...deNovo, ferramentas: [...r.ferramentas, ...deNovo.ferramentas] };
+          if (c2) { conferencia = c2; nova = { ...nova, texto: marcarSemFonte(nova.texto, c2), visuais: [...nova.visuais, ...p.visuaisSubagentes].slice(0, 8) }; }
+          if (parecer2) { parecer = parecer2; nova = comParecer(nova, parecer2); }
+          r = { ...nova, ...soma };
+        } else r = { ...r, ...soma };
+      }
+      roteamento = { ...roteamento, subiu: { de: `${rotuloDoRoteamento(roteamento)} · ${roteamento.esforco}`, para: `${rotuloDoRoteamento(acima)} · ${acima.esforco}`, como: acima.como, porque: semFonteAntes ? "número sem fonte" : "texto de saída reprovado", melhorou } };
+      passoEscada.fim(melhorou);
+    }
   }
   // Cumprimento e aviso de retomada vêm da plataforma (hora certa de São Paulo, nome de quem está logado).
   const nomeCurto = tratamento(interlocutor);
@@ -283,7 +330,9 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
       // I-32: o nível e o modelo escolhidos (ou que seriam, em "só registrar") e o custo da resposta em US$, com as
       // SARAs das áreas consultadas pela central e o classificador (vira sara_mensagens.custo_usd, para o teto em reais).
       ...(roteamento ? { roteamento } : {}),
-      custo_usd: custoDaResposta({ modelo: r.modelo, tokensEntrada: r.tokensEntrada, tokensSaida: r.tokensSaida, cacheLido: r.cacheLido, cacheGravado: r.cacheGravado }, p.subagentes, roteamento?.classificador_usd ?? 0) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
+      custo_usd: custoSemAreas != null
+        ? custoDaResposta({ modelo: "", tokensEntrada: 0, tokensSaida: 0, cacheLido: 0, cacheGravado: 0 }, p.subagentes, custoSemAreas + (roteamento?.classificador_usd ?? 0))
+        : custoDaResposta({ modelo: r.modelo, tokensEntrada: r.tokensEntrada, tokensSaida: r.tokensSaida, cacheLido: r.cacheLido, cacheGravado: r.cacheGravado }, p.subagentes, roteamento?.classificador_usd ?? 0) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
   passoGravar.fim(!error);
@@ -346,7 +395,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
         .catch((e) => console.error("[sara] aviso da conferência", e instanceof Error ? e.message : e));
     }
     if (!fora && !sigilo && ids?.conversa) {
-      await lembrarDaConversa(createSupabaseAdminClient(), { chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", conversa: ids.conversa, modulo, historico, pergunta, resposta: resposta.texto })
+      await lembrarDaConversa(createSupabaseAdminClient(), { chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", escolha: escolhaDaRotina(politica, "memoria"), conversa: ids.conversa, modulo, historico, pergunta, resposta: resposta.texto })
         .catch((e) => console.error("[sara] memória da pessoa", e instanceof Error ? e.message : e));
     }
     // Custo (E4): passou de 80% do teto do mês, o proprietário é avisado (uma vez no mês).
@@ -373,7 +422,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
       const passos: Passo[] = resposta.ferramentas.filter((f) => f.ok && doModulo.includes(f.nome))
         .map((f) => ({ ferramenta: f.nome, para_que: "parte do pedido recorrente", ...(f.entrada && typeof f.entrada === "object" && Object.keys(f.entrada).length ? { entrada: f.entrada as Record<string, unknown> } : {}) }))
         .filter((x, k, l) => l.findIndex((y) => y.ferramenta === x.ferramenta && JSON.stringify(y.entrada) === JSON.stringify(x.entrada)) === k);
-      if (passos.length) propostas.push(await nomearHabilidade({ chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", rotulo: p.sara.rotulo, pergunta, passos }));
+      if (passos.length) propostas.push(await nomearHabilidade({ chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", escolha: escolhaDaRotina(politica, "habilidades"), rotulo: p.sara.rotulo, pergunta, passos }));
     }
     for (const prop of propostas) {
       const { error: e4 } = await p.sb.rpc("sara_habilidade_propor", { p_modulo: modulo, p_nome: prop.nome, p_descricao: prop.descricao, p_gatilhos: prop.gatilhos, p_passos: prop.passos,

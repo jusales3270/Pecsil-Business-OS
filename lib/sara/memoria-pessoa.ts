@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { filtrarEstado } from "../decisao/guard.ts";
-import { semPensar } from "./base.ts";
-import { chamarClaude, entradaDe } from "./motor/anthropic.ts";
+import { chamarClaude, entradaDe, type CorpoClaude } from "./motor/anthropic.ts";
+import { camposDaRotina, type EscolhaDeModelo } from "./modelos.ts";
 import type { MensagemHistorico } from "./laco.ts";
 
 /**
@@ -73,15 +73,15 @@ export function cortarResumo(texto: string): string {
 }
 
 /** Até duas frases sobre a conversa, ou null (sem nada a lembrar, ou o modelo não respondeu). */
-export async function resumirConversa(a: { chave: string; buscar?: typeof fetch; mensagens: MensagemHistorico[] }): Promise<string | null> {
+export async function resumirConversa(a: { chave: string; buscar?: typeof fetch; mensagens: MensagemHistorico[]; escolha?: EscolhaDeModelo | null }): Promise<string | null> {
+  const q = camposDaRotina(a.escolha, MODELO, 300, "anotar");
   const conversa = a.mensagens.slice(-10).map((m) => `${m.papel === "pessoa" ? "Pessoa" : "Assistente"}: ${m.texto.slice(0, 800)}`).join("\n");
   try {
     const r = await chamarClaude({
-        model: MODELO, max_tokens: 300, thinking: semPensar(MODELO), system: INSTRUCOES,
+        ...q.campos, system: `${INSTRUCOES}${q.instrucao ? `\n\n${q.instrucao}` : ""}`,
         messages: [{ role: "user", content: `<<<\n${conversa}\n>>>` }],
         tools: [{ name: "anotar", description: "Guarda o resumo da conversa.", input_schema: { type: "object", properties: { resumo: { type: "string", description: "Até duas frases curtas (no máximo 300 caracteres), ou vazio." } }, required: ["resumo"] } }],
-        tool_choice: { type: "tool", name: "anotar" },
-      }, { chave: a.chave, buscar: a.buscar, timeoutMs: 15_000 });
+      } as CorpoClaude, { chave: a.chave, buscar: a.buscar, timeoutMs: q.modelo === MODELO ? 15_000 : 60_000 });
     if (!r.ok) return null;
     const resumo = String(entradaDe<{ resumo?: unknown }>(r.mensagem)?.resumo ?? "").replace(/\s+/g, " ").trim();
     return resumo.length >= 10 ? cortarResumo(resumo) : null;
@@ -92,7 +92,7 @@ export async function resumirConversa(a: { chave: string; buscar?: typeof fetch;
  * Depois da resposta. Grava pelo servidor (a sessão temporária do WhatsApp pode já ter terminado), e o dono da
  * memória é o dono da conversa, lido do banco. Resumo que a pessoa apagou não volta.
  */
-export async function lembrarDaConversa(admin: SupabaseClient, a: { chave: string; buscar?: typeof fetch; conversa: string; modulo: string; historico: MensagemHistorico[]; pergunta: string; resposta: string }) {
+export async function lembrarDaConversa(admin: SupabaseClient, a: { chave: string; buscar?: typeof fetch; conversa: string; modulo: string; historico: MensagemHistorico[]; pergunta: string; resposta: string ; escolha?: EscolhaDeModelo | null }) {
   const { data: c } = await admin.from("sara_conversas").select("organization_id, profile_id").eq("id", a.conversa).maybeSingle<{ organization_id: string; profile_id: string | null }>();
   if (!c?.profile_id) return;
   const dono = { organization_id: c.organization_id, profile_id: c.profile_id };
@@ -104,7 +104,7 @@ export async function lembrarDaConversa(admin: SupabaseClient, a: { chave: strin
   if (SEM_RESUMO.has(a.modulo) || a.historico.length < 2) return;
   const { data: ja } = await admin.from("sara_memoria_pessoa").select("esquecida").eq("conversa_id", a.conversa).maybeSingle<{ esquecida: boolean }>();
   if (ja?.esquecida) return;
-  const resumo = await resumirConversa({ chave: a.chave, buscar: a.buscar, mensagens: [...a.historico, { papel: "pessoa", texto: a.pergunta }, { papel: "sara", texto: a.resposta }] });
+  const resumo = await resumirConversa({ chave: a.chave, buscar: a.buscar, escolha: a.escolha, mensagens: [...a.historico, { papel: "pessoa", texto: a.pergunta }, { papel: "sara", texto: a.resposta }] });
   if (!resumo || !podeGuardar(resumo)) return;
   const { error } = await admin.from("sara_memoria_pessoa").upsert({ ...dono, tipo: "resumo", conversa_id: a.conversa, modulo: a.modulo, texto: resumo }, { onConflict: "conversa_id" });
   if (error) console.error("[sara] memória da pessoa", error.message);

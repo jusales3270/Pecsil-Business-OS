@@ -197,7 +197,47 @@ test("etapa 3: a decisão do roteador (desligado, só registrar, ligado), a cent
   assert.match(resp, /politica\.modo === "ligado" \? decidir\(await classificacaoP\) : null/, "ligado: decide antes de responder");
   assert.match(resp, /if \(politica\.modo === "sombra"\) roteamento = decidir\(await classificacaoP\);/, "só registrar: decide depois, sem atrasar");
   assert.match(resp, /modelo: roteamento\?\.aplicado \? roteamento\.modelo : p\.cfg\.modelo, esforco: roteamento\?\.aplicado \? roteamento\.esforco : undefined/);
-  assert.match(resp, /custo_usd: custoDaResposta\(/, "o custo da resposta vai no registro (vira sara_mensagens.custo_usd)");
+  assert.match(resp, /custo_usd: custoSemAreas != null\s*\? custoDaResposta\([\s\S]*: custoDaResposta\(/, "o custo da resposta vai no registro (vira sara_mensagens.custo_usd)");
   assert.match(resp, /nivel:ferramentas->roteamento->>nivel/, "a continuação herda o nível da resposta anterior");
   assert.match(ler("lib/sara/laco.ts"), /p\.thinking\.type === "adaptive" \? Math\.max\(a\.maxTokens \?\? 1500, 8000\)/, "com o pensar adaptativo, o raciocínio cabe no limite de saída");
+});
+
+test("etapa 4: a escada (esforço antes de modelo), perto do teto sem modelos caros, teto em reais e as rotinas pela política", async () => {
+  const { degrauAcimaDe, decidirRoteamento } = await import("../lib/sara/roteamento.ts");
+  const { POLITICA_PADRAO: P, escolhaDaRotina, escolhaParaTrabalho } = await import("../lib/sara/politica.ts");
+  const { camposDaRotina } = await import("../lib/sara/modelos.ts");
+  const L = { ...P, modo: "ligado" };
+  assert.deepEqual(degrauAcimaDe(L, { nivel: "rapido", modelo: "claude-haiku-5-5", esforco: "low" }, true), { nivel: "rapido", modelo: "claude-haiku-5-5", esforco: "medium", como: "esforço" }, "primeiro mais esforço no mesmo modelo");
+  assert.deepEqual(degrauAcimaDe(L, { nivel: "padrao", modelo: "claude-sonnet-5-5", esforco: "high" }, true), { nivel: "criterio", modelo: "claude-opus-5-5", esforco: "medium", como: "modelo" }, "no alto, o modelo do nível de cima");
+  assert.equal(degrauAcimaDe(L, { nivel: "criterio", modelo: "claude-opus-5-5", esforco: "high" }, false), null, "sem a permissão do profundo, para no topo");
+  const perto = decidirRoteamento({ politica: L, classificacao: { nivel: "criterio", risco: true, motivo: "" }, anterior: null, pergunta: "x", dono: true, diretor: false, central: false, modeloDoCanal: null, economizar: true });
+  assert.deepEqual([perto.nivel, perto.modelo, perto.limitado], ["padrao", "claude-sonnet-5-5", "perto do teto do mês"], "acima de 80% do teto: nada de Opus ou Fable");
+  assert.equal(escolhaDaRotina(P, "vigia"), null, "roteador desligado: as rotinas seguem com o modelo de sempre");
+  assert.deepEqual(escolhaDaRotina(L, "vigia"), { nivel: "criterio", modelo: "claude-opus-5-5", esforco: "medium" });
+  assert.deepEqual(escolhaParaTrabalho(L, "crescimento", "claude-sonnet-5-5"), { modelo: "claude-opus-5-5", esforco: "high" });
+  // O montador da rotina: sem escolha, exatamente como antes; com Opus, folga no limite e a ferramenta vira instrução.
+  assert.deepEqual(camposDaRotina(null, "claude-haiku-5-5", 200, "parecer"), { campos: { model: "claude-haiku-5-5", max_tokens: 200, thinking: { type: "disabled" }, tool_choice: { type: "tool", name: "parecer" } }, modelo: "claude-haiku-5-5", instrucao: null });
+  const op = camposDaRotina({ modelo: "claude-opus-5-5", esforco: "medium" }, "claude-haiku-5-5", 200, "parecer");
+  assert.deepEqual([op.campos.max_tokens, op.campos.thinking.type, op.campos.tool_choice.type, op.campos.output_config.effort], [8000, "adaptive", "auto", "medium"]);
+  assert.match(op.instrucao, /Responda chamando a ferramenta parecer \(obrigatório\)\./);
+  assert.equal(camposDaRotina({ modelo: "gpt-9" }, "claude-haiku-5-5", 200).modelo, "claude-haiku-5-5", "modelo fora do catálogo: o de sempre");
+
+  const resp = ler("lib/sara/responder.ts");
+  assert.match(resp, /const \{ data: gastoUsd \} = await p\.sb\.rpc\("sara_custo_mes"\);/, "teto do mês em reais pela política");
+  assert.match(resp, /if \(gasto >= politica\.tetoMesReais\) \{[\s\S]*status: 429/);
+  assert.match(resp, /economizar = gasto >= politica\.tetoMesReais \* 0\.8;/);
+  assert.match(resp, /if \(roteamento\?\.aplicado && !fora && !sigilo && \(semFonteAntes > 0 \|\| reprovada\)\) \{/, "a escada só com o roteador ligado e a resposta recusada");
+  assert.match(resp, /const acima = degrauAcimaDe\(politica, roteamento, podeProf\);/);
+  assert.match(resp, /if \(melhorou\) \{/, "só fica a nova resposta se passar melhor");
+  assert.match(resp, /custoSemAreas = custoPrimeira \+ custoNova;/, "o custo das duas tentativas entra no registro");
+  for (const [arquivo, trabalho] of [["lib/sara/central/bom-dia-executar.ts", "bom_dia"], ["lib/sara/central/vigia-executar.ts", "vigia"], ["lib/sara/central/crescimento-executar.ts", "crescimento"],
+    ["app/api/tarefas/route.ts", "tarefas"], ["app/api/sara/aprendizado/route.ts", "habilidades"], ["app/api/sara/[modulo]/voz-ao-vivo/rotear/route.ts", "roteador_voz"]]) {
+    assert.match(ler(arquivo), new RegExp(`escolhaDaRotina(?:DaEmpresa|Pela)\\([^)]*"${trabalho}"\\)`), `${arquivo}: a rotina ${trabalho} segue a política`);
+  }
+  for (const t of ["conferir_saida", "memoria", "habilidades"]) assert.match(resp, new RegExp(`escolhaDaRotina\\(politica, "${t}"\\)`));
+  for (const arquivo of ["lib/sara/conferir-saida.ts", "lib/sara/memoria-pessoa.ts", "lib/sara/habilidades.ts", "lib/tarefas/ler.ts", "lib/sara/central/bom-dia.ts", "lib/sara/central/vigia.ts", "lib/sara/central/crescimento.ts", "lib/contabil/sentinela/extracao.ts"]) {
+    assert.match(ler(arquivo), /camposDaRotina\(/, `${arquivo}: o pedido sai do montador (nenhuma combinação recusada pela API)`);
+    assert.doesNotMatch(ler(arquivo), /semPensar\(/, `${arquivo}: sem o modelo fixo`);
+  }
+  assert.match(ler("app/api/sara/politica/route.ts"), /TRABALHOS\.filter\(\(t\) => t !== "sentinela"\)/, "a Sentinela ainda não lê a política: não aparece para escolher");
 });

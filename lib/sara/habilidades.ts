@@ -1,5 +1,6 @@
 import { filtrarEstado } from "../decisao/guard.ts";
-import { semPensar, type Ferramenta } from "./base.ts";
+import type { Ferramenta } from "./base.ts";
+import { camposDaRotina, type EscolhaDeModelo } from "./modelos.ts";
 import { chamarClaude, entradaDe, type CorpoClaude } from "./motor/anthropic.ts";
 
 /**
@@ -67,21 +68,21 @@ export function instrucoesDeHabilidades(h: HabilidadeAtiva[]): string {
  * habilidades só com as consultas do módulo. Pergunta com dado pessoal fica de fora.
  */
 export async function analisarConversas(a: {
-  chave: string; buscar?: typeof fetch; modelo?: string; empresa: string; rotulo: string; perguntas: string[]; ferramentas: { nome: string; descricao: string }[];
+  chave: string; buscar?: typeof fetch; modelo?: string; escolha?: EscolhaDeModelo | null; empresa: string; rotulo: string; perguntas: string[]; ferramentas: { nome: string; descricao: string }[];
 }): Promise<{ propostas: Proposta[]; usadas: number; tokens: number }> {
+  const q = camposDaRotina(a.escolha ?? (a.modelo ? { modelo: a.modelo } : null), "claude-haiku-5-5", 3000, "propor_habilidades");
   const perguntas = [...new Set(a.perguntas.map((p) => p.trim()).filter((p) => p.length >= 6 && filtrarEstado(p).ok))].slice(0, 250);
   if (perguntas.length < 4) return { propostas: [], usadas: perguntas.length, tokens: 0 };
   const corpo: CorpoClaude = {
-    // Haiku: aceita forçar a resposta pela ferramenta (saída estruturada); o Sonnet 5.5 não aceita.
-    model: a.modelo ?? "claude-haiku-5-5", max_tokens: 3000, thinking: semPensar(a.modelo ?? "claude-haiku-5-5"),
-    system: `Você analisa como as pessoas da ${a.empresa} usam o assistente do módulo ${a.rotulo}. Ache TRABALHOS REPETITIVOS: o mesmo pedido (ou a mesma combinação de pedidos) que aparece várias vezes. Para cada um que se repete ao menos 3 vezes, proponha uma habilidade: uma rotina com nome, só com as consultas listadas abaixo. Vale a pena quando a rotina junta duas ou mais consultas, ou sempre usa o mesmo filtro e o mesmo jeito de apresentar (ex.: "toda segunda: o que vence na semana + como fica o caixa, em tabela"). Uma pergunta simples, que o assistente já responde direto com uma consulta, NÃO vira habilidade. Não invente consulta. Se nada assim se repete, não proponha nada.\nConsultas do módulo:\n${a.ferramentas.map((f) => `- ${f.nome}: ${f.descricao}`).join("\n")}`,
+    // O montador (I-32): no Haiku, a ferramenta é obrigatória; num modelo que não aceita forçar, vai a instrução no texto.
+    ...q.campos,
+    system: `${q.instrucao ? `${q.instrucao}\n` : ""}Você analisa como as pessoas da ${a.empresa} usam o assistente do módulo ${a.rotulo}. Ache TRABALHOS REPETITIVOS: o mesmo pedido (ou a mesma combinação de pedidos) que aparece várias vezes. Para cada um que se repete ao menos 3 vezes, proponha uma habilidade: uma rotina com nome, só com as consultas listadas abaixo. Vale a pena quando a rotina junta duas ou mais consultas, ou sempre usa o mesmo filtro e o mesmo jeito de apresentar (ex.: "toda segunda: o que vence na semana + como fica o caixa, em tabela"). Uma pergunta simples, que o assistente já responde direto com uma consulta, NÃO vira habilidade. Não invente consulta. Se nada assim se repete, não proponha nada.\nConsultas do módulo:\n${a.ferramentas.map((f) => `- ${f.nome}: ${f.descricao}`).join("\n")}`,
     messages: [{ role: "user", content: `Perguntas feitas ao assistente nos últimos dias (uma por linha):\n${perguntas.map((p) => `- ${p.slice(0, 300)}`).join("\n")}` }],
     tools: [{ name: "propor_habilidades", description: "Registra as habilidades propostas.", input_schema: { type: "object", properties: {
       habilidades: { type: "array", items: { ...ESQUEMA_PROPOSTA, properties: { ...ESQUEMA_PROPOSTA.properties, vezes: { type: "integer", description: "Quantas vezes o pedido apareceu." }, exemplos: { type: "array", items: { type: "string" } } } } },
     }, required: ["habilidades"] } }],
-    tool_choice: { type: "tool", name: "propor_habilidades" },
-  };
-  const r = await chamarClaude(corpo, { chave: a.chave, buscar: a.buscar, timeoutMs: 90_000 });
+  } as CorpoClaude;
+  const r = await chamarClaude(corpo, { chave: a.chave, buscar: a.buscar, timeoutMs: q.campos.thinking.type === "adaptive" ? 240_000 : 90_000 });
   if (!r.ok) throw new Error(`Análise indisponível: ${r.status} ${r.erro}`.trim());
   const j = r.mensagem;
   const bruto = entradaDe<{ habilidades?: unknown[] }>(j)?.habilidades ?? [];
@@ -105,19 +106,19 @@ export const pedidoRecorrente = (pergunta: string) =>
   /\b(tod[ao]s? (as |os )?(segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo|semana|dia|m[eê]s|manhã|manha|in[ií]cio|come[cç]o|fim|final)s?|sempre que|toda vez que|semanalmente|mensalmente|diariamente|todo fechamento|a cada (semana|m[eê]s|dia))/i.test(pergunta);
 
 /** Nome, descrição e formato de uma habilidade montada a partir das consultas que a SARA de fato usou. */
-export async function nomearHabilidade(a: { chave: string; buscar?: typeof fetch; rotulo: string; pergunta: string; passos: Passo[] }): Promise<Proposta> {
+export async function nomearHabilidade(a: { chave: string; buscar?: typeof fetch; rotulo: string; pergunta: string; passos: Passo[]; escolha?: EscolhaDeModelo | null }): Promise<Proposta> {
+  const q = camposDaRotina(a.escolha, "claude-haiku-5-5", 400, "nomear");
   const reserva: Proposta = { nome: a.pergunta.replace(/\s+/g, " ").trim().slice(0, 60), descricao: a.pergunta.slice(0, 300), gatilhos: [a.pergunta.slice(0, 160)], passos: a.passos, formato: null };
   try {
     const r = await chamarClaude({
-        model: "claude-haiku-5-5", max_tokens: 400, thinking: semPensar("claude-haiku-5-5"),
-        system: `Dê nome a uma rotina do assistente do módulo ${a.rotulo}. Em português do Brasil, curto e claro.`,
+        ...q.campos,
+        system: `Dê nome a uma rotina do assistente do módulo ${a.rotulo}. Em português do Brasil, curto e claro.${q.instrucao ? ` ${q.instrucao}` : ""}`,
         messages: [{ role: "user", content: `Pedido recorrente da pessoa: "${a.pergunta.slice(0, 500)}"\nConsultas usadas: ${a.passos.map((p) => p.ferramenta).join(", ")}` }],
         tools: [{ name: "nomear", description: "Nome, descrição e formato da rotina.", input_schema: { type: "object", properties: {
           nome: { type: "string", description: "Até 6 palavras (ex.: \"Resumo da semana do caixa\")." }, descricao: { type: "string" }, gatilho: { type: "string", description: "Um jeito curto de pedir." }, formato: { type: "string" },
           para_que: { type: "array", items: { type: "string" }, description: "Para que serve cada consulta, na mesma ordem (curto)." },
         }, required: ["nome", "descricao", "gatilho"] } }],
-        tool_choice: { type: "tool", name: "nomear" },
-      }, { chave: a.chave, buscar: a.buscar, timeoutMs: 15_000 });
+      } as CorpoClaude, { chave: a.chave, buscar: a.buscar, timeoutMs: q.campos.thinking.type === "adaptive" ? 60_000 : 15_000 });
     const x = r.ok ? entradaDe<{ nome?: string; descricao?: string; gatilho?: string; formato?: string; para_que?: string[] }>(r.mensagem) : null;
     if (!x?.nome) return reserva;
     const passos = a.passos.map((p, i) => (x.para_que?.[i] ? { ...p, para_que: String(x.para_que[i]).slice(0, 200) } : p));

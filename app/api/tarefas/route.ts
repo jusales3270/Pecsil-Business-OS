@@ -1,3 +1,4 @@
+import { escolhaDaRotinaPela } from "../../../lib/sara/politica";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { requireUserSession } from "../../../lib/supabase/session";
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
     const chave = process.env.ANTHROPIC_API_KEY?.trim() ?? "";
     if (!chave) return NextResponse.json({ error: "A leitura pela SARA não está configurada no servidor." }, { status: 503 });
     const { data: org } = await a.sb.from("organizations").select("display_name, legal_name").limit(1).maybeSingle();
-    const lido = await lerCombinados({ chave, empresa: org?.display_name || org?.legal_name || "empresa", texto: String(corpo?.texto ?? "") });
+    const lido = await lerCombinados({ chave, empresa: org?.display_name || org?.legal_name || "empresa", escolha: await escolhaDaRotinaPela(a.sb, "tarefas"), texto: String(corpo?.texto ?? "") });
     if ("erro" in lido) return NextResponse.json({ error: lido.erro }, { status: 400 });
     const { pessoas, responsaveisDaArea } = await pessoasEResponsaveis(a.sb);
     const itens = conferirItens(lido.itens, { pessoas, responsaveisDaArea, areas: AREAS_DAS_TAREFAS, hoje: agoraSP().dia });

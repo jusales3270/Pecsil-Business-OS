@@ -18,7 +18,7 @@
  */
 
 import type { CorpoClaude, MensagemClaude } from "../motor/anthropic.ts";
-import { pedidoPara } from "../modelos.ts";
+import { camposDaRotina, type EscolhaDeModelo } from "../modelos.ts";
 
 /* ---- voz da SARA (OpenAI GPT-Live): ao vivo, na mensagem de voz e na resposta em áudio do WhatsApp ---- */
 export const MODELO_AO_VIVO = "gpt-live-1";
@@ -215,17 +215,16 @@ export function conversaParaRotear(conversa: FalaDaConversa[]): string {
 }
 
 /** O pedido ao Claude para rotear: Haiku, sem pensamento, obrigado a chamar uma função. */
-export function pedidoDoRoteador(areas: AreaDeVoz[], conversa: FalaDaConversa[], modelo: string = MODELO_ROTEADOR): CorpoClaude {
-  // O montador (I-32) devolve o pensar e o tool_choice que o modelo aceita: no Haiku, ferramenta forçada e sem pensar;
-  // num modelo que recusa ferramenta forçada, "auto" com a instrução no texto.
-  const p = pedidoPara(modelo, { forcar: "any" });
+export function pedidoDoRoteador(areas: AreaDeVoz[], conversa: FalaDaConversa[], escolha: string | EscolhaDeModelo | null = null): CorpoClaude {
+  // O montador (I-32): no Haiku, ferramenta forçada e sem pensar; num modelo que recusa ferramenta forçada, "auto" com a
+  // instrução no texto. O modelo vem da política da empresa (roteador ligado); sem ela, o de sempre.
+  const q = camposDaRotina(typeof escolha === "string" ? { modelo: escolha } : escolha, MODELO_ROTEADOR, 400, "any");
   return {
-    model: modelo, max_tokens: 400, thinking: p.thinking as CorpoClaude["thinking"],
+    ...q.campos,
     system: instrucoesDoRoteador(areas),
     tools: ferramentasDoRoteador(areas),
-    ...(p.tool_choice ? { tool_choice: p.tool_choice as CorpoClaude["tool_choice"] } : {}),
-    messages: [{ role: "user", content: `${conversaParaRotear(conversa)}${p.instrucao ? `\n${p.instrucao}` : ""}` }],
-  };
+    messages: [{ role: "user", content: `${conversaParaRotear(conversa)}${q.instrucao ? `\n${q.instrucao}` : ""}` }],
+  } as CorpoClaude;
 }
 
 /**

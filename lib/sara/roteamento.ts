@@ -10,8 +10,8 @@
  */
 
 import { custoUsd } from "./custo.ts";
-import { doCatalogo, type Esforco } from "./modelos.ts";
-import { nivelFinal, ROTULO_NIVEL, type Classificacao, type Nivel } from "./nivel.ts";
+import { ESFORCOS, doCatalogo, type Esforco } from "./modelos.ts";
+import { degrauAcima, nivelFinal, ROTULO_NIVEL, type Classificacao, type Nivel } from "./nivel.ts";
 import { escolhaDoNivel, podeProfundo, type ModoRoteador, type Politica } from "./politica.ts";
 
 export type Roteamento = {
@@ -27,24 +27,47 @@ export type Roteamento = {
   porque_nao?: string;
   classificador_ms?: number;
   classificador_usd?: number;
+  /** Perto do teto do mês (80%): ficou no máximo no nível padrão, sem os modelos caros. */
+  limitado?: string;
+  /** Subiu um degrau porque a primeira resposta não passou na conferência (a escada). */
+  subiu?: { de: string; para: string; como: "esforço" | "modelo"; porque: string; melhorou: boolean };
 };
 
 export function decidirRoteamento(a: {
   politica: Politica; classificacao: Classificacao | null; anterior: Nivel | null; pergunta: string;
   dono: boolean; diretor: boolean; central: boolean; modeloDoCanal: string | null;
+  /** O gasto do mês passou de 80% do teto em reais: nada de critério ou profundo (modelos caros). */
+  economizar?: boolean;
 }): Roteamento | null {
   if (a.politica.modo === "desligado") return null;
-  const nivel = nivelFinal(a.classificacao, {
+  let nivel = nivelFinal(a.classificacao, {
     anterior: a.anterior, pergunta: a.pergunta, padrao: "padrao",
     podeProfundo: podeProfundo(a.politica, { dono: a.dono, diretor: a.diretor }),
     minimo: a.central ? "padrao" : undefined,
   });
+  const limitado = a.economizar && (nivel === "criterio" || nivel === "profundo") ? "perto do teto do mês" : undefined;
+  if (limitado) nivel = "padrao";
   const e = escolhaDoNivel(a.politica, nivel);
   const porqueNao = a.politica.modo === "sombra" ? "só registrar" : a.modeloDoCanal ? "o número de WhatsApp tem modelo fixo" : null;
   return {
     modo: a.politica.modo, nivel, sugerido: a.classificacao?.nivel ?? null, motivo: a.classificacao?.motivo ?? null, risco: a.classificacao?.risco ?? false,
-    modelo: e.modelo, esforco: e.esforco, aplicado: !porqueNao, ...(porqueNao ? { porque_nao: porqueNao } : {}),
+    modelo: e.modelo, esforco: e.esforco, aplicado: !porqueNao, ...(porqueNao ? { porque_nao: porqueNao } : {}), ...(limitado ? { limitado } : {}),
   };
+}
+
+/**
+ * A escada (guia da Anthropic): quando a resposta não passa na conferência, sobe um degrau. Primeiro mais esforço
+ * no mesmo modelo, até o alto (acima disso, um nível de esforço custa como um modelo maior); depois o modelo do
+ * nível de cima, dentro da política e da permissão. null: já está no topo permitido.
+ */
+export function degrauAcimaDe(p: Politica, atual: { nivel: Nivel; modelo: string; esforco: Esforco }, podeProfundo: boolean): { nivel: Nivel; modelo: string; esforco: Esforco; como: "esforço" | "modelo" } | null {
+  const m = doCatalogo(atual.modelo), i = ESFORCOS.indexOf(atual.esforco), alto = ESFORCOS.indexOf("high");
+  if (m && i >= 0 && i < alto && m.esforcos.includes(ESFORCOS[i + 1])) return { nivel: atual.nivel, modelo: atual.modelo, esforco: ESFORCOS[i + 1], como: "esforço" };
+  const n = degrauAcima(atual.nivel, podeProfundo);
+  if (!n) return null;
+  const e = escolhaDoNivel(p, n);
+  const mesmo = e.modelo === atual.modelo && ESFORCOS.indexOf(e.esforco) <= i;
+  return mesmo ? null : { nivel: n, modelo: e.modelo, esforco: e.esforco, como: "modelo" };
 }
 
 /** "Análise com critério · Opus 5.5" (o passo da resposta e o registro). */

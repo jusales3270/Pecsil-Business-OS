@@ -152,7 +152,23 @@ A linha inicial é criada para todas as organizações (`insert ... select from 
   | Sonnet alto | 21 s | US$ 0,11 | boa recomendação |
   | Opus médio | 42 s | US$ 0,14 | a mesma e mais dois achados de julgamento: o capital de giro do Itaú em aberto, e o total vencido inflado pelos lançamentos sem conciliar |
 
-- **Decisão que fica com o proprietário:** critério no Opus médio (melhor julgamento, mais lento) ou no Sonnet alto (metade do tempo). Na voz e no WhatsApp, o tempo pesa mais.
+- **Decisão do proprietário (14/11/2026): critério no Opus médio** ("vamos de Opus então, seguindo esses critérios"). É o padrão já gravado na política da Pecsil.
+
+**Etapa 4: escada, rotinas e teto em reais (14/11/2026).**
+- **A escada** (`degrauAcimaDe`). Com o roteador ligado, a resposta recusada na conferência é refeita uma vez, um degrau acima. Recusada quer dizer: número sem fonte na central, ou texto de saída reprovado.
+  - Primeiro sobe o esforço no mesmo modelo, até o alto; depois vai para o modelo do nível de cima, dentro da política e da permissão.
+  - Só fica a nova resposta se ela passar melhor. O custo das duas tentativas entra no registro.
+- **Teto do mês em reais:**
+  - passou do teto, a SARA para (429) e avisa o proprietário;
+  - acima de 80%, critério e profundo ficam no nível padrão, sem Opus ou Fable.
+- **As rotinas seguem a política** quando o roteador está ligado: Bom dia, vigia, relatório de crescimento, conferência de saída, memória, habilidades, leitura de reunião e roteador da voz.
+  - Todas montam o pedido por `camposDaRotina`: sem escolha, o pedido sai igual ao de antes; com Opus, o pensar é adaptativo, o limite de saída tem folga e a ferramenta obrigatória vira instrução no texto.
+- **A Sentinela do Contábil-Fiscal ficou de fora.** O agendamento dela não pôde ser lido: a proteção de privacidade bloqueou, porque o arquivo parece guardar o e-mail da conta, provavelmente como contato nas consultas aos sites oficiais. A linha dela foi tirada da tela até o arquivo ser revisto.
+- **Teste real:**
+  - as 6 rotinas no Opus, chamadas direto, sem gravar nada: 6 de 6;
+  - a busca na internet do relatório funciona no Opus;
+  - o teto em reais em R$ 0,00 para a SARA (429) e, sem teto, ela volta a responder: 2 de 2.
+- Suíte 925 de 925.
 
 ## Etapas (QA e commit em cada uma; migração só com o "pode aplicar" do dono)
 0. **Medição, sem mudar nada:** um script lê as perguntas dos últimos 60 dias em `sara_mensagens`.

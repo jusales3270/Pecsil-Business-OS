@@ -7,7 +7,7 @@
  * confiança cai para baixa e o valor some); o valor tem de ter as mesmas chaves do atual; a chave tem de
  * estar entre as candidatas da triagem.
  */
-import { semPensar } from "../../sara/base";
+import { camposDaRotina, type EscolhaDeModelo } from "../../sara/modelos";
 import { chamarClaude, entradaDe, type CorpoClaude } from "../../sara/motor/anthropic";
 
 export type Candidato = { chave: string; titulo: string; valor: unknown };
@@ -122,14 +122,16 @@ export function validarExtracao(bruto: unknown, texto: string, candidatos: Candi
 }
 
 /** Chama o modelo. Sem chave ou com falha: null (a proposta sai só da regra, como sinal). */
-export async function extrair(a: { chave: string; buscar?: typeof fetch; fonte: string; titulo: string; url: string; texto: string; candidatos: Candidato[]; teses: TeseCandidata[] }) {
+export async function extrair(a: { chave: string; buscar?: typeof fetch; fonte: string; titulo: string; url: string; texto: string; candidatos: Candidato[]; teses: TeseCandidata[]; escolha?: EscolhaDeModelo | null }) {
   if (!a.chave) return null;
+  // O modelo vem da política da empresa (roteador ligado); sem ela, o de sempre (I-32).
+  const q = camposDaRotina(a.escolha, MODELO_SENTINELA, 1500, "proposta");
   try {
     const r = await chamarClaude({
-        model: MODELO_SENTINELA, max_tokens: 1500, thinking: semPensar(MODELO_SENTINELA), system: REGRA_EXTRACAO,
-        tools: [ferramentaProposta(a.candidatos.map((c) => c.chave), a.teses.map((t) => t.id))] as unknown as CorpoClaude["tools"], tool_choice: { type: "tool", name: "proposta" },
+        ...q.campos, system: `${REGRA_EXTRACAO}${q.instrucao ? `\n\n${q.instrucao}` : ""}`,
+        tools: [ferramentaProposta(a.candidatos.map((c) => c.chave), a.teses.map((t) => t.id))] as unknown as CorpoClaude["tools"],
         messages: [{ role: "user", content: pedidoDeExtracao(a) }],
-      }, { chave: a.chave, buscar: a.buscar, timeoutMs: 60_000 });
+      } as CorpoClaude, { chave: a.chave, buscar: a.buscar, timeoutMs: q.campos.thinking.type === "adaptive" ? 180_000 : 60_000 });
     if (!r.ok) return null;
     const entrada = entradaDe<unknown>(r.mensagem);
     if (!entrada) return null;

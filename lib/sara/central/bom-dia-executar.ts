@@ -10,6 +10,7 @@ import { agoraSP } from "../tempo";
 import { semExpressoes, semTags, tratamento } from "../personalidade";
 import { paraWhatsApp } from "../../whatsapp/mensagem";
 import { bomDiaNoWhatsapp, lerConfigVigia } from "./vigia-config";
+import { escolhaDaRotinaDaEmpresa } from "../politica";
 import { BOM_DIA, DIAS_DA_SEMANA, escreverBomDia, itensDasTarefas, janelaDoBomDia, moduloDoBomDia, ordenarItens, recebeBomDia, resumoDoBomDia, type ItemBomDia } from "./bom-dia";
 
 /**
@@ -101,7 +102,7 @@ async function rodarUm(admin: SupabaseClient, l: Linha): Promise<string> {
     const semana = DIAS_DA_SEMANA[new Date(`${l.dia}T12:00:00-03:00`).getUTCDay()];
     // Passou do teto do mês do módulo: sai o texto da plataforma (sem custo de modelo).
     const semModelo = Number(uso ?? 0) >= Number(cfg?.teto_tokens_mes ?? 2_000_000);
-    const e = await escreverBomDia({ chave: semModelo ? "" : process.env.ANTHROPIC_API_KEY?.trim() ?? "", nome, data: agora.data.slice(0, 5), semana, itens, restantes });
+    const e = await escreverBomDia({ chave: semModelo ? "" : process.env.ANTHROPIC_API_KEY?.trim() ?? "", escolha: await escolhaDaRotinaDaEmpresa(admin, l.organization_id, "bom_dia"), nome, data: agora.data.slice(0, 5), semana, itens, restantes });
     const urgentes = itens.filter((i) => i.nivel === "urgente").length;
     const { data: reg, error } = await s.sb.rpc("sara_registrar", {
       p_conversa: null, p_modulo: modulo, p_pergunta: `☀️ Bom dia · ${semana}, ${agora.data.slice(0, 5)}`, p_resposta: e.texto,

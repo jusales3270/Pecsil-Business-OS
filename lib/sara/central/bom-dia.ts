@@ -1,5 +1,5 @@
-import { semPensar } from "../base.ts";
-import { chamarClaude, textoDe } from "../motor/anthropic.ts";
+import { chamarClaude, textoDe, type CorpoClaude } from "../motor/anthropic.ts";
+import { camposDaRotina, type EscolhaDeModelo } from "../modelos.ts";
 import { conferirNumeros } from "./verificador.ts";
 
 /**
@@ -117,15 +117,17 @@ export type Escrito = { texto: string; modelo: string; tokensEntrada: number; to
  * O texto do Bom dia: o Haiku escreve com os fatos; o verificador confere cada número com eles. Falhou,
  * demorou ou errou um número: vale o texto da plataforma (o Bom dia sai igual, só menos fluido).
  */
-export async function escreverBomDia(a: { chave: string; buscar?: typeof fetch; nome: string; data: string; semana: string; itens: ItemBomDia[]; restantes: number }): Promise<Escrito> {
+export async function escreverBomDia(a: { chave: string; buscar?: typeof fetch; nome: string; data: string; semana: string; itens: ItemBomDia[]; restantes: number; escolha?: EscolhaDeModelo | null }): Promise<Escrito> {
   const reserva = (semFonte: string[] = [], tokensEntrada = 0, tokensSaida = 0): Escrito => ({ texto: textoDaPlataforma(a), modelo: "plataforma", tokensEntrada, tokensSaida, daPlataforma: true, semFonte });
   if (!a.chave) return reserva();
   const fatos = a.itens.map((i, k) => `${k + 1}. [${i.nivel === "urgente" ? "URGENTE" : i.tipo === "decisao" ? "DECISÃO" : i.tipo === "acao" ? "AÇÃO PARA PERMITIR" : i.tipo === "tarefa" ? "TAREFA" : i.tipo === "guia" ? "GUIA" : i.tipo === "novidade" ? "NOVIDADE" : "AVISO"}] ${i.area}: ${i.titulo}${i.detalhe ? `. ${i.detalhe}` : ""}`).join("\n");
   try {
+    // O modelo vem da política da empresa (roteador ligado); sem ela, o de sempre (I-32).
+    const q = camposDaRotina(a.escolha, BOM_DIA.modelo, 700);
     const r = await chamarClaude({
-        model: BOM_DIA.modelo, max_tokens: 700, thinking: semPensar(BOM_DIA.modelo), system: REGRA_BOM_DIA,
+        ...q.campos, system: REGRA_BOM_DIA,
         messages: [{ role: "user", content: `Pessoa: ${a.nome || "(sem nome)"}\nHoje: ${a.semana}, ${a.data}\n${a.restantes ? `Há mais ${a.restantes} itens menos importantes fora da lista (diga só que existem).\n` : ""}Fatos:\n${fatos}` }],
-      }, { chave: a.chave, buscar: a.buscar, timeoutMs: 30_000 });
+      } as CorpoClaude, { chave: a.chave, buscar: a.buscar, timeoutMs: q.campos.thinking.type === "adaptive" ? 90_000 : 30_000 });
     if (!r.ok) return reserva();
     const texto = textoDe(r.mensagem).trim();
     const ent = Number(r.mensagem.usage?.input_tokens ?? 0), sai = Number(r.mensagem.usage?.output_tokens ?? 0);
@@ -133,6 +135,6 @@ export async function escreverBomDia(a: { chave: string; buscar?: typeof fetch; 
     // Todo número do texto tem de estar nos fatos (o dia de hoje conta como fato).
     const c = conferirNumeros(texto, [fatos, `${a.data} ${a.restantes}`]);
     if (c.semFonte.length) return reserva(c.semFonte, ent, sai);
-    return { texto, modelo: BOM_DIA.modelo, tokensEntrada: ent, tokensSaida: sai, daPlataforma: false, semFonte: [] };
+    return { texto, modelo: q.modelo, tokensEntrada: ent, tokensSaida: sai, daPlataforma: false, semFonte: [] };
   } catch { return reserva(); }
 }
