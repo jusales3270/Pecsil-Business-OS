@@ -44,6 +44,18 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-14-sara-modelos-esforco",
+    data: "2026-11-14",
+    area: "SARA",
+    titulo: "Modelos e esforço da SARA",
+    modulos: ["fundacao"],
+    funcionalidades: ["fundacao.auditoria"],
+    itens: [
+      "Nova seção em Fundação › O que a SARA aprendeu: cada pedido feito à SARA é classificado (consulta rápida, tarefa definida, análise com critério ou análise profunda) e cada tipo usa o modelo e o esforço escolhidos ali.",
+      "Começa desligado. Em \"Só registrar\", a SARA continua como hoje e anota o que escolheria, para comparar antes de ligar. Quem pode a análise profunda, o teto do mês em reais e o nível das rotinas automáticas também ficam ali.",
+    ],
+  },
+  {
     id: "2026-11-11-sara-voz-openai",
     data: "2026-11-11",
     area: "SARA",

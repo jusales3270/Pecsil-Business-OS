@@ -9,7 +9,7 @@ import { PROPOR_HABILIDADE, instrucoesDeHabilidades, nomearHabilidade, pareceLac
 import { linhaDoMarcador, novoMarcador, RESPOSTA_SIGILO, vazouInstrucoes } from "./injecao";
 import { regrasDaSara } from "./modulos";
 import { ACOES } from "./acoes";
-import { iniciarPasso } from "./progresso";
+import { iniciarPasso, passoFeito } from "./progresso";
 import { parametrosUsados, type Usada } from "./parametros";
 import { validarGuia } from "./guias";
 import { conferirNumeros, marcarSemFonte, type Conferencia } from "./central/verificador";
@@ -26,6 +26,11 @@ import { avisarArea, comParecer, conferirSaida, textosDeSaida, type Parecer } fr
 import { SARAS } from "./modulos";
 import { createSupabaseAdminClient } from "../supabase/admin";
 import { fotosPendentes, guardarFoto, leituraDaConversa } from "../qualidade/fotos-servidor";
+import { chamarClaude } from "./motor/anthropic";
+import { custoUsd } from "./custo";
+import { NIVEIS, classificacaoDe, pedidoDoClassificador, type Nivel } from "./nivel";
+import { POLITICA_PADRAO, escolhaDoTrabalho, lerPolitica } from "./politica";
+import { custoDaResposta, decidirRoteamento, rotuloDoRoteamento, type Roteamento } from "./roteamento";
 
 
 /**
@@ -113,8 +118,21 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   // Pergunta e resposta são gravadas no mesmo instante (mesmo created_at): no empate, "pessoa" vem antes
   // de "sara" (ordem alfabética do papel). Sem isso o histórico sai trocado e a SARA responde a pergunta anterior.
   const historico = conversa
-    ? ((await p.sb.from("sara_mensagens").select("papel, texto, created_at").eq("conversa_id", conversa).order("created_at", { ascending: false }).order("papel", { ascending: false }).limit(24)).data ?? []).reverse() as { papel: "pessoa" | "sara"; texto: string; created_at: string }[]
+    ? ((await p.sb.from("sara_mensagens").select("papel, texto, created_at, nivel:ferramentas->roteamento->>nivel").eq("conversa_id", conversa).order("created_at", { ascending: false }).order("papel", { ascending: false }).limit(24)).data ?? []).reverse() as { papel: "pessoa" | "sara"; texto: string; created_at: string; nivel?: string | null }[]
     : [];
+  // I-32 (roteador de modelo e esforço): a política de modelos da empresa e, se o roteador não estiver desligado, a
+  // classificação do pedido, em paralelo com o resto da preparação (não atrasa a resposta).
+  const ultimaSara = [...historico].reverse().find((m) => m.papel === "sara") ?? null;
+  const politicaP = lerPolitica(p.sb).catch(() => POLITICA_PADRAO);
+  const classificacaoP = politicaP.then(async (pol) => {
+    if (pol.modo === "desligado") return null;
+    const inicio = Date.now();
+    const esc = escolhaDoTrabalho(pol, "classificador");
+    const rc = await chamarClaude(pedidoDoClassificador({ pergunta, ultimaResposta: ultimaSara?.texto ?? null, canal: corpo?.canal ?? (corpo?.voz ? "voz" : null), anexo: Boolean(anexo), imagem: Boolean(imagem), central: Boolean(p.sara.central) }, esc.modelo),
+      { chave: process.env.ANTHROPIC_API_KEY?.trim() ?? "", timeoutMs: 6000 }).catch(() => null);
+    return { c: rc?.ok ? classificacaoDe(rc.mensagem) : null, ms: Date.now() - inicio,
+      usd: rc?.ok ? custoUsd({ modelo: esc.modelo, tokens_entrada: rc.mensagem.usage.input_tokens, tokens_saida: rc.mensagem.usage.output_tokens, cache_lido: 0, cache_gravado: 0 }) : 0 };
+  });
   // Fontes que já estão na conversa: as respostas anteriores (conferidas; sem o aviso do que NÃO teve fonte) e
   // os números que a própria pessoa disse. Valem para a calculadora, o painel e os documentos da central.
   const fontesDaConversa = historico.map((m) => m.texto.replace(/⚠️?\s*Sem fonte conferida:[^\n]*/g, ""));
@@ -130,7 +148,7 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   // Pela voz da SARA central, a conversa já foi aberta por ela (o cumprimento já foi dito): a área vai direto à resposta.
   const situacao = corpo?.voz && !p.sara.central ? { tipo: "continua" as const, ultima: null, ontem: false } : situacaoDaConversa(historico.at(-1)?.created_at ?? null);
   const [{ data: me }, { data: org }] = await Promise.all([
-    p.sb.from("profiles").select("full_name").eq("id", (await p.sb.rpc("current_profile_id")).data).maybeSingle(),
+    p.sb.from("profiles").select("full_name, job_title").eq("id", (await p.sb.rpc("current_profile_id")).data).maybeSingle(),
     p.sb.from("organizations").select("display_name, legal_name").limit(1).maybeSingle(),
   ]);
   const empresa = org?.display_name || org?.legal_name || "empresa";
@@ -172,14 +190,25 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
   const tema = temaDe(modulo);
   const verificacao = verificar({ empresa, pergunta, contexto: contextoParaVerificar(pergunta, ultima), tema: tema?.assunto ?? null }).then((v) => { if (!v.dentro) parar.abort(); return v; });
   const inicioRota = Date.now();
+  // I-32: com o roteador ligado, o modelo e o esforço desta resposta vêm do nível do pedido (política da empresa).
+  const politica = await politicaP;
+  const nivelAnterior = NIVEIS.includes(ultimaSara?.nivel as Nivel) ? (ultimaSara?.nivel as Nivel) : null;
+  const decidir = (cls: { c: ReturnType<typeof classificacaoDe>; ms: number; usd: number } | null): Roteamento | null => {
+    const d = decidirRoteamento({ politica, classificacao: cls?.c ?? null, anterior: nivelAnterior, pergunta, dono: p.access.isOwner, diretor: me?.job_title === "diretor", central: Boolean(p.sara.central), modeloDoCanal: doCanal.modelo ?? null });
+    return d && cls ? { ...d, classificador_ms: cls.ms, classificador_usd: cls.usd } : d;
+  };
+  let roteamento: Roteamento | null = politica.modo === "ligado" ? decidir(await classificacaoP) : null;
+  if (roteamento?.aplicado) passoFeito("pensando", rotuloDoRoteamento(roteamento));
   let r: RespostaSara | null = null;
   let falha: unknown = null;
-  const argsConversa = { modelo: p.cfg.modelo, sistema, historico, pergunta, ferramentas: corpo?.canal === "whatsapp" ? p.ferramentas.filter((f) => !["mostrar", "mostrar_grafo", "abrir_tela", "abrir_lancamento", "abrir_registro"].includes(f.nome)) : p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined, maxVisuais: p.sara.central ? 8 : undefined, aoMostrar: p.documentos?.numerar };
+  const argsConversa = { modelo: roteamento?.aplicado ? roteamento.modelo : p.cfg.modelo, esforco: roteamento?.aplicado ? roteamento.esforco : undefined, sistema, historico, pergunta, ferramentas: corpo?.canal === "whatsapp" ? p.ferramentas.filter((f) => !["mostrar", "mostrar_grafo", "abrir_tela", "abrir_lancamento", "abrir_registro"].includes(f.nome)) : p.ferramentas, todasAsConsultas: [...FERRAMENTAS.map((f) => f.nome), ...ACOES.map((f) => f.nome), "consultar_dados", "buscar_documentos_do_setor"], sinal: parar.signal, pesquisa: tema ? { dominios: tema.dominios, maxBuscas: tema.maxBuscas ?? 3 } : null, maxTokens: p.sara.maxTokens, imagem, anexo, rodadas: p.sara.central ? 10 : undefined, maxVisuais: p.sara.central ? 8 : undefined, aoMostrar: p.documentos?.numerar };
   try {
     // Pesquisa na internet só nos sites do tema do módulo (lib/sara/temas.ts).
     r = await conversar(p.sb, argsConversa);
   } catch (e) { falha = e; }
   const v = await verificacao;
+  // "Só registrar": a classificação correu em paralelo; anota o que o roteador escolheria, sem ter trocado nada.
+  if (politica.modo === "sombra") roteamento = decidir(await classificacaoP);
   const textoRecusa = recusa(empresa, p.sara.rotulo);
   let fora: "verificador" | "modelo" | null = null;
   if (!v.dentro) {
@@ -250,7 +279,11 @@ export async function responder(p: Preparado, modulo: string, corpo: Corpo | nul
       lacunas: r.ferramentas.filter((f) => f.nome === LACUNA.nome).map((f) => String((f.entrada as { assunto?: string })?.assunto ?? "").slice(0, 300)),
       ...(r.falhasDoModelo?.length ? { falhas_do_modelo: r.falhasDoModelo } : {}),
       ...(parecer ? { conferencia_saida: { aprovada: parecer.aprovada, motivo: parecer.motivo, area: parecer.area, falhou: parecer.falhou } } : {}),
-      ...(p.sara.central ? { verificador: conferencia, subagentes: p.subagentes, documentos: p.documentos?.criados ?? [] } : {}) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
+      ...(p.sara.central ? { verificador: conferencia, subagentes: p.subagentes, documentos: p.documentos?.criados ?? [] } : {}),
+      // I-32: o nível e o modelo escolhidos (ou que seriam, em "só registrar") e o custo da resposta em US$, com as
+      // SARAs das áreas consultadas pela central e o classificador (vira sara_mensagens.custo_usd, para o teto em reais).
+      ...(roteamento ? { roteamento } : {}),
+      custo_usd: custoDaResposta({ modelo: r.modelo, tokensEntrada: r.tokensEntrada, tokensSaida: r.tokensSaida, cacheLido: r.cacheLido, cacheGravado: r.cacheGravado }, p.subagentes, roteamento?.classificador_usd ?? 0) }, p_modelo: r.modelo, p_tokens_entrada: r.tokensEntrada, p_tokens_saida: r.tokensSaida,
   });
   if (error) console.error("[sara] não registrou a conversa", error.message);
   passoGravar.fim(!error);

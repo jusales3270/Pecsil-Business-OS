@@ -230,7 +230,8 @@ export async function conversarCom(sb: SupabaseClient, a: {
     // O pedido válido para este modelo (o reserva pode ser outro: o pensar e o esforço são remontados para ele).
     const p = pedidoPara(modelo, { esforco: a.esforco });
     const r = await chamarClaude({
-      model: modelo, max_tokens: a.maxTokens ?? 1500, thinking: p.thinking as CorpoClaude["thinking"], ...(p.output_config ? { output_config: p.output_config } : {}),
+      // Com o pensar adaptativo (Opus, Fable, esforço alto), o raciocínio também conta no limite de saída: mais folga.
+      model: modelo, max_tokens: p.thinking.type === "adaptive" ? Math.max(a.maxTokens ?? 1500, 8000) : a.maxTokens ?? 1500, thinking: p.thinking as CorpoClaude["thinking"], ...(p.output_config ? { output_config: p.output_config } : {}),
       system: blocosDoSistema(a.sistema) as CorpoClaude["system"],
       messages: comCacheNoFim(mensagens) as CorpoClaude["messages"], ...(tools.length ? { tools: tools as unknown as CorpoClaude["tools"] } : {}),
     }, { chave, buscar: a.buscar, timeoutMs: 60_000, sinal: a.sinal });

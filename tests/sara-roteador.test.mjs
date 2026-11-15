@@ -167,3 +167,37 @@ test("etapa 2: a política vem do banco por empresa, validada pelo catálogo; qu
   assert.match(tela, /\(m\?\.esforcos \?\? \[\]\)\.map/, "o seletor de esforço só oferece o que o modelo aceita");
   assert.match(ler("app/components/sara-aprendizado.tsx"), /<ModelosEEsforco notify=\{notify\} \/>/);
 });
+
+test("etapa 3: a decisão do roteador (desligado, só registrar, ligado), a central nunca abaixo do padrão e o custo com as áreas", async () => {
+  const { decidirRoteamento, custoDaResposta, rotuloDoRoteamento } = await import("../lib/sara/roteamento.ts");
+  const { POLITICA_PADRAO: P } = await import("../lib/sara/politica.ts");
+  const c = (nivel) => ({ nivel, risco: nivel === "criterio", motivo: "teste" });
+  const base = { classificacao: c("criterio"), anterior: null, pergunta: "Qual fornecedor você recomenda?", dono: false, diretor: false, central: false, modeloDoCanal: null };
+  assert.equal(decidirRoteamento({ ...base, politica: P }), null, "desligado (o padrão): nada muda");
+  const sombra = decidirRoteamento({ ...base, politica: { ...P, modo: "sombra" } });
+  assert.deepEqual([sombra.nivel, sombra.modelo, sombra.esforco, sombra.aplicado, sombra.porque_nao], ["criterio", "claude-opus-5-5", "medium", false, "só registrar"]);
+  const ligado = decidirRoteamento({ ...base, politica: { ...P, modo: "ligado" } });
+  assert.ok(ligado.aplicado); assert.equal(ligado.modelo, "claude-opus-5-5");
+  const canal = decidirRoteamento({ ...base, politica: { ...P, modo: "ligado" }, modeloDoCanal: "claude-haiku-5-5" });
+  assert.ok(!canal.aplicado && /modelo fixo/.test(canal.porque_nao), "o número de WhatsApp com modelo fixo vence");
+  const central = decidirRoteamento({ ...base, classificacao: c("rapido"), central: true, politica: { ...P, modo: "ligado" } });
+  assert.equal(central.nivel, "padrao", "a central coordena as outras SARAs: nunca no Haiku");
+  const semPermissao = decidirRoteamento({ ...base, classificacao: c("profundo"), politica: { ...P, modo: "ligado", profundoPara: "proprietario" } });
+  assert.equal(semPermissao.nivel, "criterio");
+  const diretor = decidirRoteamento({ ...base, classificacao: c("profundo"), diretor: true, politica: { ...P, modo: "ligado", profundoPara: "diretoria" } });
+  assert.deepEqual([diretor.nivel, diretor.esforco], ["profundo", "high"]);
+  assert.equal(rotuloDoRoteamento(ligado), "Análise com critério · Opus 5.5");
+  const principal = { modelo: "claude-sonnet-5-5", tokensEntrada: 1_000_000, tokensSaida: 0, cacheLido: 0, cacheGravado: 0 };
+  const areas = [{ modelo: "claude-haiku-5-5", tokensEntrada: 1_000_000, tokensSaida: 0, cacheLido: 0, cacheGravado: 0 }];
+  assert.equal(custoDaResposta(principal, areas, 0.001), 2 + 0.1 + 0.001, "as SARAs das áreas consultadas pela central entram no custo (antes ficavam de fora)");
+
+  const resp = ler("lib/sara/responder.ts");
+  assert.match(resp, /const politicaP = lerPolitica\(p\.sb\)/);
+  assert.match(resp, /if \(pol\.modo === "desligado"\) return null;/, "desligado: nem chama o classificador");
+  assert.match(resp, /politica\.modo === "ligado" \? decidir\(await classificacaoP\) : null/, "ligado: decide antes de responder");
+  assert.match(resp, /if \(politica\.modo === "sombra"\) roteamento = decidir\(await classificacaoP\);/, "só registrar: decide depois, sem atrasar");
+  assert.match(resp, /modelo: roteamento\?\.aplicado \? roteamento\.modelo : p\.cfg\.modelo, esforco: roteamento\?\.aplicado \? roteamento\.esforco : undefined/);
+  assert.match(resp, /custo_usd: custoDaResposta\(/, "o custo da resposta vai no registro (vira sara_mensagens.custo_usd)");
+  assert.match(resp, /nivel:ferramentas->roteamento->>nivel/, "a continuação herda o nível da resposta anterior");
+  assert.match(ler("lib/sara/laco.ts"), /p\.thinking\.type === "adaptive" \? Math\.max\(a\.maxTokens \?\? 1500, 8000\)/, "com o pensar adaptativo, o raciocínio cabe no limite de saída");
+});

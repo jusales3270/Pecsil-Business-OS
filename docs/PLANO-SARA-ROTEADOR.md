@@ -131,6 +131,29 @@ A linha inicial é criada para todas as organizações (`insert ... select from 
   - o aviso do Fable aparece; claro, escuro e celular funcionam.
   - A linha da política foi restaurada igual à original.
 
+**Etapa 3, o roteador na resposta (14/11/2026).**
+- `lib/sara/roteamento.ts` decide (regras puras) e `lib/sara/responder.ts` chama a decisão:
+  - a política e a classificação começam em paralelo com o resto da preparação;
+  - **desligado:** não chama o classificador;
+  - **só registrar:** decide depois da resposta, sem atrasar;
+  - **ligado:** decide antes e troca o modelo e o esforço.
+- O número de WhatsApp com modelo fixo vence, e a SARA central nunca fica abaixo do nível padrão.
+- O laço dá folga no limite de saída com o pensar adaptativo (8.000).
+- Cada resposta grava `ferramentas.roteamento` e `ferramentas.custo_usd`, que vira a coluna `custo_usd`. O custo inclui as SARAs das áreas consultadas pela central e o classificador.
+- **Teste real: 8 de 8.**
+  - Só registrar: o modelo não muda e o nível fica anotado.
+  - Ligado: a pergunta direta foi para o Haiku low (4 s, US$ 0,001) e a recomendação com risco para o Opus médio (34 s, US$ 0,23).
+  - "e as do mês que vem?" herdou o critério.
+  - A central ficou no Sonnet (9 s, US$ 0,06), com o custo das áreas somado.
+- **Comparação do critério, mesma pergunta ("quais contas adiar se o caixa apertar"):**
+
+  | Critério com | Tempo | Custo | Resultado |
+  |---|---|---|---|
+  | Sonnet alto | 21 s | US$ 0,11 | boa recomendação |
+  | Opus médio | 42 s | US$ 0,14 | a mesma e mais dois achados de julgamento: o capital de giro do Itaú em aberto, e o total vencido inflado pelos lançamentos sem conciliar |
+
+- **Decisão que fica com o proprietário:** critério no Opus médio (melhor julgamento, mais lento) ou no Sonnet alto (metade do tempo). Na voz e no WhatsApp, o tempo pesa mais.
+
 ## Etapas (QA e commit em cada uma; migração só com o "pode aplicar" do dono)
 0. **Medição, sem mudar nada:** um script lê as perguntas dos últimos 60 dias em `sara_mensagens`.
    - Roda o classificador em cada uma e compara o custo real com o custo pela política padrão.
