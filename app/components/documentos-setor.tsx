@@ -29,8 +29,8 @@ type ResumoLeitura = { total: number; lidos: number; pendentesOcr: number; semTe
 type Setor = { modulo: string; rotulo: string };
 type Lista = { documentos: Documento[]; setores: Setor[]; envio: Setor[]; isOwner: boolean; leitura: ResumoLeitura | null };
 
-const ORIGEM: Record<string, string> = { envio: "Enviado à mão", extrato: "Extrato bancário", nota: "Nota fiscal", recebimento: "Recebimento do Almoxarifado", coleta: "Coleta de arquivos" };
-const LIGACAO: Record<string, string> = { fiscal_icms_entry: "ligado ao Painel do ICMS", receipt: "ligado ao recebimento" };
+const ORIGEM: Record<string, string> = { envio: "Enviado à mão", extrato: "Extrato bancário", nota: "Nota fiscal", recebimento: "Recebimento do Almoxarifado", coleta: "Coleta de arquivos", sefaz: "Distribuído pela SEFAZ", emissao: "Nota emitida", escritorio: "Escritório contábil", email: "Anexo de e-mail" };
+const LIGACAO: Record<string, string> = { fiscal_icms_entry: "ligado ao Painel do ICMS", receipt: "ligado ao recebimento", email: "ligado ao e-mail" };
 const METODO: Record<string, string> = { pdf: "PDF", docx: "Word", xlsx: "Excel", xls: "Excel", xml: "XML", ofx: "OFX", txt: "texto", ocr: "OCR" };
 /** Situação da leitura do texto, para a marca do documento. */
 function situacaoLeitura(l: Documento["leitura"]): { tom: "success" | "neutral" | "attention" | "danger"; texto: string } {

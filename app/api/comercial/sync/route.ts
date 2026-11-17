@@ -53,6 +53,8 @@ export async function POST(request: Request) {
       ignoradas: conta.ignoradas,
       paginas: conta.paginas,
       incompleta: conta.incompleta,
+      anexos: conta.anexos,
+      anexosComErro: conta.anexosComErro,
       erro: conta.erro,
     })),
   });

@@ -2,11 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CAMPOS_DELTA,
+  DIAS_DE_ANEXO,
+  LIMITE_ANEXO,
   LIMITE_CORPO,
+  decidirAnexo,
+  desdeQuandoBaixarAnexos,
   deveGuardar,
   htmlParaTexto,
+  interpretarAnexo,
   interpretarMensagem,
   proximoPasso,
+  urlAnexos,
+  urlConteudoAnexo,
   urlPrimeiraRodada,
 } from "../lib/mail/sync-core.ts";
 
@@ -109,4 +116,67 @@ test("primeira rodada pede só a Entrada, com os campos mínimos", () => {
   assert.ok(decodeURIComponent(url).includes(CAMPOS_DELTA));
   // Nada de anexo na leitura: anexo não é pedido ao provedor.
   assert.ok(!CAMPOS_DELTA.includes("attachments,"));
+});
+
+// --- Anexos (desenhos dos pedidos; proprietário, 16/11/2026) ---------------------------------------
+
+const anexoBruto = (extra = {}) => ({
+  "@odata.type": "#microsoft.graph.fileAttachment",
+  id: "AAMk-anexo-1",
+  name: "Molde 750ml.step",
+  contentType: "application/octet-stream",
+  size: 9_400_000,
+  isInline: false,
+  ...extra,
+});
+
+test("anexo do Graph vira registro com espécie, tamanho e nome", () => {
+  const anexo = interpretarAnexo(anexoBruto());
+  assert.deepEqual(anexo, {
+    graphId: "AAMk-anexo-1",
+    nome: "Molde 750ml.step",
+    tipoMime: "application/octet-stream",
+    tamanho: 9_400_000,
+    inline: false,
+    especie: "arquivo",
+  });
+  assert.equal(interpretarAnexo(anexoBruto({ id: null })), null);
+  assert.equal(interpretarAnexo(anexoBruto({ name: "" })).nome, "anexo");
+  assert.equal(interpretarAnexo(anexoBruto({ size: "x" })).tamanho, 0);
+  assert.equal(interpretarAnexo(anexoBruto({ "@odata.type": "#microsoft.graph.itemAttachment" })).especie, "mensagem");
+  assert.equal(interpretarAnexo(anexoBruto({ "@odata.type": "#microsoft.graph.referenceAttachment" })).especie, "link");
+});
+
+test("desenho do pedido é guardado, inclusive o STEP grande e o PDF marcado como inline", () => {
+  assert.deepEqual(decidirAnexo(interpretarAnexo(anexoBruto())), { guardar: true });
+  assert.deepEqual(decidirAnexo(interpretarAnexo(anexoBruto({ size: LIMITE_ANEXO }))), { guardar: true });
+  // Alguns programas de e-mail marcam o PDF como inline: continua sendo arquivo do pedido.
+  const pdf = anexoBruto({ name: "Desenho.pdf", contentType: "application/pdf", isInline: true, size: 30_000 });
+  assert.deepEqual(decidirAnexo(interpretarAnexo(pdf)), { guardar: true });
+  // Print do desenho colado no corpo (imagem grande) também fica.
+  const print = anexoBruto({ name: "image001.png", contentType: "image/png", isInline: true, size: 400_000 });
+  assert.deepEqual(decidirAnexo(interpretarAnexo(print)), { guardar: true });
+});
+
+test("logotipo da assinatura, link, e-mail anexado e arquivo gigante ficam de fora com o motivo", () => {
+  const logo = anexoBruto({ name: "image002.png", contentType: "image/png", isInline: true, size: 12_000 });
+  assert.match(decidirAnexo(interpretarAnexo(logo)).motivo, /logotipo/);
+  assert.match(decidirAnexo(interpretarAnexo(anexoBruto({ "@odata.type": "#microsoft.graph.referenceAttachment" }))).motivo, /OneDrive/);
+  assert.match(decidirAnexo(interpretarAnexo(anexoBruto({ "@odata.type": "#microsoft.graph.itemAttachment" }))).motivo, /E-mail anexado/);
+  const gigante = decidirAnexo(interpretarAnexo(anexoBruto({ size: LIMITE_ANEXO + 1 })));
+  assert.equal(gigante.guardar, false);
+  assert.match(gigante.motivo, /50 MB/);
+});
+
+test("endereços dos anexos: lista sem conteúdo e conteúdo bruto pelo $value", () => {
+  const lista = urlAnexos("comercial@pecsil.com.br", "AAMk=id/1");
+  assert.equal(lista, "/users/comercial%40pecsil.com.br/messages/AAMk%3Did%2F1/attachments?$select=id,name,contentType,size,isInline");
+  assert.ok(!lista.includes("contentBytes"));
+  assert.equal(urlConteudoAnexo("comercial@pecsil.com.br", "m1", "a=1"), "/users/comercial%40pecsil.com.br/messages/m1/attachments/a%3D1/$value");
+});
+
+test("anexo só das mensagens dos últimos dias de anexo", () => {
+  const agora = new Date("2026-11-16T12:00:00Z");
+  const desde = new Date(desdeQuandoBaixarAnexos(agora));
+  assert.equal((agora.getTime() - desde.getTime()) / 86_400_000, DIAS_DE_ANEXO);
 });

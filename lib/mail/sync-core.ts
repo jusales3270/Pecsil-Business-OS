@@ -48,8 +48,11 @@ export const CAMPOS_DELTA = [
   "body",
 ].join(",");
 
-/** Limite do corpo guardado. O classificador usa menos que isso. */
-export const LIMITE_CORPO = 4000;
+/**
+ * Limite do corpo guardado. A plataforma lê o e-mail inteiro (proprietário, 16/11/2026): o pedido do
+ * cliente pode vir em lista longa no corpo. O classificador usa menos que isso.
+ */
+export const LIMITE_CORPO = 20000;
 
 /**
  * Entidades nomeadas que aparecem de verdade em e-mail brasileiro. Sem os
@@ -196,6 +199,77 @@ export function proximoPasso(resposta: { "@odata.nextLink"?: unknown; "@odata.de
   // Sem nenhum dos dois o Graph mudou de contrato: parar é melhor que repetir
   // a mesma página para sempre.
   return { tipo: "indefinido" as const, url: null };
+}
+
+// --- Anexos -------------------------------------------------------------------
+// É nos anexos que chegam os desenhos dos pedidos (PDF, DWG, STEP) para o orçamento. O delta não traz
+// anexo: a mensagem guardada com `hasAttachments` tem os anexos listados e baixados numa segunda etapa.
+
+/** Teto de um anexo guardado: o mesmo do armazenamento do servidor (50 MB). */
+export const LIMITE_ANEXO = 50 * 1024 * 1024;
+/** Imagem colada no corpo abaixo disso é logotipo ou assinatura, não desenho. */
+export const LIMITE_IMAGEM_DO_CORPO = 100 * 1024;
+
+export type Anexo = {
+  graphId: string;
+  nome: string;
+  tipoMime: string | null;
+  tamanho: number;
+  inline: boolean;
+  /** 'arquivo' = arquivo de verdade; 'mensagem' = e-mail anexado; 'link' = link do OneDrive/SharePoint. */
+  especie: "arquivo" | "mensagem" | "link";
+};
+
+const ESPECIES: Record<string, Anexo["especie"]> = {
+  "#microsoft.graph.fileAttachment": "arquivo",
+  "#microsoft.graph.itemAttachment": "mensagem",
+  "#microsoft.graph.referenceAttachment": "link",
+};
+
+/**
+ * Anexo só de mensagem recente: a primeira leitura passa pela Entrada inteira, e baixar o anexo de
+ * anos de e-mail encheria o servidor. Pedido antigo, quem precisar abre pelo Outlook.
+ */
+export const DIAS_DE_ANEXO = 90;
+
+export function desdeQuandoBaixarAnexos(agora: Date = new Date()): string {
+  return new Date(agora.getTime() - DIAS_DE_ANEXO * 86_400_000).toISOString();
+}
+
+/** Lista dos anexos de uma mensagem, sem o conteúdo (o conteúdo vem um a um, pelo `$value`). */
+export function urlAnexos(mailboxId: string, graphId: string): string {
+  return `/users/${encodeURIComponent(mailboxId)}/messages/${encodeURIComponent(graphId)}/attachments?$select=id,name,contentType,size,isInline`;
+}
+
+/** Conteúdo bruto de um anexo. */
+export function urlConteudoAnexo(mailboxId: string, graphId: string, anexoId: string): string {
+  return `/users/${encodeURIComponent(mailboxId)}/messages/${encodeURIComponent(graphId)}/attachments/${encodeURIComponent(anexoId)}/$value`;
+}
+
+/** Item da lista de anexos → anexo, ou null quando não tem id. */
+export function interpretarAnexo(bruto: Record<string, unknown>): Anexo | null {
+  const graphId = texto(bruto.id);
+  if (!graphId) return null;
+  const tamanho = Number(bruto.size);
+  return {
+    graphId,
+    nome: (texto(bruto.name) ?? "anexo").slice(0, 255),
+    tipoMime: texto(bruto.contentType),
+    tamanho: Number.isFinite(tamanho) && tamanho > 0 ? tamanho : 0,
+    inline: bruto.isInline === true,
+    especie: ESPECIES[String(bruto["@odata.type"])] ?? "arquivo",
+  };
+}
+
+/** Guardar este anexo? Quando não, o motivo aparece para quem abre o e-mail. */
+export function decidirAnexo(anexo: Anexo): { guardar: true } | { guardar: false; motivo: string } {
+  if (anexo.especie === "link") return { guardar: false, motivo: "Link do OneDrive ou SharePoint: abrir pelo Outlook." };
+  if (anexo.especie === "mensagem") return { guardar: false, motivo: "E-mail anexado: abrir pelo Outlook." };
+  if (anexo.inline && anexo.tipoMime?.toLowerCase().startsWith("image/") && anexo.tamanho < LIMITE_IMAGEM_DO_CORPO) {
+    return { guardar: false, motivo: "Imagem do corpo do e-mail (logotipo ou assinatura)." };
+  }
+  if (anexo.tamanho > LIMITE_ANEXO) return { guardar: false, motivo: "Acima de 50 MB: baixar pelo Outlook." };
+  return { guardar: true };
 }
 
 /** Primeira leitura de uma caixa: só a Entrada, mais recentes primeiro. */

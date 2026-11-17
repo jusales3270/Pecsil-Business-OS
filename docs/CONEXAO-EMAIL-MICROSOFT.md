@@ -11,13 +11,12 @@
 
 | Caixa | O aplicativo pode | O aplicativo **não** pode |
 |---|---|---|
-| `comercial@pecsil.com.br` | ler as mensagens (com o corpo), marcar como lida e **enviar** em nome dela | nada além desta caixa |
-| Caixa do diretor de operações | ler **remetente, assunto e data** | ler o corpo, ler anexo, enviar |
+| `comercial@pecsil.com.br` | ler as mensagens (com o corpo e os anexos), marcar como lida e **enviar** em nome dela | nada além desta caixa |
+| Caixa do diretor de operações | ler as mensagens (com o corpo e os anexos) | enviar |
 
-A caixa do diretor entra com permissão reduzida de propósito: o Business OS
-precisa saber que um cliente conhecido escreveu, não precisa ler o que ele
-escreveu. Para trazer o conteúdo, o diretor encaminha a mensagem para
-`comercial@`.
+As duas caixas entram por inteiro, com os anexos (decisão do proprietário,
+16/11/2026): é nos anexos que chegam os desenhos dos pedidos (PDF, DWG, STEP)
+para fazer o orçamento. Os anexos ficam em **Documentos › Comercial**.
 
 ---
 
@@ -72,8 +71,8 @@ New-ManagementScope -Name "BOS-Diretor" -RecipientRestrictionFilter "MemberOfGro
 New-ManagementRoleAssignment -App <ID do aplicativo> -Role "Application Mail.ReadWrite" -CustomResourceScope "BOS-Comercial"
 New-ManagementRoleAssignment -App <ID do aplicativo> -Role "Application Mail.Send"      -CustomResourceScope "BOS-Comercial"
 
-# 3.5 — na caixa do diretor, somente o básico (sem corpo, sem anexo, sem envio).
-New-ManagementRoleAssignment -App <ID do aplicativo> -Role "Application Mail.ReadBasic" -CustomResourceScope "BOS-Diretor"
+# 3.5 — na caixa do diretor, leitura completa (corpo e anexos), sem envio.
+New-ManagementRoleAssignment -App <ID do aplicativo> -Role "Application Mail.Read" -CustomResourceScope "BOS-Diretor"
 ```
 
 **Conferir antes de sair** (deve mostrar `InScope: True` só onde é esperado):
@@ -127,10 +126,13 @@ depender dela.
 No Business OS: **Comercial › CRM › Conexão**.
 
 1. O aviso "Falta para o CRM começar a receber e-mail" deve desaparecer.
-2. Cadastrar as duas caixas em **+ Nova caixa**:
-   - `comercial@pecsil.com.br` → *Caixa da empresa — lê tudo, com o corpo*;
-   - caixa do diretor → *Caixa de pessoa — só remetentes conhecidos, sem o corpo*.
+2. Cadastrar as duas caixas em **+ Nova caixa**, as duas como
+   *Caixa da empresa — lê tudo, com o corpo*: `comercial@pecsil.com.br` e a
+   caixa do diretor.
 3. Em até 5 minutos, cada caixa deve sair de "nunca sincronizou" para uma data.
+   Os anexos das mensagens dos últimos 90 dias aparecem em **Documentos ›
+   Comercial**, com a origem "Anexo de e-mail" (até 20 mensagens por rodada; o
+   resto entra nas rodadas seguintes).
 4. Se aparecer **Com erro**, a mensagem diz o que falta. Os casos comuns:
 
 | Mensagem | O que fazer |
@@ -139,10 +141,3 @@ No Business OS: **Comercial › CRM › Conexão**.
 | "Microsoft negou o acesso a esta caixa (403)" | falta o papel do passo 3 para **aquela** caixa, ou o cache ainda não virou |
 | "Caixa não encontrada (404)" | o endereço cadastrado no passo 2 da conferência está diferente do real |
 | "Microsoft pediu para esperar (429)" | normal em carga; a próxima rodada tenta de novo |
-
-## Antes de a caixa do diretor entrar
-
-A caixa dele só registra mensagem de **remetente já cadastrado**. Então, antes:
-cadastrar os clientes e os e-mails deles em **Fundação › Cadastros › Clientes**.
-Sem isso, aquela caixa não registra nada — o que é o comportamento certo, não
-uma falha.

@@ -7,8 +7,9 @@ import "server-only";
  * `NEXT_PUBLIC_*`). O escopo é `.default`: quem decide o que o aplicativo pode
  * fazer, e em QUAIS caixas, é o Exchange Online — via RBAC for Applications,
  * com um papel por caixa. É lá que a caixa comercial ganha leitura completa e
- * envio, e a caixa do diretor de operações ganha só `Mail.ReadBasic` (remetente,
- * assunto e data, sem corpo). Nada disso é consentido no Entra de forma ampla:
+ * envio, e a caixa do diretor de operações ganha leitura completa, com os anexos
+ * (proprietário, 16/11/2026: é nos anexos que chegam os desenhos dos pedidos).
+ * Nada disso é consentido no Entra de forma ampla:
  * permissão concedida lá valeria para TODAS as caixas da empresa e anularia o
  * escopo (a própria Microsoft documenta que os dois se somam).
  */
@@ -65,17 +66,37 @@ export async function obterToken(config: GraphConfig): Promise<string> {
 
 export type RespostaGraph = Record<string, unknown>;
 
+/**
+ * Id fixo da mensagem: sem isso o id muda quando alguém move o e-mail de pasta, e o anexo de uma
+ * mensagem guardada não seria mais encontrado na rodada seguinte.
+ */
+const ID_FIXO = 'IdType="ImmutableId"';
+
 /** GET no Graph. `alvo` pode ser caminho relativo ou a URL inteira do delta. */
 export async function graphGet(config: GraphConfig, alvo: string): Promise<RespostaGraph> {
   const token = await obterToken(config);
   const url = alvo.startsWith("http") ? alvo : `${GRAPH}${alvo}`;
   const resposta = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", Prefer: "odata.maxpagesize=50" },
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", Prefer: `odata.maxpagesize=50, ${ID_FIXO}` },
     cache: "no-store",
   });
   const dados = (await resposta.json().catch(() => ({}))) as RespostaGraph;
   if (!resposta.ok) throw new Error(mensagemDeErro(resposta.status, dados));
   return dados;
+}
+
+/** GET de conteúdo bruto (o arquivo de um anexo, pelo `$value`). */
+export async function graphGetBytes(config: GraphConfig, alvo: string): Promise<Uint8Array> {
+  const token = await obterToken(config);
+  const resposta = await fetch(`${GRAPH}${alvo}`, {
+    headers: { Authorization: `Bearer ${token}`, Prefer: ID_FIXO },
+    cache: "no-store",
+  });
+  if (!resposta.ok) {
+    const dados = (await resposta.json().catch(() => ({}))) as RespostaGraph;
+    throw new Error(mensagemDeErro(resposta.status, dados));
+  }
+  return new Uint8Array(await resposta.arrayBuffer());
 }
 
 /** Envia e-mail pela caixa indicada (precisa do papel de envio naquela caixa). */
