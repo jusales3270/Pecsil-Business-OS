@@ -44,6 +44,20 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-18-nfe-virada-grv",
+    data: "2026-11-18",
+    area: "Fiscal",
+    titulo: "Notas fiscais prontas para substituir o GRV",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.nfe", "fiscal.config"],
+    itens: [
+      "A nota agora sai da máscara de impostos: escolha a máscara da operação (na nota inteira ou em cada item) e CFOP, CST, alíquotas, código de benefício fiscal e texto legal vêm dela, como no GRV.",
+      "Novas operações na emissão: exportação (destinatário no exterior, local de embarque, exportação indireta), importação (DI e valores da declaração), devolução com IPI devolvido, nota de ajuste do CIAP, sucata e frete próprio com veículo.",
+      "Novo botão \"Começar de uma nota (XML)\": carregue uma nota anterior da mesma operação e a plataforma monta a nova para você conferir.",
+      "As máscaras ganharam o código de benefício fiscal e as regras da base (ICMS por dentro, IPI na base, PIS/COFINS só informativo). Na produção, só sai nota com máscara confirmada pelo Fiscal.",
+    ],
+  },
+  {
     id: "2026-11-14-sara-modelos-esforco",
     data: "2026-11-14",
     area: "SARA",
