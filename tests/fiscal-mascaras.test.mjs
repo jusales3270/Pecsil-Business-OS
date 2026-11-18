@@ -81,7 +81,9 @@ test("nota do orçamento: máscara completa preenche o item; incompleta só dá 
   const pe = { ...completa, id: "pe", codigo: "4", cfop: "6101", natureza: "VENDA DE PRODUCAO DO ESTABELECIMENTO", icms_aliquota: 7, obs_nota: "Redução conforme RICMS." };
   const n1 = notaDoOrcamento({ cliente, linhas: [{ linha, quantidade: 2, produto, mascara: pe, ipiAliquota: 0 }], ufEmitente: "SP", crt: 3 });
   assert.deepEqual([n1.itens[0].cfop, n1.itens[0].icmsCst, n1.itens[0].icmsAliquota, n1.itens[0].icmsReducaoBase, n1.itens[0].pisAliquota, n1.itens[0].mascara], ["6101", "20", 7, 50, 1.65, "4"]);
-  assert.match(n1.infoComplementar, /Redução conforme RICMS/);
+  // A base legal da máscara vai no campo de interesse do fisco (infAdFisco), como o GRV faz; a informação complementar fica com o pedido.
+  assert.equal(n1.infoFisco, "Redução conforme RICMS.");
+  assert.doesNotMatch(n1.infoComplementar, /RICMS/);
   const incompleta = m({ id: "x", codigo: "19", descricao: "6101", cfop: "6101", icms_cst: "20", ipi_cst: "50" });
   const n2 = notaDoOrcamento({ cliente, linhas: [{ linha, quantidade: 2, produto, mascara: incompleta, ipiAliquota: null }], ufEmitente: "SP", crt: 3 });
   assert.deepEqual([n2.itens[0].cfop, n2.itens[0].icmsCst, n2.itens[0].icmsAliquota, n2.itens[0].mascara], ["6101", "00", 12, "19"]);
@@ -136,4 +138,20 @@ test("treino: a nota cita o orçamento de treino (T-) e o orçamento novo nasce 
   assert.match(notaDoOrcamento({ cliente, linhas: [{ linha, quantidade: 1, produto }], ufEmitente: "SP", crt: 3 }).infoComplementar, /^Orçamento #3/);
   assert.equal(normalizarOrcamento({ customer_id: "00000000-0000-0000-0000-000000000009", treino: true, itens: [] }).orcamento.treino, true);
   assert.equal(normalizarOrcamento({ customer_id: "00000000-0000-0000-0000-000000000009", treino: "sim", itens: [] }).orcamento.treino, false);
+});
+
+test("máscara da virada: benefício fiscal, ICMS por dentro, PIS/COFINS informativo e troca inteira dos impostos", async () => {
+  const { aplicarMascaraNoItem, normalizarMascara } = await import("../lib/fiscal/mascaras.ts");
+  const sucata = m({ id: "s", codigo: "1", descricao: "1101 sucata", cfop: "1101", icms_cst: "00", icms_aliquota: 18, ipi_cst: "03", pis_cst: "07", cofins_cst: "07", ibs_cbs_cst: "410", cclasstrib: "410999", icms_por_dentro: true });
+  const conserto = m({ id: "c", codigo: "5915", descricao: "5915", cfop: "5915", icms_cst: "41", ipi_cst: "53", pis_cst: "49", pis_aliquota: 0, cofins_cst: "49", cofins_aliquota: 0, ibs_cbs_cst: "410", cclasstrib: "410999", cbenef: "SP070090", pis_cofins_sem_base: true });
+  const item = { codigo: "X", descricao: "SUCATA", ncm: "72042900", cfop: "5101", unidade: "KG", quantidade: 4510, valorUnitario: 1.85, desconto: 0, origem: 0, icmsCst: "20", icmsAliquota: 18, icmsReducaoBase: 51.11, ipiCst: "51", ipiAliquota: 0, pisCst: "01", pisAliquota: 0.65, cofinsCst: "01", cofinsAliquota: 3, cBenef: "SP020120" };
+  const i1 = aplicarMascaraNoItem(item, sucata, new Map());
+  assert.deepEqual([i1.cfop, i1.icmsCst, i1.icmsReducaoBase, i1.icmsPorDentro, i1.cBenef, i1.ibsCbsCst], ["1101", "00", 0, true, undefined, "410"], "a máscara troca os impostos inteiros: o cBenef da anterior não fica");
+  const { calcularItens } = await import("../lib/fiscal/emissao/calculo.ts");
+  const [c] = calcularItens({ itens: [i1], frete: { modalidade: 9, valor: 0 }, seguro: 0, outrasDespesas: 0, consumidorFinal: false });
+  assert.deepEqual([c.vBC, c.vICMS], [10175, 1831.5], "ICMS por dentro: 8.343,50 ÷ 0,82 (NF 11159 do GRV)");
+  const i2 = aplicarMascaraNoItem(item, conserto, new Map());
+  assert.deepEqual([i2.cBenef, i2.pisCofinsSemBase, i2.icmsPorDentro], ["SP070090", true, undefined]);
+  assert.deepEqual(normalizarMascara({ cbenef: "sp070090", pis_cofins_sem_base: 1, icms_mod_bc: "2" }).patch, { cbenef: "SP070090", pis_cofins_sem_base: true, icms_mod_bc: 2 });
+  assert.match(normalizarMascara({ cbenef: "SP07" }).erros.join(" "), /cBenef/);
 });

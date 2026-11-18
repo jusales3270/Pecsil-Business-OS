@@ -5,6 +5,8 @@ import { autorDaSessao } from "../../../../../lib/fiscal/emissao/servidor";
 
 export const dynamic = "force-dynamic";
 
+const CAMPOS_DA_VIRADA = ["cbenef", "icms_por_dentro", "ipi_na_base_icms", "pis_cofins_sem_base", "icms_mod_bc", "valores_informados"];
+
 type Contexto = { params: Promise<{ id: string }> };
 
 /**
@@ -34,8 +36,15 @@ export async function PUT(request: Request, context: Contexto) {
     if (r.erros.length) return NextResponse.json({ error: r.erros.join(" ") }, { status: 400 });
     patch = r.patch;
   }
-  const { data, error } = await guard.supabase.from("fiscal_mascaras").update(patch).eq("id", id).select("*").maybeSingle();
+  let { data, error } = await guard.supabase.from("fiscal_mascaras").update(patch).eq("id", id).select("*").maybeSingle();
+  // Antes da migração 202611180001 as colunas da virada (cBenef e regras da base) não existem: grava o resto e avisa.
+  let aviso: string | null = null;
+  if (error?.code === "42703") {
+    const resto = Object.fromEntries(Object.entries(patch).filter(([k]) => !CAMPOS_DA_VIRADA.includes(k)));
+    ({ data, error } = await guard.supabase.from("fiscal_mascaras").update(resto).eq("id", id).select("*").maybeSingle());
+    aviso = "O benefício fiscal e as regras novas da base ainda não podem ser gravados (falta aplicar a migração da virada).";
+  }
   if (error) return dbError(error);
   if (!data) return NextResponse.json({ error: "Máscara não encontrada." }, { status: 404 });
-  return NextResponse.json({ mascara: data });
+  return NextResponse.json({ mascara: data, aviso });
 }

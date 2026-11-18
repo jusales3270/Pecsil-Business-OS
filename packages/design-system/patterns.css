@@ -7133,6 +7133,9 @@ button.holiday-row:hover {
 .nfe-campos { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 .nfe-campos > label.nfe-largo { grid-column: span 2; }
 .nfe-campos > label.nfe-cheio { grid-column: 1 / -1; }
+/* Títulos e avisos dentro da grade do item (importação, exportação indireta, regras da máscara): linha inteira. */
+.nfe-campos > p.nfe-cheio { grid-column: 1 / -1; margin: 6px 0 0; }
+.nfe-mais { margin: 4px 0 0; }
 .nfe-campos > label.nfe-check { flex-direction: row; align-items: center; gap: var(--sp-2); grid-column: span 2; cursor: pointer; }
 .nfe-campos > label.nfe-check input { width: 16px; min-height: 0; height: 16px; flex: none; accent-color: var(--accent-blue); }
 .nfe-campos > label.nfe-check > span { margin: 0; }

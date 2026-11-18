@@ -63,7 +63,8 @@ export function notaDoOrcamento(a: {
     infoComplementar: [
       a.treino ? `Orçamento de treino ${orcamentos.map((n) => `T-${n}`).join(", ")}` : `Orçamento ${orcamentos.map((n) => `#${n}`).join(", ")}`,
       pedidos.length ? `Pedido de compra ${pedidos.join(", ")}` : "",
-      ...obsLegais,
     ].filter(Boolean).join(" · "),
+    // A base legal da máscara vai no campo de interesse do fisco, como o GRV faz.
+    ...(obsLegais.length ? { infoFisco: obsLegais.join(" ") } : {}),
   };
 }

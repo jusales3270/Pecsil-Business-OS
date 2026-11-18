@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../../packages/design-system";
 import { calcularItens, calcularTotais, icmsDestaca, ipiTributado, pisCofinsComAliquota, r2 } from "../../../lib/fiscal/emissao/calculo";
+import { exterior } from "../../../lib/fiscal/emissao/destino";
+import { aplicarMascaraNoItem, mascaraDoBanco, situacaoDaMascara, type Mascara } from "../../../lib/fiscal/mascaras";
 import { itemPadrao, notaVazia } from "../../../lib/fiscal/emissao/normalizar";
 import { CSOSN_SIMPLES, CST_ICMS_NORMAL, CST_IPI_ENTRADA, CST_IPI_SAIDA, CST_PIS_COFINS, FORMAS_PAGAMENTO, MODELOS_OPERACAO, type Problema } from "../../../lib/fiscal/emissao/regras";
 import type { NotaDevolvivel } from "../../../lib/fiscal/emissao/devolucao";
@@ -35,6 +37,8 @@ type Inutilizacao = { id: string; serie: number; numero_inicio: number; numero_f
 type Lista = {
   notas: Linha[]; emitente: { razaoSocial: string; cnpj: string; uf: string; crt: number } | null; problemasEmitente: Problema[];
   destinatarios: Destinatario[]; clientes: Cliente[]; inutilizacoes: Inutilizacao[]; podeOperar: boolean; podeAprovar: boolean; transmissor: boolean;
+  /** Máscaras de impostos ativas (a nota escolhe a operação e os impostos saem dela) e o IPI pelo NCM. */
+  mascaras?: Record<string, unknown>[]; ipiPorNcm?: Record<string, number | null>;
   ambiente: Ambiente; ambientes: Ambiente[];
 };
 /** Treino: nada vai à SEFAZ. Homologação: a SEFAZ de teste, com o certificado da empresa (sem valor fiscal). */
@@ -68,7 +72,9 @@ const CST_PC: Record<string, string> = {
   "06": "06 · Alíquota zero", "07": "07 · Isenta", "08": "08 · Sem incidência", "09": "09 · Suspensão", "49": "49 · Outras operações de saída", "50": "50 · Entrada com crédito", "98": "98 · Outras de entrada", "99": "99 · Outras operações",
 };
 const ORIGENS = ["0 · Nacional", "1 · Estrangeira, importação direta", "2 · Estrangeira, comprada no mercado interno", "3 · Nacional, mais de 40% importado", "4 · Nacional, processo produtivo básico", "5 · Nacional, até 40% importado", "6 · Estrangeira direta, sem similar", "7 · Estrangeira no mercado interno, sem similar", "8 · Nacional, mais de 70% importado"];
-const MODALIDADE_FRETE: Record<number, string> = { 0: "Por conta do emitente (CIF)", 1: "Por conta do destinatário (FOB)", 2: "Por conta de terceiros", 9: "Sem frete" };
+const MODALIDADE_FRETE: Record<number, string> = { 0: "Por conta do emitente (CIF)", 1: "Por conta do destinatário (FOB)", 2: "Por conta de terceiros", 3: "Transporte próprio do emitente", 4: "Transporte próprio do destinatário", 9: "Sem frete" };
+/** Natureza de devolução e CFOP de ajuste: a finalidade da nota acompanha a máscara. */
+const finalidadeDaMascara = (m: Mascara): 1 | 3 | 4 | null => (/^DEVOLUCAO/.test(m.natureza ?? "") ? 4 : ["1604", "1605", "5605"].includes(m.cfop) ? 3 : null);
 const UFS = ["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"];
 
 const lerNumero = (t: string) => lerNumeroBr(t);
@@ -279,9 +285,12 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
   const situacao: SituacaoNfe = det?.situacao ?? "rascunho";
   const editavel = lista.podeOperar && (situacao === "rascunho" || situacao === "validada");
   const calculo = useMemo(() => calcularItens(nota), [nota]);
-  const totais = useMemo(() => calcularTotais(calculo), [calculo]);
+  const totais = useMemo(() => calcularTotais(calculo, nota.valorTotalInformado), [calculo, nota.valorTotalInformado]);
   const validacao = sujo ? null : det?.validacao ?? null;
-  const destinoFora = Boolean(nota.destinatario.uf && ufEmitente && nota.destinatario.uf !== ufEmitente);
+  const noExterior = exterior(nota.destinatario.pais);
+  const destinoFora = noExterior || Boolean(nota.destinatario.uf && ufEmitente && nota.destinatario.uf !== ufEmitente);
+  const mascaras = useMemo(() => (lista.mascaras ?? []).map(mascaraDoBanco), [lista.mascaras]);
+  const ipiPorNcm = useMemo(() => new Map(Object.entries(lista.ipiPorNcm ?? {})), [lista.ipiPorNcm]);
 
   const mudar = (fn: (n: NotaNfe) => NotaNfe) => { setNota(fn); setSujo(true); };
   const mudarDest = (parcial: Partial<Destinatario>) => mudar((n) => {
@@ -297,6 +306,34 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
   });
   const setDest = <K extends keyof Destinatario>(k: K, v: Destinatario[K]) => mudarDest({ [k]: v } as Partial<Destinatario>);
   const setItem = <K extends keyof ItemNfe>(k: number, campo: K, v: ItemNfe[K]) => mudar((n) => ({ ...n, itens: n.itens.map((i, j) => (j === k ? { ...i, [campo]: v } : i)) }));
+
+  /** Máscara na nota inteira (k ausente) ou num item: CFOP, CSTs, alíquotas, benefício e regras da base saem dela. */
+  const aplicarMascara = (codigo: string, k?: number) => {
+    const m = mascaras.find((x) => x.codigo === codigo);
+    if (!m) return;
+    mudar((n) => {
+      const itens = n.itens.map((i, j) => (k === undefined || j === k ? aplicarMascaraNoItem(i, m, ipiPorNcm) : i));
+      if (k !== undefined) return { ...n, itens };
+      const fin = finalidadeDaMascara(m);
+      return {
+        ...n, itens, tipo: /^[123]/.test(m.cfop) ? 0 : 1, ...(fin ? { finalidade: fin } : {}),
+        natureza: m.natureza || n.natureza, infoFisco: m.obs_nota || n.infoFisco,
+      };
+    });
+    notify(`Máscara ${m.codigo} aplicada${k === undefined ? " em todos os itens" : ` no item ${k + 1}`}.${situacaoDaMascara(m) !== "confirmada" ? " Ela ainda não foi confirmada pelo Fiscal: a produção não aceita." : ""}`);
+  };
+
+  // Começar de outra nota (XML): o Jefferson parte de uma nota anterior da mesma operação e ajusta.
+  const [lendoXml, setLendoXml] = useState(false);
+  const copiarDeXml = async (arquivo: File) => {
+    setLendoXml(true);
+    const r = await api<{ nota: NotaNfe; origem: { numero: number; emitente: string } }>("/api/fiscal/nfe/de-xml", { method: "POST", body: await arquivo.text(), headers: { "content-type": "application/xml" } });
+    setLendoXml(false);
+    if (!r.ok) { notify(r.error); return; }
+    mudar(() => ({ ...r.data.nota, pagamento: { ...r.data.nota.pagamento, duplicatas: [] } }));
+    setClienteId(null);
+    notify(`Nota ${r.data.origem.numero} de ${r.data.origem.emitente} copiada. Confira tudo, aplique a máscara da operação e gere as parcelas de novo.`);
+  };
 
   const aplicarModelo = (mid: string) => {
     const m = MODELOS_OPERACAO.find((x) => x.id === mid);
@@ -456,6 +493,12 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
         </div>
         <div className="icms-acoes">
           <Status tone={SITUACAO[situacao][1]}>{SITUACAO[situacao][0]}</Status>
+          {editavel && (
+            <label className="ds-button secondary nfe-copiar-xml">
+              {lendoXml ? "Lendo a nota…" : "Começar de uma nota (XML)"}
+              <input type="file" accept=".xml,text/xml,application/xml" hidden disabled={lendoXml} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void copiarDeXml(f); }} />
+            </label>
+          )}
           <Button variant="secondary" onClick={onFechar}>Voltar à lista</Button>
         </div>
       </div>
@@ -479,6 +522,13 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
         <fieldset className="nfe-form" disabled={!editavel || ocupado !== null}>
           <section className="almox-bloco fiscal-config-bloco">
             <header><h2>Operação</h2>
+              {editavel && mascaras.length > 0 && (
+                <select className="nfe-modelo" value="" onChange={(e) => aplicarMascara(e.target.value)} aria-label="Máscara de impostos da nota">
+                  <option value="">Aplicar a máscara de impostos…</option>
+                  <optgroup label="Saídas">{mascaras.filter((m) => /^[567]/.test(m.cfop)).map((m) => <option key={m.id} value={m.codigo}>{m.codigo} · {m.descricao}{situacaoDaMascara(m) === "confirmada" ? "" : situacaoDaMascara(m) === "incompleta" ? " (incompleta)" : " (a confirmar)"}</option>)}</optgroup>
+                  <optgroup label="Entradas">{mascaras.filter((m) => /^[123]/.test(m.cfop)).map((m) => <option key={m.id} value={m.codigo}>{m.codigo} · {m.descricao}{situacaoDaMascara(m) === "confirmada" ? "" : situacaoDaMascara(m) === "incompleta" ? " (incompleta)" : " (a confirmar)"}</option>)}</optgroup>
+                </select>
+              )}
               {editavel && (
                 <select className="nfe-modelo" value="" onChange={(e) => aplicarModelo(e.target.value)} aria-label="Modelo de operação">
                   <option value="">Usar um modelo…</option>
@@ -499,6 +549,26 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
                 <div className="nfe-buscar"><Button type="button" variant="secondary" compact onClick={() => void trazerItensDevolvidos()} disabled={(nota.referencia ?? "").length !== 44 || trazendo}>{trazendo ? "Trazendo…" : "Trazer os itens da nota devolvida"}</Button></div>
               )}
             </div>
+            <div className="fiscal-campos nfe-campos">
+              {nota.finalidade !== 4 && (
+                <label className="nfe-cheio"><span>Outras notas referenciadas<small> · chaves de 44 dígitos, uma por linha (retorno de conserto, exportação indireta, ajuste)</small></span>
+                  <textarea rows={2} value={(nota.referencias ?? []).join("\n")} onChange={(e) => mudar((n) => ({ ...n, referencias: e.target.value.split(/[\s,;]+/).map(so).filter((c) => c.length > 0).map((c) => c.slice(0, 44)) }))} />
+                </label>
+              )}
+              {noExterior && nota.tipo === 1 && (
+                <>
+                  <label><span>UF de embarque<small> · exportação</small></span><select value={nota.exportacao?.ufSaida ?? ""} onChange={(e) => mudar((n) => ({ ...n, exportacao: { localExportacao: "", ...n.exportacao, ufSaida: e.target.value } }))}><option value="">—</option>{UFS.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
+                  <label className="nfe-largo"><span>Local de embarque</span><input value={nota.exportacao?.localExportacao ?? ""} maxLength={60} onChange={(e) => mudar((n) => ({ ...n, exportacao: { ufSaida: "", ...n.exportacao, localExportacao: e.target.value.toUpperCase() } }))} /></label>
+                  <label className="nfe-largo"><span>Local de despacho<small> · opcional</small></span><input value={nota.exportacao?.localDespacho ?? ""} maxLength={60} onChange={(e) => mudar((n) => ({ ...n, exportacao: { ufSaida: "", localExportacao: "", ...n.exportacao, localDespacho: e.target.value.toUpperCase() } }))} /></label>
+                </>
+              )}
+              {nota.itens.some((i) => i.informado) && (
+                <label><span>Total da nota pela DI<small> · vazio = a conta padrão</small></span>
+                  <input inputMode="decimal" value={nota.valorTotalInformado === undefined ? "" : fmt(nota.valorTotalInformado)} onChange={(e) => { const t = e.target.value.trim(); mudar((n) => { const { valorTotalInformado: _x, ...resto } = n; void _x; return t ? { ...resto, valorTotalInformado: lerNumero(t) } : resto; }); }} />
+                </label>
+              )}
+            </div>
+            <Problemas lista={[...errosDo("exportacao"), ...errosDo("valorTotalInformado")]} />
             {nota.finalidade === 4 && <p className="fiscal-nota-ajuda">Desde 03/11/2026 a SEFAZ exige, em cada item da devolução, a nota e o número do item devolvidos (e não aceita mais a chave só no cabeçalho). Item de outra nota: informe a chave no próprio item. Todas as notas devolvidas têm de ser do mesmo emitente.</p>}
             <Problemas lista={[...errosDo("natureza"), ...errosDo("referencia"), ...errosDo("consumidorFinal")]} />
           </section>
@@ -514,23 +584,31 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
               )}
             </header>
             <div className="fiscal-campos nfe-campos">
-              <label><span>CNPJ ou CPF</span><input inputMode="numeric" value={d.documento.length === 14 ? cnpjFormatado(d.documento) : d.documento} onChange={(e) => setDest("documento", so(e.target.value).slice(0, 14))} /></label>
-              {editavel && <div className="nfe-buscar"><Button type="button" variant="secondary" compact onClick={() => void buscarCnpj()} disabled={d.documento.length !== 14 || consultando !== null}>{consultando === "cnpj" ? "Consultando…" : "Buscar pelo CNPJ"}</Button></div>}
+              <label className="nfe-check"><input type="checkbox" checked={noExterior} onChange={(e) => mudarDest(e.target.checked ? { pais: "0000", nomePais: "", documento: "", indIE: 9, uf: "", codigoMunicipio: "", cep: "" } : { pais: undefined, nomePais: undefined, documento: "" })} /><span>Destinatário no exterior<small> · exportação ou importação</small></span></label>
+              {noExterior && (
+                <>
+                  <label><span>Código do país<small> · tabela do BACEN (ex.: 0639 Argentina)</small></span><input inputMode="numeric" value={d.pais ?? ""} maxLength={4} onChange={(e) => setDest("pais", so(e.target.value).slice(0, 4))} /></label>
+                  <label className="nfe-largo"><span>Nome do país</span><input value={d.nomePais ?? ""} maxLength={60} onChange={(e) => setDest("nomePais", e.target.value.toUpperCase())} /></label>
+                  <label className="nfe-largo"><span>Identificação estrangeira<small> · pode ficar vazia</small></span><input value={d.documento} maxLength={20} onChange={(e) => setDest("documento", e.target.value.slice(0, 20))} /></label>
+                </>
+              )}
+              {!noExterior && <label><span>CNPJ ou CPF</span><input inputMode="numeric" value={d.documento.length === 14 ? cnpjFormatado(d.documento) : d.documento} onChange={(e) => setDest("documento", so(e.target.value).slice(0, 14))} /></label>}
+              {editavel && !noExterior && <div className="nfe-buscar"><Button type="button" variant="secondary" compact onClick={() => void buscarCnpj()} disabled={d.documento.length !== 14 || consultando !== null}>{consultando === "cnpj" ? "Consultando…" : "Buscar pelo CNPJ"}</Button></div>}
               <label className="nfe-largo"><span>Razão social / nome</span><input value={d.nome} maxLength={60} onChange={(e) => setDest("nome", e.target.value)} /></label>
               <label className="nfe-largo"><span>Indicador da IE</span><select value={d.indIE} onChange={(e) => setDest("indIE", Number(e.target.value) as 1 | 2 | 9)}><option value={1}>1 · Contribuinte do ICMS</option><option value={2}>2 · Contribuinte isento</option><option value={9}>9 · Não contribuinte</option></select></label>
               <label><span>Inscrição estadual</span><input value={d.ie} maxLength={14} disabled={d.indIE !== 1} onChange={(e) => setDest("ie", so(e.target.value))} /></label>
               <label><span>E-mail para a nota</span><input type="email" value={d.email} maxLength={60} onChange={(e) => setDest("email", e.target.value)} /></label>
-              <label><span>CEP{consultando === "cep" ? <small> · buscando…</small> : <small> · completa o endereço</small>}</span><input inputMode="numeric" value={d.cep} onChange={(e) => { const cep = so(e.target.value).slice(0, 8); setDest("cep", cep); if (cep.length === 8 && cep !== d.cep) void buscarCep(cep); }} /></label>
+              {!noExterior && <label><span>CEP{consultando === "cep" ? <small> · buscando…</small> : <small> · completa o endereço</small>}</span><input inputMode="numeric" value={d.cep} onChange={(e) => { const cep = so(e.target.value).slice(0, 8); setDest("cep", cep); if (cep.length === 8 && cep !== d.cep) void buscarCep(cep); }} /></label>}
               <label className="nfe-largo"><span>Logradouro</span><input value={d.logradouro} maxLength={60} onChange={(e) => setDest("logradouro", e.target.value)} /></label>
               <label><span>Número</span><input value={d.numero} maxLength={60} onChange={(e) => setDest("numero", e.target.value)} /></label>
               <label><span>Complemento</span><input value={d.complemento} maxLength={60} onChange={(e) => setDest("complemento", e.target.value)} /></label>
               <label><span>Bairro</span><input value={d.bairro} maxLength={60} onChange={(e) => setDest("bairro", e.target.value)} /></label>
               <label><span>Município</span><input value={d.municipio} maxLength={60} onChange={(e) => setDest("municipio", e.target.value)} /></label>
-              <label><span>Código IBGE<small> · 7 dígitos</small></span><input inputMode="numeric" value={d.codigoMunicipio} onChange={(e) => setDest("codigoMunicipio", so(e.target.value).slice(0, 7))} /></label>
-              <label><span>UF</span><select value={d.uf} onChange={(e) => setDest("uf", e.target.value)}><option value="">—</option>{UFS.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
+              {!noExterior && <label><span>Código IBGE<small> · 7 dígitos</small></span><input inputMode="numeric" value={d.codigoMunicipio} onChange={(e) => setDest("codigoMunicipio", so(e.target.value).slice(0, 7))} /></label>}
+              {!noExterior && <label><span>UF</span><select value={d.uf} onChange={(e) => setDest("uf", e.target.value)}><option value="">—</option>{UFS.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>}
               <label><span>Telefone</span><input inputMode="tel" value={d.fone} onChange={(e) => setDest("fone", so(e.target.value).slice(0, 14))} /></label>
             </div>
-            {destinoFora && <p className="fiscal-nota-ajuda">Destino em outro estado ({ufEmitente} → {d.uf}): CFOP começando por {nota.tipo === 1 ? "6" : "2"} e, em geral, ICMS interestadual (12% ou 7%; 4% para importados). Confira com o Jefferson/escritório.</p>}
+            {destinoFora && !noExterior && <p className="fiscal-nota-ajuda">Destino em outro estado ({ufEmitente} → {d.uf}): CFOP começando por {nota.tipo === 1 ? "6" : "2"} e, em geral, ICMS interestadual (12% ou 7%; 4% para importados). Confira com o Jefferson/escritório.</p>}
             <Problemas lista={errosDo("destinatario")} />
           </section>
 
@@ -544,6 +622,13 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
                   <header>
                     <b>Item {k + 1}</b>
                     {i.itemOrcamento && <Status tone="info">{`Do orçamento${i.pedidoCompra ? ` · pedido ${i.pedidoCompra}${i.itemPedido ? ` item ${i.itemPedido}` : ""}` : ""}`}</Status>}
+                    {i.mascara ? <Status tone={situacaoDaMascara(mascaras.find((m) => m.codigo === i.mascara) ?? ({} as Mascara)) === "confirmada" ? "success" : "attention"}>{`Máscara ${i.mascara}`}</Status> : <Status tone="neutral">Sem máscara</Status>}
+                    {editavel && mascaras.length > 0 && (
+                      <select className="nfe-modelo" value="" onChange={(e) => aplicarMascara(e.target.value, k)} aria-label={`Máscara do item ${k + 1}`}>
+                        <option value="">Máscara deste item…</option>
+                        {mascaras.map((m) => <option key={m.id} value={m.codigo}>{m.codigo} · {m.descricao}</option>)}
+                      </select>
+                    )}
                     <span>{money(c ? r2(c.vProd - c.vDesc) : 0)}{c && c.vICMS ? ` · ICMS ${money(c.vICMS)}` : ""}{c && c.vIPI ? ` · IPI ${money(c.vIPI)}` : ""}</span>
                     {editavel && (
                       <span className="nfe-item-acoes">
@@ -573,6 +658,16 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
                     <label><span>Alíquota PIS %</span><Numero valor={i.pisAliquota} onChange={(v) => setItem(k, "pisAliquota", v)} /></label>
                     <label className="nfe-largo"><span>COFINS · CST</span><select value={i.cofinsCst} onChange={(e) => setItem(k, "cofinsCst", e.target.value)}>{CST_PIS_COFINS.map((x) => <option key={x} value={x}>{CST_PC[x] ?? x}</option>)}</select></label>
                     <label><span>Alíquota COFINS %</span><Numero valor={i.cofinsAliquota} onChange={(v) => setItem(k, "cofinsAliquota", v)} /></label>
+                    <label><span>Benefício fiscal (cBenef)<small> · da máscara</small></span><input value={i.cBenef ?? ""} maxLength={10} onChange={(e) => setItem(k, "cBenef", e.target.value.toUpperCase().trim() || undefined)} /></label>
+                    {(i.icmsPorDentro || i.ipiNaBaseIcms || i.pisCofinsSemBase) && (
+                      <p className="fiscal-nota-ajuda nfe-cheio">Regras da máscara: {[i.icmsPorDentro && "ICMS por dentro (base = valor ÷ (1 − alíquota))", i.ipiNaBaseIcms && "IPI na base do ICMS", i.pisCofinsSemBase && "PIS/COFINS só informativo (sem base)"].filter(Boolean).join(" · ")}.</p>
+                    )}
+                    {nota.finalidade === 4 && (
+                      <>
+                        <label><span>IPI devolvido (R$)<small> · da nota de compra</small></span><Numero valor={i.ipiDevolvido?.valor ?? 0} onChange={(v) => setItem(k, "ipiDevolvido", v > 0 ? { percentual: i.ipiDevolvido?.percentual ?? 100, valor: v } : undefined)} /></label>
+                        {i.ipiDevolvido && <label><span>% devolvido</span><Numero valor={i.ipiDevolvido.percentual} onChange={(v) => setItem(k, "ipiDevolvido", { valor: i.ipiDevolvido!.valor, percentual: v })} /></label>}
+                      </>
+                    )}
                     {nota.finalidade === 4 && (
                       <>
                         <label><span>Item na nota devolvida<small> · nº</small></span><input inputMode="numeric" value={i.dfeReferenciado?.nItem ?? ""} onChange={(e) => { const v = Number(so(e.target.value).slice(0, 3)); setItem(k, "dfeReferenciado", v ? { ...i.dfeReferenciado, nItem: v } : undefined); }} /></label>
@@ -580,6 +675,7 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
                       </>
                     )}
                   </div>
+                  <ItemAvancado i={i} c={c} k={k} cfop={i.cfop} setItem={setItem} />
                   {c && (
                     <p className="nfe-item-calculo">
                       Base ICMS {money(c.vBC)}{icmsDestaca(i.icmsCst) ? ` → ${money(c.vICMS)}` : " (não destaca)"} · IPI {ipiTributado(i.ipiCst) ? money(c.vIPI) : "não tributado"} · PIS {pisCofinsComAliquota(i.pisCst) ? money(c.vPIS) : "—"} · COFINS {pisCofinsComAliquota(i.cofinsCst) ? money(c.vCOFINS) : "—"}
@@ -597,7 +693,7 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
           <section className="almox-bloco fiscal-config-bloco">
             <header><h2>Transporte e despesas</h2></header>
             <div className="fiscal-campos nfe-campos">
-              <label className="nfe-largo"><span>Frete</span><select value={nota.frete.modalidade} onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, modalidade: Number(e.target.value) as 0 | 1 | 2 | 9 } }))}>{Object.entries(MODALIDADE_FRETE).map(([v, l]) => <option key={v} value={v}>{v} · {l}</option>)}</select></label>
+              <label className="nfe-largo"><span>Frete</span><select value={nota.frete.modalidade} onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, modalidade: Number(e.target.value) as 0 | 1 | 2 | 3 | 4 | 9 } }))}>{Object.entries(MODALIDADE_FRETE).map(([v, l]) => <option key={v} value={v}>{v} · {l}</option>)}</select></label>
               <label><span>Valor do frete<small> · na nota</small></span><Numero valor={nota.frete.valor} onChange={(v) => mudar((n) => ({ ...n, frete: { ...n.frete, valor: v } }))} /></label>
               <label><span>Seguro</span><Numero valor={nota.seguro} onChange={(v) => mudar((n) => ({ ...n, seguro: v }))} /></label>
               <label><span>Outras despesas</span><Numero valor={nota.outrasDespesas} onChange={(v) => mudar((n) => ({ ...n, outrasDespesas: v }))} /></label>
@@ -608,12 +704,19 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
                   <label className="nfe-largo"><span>Transportadora</span><input value={nota.frete.transportadora?.nome ?? ""} maxLength={60} onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, transportadora: { documento: "", ie: "", uf: "", ...n.frete.transportadora, nome: e.target.value } } }))} /></label>
                   <label><span>CNPJ da transportadora</span><input inputMode="numeric" value={cnpjFormatado(nota.frete.transportadora?.documento ?? "")} onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, transportadora: { nome: "", ie: "", uf: "", ...n.frete.transportadora, documento: so(e.target.value).slice(0, 14) } } }))} /></label>
                   <label><span>UF</span><select value={nota.frete.transportadora?.uf ?? ""} onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, transportadora: { nome: "", ie: "", documento: "", ...n.frete.transportadora, uf: e.target.value } } }))}><option value="">—</option>{UFS.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
+                  <label><span>IE da transportadora</span><input value={nota.frete.transportadora?.ie ?? ""} maxLength={14} onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, transportadora: { nome: "", documento: "", uf: "", ...n.frete.transportadora, ie: so(e.target.value) } } }))} /></label>
+                  <label className="nfe-largo"><span>Endereço da transportadora</span><input value={nota.frete.transportadora?.endereco ?? ""} maxLength={60} onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, transportadora: { nome: "", documento: "", uf: "", ie: "", ...n.frete.transportadora, endereco: e.target.value.toUpperCase() } } }))} /></label>
+                  <label><span>Município</span><input value={nota.frete.transportadora?.municipio ?? ""} maxLength={60} onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, transportadora: { nome: "", documento: "", uf: "", ie: "", ...n.frete.transportadora, municipio: e.target.value.toUpperCase() } } }))} /></label>
+                  <label><span>Placa do veículo</span><input value={nota.frete.veiculo?.placa ?? ""} maxLength={8} onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, veiculo: e.target.value.trim() ? { uf: "", ...n.frete.veiculo, placa: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") } : null } }))} /></label>
+                  <label><span>UF do veículo</span><select value={nota.frete.veiculo?.uf ?? ""} disabled={!nota.frete.veiculo?.placa} onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, veiculo: { placa: "", ...n.frete.veiculo, uf: e.target.value } } }))}><option value="">—</option>{UFS.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
                 </div>
                 <div className="fiscal-campos nfe-campos">
                   <label><span>Volumes</span><Numero valor={nota.frete.volumes?.quantidade ?? 0} casas={0} onChange={(v) => mudar((n) => ({ ...n, frete: { ...n.frete, volumes: { especie: "", pesoLiquido: 0, pesoBruto: 0, ...n.frete.volumes, quantidade: Math.round(v) } } }))} /></label>
                   <label><span>Espécie</span><input value={nota.frete.volumes?.especie ?? ""} maxLength={60} placeholder="CAIXA, PALETE…" onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, volumes: { quantidade: 0, pesoLiquido: 0, pesoBruto: 0, ...n.frete.volumes, especie: e.target.value.toUpperCase() } } }))} /></label>
                   <label><span>Peso líquido (kg)</span><Numero valor={nota.frete.volumes?.pesoLiquido ?? 0} casas={3} onChange={(v) => mudar((n) => ({ ...n, frete: { ...n.frete, volumes: { quantidade: 0, especie: "", pesoBruto: 0, ...n.frete.volumes, pesoLiquido: v } } }))} /></label>
                   <label><span>Peso bruto (kg)</span><Numero valor={nota.frete.volumes?.pesoBruto ?? 0} casas={3} onChange={(v) => mudar((n) => ({ ...n, frete: { ...n.frete, volumes: { quantidade: 0, especie: "", pesoLiquido: 0, ...n.frete.volumes, pesoBruto: v } } }))} /></label>
+                  <label><span>Marca dos volumes</span><input value={nota.frete.volumes?.marca ?? ""} maxLength={60} onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, volumes: { quantidade: 0, especie: "", pesoLiquido: 0, pesoBruto: 0, ...n.frete.volumes, marca: e.target.value.toUpperCase() } } }))} /></label>
+                  <label><span>Numeração</span><input value={nota.frete.volumes?.numeracao ?? ""} maxLength={60} onChange={(e) => mudar((n) => ({ ...n, frete: { ...n.frete, volumes: { quantidade: 0, especie: "", pesoLiquido: 0, pesoBruto: 0, ...n.frete.volumes, numeracao: e.target.value } } }))} /></label>
                 </div>
               </>
             )}
@@ -650,6 +753,11 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
           <section className="almox-bloco fiscal-config-bloco">
             <header><h2>Informações complementares</h2></header>
             <label className="nfe-texto">
+              <span>De interesse do fisco<small> · base legal da operação (vem da máscara): redução de base, suspensão, não incidência…</small></span>
+              <textarea aria-label="Informações de interesse do fisco" rows={2} maxLength={2000} value={nota.infoFisco ?? ""} onChange={(e) => mudar((n) => ({ ...n, infoFisco: e.target.value }))} />
+            </label>
+            <label className="nfe-texto">
+              <span>Do contribuinte</span>
               <textarea aria-label="Informações complementares" rows={3} maxLength={2000} value={nota.infoComplementar} onChange={(e) => mudar((n) => ({ ...n, infoComplementar: e.target.value }))} placeholder="Pedido do cliente, dados bancários, observações exigidas por lei…" />
             </label>
             <p className="fiscal-nota-ajuda">{amb === "homologacao" ? "Na homologação, a SEFAZ exige que o nome do destinatário saia como “NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL”: a plataforma troca só na nota (o cadastro do cliente não muda)." : "No treino, a plataforma acrescenta “SIMULACAO DE TREINO NA PLATAFORMA - SEM VALOR FISCAL” no começo deste texto."}</p>
@@ -665,8 +773,10 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
               {totais.vFrete > 0 && <div><dt>(+) Frete</dt><dd>{money(totais.vFrete)}</dd></div>}
               {totais.vSeg > 0 && <div><dt>(+) Seguro</dt><dd>{money(totais.vSeg)}</dd></div>}
               {totais.vOutro > 0 && <div><dt>(+) Outras despesas</dt><dd>{money(totais.vOutro)}</dd></div>}
+              {totais.vII > 0 && <div><dt>(+) Imposto de importação</dt><dd>{money(totais.vII)}</dd></div>}
               <div><dt>(+) IPI</dt><dd>{money(totais.vIPI)}</dd></div>
-              <div className="nfe-total"><dt>Total da nota</dt><dd>{money(totais.vNF)}</dd></div>
+              {totais.vIPIDevol > 0 && <div><dt>(+) IPI devolvido</dt><dd>{money(totais.vIPIDevol)}</dd></div>}
+              <div className="nfe-total"><dt>Total da nota{nota.valorTotalInformado !== undefined ? " (pela DI)" : ""}</dt><dd>{money(totais.vNF)}</dd></div>
               <div><dt>Base do ICMS</dt><dd>{money(totais.vBC)}</dd></div>
               <div><dt>ICMS</dt><dd>{money(totais.vICMS)}</dd></div>
               <div><dt>PIS</dt><dd>{money(totais.vPIS)}</dd></div>
@@ -746,6 +856,76 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
           }
           return ok;
         }} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Campos do item que só algumas operações usam: texto do item, unidade tributável, valores informados (importação
+ * pela DI e crédito do CIAP), a DI com a adição e a exportação indireta (7501).
+ */
+function ItemAvancado({ i, c, k, cfop, setItem }: { i: ItemNfe; c: ReturnType<typeof calcularItens>[number] | undefined; k: number; cfop: string; setItem: <K extends keyof ItemNfe>(k: number, campo: K, v: ItemNfe[K]) => void }) {
+  const importacao = /^3/.test(cfop);
+  const [aberto, setAberto] = useState(Boolean(i.informado || i.di?.length || i.exportacao?.length || i.infoAdicional || i.tributavel || importacao || cfop === "7501"));
+  const inf = i.informado;
+  const di = i.di?.[0];
+  const setInf = (campo: keyof NonNullable<ItemNfe["informado"]>, v: number) => setItem(k, "informado", { ...inf, [campo]: v });
+  const setDi = (parcial: Partial<NonNullable<ItemNfe["di"]>[number]>) => setItem(k, "di", [{
+    numero: "", data: "", localDesembaraco: "", ufDesembaraco: "", dataDesembaraco: "", viaTransporte: 1, intermedio: 1, exportador: "",
+    adicoes: [{ numero: 1, sequencial: 1, fabricante: "" }], ...di, ...parcial,
+  }]);
+  const adicao = di?.adicoes[0] ?? { numero: 1, sequencial: 1, fabricante: "" };
+  const ind = i.exportacao?.[0]?.indireta;
+  if (!aberto) return <p className="nfe-mais"><button type="button" className="almox-link" onClick={() => setAberto(true)}>Mais campos deste item (texto, importação, exportação, valores informados)</button></p>;
+  return (
+    <div className="fiscal-campos nfe-campos nfe-avancado">
+      <label className="nfe-cheio"><span>Texto do item na nota<small> · vazio = o pedido do cliente</small></span><input value={i.infoAdicional ?? ""} maxLength={500} onChange={(e) => setItem(k, "infoAdicional", e.target.value || undefined)} /></label>
+      <label><span>Unidade tributável<small> · se diferente</small></span><input value={i.tributavel?.unidade ?? ""} maxLength={6} onChange={(e) => setItem(k, "tributavel", e.target.value.trim() ? { quantidade: i.quantidade, valorUnitario: i.valorUnitario, ...i.tributavel, unidade: e.target.value.toUpperCase() } : undefined)} /></label>
+      {i.tributavel && <label><span>Qtd. tributável</span><Numero valor={i.tributavel.quantidade} casas={4} onChange={(v) => setItem(k, "tributavel", { ...i.tributavel!, quantidade: v })} /></label>}
+      {i.tributavel && <label><span>Valor unit. tributável</span><Numero valor={i.tributavel.valorUnitario} casas={4} onChange={(v) => setItem(k, "tributavel", { ...i.tributavel!, valorUnitario: v })} /></label>}
+      <label className="nfe-check nfe-cheio"><input type="checkbox" checked={Boolean(inf)} onChange={(e) => setItem(k, "informado", e.target.checked && c ? { vBC: c.vBC, vICMS: c.vICMS, vBCPisCofins: c.vBCPisCofins, vPIS: c.vPIS, vBCCofins: c.vBCCofins, vCOFINS: c.vCOFINS, vBCIBSCBS: c.vBCIBSCBS, vIBS: c.vIBS, vCBS: c.vCBS } : undefined)} /><span>Digitar os valores do imposto<small> · importação (pela DI) e crédito do CIAP; os outros itens são calculados pela máscara</small></span></label>
+      {inf && (
+        <>
+          <label><span>Base do ICMS</span><Numero valor={inf.vBC ?? 0} onChange={(v) => setInf("vBC", v)} /></label>
+          <label><span>ICMS</span><Numero valor={inf.vICMS ?? 0} onChange={(v) => setInf("vICMS", v)} /></label>
+          <label><span>Base do PIS</span><Numero valor={inf.vBCPisCofins ?? 0} onChange={(v) => setInf("vBCPisCofins", v)} /></label>
+          <label><span>PIS</span><Numero valor={inf.vPIS ?? 0} onChange={(v) => setInf("vPIS", v)} /></label>
+          <label><span>Base da COFINS</span><Numero valor={inf.vBCCofins ?? inf.vBCPisCofins ?? 0} onChange={(v) => setInf("vBCCofins", v)} /></label>
+          <label><span>COFINS</span><Numero valor={inf.vCOFINS ?? 0} onChange={(v) => setInf("vCOFINS", v)} /></label>
+          <label><span>Base do IBS/CBS</span><Numero valor={inf.vBCIBSCBS ?? 0} onChange={(v) => setInf("vBCIBSCBS", v)} /></label>
+          <label><span>IBS</span><Numero valor={inf.vIBS ?? 0} onChange={(v) => setInf("vIBS", v)} /></label>
+          <label><span>CBS</span><Numero valor={inf.vCBS ?? 0} onChange={(v) => setInf("vCBS", v)} /></label>
+        </>
+      )}
+      {importacao && (
+        <>
+          <p className="almox-rotulo nfe-cheio">Imposto de importação e DI (DUIMP)</p>
+          <label><span>Base do II</span><Numero valor={i.ii?.vBC ?? 0} onChange={(v) => setItem(k, "ii", { vDespAdu: 0, vII: 0, vIOF: 0, ...i.ii, vBC: v })} /></label>
+          <label><span>II</span><Numero valor={i.ii?.vII ?? 0} onChange={(v) => setItem(k, "ii", { vBC: 0, vDespAdu: 0, vIOF: 0, ...i.ii, vII: v })} /></label>
+          <label><span>Despesas aduaneiras</span><Numero valor={i.ii?.vDespAdu ?? 0} onChange={(v) => setItem(k, "ii", { vBC: 0, vII: 0, vIOF: 0, ...i.ii, vDespAdu: v })} /></label>
+          <label><span>IOF</span><Numero valor={i.ii?.vIOF ?? 0} onChange={(v) => setItem(k, "ii", { vBC: 0, vII: 0, vDespAdu: 0, ...i.ii, vIOF: v })} /></label>
+          <label><span>Nº da DI/DUIMP</span><input value={di?.numero ?? ""} maxLength={15} onChange={(e) => setDi({ numero: e.target.value })} /></label>
+          <label><span>Data do registro</span><input type="date" value={di?.data ?? ""} onChange={(e) => setDi({ data: e.target.value })} /></label>
+          <label className="nfe-largo"><span>Local do desembaraço</span><input value={di?.localDesembaraco ?? ""} maxLength={60} onChange={(e) => setDi({ localDesembaraco: e.target.value.toUpperCase() })} /></label>
+          <label><span>UF do desembaraço</span><select value={di?.ufDesembaraco ?? ""} onChange={(e) => setDi({ ufDesembaraco: e.target.value })}><option value="">—</option>{UFS.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
+          <label><span>Data do desembaraço</span><input type="date" value={di?.dataDesembaraco ?? ""} onChange={(e) => setDi({ dataDesembaraco: e.target.value })} /></label>
+          <label><span>Via de transporte</span><select value={di?.viaTransporte ?? 1} onChange={(e) => setDi({ viaTransporte: Number(e.target.value) })}><option value={1}>1 · Marítima</option><option value={4}>4 · Aérea</option><option value={7}>7 · Rodoviária</option><option value={2}>2 · Fluvial</option><option value={6}>6 · Ferroviária</option></select></label>
+          <label><span>AFRMM (R$)</span><Numero valor={di?.vAFRMM ?? 0} onChange={(v) => setDi({ vAFRMM: v || undefined })} /></label>
+          <label><span>Intermediação</span><select value={di?.intermedio ?? 1} onChange={(e) => setDi({ intermedio: Number(e.target.value) })}><option value={1}>1 · Por conta própria</option><option value={2}>2 · Por conta e ordem</option><option value={3}>3 · Por encomenda</option></select></label>
+          <label><span>Código do exportador</span><input value={di?.exportador ?? ""} maxLength={60} onChange={(e) => setDi({ exportador: e.target.value })} /></label>
+          <label><span>Nº da adição</span><Numero valor={adicao.numero} casas={0} onChange={(v) => setDi({ adicoes: [{ ...adicao, numero: Math.round(v) }] })} /></label>
+          <label><span>Sequência na adição</span><Numero valor={adicao.sequencial} casas={0} onChange={(v) => setDi({ adicoes: [{ ...adicao, sequencial: Math.round(v) }] })} /></label>
+          <label className="nfe-largo"><span>Fabricante</span><input value={adicao.fabricante} maxLength={60} onChange={(e) => setDi({ adicoes: [{ ...adicao, fabricante: e.target.value.toUpperCase() }] })} /></label>
+        </>
+      )}
+      {cfop === "7501" && (
+        <>
+          <p className="almox-rotulo nfe-cheio">Exportação indireta: a nota de remessa com fim específico de exportação</p>
+          <label className="nfe-largo"><span>Chave da nota de remessa</span><input inputMode="numeric" value={ind?.chave ?? ""} onChange={(e) => setItem(k, "exportacao", [{ drawback: i.exportacao?.[0]?.drawback, indireta: { registro: ind?.registro ?? "", quantidade: ind?.quantidade ?? i.quantidade, chave: so(e.target.value).slice(0, 44) } }])} /></label>
+          <label><span>Quantidade exportada</span><Numero valor={ind?.quantidade ?? 0} casas={4} onChange={(v) => setItem(k, "exportacao", [{ drawback: i.exportacao?.[0]?.drawback, indireta: { registro: ind?.registro ?? "", chave: ind?.chave ?? "", quantidade: v } }])} /></label>
+          <label><span>Registro de exportação<small> · se houver</small></span><input inputMode="numeric" value={ind?.registro ?? ""} maxLength={12} onChange={(e) => setItem(k, "exportacao", [{ drawback: i.exportacao?.[0]?.drawback, indireta: { chave: ind?.chave ?? "", quantidade: ind?.quantidade ?? i.quantidade, registro: so(e.target.value) } }])} /></label>
+        </>
       )}
     </div>
   );

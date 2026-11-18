@@ -275,6 +275,10 @@ export const DIFERENCAS_ACEITAS: Regra[] = [
     caminho: /^infNFe\/dest\/email$/, motivo: "E-mail inválido (o GRV cortou o texto em 60 caracteres): a plataforma não manda e-mail inválido; o campo é opcional.",
     vale: (d) => d.nosso === null && d.deles !== null && !emailsValidos(d.deles),
   },
+  {
+    caminho: /\/imposto\/(PIS\/PISOutr\/pPIS|COFINS\/COFINSOutr\/pCOFINS)$/, motivo: "PIS/COFINS sem base (só informativo): a alíquota impressa não gera valor; o GRV ora imprime a alíquota, ora zero.",
+    vale: (d, l) => Number(l.deles.get(d.caminho.replace(/p(PIS|COFINS)$/, "vBC")) ?? 1) === 0,
+  },
   { caminho: /^infNFe\/transp\/vagao$/, motivo: "O GRV usou o campo de vagão (transporte ferroviário) para outro texto; a plataforma não o usa." },
 ];
 

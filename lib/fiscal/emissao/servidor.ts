@@ -4,7 +4,7 @@ import { randomInt } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { obterTransmissor, transmissorConfigurado } from "../transmissor";
 import { totaisDaNota } from "./calculo";
-import { avisosIbsCbs, cnpjValido, cpfValido, validarNota, type IbsCbsLegal, type Problema } from "./regras";
+import { avisosIbsCbs, cnpjValido, cpfValido, problemasDeMascara, validarNota, type IbsCbsLegal, type Problema } from "./regras";
 import type { AmbienteNfe, Destinatario, Emitente, NotaNfe } from "./tipos";
 import { DESTINATARIO_HOMOLOGACAO } from "./sefaz";
 import { assinaturaDeTreino, gerarXmlNfe, nfeProcDeTreino } from "./xml";
@@ -118,6 +118,16 @@ async function ibsCbsLegal(admin: SupabaseClient, data: string): Promise<IbsCbsL
   return { cbs: v.cbs, ibs: v.ibs, norma: String((p.fonte as { norma?: string } | null)?.norma ?? "parâmetro legal").split(";")[0], aConferir: p.situacao !== "conferido" };
 }
 
+/** Itens sem máscara, ou com máscara inativa ou ainda sem a confirmação do Fiscal: a produção recusa. */
+export async function problemasDeMascaraNaProducao(admin: SupabaseClient, org: string, nota: NotaNfe): Promise<Problema[]> {
+  const codigos = [...new Set(nota.itens.map((i) => i.mascara).filter((c): c is string => Boolean(c)))];
+  const { data } = codigos.length
+    ? await admin.from("fiscal_mascaras").select("codigo, ativo, confirmada_em").eq("organization_id", org).in("codigo", codigos)
+    : { data: [] as { codigo: string; ativo: boolean; confirmada_em: string | null }[] };
+  const porCodigo = new Map((data ?? []).map((m) => [m.codigo as string, m]));
+  return problemasDeMascara(nota, porCodigo);
+}
+
 export type ResultadoValidacao = { ok: boolean; erros: Problema[]; avisos: Problema[]; esquema: { conferido: boolean; erros: string[] } };
 
 /**
@@ -128,6 +138,9 @@ export async function validarEGravar(admin: SupabaseClient, org: string, registr
   const emitente = await emitenteDaOrganizacao(admin, org);
   const { erros, avisos } = validarNota(registro.nota, emitente);
   avisos.push(...avisosIbsCbs(registro.nota, emitente?.crt ?? 3, await ibsCbsLegal(admin, hojeEmBrasilia())));
+  // Produção (docs/PLANO-VIRADA-FISCAL.md, trava 3): cada item sai de uma máscara de impostos confirmada pelo Fiscal
+  // com o contador. Nota digitada à mão, ou máscara ainda "a confirmar", não vai à SEFAZ de produção.
+  if (registro.ambiente === "producao") erros.push(...(await problemasDeMascaraNaProducao(admin, org, registro.nota)));
   // Homologação: a SEFAZ de teste já rejeita nota do regime normal sem o grupo IBS/CBS ("Grupo IBSCBS não informado",
   // provado em 29/10/2026). Erro aqui, antes de gastar a transmissão.
   if (registro.ambiente === "homologacao" && (emitente?.crt ?? 3) === 3 && registro.nota.itens.some((i) => !i.ibsCbsCst)) {

@@ -77,7 +77,7 @@ export function MascarasImpostos({ notify }: { notify: (m: string) => void }) {
                       <span className="vnd-codigo">{m.codigo}</span>
                       <span>{m.cfop}</span>
                       <span className="nome">{m.descricao}<small>{m.ufs.length ? `Para ${m.ufs.join(", ")}` : m.situacao_tributaria ?? "—"}{m.ativo ? "" : " · desativada"}</small></span>
-                      <span>{m.icms_cst ?? "—"} · {pct(m.icms_aliquota)}{m.icms_reducao_base ? <small> red. {pct(m.icms_reducao_base)}{carga !== null ? ` (carga ${pct(carga)})` : ""}</small> : null}</span>
+                      <span>{m.icms_cst ?? "—"} · {pct(m.icms_aliquota)}{m.icms_reducao_base ? <small> red. {pct(m.icms_reducao_base)}{carga !== null ? ` (carga ${pct(carga)})` : ""}</small> : null}{m.cbenef ? <small> · {m.cbenef}</small> : null}</span>
                       <span>{m.ipi_cst ?? "—"} · {m.ipi_aliquota !== null ? pct(m.ipi_aliquota) : "pelo NCM"}</span>
                       <span>{m.pis_cst ?? "—"} {pct(m.pis_aliquota)} / {m.cofins_cst ?? "—"} {pct(m.cofins_aliquota)}</span>
                       <span><Status tone={TOM[s]}>{SITUACAO_MASCARA[s]}</Status></span>
@@ -105,6 +105,7 @@ const BLOCOS: { titulo: string; campos: Campo[] }[] = [
   { titulo: "ICMS", campos: [
     { campo: "icms_cst", rotulo: "CST", ajuda: "00 tributada · 20 com redução · 41 não tributada · 50 suspensão · 51 diferimento" },
     { campo: "icms_aliquota", rotulo: "Alíquota (%)" }, { campo: "icms_reducao_base", rotulo: "Redução da base (%)" }, { campo: "icms_diferimento", rotulo: "Diferimento (%)" },
+    { campo: "cbenef", rotulo: "Benefício fiscal (cBenef)", ajuda: "SP: SP020120 redução · SP070050 exportação · SP054020 suspensão" },
   ] },
   { titulo: "IPI", campos: [
     { campo: "ipi_enquadramento", rotulo: "Enquadramento", ajuda: "999 tributação normal · 108 suspensão" }, { campo: "ipi_cst", rotulo: "CST", ajuda: "50 tributada · 51 alíquota zero · 53 não tributada · 55 suspensão" },
@@ -134,6 +135,7 @@ const paraTexto = (m: Mascara, c: keyof Mascara) => {
 function EditorMascara({ mascara: m, podeEditar, onClose, onFeito }: { mascara: Mascara; podeEditar: boolean; onClose: () => void; onFeito: (m: string) => void }) {
   const [form, setForm] = useState<Record<string, string>>(() => Object.fromEntries(BLOCOS.flatMap((b) => b.campos).map(({ campo }) => [campo, paraTexto(m, campo)])));
   const [excluiIcms, setExcluiIcms] = useState(m.pis_cofins_exclui_icms);
+  const [regras, setRegras] = useState({ icms_por_dentro: Boolean(m.icms_por_dentro), ipi_na_base_icms: Boolean(m.ipi_na_base_icms), pis_cofins_sem_base: Boolean(m.pis_cofins_sem_base), valores_informados: Boolean(m.valores_informados) });
   const [ativo, setAtivo] = useState(m.ativo);
   const [origem, setOrigem] = useState<Mascara["origem_dados"]>(m.origem_dados);
   const [obs, setObs] = useState(m.observacao_interna ?? "");
@@ -141,7 +143,8 @@ function EditorMascara({ mascara: m, podeEditar, onClose, onFeito }: { mascara: 
   const [ocupado, setOcupado] = useState(false);
   const faltando = faltandoNaMascara(m);
   const situacao = situacaoDaMascara(m);
-  const mudou = BLOCOS.flatMap((b) => b.campos).some(({ campo }) => form[campo] !== paraTexto(m, campo)) || excluiIcms !== m.pis_cofins_exclui_icms || ativo !== m.ativo || origem !== m.origem_dados || obs !== (m.observacao_interna ?? "");
+  const mudouRegra = (Object.keys(regras) as (keyof typeof regras)[]).some((k) => regras[k] !== Boolean(m[k]));
+  const mudou = BLOCOS.flatMap((b) => b.campos).some(({ campo }) => form[campo] !== paraTexto(m, campo)) || excluiIcms !== m.pis_cofins_exclui_icms || mudouRegra || ativo !== m.ativo || origem !== m.origem_dados || obs !== (m.observacao_interna ?? "");
 
   const enviar = async (corpo: Record<string, unknown>, ok: string) => {
     setOcupado(true);
@@ -153,7 +156,7 @@ function EditorMascara({ mascara: m, podeEditar, onClose, onFeito }: { mascara: 
   };
   const salvar = (e: React.FormEvent) => {
     e.preventDefault();
-    void enviar({ ...form, pis_cofins_exclui_icms: excluiIcms, ativo, origem_dados: origem, observacao_interna: obs }, `Máscara ${m.codigo} salva.${m.confirmada_em ? " Se mudou algum número, ela volta a \"a confirmar\"." : ""}`);
+    void enviar({ ...form, pis_cofins_exclui_icms: excluiIcms, ...regras, ativo, origem_dados: origem, observacao_interna: obs }, `Máscara ${m.codigo} salva.${m.confirmada_em ? " Se mudou algum número, ela volta a \"a confirmar\"." : ""}`);
   };
 
   return (
@@ -175,6 +178,15 @@ function EditorMascara({ mascara: m, podeEditar, onClose, onFeito }: { mascara: 
                 {b.titulo === "PIS e COFINS" && (
                   <label className="nfe-check"><input type="checkbox" checked={excluiIcms} onChange={(e) => setExcluiIcms(e.target.checked)} /><span>Tirar o ICMS da base do PIS e da COFINS</span></label>
                 )}
+                {b.titulo === "PIS e COFINS" && (
+                  <label className="nfe-check"><input type="checkbox" checked={regras.pis_cofins_sem_base} onChange={(e) => setRegras((r) => ({ ...r, pis_cofins_sem_base: e.target.checked }))} /><span>Só informativo (CST 49 a 99 sem base nem valor)<small> · remessas e retornos</small></span></label>
+                )}
+                {b.titulo === "ICMS" && (
+                  <>
+                    <label className="nfe-check"><input type="checkbox" checked={regras.icms_por_dentro} onChange={(e) => setRegras((r) => ({ ...r, icms_por_dentro: e.target.checked }))} /><span>ICMS por dentro<small> · base = valor ÷ (1 − alíquota), ex.: sucata do art. 392</small></span></label>
+                    <label className="nfe-check"><input type="checkbox" checked={regras.ipi_na_base_icms} onChange={(e) => setRegras((r) => ({ ...r, ipi_na_base_icms: e.target.checked }))} /><span>IPI na base do ICMS<small> · ex.: retorno de demonstração, devolução de uso e consumo</small></span></label>
+                  </>
+                )}
               </div>
             </section>
           ))}
@@ -185,6 +197,7 @@ function EditorMascara({ mascara: m, podeEditar, onClose, onFeito }: { mascara: 
                 <select value={origem} onChange={(e) => setOrigem(e.target.value as Mascara["origem_dados"])}>{Object.entries(ORIGEM).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
               </label>
               <label className="nfe-check"><input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} /><span>Ativa (aparece para escolher)</span></label>
+              <label className="nfe-check"><input type="checkbox" checked={regras.valores_informados} onChange={(e) => setRegras((r) => ({ ...r, valores_informados: e.target.checked }))} /><span>Valores do imposto digitados na nota<small> · importação (pela DI) e crédito do CIAP</small></span></label>
               <label className="nfe-cheio"><span>Anotação interna</span><input value={obs} maxLength={1000} onChange={(e) => setObs(e.target.value)} /></label>
             </div>
           </section>

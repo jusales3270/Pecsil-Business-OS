@@ -248,3 +248,20 @@ export const MODELOS_OPERACAO: { id: string; rotulo: string; natureza: string; c
   { id: "conserto", rotulo: "Remessa para conserto", natureza: "REMESSA PARA CONSERTO OU REPARO", cfopDentro: "5915", cfopFora: "6915", tipo: 1, finalidade: 1 },
   { id: "devolucao_compra", rotulo: "Devolução de compra", natureza: "DEVOLUCAO DE COMPRA PARA INDUSTRIALIZACAO", cfopDentro: "5201", cfopFora: "6201", tipo: 1, finalidade: 4 },
 ];
+
+/**
+ * Produção (trava 3 do plano da virada): todo item com máscara de impostos ativa e confirmada pelo Fiscal com o
+ * contador. Puro: recebe as máscaras já lidas (código → ativa, confirmada em).
+ */
+export function problemasDeMascara(nota: NotaNfe, mascaras: Map<string, { ativo: boolean; confirmada_em: string | null }>): Problema[] {
+  const p: Problema[] = [];
+  nota.itens.forEach((i, k) => {
+    const campo = `itens.${k}.mascara`;
+    if (!i.mascara) { p.push({ campo, mensagem: `Item ${k + 1}: na produção os impostos saem de uma máscara confirmada; escolha a máscara da operação.` }); return; }
+    const m = mascaras.get(i.mascara);
+    if (!m) p.push({ campo, mensagem: `Item ${k + 1}: a máscara ${i.mascara} não existe mais.` });
+    else if (!m.ativo) p.push({ campo, mensagem: `Item ${k + 1}: a máscara ${i.mascara} está inativa.` });
+    else if (!m.confirmada_em) p.push({ campo, mensagem: `Item ${k + 1}: a máscara ${i.mascara} ainda não foi confirmada pelo Fiscal com o contador (Fiscal › Máscaras de impostos).` });
+  });
+  return p;
+}

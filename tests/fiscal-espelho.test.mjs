@@ -97,3 +97,27 @@ test("esquema oficial: as notas refeitas passam no XSD (quando a biblioteca do t
     assert.equal(v.success, true, `${nome}: ${(v.errors ?? []).map((e) => e.humanized ?? e.message).join(" | ")}`);
   }
 });
+
+test("espelho: a nota continua igual depois de gravada (a limpeza da gravação não perde campo nenhum)", async () => {
+  const { normalizarNota } = await import("../lib/fiscal/emissao/normalizar.ts");
+  const { gerarXmlNfe } = await import("../lib/fiscal/emissao/xml.ts");
+  for (const nome of notas) {
+    const original = ler(nome);
+    const l = notaDoXml(original);
+    const gravada = normalizarNota(JSON.parse(JSON.stringify(l.nota)));
+    const { xml } = gerarXmlNfe({ nota: gravada, emitente: l.emitente, serie: l.serie, numero: l.numero, emissao: l.emissao, codigoNumerico: l.codigoNumerico, tpAmb: l.tpAmb });
+    const antes = espelhar(original).xmlNosso;
+    assert.deepEqual(compararXml(xml, antes), [], `${nome}: a gravação mudou a nota`);
+  }
+});
+
+test("produção: todo item sai de máscara ativa e confirmada (trava 3 da virada)", async () => {
+  const { problemasDeMascara } = await import("../lib/fiscal/emissao/regras.ts");
+  const { nota } = notaDoXml(ler("venda-5101-sp.xml"));
+  const semMascara = problemasDeMascara(nota, new Map());
+  assert.match(semMascara[0].mensagem, /escolha a máscara/);
+  const comMascara = { ...nota, itens: nota.itens.map((i) => ({ ...i, mascara: "2" })) };
+  assert.match(problemasDeMascara(comMascara, new Map([["2", { ativo: true, confirmada_em: null }]]))[0].mensagem, /ainda não foi confirmada/);
+  assert.match(problemasDeMascara(comMascara, new Map([["2", { ativo: false, confirmada_em: "2026-11-20" }]]))[0].mensagem, /inativa/);
+  assert.deepEqual(problemasDeMascara(comMascara, new Map([["2", { ativo: true, confirmada_em: "2026-11-20" }]])), []);
+});

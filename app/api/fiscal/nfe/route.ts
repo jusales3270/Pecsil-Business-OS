@@ -21,13 +21,16 @@ export async function GET(request: Request) {
   const autor = await autorDaSessao(guard.supabase);
   if (!autor) return NextResponse.json({ error: "Sessão sem organização." }, { status: 400 });
   const admin = createSupabaseAdminClient();
-  const [{ data: notas, error }, { data: usados }, { data: clientes }, emitente, { data: inutilizacoes }] = await Promise.all([
+  const [{ data: notas, error }, { data: usados }, { data: clientes }, emitente, { data: inutilizacoes }, { data: mascaras }, { data: ncms }] = await Promise.all([
     guard.supabase.from("fiscal_nfe").select(COLUNAS_LISTA).eq("ambiente", ambiente).order("created_at", { ascending: false }).limit(300),
     // Destinatários já usados: a próxima nota para o mesmo cliente já vem com o endereço.
     guard.supabase.from("fiscal_nfe").select("destinatario:nota->destinatario, updated_at").order("updated_at", { ascending: false }).limit(200),
     admin.from("customers").select(COLUNAS_CLIENTE).eq("organization_id", autor.org).eq("active", true).is("merged_into", null).order("name").limit(1000),
     emitenteDaOrganizacao(admin, autor.org),
     guard.supabase.from("fiscal_nfe_eventos").select("id, serie, numero_inicio, numero_fim, texto, created_by_name, created_at").eq("ambiente", ambiente).eq("tipo", "inutilizacao").order("created_at", { ascending: false }).limit(50),
+    // Máscaras de impostos: a nota escolhe a operação e os impostos saem dela (a produção só aceita as confirmadas).
+    admin.from("fiscal_mascaras").select("*").eq("organization_id", autor.org).eq("ativo", true).order("cfop").order("codigo"),
+    admin.from("fiscal_ncm").select("ncm, ipi_aliquota").eq("organization_id", autor.org),
   ]);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   const destinatarios = new Map<string, unknown>();
@@ -44,6 +47,8 @@ export async function GET(request: Request) {
     destinatarios: [...destinatarios.values()],
     clientes: clientes ?? [],
     inutilizacoes: inutilizacoes ?? [],
+    mascaras: mascaras ?? [],
+    ipiPorNcm: Object.fromEntries((ncms ?? []).map((n) => [n.ncm, n.ipi_aliquota === null ? null : Number(n.ipi_aliquota)])),
     podeOperar: guard.access.can("fiscal.nfe", "operar"),
     podeAprovar: guard.access.can("fiscal.nfe", "aprovar"),
     transmissor: transmissorConfigurado(),

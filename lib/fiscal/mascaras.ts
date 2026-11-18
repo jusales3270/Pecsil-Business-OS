@@ -16,6 +16,14 @@ export type Mascara = {
   pis_cst: string | null; pis_aliquota: number | null; cofins_cst: string | null; cofins_aliquota: number | null; pis_cofins_exclui_icms: boolean;
   ibs_cbs_cst: string | null; cclasstrib: string | null; ibs_aliquota: number | null; cbs_aliquota: number | null;
   conta_plano: string | null; conta_plano_descricao: string | null; obs_nota: string | null; observacao_interna: string | null;
+  /** Código de benefício fiscal da UF (cBenef), como o GRV leva desde 2026 (SP020120, SP070050…). */
+  cbenef?: string | null;
+  /** ICMS por dentro (base = valor ÷ (1 − alíquota)); IPI na base do ICMS; PIS/COFINS só informativo (sem base). */
+  icms_por_dentro?: boolean; ipi_na_base_icms?: boolean; pis_cofins_sem_base?: boolean;
+  /** Modalidade da base do ICMS (vazio = 3, valor da operação). */
+  icms_mod_bc?: number | null;
+  /** Os valores do imposto são digitados na nota (importação pela DI, crédito do CIAP), não calculados. */
+  valores_informados?: boolean;
   ativo: boolean; origem_dados: "grv" | "nota" | "contador" | "manual";
   confirmada_por_nome: string | null; confirmada_em: string | null; updated_by_name: string | null; updated_at: string;
 };
@@ -27,8 +35,14 @@ export function mascaraDoBanco(linha: Record<string, unknown>): Mascara {
   const m = { ...linha } as Record<string, unknown>;
   for (const c of CAMPOS_PERCENTUAL) m[c] = m[c] === null || m[c] === undefined || m[c] === "" ? null : Number(m[c]);
   m.ufs = Array.isArray(m.ufs) ? m.ufs : [];
+  // Colunas da virada (migração 202611180001): antes dela, ausentes valem "não".
+  for (const c of ["icms_por_dentro", "ipi_na_base_icms", "pis_cofins_sem_base", "valores_informados"]) m[c] = m[c] === true;
+  m.cbenef = typeof m.cbenef === "string" && m.cbenef ? m.cbenef : null;
+  m.icms_mod_bc = m.icms_mod_bc === null || m.icms_mod_bc === undefined ? null : Number(m.icms_mod_bc);
   return m as Mascara;
 }
+
+export const ehEntrada = (m: Pick<Mascara, "cfop">) => /^[123]/.test(m.cfop);
 
 export const ehSaida = (m: Pick<Mascara, "cfop">) => /^[567]/.test(m.cfop);
 export const SITUACAO_MASCARA = { incompleta: "Incompleta", a_confirmar: "A confirmar com o contador", confirmada: "Confirmada" } as const;
@@ -39,7 +53,8 @@ export function faltandoNaMascara(m: Mascara): string[] {
   const f: string[] = [];
   if (!m.icms_cst) f.push("CST do ICMS");
   else {
-    if (icmsDestaca(m.icms_cst) && m.icms_aliquota === null) f.push("alíquota do ICMS");
+    // CST 90 sem alíquota é "outras" sem destaque; com valores informados (DI, CIAP) a alíquota pode vir na nota.
+    if (icmsDestaca(m.icms_cst) && m.icms_aliquota === null && m.icms_cst !== "90" && !m.valores_informados) f.push("alíquota do ICMS");
     if (m.icms_cst === "20" && m.icms_reducao_base === null) f.push("% de redução da base do ICMS");
     if (m.icms_cst === "51" && m.icms_diferimento === null) f.push("% de diferimento do ICMS");
   }
@@ -88,14 +103,29 @@ export function aliquotaIpi(m: Mascara, ncm: string | null | undefined, ipiPorNc
 }
 
 /** Os campos de imposto do item da nota a partir da máscara (o resto do item fica como veio). */
-export function impostosDoItem(m: Mascara, aliquotaDoIpi: number | null): Pick<ItemNfe, "cfop" | "icmsCst" | "icmsAliquota" | "icmsReducaoBase" | "ipiCst" | "ipiAliquota" | "ipiEnquadramento" | "pisCst" | "pisAliquota" | "cofinsCst" | "cofinsAliquota" | "pisCofinsExcluiIcms" | "ibsCbsCst" | "cClassTrib" | "ibsAliquota" | "cbsAliquota" | "mascara"> {
+export type ImpostosDaMascara = Pick<ItemNfe, "cfop" | "icmsCst" | "icmsAliquota" | "icmsReducaoBase" | "ipiCst" | "ipiAliquota" | "ipiEnquadramento" | "pisCst" | "pisAliquota" | "cofinsCst" | "cofinsAliquota" | "pisCofinsExcluiIcms" | "ibsCbsCst" | "cClassTrib" | "ibsAliquota" | "cbsAliquota" | "mascara" | "cBenef" | "icmsPorDentro" | "ipiNaBaseIcms" | "pisCofinsSemBase" | "icmsModBC">;
+
+/** Os campos de imposto do item a partir da máscara (o resto do item fica como veio). */
+export function impostosDoItem(m: Mascara, aliquotaDoIpi: number | null): ImpostosDaMascara {
+  const modBC = m.icms_mod_bc;
   return {
     cfop: m.cfop, icmsCst: m.icms_cst ?? "", icmsAliquota: m.icms_aliquota ?? 0, icmsReducaoBase: m.icms_reducao_base ?? 0,
     ipiCst: m.ipi_cst ?? "", ipiAliquota: aliquotaDoIpi ?? 0, pisCst: m.pis_cst ?? "", pisAliquota: m.pis_aliquota ?? 0,
     cofinsCst: m.cofins_cst ?? "", cofinsAliquota: m.cofins_aliquota ?? 0, pisCofinsExcluiIcms: m.pis_cofins_exclui_icms, mascara: m.codigo,
-    ...(m.ipi_enquadramento ? { ipiEnquadramento: m.ipi_enquadramento } : {}),
-    ...(m.ibs_cbs_cst ? { ibsCbsCst: m.ibs_cbs_cst, cClassTrib: m.cclasstrib ?? "", ibsAliquota: m.ibs_aliquota ?? 0, cbsAliquota: m.cbs_aliquota ?? 0 } : {}),
+    // Campos opcionais: ausentes (undefined) para a máscara substituir a anterior inteira.
+    cBenef: m.cbenef || undefined, icmsPorDentro: m.icms_por_dentro || undefined, ipiNaBaseIcms: m.ipi_na_base_icms || undefined,
+    pisCofinsSemBase: m.pis_cofins_sem_base || undefined, icmsModBC: modBC === 0 || modBC === 1 || modBC === 2 ? modBC : undefined,
+    ipiEnquadramento: m.ipi_enquadramento || undefined,
+    ibsCbsCst: m.ibs_cbs_cst || undefined, cClassTrib: m.ibs_cbs_cst ? m.cclasstrib ?? "" : undefined,
+    ibsAliquota: m.ibs_cbs_cst ? m.ibs_aliquota ?? 0 : undefined, cbsAliquota: m.ibs_cbs_cst ? m.cbs_aliquota ?? 0 : undefined,
   };
+}
+
+/** Item com a máscara aplicada: os impostos são trocados inteiros; o resto (produto, quantidade, preço) fica. */
+export function aplicarMascaraNoItem(i: ItemNfe, m: Mascara, ipiPorNcm: Map<string, number | null>): ItemNfe {
+  const novo = { ...i, ...impostosDoItem(m, aliquotaIpi(m, i.ncm, ipiPorNcm) ?? i.ipiAliquota ?? 0) } as ItemNfe;
+  for (const k of Object.keys(novo) as (keyof ItemNfe)[]) if (novo[k] === undefined) delete novo[k];
+  return novo;
 }
 
 export type ItemParaImposto = { quantidade: number; preco: number; ncm: string | null; descricao: string };
@@ -163,6 +193,17 @@ export function normalizarMascara(v: unknown): { patch: Record<string, unknown>;
   texto("observacao_interna", 1000);
   texto("ibs_cbs_cst", 3);
   texto("cclasstrib", 6);
+  if ("cbenef" in b) {
+    const t = String(b.cbenef ?? "").trim().toUpperCase();
+    if (t && !/^([!-ÿ]{8}|[!-ÿ]{10}|SEM CBENEF)$/.test(t)) erros.push("Código de benefício (cBenef): 8 ou 10 caracteres (ex.: SP020120) ou SEM CBENEF.");
+    patch.cbenef = t || null;
+  }
+  if ("icms_mod_bc" in b) {
+    const t = String(b.icms_mod_bc ?? "").trim();
+    if (t && !/^[0-3]$/.test(t)) erros.push("Modalidade da base do ICMS: 0, 1, 2 ou 3.");
+    patch.icms_mod_bc = t ? Number(t) : null;
+  }
+  for (const k of ["icms_por_dentro", "ipi_na_base_icms", "pis_cofins_sem_base", "valores_informados"]) if (k in b) patch[k] = Boolean(b[k]);
   if ("cfop" in b) {
     const c = String(b.cfop ?? "").replace(/\D/g, "");
     if (!/^[1-7]\d{3}$/.test(c)) erros.push("CFOP: 4 dígitos (ex.: 5101).");
