@@ -273,7 +273,8 @@ test("devolução: cada item leva a nota e o item devolvidos (DFeReferenciado) e
   const { xml } = gerarXmlNfe({ nota: n, emitente: EMITENTE, serie: 1, numero: 10, emissao: new Date("2026-11-05T12:00:00Z"), codigoNumerico: "12345678", tpAmb: 2 });
   assert.ok(!xml.includes("<NFref>"), "refNFe proibido na devolução (RV VC02-05/VC02-14)");
   const dets = xml.match(/<det nItem="\d+">.*?<\/det>/g);
-  assert.match(dets[0], new RegExp(`</imposto>(<infAdProd>.*</infAdProd>)?<DFeReferenciado><chaveAcesso>${CHAVE_DEV}</chaveAcesso><nItem>2</nItem></DFeReferenciado></det>$`));
+  // Ordem do esquema: imposto, infAdProd, vItem, DFeReferenciado.
+  assert.match(dets[0], new RegExp(`</imposto>(<infAdProd>.*</infAdProd>)?(<vItem>[\\d.]+</vItem>)?<DFeReferenciado><chaveAcesso>${CHAVE_DEV}</chaveAcesso><nItem>2</nItem></DFeReferenciado></det>$`));
   assert.match(dets[1], /<nItem>1<\/nItem><\/DFeReferenciado><\/det>$/);
   // Complementar continua com o refNFe no cabeçalho.
   const comp = gerarXmlNfe({ nota: nota({ finalidade: 2, referencia: CHAVE_DEV }), emitente: EMITENTE, serie: 1, numero: 11, emissao: new Date(), codigoNumerico: "12345678", tpAmb: 2 }).xml;

@@ -69,7 +69,7 @@ test("XML: xPed e nItemPed no produto (ordem do esquema) e o texto do pedido em 
   const emitente = { cnpj: "11222333000181", razaoSocial: "EMPRESA EXEMPLO LTDA", fantasia: null, ie: "123456789012", im: null, cnae: null, crt: 3, logradouro: "RUA UM", numero: "1", complemento: null, bairro: "CENTRO", codigoMunicipio: "3523909", municipio: "ITU", uf: "SP", cep: "13300000", telefone: null };
   const { xml } = gerarXmlNfe({ nota, emitente, serie: 1, numero: 9, emissao: new Date("2026-10-13T15:00:00Z"), codigoNumerico: "12345678", tpAmb: 2 });
   assert.match(xml, /<indTot>1<\/indTot><xPed>4502385803<\/xPed><nItemPed>060<\/nItemPed><\/prod>/);
-  assert.match(xml, /<\/imposto><infAdProd>Nº Pedido: 4502385803 Nº Pedido Item: 060<\/infAdProd><\/det>/);
+  assert.match(xml, /<\/imposto><infAdProd>Nº Pedido: 4502385803 Nº Pedido Item: 060<\/infAdProd><vItem>9600\.00<\/vItem><\/det>/);
   const longo = notaDoOrcamento({ cliente: CLIENTE, linhas: [{ linha: { ...LINHA, pedido_cliente: "PEDIDO-MUITO-LONGO-123", item_pedido: "A1" }, quantidade: 1, produto: PRODUTO }], ufEmitente: "SP", crt: 3 });
   const x2 = gerarXmlNfe({ nota: longo, emitente, serie: 1, numero: 10, emissao: new Date(), codigoNumerico: "12345679", tpAmb: 2 }).xml;
   assert.doesNotMatch(x2, /<xPed>/, "xPed tem no máximo 15 caracteres: fica só no texto");

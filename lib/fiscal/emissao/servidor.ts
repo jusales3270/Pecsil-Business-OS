@@ -3,7 +3,7 @@ import "server-only";
 import { randomInt } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { obterTransmissor, transmissorConfigurado } from "../transmissor";
-import { calcularItens, calcularTotais } from "./calculo";
+import { totaisDaNota } from "./calculo";
 import { avisosIbsCbs, cnpjValido, cpfValido, validarNota, type IbsCbsLegal, type Problema } from "./regras";
 import type { AmbienteNfe, Destinatario, Emitente, NotaNfe } from "./tipos";
 import { DESTINATARIO_HOMOLOGACAO } from "./sefaz";
@@ -98,7 +98,7 @@ export async function auditar(admin: SupabaseClient, a: Autor & { evento: string
 
 /** Resumo para a lista (o que a tela mostra sem abrir a nota). */
 export function resumoDaNota(nota: NotaNfe) {
-  const totais = calcularTotais(calcularItens(nota));
+  const totais = totaisDaNota(nota);
   return {
     natureza: nota.natureza.slice(0, 60), totais, valor_total: totais.vNF,
     destinatario_nome: nota.destinatario.nome.slice(0, 200) || null, destinatario_documento: nota.destinatario.documento.replace(/\D/g, "") || null,
