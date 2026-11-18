@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Callout, Kpi, KpiGrid, Modal, Segmented, Status } from "../../packages/design-system";
 import type { FinanceChartAccount, FinanceTitle } from "../../lib/data/finance";
 import { FinanceRevisao, useRevisaoCount } from "./finance-revisao";
 import { agruparRecebiveis, emAberto, resumoRecebiveis, situacaoRecebivel, type SituacaoRecebivel } from "../../lib/finance/recebiveis-core";
+import { executarLote, ORDEM_LOTE, PERMISSAO_LOTE, resumoFora, separar, type AcaoLote } from "../../lib/finance/lote-core";
 import { ouvirRegistro, tomarRegistro } from "../../lib/abrir-registro";
 import { definirRegistroAberto } from "../../lib/tela-atual";
 
@@ -63,6 +64,20 @@ function Seta({ aberto }: { aberto: boolean }) {
   return <svg className={aberto ? "aberto" : ""} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m9 18 6-6-6-6" /></svg>;
 }
 
+type EstadoMarca = "todos" | "alguns" | "nenhum";
+
+/** Caixa de marcar de um título, de um fornecedor inteiro ou de todos do filtro (com o "alguns" do meio). */
+function Marca({ estado, onChange, rotulo, children }: { estado: EstadoMarca; onChange: (marcar: boolean) => void; rotulo: string; children?: React.ReactNode }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (ref.current) ref.current.indeterminate = estado === "alguns"; }, [estado]);
+  return (
+    <label className="receber-marca" title={rotulo}>
+      <input ref={ref} type="checkbox" checked={estado === "todos"} onChange={(event) => onChange(event.target.checked)} aria-label={rotulo} />
+      {children}
+    </label>
+  );
+}
+
 async function chamar(url: string, method: string, body?: unknown): Promise<string | null> {
   try {
     const res = await fetch(url, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -98,6 +113,10 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
   const [busca, setBusca] = useState("");
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
   const [selecionado, setSelecionado] = useState<string | null>(null);
+  // Seleção em lote (marcar vários títulos e escolher uma ação).
+  const [marcados, setMarcados] = useState<Set<string>>(new Set());
+  const [acaoLote, setAcaoLote] = useState<AcaoLote | "">("");
+  const [loteAberto, setLoteAberto] = useState(false);
   // Quitados: um mês por vez, buscado no servidor.
   const [mesQuitados, setMesQuitados] = useState(today.slice(0, 7));
   const [quitados, setQuitados] = useState<{ chave: string; titulos: FinanceTitle[]; erro: string } | null>(null);
@@ -180,6 +199,19 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
       .sort((a, b) => b.aberto - a.aberto);
   }, [visiveis, today, aba]);
   const totalVisivel = blocos.reduce((acc, bloco) => acc + bloco.aberto, 0);
+  const podeLote = (aba === "aberto" || aba === "previsoes") && (canCreate || canSettle);
+  const acoesLote = ORDEM_LOTE.filter((a) => (PERMISSAO_LOTE[a] === "aprovar" ? canSettle : canCreate));
+  // Só o que está à vista entra no lote: título escondido pelo filtro nunca é alterado.
+  const escolhidos = useMemo(() => (podeLote ? visiveis.filter((t) => marcados.has(t.id)) : []), [podeLote, visiveis, marcados]);
+  const estadoDe = (ids: string[]): EstadoMarca => {
+    const n = ids.filter((id) => marcados.has(id)).length;
+    return n === 0 ? "nenhum" : n === ids.length ? "todos" : "alguns";
+  };
+  const marcar = (ids: string[], sim: boolean) => setMarcados((atual) => {
+    const novo = new Set(atual);
+    for (const id of ids) { if (sim) novo.add(id); else novo.delete(id); }
+    return novo;
+  });
   // Com busca ou um grupo escolhido, tudo que sobrou aparece aberto.
   const tudoAberto = busca.trim().length > 0 || grupo !== "Todos" || blocos.length === 1;
   const alternar = (nome: string) => setAbertos((atual) => {
@@ -189,7 +221,7 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
   });
   useEffect(() => { definirRegistroAberto(selecionado ? { tipo: "titulo", id: selecionado } : null); return () => definirRegistroAberto(null); }, [selecionado]);
   const titulo = selecionado ? daAba.find((t) => t.id === selecionado) ?? titles.find((t) => t.id === selecionado) ?? null : null;
-  const trocarAba = (nova: Aba) => { setAba(nova); setGrupo("Todos"); setMes("Todos"); setDia(""); setFiltro("Em aberto"); setAbertos(new Set()); };
+  const trocarAba = (nova: Aba) => { setAba(nova); setGrupo("Todos"); setMes("Todos"); setDia(""); setFiltro("Em aberto"); setAbertos(new Set()); setMarcados(new Set()); setAcaoLote(""); };
   const alterado = async (mensagem: string) => {
     await onChanged(mensagem);
     if (aba === "quitados") await buscarQuitados(chaveQuitados);
@@ -298,31 +330,64 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
             <small>{aba === "quitados" ? "Escolha outro mês." : titles.length ? "Troque a situação, o mês, o nome ou a busca." : "Os títulos aparecem aqui quando forem lançados."}</small>
           </div>
         )}
+        {!carregandoQuitados && podeLote && blocos.length > 0 && (
+          <div className={`receber-lote${escolhidos.length ? " ativo" : ""}`} role="region" aria-label="Seleção em lote">
+            <Marca estado={estadoDe(visiveis.map((t) => t.id))} onChange={(sim) => marcar(visiveis.map((t) => t.id), sim)} rotulo={`Selecionar todos os ${visiveis.length} títulos do filtro`}>
+              Selecionar todos ({visiveis.length})
+            </Marca>
+            {escolhidos.length > 0 ? (
+              <>
+                <span className="receber-lote-qtd"><b>{plural(escolhidos.length, "selecionado", "selecionados")}</b> · {money(escolhidos.reduce((acc, t) => acc + emAberto(t), 0))} em aberto</span>
+                <span className="receber-lote-acoes">
+                  <select value={acaoLote} onChange={(event) => setAcaoLote(event.target.value as AcaoLote | "")} aria-label="Ação para os selecionados">
+                    <option value="">Escolha a ação…</option>
+                    {acoesLote.map((a) => {
+                      const n = separar(a, escolhidos, today).entram.length;
+                      return <option key={a} value={a} disabled={!n}>{rotuloLote(a, direction)} ({n})</option>;
+                    })}
+                  </select>
+                  <Button compact disabled={!acaoLote || !separar(acaoLote, escolhidos, today).entram.length} onClick={() => setLoteAberto(true)}>Continuar</Button>
+                  <Button compact variant="ghost" onClick={() => { setMarcados(new Set()); setAcaoLote(""); }}>Limpar seleção</Button>
+                </span>
+              </>
+            ) : (
+              <span>Marque os títulos, ou um {texto.parte} inteiro, para executar uma ação em todos de uma vez.</span>
+            )}
+          </div>
+        )}
         {!carregandoQuitados && blocos.map((bloco) => {
           const aberto = tudoAberto || abertos.has(bloco.nome);
+          const ids = bloco.titulos.map((t) => t.id);
           return (
             <section key={bloco.nome} className="receber-grupo">
-              <button type="button" className="receber-grupo-head" onClick={() => alternar(bloco.nome)} aria-expanded={aberto}>
-                <Seta aberto={aberto} />
-                <span className="nome"><b>{bloco.nome}</b>{bloco.cliente && bloco.cliente !== bloco.nome && <small>{bloco.cliente}</small>}</span>
-                <span className="qtd">{plural(bloco.titulos.length, "título", "títulos")}</span>
-                {bloco.vencido > 0 && <Status tone="danger">{aba === "aberto" ? "Vencido" : "Data passada"} {moneyShort(bloco.vencido)}</Status>}
-                <strong>{money(bloco.aberto)}</strong>
-              </button>
+              <div className="receber-grupo-topo">
+                {podeLote && <Marca estado={estadoDe(ids)} onChange={(sim) => marcar(ids, sim)} rotulo={`Selecionar os títulos de ${bloco.nome}`} />}
+                <button type="button" className="receber-grupo-head" onClick={() => alternar(bloco.nome)} aria-expanded={aberto}>
+                  <Seta aberto={aberto} />
+                  <span className="nome"><b>{bloco.nome}</b>{bloco.cliente && bloco.cliente !== bloco.nome && <small>{bloco.cliente}</small>}</span>
+                  <span className="qtd">{plural(bloco.titulos.length, "título", "títulos")}</span>
+                  {bloco.vencido > 0 && <Status tone="danger">{aba === "aberto" ? "Vencido" : "Data passada"} {moneyShort(bloco.vencido)}</Status>}
+                  <strong>{money(bloco.aberto)}</strong>
+                </button>
+              </div>
               {aberto && (
-                <div className="receber-tabela" role="table">
-                  <div className="cabeca" role="row"><span>{aba === "quitados" ? texto.dataBaixa : "Vencimento"}</span><span>Histórico</span><span>Documento</span><span>Conta</span><span>{aba === "quitados" ? texto.valorBaixa : "Valor"}</span><span>Situação</span></div>
+                <div className={`receber-tabela${podeLote ? " com-marca" : ""}`} role="table">
+                  <div className="cabeca" role="row">{podeLote && <span aria-hidden />}<span className="venc">{aba === "quitados" ? texto.dataBaixa : "Vencimento"}</span><span>Histórico</span><span className="doc">Documento</span><span>Conta</span><span className="r">{aba === "quitados" ? texto.valorBaixa : "Valor"}</span><span>Situação</span></div>
                   {bloco.titulos.map((t) => {
                     const situacao = situacaoRecebivel(t, today);
+                    const marcado = podeLote && marcados.has(t.id);
                     return (
-                      <button type="button" role="row" key={t.id} onClick={() => setSelecionado(t.id)}>
-                        <span className="venc">{date(aba === "quitados" ? t.paidAt : vencimento(t))}</span>
-                        <span className="hist">{t.description}{t.reviewReason && <em title={t.reviewReason}>revisar</em>}</span>
-                        <span className="doc">{t.documentNumber ?? "—"}</span>
-                        <span className="conta">{t.allocations.length > 1 ? `${t.allocations.length} contas` : t.chartAccount ?? "—"}</span>
-                        <span className="valor">{money(aba === "quitados" ? t.paidAmount : t.originalAmount)}</span>
-                        <span><Status tone={TONE[situacao]}>{situacao === "Recebido" ? texto.quitado : situacao}</Status></span>
-                      </button>
+                      <div role="row" key={t.id} className={`linha${marcado ? " marcada" : ""}`}>
+                        {podeLote && <Marca estado={marcado ? "todos" : "nenhum"} onChange={(sim) => marcar([t.id], sim)} rotulo={`Selecionar ${t.description}`} />}
+                        <button type="button" onClick={() => setSelecionado(t.id)}>
+                          <span className="venc">{date(aba === "quitados" ? t.paidAt : vencimento(t))}</span>
+                          <span className="hist">{t.description}{t.reviewReason && <em title={t.reviewReason}>revisar</em>}</span>
+                          <span className="doc">{t.documentNumber ?? "—"}</span>
+                          <span className="conta">{t.allocations.length > 1 ? `${t.allocations.length} contas` : t.chartAccount ?? "—"}</span>
+                          <span className="valor">{money(aba === "quitados" ? t.paidAmount : t.originalAmount)}</span>
+                          <span><Status tone={TONE[situacao]}>{situacao === "Recebido" ? texto.quitado : situacao}</Status></span>
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -335,7 +400,161 @@ export function FinanceTitles({ direction, titles, accounts, canCreate, canSettl
       </>)}
 
       {titulo && <Detalhe key={titulo.id} direction={direction} titulo={titulo} hoje={today} accounts={accounts} canEdit={canCreate} canSettle={canSettle} onClose={() => setSelecionado(null)} onChanged={alterado} />}
+      {loteAberto && acaoLote && (
+        <Lote
+          direction={direction}
+          acao={acaoLote}
+          titulos={escolhidos}
+          hoje={today}
+          accounts={accounts}
+          onClose={() => setLoteAberto(false)}
+          onFeito={async (mensagem, falharam) => {
+            // Os que falharam continuam marcados, para tentar de novo; os outros saem da seleção.
+            setMarcados(new Set(falharam));
+            if (!falharam.length) setAcaoLote("");
+            await alterado(mensagem);
+          }}
+        />
+      )}
     </>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Ação em lote: a mesma ação de cada título, em todos os marcados
+   ------------------------------------------------------------------------- */
+
+function rotuloLote(acao: AcaoLote, direction: Direction): string {
+  return {
+    baixar: TEXTO[direction].baixar, aprovar: "Aprovar", conta: "Trocar a conta do plano", vencimento: "Mudar o vencimento",
+    conferido: "Marcar como conferido", cancelar: "Cancelar títulos", excluir: "Excluir títulos",
+  }[acao];
+}
+
+const centavos = (valor: number) => Math.round(valor * 100) / 100;
+
+function Lote({ direction, acao, titulos, hoje: today, accounts, onClose, onFeito }: {
+  direction: Direction;
+  acao: AcaoLote;
+  titulos: FinanceTitle[];
+  hoje: string;
+  accounts: FinanceChartAccount[];
+  onClose: () => void;
+  onFeito: (mensagem: string, falharam: string[]) => Promise<void>;
+}) {
+  const texto = TEXTO[direction];
+  // A separação fica congelada ao abrir: a lista recarrega depois de gravar e não pode mudar o lote no meio.
+  const [{ entram, fora }] = useState(() => separar(acao, titulos, today));
+  const [quando, setQuando] = useState(today);
+  const [observacao, setObservacao] = useState("");
+  const [conta, setConta] = useState("");
+  const [venc, setVenc] = useState("");
+  const [ciente, setCiente] = useState(false);
+  const [feitos, setFeitos] = useState<number | null>(null);
+  const [falhas, setFalhas] = useState<{ titulo: FinanceTitle; erro: string }[] | null>(null);
+  const [erro, setErro] = useState("");
+  const rodando = feitos !== null && falhas === null;
+  const valor = (t: FinanceTitle) => (acao === "baixar" ? emAberto(t) : t.originalAmount);
+  const total = entram.reduce((acc, t) => acc + valor(t), 0);
+  const rotulo = rotuloLote(acao, direction);
+  const contas = accounts.filter((a) => a.allowsPosting);
+  const rateados = acao === "conta" ? entram.filter((t) => t.allocations.length > 1).length : 0;
+  const comBaixa = acao === "excluir" ? entram.filter((t) => t.paidAmount > 0).length : 0;
+
+  const uma = (t: FinanceTitle): Promise<string | null> => {
+    switch (acao) {
+      case "baixar": return chamar("/api/finance", "PATCH", { type: "settle", titleId: t.id, date: quando, amount: centavos(emAberto(t)), notes: observacao });
+      case "aprovar": return chamar("/api/finance", "PATCH", { type: "approve", titleId: t.id });
+      case "cancelar": return chamar("/api/finance", "PATCH", { type: "cancel", titleId: t.id });
+      case "excluir": return chamar(`/api/finance/titulos/${t.id}`, "DELETE");
+      case "conta": return chamar(`/api/finance/titulos/${t.id}`, "PATCH", { chartAccountId: conta });
+      case "vencimento": return chamar(`/api/finance/titulos/${t.id}`, "PATCH", { dueDate: venc });
+      case "conferido": return chamar(`/api/finance/titulos/${t.id}`, "PATCH", { reviewed: true });
+    }
+  };
+
+  const executar = async () => {
+    if (acao === "baixar" && !quando) { setErro("Informe a data."); return; }
+    if (acao === "conta" && !conta) { setErro("Escolha a conta do plano."); return; }
+    if (acao === "vencimento" && !venc) { setErro("Informe o novo vencimento."); return; }
+    setErro("");
+    setFeitos(0);
+    const resultado = await executarLote(entram, uma, setFeitos);
+    setFalhas(resultado);
+    const certos = entram.length - resultado.length;
+    const feito = {
+      baixar: texto.baixado, aprovar: "Aprovação registrada", conta: "Conta do plano trocada", vencimento: "Vencimento alterado",
+      conferido: "Marcados como conferidos", cancelar: "Títulos cancelados", excluir: "Títulos excluídos",
+    }[acao];
+    const mensagem = certos
+      ? `${feito}: ${plural(certos, "título", "títulos")}${resultado.length ? `; ${plural(resultado.length, "falhou", "falharam")}` : ""}.`
+      : `Nenhum título alterado: ${plural(resultado.length, "falhou", "falharam")}.`;
+    await onFeito(mensagem, resultado.map((f) => f.titulo.id));
+    if (!resultado.length) onClose();
+  };
+
+  const linhaTitulo = (t: FinanceTitle) => `${t.counterparty} · ${t.documentNumber ?? t.description} · ${money(valor(t))}`;
+
+  return (
+    <Modal title={rotulo} subtitle={`${plural(entram.length, "título", "títulos")} · ${money(total)}`} eyebrow="Ação em lote" onClose={rodando ? () => undefined : onClose}>
+      <div className="receber-lote-form">
+        {falhas ? (
+          <>
+            <p>{entram.length - falhas.length > 0 ? `${plural(entram.length - falhas.length, "título gravado", "títulos gravados")}.` : "Nenhum título gravado."} {plural(falhas.length, "título não foi alterado", "títulos não foram alterados")} e continuam marcados:</p>
+            <ul className="receber-lote-falhas">
+              {falhas.map((f) => <li key={f.titulo.id}><span>{linhaTitulo(f.titulo)}</span><small>{f.erro}</small></li>)}
+            </ul>
+            <footer><Button type="button" onClick={onClose}>Fechar</Button></footer>
+          </>
+        ) : (
+          <>
+            {fora.length > 0 && <p className="fora">Ficam fora {plural(fora.length, "título marcado", "títulos marcados")}: {resumoFora(fora)}. {fora.length === 1 ? "Ele não muda" : "Eles não mudam"}.</p>}
+
+            {acao === "baixar" && (
+              <>
+                <p>Cada título é quitado pelo saldo em aberto, na mesma data. Para pagar valor diferente (parcial ou com juros), faça a baixa no título.</p>
+                <label><span>Data do {direction === "payable" ? "pagamento" : "recebimento"} *</span><input type="date" value={quando} max={today} onChange={(e) => setQuando(e.target.value)} /></label>
+                <label><span>Observação</span><input value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Opcional, vai em todas as baixas" /></label>
+              </>
+            )}
+            {acao === "aprovar" && <p>Registra a sua aprovação em cada título. Quem tem mais de um nível na alçada segue esperando o próximo nível.</p>}
+            {acao === "conta" && (
+              <>
+                <label><span>Nova conta do plano *</span>
+                  <select value={conta} onChange={(e) => setConta(e.target.value)}>
+                    <option value="">Escolha a conta…</option>
+                    {contas.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
+                  </select>
+                </label>
+                {rateados > 0 && <p className="fora">{plural(rateados, "título está rateado", "títulos estão rateados")} em mais de uma conta: {rateados === 1 ? "ele passa" : "eles passam"} a ficar inteiro{rateados === 1 ? "" : "s"} na conta escolhida.</p>}
+              </>
+            )}
+            {acao === "vencimento" && <label><span>Novo vencimento *</span><input type="date" value={venc} onChange={(e) => setVenc(e.target.value)} /></label>}
+            {acao === "conferido" && <p>Tira o aviso “revisar” dos títulos. Valor, conta e vencimento não mudam.</p>}
+            {acao === "cancelar" && <p>Os títulos saem do total em aberto e ficam em Cancelados.</p>}
+            {acao === "excluir" && (
+              <>
+                <p>Os títulos são apagados de vez, com parcelas e rateio{comBaixa ? `, e ${plural(comBaixa, "deles tem baixa registrada, que também é apagada", "deles têm baixa registrada, que também é apagada")}` : ""}. Para só tirar do total, prefira Cancelar títulos.</p>
+                <label className="marca"><input type="checkbox" checked={ciente} onChange={(e) => setCiente(e.target.checked)} /> Entendi: excluir {plural(entram.length, "título", "títulos")} de vez</label>
+              </>
+            )}
+
+            {erro && <p className="receber-erro" role="alert">{erro}</p>}
+            <footer>
+              <Button type="button" variant="secondary" onClick={onClose} disabled={rodando}>Voltar</Button>
+              <Button
+                type="button"
+                className={acao === "baixar" ? "sucesso" : acao === "excluir" || acao === "cancelar" ? "perigo" : undefined}
+                disabled={rodando || (acao === "excluir" && !ciente)}
+                onClick={() => void executar()}
+              >
+                {rodando ? `Gravando ${feitos} de ${entram.length}…` : `${rotulo} (${entram.length})`}
+              </Button>
+            </footer>
+          </>
+        )}
+      </div>
+    </Modal>
   );
 }
 

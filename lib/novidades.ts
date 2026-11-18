@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-18-financeiro-acoes-em-lote",
+    data: "2026-11-18",
+    area: "Financeiro",
+    titulo: "Ação em vários títulos de uma vez",
+    modulos: ["financeiro"],
+    funcionalidades: ["financeiro.pagar", "financeiro.receber"],
+    itens: [
+      "Em Contas a pagar e Contas a receber, cada título e cada fornecedor (ou cliente) ganhou uma caixa de marcar, e há \"Selecionar todos\" para todos os títulos do filtro.",
+      "Com os títulos marcados, escolha a ação: registrar pagamento (ou confirmar recebimento) pelo saldo, aprovar, trocar a conta do plano, mudar o vencimento, marcar como conferido, cancelar ou excluir.",
+      "Antes de gravar, a tela mostra quantos entram na ação e quais ficam de fora, com o motivo (por exemplo, \"ainda em aprovação\"). Se algum falhar, ele continua marcado, com a mensagem, para tentar de novo.",
+    ],
+  },
+  {
     id: "2026-11-18-nfe-producao-com-trava",
     data: "2026-11-18",
     area: "Fiscal",
