@@ -44,6 +44,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-18-nfe-producao-com-trava",
+    data: "2026-11-18",
+    area: "Fiscal",
+    titulo: "Emissão em produção, com trava",
+    modulos: ["fiscal"],
+    funcionalidades: ["fiscal.nfe", "fiscal.config"],
+    itens: [
+      "Em Fiscal › Configuração, quem aprova as notas pode passar a emissão para produção (é preciso digitar PRODUÇÃO para confirmar) e voltar para homologação quando quiser.",
+      "Com a produção ligada, aparece a opção Produção em Notas emitidas e em A faturar, com a faixa vermelha \"nota com valor fiscal\".",
+      "A nota de produção só sai com a máscara de impostos confirmada e com a numeração depois da última nota do GRV: grave o próximo número da série em Configuração antes da primeira nota.",
+    ],
+  },
+  {
     id: "2026-11-18-nfe-virada-grv",
     data: "2026-11-18",
     area: "Fiscal",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Button, Callout, EscolherArquivo, Status } from "../../../packages/design-system";
+import { Button, Callout, EscolherArquivo, Modal, Status } from "../../../packages/design-system";
 import { api, cnpjFormatado, dataHora } from "./comum";
 
 /**
@@ -49,6 +49,9 @@ export function ConfiguracaoFiscal({ notify }: { notify: (m: string) => void }) 
   const [erro, setErro] = useState("");
   const [f, setF] = useState<Record<string, string>>({});
   const [ocupado, setOcupado] = useState<string | null>(null);
+  // Troca do ambiente da emissão: produção só com a palavra digitada (a nota passa a valer como documento fiscal).
+  const [trocar, setTrocar] = useState<"producao" | "homologacao" | null>(null);
+  const [palavra, setPalavra] = useState("");
 
   const carregar = useCallback(async () => {
     const r = await api<Omit<Dados, "carregadoEm">>("/api/fiscal/config");
@@ -195,8 +198,39 @@ export function ConfiguracaoFiscal({ notify }: { notify: (m: string) => void }) 
           <label><span>Série padrão</span><input inputMode="numeric" value={f.serie_padrao ?? ""} onChange={(e) => set("serie_padrao", e.target.value.replace(/\D/g, "").slice(0, 3))} disabled={!pode} /></label>
           <label><span>Próximo número<small> · para continuar a numeração do sistema anterior</small></span><input inputMode="numeric" value={f.proximo_numero ?? ""} onChange={(e) => set("proximo_numero", e.target.value.replace(/\D/g, "").slice(0, 9))} disabled={!pode} /></label>
         </div>
-        {pode && <footer><Button type="submit" disabled={ocupado === "gravar"}>Gravar série e numeração</Button></footer>}
+        {pode && (
+          <footer>
+            <Button type="submit" disabled={ocupado === "gravar"}>Gravar série e numeração</Button>
+            {dados?.podeProducao && c && (c.ambiente === "producao"
+              ? <Button type="button" variant="secondary" onClick={() => { setPalavra(""); setTrocar("homologacao"); }} disabled={ocupado !== null}>Voltar para homologação</Button>
+              : <Button type="button" variant="secondary" onClick={() => { setPalavra(""); setTrocar("producao"); }} disabled={ocupado !== null}>Passar para produção…</Button>)}
+          </footer>
+        )}
       </form>
+      {trocar && (
+        <Modal eyebrow="FISCAL · AMBIENTE DA EMISSÃO" title={trocar === "producao" ? "Passar a emissão para produção" : "Voltar a emissão para homologação"} onClose={() => setTrocar(null)}>
+          <div className="almox-form">
+          {trocar === "producao" ? (
+            <>
+              <Callout variant="warning" title="A nota passa a valer como documento fiscal">
+                Em produção a nota vai à SEFAZ de verdade, gera imposto e só se desfaz por cancelamento (até 24 horas) ou carta de correção. Mesmo em produção, a nota só sai com a máscara de impostos confirmada pelo Fiscal e com a numeração depois da última nota emitida pelo sistema anterior.
+              </Callout>
+              <p className="fiscal-nota-ajuda">Confira antes: série {f.serie_padrao || "—"}, próximo número {f.proximo_numero || "—"}. Para confirmar, digite <b>PRODUÇÃO</b>.</p>
+              <label className="nfe-texto"><span>Confirmação</span><input value={palavra} onChange={(e) => setPalavra(e.target.value)} aria-label="Digite PRODUÇÃO para confirmar" autoFocus /></label>
+            </>
+          ) : (
+            <p className="fiscal-nota-ajuda">As notas novas voltam a ir à SEFAZ de teste, sem valor fiscal. As notas já autorizadas em produção continuam valendo e podem ser canceladas ou corrigidas por elas mesmas.</p>
+          )}
+          <footer>
+            <Button variant="secondary" onClick={() => setTrocar(null)}>Desistir</Button>
+            <Button
+              disabled={ocupado !== null || (trocar === "producao" && palavra.trim().toLocaleUpperCase("pt-BR") !== "PRODUÇÃO")}
+              onClick={() => void gravar({ ambiente: trocar }, trocar === "producao" ? "Emissão em produção: as notas novas valem como documento fiscal." : "Emissão de volta à homologação.").then((ok) => { if (ok) setTrocar(null); })}
+            >{trocar === "producao" ? "Passar para produção" : "Voltar para homologação"}</Button>
+          </footer>
+          </div>
+        </Modal>
+      )}
 
       <section className="almox-bloco fiscal-config-bloco">
         <header><h2>Notas recebidas (SEFAZ)</h2>{c?.dfe_ativo ? <Status tone="success">Busca ligada</Status> : <Status tone="neutral">Busca desligada</Status>}</header>

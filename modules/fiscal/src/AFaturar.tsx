@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Callout } from "../../../packages/design-system";
+import { Button, Callout, Segmented } from "../../../packages/design-system";
 import { lerNumeroBr } from "../../../lib/numero-br";
 import { api, money } from "./comum";
 import { EditorOrcamento } from "../../comercial/src/vendas/Orcamentos";
@@ -11,8 +11,10 @@ import { EditorOrcamento } from "../../comercial/src/vendas/Orcamentos";
  * orçamentos ganhos com pedido, faturado e saldo. Quem fatura escolhe quantas peças vão nesta nota e
  * ela nasce preenchida; o banco nunca deixa a soma das notas passar do pedido (decisão de 16/10: o
  * teto é só o pedido; o produzido é informação). Por enquanto no TREINO (mesmas regras, sem consumir
- * o saldo real).
+ * o saldo real). A produção aparece quando a Configuração fiscal está em produção: fatura os orçamentos
+ * reais, com as mesmas travas da emissão (máscara confirmada, numeração depois da do GRV).
  */
+type AmbienteFaturar = "treino" | "producao";
 
 type Item = {
   quote_id: string; numero: number; cliente_id: string; cliente: string; pedido_cliente: string | null; item_id: string; ordem: number; codigo: string;
@@ -29,15 +31,20 @@ export function AFaturar({ notify, onAbrirNota }: { notify: (m: string) => void;
   const [gerando, setGerando] = useState(false);
   // Orçamento aberto para conferir antes de faturar (cliente, pedido, máscara, anexos, anotações).
   const [orcamento, setOrcamento] = useState<string | null>(null);
+  const [ambiente, setAmbiente] = useState<AmbienteFaturar>("treino");
+  const [producao, setProducao] = useState(false);
 
   const carregar = useCallback(async () => {
-    const r = await api<{ itens: Item[]; podeOperar: boolean }>("/api/fiscal/faturar?ambiente=treino");
+    const r = await api<{ itens: Item[]; podeOperar: boolean; producao?: boolean }>(`/api/fiscal/faturar?ambiente=${ambiente}`);
     if (!r.ok) { setErro(r.error); return; }
     setErro("");
     setPodeOperar(r.data.podeOperar);
+    setProducao(Boolean(r.data.producao));
     setItens(r.data.itens.map((i) => ({ ...i, preco_unitario: Number(i.preco_unitario), pedido: Number(i.pedido), produzido: Number(i.produzido), faturado: Number(i.faturado), disponivel: Number(i.disponivel), falta: Number(i.falta) })));
-  }, []);
+  }, [ambiente]);
   useEffect(() => { const t = setTimeout(() => { void carregar(); }, 0); return () => clearTimeout(t); }, [carregar]);
+  const trocarAmbiente = (a: AmbienteFaturar) => { setEscolha({}); setItens(null); setAmbiente(a); };
+  const treino = ambiente === "treino";
 
   const porOrcamento = useMemo(() => {
     const m = new Map<string, Item[]>();
@@ -64,7 +71,7 @@ export function AFaturar({ notify, onAbrirNota }: { notify: (m: string) => void;
   const gerar = async () => {
     setGerando(true);
     const r = await api<{ id: string }>("/api/fiscal/faturar", {
-      method: "POST", body: JSON.stringify({ ambiente: "treino", itens: escolhidos.map((i) => ({ item: i.item_id, quantidade: lerNumero(escolha[i.item_id] ?? "0") })) }),
+      method: "POST", body: JSON.stringify({ ambiente, itens: escolhidos.map((i) => ({ item: i.item_id, quantidade: lerNumero(escolha[i.item_id] ?? "0") })) }),
     });
     setGerando(false);
     if (!r.ok) { notify(r.error); void carregar(); return; }
@@ -79,11 +86,19 @@ export function AFaturar({ notify, onAbrirNota }: { notify: (m: string) => void;
     <div className="icms-modulo">
       <div className="finance-page-head">
         <div><p className="eyebrow">FISCAL · FATURAMENTO</p><h1>A faturar</h1><p>Itens dos orçamentos ganhos e o saldo de cada um. Escolha quantas peças vão nesta nota: ela nasce preenchida, e a soma das notas nunca passa do pedido.</p></div>
+        {(producao || !treino) && <Segmented<AmbienteFaturar> options={[{ value: "treino", label: "Treino" }, { value: "producao", label: "Produção" }]} value={ambiente} onChange={trocarAmbiente} ariaLabel="Ambiente do faturamento" />}
       </div>
-      <div className="nfe-faixa-treino" role="note">
-        <b>TREINO — SEM VALOR FISCAL</b>
-        <span>As notas daqui faturam os orçamentos de treino do Comercial (T-1, T-2…), com a mesma regra do pedido (a soma das notas nunca passa do orçado). Nada vira nota real; tudo será apagado quando a plataforma entrar em produção.</span>
-      </div>
+      {treino ? (
+        <div className="nfe-faixa-treino" role="note">
+          <b>TREINO — SEM VALOR FISCAL</b>
+          <span>As notas daqui faturam os orçamentos de treino do Comercial (T-1, T-2…), com a mesma regra do pedido (a soma das notas nunca passa do orçado). Nada vira nota real; tudo será apagado quando a plataforma entrar em produção.</span>
+        </div>
+      ) : (
+        <div className="nfe-faixa-treino producao" role="note">
+          <b>PRODUÇÃO — NOTA COM VALOR FISCAL</b>
+          <span>As notas daqui faturam os orçamentos reais do Comercial e consomem o saldo do pedido. A nota nasce em rascunho: só vai à SEFAZ depois de conferida e aprovada no Fiscal.</span>
+        </div>
+      )}
       {erro && <div className="finance-empty almox-vazio"><b>{erro}</b></div>}
       {!itens && !erro && <div className="finance-empty almox-vazio"><small>Carregando…</small></div>}
       {itens && !itens.length && <div className="finance-empty almox-vazio"><b>Nada a faturar</b><small>Os itens aparecem aqui quando um orçamento é marcado como ganho no Comercial, e saem quando o pedido inteiro estiver faturado.</small></div>}
@@ -93,7 +108,7 @@ export function AFaturar({ notify, onAbrirNota }: { notify: (m: string) => void;
         return (
           <section className="almox-bloco" key={lista[0].quote_id}>
             <header className="almox-bloco-topo">
-              <h2><button type="button" className="vnd-abrir-orcamento" onClick={() => setOrcamento(lista[0].quote_id)} title="Abrir o orçamento inteiro: cliente, pedido, máscara, anexos e anotações">Orçamento de treino T-{lista[0].numero} · {lista[0].cliente}</button></h2>
+              <h2><button type="button" className="vnd-abrir-orcamento" onClick={() => setOrcamento(lista[0].quote_id)} title="Abrir o orçamento inteiro: cliente, pedido, máscara, anexos e anotações">{treino ? `Orçamento de treino T-${lista[0].numero}` : `Orçamento ${lista[0].numero}`} · {lista[0].cliente}</button></h2>
               <span className="nfe-contagem">Pedido de compra {lista[0].pedido_cliente ?? "—"} · <button type="button" className="almox-link" onClick={() => setOrcamento(lista[0].quote_id)}>Abrir orçamento</button></span>
             </header>
             <div className="vnd-tabela vnd-faturar" role="table">
@@ -138,7 +153,7 @@ export function AFaturar({ notify, onAbrirNota }: { notify: (m: string) => void;
           <span>{escolhidos.length} {escolhidos.length === 1 ? "item" : "itens"} · {money(totalEscolhido)} <small>(sem IPI)</small></span>
           {passaram.length > 0 && <Callout variant="warning" title="Passa do pedido">{passaram.map((i) => `${i.descricao} (cabem ${qtd(i.falta)})`).join(", ")}: a soma das notas nunca passa do que foi orçado e ganho.</Callout>}
           <Button variant="secondary" onClick={() => setEscolha({})} disabled={gerando}>Limpar</Button>
-          <Button onClick={() => void gerar()} disabled={gerando || invalidos.length > 0}>{gerando ? "Gerando…" : "Gerar nota (treino)"}</Button>
+          <Button onClick={() => void gerar()} disabled={gerando || invalidos.length > 0}>{gerando ? "Gerando…" : treino ? "Gerar nota (treino)" : "Gerar rascunho da nota (produção)"}</Button>
         </div>
       )}
     </div>

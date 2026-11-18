@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { dbError, requireFeature } from "../../../../lib/auth/feature-guard";
 import { notaDoOrcamento, type ClienteFiscal, type LinhaAFaturar, type ProdutoFiscal } from "../../../../lib/fiscal/emissao/do-orcamento";
 import { aliquotaIpi, mascaraDoBanco, type Mascara } from "../../../../lib/fiscal/mascaras";
-import { ambienteLiberado, auditar, autorDaSessao, definirOrigens, emitenteDaOrganizacao, resumoDaNota } from "../../../../lib/fiscal/emissao/servidor";
+import { ambienteLiberado, auditar, autorDaSessao, definirOrigens, emitenteDaOrganizacao, producaoLigada, resumoDaNota } from "../../../../lib/fiscal/emissao/servidor";
 import { lerNumeroBr } from "../../../../lib/numero-br";
 import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 
@@ -13,17 +13,20 @@ type Linha = LinhaAFaturar & { quote_id: string; cliente_id: string; cliente: st
 
 /**
  * Fiscal › A faturar — o assistente de faturamento do GRV: itens dos orçamentos ganhos com o que
- * foi pedido, produzido e faturado. Por enquanto no TREINO: segue as mesmas regras, sem consumir
- * o saldo real.
+ * foi pedido, produzido e faturado. No TREINO fatura os orçamentos de treino (T-); na PRODUÇÃO, os orçamentos reais,
+ * só com a Configuração fiscal em produção (a nota ainda passa pelas travas da virada ao validar).
  */
 export async function GET(request: Request) {
   const guard = await requireFeature("fiscal.nfe", "ver");
   if ("error" in guard) return guard.error;
   const ambiente = new URL(request.url).searchParams.get("ambiente") ?? "treino";
-  if (!ambienteLiberado(ambiente)) return NextResponse.json({ error: "Ambiente ainda não liberado." }, { status: 400 });
+  const autor = await autorDaSessao(guard.supabase);
+  if (!autor) return NextResponse.json({ error: "Sessão sem organização." }, { status: 400 });
+  const producao = await producaoLigada(createSupabaseAdminClient(), autor.org);
+  if (!["treino", "producao"].includes(ambiente) || (ambiente === "producao" && !producao)) return NextResponse.json({ error: "A produção só abre com a Configuração fiscal em produção." }, { status: 400 });
   const { data, error } = await guard.supabase.rpc("fiscal_a_faturar", { p_ambiente: ambiente });
   if (error) return dbError(error);
-  return NextResponse.json({ itens: data ?? [], ambiente, podeOperar: guard.access.can("fiscal.nfe", "operar") });
+  return NextResponse.json({ itens: data ?? [], ambiente, producao, podeOperar: guard.access.can("fiscal.nfe", "operar") });
 }
 
 /** Gera o rascunho da nota com os itens escolhidos (um cliente por nota). */
@@ -32,11 +35,12 @@ export async function POST(request: Request) {
   if ("error" in guard) return guard.error;
   const corpo = (await request.json().catch(() => null)) as { ambiente?: string; itens?: { item?: string; quantidade?: unknown }[] } | null;
   const ambiente = corpo?.ambiente ?? "treino";
-  if (!ambienteLiberado(ambiente)) return NextResponse.json({ error: "Por enquanto só o ambiente de treino está liberado." }, { status: 400 });
+  if (!ambienteLiberado(ambiente) || !["treino", "producao"].includes(ambiente)) return NextResponse.json({ error: "Ambiente inválido para faturar." }, { status: 400 });
   const pedidos = (corpo?.itens ?? []).map((x) => ({ item: String(x.item ?? ""), quantidade: lerNumeroBr(x.quantidade) })).filter((x) => x.item && x.quantidade > 0);
   if (!pedidos.length) return NextResponse.json({ error: "Escolha ao menos um item e a quantidade." }, { status: 400 });
   const autor = await autorDaSessao(guard.supabase);
   if (!autor) return NextResponse.json({ error: "Sessão sem organização." }, { status: 400 });
+  if (ambiente === "producao" && !(await producaoLigada(createSupabaseAdminClient(), autor.org))) return NextResponse.json({ error: "A produção só abre com a Configuração fiscal em produção." }, { status: 400 });
 
   const { data: linhasAll, error } = await guard.supabase.rpc("fiscal_a_faturar", { p_ambiente: ambiente });
   if (error) return dbError(error);

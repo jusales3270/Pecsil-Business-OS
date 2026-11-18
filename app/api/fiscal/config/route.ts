@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireAnyFeature, requireFeature } from "../../../../lib/auth/feature-guard";
 import { erroDoBanco } from "../../../../lib/fiscal/rotas";
 import { transmissorConfigurado } from "../../../../lib/fiscal/transmissor";
+import { autorDaSessao } from "../../../../lib/fiscal/emissao/servidor";
+import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,7 +45,20 @@ export async function PATCH(request: Request) {
   const p: Record<string, unknown> = {};
   for (const campo of CAMPOS) if (campo in corpo) p[campo] = corpo[campo] === null ? "" : corpo[campo];
   if (!Object.keys(p).length) return NextResponse.json({ error: "Nada para gravar." }, { status: 400 });
+  // Troca do ambiente da emissão (homologação ↔ produção): vai para a auditoria com risco alto.
+  const trocaAmbiente = "ambiente" in p;
+  const antes = trocaAmbiente ? (await guard.supabase.from("fiscal_config").select("ambiente").maybeSingle()).data?.ambiente ?? null : null;
   const { error } = await guard.supabase.rpc("fiscal_config_salvar", { p });
   if (error) return NextResponse.json({ error: erroDoBanco(error) }, { status: error.code === "42501" ? 403 : 400 });
+  if (trocaAmbiente && antes !== p.ambiente) {
+    const autor = await autorDaSessao(guard.supabase);
+    if (autor) {
+      await createSupabaseAdminClient().from("audit_logs").insert({
+        organization_id: autor.org, actor_user_id: autor.userId, actor_profile_id: autor.profileId, module_code: "fiscal",
+        event_type: "fiscal.config.ambiente", entity_type: "fiscal_config", entity_id: autor.org, risk_level: "high",
+        metadata: { de: antes, para: p.ambiente, por: autor.nome },
+      });
+    }
+  }
   return NextResponse.json({ ok: true });
 }

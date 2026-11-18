@@ -42,8 +42,9 @@ type Lista = {
   ambiente: Ambiente; ambientes: Ambiente[];
 };
 /** Treino: nada vai à SEFAZ. Homologação: a SEFAZ de teste, com o certificado da empresa (sem valor fiscal). */
-type Ambiente = "treino" | "homologacao";
-const NO_AMBIENTE: Record<Ambiente, string> = { treino: "no treino", homologacao: "na homologação" };
+type Ambiente = "treino" | "homologacao" | "producao";
+const NO_AMBIENTE: Record<Ambiente, string> = { treino: "no treino", homologacao: "na homologação", producao: "na produção" };
+const NOME_AMBIENTE: Record<Ambiente, string> = { treino: "TREINO", homologacao: "HOMOLOGAÇÃO", producao: "PRODUÇÃO" };
 type Validacao = { ok: boolean; erros: Problema[]; avisos: Problema[]; esquema: { conferido: boolean; erros: string[] } };
 type Detalhe = Linha & { nota: NotaNfe; totais: Totais | null; customer_id: string | null; validacao: Validacao | null };
 type Evento = { id: string; tipo: "cancelamento" | "carta" | "inutilizacao"; sequencia: number | null; texto: string; protocolo: string | null; created_by_name: string | null; created_at: string };
@@ -139,7 +140,7 @@ export function NotasEmitidas({ notify, abrir = null, onAberta }: { notify: (m: 
       <div className="finance-page-head">
         <div><p className="eyebrow">FISCAL · NF-e</p><h1>Notas emitidas</h1><p>As notas emitidas no GRV, mês a mês, e o treino da emissão pela plataforma, que confere as regras e o esquema oficial da SEFAZ antes de qualquer transmissão.</p></div>
         <div className="icms-acoes">
-          {ambientes.length > 1 && <Segmented<Ambiente> options={[{ value: "treino", label: "Treino" }, { value: "homologacao", label: "Homologação" }]} value={ambiente} onChange={(a) => { setDados(null); setFiltro("todas"); setAmbiente(a); }} ariaLabel="Ambiente da emissão" compact />}
+          {ambientes.length > 1 && <Segmented<Ambiente> options={ambientes.map((a) => ({ value: a, label: { treino: "Treino", homologacao: "Homologação", producao: "Produção" }[a] }))} value={ambiente} onChange={(a) => { setDados(null); setFiltro("todas"); setAmbiente(a); }} ariaLabel="Ambiente da emissão" compact />}
           {dados?.podeAprovar && <Button variant="secondary" onClick={() => setInutilizar(true)}>Inutilizar números</Button>}
           {dados?.podeOperar && <Button onClick={() => setAberta("nova")}>Nova nota</Button>}
         </div>
@@ -239,6 +240,14 @@ export function NotasEmitidas({ notify, abrir = null, onAberta }: { notify: (m: 
 }
 
 function FaixaTreino({ ambiente }: { ambiente: Ambiente }) {
+  if (ambiente === "producao") {
+    return (
+      <div className="nfe-faixa-treino producao" role="note">
+        <b>PRODUÇÃO — NOTA COM VALOR FISCAL</b>
+        <span>A nota vai à SEFAZ de verdade e vale como documento fiscal. Só sai com a máscara de impostos confirmada pelo Fiscal e com a numeração depois da do GRV. Cancelamento em até 24 horas.</span>
+      </div>
+    );
+  }
   if (ambiente === "homologacao") {
     return (
       <div className="nfe-faixa-treino homologacao" role="note">
@@ -443,7 +452,7 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
     const r = await api<{ ok?: boolean; pendente?: boolean; mensagem?: string; protocolo?: string | null }>(`/api/fiscal/nfe/${id}/acao`, { method: "POST", body: JSON.stringify({ acao: "transmitir" }) });
     if (!r.ok) notify(r.error);
     else if (r.data.pendente) notify(r.data.mensagem ?? "A SEFAZ ainda não confirmou: consulte na SEFAZ.");
-    else notify(amb === "homologacao" ? `Nota autorizada pela SEFAZ (homologação)${r.data.protocolo ? `, protocolo ${r.data.protocolo}` : ""}. DANFE e XML disponíveis.` : "Nota autorizada no treino. DANFE e XML disponíveis.");
+    else notify(amb !== "treino" ? `Nota autorizada pela SEFAZ (${amb === "producao" ? "produção" : "homologação"})${r.data.protocolo ? `, protocolo ${r.data.protocolo}` : ""}. DANFE e XML disponíveis.` : "Nota autorizada no treino. DANFE e XML disponíveis.");
     void carregar(id);
   });
   const consultar = () => rodar("consultar", async () => {
@@ -487,7 +496,7 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
     <div className="icms-modulo nfe-editor-pagina">
       <div className="finance-page-head">
         <div>
-          <p className="eyebrow">FISCAL · NF-e · {amb === "homologacao" ? "HOMOLOGAÇÃO" : "TREINO"}</p>
+          <p className="eyebrow">FISCAL · NF-e · {NOME_AMBIENTE[amb]}</p>
           <h1>{det?.numero ? `NF-e nº ${numeroNota(det)}` : "Nova nota fiscal"}</h1>
           <p>{det ? <>Montada por {det.montada_por_nome ?? "—"}{det.aprovada_por_nome ? ` · aprovada por ${det.aprovada_por_nome}` : ""}</> : "Preencha, valide e envie para aprovação."}</p>
         </div>
@@ -760,7 +769,7 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
               <span>Do contribuinte</span>
               <textarea aria-label="Informações complementares" rows={3} maxLength={2000} value={nota.infoComplementar} onChange={(e) => mudar((n) => ({ ...n, infoComplementar: e.target.value }))} placeholder="Pedido do cliente, dados bancários, observações exigidas por lei…" />
             </label>
-            <p className="fiscal-nota-ajuda">{amb === "homologacao" ? "Na homologação, a SEFAZ exige que o nome do destinatário saia como “NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL”: a plataforma troca só na nota (o cadastro do cliente não muda)." : "No treino, a plataforma acrescenta “SIMULACAO DE TREINO NA PLATAFORMA - SEM VALOR FISCAL” no começo deste texto."}</p>
+            <p className="fiscal-nota-ajuda">{amb === "producao" ? "Na produção, o texto sai como está aqui." : amb === "homologacao" ? "Na homologação, a SEFAZ exige que o nome do destinatário saia como “NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL”: a plataforma troca só na nota (o cadastro do cliente não muda)." : "No treino, a plataforma acrescenta “SIMULACAO DE TREINO NA PLATAFORMA - SEM VALOR FISCAL” no começo deste texto."}</p>
           </section>
         </fieldset>
 
@@ -809,8 +818,8 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
             )}
             {situacao === "aguardando_aprovacao" && (lista.podeAprovar ? (
               <>
-                <p className="fiscal-nota-ajuda">{amb === "homologacao" ? "Você aprova as notas: confira e transmita. A nota vai à SEFAZ de teste e volta autorizada ou rejeitada com o motivo." : "Você aprova as notas: confira e transmita. No treino a “SEFAZ” é simulada e devolve um protocolo fictício."}</p>
-                <Button onClick={() => void transmitir()} disabled={ocupado !== null}>{ocupado === "transmitir" ? (amb === "homologacao" ? "Na SEFAZ…" : "Transmitindo…") : amb === "homologacao" ? "Aprovar e transmitir à SEFAZ (homologação)" : "Aprovar e transmitir (treino)"}</Button>
+                <p className="fiscal-nota-ajuda">{amb === "producao" ? "Você aprova as notas: confira tudo. Na produção a nota vale como documento fiscal assim que a SEFAZ autoriza." : amb === "homologacao" ? "Você aprova as notas: confira e transmita. A nota vai à SEFAZ de teste e volta autorizada ou rejeitada com o motivo." : "Você aprova as notas: confira e transmita. No treino a “SEFAZ” é simulada e devolve um protocolo fictício."}</p>
+                <Button onClick={() => void transmitir()} disabled={ocupado !== null}>{ocupado === "transmitir" ? (amb !== "treino" ? "Na SEFAZ…" : "Transmitindo…") : amb === "producao" ? "Aprovar e transmitir à SEFAZ (produção)" : amb === "homologacao" ? "Aprovar e transmitir à SEFAZ (homologação)" : "Aprovar e transmitir (treino)"}</Button>
                 <Button variant="secondary" onClick={() => setPedir("devolver")} disabled={ocupado !== null}>Devolver para correção</Button>
               </>
             ) : <p className="fiscal-nota-ajuda">Aguardando quem aprova as notas transmitir.</p>)}
@@ -847,10 +856,10 @@ function EditorNota({ id, lista, notify, onFechar, onCriada }: { id: string | nu
       </div>
 
       {pedir && id && (
-        <PedirTexto tipo={pedir} onClose={() => setPedir(null)} onConfirmar={async (texto) => {
+        <PedirTexto tipo={pedir} ambiente={amb} onClose={() => setPedir(null)} onConfirmar={async (texto) => {
           const ok = await acao(pedir, texto);
           if (ok) {
-            notify({ devolver: "Nota devolvida para correção.", cancelar: `Nota cancelada ${amb === "homologacao" ? "na SEFAZ (homologação)" : "no treino"}.`, carta: `Carta de correção registrada ${amb === "homologacao" ? "na SEFAZ (homologação)" : "no treino"}.` }[pedir]);
+            notify({ devolver: "Nota devolvida para correção.", cancelar: `Nota cancelada ${amb === "treino" ? "no treino" : `na SEFAZ (${amb === "producao" ? "produção" : "homologação"})`}.`, carta: `Carta de correção registrada ${amb === "treino" ? "no treino" : `na SEFAZ (${amb === "producao" ? "produção" : "homologação"})`}.` }[pedir]);
             setPedir(null);
             void carregar(id);
           }
@@ -954,7 +963,7 @@ const PEDIR = {
   carta: { titulo: "Carta de correção", rotulo: "Texto da correção", minimo: 15, botao: "Registrar a carta", ajuda: "A carta corrige dados que NÃO mudam o valor nem o imposto, nem o destinatário, nem a data. Ex.: endereço de entrega, peso, transportadora. Cada nova carta substitui a anterior." },
 } as const;
 
-function PedirTexto({ tipo, onClose, onConfirmar }: { tipo: keyof typeof PEDIR; onClose: () => void; onConfirmar: (texto: string) => Promise<boolean> }) {
+function PedirTexto({ tipo, ambiente, onClose, onConfirmar }: { tipo: keyof typeof PEDIR; ambiente: Ambiente; onClose: () => void; onConfirmar: (texto: string) => Promise<boolean> }) {
   const p = PEDIR[tipo];
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -965,7 +974,7 @@ function PedirTexto({ tipo, onClose, onConfirmar }: { tipo: keyof typeof PEDIR; 
     setEnviando(false);
   };
   return (
-    <Modal eyebrow="NF-e · TREINO" title={p.titulo} onClose={onClose}>
+    <Modal eyebrow={`NF-e · ${NOME_AMBIENTE[ambiente]}`} title={p.titulo} onClose={onClose}>
       <form className="almox-form" onSubmit={enviar}>
         <p className="fiscal-nota-ajuda">{p.ajuda}</p>
         <label className="nfe-texto"><span>{p.rotulo}</span><textarea rows={4} maxLength={1000} value={texto} onChange={(e) => setTexto(e.target.value)} autoFocus /></label>
@@ -992,10 +1001,10 @@ function InutilizarModal({ ambiente, onClose, onFeito }: { ambiente: Ambiente; o
     const r = await api<{ protocolo: string }>("/api/fiscal/nfe/inutilizar", { method: "POST", body: JSON.stringify({ ambiente, serie, inicio, fim: fim || inicio, texto }) });
     setEnviando(false);
     if (!r.ok) { setErro(r.error); return; }
-    onFeito(ambiente === "homologacao" ? `Numeração inutilizada na SEFAZ (homologação), protocolo ${r.data.protocolo}.` : `Numeração inutilizada no treino (protocolo simulado ${r.data.protocolo}).`);
+    onFeito(ambiente !== "treino" ? `Numeração inutilizada na SEFAZ (${ambiente === "producao" ? "produção" : "homologação"}), protocolo ${r.data.protocolo}.` : `Numeração inutilizada no treino (protocolo simulado ${r.data.protocolo}).`);
   };
   return (
-    <Modal eyebrow={`NF-e · ${ambiente === "homologacao" ? "HOMOLOGAÇÃO" : "TREINO"}`} title="Inutilizar números" subtitle="Para números que pularam e não vão ser usados" onClose={onClose}>
+    <Modal eyebrow={`NF-e · ${NOME_AMBIENTE[ambiente]}`} title="Inutilizar números" subtitle="Para números que pularam e não vão ser usados" onClose={onClose}>
       <form className="almox-form" onSubmit={enviar}>
         <p className="fiscal-nota-ajuda">Na vida real, todo número pulado (nota descartada, falha no sistema) precisa ser inutilizado na SEFAZ até o dia 10 do mês seguinte. Número de nota autorizada não pode ser inutilizado.</p>
         <div className="fiscal-campos nfe-campos">

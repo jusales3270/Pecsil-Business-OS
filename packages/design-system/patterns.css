@@ -9898,6 +9898,7 @@ a.doc-abrir { text-decoration: none; }
 .ds-excluir:disabled { opacity: .4; cursor: not-allowed; background: transparent; color: var(--text-muted); }
 /* Notas emitidas: faixa da homologação (a SEFAZ de teste), azul para não confundir com o treino. */
 .nfe-faixa-treino.homologacao { border-color: var(--edge-blue); background: var(--tint-blue); }
+.nfe-faixa-treino.producao { border-color: var(--edge-red); background: var(--tint-red); }
 .nfe-faixa-treino.homologacao b { color: var(--accent-blue); }
 
 /* ============================================================================

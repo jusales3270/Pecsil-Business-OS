@@ -171,9 +171,14 @@ test("treino nunca fala com a SEFAZ, homologação fala com trava e consulta, pr
   };
   andar(raiz);
   void rotas;
-  // Treino e homologação liberados; produção, só com o OK do proprietário (docs/PLANO-EMISSAO-NFE.md, F4).
-  assert.match(ler("../lib/fiscal/emissao/servidor.ts"), /AMBIENTES_LIBERADOS: AmbienteNfe\[\] = \["treino", "homologacao"\]/);
-  assert.doesNotMatch(ler("../lib/fiscal/emissao/servidor.ts"), /AMBIENTES_LIBERADOS[^\n]*"producao"/);
+  // Produção só com a Configuração fiscal em produção (docs/PLANO-VIRADA-FISCAL.md, 1.5): a rota e a gravação conferem.
+  const srv = ler("../lib/fiscal/emissao/servidor.ts");
+  assert.match(srv, /export async function ambientesDaOrganizacao[\s\S]*?producaoLigada\(admin, org\)\) \? \["treino", "homologacao", "producao"\] : \["treino", "homologacao"\]/);
+  assert.match(srv, /export async function producaoLigada[\s\S]*?data\?\.ambiente === "producao"/);
+  const nfeRota = ler("../app/api/fiscal/nfe/route.ts");
+  assert.ok((nfeRota.match(/ambientesDaOrganizacao\(admin, autor\.org\)/g) ?? []).length >= 2, "GET e POST das notas só no ambiente que a empresa vê");
+  const faturar = ler("../app/api/fiscal/faturar/route.ts");
+  assert.ok((faturar.match(/ambiente === "producao" && !(\(await )?producaoLigada|ambiente === "producao" && !producao/g) ?? []).length >= 2, "A faturar só abre a produção com a Configuração em produção");
   // Quem fala com a SEFAZ é só o que não é treino, e com a Configuração no MESMO ambiente da nota.
   const sefaz = ler("../lib/fiscal/emissao/sefaz.ts");
   assert.match(sefaz, /export const naSefaz = \(ambiente: AmbienteNfe\) => ambiente !== "treino";/);
@@ -304,4 +309,27 @@ test("devolução: os itens vêm da nota original com o nº do item", () => {
   assert.equal(n.emitente.nome, "FORNECEDOR & FILHOS");
   assert.deepEqual(n.itens.map((i) => [i.nItem, i.codigo, i.unidade, i.quantidade, i.valorUnitario, i.desconto, i.origem]), [[1, "A1", "KG", 1500, 1.23, 5, 0], [2, "B2", "UN", 3, 200, 0, 1]]);
   assert.equal(lerNotaDevolvivel("<xml/>"), null);
+});
+
+test("produção (virada de 01/12): máscara confirmada, Configuração em produção e numeração depois da do GRV", () => {
+  const srv = ler("../lib/fiscal/emissao/servidor.ts");
+  const bloco = srv.slice(srv.indexOf('if (registro.ambiente === "producao") {'), srv.indexOf("// Homologação: a SEFAZ de teste"));
+  assert.match(bloco, /problemasDeMascaraNaProducao\(admin, org, registro\.nota\)/);
+  assert.match(bloco, /if \(!\(await producaoLigada\(admin, org\)\)\) erros\.push/);
+  assert.match(bloco, /if \(!registro\.numero\) erros\.push\(\.\.\.\(await problemasDaNumeracaoNaProducao/);
+  const num = srv.slice(srv.indexOf("export async function problemasDaNumeracaoNaProducao"), srv.indexOf("export type Autor"));
+  assert.match(num, /if \(!serieCfg\) return \[/, "sem o próximo número gravado, a produção não sai");
+  assert.match(num, /usada\?\.proximo \?\? serieCfg\.proximo_numero/);
+  assert.match(num, /eq\("emitente_cnpj", cnpj\)/, "só as notas da própria empresa contam");
+  assert.match(num, /if \(proximo <= maior\)/);
+  // A chave: série nas posições 23–25 e número nas 26–34.
+  const chave = "35261146839106000184550010000012341123456789";
+  assert.equal(Number(chave.slice(22, 25)), 1);
+  assert.equal(Number(chave.slice(25, 34)), 1234);
+  // A troca para produção exige a palavra digitada na tela e a permissão de aprovar no banco.
+  const cfg = ler("../modules/fiscal/src/ConfiguracaoFiscal.tsx");
+  assert.match(cfg, /palavra\.trim\(\)\.toLocaleUpperCase\("pt-BR"\) !== "PRODUÇÃO"/);
+  assert.match(cfg, /dados\?\.podeProducao && c/);
+  assert.match(ler("../app/api/fiscal/config/route.ts"), /event_type: "fiscal\.config\.ambiente"[^\n]*risk_level: "high"/, "a troca de ambiente vai para a auditoria");
+  assert.match(ler("../supabase/migrations/202610160008_decisoes_por_area.sql"), /p ->> 'ambiente' = 'producao' and atual\.ambiente <> 'producao' and not public\.has_feature\('fiscal\.nfe', 'aprovar'\)/);
 });

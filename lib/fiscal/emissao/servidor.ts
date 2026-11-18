@@ -15,8 +15,52 @@ import { assinaturaDeTreino, gerarXmlNfe, nfeProcDeTreino } from "./xml";
  * para a auditoria.
  */
 
-/** Treino (sem SEFAZ) e homologação (a SEFAZ de teste, sem valor fiscal). Produção só com o OK do proprietário (F4). */
-export const AMBIENTES_LIBERADOS: AmbienteNfe[] = ["treino", "homologacao"];
+/**
+ * Treino (sem SEFAZ), homologação (a SEFAZ de teste, sem valor fiscal) e produção. A produção só aparece e só emite
+ * quando a Configuração fiscal está em produção (quem aprova NF-e troca, com confirmação), e cada nota ainda passa
+ * pelas travas da virada: máscara confirmada e numeração depois da do sistema anterior (docs/PLANO-VIRADA-FISCAL.md).
+ */
+export const AMBIENTES_LIBERADOS: AmbienteNfe[] = ["treino", "homologacao", "producao"];
+
+/** A Configuração fiscal da empresa está em produção? */
+export async function producaoLigada(admin: SupabaseClient, org: string): Promise<boolean> {
+  const { data } = await admin.from("fiscal_config").select("ambiente").eq("organization_id", org).maybeSingle();
+  return data?.ambiente === "producao";
+}
+
+/** Ambientes que a empresa vê agora: treino e homologação sempre; produção só com a Configuração em produção. */
+export async function ambientesDaOrganizacao(admin: SupabaseClient, org: string): Promise<AmbienteNfe[]> {
+  return (await producaoLigada(admin, org)) ? ["treino", "homologacao", "producao"] : ["treino", "homologacao"];
+}
+
+/** Série e número de uma chave de acesso (posições 23–25 e 26–34). */
+const serieDaChave = (chave: string) => Number(chave.slice(22, 25));
+const numeroDaChave = (chave: string) => Number(chave.slice(25, 34));
+
+/**
+ * Numeração da produção (trava da virada): a série precisa ter o próximo número gravado na Configuração (a
+ * continuação do sistema anterior) e o número que vai sair tem de ser maior que o maior número já visto nas notas
+ * da própria empresa naquela série (as notas do GRV guardadas na plataforma). Sem isso a nota repetiria um número.
+ */
+export async function problemasDaNumeracaoNaProducao(admin: SupabaseClient, org: string, serie: number): Promise<Problema[]> {
+  const [{ data: cfg }, { data: serieCfg }, { data: usada }] = await Promise.all([
+    admin.from("fiscal_config").select("cnpj").eq("organization_id", org).maybeSingle(),
+    admin.from("fiscal_series").select("proximo_numero").eq("organization_id", org).eq("serie", serie).maybeSingle(),
+    admin.from("fiscal_nfe_numeracao").select("proximo").eq("organization_id", org).eq("ambiente", "producao").eq("serie", serie).maybeSingle(),
+  ]);
+  if (!serieCfg) return [{ campo: "numeracao", mensagem: `Série ${serie}: grave em Fiscal › Configuração o próximo número (a continuação do GRV) antes da primeira nota de produção.` }];
+  const proximo = Number(usada?.proximo ?? serieCfg.proximo_numero);
+  const cnpj = String(cfg?.cnpj ?? "").replace(/\D/g, "");
+  const { data: lidas } = cnpj.length === 14
+    ? await admin.from("fiscal_ibscbs_notas").select("chave").eq("organization_id", org).eq("emitente_cnpj", cnpj).not("chave", "is", null).order("emissao", { ascending: false }).limit(500)
+    : { data: [] as { chave: string }[] };
+  const doSistemaAnterior = (lidas ?? []).map((l) => String(l.chave)).filter((c) => /^\d{44}$/.test(c) && serieDaChave(c) === serie).map(numeroDaChave);
+  const maior = doSistemaAnterior.length ? Math.max(...doSistemaAnterior) : 0;
+  if (proximo <= maior) {
+    return [{ campo: "numeracao", mensagem: `Série ${serie}: o próximo número (${proximo}) já foi usado — a última nota da empresa vista na plataforma é a nº ${maior}. Grave em Fiscal › Configuração o número seguinte ao último emitido pelo GRV.` }];
+  }
+  return [];
+}
 
 export type Autor = { org: string; userId: string; profileId: string; nome: string };
 
@@ -140,7 +184,11 @@ export async function validarEGravar(admin: SupabaseClient, org: string, registr
   avisos.push(...avisosIbsCbs(registro.nota, emitente?.crt ?? 3, await ibsCbsLegal(admin, hojeEmBrasilia())));
   // Produção (docs/PLANO-VIRADA-FISCAL.md, trava 3): cada item sai de uma máscara de impostos confirmada pelo Fiscal
   // com o contador. Nota digitada à mão, ou máscara ainda "a confirmar", não vai à SEFAZ de produção.
-  if (registro.ambiente === "producao") erros.push(...(await problemasDeMascaraNaProducao(admin, org, registro.nota)));
+  if (registro.ambiente === "producao") {
+    erros.push(...(await problemasDeMascaraNaProducao(admin, org, registro.nota)));
+    if (!(await producaoLigada(admin, org))) erros.push({ campo: "ambiente", mensagem: "A Configuração fiscal não está em produção: a nota de produção não sai." });
+    if (!registro.numero) erros.push(...(await problemasDaNumeracaoNaProducao(admin, org, registro.serie ?? (await serieDaOrganizacao(admin, org)))));
+  }
   // Homologação: a SEFAZ de teste já rejeita nota do regime normal sem o grupo IBS/CBS ("Grupo IBSCBS não informado",
   // provado em 29/10/2026). Erro aqui, antes de gastar a transmissão.
   if (registro.ambiente === "homologacao" && (emitente?.crt ?? 3) === 3 && registro.nota.itens.some((i) => !i.ibsCbsCst)) {

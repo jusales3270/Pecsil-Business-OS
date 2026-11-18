@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireFeature } from "../../../../lib/auth/feature-guard";
 import { normalizarNota } from "../../../../lib/fiscal/emissao/normalizar";
 import { problemasDoEmitente } from "../../../../lib/fiscal/emissao/regras";
-import { AMBIENTES_LIBERADOS, COLUNAS_CLIENTE, COLUNAS_LISTA, ambienteLiberado, auditar, autorDaSessao, clienteDaOrganizacao, definirOrigens, emitenteDaOrganizacao, gravarNoCadastroDoCliente, resumoDaNota } from "../../../../lib/fiscal/emissao/servidor";
+import { COLUNAS_CLIENTE, COLUNAS_LISTA, ambienteLiberado, ambientesDaOrganizacao, auditar, autorDaSessao, clienteDaOrganizacao, definirOrigens, emitenteDaOrganizacao, gravarNoCadastroDoCliente, resumoDaNota } from "../../../../lib/fiscal/emissao/servidor";
 import { transmissorConfigurado } from "../../../../lib/fiscal/transmissor";
 import { createSupabaseAdminClient } from "../../../../lib/supabase/admin";
 
@@ -21,6 +21,8 @@ export async function GET(request: Request) {
   const autor = await autorDaSessao(guard.supabase);
   if (!autor) return NextResponse.json({ error: "Sessão sem organização." }, { status: 400 });
   const admin = createSupabaseAdminClient();
+  const ambientes = await ambientesDaOrganizacao(admin, autor.org);
+  if (!ambientes.includes(ambiente as never)) return NextResponse.json({ error: "A produção só abre com a Configuração fiscal em produção." }, { status: 400 });
   const [{ data: notas, error }, { data: usados }, { data: clientes }, emitente, { data: inutilizacoes }, { data: mascaras }, { data: ncms }] = await Promise.all([
     guard.supabase.from("fiscal_nfe").select(COLUNAS_LISTA).eq("ambiente", ambiente).order("created_at", { ascending: false }).limit(300),
     // Destinatários já usados: a próxima nota para o mesmo cliente já vem com o endereço.
@@ -41,7 +43,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     notas: notas ?? [],
     ambiente,
-    ambientes: AMBIENTES_LIBERADOS,
+    ambientes,
     emitente: emitente ? { razaoSocial: emitente.razaoSocial, cnpj: emitente.cnpj, uf: emitente.uf, crt: emitente.crt } : null,
     problemasEmitente: problemasDoEmitente(emitente),
     destinatarios: [...destinatarios.values()],
@@ -66,6 +68,7 @@ export async function POST(request: Request) {
   if (!autor) return NextResponse.json({ error: "Sessão sem organização." }, { status: 400 });
   const nota = normalizarNota(corpo?.nota);
   const admin = createSupabaseAdminClient();
+  if (!(await ambientesDaOrganizacao(admin, autor.org)).includes(ambiente as never)) return NextResponse.json({ error: "A produção só abre com a Configuração fiscal em produção." }, { status: 400 });
   const customer = await gravarNoCadastroDoCliente(admin, autor, await clienteDaOrganizacao(admin, autor.org, corpo?.customer_id), nota.destinatario);
   const { data, error } = await admin.from("fiscal_nfe").insert({
     organization_id: autor.org, ambiente, situacao: "rascunho", nota, ...resumoDaNota(nota), customer_id: customer,
